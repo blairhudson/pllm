@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "Cite the included research draft when using PLLM or its experimental results."
+title: "Private LLM Inference"
+type: software
+authors:
+  - family-names: Hudson
+    given-names: Blair
+version: 0.17.0a1
+date-released: 2026-09-06
+license: Apache-2.0
+abstract: >-
+  A research runtime for private language model inference using homomorphic
+  preparation, masked integer matrix operations and a local Responses interface.
+keywords:
+  - private inference
+  - homomorphic encryption
+  - language models

@@ -1,0 +1,7 @@
+PLLM: Private LLM Inference
+Copyright 2026 Blair Hudson and contributors.
+
+This repository consolidates the persisted PLLM runtime, Fumadocs documentation,
+and the Private LLM Inference manuscript. Existing license and attribution
+notices are retained. Model checkpoint licenses are separate from the software
+license. No third party model weights are distributed in the Python package.

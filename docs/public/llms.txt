@@ -1,0 +1,33 @@
+# PLLM
+
+Private LLM inference documentation. Public weights; provider follows the protocol.
+
+- [Use the Agents SDK](/docs/client/agents/): Keep the Responses endpoint and tracing inside your chosen trust boundary.
+- [Chat from the terminal](/docs/client/chat/): Stream a conversation without writing application code.
+- [Configure once](/docs/client/configuration/): The SDK and chat CLI share the same local settings.
+- [Install the client](/docs/client/install/): Use UV to install the CLI and Python client from this repository.
+- [Follow a request](/docs/client/lifecycle/): From preparation to the text your application receives.
+- [Use the OpenAI SDK](/docs/client/openai/): Point the standard SDK at your local gateway, not at the provider.
+- [Python SDK](/docs/client/python/): Keep HE details out of application code.
+- [Deploy with Docker](/docs/deployment/docker/): A provider container and a separate customer gateway.
+- [Deployment overview](/docs/deployment/overview/): Separate the provider, trusted client, and documentation site.
+- [Publish the documentation](/docs/deployment/site/): Build a static Fumadocs site and deploy through GitHub Pages.
+- [Deploy with systemd](/docs/deployment/systemd/): Run the provider as a dedicated user with a protected environment file.
+- [Start here](/docs/): A familiar API. A different privacy boundary.
+- [Run your first private request](/docs/quickstart/): Start a provider, configure the client, and generate a response.
+- [CLI reference](/docs/reference/cli/): The flags below come from the supplied parser.
+- [Compatibility matrix](/docs/reference/compatibility/): What the supplied code implements, and what was actually exercised.
+- [Project structure](/docs/reference/development/): Work on the Rust core, Python package, documentation and paper in one repository.
+- [Build and release](/docs/reference/releasing/): GitHub checks, PyPI publication and Pages deployment.
+- [Troubleshooting](/docs/reference/troubleshooting/): Resolve configuration and lifecycle failures without weakening the protocol.
+- [How PLLM works](/docs/research/architecture/): A local Responses interface around a private matrix protocol.
+- [Benchmarks](/docs/research/benchmarks/): Read the workload and denominator before reading the speedup.
+- [Private LLM Inference](/docs/research/paper/): The full paper. Preparation, decoding, and the client and provider boundary.
+- [Reproduce the study](/docs/research/reproduce/): Keep the experiment environment separate from the serving runtime.
+- [Implementation roadmap](/docs/research/roadmap/): The next work follows measured costs, not a new model architecture.
+- [Security boundaries](/docs/security/): Name the protected data, the adversary, and what still leaks.
+- [Install a provider](/docs/server/install/): Build the Rust extension and load a supported checkpoint.
+- [Model support](/docs/server/models/): Distinguish tensor import, graph execution, and quality validation.
+- [Rust execution core](/docs/server/native/): Maturin packaging, integer kernels, backend inspection and measured comparisons.
+- [Tune the right bottleneck](/docs/server/performance/): Measure the complete lifecycle before increasing a batch.
+- [Run a provider](/docs/server/usage/): Declare the checkpoint policy and choose a supported execution path.

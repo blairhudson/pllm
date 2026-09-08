@@ -1,0 +1,42 @@
+---
+title: "Security boundaries"
+description: "Name the protected data, the adversary, and what still leaks."
+---
+
+## Public weights
+
+The client retains plaintext prompts, token IDs, activation scales, decryption keys, masks, and model state. The provider observes encrypted preparation, masked stage values, shapes, stage names, timing, and scheduling.
+
+Under the protocol's assumption that the provider follows its operations, fresh uniform masks hide the online values. Confidentiality of the encrypted preparation also depends on the HE parameters and implementation. Message authentication does not prove the provider computed the intended matrix.
+
+The optional `two-provider` strategy replaces BFV preparation with two fresh
+uniform ring-2^32 shares. Each provider sees only one share and returns one
+linear output share. Privacy requires honest execution and genuinely independent
+administrative domains that do not collude. Two processes, ports, containers, or
+accounts controlled by one operator do not satisfy that assumption. The client
+rejects equal provider origins, non-TLS remote origins, non-public models, and
+different model commitments, but those checks cannot prove organizational
+independence. Anyone observing both plaintext channels could reconstruct the
+activation, so only TLS is accepted away from loopback.
+
+## Confidential weights
+
+The client sees intermediate outputs in public, blinded, and guarded paths. A modified client can submit chosen layer inputs and reconstruct a matrix from enough independent queries. Blinding preparation removes one equation source but does not remove this layer oracle.
+
+Guarded controls limit traffic and bind requests to a principal. They do not establish model secrecy. A protocol for hostile clients must enforce the computation while keeping intermediate values shared or encrypted with a suitable output policy.
+
+## What the fixes address
+
+The included correction patch keeps activation scales local, replaces mask generation with operating system randomness and unbiased modular sampling, and makes result check challenges unpredictable by default. The synthetic scale experiment identified 4,092 of 4,096 token rows before this correction.
+
+That experiment demonstrates why searching payloads for literal prompt text is insufficient. Private metadata can reveal content even when the text itself is absent.
+
+## Single use material
+
+Reserve before sending. Once a mask has been exposed in an online request, never return it to an available pool. Timeout, cancellation, rejected speculative work, and an uncertain network result all consume material.
+
+Transactions protect against interrupted writes. They do not protect against restoring an earlier database or virtual machine snapshot. The lifecycle study discards material across new session epochs; the reference runtime should not be advertised as resistant to complete snapshot rollback.
+
+## Deployment assumptions
+
+Keep the local gateway and client device trusted. Restrict network access. Disable external conversation tracing. Audit log destinations. Independent review of the complete malicious provider protocol is still required before making a claim against actively hostile model hosts.

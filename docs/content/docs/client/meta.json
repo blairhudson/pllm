@@ -1,0 +1,12 @@
+{
+  "title": "Client",
+  "pages": [
+    "install",
+    "configuration",
+    "python",
+    "chat",
+    "openai",
+    "agents",
+    "lifecycle"
+  ]
+}

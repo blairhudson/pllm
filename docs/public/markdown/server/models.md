@@ -1,0 +1,64 @@
+# Model support
+
+Distinguish tensor import, graph execution, and quality validation.
+
+
+| Source or graph | Reference status |
+| --- | --- |
+| Local float Safetensors, single file or shards | Implemented importer |
+| Dense Llama and Mistral graph | Implemented reference graph |
+| Qwen2 graph | Implemented reference graph |
+| Supported Gemma text layouts | Implemented reference graph |
+| Supported MLX affine quantization | Selected layouts only |
+| vLLM directory containing HF tensors | Imported as tensors, not delegated private execution |
+| Qwen3.5-27B complete checkpoint | Not executed; stage dimensions and small hybrid study only |
+| Sparse expert models | No private routing implementation |
+| GGUF / llama.cpp | Metadata inspection and trusted plaintext routing only |
+| Ollama | Metadata inspection and trusted plaintext routing only |
+| Rust and Maturin runtime | Implemented integer matrix executor and Python binding |
+
+## Hub authentication and caching
+
+Remote model IDs use the standard Hugging Face Hub environment. Set `HF_TOKEN`
+for private or gated repositories. PLLM delegates token discovery to
+`huggingface_hub`, so stored `hf auth login` credentials also work. Explicit
+`--hf-token` and `--hf-cache-dir` options override those defaults.
+
+`pllm serve` keeps up to 8 MiB range requests open over 32 concurrent HTTP
+streams while recording each finished 512 KiB checkpoint durably. Restarting the
+same command reuses those checkpoints and redownloads only data that was active at
+the interruption. The final file is SHA-256 verified before becoming visible to
+the compiler. Set `PLLM_HF_DOWNLOAD_WORKERS` from 1 through 64 to change the
+concurrency.
+
+Completed models are reused without a network request. The default model cache is
+`~/.cache/pllm/models`; `PLLM_HF_MODEL_CACHE` overrides it. If set, `HF_HOME` or
+`HF_HUB_CACHE` supplies the base cache location instead, with `HF_HUB_CACHE`
+taking precedence. Keep the same
+`--hf-cache-dir` when supplying one.
+
+A completed cache pins the requested revision, including mutable names such as
+`main`, to the resolved commit. Remove that model's cache directory when you
+intend to refresh a mutable revision, or pass a new explicit `--revision`.
+
+```bash
+export HF_TOKEN=hf_...
+pllm serve Qwen/Qwen2.5-1.5B-Instruct \
+  --weights public \
+  --compiled-cache-dir ~/.cache/pllm/compiled
+```
+
+Keep the compiled cache between starts. PLLM reuses both Hub downloads and
+quantized matrices when source files and compilation settings are unchanged.
+
+## A source format is not an execution guarantee
+
+Reading a configuration does not establish that every operator is supported. A model becomes a private execution candidate only after tensor names, shapes, nonlinear operations, tokenizer behaviour, and continuation state are validated.
+
+Test a checkpoint in four steps: import coverage, clear quantized execution, private versus clear quantized parity, and language quality relative to the original checkpoint. The last step needs representative prompts and held out evaluation data.
+
+## Public token material
+
+Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from homomorphic preparation and online provider calls. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
+
+Proprietary model bundles do not contain these matrices. They retain remote private token lookup and output projection, so public and proprietary latency measurements are not interchangeable.

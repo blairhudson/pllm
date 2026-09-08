@@ -1,0 +1,61 @@
+name: Build documentation
+
+on:
+  workflow_call:
+    inputs:
+      base-path:
+        type: string
+        default: ""
+        description: "Static website path; /pllm exercises project Pages links"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      NEXT_PUBLIC_BASE_PATH: ${{ inputs.base-path }}
+      NEXT_TELEMETRY_DISABLED: "1"
+      UV_VERSION: "0.10.0"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: docs/.nvmrc
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Install manuscript tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra pandoc
+      - name: Build the paper from source
+        run: |
+          make paper
+          uv run --no-project --python 3.13 python scripts/prepare_docs.py
+      - name: Install website dependencies
+        run: bash scripts/install_docs.sh
+      - name: Validate and build Fumadocs
+        working-directory: docs
+        run: |
+          npm run check:content
+          npm test
+          npm run typecheck
+          npm run build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pllm-site
+          path: docs/out/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pllm-paper
+          path: |
+            docs/public/downloads/paper.pdf
+            docs/public/downloads/paper-source.zip
+          if-no-files-found: error

@@ -1,0 +1,13 @@
+[package]
+name = "pllm-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Exact integer execution, codecs, and masking for private LLM inference"
+publish = false
+
+[dependencies]
+rayon.workspace = true
+getrandom.workspace = true

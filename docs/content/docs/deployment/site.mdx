@@ -1,0 +1,44 @@
+---
+title: "Publish the documentation"
+description: "Build a static Fumadocs site and deploy through GitHub Pages."
+---
+
+## Local build
+
+From the repository root:
+
+```bash
+make paper
+uv run --no-project --python 3.13 python scripts/prepare_docs.py
+cd docs
+npm install
+npm test
+npm run typecheck
+npm run build
+```
+
+Use `npm ci` after committing the lockfile. Deploy the `out/` directory to a
+static host. No inference provider is part of this site.
+
+## GitHub Pages
+
+In repository Settings, select **Pages → GitHub Actions**. The supplied
+`.github/workflows/pages.yml` reads the Pages configuration, builds the paper
+and site, uploads the static output and deploys it from the `github-pages`
+environment. Only the `main` branch can deploy.
+
+The workflow handles project paths such as `/pllm/` and configured custom
+domains. Test the former locally with:
+
+```bash
+NEXT_PUBLIC_BASE_PATH=/pllm npm run build
+```
+
+Downloads, raw HTML links, search and Markdown exports use the configured path.
+The PR workflow independently typechecks and builds the same application.
+
+## Public assets
+
+Search is executed in the browser. The search index, paper and recorded
+benchmark evidence are public. Never put API keys, prompts, HE secrets, model
+weights or preparation inventories under `public/`.

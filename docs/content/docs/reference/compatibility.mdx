@@ -1,0 +1,22 @@
+---
+title: "Compatibility matrix"
+description: "What the supplied code implements, and what was actually exercised."
+---
+
+| Surface | Reference implementation | Validation boundary |
+| --- | --- | --- |
+| `pllm serve`, `configure`, `chat`, `sidecar` | Present | CLI help and source contracts inspected |
+| Direct `pllm.OpenAI` client | Present | Reference application tests |
+| Local `/v1/responses` text create | Present | Local transport tests |
+| Text SSE stream | Present | Event generation tests |
+| Retrieve and cancel | Present | Not a promise of background response execution |
+| `previous_response_id` | Local client history | Not cross client server storage |
+| Official OpenAI SDK | Local gateway integration pattern | Current installed package conformance not established |
+| Agents SDK | Text adapter example | Current installed package integration not established |
+| Function tools and structured outputs | Not established for the private path | Do not enable based on API resemblance |
+| Full Open Responses acceptance suite | Not run | No full conformance claim |
+| Real Qwen3.5-27B generation | Not run | Synthetic stage dimensions only |
+| Coefficient preparation backend | Separate experiment code | Not wired into default `pllm serve` |
+| Rust extension and Maturin wheel | Not in the available source | No native Rust performance claim |
+
+Compatibility has three distinct meanings: a method name exists, a request is accepted, and the full semantics pass the selected SDK's tests. The documentation does not treat one as proof of the others.

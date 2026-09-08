@@ -1,0 +1,29 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "pixels_identical": true
+    },
+    {
+      "page": 2,
+      "pixels_identical": true
+    },
+    {
+      "page": 3,
+      "pixels_identical": true
+    },
+    {
+      "page": 4,
+      "pixels_identical": true
+    },
+    {
+      "page": 5,
+      "pixels_identical": true
+    },
+    {
+      "page": 6,
+      "pixels_identical": true
+    }
+  ],
+  "source_zip_sha256": "87f76ef473a116ced695802437bb615af9d0366d566a941c72043ce6b7c590b5"
+}

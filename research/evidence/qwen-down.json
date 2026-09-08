@@ -1,0 +1,32 @@
+[
+  {
+    "shape": [
+      17408,
+      5120
+    ],
+    "batch": 2048,
+    "degree": 2048,
+    "plain_modulus": 2097169,
+    "coefficient_modulus": 18014398509404161,
+    "coefficient_bits": 54,
+    "setup_s": 0.006125541999949746,
+    "random_s": 1.309709797000039,
+    "client_encrypt_export_s": 8.892989981000028,
+    "server_digits_s": 6.5070949240000004,
+    "server_gemm_s": 5.991525354999965,
+    "client_import_decrypt_s": 2.030336781999722,
+    "preparation_s": 24.731656838999754,
+    "correlations_per_s": 82.80884751604977,
+    "noise_bits_min": 18,
+    "validation_s": 1.0909322470001257,
+    "verified_rows": 16,
+    "verified_all_output_columns": true,
+    "wire_input_bytes": 570458185,
+    "wire_output_bytes": 167772160,
+    "input_mask_bytes": 142606336,
+    "output_mask_bytes": 41943040,
+    "round": 0,
+    "peak_rss_mib": 2649.87109375,
+    "threads": 4
+  }
+]

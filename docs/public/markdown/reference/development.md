@@ -1,0 +1,99 @@
+# Project structure
+
+Work on the Rust core, Python package, documentation and paper in one repository.
+
+
+PLLM is one Python package built with Maturin. The public import is `pllm` and
+the command is `pllm`. Fumadocs is the documentation application in this repository.
+
+## Source layout
+
+```text
+pyproject.toml
+Cargo.toml
+rust-toolchain.toml
+python/pllm/                 Python API, CLI and runtime
+crates/pllm-core/             Rust numeric library
+crates/pllm-python/           PyO3 extension
+
+docs/                        Fumadocs application
+paper/                       Pandoc Markdown manuscript
+tests/                       Python and integration tests
+benchmarks/                  Performance measurements
+```
+
+The Rust core is independent of Python. The binding depends on the core and
+exposes `pllm._native`. Python handles the request lifecycle and model graph;
+SEAL/TenSEAL handles encryption. Maturin installs both Python code and the
+compiled extension into the same package.
+
+## Set up with UV
+
+```bash
+uv sync --extra he --extra sdk
+uv run pllm build
+```
+
+A platform wheel needs no Rust compiler on the inference host. Building from
+source needs the toolchain recorded in `rust-toolchain.toml`. Before a release,
+resolve and commit `Cargo.lock`, `uv.lock` and `docs/package-lock.json`.
+
+## Change Rust
+
+```bash
+cargo test -p pllm-core
+cargo clippy --workspace --all-targets -- -D clippy::correctness
+uv run maturin develop --release
+PLLM_REQUIRE_RUST=1 uv run pytest -m rust
+```
+
+Matrices own immutable weight snapshots. Native calls release Python's
+interpreter lock while arithmetic runs. Bytes are copied at the interface;
+measure those conversions rather than calling this a zero copy design.
+
+## Change Python
+
+```bash
+uv run ruff check python/pllm scripts tests
+uv run pytest
+uv run python scripts/check_repository.py
+```
+
+Applications import `pllm`. The implementation under `pllm.runtime` is internal.
+Importing `pllm` loads public objects on demand instead of loading the provider
+and HE library immediately.
+
+## Test the distribution
+
+```bash
+uv build
+uv run python scripts/check_distributions.py dist
+uv run twine check --strict dist/*
+```
+
+The native wheel jobs install outside the source checkout and verify the compiled
+module. They reject the Python reference backend. See [Release setup](/docs/reference/releasing)
+for publishing and deployment.
+
+## Website and paper
+
+```bash
+make paper
+uv run --no-project --python 3.13 python scripts/prepare_docs.py
+cd docs
+npm install
+npm test
+npm run typecheck
+npm run build
+```
+
+The result in `docs/out` can be served by GitHub Pages. The paper PDF, source
+archive and article are generated from the manuscript. The website and manuscript
+are not installed into the Python wheel.
+
+## Upstream documentation
+
+- [Maturin project layout](https://www.maturin.rs/project_layout.html)
+- [Maturin configuration](https://www.maturin.rs/config)
+- [PyO3 parallel execution](https://pyo3.rs/v0.26.0/parallelism.html)
+- [Fumadocs static export](https://www.fumadocs.dev/docs/deploying/static)

@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@import '../public/brand.css';
+
+@theme inline {
+ --color-fd-primary: var(--accent);
+ --color-fd-primary-foreground: var(--ink);
+ --color-fd-background: var(--bg);
+ --color-fd-foreground: var(--text);
+ --color-fd-muted: var(--panel);
+ --color-fd-muted-foreground: var(--muted);
+ --color-fd-border: var(--line);
+ --color-fd-card: var(--panel);
+ --color-fd-card-foreground: var(--text);
+ --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+ --font-mono: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+.docs-root { --fd-banner-height: 72px; --fd-layout-offset: 72px; }
+#nd-sidebar { top:72px; height:calc(100dvh - 72px); background:var(--bg); }
+#nd-docs-layout { padding-top:0; }
+#nd-page h1 { letter-spacing:-.055em; font-size:clamp(2.2rem,4vw,3.4rem); line-height:1.05; }
+#nd-page { padding-top:44px; }
+#nd-page article, #nd-page .prose { max-width:78ch; }
+.docs-root .doc-actions { margin-bottom:28px; }

@@ -1,0 +1,91 @@
+name: Build native wheels
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    name: Rust wheel ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            zig: true
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            zig: true
+          - os: macos-14
+            target: aarch64-apple-darwin
+            zig: false
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            zig: false
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            zig: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLLM_REQUIRE_RUST: "1"
+      PLLM_KERNEL_BACKEND: rust
+      CARGO_TERM_COLOR: always
+      TARGET: ${{ matrix.target }}
+      USE_ZIG: ${{ matrix.zig }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: "0.10.0"
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: bash scripts/prepare_rust.sh
+      - name: Compile and test Rust
+        run: |
+          export PYO3_PYTHON="$(uv python find 3.13)"
+          cargo test --locked -p pllm-core
+          cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
+      - name: Build portable wheel with Maturin
+        run: |
+          args=()
+          if [[ "$USE_ZIG" == "true" ]]; then args+=(--zig --compatibility manylinux_2_28); fi
+          uv run --no-project --python 3.13 --with 'maturin[zig]>=1.9,<2' \
+            maturin build --release --locked --target "$TARGET" \
+            --interpreter "$(uv python find 3.13)" --out dist "${args[@]}"
+      - name: Install and test the wheel outside the checkout
+        run: |
+          export PLLM_WHEEL="$(find "$GITHUB_WORKSPACE/dist" -name '*.whl' -print -quit)"
+          uv venv --python 3.13 "$RUNNER_TEMP/pllm-wheel"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            PY="$RUNNER_TEMP/pllm-wheel/Scripts/python.exe"
+          else
+            PY="$RUNNER_TEMP/pllm-wheel/bin/python"
+          fi
+          uv pip install --python "$PY" "$PLLM_WHEEL" pytest
+          cd "$RUNNER_TEMP"
+          "$PY" "$GITHUB_WORKSPACE/scripts/smoke_installed.py"
+          mkdir -p pllm-native-tests
+          cp "$GITHUB_WORKSPACE/tests/test_rust_backend.py" pllm-native-tests/
+          cp "$GITHUB_WORKSPACE/tests/test_installed_namespace.py" pllm-native-tests/
+          "$PY" -m pytest -q pllm-native-tests --junitxml=native-wheel-tests.xml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-wheel-tests-${{ matrix.target }}
+          path: ${{ runner.temp }}/native-wheel-tests.xml
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pllm-wheel-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error

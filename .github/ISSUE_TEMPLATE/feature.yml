@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose an API, protocol or documentation improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change and validation
+      description: Include any effects on privacy, latency, model quality or compatibility.
+    validations:
+      required: true

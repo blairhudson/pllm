@@ -1,0 +1,62 @@
+[
+  {
+    "shape": [
+      5120,
+      34816
+    ],
+    "batch": 2048,
+    "degree": 2048,
+    "plain_modulus": 2097169,
+    "coefficient_modulus": 18014398509404161,
+    "coefficient_bits": 54,
+    "setup_s": 0.002171813000018119,
+    "random_s": 0.6060529729999189,
+    "client_encrypt_export_s": 2.3517394279999735,
+    "server_digits_s": 0.43828425599997445,
+    "server_gemm_s": 15.402801196999803,
+    "client_import_decrypt_s": 13.759285399001215,
+    "preparation_s": 32.558163253000885,
+    "correlations_per_s": 62.90281131910093,
+    "noise_bits_min": 19,
+    "validation_s": 2.01962387100059,
+    "verified_rows": 16,
+    "verified_all_output_columns": true,
+    "wire_input_bytes": 167805001,
+    "wire_output_bytes": 1140850688,
+    "input_mask_bytes": 41943040,
+    "output_mask_bytes": 285212672,
+    "round": 0,
+    "peak_rss_mib": 1066.06640625,
+    "threads": 4
+  },
+  {
+    "shape": [
+      5120,
+      34816
+    ],
+    "batch": 2048,
+    "degree": 2048,
+    "plain_modulus": 2097169,
+    "coefficient_modulus": 18014398509404161,
+    "coefficient_bits": 54,
+    "setup_s": 0.0011115749999817126,
+    "random_s": 0.1297717189999048,
+    "client_encrypt_export_s": 2.339593831000002,
+    "server_digits_s": 0.11046860600004038,
+    "server_gemm_s": 15.512940808001758,
+    "client_import_decrypt_s": 13.87807360199838,
+    "preparation_s": 31.970848566000086,
+    "correlations_per_s": 64.05835602931036,
+    "noise_bits_min": 19,
+    "validation_s": 2.1222200470004964,
+    "verified_rows": 16,
+    "verified_all_output_columns": true,
+    "wire_input_bytes": 167805001,
+    "wire_output_bytes": 1140850688,
+    "input_mask_bytes": 41943040,
+    "output_mask_bytes": 285212672,
+    "round": 1,
+    "peak_rss_mib": 1066.06640625,
+    "threads": 4
+  }
+]

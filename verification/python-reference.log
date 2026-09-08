@@ -1,0 +1,27 @@
+........................................................................ [ 28%]
+................sss..................................................... [ 57%]
+...................................................................ss... [ 85%]
+....................................                                     [100%]
+=============================== warnings summary ===============================
+tests/test_api_e2e.py::test_direct_sdk_nonstream_http
+  /opt/pyvenv/lib/python3.13/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_api_e2e.py::test_direct_sdk_nonstream_http
+  /opt/pyvenv/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_api_e2e.py: 7 warnings
+tests/test_transformer_e2e.py: 3 warnings
+tests/test_transport_sidecar.py: 3 warnings
+  /opt/pyvenv/lib/python3.13/site-packages/websockets/legacy/server.py:1178: DeprecationWarning: remove second argument of ws_handler
+    warnings.warn("remove second argument of ws_handler", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_official_sdk.py:49: Install the sdk extra for installed OpenAI SDK tests
+SKIPPED [1] tests/test_official_sdk.py:56: Install the sdk extra for installed OpenAI SDK tests
+SKIPPED [1] tests/test_official_sdk.py:63: Install the sdk extra for installed OpenAI SDK tests
+SKIPPED [1] tests/test_rust_backend.py:137: compiled Rust extension not present
+SKIPPED [1] tests/test_rust_backend.py:153: compiled Rust extension not present
+247 passed, 5 skipped, 13 deselected, 15 warnings in 20.51s

@@ -1,0 +1,47 @@
+---
+title: "Install the client"
+description: "Use UV to install the CLI and Python client from this repository."
+---
+
+## Requirements
+
+Use Python 3.11, 3.12 or 3.13 and UV. A source installation also needs Rust;
+a matching prebuilt wheel does not. The HE option installs TenSEAL. The client
+owns the key, tokenizer, private model state and preparation inventory, so it
+must run inside the customer's trusted environment.
+
+## From the repository
+
+```bash
+cd pllm
+uv sync --extra he
+uv run pllm --help
+```
+
+Install a persistent command from the same checkout:
+
+```bash
+uv tool install '.[he]'
+pllm --help
+```
+
+Or execute an isolated command without keeping a tool installation:
+
+```bash
+uvx --from '.[he]' pllm --help
+```
+
+These commands select the local source. They do not assume that a package named
+`pllm` on a public registry belongs to this project. After a verified release
+has been published to the project you control, the corresponding registry
+installation is `uv tool install 'pllm[he]'`.
+
+## Optional SDK integration
+
+```bash
+uv sync --extra he --extra sdk
+```
+
+The PLLM client can be imported directly. An ordinary OpenAI SDK can instead
+use the local gateway. Continue with [configuration](/docs/client/configuration/),
+[the Python client](/docs/client/python/) or [the OpenAI SDK](/docs/client/openai/).

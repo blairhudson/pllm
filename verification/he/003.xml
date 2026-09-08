@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.338" timestamp="2026-09-07T00:27:23.941953+00:00" hostname="localhost"><testcase classname="tests.test_blinded_protocol" name="test_real_bfv_blinded_preprocessing_and_online_stage" time="0.271" /></testsuite></testsuites>

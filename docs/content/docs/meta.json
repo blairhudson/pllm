@@ -1,0 +1,15 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "quickstart",
+    "---Build with PLLM---",
+    "client",
+    "server",
+    "deployment",
+    "---Understand the system---",
+    "research",
+    "security",
+    "reference"
+  ]
+}

@@ -1,0 +1,106 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "pllm"
+dynamic = ["version"]
+description = "Private language model inference with a local Responses API and remote matrix execution"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
+authors = [{name = "Blair Hudson"}]
+keywords = ["private inference", "homomorphic encryption", "language models", "Responses API"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security :: Cryptography",
+]
+dependencies = [
+  "cryptography>=44,<47", "fastapi>=0.115,<1", "filelock>=3.19,<4",
+  "huggingface-hub>=0.34,<2", "httpx>=0.28,<1", "jinja2>=3.1,<4",
+  "msgpack>=1.0,<2", "ml-dtypes>=0.5,<1", "numpy>=1.26,<3",
+  "prompt-toolkit>=3.0,<4", "rich>=13.9,<16", "safetensors>=0.4,<1",
+  "sentencepiece>=0.2,<1", "tokenizers>=0.21,<1", "uvicorn>=0.30,<1",
+  "websockets>=15,<16",
+]
+
+[project.optional-dependencies]
+he = ["tenseal==0.3.17"]
+sdk = ["openai>=3,<4"]
+# Transformers is only required for experiments that use its model classes.
+huggingface = ["transformers>=5,<6"]
+
+[project.scripts]
+pllm = "pllm.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<10", "pytest-asyncio>=0.24,<2", "pytest-cov>=6,<8",
+  "ruff>=0.12,<1", "build>=1.2,<2", "maturin>=1.9,<2", "twine>=6,<7", "pyyaml>=6,<7",
+  "torch>=2.7,<3",
+]
+
+[tool.uv]
+package = true
+default-groups = ["dev"]
+
+[tool.maturin]
+manifest-path = "crates/pllm-python/Cargo.toml"
+python-source = "python"
+python-packages = ["pllm"]
+module-name = "pllm._native"
+bindings = "pyo3"
+features = ["extension-module"]
+profile = "release"
+strip = true
+include = [
+  { path = "crates/**/*.rs", format = "sdist" },
+  { path = "crates/**/Cargo.toml", format = "sdist" },
+  { path = "crates/**/README.md", format = "sdist" },
+  { path = "python/**/*.py", format = "sdist" },
+  { path = "python/**/*.pyi", format = "sdist" },
+  { path = "Cargo.toml", format = "sdist" },
+  { path = "tests/**/*.py", format = "sdist" },
+  { path = "benchmarks/**/*", format = "sdist" },
+  { path = "scripts/**/*", format = "sdist" },
+  { path = "Cargo.lock", format = "sdist" },
+  { path = "rust-toolchain.toml", format = "sdist" },
+  { path = "SECURITY.md", format = "sdist" },
+]
+exclude = ["**/__pycache__/**", "**/*.pyc", "target/**", "docs/node_modules/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["python"]
+addopts = "-ra --strict-markers"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "slow: expensive cryptographic or external integration tests",
+  "integration: real localhost network tests",
+  "he: requires the actual TenSEAL backend",
+  "sdk: requires the installed official OpenAI SDK",
+  "rust: requires the compiled Rust extension",
+]
+
+[tool.coverage.run]
+source = ["pllm"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["research"]
+
+[tool.ruff.lint]
+# Enforce parser/runtime errors first; formatting legacy arithmetic is a separate change.
+select = ["E9", "F63", "F7", "F82"]

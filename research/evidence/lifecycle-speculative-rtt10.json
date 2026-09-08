@@ -1,0 +1,631 @@
+{
+  "scope": "Trained small 4-block hybrid decoder, not a Qwen checkpoint or quality benchmark",
+  "training_steps": 160,
+  "training_seconds": 3.6795878780001203,
+  "initial_training_loss": 3.7382395267486572,
+  "final_training_loss": 1.0836882591247559,
+  "checkpoint_sha256": "f317caac69ff2b9ac2d21846a061417a6b4b7c909db1399a140d8acd9173074b",
+  "generated_tokens": 96,
+  "prompt_tokens": 18,
+  "batch": 64,
+  "rtt_injected_ms": 10.0,
+  "clear": {
+    "wall_s": 0.21534392400008073,
+    "first_token_s": 0.010621475000107239,
+    "emission_intervals_s": [
+      3.9238999988810974e-05,
+      0.002391511000041646,
+      0.002199913999902492,
+      0.0020635599998968246,
+      0.002103750000060245,
+      0.0021982020000450575,
+      0.0020838410000578733,
+      0.0020483569999214524,
+      0.0020975509999061615,
+      0.0020393240001794766,
+      0.0021467340000072,
+      0.00204165699983605,
+      0.002108378000002631,
+      0.0025738040001215268,
+      0.002341795999882379,
+      0.0022107209999830957,
+      0.00205724000011287,
+      0.0023004150000360823,
+      0.0021006560000387253,
+      0.002287815999807208,
+      0.0021538949999921897,
+      0.0024163480002243887,
+      0.0021783719998893503,
+      0.0021857429999272426,
+      0.0021788030001061998,
+      0.0020812259999729577,
+      0.0022368499999174674,
+      0.002111942000055933,
+      0.002157461000024341,
+      0.002106123999965348,
+      0.002251851999972132,
+      0.002118551999956253,
+      0.0022625080000580056,
+      0.0022789530000864033,
+      0.002124952000031044,
+      0.0021963789999972505,
+      0.0020547569999962434,
+      0.0020953769999323413,
+      0.0020764400001098693,
+      0.00209790099984275,
+      0.0020678260000295268,
+      0.002114477000077386,
+      0.0020748169999933452,
+      0.002099362999842924,
+      0.002045894000048065,
+      0.002156299000034778,
+      0.0021040710000761464,
+      0.002364459999853352,
+      0.002136069000016505,
+      0.0020585920001394697,
+      0.002071241999828999,
+      0.002038412000047174,
+      0.002605571999993117,
+      0.0020988329999909183,
+      0.002328016000092248,
+      0.002091851999921346,
+      0.0023240100001657993,
+      0.0020766399998137786,
+      0.002098282000133622,
+      0.002362557999958881,
+      0.0022969300000568182,
+      0.00215427499983889,
+      0.002051763000054052,
+      0.00211334400000851,
+      0.0020919529999900988,
+      0.002146954999943773,
+      0.0020528439999907278,
+      0.0021079960001770814,
+      0.0020780319998721097,
+      0.002336980000109179,
+      0.002065372000060961,
+      0.0022128839998458716,
+      0.0021287179999944783,
+      0.0020439300001271477,
+      0.0020764500000041153,
+      0.0020492779999585764,
+      0.0021003159999963827,
+      0.0022624169998834986,
+      0.0021118330000717833,
+      0.002186042999937854,
+      0.0021268650000365596,
+      0.002155036999965887,
+      0.002132413000026645,
+      0.002139383999974598,
+      0.0021765989999948943,
+      0.002060045000007449,
+      0.002098112000112451,
+      0.002075276999903508,
+      0.002143961000001582,
+      0.0021071349999601807,
+      0.002036319000126241,
+      0.002076299000009385,
+      0.0021546870000292984,
+      0.0022883760000240727,
+      0.0021110519999183452,
+      0.0020944959999269486
+    ]
+  },
+  "private": {
+    "wall_s": 11.286258598000131,
+    "first_token_s": 1.3139010330000929,
+    "verification_blocks": 37,
+    "draft_rows": 148,
+    "accepted_draft_rows": 59,
+    "replay_seconds": 0.04728391200069382,
+    "saved_replay_rpc": 391
+  },
+  "preparation_seconds": 3.9384483640012604,
+  "online_rpc_seconds": 7.039709339996534,
+  "prepared_correlations": 4288,
+  "consumed_correlations": 3434,
+  "unused_correlations": 854,
+  "preparation_events": [
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.proj",
+      "seconds": 0.11487773099997867,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.out",
+      "seconds": 0.028126703999987512,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.up",
+      "seconds": 0.18404328200017517,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.down",
+      "seconds": 0.055501758999980666,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.proj",
+      "seconds": 0.044412275000013324,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.out",
+      "seconds": 0.024757746999966912,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.up",
+      "seconds": 0.11163538499999959,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.down",
+      "seconds": 0.05775426900004277,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.proj",
+      "seconds": 0.043141226999978244,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.out",
+      "seconds": 0.02704162500003804,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.up",
+      "seconds": 0.09305165400019177,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.down",
+      "seconds": 0.05363015000011728,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.proj",
+      "seconds": 0.061628935000044294,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.out",
+      "seconds": 0.0399899279998408,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.up",
+      "seconds": 0.08707350199983921,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.down",
+      "seconds": 0.05223896200004674,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "head",
+      "seconds": 0.02942197200013652,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.proj",
+      "seconds": 0.046590363999939655,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.out",
+      "seconds": 0.024237846000005447,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.up",
+      "seconds": 0.09234876000004988,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.down",
+      "seconds": 0.060869760000059614,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.proj",
+      "seconds": 0.04408581600000616,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.out",
+      "seconds": 0.024874627999906807,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.up",
+      "seconds": 0.09913321199996972,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.down",
+      "seconds": 0.05579412700012654,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.proj",
+      "seconds": 0.050556446999962645,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.out",
+      "seconds": 0.023887251000132892,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.up",
+      "seconds": 0.1111962869999843,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.down",
+      "seconds": 0.05438536700012264,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.proj",
+      "seconds": 0.061794130999942354,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.out",
+      "seconds": 0.036675244999969436,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.up",
+      "seconds": 0.09180211400007465,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.down",
+      "seconds": 0.054551777000142465,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "head",
+      "seconds": 0.03268049799999062,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.proj",
+      "seconds": 0.05586928100001387,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.out",
+      "seconds": 0.037856715999851076,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.up",
+      "seconds": 0.10133716399991499,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.down",
+      "seconds": 0.054491416000018944,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.proj",
+      "seconds": 0.045002824999983204,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.out",
+      "seconds": 0.024029243000086353,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.up",
+      "seconds": 0.1127533730000323,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.down",
+      "seconds": 0.05492528600007063,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.proj",
+      "seconds": 0.04319275300008485,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.out",
+      "seconds": 0.026124712999944677,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.up",
+      "seconds": 0.08987804000003052,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.down",
+      "seconds": 0.05380161800007954,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.proj",
+      "seconds": 0.05892818000006628,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.out",
+      "seconds": 0.03656478500010962,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.up",
+      "seconds": 0.08684922500015091,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.down",
+      "seconds": 0.05407744199987974,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "head",
+      "seconds": 0.034203982999997606,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.proj",
+      "seconds": 0.051978523000116184,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.out",
+      "seconds": 0.024161885000012262,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.up",
+      "seconds": 0.08647627600021224,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.0.down",
+      "seconds": 0.052277455999956146,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.proj",
+      "seconds": 0.04177251900000556,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.out",
+      "seconds": 0.024600006999889956,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.up",
+      "seconds": 0.10051735299998654,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.1.down",
+      "seconds": 0.05600063800011412,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.proj",
+      "seconds": 0.041478447000145025,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.out",
+      "seconds": 0.02476055199986149,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.up",
+      "seconds": 0.09896691699987059,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.2.down",
+      "seconds": 0.05471347599996079,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.proj",
+      "seconds": 0.05880366399992454,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.out",
+      "seconds": 0.03519230599999901,
+      "count": 64,
+      "noise_bits": 24
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.up",
+      "seconds": 0.09086804499997925,
+      "count": 64,
+      "noise_bits": 23
+    },
+    {
+      "kind": "preparation",
+      "stage": "blocks.3.down",
+      "seconds": 0.052203520000148274,
+      "count": 64,
+      "noise_bits": 23
+    }
+  ],
+  "audit": {
+    "operations": {
+      "prepare": 67,
+      "linear": 646
+    },
+    "fields": [
+      "batch",
+      "coeff",
+      "epoch",
+      "id",
+      "ids",
+      "input",
+      "op",
+      "q",
+      "stage",
+      "zero"
+    ],
+    "server_gemm_s": 0.09208744199804642,
+    "preparation_gemm_s": 0.7295941410000069,
+    "used_correlations": 3434,
+    "upload_bytes": 83533695,
+    "download_bytes": 134620530
+  },
+  "exact_tokens": true,
+  "exact_final_logits": null,
+  "draft_length": 4,
+  "generated_text": "ks d. t nfrh the client. the client. the client. the client. the client. the client. the client.",
+  "client_model_state_bytes": 5968,
+  "server_weight_bytes": 35456,
+  "all_preparation_included": true,
+  "empty_initial_inventory": true,
+  "server_process_has_he_secret": false
+}

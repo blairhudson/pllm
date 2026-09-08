@@ -1,0 +1,37 @@
+{
+  "api_keys": [
+    "change-me"
+  ],
+  "max_batch_size": 64,
+  "max_batch_wait_ms": 0.5,
+  "response_retention_seconds": 3600,
+  "allow_insecure_local_correlations": false,
+  "tenseal_path": null,
+  "backends": [
+    {
+      "name": "vllm",
+      "kind": "vllm",
+      "base_url": "http://127.0.0.1:8001",
+      "api_key": "local"
+    },
+    {
+      "name": "ollama",
+      "kind": "ollama",
+      "base_url": "http://127.0.0.1:11434",
+      "api_key": "ollama"
+    },
+    {
+      "name": "llama",
+      "kind": "llama.cpp",
+      "base_url": "http://127.0.0.1:8082",
+      "api_key": "local"
+    },
+    {
+      "name": "mlx",
+      "kind": "mlx-lm",
+      "base_url": "http://127.0.0.1:8083",
+      "api_key": "local"
+    }
+  ],
+  "adaptive_batching": true
+}

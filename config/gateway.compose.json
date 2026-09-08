@@ -1,0 +1,14 @@
+{
+  "api_keys": ["change-me"],
+  "max_batch_size": 64,
+  "max_batch_wait_ms": 0.5,
+  "adaptive_batching": true,
+  "response_retention_seconds": 3600,
+  "allow_insecure_local_correlations": false,
+  "tenseal_path": null,
+  "backends": [
+    {"name": "vllm", "kind": "vllm", "base_url": "http://vllm:8000", "api_key": "local"},
+    {"name": "ollama", "kind": "ollama", "base_url": "http://ollama:11434", "api_key": "ollama"},
+    {"name": "llama", "kind": "llama.cpp", "base_url": "http://llama:8080", "api_key": "local"}
+  ]
+}

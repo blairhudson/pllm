@@ -1,0 +1,9 @@
+{
+  "version": "0.17.0a1",
+  "exports_resolved": 38,
+  "package_path": "python/pllm",
+  "entrypoint": "pllm.cli:main",
+  "has_serve": true,
+  "has_chat": true,
+  "native_extension_built": false
+}

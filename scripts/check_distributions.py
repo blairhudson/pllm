@@ -1,0 +1,43 @@
+"""Ensure wheels contain the compiled native extension and that source/wheel versions agree."""
+from __future__ import annotations
+import argparse
+import email
+import tarfile
+import zipfile
+from pathlib import Path
+from release import version
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", nargs="?", type=Path, default=Path("dist"))
+    args = parser.parse_args()
+    wheels = list(args.directory.glob("*.whl"))
+    sources = list(args.directory.glob("*.tar.gz"))
+    assert len(wheels) == 1 and len(sources) == 1, "Build exactly one wheel and one sdist"
+    with zipfile.ZipFile(wheels[0]) as wheel:
+        assert wheel.testzip() is None
+        names = wheel.namelist()
+        assert "pllm/cli.py" in names
+        assert any(n.startswith("pllm/_native") and n.endswith((".so", ".pyd")) for n in names), "Compiled Rust module missing"
+        assert not any(n.startswith(("he_openai/", "python/", "docs/", "paper/")) for n in names)
+        assert "pllm/runtime/client.py" in names
+        assert "pllm/__main__.py" in names
+        assert "pllm/py.typed" in names
+        assert "pllm/_native.pyi" in names
+        wheel_metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/WHEEL"))))
+        assert wheel_metadata["Root-Is-Purelib"] == "false"
+        metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/METADATA"))))
+        assert metadata["Name"] == "pllm" and metadata["Version"] == version()
+    with tarfile.open(sources[0]) as archive:
+        names = archive.getnames()
+        assert any(n.endswith("/pyproject.toml") for n in names)
+        assert any(n.endswith("/crates/pllm-python/Cargo.toml") for n in names)
+        assert any(n.endswith("/crates/pllm-core/Cargo.toml") for n in names)
+        assert any(n.endswith("/python/pllm/__init__.py") for n in names)
+        assert any(n.endswith("/crates/pllm-core/src/kernels.rs") for n in names)
+        assert any(n.endswith("/tests/test_protocol.py") for n in names)
+        assert not any("node_modules" in n or n.endswith(".key") for n in names)
+    print("Wheel and source archive contain the required source and matching version")
+
+if __name__ == "__main__":
+    main()

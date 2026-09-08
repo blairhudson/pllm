@@ -1,0 +1,24 @@
+usage: pllm [-h] [--version]
+            {serve,configure,chat,sidecar,build,security,secure,market,provider} ...
+
+Private language model inference with an OpenAI Responses compatible client
+and server
+
+positional arguments:
+  {serve,configure,chat,sidecar,build,security,secure,market,provider}
+    serve               load Hugging Face models and run the private inference
+                        server
+    configure           save defaults used automatically by the SDK and chat
+                        client
+    chat                open an interactive private chat session
+    sidecar             run a localhost OpenAI compatible proxy for any SDK
+    build               build the native modular arithmetic kernels
+    security            show the precise security claim for every protocol
+    secure              run the complete authenticated decoder research
+                        preview
+    market              run or benchmark the private inference provider market
+    provider            create signed offers for the inference market
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit

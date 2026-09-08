@@ -1,0 +1,102 @@
+---
+title: "Rust execution core"
+description: "Maturin packaging, integer kernels, backend inspection and measured comparisons."
+---
+
+PLLM builds `pllm._native` with Rust, PyO3 and Maturin. Python retains the SDK,
+Responses lifecycle, checkpoint importer and model orchestration. SEAL through
+TenSEAL still implements homomorphic encryption. The Rust module does not replace
+that cryptographic library or change the protocol's security assumptions.
+
+## Workspace
+
+`crates/pllm-core` owns the numeric implementation and has no Python dependency.
+`crates/pllm-python` binds it through PyO3. Maturin installs the extension beside
+the Python code in `python/pllm`. There is no separate legacy package.
+
+See [Project structure](/docs/reference/development) for the build and test loop.
+
+## Operations
+
+| Operation | Implementation |
+| --- | --- |
+| Online modular matrix multiplication | Rust, AVX2 or ARM64 NEON, Rayon workers |
+| Clear integer reference matrix multiplication | Rust with scalar, AVX2 and ARM64 NEON paths |
+| Ciphertext coefficient matrix multiplication | Exact Rust integer limb arithmetic |
+| Wire encoding | Rust little endian u16, u24 and u32 |
+| Client masking and output subtraction | Rust integer loops |
+| Weight and activation quantization | Rust, float32, rounding ties to even |
+| Random masks | Operating system entropy and rejection sampling |
+| BFV encryption, evaluation and decryption | SEAL/TenSEAL |
+
+The matrix compiler copies each stage into an immutable native snapshot once.
+The provider reuses it for later requests. The interpreter lock is released
+while native arithmetic runs. The snapshot costs one additional byte per weight
+while the original tensor remains available to the HE preparation code. This is
+a memory cost, not a free optimization; record it for large checkpoints.
+
+## Build and inspect
+
+A source installation requires the Rust toolchain selected in
+`rust-toolchain.toml` as well as UV and Python. A platform wheel does not require
+a compiler on the inference machine.
+
+```bash
+uv sync --extra he
+uv run pllm build
+```
+
+`pllm build` now checks and reports the installed extension. It does not compile
+C++ into a user cache. To rebuild after modifying Rust:
+
+```bash
+uv run maturin develop --release
+uv run pllm build
+```
+
+```python
+from pllm.native import capabilities
+
+print(capabilities())
+```
+
+The native status reports the loaded backend, AVX2 and NEON support and the fact that
+there is no GPU backend. An absent extension is an error by default. The explicit
+`PLLM_KERNEL_BACKEND=python` setting selects the NumPy correctness reference.
+Release tests set `PLLM_REQUIRE_RUST=1` and reject that setting.
+
+## Thread policy
+
+The default native executor uses the available CPU cores, capped at 32. Set
+`PLLM_NATIVE_THREADS` to override it. An operator supplied
+thread count takes precedence. One thread is the default because short stage
+operations can lose time to scheduling. A persistent worker pool belongs to the
+engine; it is not created for every layer or request.
+
+AVX2 or ARM64 NEON instructions are selected at runtime. Other hosts use the
+portable scalar implementation. Platform wheels are not built with `target-cpu=native`, which
+would silently require the build machine's CPU features.
+
+## Benchmark
+
+```bash
+uv run python benchmarks/rust_migration.py --cpp-reference --threads 1
+uv run python benchmarks/rust_migration.py --cpp-reference --threads 4 --output results/four-threads.json
+uv run python benchmarks/rust_migration.py --qwen --cpp-reference --output results/large-shapes.json
+uv run python benchmarks/client_native.py --output results/client.json
+```
+
+The large shapes are synthetic matrices, not generation from a Qwen checkpoint.
+The runner checks every result, saves individual samples, includes buffer
+conversion in call timing, and records matrix compilation separately. A Rust
+benchmark fails when the extension is absent. Previous C++ measurements are not
+used as evidence of Rust performance.
+
+## Validation status
+
+The source migration was assembled in an environment without Rust or package
+registry access. Python reference tests and the original C++ overflow
+counterexample were executed there. Rust compilation, native parity and native
+speed measurements must pass the included CI workflows before publishing a wheel.
+The existing paper's timing tables describe the implementation before this
+migration; they have not been relabelled as Rust measurements.

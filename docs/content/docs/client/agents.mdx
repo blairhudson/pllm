@@ -1,0 +1,42 @@
+---
+title: "Use the Agents SDK"
+description: "Keep the Responses endpoint and tracing inside your chosen trust boundary."
+---
+
+The Agents SDK can call a Responses endpoint through `OpenAIResponsesModel`. Use the local PLLM gateway and explicitly disable external tracing for private conversations.
+
+```python
+import asyncio
+import os
+from agents import Agent, OpenAIResponsesModel, Runner, set_tracing_disabled
+from openai import AsyncOpenAI
+
+set_tracing_disabled(True)
+
+async def main() -> None:
+    async with AsyncOpenAI(
+        base_url="http://127.0.0.1:8080/v1",
+        api_key=os.environ["PLLM_LOCAL_API_KEY"],
+        max_retries=0,
+    ) as client:
+        agent = Agent(
+            name="Private assistant",
+            instructions="Answer in plain English.",
+            model=OpenAIResponsesModel(
+                model="private-model",
+                openai_client=client,
+            ),
+        )
+        result = await Runner.run(agent, "Explain homomorphic preparation.")
+        print(result.final_output)
+
+asyncio.run(main())
+```
+
+## Validate before enabling tools
+
+This is the documented integration pattern for a text agent. Execution against the installed current Agents SDK is an integration test still to run for this source snapshot. The private gateway does not claim support for tool loops, handoffs, structured outputs, or hosted tools.
+
+When adding tools, keep tool schemas, arguments, and results in the same trusted client boundary. Disabling provider prompt visibility does not protect data sent independently to a tool or tracing exporter.
+
+The [official model guide](https://openai.github.io/openai-agents-python/models/) describes the Responses adapter. The [tracing guide](https://openai.github.io/openai-agents-python/tracing/) describes exporter behaviour. Pin and test the SDK versions used in your application.

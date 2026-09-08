@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {readPages,validate,siteRoot} from '../scripts/content.mjs';
+const pages=readPages();
+test('navigation has unique routes',()=>assert.equal(new Set(pages.map(p=>p.url)).size,pages.length));
+test('all local content links resolve',()=>assert.deepEqual(validate().errors,[]));
+test('required user journeys exist',()=>{for(const p of ['quickstart','client/install','client/python','client/openai','client/agents','server/install','server/usage','deployment/docker','deployment/site','research/paper']) assert.ok(pages.some(v=>v.key===p),p);});
+test('private provider is not documented as ordinary Responses base URL',()=>{const p=pages.find(p=>p.key==='client/openai').content;assert.ok(p.includes('http://127.0.0.1:8080/v1'));assert.ok(!p.includes('base_url="http://127.0.0.1:8000/v1"'));});
+test('paper and evidence are downloadable',()=>{for(const f of ['paper.pdf','paper-source.zip','lifecycle-summary.json','evidence.zip','cli-help.txt']) assert.ok(fs.statSync(path.join(siteRoot,'public/downloads',f)).size>0,f);});
+test('no fabricated registry-only install in quick start',()=>assert.ok(pages.find(p=>p.key==='quickstart').content.includes('cd pllm')));
+test('Agents example disables tracing',()=>assert.ok(pages.find(p=>p.key==='client/agents').content.includes('set_tracing_disabled(True)')));
+test('static export and privacy friendly assets',()=>{assert.ok(fs.readFileSync(path.join(siteRoot,'next.config.mjs'),'utf8').includes("output: 'export'"));assert.ok(!fs.readFileSync(path.join(siteRoot,'app/layout.tsx'),'utf8').includes('next/font/google'));});

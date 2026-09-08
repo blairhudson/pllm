@@ -1,0 +1,31 @@
+# Build native code once. The runtime image needs neither Rust nor a C++ compiler.
+FROM rust:1.85.1-bookworm AS rust-toolchain
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+COPY --from=rust-toolchain /usr/local/cargo /usr/local/cargo
+COPY --from=rust-toolchain /usr/local/rustup /usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup
+ENV PATH="/usr/local/cargo/bin:$PATH" UV_LINK_MODE=copy
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+ENV UV_PROJECT_ENVIRONMENT=/opt/pllm/.venv
+WORKDIR /build
+COPY . .
+# Resolved locks are mandatory for deployment, rather than silently changing dependencies.
+RUN test -f Cargo.lock && test -f uv.lock
+RUN cargo metadata --locked --format-version 1 > /dev/null
+RUN uv sync --locked --extra he --no-dev && uv build --wheel --out-dir /dist
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS runtime
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
+ENV PLLM_KERNEL_BACKEND=rust PLLM_REQUIRE_RUST=1
+WORKDIR /opt/pllm
+COPY --from=builder /dist /dist
+COPY --from=builder /opt/pllm/.venv /opt/pllm/.venv
+# Replace the checkout editable install with the actual release wheel, without re-resolving dependencies.
+RUN uv pip install --python /opt/pllm/.venv/bin/python --no-deps --reinstall /dist/*.whl && rm -rf /dist
+COPY deploy/entrypoint.sh /usr/local/bin/pllm-entrypoint
+RUN useradd --uid 10001 --create-home pllm && mkdir -p /var/cache/pllm && chown -R pllm:pllm /var/cache/pllm
+ENV PATH="/opt/pllm/.venv/bin:$PATH" HOME=/home/pllm
+USER 10001:10001
+EXPOSE 8000 8080
+ENTRYPOINT ["/usr/local/bin/pllm-entrypoint"]
+CMD ["provider"]

@@ -1,0 +1,92 @@
+# Python SDK
+
+Keep HE details out of application code.
+
+
+## Generate text
+
+```python
+from pllm import OpenAI
+
+with OpenAI() as client:
+    response = client.responses.create(
+        input="Explain the preparation phase.",
+        max_output_tokens=128,
+    )
+    print(response.output_text)
+```
+
+`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. The SDK owns the secret key and performs preparation and unmasking locally.
+
+## Stream text
+
+```python
+from pllm import OpenAI
+
+with OpenAI() as client:
+    with client.responses.create(
+        input="Describe the client and provider boundary.",
+        max_output_tokens=128,
+        stream=True,
+    ) as stream:
+        for event in stream:
+            if event.type == "response.output_text.delta":
+                print(event.delta, end="", flush=True)
+    print()
+```
+
+The direct SDK returns PLLM response types. The [local gateway](/docs/client/openai) is the path to response objects parsed by the official SDK.
+
+## Continue a conversation
+
+```python
+from pllm import OpenAI
+
+with OpenAI() as client:
+    first = client.responses.create(input="What does a mask hide?")
+    second = client.responses.create(
+        input="And what happens when it is reused?",
+        previous_response_id=first.id,
+    )
+    print(second.output_text)
+```
+
+Conversation state belongs to this client process. Reusing the ID on another client or after losing local state is not a server history restore operation.
+
+## Explicit connection settings
+
+```python
+import os
+from pllm import OpenAI
+
+with OpenAI(
+    base_url=os.environ["PLLM_BASE_URL"],
+    api_key=os.environ["PLLM_API_KEY"],
+    model="private-model",
+    timeout=600,
+) as client:
+    print(client.responses.create(input="Hello").output_text)
+```
+
+The constructor also accepts `execution_strategy`, `secondary_base_url`,
+`secondary_api_key`, `he_transport`, `correlation_mode`,
+`correlation_prefetch`, `token_cache_size`, `tenseal_path`, and `http_client`.
+Two-provider execution is available only for public weights and requires
+independently administered providers connected over HTTPS. Most applications
+should leave these at their configured values.
+
+## Async applications
+
+```python
+import asyncio
+from pllm import AsyncOpenAI
+
+async def main() -> None:
+    async with AsyncOpenAI() as client:
+        response = await client.responses.create(input="Hello")
+        print(response.output_text)
+
+asyncio.run(main())
+```
+
+The reference async wrapper delegates work to threads. It is not a separate native async inference engine. Use one client and private state per independent conversation when measuring concurrency.

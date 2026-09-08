@@ -1,0 +1,32 @@
+name: pllm-evaluation
+services:
+  provider:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.runtime
+    environment:
+      PLLM_API_KEY: ${PLLM_API_KEY:?Set the provider credential}
+      PLLM_MODEL_SOURCE: /models/checkpoint
+      PLLM_MODEL_ID: ${PLLM_MODEL_ID:-private-model}
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - ${PLLM_MODEL_SOURCE:?Set an absolute checkpoint directory}:/models/checkpoint:ro
+      - compiled:/var/cache/pllm
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.runtime
+    command: ["gateway"]
+    environment:
+      PLLM_API_KEY: ${PLLM_API_KEY:?Set the provider credential}
+      PLLM_LOCAL_API_KEY: ${PLLM_LOCAL_API_KEY:?Set a different gateway credential}
+      PLLM_BASE_URL: http://provider:8000
+      PLLM_MODEL: ${PLLM_MODEL_ID:-private-model}
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on: ["provider"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+volumes:
+  compiled:

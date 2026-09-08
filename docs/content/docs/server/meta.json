@@ -1,0 +1,10 @@
+{
+  "title": "Server",
+  "pages": [
+    "install",
+    "usage",
+    "models",
+    "performance",
+    "native"
+  ]
+}

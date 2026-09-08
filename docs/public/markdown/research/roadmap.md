@@ -1,0 +1,28 @@
+# Implementation roadmap
+
+The next work follows measured costs, not a new model architecture.
+
+
+## Native client cryptography
+
+The large expansion spends 13.82 seconds decrypting a batch and 15.46 seconds in provider GEMM. A native batch bridge for encryption, decryption, and serialization addresses the client cost that server acceleration leaves behind.
+
+## Lower preparation traffic
+
+The compact Qwen capacity plan still spends more bytes on preparation than on online inference. A reviewed matrix correlation protocol must reduce this cost without exposing masks or providing a new model extraction interface.
+
+## Fewer causal exchanges
+
+A persistent socket cannot eliminate the 257 dependencies in the study graph. Larger secure execution regions must include nonlinear operations and state transitions, not just concatenate matrices around an operation the client still needs to perform.
+
+## Bounded inventories
+
+Stream prompt preparation by stage and keep a short decode horizon. Extend it only when session length and actual refill rates justify the memory and discarded work.
+
+## Real checkpoint and native runtime
+
+Import an actual Qwen checkpoint, validate all hybrid operators, compare W4A4 and W4A8 with the floating model, and run on intended client and provider hardware. A Rust and Maturin implementation must preserve these interfaces and pass the same arithmetic, lifecycle, and privacy regression tests before its speed is reported.
+
+## Stronger adversaries
+
+Public model weights do not remove the malicious provider problem. Confidential models additionally need execution enforcement and a limited output policy against modified clients. The arithmetic simulator and guarded query controls do not complete either protocol.

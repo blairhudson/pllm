@@ -1,0 +1,10 @@
+{
+  "baseline": "PLLM research reset based on persisted 0.14",
+  "prior_archive_sha256": "ffa9dc45dcf8627285f92233194a6ca52351a08e629bb8f7e62ee75844196d01",
+  "model_configs": [
+    "https://huggingface.co/Qwen/Qwen3.5-27B/raw/main/config.json",
+    "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/raw/main/config.json"
+  ],
+  "no_large_checkpoint_weights_loaded": true,
+  "container_model_download_attempt": "Hugging Face DNS resolution failed; no weight download completed"
+}

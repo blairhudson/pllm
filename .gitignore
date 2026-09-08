@@ -1,0 +1,57 @@
+# Python and local state
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage*
+coverage.xml
+htmlcov/
+build/
+dist/
+results/
+!research/evidence/
+!research/lifecycle/results/
+*.so
+*.dylib
+*.dll
+.env
+.env.*
+!.env.example
+!*.env.example
+*.key
+*.pem
+*.sqlite*
+*.db
+models/
+checkpoints/
+# JavaScript
+node_modules/
+.next/
+.source/
+*.tsbuildinfo
+docs/out/
+# Paper outputs are produced in CI
+paper/main.pdf
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+# Generated website assets
+# A source edition includes checked assets; CI refreshes them from the paper.
+.DS_Store
+.verification/
+
+release-assets/
+.artifacts/
+study-tests.xml
+
+/target/
+*.so
+*.pyd
+*.dylib

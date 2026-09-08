@@ -1,0 +1,14 @@
+{
+  "verified_on": "2026-09-06",
+  "actions": {
+    "CHECKOUT": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+    "UV": "astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78",
+    "NODE": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "UPLOAD": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "DOWNLOAD": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    "CONFIG_PAGES": "actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b",
+    "UPLOAD_PAGES": "actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa",
+    "DEPLOY_PAGES": "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    "ATTEST": "astral-sh/attest-action@f589a42a7efb6fe400b4f400de60b4bc90390027"
+  }
+}

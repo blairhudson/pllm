@@ -1,0 +1,36 @@
+{
+  "shape": [
+    17408,
+    2
+  ],
+  "batch": 16,
+  "degree": 2048,
+  "plain_modulus": 33554467,
+  "coefficient_modulus": 18014398509404161,
+  "coefficient_bits": 54,
+  "setup_s": 0.0011481199999252567,
+  "random_s": 0.004711898000095971,
+  "client_encrypt_export_s": 8.897657731000209,
+  "server_digits_s": 1.4818196690002878,
+  "server_gemm_s": 0.030937159000131942,
+  "client_import_decrypt_s": 0.0009362020000480697,
+  "preparation_s": 10.416062659000772,
+  "correlations_per_s": 1.5360890697190663,
+  "noise_bits_min": 14,
+  "validation_s": 0.001085746000171639,
+  "verified_rows": 16,
+  "verified_all_output_columns": true,
+  "wire_input_bytes": 570458185,
+  "wire_output_bytes": 65536,
+  "input_mask_bytes": 1114112,
+  "output_mask_bytes": 128,
+  "activation_bits": 8,
+  "weight_bits": 4,
+  "activation_extreme": 127,
+  "signed_extrema": [
+    -15475712,
+    15475712
+  ],
+  "exact_signed_extrema": true,
+  "scope": "Arithmetic and parameter test only; no Qwen quality evaluation"
+}

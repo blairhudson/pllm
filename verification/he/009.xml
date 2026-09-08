@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.486" timestamp="2026-09-07T00:27:52.523010+00:00" hostname="localhost"><testcase classname="tests.test_privacy_modes" name="test_proprietary_direct_bfv_stage_matches_clear_w4a4" time="0.411" /></testsuite></testsuites>

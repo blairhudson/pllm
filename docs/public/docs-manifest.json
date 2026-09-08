@@ -1,0 +1,176 @@
+[
+  {
+    "key": "client/agents",
+    "url": "/docs/client/agents/",
+    "title": "Use the Agents SDK",
+    "description": "Keep the Responses endpoint and tracing inside your chosen trust boundary."
+  },
+  {
+    "key": "client/chat",
+    "url": "/docs/client/chat/",
+    "title": "Chat from the terminal",
+    "description": "Stream a conversation without writing application code."
+  },
+  {
+    "key": "client/configuration",
+    "url": "/docs/client/configuration/",
+    "title": "Configure once",
+    "description": "The SDK and chat CLI share the same local settings."
+  },
+  {
+    "key": "client/install",
+    "url": "/docs/client/install/",
+    "title": "Install the client",
+    "description": "Use UV to install the CLI and Python client from this repository."
+  },
+  {
+    "key": "client/lifecycle",
+    "url": "/docs/client/lifecycle/",
+    "title": "Follow a request",
+    "description": "From preparation to the text your application receives."
+  },
+  {
+    "key": "client/openai",
+    "url": "/docs/client/openai/",
+    "title": "Use the OpenAI SDK",
+    "description": "Point the standard SDK at your local gateway, not at the provider."
+  },
+  {
+    "key": "client/python",
+    "url": "/docs/client/python/",
+    "title": "Python SDK",
+    "description": "Keep HE details out of application code."
+  },
+  {
+    "key": "deployment/docker",
+    "url": "/docs/deployment/docker/",
+    "title": "Deploy with Docker",
+    "description": "A provider container and a separate customer gateway."
+  },
+  {
+    "key": "deployment/overview",
+    "url": "/docs/deployment/overview/",
+    "title": "Deployment overview",
+    "description": "Separate the provider, trusted client, and documentation site."
+  },
+  {
+    "key": "deployment/site",
+    "url": "/docs/deployment/site/",
+    "title": "Publish the documentation",
+    "description": "Build a static Fumadocs site and deploy through GitHub Pages."
+  },
+  {
+    "key": "deployment/systemd",
+    "url": "/docs/deployment/systemd/",
+    "title": "Deploy with systemd",
+    "description": "Run the provider as a dedicated user with a protected environment file."
+  },
+  {
+    "key": "index",
+    "url": "/docs/",
+    "title": "Start here",
+    "description": "A familiar API. A different privacy boundary."
+  },
+  {
+    "key": "quickstart",
+    "url": "/docs/quickstart/",
+    "title": "Run your first private request",
+    "description": "Start a provider, configure the client, and generate a response."
+  },
+  {
+    "key": "reference/cli",
+    "url": "/docs/reference/cli/",
+    "title": "CLI reference",
+    "description": "The flags below come from the supplied parser."
+  },
+  {
+    "key": "reference/compatibility",
+    "url": "/docs/reference/compatibility/",
+    "title": "Compatibility matrix",
+    "description": "What the supplied code implements, and what was actually exercised."
+  },
+  {
+    "key": "reference/development",
+    "url": "/docs/reference/development/",
+    "title": "Project structure",
+    "description": "Work on the Rust core, Python package, documentation and paper in one repository."
+  },
+  {
+    "key": "reference/releasing",
+    "url": "/docs/reference/releasing/",
+    "title": "Build and release",
+    "description": "GitHub checks, PyPI publication and Pages deployment."
+  },
+  {
+    "key": "reference/troubleshooting",
+    "url": "/docs/reference/troubleshooting/",
+    "title": "Troubleshooting",
+    "description": "Resolve configuration and lifecycle failures without weakening the protocol."
+  },
+  {
+    "key": "research/architecture",
+    "url": "/docs/research/architecture/",
+    "title": "How PLLM works",
+    "description": "A local Responses interface around a private matrix protocol."
+  },
+  {
+    "key": "research/benchmarks",
+    "url": "/docs/research/benchmarks/",
+    "title": "Benchmarks",
+    "description": "Read the workload and denominator before reading the speedup."
+  },
+  {
+    "key": "research/paper",
+    "url": "/docs/research/paper/",
+    "title": "Private LLM Inference",
+    "description": "The full paper. Preparation, decoding, and the client and provider boundary."
+  },
+  {
+    "key": "research/reproduce",
+    "url": "/docs/research/reproduce/",
+    "title": "Reproduce the study",
+    "description": "Keep the experiment environment separate from the serving runtime."
+  },
+  {
+    "key": "research/roadmap",
+    "url": "/docs/research/roadmap/",
+    "title": "Implementation roadmap",
+    "description": "The next work follows measured costs, not a new model architecture."
+  },
+  {
+    "key": "security",
+    "url": "/docs/security/",
+    "title": "Security boundaries",
+    "description": "Name the protected data, the adversary, and what still leaks."
+  },
+  {
+    "key": "server/install",
+    "url": "/docs/server/install/",
+    "title": "Install a provider",
+    "description": "Build the Rust extension and load a supported checkpoint."
+  },
+  {
+    "key": "server/models",
+    "url": "/docs/server/models/",
+    "title": "Model support",
+    "description": "Distinguish tensor import, graph execution, and quality validation."
+  },
+  {
+    "key": "server/native",
+    "url": "/docs/server/native/",
+    "title": "Rust execution core",
+    "description": "Maturin packaging, integer kernels, backend inspection and measured comparisons."
+  },
+  {
+    "key": "server/performance",
+    "url": "/docs/server/performance/",
+    "title": "Tune the right bottleneck",
+    "description": "Measure the complete lifecycle before increasing a batch."
+  },
+  {
+    "key": "server/usage",
+    "url": "/docs/server/usage/",
+    "title": "Run a provider",
+    "description": "Declare the checkpoint policy and choose a supported execution path."
+  }
+]

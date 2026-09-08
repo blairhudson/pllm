@@ -1,0 +1,68 @@
+[
+  {
+    "shape": [
+      768,
+      256
+    ],
+    "batch": 2048,
+    "client_seeded_encrypt_s": 0.2779318550001335,
+    "server_expand_s": 0.22170120800001314,
+    "server_gemm_s": 0.14785759000005783,
+    "server_pack_s": 0.006174273999931756,
+    "client_unpack_s": 0.006463357000029646,
+    "client_decrypt_s": 0.09928034099993965,
+    "noise_min": 21,
+    "exact_all_outputs": true,
+    "raw_wire_bytes": 33554432,
+    "compact_wire_bytes": 19308013,
+    "input_bytes": 11967981,
+    "output_bytes": 7340032,
+    "wire_reduction": 0.42457637190818787,
+    "total_s": 0.7594086250001055,
+    "scope": "No physical network; standard seeded BFV inputs, lossless coefficient byte packing"
+  },
+  {
+    "shape": [
+      768,
+      256
+    ],
+    "batch": 2048,
+    "client_seeded_encrypt_s": 0.27079691200015077,
+    "server_expand_s": 0.21255434299996523,
+    "server_gemm_s": 0.07131006499980685,
+    "server_pack_s": 0.006102897000118901,
+    "client_unpack_s": 0.006055196000033902,
+    "client_decrypt_s": 0.09668341299993699,
+    "noise_min": 21,
+    "exact_all_outputs": true,
+    "raw_wire_bytes": 33554432,
+    "compact_wire_bytes": 19307898,
+    "input_bytes": 11967866,
+    "output_bytes": 7340032,
+    "wire_reduction": 0.42457979917526245,
+    "total_s": 0.6635028260000126,
+    "scope": "No physical network; standard seeded BFV inputs, lossless coefficient byte packing"
+  },
+  {
+    "shape": [
+      768,
+      256
+    ],
+    "batch": 2048,
+    "client_seeded_encrypt_s": 0.2836449739997988,
+    "server_expand_s": 0.2177068670000608,
+    "server_gemm_s": 0.07335067899998648,
+    "server_pack_s": 0.006956344999935027,
+    "client_unpack_s": 0.006994380999913119,
+    "client_decrypt_s": 0.10262732199998936,
+    "noise_min": 21,
+    "exact_all_outputs": true,
+    "raw_wire_bytes": 33554432,
+    "compact_wire_bytes": 19307885,
+    "input_bytes": 11967853,
+    "output_bytes": 7340032,
+    "wire_reduction": 0.4245801866054535,
+    "total_s": 0.6912805679996836,
+    "scope": "No physical network; standard seeded BFV inputs, lossless coefficient byte packing"
+  }
+]
