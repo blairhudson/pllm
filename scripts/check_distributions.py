@@ -24,6 +24,9 @@ def main() -> None:
         assert "pllm/__main__.py" in names
         assert "pllm/py.typed" in names
         assert "pllm/_native.pyi" in names
+        assert "pllm/dashboard/index.html" in names
+        assert "pllm/dashboard/app.js" in names
+        assert "pllm/dashboard/style.css" in names
         wheel_metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/WHEEL"))))
         assert wheel_metadata["Root-Is-Purelib"] == "false"
         metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/METADATA"))))
@@ -36,6 +39,9 @@ def main() -> None:
         assert any(n.endswith("/python/pllm/__init__.py") for n in names)
         assert any(n.endswith("/crates/pllm-core/src/kernels.rs") for n in names)
         assert any(n.endswith("/tests/test_protocol.py") for n in names)
+        assert any(n.endswith("/python/pllm/dashboard/index.html") for n in names)
+        assert any(n.endswith("/python/pllm/dashboard/app.js") for n in names)
+        assert any(n.endswith("/python/pllm/dashboard/style.css") for n in names)
         assert not any("node_modules" in n or n.endswith(".key") for n in names)
     print("Wheel and source archive contain the required source and matching version")
 

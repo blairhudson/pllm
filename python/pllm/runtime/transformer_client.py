@@ -28,6 +28,7 @@ from .stage_protocol import (
     StageCorrelation,
     unmask_stage_output,
 )
+from .telemetry import record_protocol_bytes, record_protocol_operation, start_protocol_span
 from .tokenizer import AlphabetTokenizer, Tokenizer
 
 
@@ -99,8 +100,15 @@ class ClientBundle:
         version = int(value["v"])
         new_format = {"v", "manifest", "runtime", "tokenizer", "arrays", "stages", "privacy"}
         legacy_format = {
-            "v", "runtime", "model", "manifest", "config", "tokenizer",
-            "stages", "local_tensors", "privacy",
+            "v",
+            "runtime",
+            "model",
+            "manifest",
+            "config",
+            "tokenizer",
+            "stages",
+            "local_tensors",
+            "privacy",
         }
         reference_format = legacy_format | {"client_weights"}
         keys = set(value)
@@ -108,11 +116,31 @@ class ClientBundle:
             runtime_config = dict(value["runtime"])
             array_rows = value["arrays"]
             weight_rows: dict[str, Any] = {}
-        elif version == 1 and keys == legacy_format and value.get("runtime") in {"masked_transformer", "direct_fhe_transformer", "blinded_ole_transformer", "guarded_blinded_transformer"}:
+        elif (
+            version == 1
+            and keys == legacy_format
+            and value.get("runtime")
+            in {
+                "masked_transformer",
+                "direct_fhe_transformer",
+                "blinded_ole_transformer",
+                "guarded_blinded_transformer",
+            }
+        ):
             runtime_config = dict(value["config"])
             array_rows = value["local_tensors"]
             weight_rows = {}
-        elif version == 2 and keys == reference_format and value.get("runtime") in {"masked_transformer", "direct_fhe_transformer", "blinded_ole_transformer", "guarded_blinded_transformer"}:
+        elif (
+            version == 2
+            and keys == reference_format
+            and value.get("runtime")
+            in {
+                "masked_transformer",
+                "direct_fhe_transformer",
+                "blinded_ole_transformer",
+                "guarded_blinded_transformer",
+            }
+        ):
             runtime_config = dict(value["config"])
             array_rows = value["local_tensors"]
             weight_rows = value["client_weights"]
@@ -125,7 +153,10 @@ class ClientBundle:
         client_weights: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         for weight_id, weight_row in weight_rows.items():
             if not isinstance(weight_row, dict) or set(weight_row) != {
-                "dtype", "shape", "data", "scales"
+                "dtype",
+                "shape",
+                "data",
+                "scales",
             }:
                 raise TransformerClientError(f"invalid client weight {weight_id}")
             shape = tuple(int(item) for item in weight_row["shape"])
@@ -133,9 +164,7 @@ class ClientBundle:
                 raise TransformerClientError(f"invalid client weight shape for {weight_id}")
             matrix = np.frombuffer(weight_row["data"], dtype=np.int8).copy()
             scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
-            if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (
-                shape[0],
-            ):
+            if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
                 raise TransformerClientError(f"invalid client weight length for {weight_id}")
             client_weights[str(weight_id)] = (matrix.reshape(shape), scales)
         stage_specs = {
@@ -166,15 +195,21 @@ class ClientBundle:
             weight_row = row.get("client_weight")
             if weight_row is not None:
                 if privacy.get("mode") != "public" or stage_id not in {"token_lookup", "lm_head"}:
-                    raise TransformerClientError("client stage weights require public boundary stages")
+                    raise TransformerClientError(
+                        "client stage weights require public boundary stages"
+                    )
                 if not isinstance(weight_row, dict):
                     raise TransformerClientError(f"invalid client weight for {stage_id}")
                 if version == 2:
                     if set(weight_row) != {"ref", "layout"}:
-                        raise TransformerClientError(f"invalid client weight reference for {stage_id}")
+                        raise TransformerClientError(
+                            f"invalid client weight reference for {stage_id}"
+                        )
                     reference = client_weights.get(str(weight_row["ref"]))
                     if reference is None:
-                        raise TransformerClientError(f"unknown client weight reference for {stage_id}")
+                        raise TransformerClientError(
+                            f"unknown client weight reference for {stage_id}"
+                        )
                     client_weight, client_weight_scales = reference
                     client_weight_layout = str(weight_row["layout"])
                     expected_shape = (
@@ -184,7 +219,10 @@ class ClientBundle:
                     )
                     if client_weight_layout not in {"linear", "embedding", "transposed_embedding"}:
                         raise TransformerClientError(f"invalid client weight layout for {stage_id}")
-                    if client_weight_layout != "embedding" and client_weight.shape != expected_shape:
+                    if (
+                        client_weight_layout != "embedding"
+                        and client_weight.shape != expected_shape
+                    ):
                         raise TransformerClientError(f"invalid client weight shape for {stage_id}")
                     if client_weight_layout == "embedding" and (
                         client_weight.shape[0] != int(row["in_features"])
@@ -218,7 +256,9 @@ class ClientBundle:
                     raise TransformerClientError(f"unknown auxiliary client weight for {stage_id}")
                 client_aux_weight, client_aux_scales = reference
                 if client_aux_weight.shape[1] != int(row["in_features"]):
-                    raise TransformerClientError(f"invalid auxiliary client weight shape for {stage_id}")
+                    raise TransformerClientError(
+                        f"invalid auxiliary client weight shape for {stage_id}"
+                    )
             local_width = 0
             if client_weight is not None:
                 local_width = (
@@ -318,8 +358,7 @@ class ClientBundle:
             raise TransformerClientError("token id outside model vocabulary")
         if stage.client_weight_layout == "embedding":
             result = (
-                stage.client_weight[ids].astype(np.float32)
-                * stage.client_weight_scales[ids, None]
+                stage.client_weight[ids].astype(np.float32) * stage.client_weight_scales[ids, None]
             )
         elif stage.client_weight_layout == "transposed_embedding":
             qmax = signed_qmax(stage.activation_bits)
@@ -355,12 +394,20 @@ class ClientBundle:
     def render_prompt(self, messages: list[Any], *, add_generation_prompt: bool = True) -> str:
         rows = [
             {
-                "role": str(getattr(item, "role", item.get("role") if isinstance(item, dict) else "user")),
-                "content": str(getattr(item, "text", item.get("content", "") if isinstance(item, dict) else item)),
+                "role": str(
+                    getattr(item, "role", item.get("role") if isinstance(item, dict) else "user")
+                ),
+                "content": str(
+                    getattr(
+                        item, "text", item.get("content", "") if isinstance(item, dict) else item
+                    )
+                ),
             }
             for item in messages
         ]
-        template = self.tokenizer_descriptor.get("chat_template") or self.manifest.get("chat_template")
+        template = self.tokenizer_descriptor.get("chat_template") or self.manifest.get(
+            "chat_template"
+        )
         if not template:
             suffix = "\nassistant:" if add_generation_prompt else ""
             return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
@@ -371,16 +418,20 @@ class ClientBundle:
             environment = SandboxedEnvironment(
                 undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True
             )
+
             def raise_exception(message: str) -> None:
                 raise TransformerClientError(str(message))
+
             environment.globals["raise_exception"] = raise_exception
-            return str(environment.from_string(str(template)).render(
-                messages=rows,
-                add_generation_prompt=bool(add_generation_prompt),
-                bos_token=self.tokenizer_descriptor.get("bos_token", ""),
-                eos_token=self.tokenizer_descriptor.get("eos_token", ""),
-                tools=None,
-            ))
+            return str(
+                environment.from_string(str(template)).render(
+                    messages=rows,
+                    add_generation_prompt=bool(add_generation_prompt),
+                    bos_token=self.tokenizer_descriptor.get("bos_token", ""),
+                    eos_token=self.tokenizer_descriptor.get("eos_token", ""),
+                    tools=None,
+                )
+            )
         except BaseException:
             # Custom Transformers templates may require extensions such as the
             # ``generation`` tag. Falling back remains deterministic and local.
@@ -394,8 +445,12 @@ class ClientBundle:
         if kind == "byte":
             return ModelByteTokenizer(
                 vocab_size=int(self.tokenizer_descriptor.get("vocab_size", self.cfg["vocab_size"])),
-                bos_token_id=int(self.tokenizer_descriptor.get("bos_token_id", self.cfg["bos_token_id"])),
-                eos_token_id=int(self.tokenizer_descriptor.get("eos_token_id", self.cfg["eos_token_id"])),
+                bos_token_id=int(
+                    self.tokenizer_descriptor.get("bos_token_id", self.cfg["bos_token_id"])
+                ),
+                eos_token_id=int(
+                    self.tokenizer_descriptor.get("eos_token_id", self.cfg["eos_token_id"])
+                ),
             )
         if kind == "sentencepiece":
             try:
@@ -414,7 +469,9 @@ class ClientBundle:
             try:
                 from tokenizers import Tokenizer as HFTokenizer
             except ImportError as exc:  # pragma: no cover - optional dependency
-                raise TransformerClientError("tokenizers is required for tokenizer.json models") from exc
+                raise TransformerClientError(
+                    "tokenizers is required for tokenizer.json models"
+                ) from exc
             inner = HFTokenizer.from_buffer(bytes(self.tokenizer_descriptor["model"]))
             return TokenizersJSONTokenizer(
                 inner,
@@ -569,12 +626,17 @@ class RemoteLinear:
             raise TransformerClientError("correlation provider returned the wrong row count")
         ring = rows[0].ring or stage.ring
         modulus = rows[0].modulus
-        if any(item.stage_id != stage_id or (item.ring or stage.ring) != ring or item.modulus != modulus for item in rows):
+        if any(
+            item.stage_id != stage_id
+            or (item.ring or stage.ring) != ring
+            or item.modulus != modulus
+            for item in rows
+        ):
             raise TransformerClientError("correlation arithmetic profile mismatch")
         masks = np.stack([np.asarray(item.mask).reshape(stage.in_features) for item in rows])
-        transformed = np.stack([
-            np.asarray(item.transformed_mask).reshape(stage.out_features) for item in rows
-        ])
+        transformed = np.stack(
+            [np.asarray(item.transformed_mask).reshape(stage.out_features) for item in rows]
+        )
         aggregate = StageCorrelation(
             id="batch-" + secrets.token_hex(12),
             stage_id=stage_id,
@@ -583,13 +645,13 @@ class RemoteLinear:
             modulus=modulus,
             ring=ring,
         )
-        masked = (
-            quantized.values.astype(np.int64) + masks.astype(np.int64)
-        ) % modulus
+        masked = (quantized.values.astype(np.int64) + masks.astype(np.int64)) % modulus
         masked = masked.astype(np.uint32)
         owner_state = getattr(self.correlations, "state", None)
         owner_bundle = getattr(owner_state, "bundle", None)
-        model_id = getattr(owner_bundle, "model_id", None) or getattr(self.correlations, "model_id", None)
+        model_id = getattr(owner_bundle, "model_id", None) or getattr(
+            self.correlations, "model_id", None
+        )
         if model_id is None:
             raise TransformerClientError("correlation provider does not expose a model id")
         request = MaskedStageRequest(
@@ -696,9 +758,7 @@ class PreparedRemoteLinear:
         )
         mask = expand_preparation_mask(preparation_request)
         output_mask = expand_output_mask(preparation_request)
-        complement = (
-            clear - mask.astype(np.int64)
-        ) % profile.modulus
+        complement = (clear - mask.astype(np.int64)) % profile.modulus
         hidden_scales = np.ones(quantized.rows, dtype=np.float32)
         inference_request = MaskedStageRequest(
             model=self.model_id,
@@ -722,6 +782,12 @@ class PreparedRemoteLinear:
         self.stats.preparation_upload_bytes += len(preparation_payload)
         self.stats.inference_upload_bytes += len(inference_request)
         self.stats.upload_bytes += len(preparation_payload) + len(inference_request)
+        record_protocol_operation(stage_id)
+        record_protocol_bytes("client", "preparation", len(preparation_payload), stage_id)
+        record_protocol_bytes("client", "inference", len(inference_request), stage_id)
+        protocol_span = start_protocol_span(
+            stage_id, len(preparation_payload), len(inference_request)
+        )
         prepared = self.executor.submit(self.preparation, stage_id, preparation_payload)
         inferred = self.executor.submit(self.inference, stage_id, [inference_request])
         futures = (prepared, inferred)
@@ -737,13 +803,20 @@ class PreparedRemoteLinear:
             self.stats.preparation_download_bytes += len(prepared_payload)
             self.stats.download_bytes += len(prepared_payload)
             self.stats.correction_push_bytes += ack.correction_bytes
+            record_protocol_bytes("preparation", "client", len(prepared_payload), stage_id)
+            record_protocol_bytes("preparation", "inference", ack.correction_bytes, stage_id)
             self.stats.correction_push_ns += ack.push_ns
             self.stats.preparation_server_ns += ack.server_ns
             inference_payloads = inferred.result()
             self.stats.inference_download_bytes += sum(map(len, inference_payloads))
             self.stats.download_bytes += sum(map(len, inference_payloads))
+            record_protocol_bytes(
+                "inference", "client", sum(map(len, inference_payloads)), stage_id
+            )
             inference_result = self._result(inference_payloads, attempt_id, stage)
-        except Exception:
+        except Exception as exc:
+            protocol_span.record_exception(exc)
+            protocol_span.end()
             for future in futures:
                 future.cancel()
             wait(futures)
@@ -752,16 +825,19 @@ class PreparedRemoteLinear:
                     future.exception()
             self.stats.failures += 1
             raise
+        protocol_span.set_attribute("pllm.preparation_client.bytes", len(prepared_payload))
+        protocol_span.set_attribute("pllm.preparation_inference.bytes", ack.correction_bytes)
+        protocol_span.set_attribute(
+            "pllm.inference_client.bytes", sum(map(len, inference_payloads))
+        )
+        protocol_span.end()
         combined = (
-            inference_result.masked_output.astype(np.int64)
-            + output_mask.astype(np.int64)
+            inference_result.masked_output.astype(np.int64) + output_mask.astype(np.int64)
         ) % profile.modulus
         if profile.ring == "u16":
             accumulators = combined.astype(np.uint16).view(np.int16).astype(np.int64)
         elif profile.ring == "u24":
-            accumulators = np.where(
-                combined >= 1 << 23, combined - (1 << 24), combined
-            )
+            accumulators = np.where(combined >= 1 << 23, combined - (1 << 24), combined)
         else:
             accumulators = combined.astype(np.uint32).view(np.int32).astype(np.int64)
         output = dequantize_matmul(
@@ -830,7 +906,9 @@ class MaskedTransformerClientRuntime:
         self.first_shared = self.layers - self.shared_count
         self.attention_k_eq_v = bool(self.cfg.get("attention_k_eq_v", False))
         self.ple_dim = int(self.cfg.get("hidden_size_per_layer_input", 0) or 0)
-        self.embedding_multiplier = float(self.cfg.get("embedding_multiplier", math.sqrt(self.hidden)))
+        self.embedding_multiplier = float(
+            self.cfg.get("embedding_multiplier", math.sqrt(self.hidden))
+        )
         self.block_style = str(self.cfg.get("block_style", "gemma4"))
         self.qk_norm = bool(self.cfg.get("qk_norm", True))
         self.v_norm = bool(self.cfg.get("v_norm", False))
@@ -884,8 +962,7 @@ class MaskedTransformerClientRuntime:
                 for row in self.caches
             ],
             shared_kv={
-                key: (value[0].copy(), value[1].copy())
-                for key, value in self.shared_kv.items()
+                key: (value[0].copy(), value[1].copy()) for key, value in self.shared_kv.items()
             },
         )
 
@@ -899,8 +976,7 @@ class MaskedTransformerClientRuntime:
             for row in snapshot.caches
         ]
         self.shared_kv = {
-            key: (value[0].copy(), value[1].copy())
-            for key, value in snapshot.shared_kv.items()
+            key: (value[0].copy(), value[1].copy()) for key, value in snapshot.shared_kv.items()
         }
 
     def decode_step(
@@ -914,7 +990,9 @@ class MaskedTransformerClientRuntime:
         logits = self._forward(np.asarray([token_id], dtype=np.int64))[-1]
         return logits, self.caches
 
-    def sample(self, logits: np.ndarray, *, temperature: float = 0.0, top_p: float | None = None) -> int:
+    def sample(
+        self, logits: np.ndarray, *, temperature: float = 0.0, top_p: float | None = None
+    ) -> int:
         if temperature <= 0:
             return int(np.argmax(logits))
         values = np.asarray(logits, dtype=np.float64) / float(temperature)
@@ -954,7 +1032,9 @@ class MaskedTransformerClientRuntime:
         positions = np.arange(self.position, self.position + ids.size, dtype=np.int64)
         ple = self._per_layer_inputs(hidden, ple_tokens) if self.ple_dim else None
         for index in range(self.layers):
-            hidden = self._layer(index, hidden, positions, None if ple is None else ple[:, index, :])
+            hidden = self._layer(
+                index, hidden, positions, None if ple is None else ple[:, index, :]
+            )
         hidden = self._norm(hidden, self._tensor("model.norm.weight", self.hidden))
         head = self.bundle.stages["lm_head"]
         head_input = hidden[-1:] if final_logits_only and head.client_weight is not None else hidden
@@ -1013,7 +1093,9 @@ class MaskedTransformerClientRuntime:
                         for token, row in zip(batch, looked_up, strict=True):
                             self.token_cache[int(token)] = np.asarray(row, dtype=np.float32).copy()
                             self.token_cache.move_to_end(int(token))
-                        while self.token_cache_size and len(self.token_cache) > self.token_cache_size:
+                        while (
+                            self.token_cache_size and len(self.token_cache) > self.token_cache_size
+                        ):
                             self.token_cache.popitem(last=False)
 
             with self.token_cache_lock:
@@ -1021,7 +1103,9 @@ class MaskedTransformerClientRuntime:
                     key = int(token)
                     cached = self.token_cache.get(key)
                     if cached is None:
-                        raise TransformerClientError(f"token lookup cache failed to materialize token {key}")
+                        raise TransformerClientError(
+                            f"token lookup cache failed to materialize token {key}"
+                        )
                     self.token_cache.move_to_end(key)
                     values[row] = cached
             if not self.token_cache_size:
@@ -1048,20 +1132,22 @@ class MaskedTransformerClientRuntime:
         one_hot[np.arange(ids.size), valid] = 1.0
         return self.remote(stage_id, one_hot)
 
-    def _per_layer_inputs(self, embedding: np.ndarray, token_ple: np.ndarray | None) -> np.ndarray | None:
+    def _per_layer_inputs(
+        self, embedding: np.ndarray, token_ple: np.ndarray | None
+    ) -> np.ndarray | None:
         if token_ple is None:
             return None
         token = token_ple.reshape(embedding.shape[0], self.layers, self.ple_dim)
         token = token * math.sqrt(self.ple_dim)
         if "model.per_layer_model_projection" in self.bundle.stages:
             context = self.remote("model.per_layer_model_projection", embedding)
-            context = context * (self.hidden ** -0.5)
+            context = context * (self.hidden**-0.5)
             context = context.reshape(embedding.shape[0], self.layers, self.ple_dim)
             context = self._norm(
                 context,
                 self._tensor("per_layer_projection_norm.weight", self.ple_dim),
             )
-            return (token + context) * (2 ** -0.5)
+            return (token + context) * (2**-0.5)
         return token
 
     def _layer(
@@ -1072,7 +1158,9 @@ class MaskedTransformerClientRuntime:
         per_layer_input: np.ndarray | None,
     ) -> np.ndarray:
         residual = hidden
-        normed = self._norm(hidden, self._tensor(f"layers.{index}.input_layernorm.weight", self.hidden))
+        normed = self._norm(
+            hidden, self._tensor(f"layers.{index}.input_layernorm.weight", self.hidden)
+        )
         attention = self._attention(index, normed, positions)
         if self.block_style == "gemma4":
             attention = self._norm(
@@ -1137,11 +1225,11 @@ class MaskedTransformerClientRuntime:
         else:
             qkv = self.remote(f"layers.{index}.self_attn.qkv_proj", hidden)
             query = qkv[:, :q_width].reshape(hidden.shape[0], self.heads, head_dim)
-            key = qkv[:, q_width:q_width + kv_width].reshape(hidden.shape[0], kv_heads, head_dim)
+            key = qkv[:, q_width : q_width + kv_width].reshape(hidden.shape[0], kv_heads, head_dim)
             if qkv.shape[-1] == q_width + kv_width:
                 value = key.copy()
             else:
-                value = qkv[:, q_width + kv_width:q_width + 2 * kv_width].reshape(
+                value = qkv[:, q_width + kv_width : q_width + 2 * kv_width].reshape(
                     hidden.shape[0], kv_heads, head_dim
                 )
             if self.qk_norm:
@@ -1151,7 +1239,9 @@ class MaskedTransformerClientRuntime:
             key = self._rope(key, positions, index)
             cache = self.caches[index]
             key_cache = key if cache.key is None else np.concatenate((cache.key, key), axis=0)
-            value_cache = value if cache.value is None else np.concatenate((cache.value, value), axis=0)
+            value_cache = (
+                value if cache.value is None else np.concatenate((cache.value, value), axis=0)
+            )
             cache.key, cache.value = key_cache, value_cache
             if self._producer_by_type.get(layer_type) == index:
                 self.shared_kv[layer_type] = (key_cache, value_cache)
@@ -1179,7 +1269,9 @@ class MaskedTransformerClientRuntime:
             probabilities = np.exp(scores).astype(np.float32)
             probabilities /= probabilities.sum(axis=-1, keepdims=True)
             output[row] = np.einsum("ht,thd->hd", probabilities, values)
-        return self.remote(f"layers.{index}.self_attn.o_proj", output.reshape(hidden.shape[0], q_width))
+        return self.remote(
+            f"layers.{index}.self_attn.o_proj", output.reshape(hidden.shape[0], q_width)
+        )
 
     def _shared_producers(self) -> dict[str, int]:
         result: dict[str, int] = {}
@@ -1208,9 +1300,7 @@ class MaskedTransformerClientRuntime:
         rotary_dim -= rotary_dim % 2
         if rotary_dim <= 0:
             return value
-        frequency = 1.0 / (
-            theta ** (np.arange(0, rotary_dim, 2, dtype=np.float32) / rotary_dim)
-        )
+        frequency = 1.0 / (theta ** (np.arange(0, rotary_dim, 2, dtype=np.float32) / rotary_dim))
         angles = positions.astype(np.float32)[:, None] * frequency[None, :]
         cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[:, None, :]
         sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[:, None, :]
@@ -1231,7 +1321,11 @@ class MaskedTransformerClientRuntime:
         return x / np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + self.eps)
 
     def _tensor(self, suffix: str, width: int) -> np.ndarray:
-        default = np.zeros(width, dtype=np.float32) if self.norm_offset else np.ones(width, dtype=np.float32)
+        default = (
+            np.zeros(width, dtype=np.float32)
+            if self.norm_offset
+            else np.ones(width, dtype=np.float32)
+        )
         return self.bundle.tensor(suffix, default=default)
 
     def _layer_value(self, index: int, key: str, default: int) -> int:
@@ -1247,8 +1341,10 @@ class MaskedTransformerClientRuntime:
         if name in {"silu", "swish"}:
             return value / (1.0 + np.exp(-value))
         if name in {"gelu", "gelu_pytorch_tanh", "gelu_new"}:
-            return 0.5 * value * (
-                1.0 + np.tanh(math.sqrt(2.0 / math.pi) * (value + 0.044715 * value**3))
+            return (
+                0.5
+                * value
+                * (1.0 + np.tanh(math.sqrt(2.0 / math.pi) * (value + 0.044715 * value**3)))
             )
         if name == "relu":
             return np.maximum(value, 0)

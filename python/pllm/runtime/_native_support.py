@@ -14,7 +14,7 @@ def _load():
         if exc.name != "pllm._native":
             raise
         return None
-    if module.capabilities().get("api_version") != 1:
+    if module.capabilities().get("api_version") != 2:
         raise RuntimeError("PLLM native extension API mismatch; rebuild this checkout")
     return module
 

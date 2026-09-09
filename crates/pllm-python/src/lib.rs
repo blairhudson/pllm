@@ -11,19 +11,40 @@ fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
 }
 fn bytes_u32(values: &[u32]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+    let mut output = Vec::with_capacity(std::mem::size_of_val(values));
+    for value in values {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
 }
 fn bytes_i32(values: &[i32]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+    let mut output = Vec::with_capacity(std::mem::size_of_val(values));
+    for value in values {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
 }
-fn bytes_u64(values: &[u64]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+fn py_bytes_u64<'py>(py: Python<'py>, values: &[u64]) -> PyResult<Bound<'py, PyBytes>> {
+    PyBytes::new_with(py, std::mem::size_of_val(values), |output| {
+        for (chunk, value) in output.chunks_exact_mut(8).zip(values) {
+            chunk.copy_from_slice(&value.to_le_bytes());
+        }
+        Ok(())
+    })
 }
 fn bytes_i64(values: &[i64]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+    let mut output = Vec::with_capacity(std::mem::size_of_val(values));
+    for value in values {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
 }
 fn bytes_f32(values: &[f32]) -> Vec<u8> {
-    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+    let mut output = Vec::with_capacity(std::mem::size_of_val(values));
+    for value in values {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
 }
 
 #[pyclass(frozen, module = "pllm._native")]
@@ -98,6 +119,20 @@ impl Executor {
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &bytes_u32(&out)))
     }
+    fn wrap64<'py>(
+        &self,
+        py: Python<'py>,
+        matrix: PyRef<'_, Matrix>,
+        input: &Bound<'_, PyBytes>,
+        batch: usize,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let input = codec::u64s(input.as_bytes()).map_err(invalid)?;
+        let m = &matrix.inner;
+        let out = py
+            .detach(|| m.wrap64(&self.inner, &input, batch))
+            .map_err(invalid)?;
+        py_bytes_u64(py, &out)
+    }
     fn clear<'py>(
         &self,
         py: Python<'py>,
@@ -125,7 +160,7 @@ impl Executor {
         let out = py
             .detach(|| m.coefficients(&self.inner, &input, columns, modulus))
             .map_err(invalid)?;
-        Ok(PyBytes::new(py, &bytes_u64(&out)))
+        py_bytes_u64(py, &out)
     }
 }
 #[pyfunction]
@@ -214,7 +249,7 @@ fn uniform_residues<'py>(
 #[pyfunction]
 fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     let out = PyDict::new(py);
-    out.set_item("api_version", 1)?;
+    out.set_item("api_version", 2)?;
     out.set_item("implementation", "rust")?;
     out.set_item("crate_version", env!("CARGO_PKG_VERSION"))?;
     out.set_item("avx2", kernels::has_avx2())?;

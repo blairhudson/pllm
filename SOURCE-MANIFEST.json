@@ -103,8 +103,8 @@
     },
     {
       "path": "ARCHITECTURE.md",
-      "bytes": 7798,
-      "sha256": "4b7d38c1648f02892d4892b61898af3e738463270e5ab4f10c021ee7795b5771"
+      "bytes": 8250,
+      "sha256": "bcfb65474b11977766b5481a9bae9ebe1ed06f61bb742488a01191daf0cd9cf3"
     },
     {
       "path": "CHANGELOG.md",
@@ -183,8 +183,8 @@
     },
     {
       "path": "benchmarks/README.md",
-      "bytes": 1346,
-      "sha256": "49623a9a460affc113e09fb6bd8b59d645f59dfd869004b750f816ded84ef50c"
+      "bytes": 2223,
+      "sha256": "c640dc5b14be40fa44c2a3855c5237d35d38a6e51842597b6e4e28b051456487"
     },
     {
       "path": "benchmarks/client_native.py",
@@ -238,13 +238,13 @@
     },
     {
       "path": "crates/pllm-core/src/codec.rs",
-      "bytes": 5092,
-      "sha256": "58d2be028f49ee205446d84843fc418f5646498fd961d54e0a2ea6228fc08a8f"
+      "bytes": 5094,
+      "sha256": "ca22a69ef2018af410f72485cadc34c5e47b46919f4d5209c58a2502ccfff494"
     },
     {
       "path": "crates/pllm-core/src/kernels.rs",
-      "bytes": 20201,
-      "sha256": "5dd6f83e8521af7b1cb67861302ee934a6a9cf6252b92bae7fe46bf72fef10fd"
+      "bytes": 22843,
+      "sha256": "8123bf516aa7ae6273ba8b4eade632d7296a871842f1ef0387b01a020816a42b"
     },
     {
       "path": "crates/pllm-core/src/lib.rs",
@@ -253,8 +253,8 @@
     },
     {
       "path": "crates/pllm-core/src/tests.rs",
-      "bytes": 5935,
-      "sha256": "e97e487ec9c5c2942fafad8c4f6351395d481715ece9b3496cadf9ab94dc3655"
+      "bytes": 7350,
+      "sha256": "064a6d2d9874fed8c848d976b20495295bf2a507db3e201db1f901eef11e05ba"
     },
     {
       "path": "crates/pllm-python/Cargo.toml",
@@ -268,8 +268,8 @@
     },
     {
       "path": "crates/pllm-python/src/lib.rs",
-      "bytes": 7637,
-      "sha256": "0a7e00c61d90b36acec95443f177c64a9fc4433817dc22d7a14242d551e64e0b"
+      "bytes": 8735,
+      "sha256": "d42c532365c598405adfb740b0231d418b05804479713a010e4018f2d9d6ee5e"
     },
     {
       "path": "deploy/Dockerfile.runtime",
@@ -933,8 +933,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 3349,
-      "sha256": "80574ae1c855b88ef7040f378838cc5ffbb72197e0574131ceff34cf4d8ed609"
+      "bytes": 3692,
+      "sha256": "c22e141392b8b9e21b00e9736edcda4fde4fc93a0c4c89cfeb0d6d1ef8eda0a1"
     },
     {
       "path": "python/pllm/__init__.py",
@@ -953,8 +953,8 @@
     },
     {
       "path": "python/pllm/_native.pyi",
-      "bytes": 1223,
-      "sha256": "050e0622085f53c9186246520865552157176b55b4fa74bbef1600c79fb5eca2"
+      "bytes": 1300,
+      "sha256": "4672b5b97a8372e019bdce7520940625207e3612ca2232a73b1c507d5413b422"
     },
     {
       "path": "python/pllm/_version.py",
@@ -968,13 +968,28 @@
     },
     {
       "path": "python/pllm/cli.py",
-      "bytes": 30649,
-      "sha256": "e5243452ddc36b728359e39532f9689bcd666d31fd930d5faa51ef312707afe5"
+      "bytes": 32117,
+      "sha256": "d97097687312c012c4918f13e125b0f0b03d221061c0e5fd1ce6d2ec6448594d"
     },
     {
       "path": "python/pllm/client.py",
       "bytes": 163,
       "sha256": "c07d3a69008a751b4565a9e86410025d5175dab6bcddbdc156ef4a6cfb43e7e7"
+    },
+    {
+      "path": "python/pllm/dashboard/app.js",
+      "bytes": 6420,
+      "sha256": "b87b07801a7c86f5d701ae436904f75277255f701cd4131773be4787d1285174"
+    },
+    {
+      "path": "python/pllm/dashboard/index.html",
+      "bytes": 5354,
+      "sha256": "68edd072f53108c4cba0cac595e67745df581098c6608796ac25b80d03434ef1"
+    },
+    {
+      "path": "python/pllm/dashboard/style.css",
+      "bytes": 10567,
+      "sha256": "e7ac8531aa2b36545c26c64ba4a8539b276df3d8ee94ff2a965be15adeaab288"
     },
     {
       "path": "python/pllm/market.py",
@@ -1019,7 +1034,7 @@
     {
       "path": "python/pllm/runtime/_native_support.py",
       "bytes": 1477,
-      "sha256": "739329fa5c1a4a4b9b92435982fc365de6a77dd8acdf32b9d5d906e42dcfdd28"
+      "sha256": "ce14f68b2184dc103a7e60eb03fa4b26dbfd2d9a5794f3deacdf6f4dd4fd6031"
     },
     {
       "path": "python/pllm/runtime/authenticated_mpc.py",
@@ -1092,6 +1107,11 @@
       "sha256": "be470261fff0a577bcc02819e68b8cf0c96224c1c22bc8ac9a4d9831898a421e"
     },
     {
+      "path": "python/pllm/runtime/dashboard.py",
+      "bytes": 24914,
+      "sha256": "86eac33258aa9651716c1b239f120887f29cde1b2b989a5cfbbf7565d66bfa8a"
+    },
+    {
       "path": "python/pllm/runtime/engine.py",
       "bytes": 2403,
       "sha256": "c92c6ed332926aa20341cbd81ecdd6cced82c97edc42a4499b33156fde9b82fb"
@@ -1153,8 +1173,8 @@
     },
     {
       "path": "python/pllm/runtime/native.py",
-      "bytes": 7886,
-      "sha256": "22e796e7a1b29046ffd0e171ee033cad621cfe000d86d065c87a2bb4dc5c3579"
+      "bytes": 9010,
+      "sha256": "20b81f8b4ab6a4d149a58590d264530d82607e2aa59aedd89ddd5bdeb37808da"
     },
     {
       "path": "python/pllm/runtime/native_kernels.py",
@@ -1178,8 +1198,8 @@
     },
     {
       "path": "python/pllm/runtime/preparation_server.py",
-      "bytes": 23160,
-      "sha256": "9c82c90c46aca4e0a1726df38666c38a9d7a061826ad81dc52eb37c2fd18bcc1"
+      "bytes": 23121,
+      "sha256": "26fc7b58a122fc068a769d1ee489307574484476b8d5d1adda5cd5a9c4a9cee2"
     },
     {
       "path": "python/pllm/runtime/preprocessing_inventory.py",
@@ -1243,13 +1263,53 @@
     },
     {
       "path": "python/pllm/runtime/server.py",
-      "bytes": 71524,
-      "sha256": "470748d0e7e89aac8982cbd32a30b2ddbcad08b68acf37e08d05243ca5a087a8"
+      "bytes": 74379,
+      "sha256": "b2c58ffc6cc7cee6ebd7c4e8da7b78942e8e101a8a7ba02e89a78e12f34c07ba"
+    },
+    {
+      "path": "python/pllm/runtime/shared_attention.py",
+      "bytes": 13618,
+      "sha256": "04121e269aafe00d7253ddeeeeb964cfe8be45320ef95086cee39f4ddad96b94"
+    },
+    {
+      "path": "python/pllm/runtime/shared_lookup.py",
+      "bytes": 7993,
+      "sha256": "bc5b11375930aea1f079a8190a3676fb99736a4cc65907c6d954f32ed328aa6b"
+    },
+    {
+      "path": "python/pllm/runtime/shared_mlp.py",
+      "bytes": 13412,
+      "sha256": "b53193959d9abc0f7e2216cf3015cc74038984f790d8dfeb7456b21265ed0305"
+    },
+    {
+      "path": "python/pllm/runtime/shared_mpc.py",
+      "bytes": 37987,
+      "sha256": "36cc7cf1e1b499dd1be81e44f77881a80f8a8b55f44601c91f03bfde4a2290c9"
+    },
+    {
+      "path": "python/pllm/runtime/shared_norm.py",
+      "bytes": 7313,
+      "sha256": "dbfea1467873442575d9f408c31988bfb4ceaa8e0eb51f90beef78f5897103c5"
+    },
+    {
+      "path": "python/pllm/runtime/shared_output.py",
+      "bytes": 6280,
+      "sha256": "02af96009240a0fedb96b1be7342b24c2d4d225721e6320b9d64f7a540dc6c55"
+    },
+    {
+      "path": "python/pllm/runtime/shared_party.py",
+      "bytes": 11226,
+      "sha256": "2dc7d802a99174f63a6d9d0c6f51dea717f83072ca249851cdfded927a687e84"
+    },
+    {
+      "path": "python/pllm/runtime/shared_session.py",
+      "bytes": 22755,
+      "sha256": "7715821202316a0ea5a6775fd495d8a4056373b6edc9d951e52c7cae4c6cde94"
     },
     {
       "path": "python/pllm/runtime/sidecar.py",
-      "bytes": 2531,
-      "sha256": "5b604ba485928e0694ff6b5fe599b5f1ed30973d4a1c2790396ee4fedcf1e7f2"
+      "bytes": 2655,
+      "sha256": "facbaff7b84ac518dde0f700fc6bd044262dcb9dda20581cc18f356dec7235f9"
     },
     {
       "path": "python/pllm/runtime/stage_protocol.py",
@@ -1260,6 +1320,11 @@
       "path": "python/pllm/runtime/synthetic.py",
       "bytes": 6760,
       "sha256": "39bb4449161fa0da7e7fce3213fef39e04a9771174bf2852ea91b230296f4b67"
+    },
+    {
+      "path": "python/pllm/runtime/telemetry.py",
+      "bytes": 4712,
+      "sha256": "0d17653b48199997d7cfafd5b125351becb240ef52fe3527b34b92c3130cd76b"
     },
     {
       "path": "python/pllm/runtime/tiled_bfv.py",
@@ -1283,8 +1348,8 @@
     },
     {
       "path": "python/pllm/runtime/transformer_client.py",
-      "bytes": 58185,
-      "sha256": "0a409bd59c344edf14f9c76e0cb3ecce75a0ba46b942d838f864008da433b7e4"
+      "bytes": 60612,
+      "sha256": "5e409df885d105f8bce3ee0408429d66ceb1d1df993cb4c43755f6b6b9758286"
     },
     {
       "path": "python/pllm/runtime/transformer_engine.py",
@@ -1903,8 +1968,8 @@
     },
     {
       "path": "scripts/check_distributions.py",
-      "bytes": 2298,
-      "sha256": "81476a2196c85e29847d7f50a666520b056148f6385f2c2c1dbc269a1f391cc3"
+      "bytes": 2693,
+      "sha256": "8667e66662cf79599f42a0eb3d39d0ff9441435433445de924f28ec133cbfcc4"
     },
     {
       "path": "scripts/check_he_results.py",
@@ -2027,6 +2092,11 @@
       "sha256": "4d648b14bdf28e583dc98f3b923d8d94a1944d3f2d917c879d459f5eb0d42db2"
     },
     {
+      "path": "tests/test_dashboard.py",
+      "bytes": 3594,
+      "sha256": "5338eeb8e6abce4fb7b1c8a03f287b964a5dd6ac11d5bc4242e63a9ef3dbc3b7"
+    },
+    {
       "path": "tests/test_decoder_simulator.py",
       "bytes": 10013,
       "sha256": "9e82820472082c958672c2fe7a3c7f25ad1cbe7f03790bdd410476d338633512"
@@ -2113,8 +2183,33 @@
     },
     {
       "path": "tests/test_rust_backend.py",
-      "bytes": 7256,
-      "sha256": "e2c67130afc7d85ac54d57140df23b30b9b193fa55b58db8f75e5d51a0e4d8df"
+      "bytes": 8173,
+      "sha256": "6ec3973bff3c1fb92f829359291d0588fc556c1321a03427b8d847faced85596"
+    },
+    {
+      "path": "tests/test_shared_lookup.py",
+      "bytes": 4122,
+      "sha256": "3f69cf31f2d2da438e5e8e719fef6ba78b6bbad76e9713922cd174765bb26c6b"
+    },
+    {
+      "path": "tests/test_shared_mpc.py",
+      "bytes": 15570,
+      "sha256": "916039bcc80eacc9e6e9c03df85c4b23b858e9599f8468a5626adb4c5b390a82"
+    },
+    {
+      "path": "tests/test_shared_output.py",
+      "bytes": 3524,
+      "sha256": "db41fe5b2a11963391755d728ad519529f7e563398372d8b1b95409222bc0cf4"
+    },
+    {
+      "path": "tests/test_shared_party.py",
+      "bytes": 20722,
+      "sha256": "aa30096b6354cf29d9e65ec2401b598c430fa250ccb7875040bdc34213024ea4"
+    },
+    {
+      "path": "tests/test_shared_session.py",
+      "bytes": 10323,
+      "sha256": "5bafa7360c153f9405d027f6360eddb5f51d1af4536cd057a03de880c4055e79"
     },
     {
       "path": "tests/test_tiled_bfv.py",
@@ -2148,8 +2243,8 @@
     },
     {
       "path": "uv.lock",
-      "bytes": 325153,
-      "sha256": "c4547241b83775876a7958619619a1a632f2da1d59ffeba4a8bc722cd41d22ee"
+      "bytes": 356928,
+      "sha256": "bdf7d1f26830d766767a6cbc709d65f4719558485ce1f2e0e4f385976ee85a28"
     },
     {
       "path": "verification/README.md",

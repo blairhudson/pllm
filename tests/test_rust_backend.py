@@ -1,4 +1,5 @@
 """The same reference vectors exercise both paths. CI requires a real extension."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -61,14 +62,37 @@ def test_wrap32_and_clear_extremes():
     w = np.full((3, 8193), -128, np.int8)
     s = MaskedGEMM(threads=2).compile(w)
     x = np.full((2, 8193), np.iinfo(np.uint32).max, np.uint32)
-    np.testing.assert_array_equal(s.wrap32(x), (x.astype(np.int64) @ w.astype(np.int64).T).astype(np.uint32))
-    np.testing.assert_array_equal(s.clear(np.full((2, 8193), -128, np.int8)), np.full((2, 3), 8193 * 16384))
+    np.testing.assert_array_equal(
+        s.wrap32(x), (x.astype(np.int64) @ w.astype(np.int64).T).astype(np.uint32)
+    )
+    np.testing.assert_array_equal(
+        s.clear(np.full((2, 8193), -128, np.int8)), np.full((2, 3), 8193 * 16384)
+    )
+
+
+def test_wrap64_extremes_and_leading_dimensions():
+    weights = np.array([[127, -128, 0], [-1, 1, 7]], dtype=np.int8)
+    inputs = np.array(
+        [
+            [[0, np.iinfo(np.uint64).max, 1], [2**63, 7, 11]],
+            [[13, 17, 19], [23, 29, 31]],
+        ],
+        dtype=np.uint64,
+    )
+    expected = np.asarray(
+        inputs.astype(object) @ weights.astype(object).T % (1 << 64), dtype=np.uint64
+    )
+    stage = MaskedGEMM(threads=2).compile(weights)
+    np.testing.assert_array_equal(stage.wrap64(inputs), expected)
+    np.testing.assert_array_equal(stage.wrap64(inputs[0, 0]), expected[0, 0])
+    np.testing.assert_array_equal(MaskedGEMM(threads=2).wrap64(weights, inputs), expected)
+    np.testing.assert_array_equal(stage.wrap64(inputs.astype(">u8")), expected)
 
 
 @pytest.mark.parametrize("q", [65537, 786433, (1 << 53) - 111])
 def test_ciphertext_coefficients_against_unbounded_integers(q):
     w = np.array([[127, -128, 7], [-7, 0, -128]], np.int8)
-    a = np.array([[q-1, 0, 1], [q-2, q-1, 0], [q-3, 17, q-1]], np.uint64)
+    a = np.array([[q - 1, 0, 1], [q - 2, q - 1, 0], [q - 3, 17, q - 1]], np.uint64)
     expected = np.array((w.astype(object) @ a.astype(object)) % q, dtype=np.uint64)
     np.testing.assert_array_equal(MaskedGEMM(threads=2).compile(w).coefficients(a, q), expected)
 
@@ -109,13 +133,16 @@ def test_quantization_matches_numpy_float32_sequence(bits):
 
 def test_quantization_ties():
     x = np.array([0.5, 1.5, 2.5, -0.5, -1.5, -2.5], np.float32)
-    actual = quantize_activation_per_row(x, scales=1.)
+    actual = quantize_activation_per_row(x, scales=1.0)
     assert actual.values.tolist() == [[0, 2, 2, 0, -2, -2]]
 
 
-@pytest.mark.parametrize("p,ring", [(65536, "u16"), (65537, "prime"), (33554467, "prime"), (1 << 32, "u32")])
+@pytest.mark.parametrize(
+    "p,ring", [(65536, "u16"), (65537, "prime"), (33554467, "prime"), (1 << 32, "u32")]
+)
 def test_mask_unmask(p, ring):
     from pllm.runtime.secure_random import uniform_residues
+
     x = np.array([-128, -7, 0, 7, 127], np.int8)
     r = uniform_residues(p, x.shape)
     c = StageCorrelation("mask-1", "layer", r, r.copy(), p, ring)
@@ -143,10 +170,13 @@ def test_invalid_inputs_fail_before_narrowing():
 @pytest.mark.skipif(not RUST_PRESENT, reason="compiled Rust extension not present")
 def test_raw_binding_truncated_and_malicious_lengths():
     from pllm import _native
+
     executor = _native.Executor(1)
     matrix = _native.Matrix(b"\x01", 1, 1)
     with pytest.raises(ValueError):
         executor.modular(matrix, b"\x00", 1, 65537)
+    with pytest.raises(ValueError):
+        executor.wrap64(matrix, b"\x00", 1)
     with pytest.raises(ValueError):
         _native.Matrix(b"\x00", 2**63, 2**63)
     with pytest.raises(ValueError):
@@ -159,11 +189,14 @@ def test_raw_binding_truncated_and_malicious_lengths():
 @pytest.mark.skipif(not RUST_PRESENT, reason="compiled Rust extension not present")
 def test_native_backend_is_really_loaded():
     from pllm.native import capabilities
+
     assert capabilities()["implementation"] == "rust"
     assert capabilities()["compiled"]
 
-@pytest.mark.parametrize("bad_scale", [float('nan'), float('inf'), 0.0, -1.0])
+
+@pytest.mark.parametrize("bad_scale", [float("nan"), float("inf"), 0.0, -1.0])
 def test_quantization_rejects_invalid_scales(bad_scale):
     from pllm.runtime.quantization import QuantizationError
+
     with pytest.raises(QuantizationError):
         quantize_activation_per_row(np.ones((1, 3), np.float32), scales=bad_scale)

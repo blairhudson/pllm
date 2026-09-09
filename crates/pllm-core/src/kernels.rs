@@ -182,6 +182,21 @@ impl Matrix {
         });
         Ok(transpose_result(transposed, self.rows, batch))
     }
+    pub fn wrap64(&self, executor: &Executor, x: &[u64], batch: usize) -> Result<Vec<u64>, String> {
+        let size = self.output_size(x.len(), batch)?;
+        if size == 0 {
+            return Ok(Vec::new());
+        }
+        let mut transposed = vec![0u64; size];
+        executor.rows(&mut transposed, batch, |row, outputs| {
+            let w = &self.weights[row * self.cols..(row + 1) * self.cols];
+            for (b, output) in outputs.iter_mut().enumerate() {
+                let input = &x[b * self.cols..(b + 1) * self.cols];
+                *output = dot_wrap64(w, input, executor.simd);
+            }
+        });
+        Ok(transpose_result(transposed, self.rows, batch))
+    }
     pub fn clear(&self, executor: &Executor, x: &[i8], batch: usize) -> Result<Vec<i32>, String> {
         let size = self.validate(x.len(), batch, 128)?;
         if self.cols as u128 * self.max_weight as u128 * 128 > i32::MAX as u128 {
@@ -209,7 +224,7 @@ impl Matrix {
         columns: usize,
         q: u64,
     ) -> Result<Vec<u64>, String> {
-        if q < 2 || q >= (1u64 << 54) {
+        if !(2..(1u64 << 54)).contains(&q) {
             return Err("q must satisfy 2 <= q < 2^54".into());
         }
         if columns == 0 || self.cols.checked_mul(columns) != Some(a.len()) {
@@ -346,6 +361,18 @@ fn dot_wrap32(w: &[i8], x: &[u32], simd: bool) -> u32 {
         acc.wrapping_add((weight as i32 as u32).wrapping_mul(input))
     })
 }
+fn dot_wrap64(w: &[i8], x: &[u64], simd: bool) -> u64 {
+    #[cfg(target_arch = "x86_64")]
+    if simd {
+        return unsafe { x86::dot_wrap64(w, x) };
+    }
+    // NEON has no packed u64 multiply. Its 32-bit limb emulation measures
+    // slower than this scalar loop on Apple Silicon; AVX2 remains vectorized.
+    let _ = simd;
+    w.iter().zip(x).fold(0u64, |acc, (&weight, &input)| {
+        acc.wrapping_add((weight as i64 as u64).wrapping_mul(input))
+    })
+}
 
 #[cfg(target_arch = "x86_64")]
 mod x86 {
@@ -466,6 +493,36 @@ mod x86 {
         let mut total = lanes.into_iter().fold(0u32, u32::wrapping_add);
         for (&weight, &input) in w[index..].iter().zip(&x[index..]) {
             total = total.wrapping_add((weight as i32 as u32).wrapping_mul(input));
+        }
+        total
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn dot_wrap64(w: &[i8], x: &[u64]) -> u64 {
+        debug_assert_eq!(w.len(), x.len());
+        let (mut index, mut accum) = (0, _mm256_setzero_si256());
+        let zero = _mm256_setzero_si256();
+        while index + 4 <= w.len() {
+            let packed = std::ptr::read_unaligned(w.as_ptr().add(index).cast::<i32>());
+            let weights = _mm256_cvtepi8_epi64(_mm_cvtsi32_si128(packed));
+            let signs = _mm256_cmpgt_epi64(zero, weights);
+            let magnitudes = _mm256_sub_epi64(_mm256_xor_si256(weights, signs), signs);
+            let inputs = _mm256_loadu_si256(x.as_ptr().add(index).cast());
+            let low = _mm256_mul_epu32(inputs, magnitudes);
+            let high = _mm256_slli_epi64::<32>(_mm256_mul_epu32(
+                _mm256_srli_epi64::<32>(inputs),
+                magnitudes,
+            ));
+            let products = _mm256_add_epi64(low, high);
+            let signed = _mm256_sub_epi64(_mm256_xor_si256(products, signs), signs);
+            accum = _mm256_add_epi64(accum, signed);
+            index += 4;
+        }
+        let mut lanes = [0u64; 4];
+        _mm256_storeu_si256(lanes.as_mut_ptr().cast(), accum);
+        let mut total = lanes.into_iter().fold(0u64, u64::wrapping_add);
+        for (&weight, &input) in w[index..].iter().zip(&x[index..]) {
+            total = total.wrapping_add((weight as i64 as u64).wrapping_mul(input));
         }
         total
     }

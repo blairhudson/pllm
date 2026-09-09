@@ -93,6 +93,47 @@ fn wrap_full_range() {
     }
 }
 #[test]
+fn wrap64_full_range() {
+    for n in [1, 7, 8, 17, 33, 511] {
+        let rows = 5;
+        let batch = 3;
+        let w: Vec<u8> = (0..rows * n)
+            .map(|i| ((i * 29 + 128) % 256) as u8)
+            .collect();
+        let x: Vec<u64> = (0..batch * n)
+            .map(|i| (i as u64).wrapping_mul(0x9e3779b97f4a7c15).wrapping_sub(1))
+            .collect();
+        let expected: Vec<u64> = (0..batch)
+            .flat_map(|batch_index| {
+                let w = &w;
+                let x = &x;
+                (0..rows).map(move |row| {
+                    (0..n).fold(0u64, |acc, column| {
+                        acc.wrapping_add(
+                            (w[row * n + column] as i8 as i64 as u64)
+                                .wrapping_mul(x[batch_index * n + column]),
+                        )
+                    })
+                })
+            })
+            .collect();
+        let matrix = Matrix::new(&w, rows, n).unwrap();
+        for threads in [1, 2] {
+            for simd in [false, true] {
+                assert_eq!(
+                    matrix
+                        .wrap64(&Executor::new(threads, simd).unwrap(), &x, batch)
+                        .unwrap(),
+                    expected
+                );
+            }
+        }
+        assert!(matrix
+            .wrap64(&Executor::new(1, true).unwrap(), &x[..x.len() - 1], batch)
+            .is_err());
+    }
+}
+#[test]
 fn clear_extrema() {
     let m = Matrix::new(&vec![128; 8193], 1, 8193).unwrap();
     let expected = 8193 * 16384;

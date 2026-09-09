@@ -141,9 +141,7 @@ def _protection_to_legacy(
 
     if weights == "public":
         if activation_protection != "seeded-preparation":
-            parser.error(
-                "public weights require `--activation-protection seeded-preparation`"
-            )
+            parser.error("public weights require `--activation-protection seeded-preparation`")
         return "public", "guarded"
 
     if activation_protection == "authenticated-shares" or client_trust == "untrusted":
@@ -279,16 +277,26 @@ def _preparation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> N
     if not inference_url or not push_api_key:
         parser.error("preparation requires --inference-url and --push-api-key")
     translated = [
-        "--privacy-mode", "public",
-        "--host", args.host,
-        "--port", str(args.port),
-        "--api-key", api_key,
-        "--model-kind", args.model_kind,
-        "--weight-bits", str(args.weight_bits),
-        "--activation-bits", str(args.activation_bits),
-        "--inference-url", inference_url,
-        "--push-api-key", push_api_key,
-        "--push-timeout", str(args.push_timeout),
+        "--privacy-mode",
+        "public",
+        "--host",
+        args.host,
+        "--port",
+        str(args.port),
+        "--api-key",
+        api_key,
+        "--model-kind",
+        args.model_kind,
+        "--weight-bits",
+        str(args.weight_bits),
+        "--activation-bits",
+        str(args.activation_bits),
+        "--inference-url",
+        inference_url,
+        "--push-api-key",
+        push_api_key,
+        "--push-timeout",
+        str(args.push_timeout),
     ]
     for model in args.models:
         translated.extend(["--model", model])
@@ -483,9 +491,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="load Hugging Face models and run the private inference server",
         allow_abbrev=False,
     )
-    serve.add_argument("models", nargs="*", help="Hugging Face repository IDs or local model directories")
-    serve.add_argument("--model", dest="model_compat", action="append", default=[], help=argparse.SUPPRESS)
-    serve.add_argument("--model-id", action="append", default=[], help="public model ID, one per model")
+    serve.add_argument(
+        "models", nargs="*", help="Hugging Face repository IDs or local model directories"
+    )
+    serve.add_argument(
+        "--model", dest="model_compat", action="append", default=[], help=argparse.SUPPRESS
+    )
+    serve.add_argument(
+        "--model-id", action="append", default=[], help="public model ID, one per model"
+    )
     serve.add_argument(
         "--weights",
         choices=("public", "confidential"),
@@ -554,7 +568,9 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--quantization-chunk-rows", type=int, default=64)
     serve.add_argument("--weight-bits", type=int, choices=(4, 8), default=8)
     serve.add_argument("--activation-bits", type=int, choices=(4, 8), default=8)
-    serve.add_argument("--allow-test-correlations", action="store_true", help="unsafe local testing only")
+    serve.add_argument(
+        "--allow-test-correlations", action="store_true", help="unsafe local testing only"
+    )
     serve.add_argument("--guard-max-rows-per-request", type=int, default=4096)
     serve.add_argument("--guard-max-rows-per-stage", type=int, default=16384)
     serve.add_argument("--guard-max-requests-per-minute", type=int, default=4096)
@@ -574,7 +590,9 @@ def _build_parser() -> argparse.ArgumentParser:
     preparation_serve = preparation_commands.add_parser(
         "serve", help="load public models and serve seeded preparation"
     )
-    preparation_serve.add_argument("models", nargs="+", help="Hugging Face repository IDs or local model directories")
+    preparation_serve.add_argument(
+        "models", nargs="+", help="Hugging Face repository IDs or local model directories"
+    )
     preparation_serve.add_argument("--model-id", action="append", default=[])
     preparation_serve.add_argument("--host", default="127.0.0.1")
     preparation_serve.add_argument("--port", type=int, default=8001)
@@ -624,7 +642,9 @@ def _build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--no-stream", action="store_true")
     chat.add_argument("--max-output-tokens", type=int, default=64)
 
-    sidecar = commands.add_parser("sidecar", help="run a localhost OpenAI compatible proxy for any SDK")
+    sidecar = commands.add_parser(
+        "sidecar", help="run a localhost OpenAI compatible proxy for any SDK"
+    )
     _add_client_options(sidecar)
     sidecar.add_argument("--local-api-key", default="local")
     sidecar.add_argument("--host", default="127.0.0.1")
@@ -639,6 +659,25 @@ def _build_parser() -> argparse.ArgumentParser:
     sidecar.add_argument("--bundle-cache-dir")
     sidecar.add_argument("--tenseal-path", default=os.getenv("PLLM_PYDEPS"))
 
+    benchmark = commands.add_parser("benchmark", help="run live protocol benchmarks")
+    benchmark_commands = benchmark.add_subparsers(dest="benchmark_command")
+    dashboard = benchmark_commands.add_parser(
+        "dashboard", help="launch the three-role OTEL benchmark dashboard"
+    )
+    dashboard.add_argument("--host", default="127.0.0.1")
+    dashboard.add_argument("--port", type=int, default=8791)
+    dashboard.add_argument(
+        "--model",
+        default="Qwen/Qwen2.5-0.5B-Instruct",
+        help="local checkpoint or Hugging Face model ID",
+    )
+    dashboard.add_argument("--model-id", help="model identity; defaults to --model")
+    dashboard.add_argument(
+        "--tiny", action="store_true", help="use random tiny weights for a transport smoke test"
+    )
+    dashboard.add_argument("--max-output-tokens", type=int, default=24)
+    dashboard.add_argument("--no-open", action="store_true", help="do not open a browser")
+
     commands.add_parser("build", help="build the native modular arithmetic kernels")
     commands.add_parser("security", help="show the precise security claim for every protocol")
 
@@ -652,15 +691,21 @@ def _build_parser() -> argparse.ArgumentParser:
     secure.add_argument("--he", action="store_true")
     secure.add_argument("--tenseal-path")
 
-    market = commands.add_parser("market", help="run or benchmark the private inference provider market")
+    market = commands.add_parser(
+        "market", help="run or benchmark the private inference provider market"
+    )
     market_commands = market.add_subparsers(dest="market_command")
-    market_serve = market_commands.add_parser("serve", help="run the central router and settlement service")
+    market_serve = market_commands.add_parser(
+        "serve", help="run the central router and settlement service"
+    )
     market_serve.add_argument("--database", default="pllm-market.sqlite3")
     market_serve.add_argument("--admin-key")
     market_serve.add_argument("--fee-rate", type=float, default=0.10)
     market_serve.add_argument("--host", default="127.0.0.1")
     market_serve.add_argument("--port", type=int, default=8090)
-    market_simulate = market_commands.add_parser("simulate", help="compare central and decentralized routing")
+    market_simulate = market_commands.add_parser(
+        "simulate", help="compare central and decentralized routing"
+    )
     market_simulate.add_argument("--providers", type=int, default=100)
     market_simulate.add_argument("--requests", type=int, default=5000)
     market_simulate.add_argument("--seed", type=int, default=7)
@@ -680,7 +725,9 @@ def _build_parser() -> argparse.ArgumentParser:
     offer.add_argument("--region", default="global")
     offer.add_argument("--output")
 
-    join = provider_commands.add_parser("join", help="register an offer and maintain provider heartbeats")
+    join = provider_commands.add_parser(
+        "join", help="register an offer and maintain provider heartbeats"
+    )
     join.add_argument("--market", required=True, help="central market base URL")
     join.add_argument("--market-key", required=True, help="provider admission key")
     join.add_argument("--provider-id", required=True)
@@ -701,6 +748,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
+    from pllm.runtime.telemetry import configure_telemetry
+
+    configure_telemetry()
     if args.command is None:
         parser.print_help()
         return
@@ -722,6 +772,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
     elif args.command == "sidecar":
         _run_sidecar(args)
+    elif args.command == "benchmark":
+        if args.benchmark_command != "dashboard":
+            parser.error("benchmark requires the dashboard subcommand")
+        from pllm.runtime.dashboard import run_dashboard
+
+        run_dashboard(args)
     elif args.command == "build":
         build_native_main()
     elif args.command == "security":

@@ -128,6 +128,13 @@ canonical Pandoc Markdown paper source. Pandoc generates both the website articl
 and PDF, using Tectonic locally or pdfLaTeX in CI. Historical measurements are
 kept under `research/evidence` and are not rewritten as native Rust results.
 
+The loopback benchmark dashboard runs the real client, preparation, and inference
+roles and receives their OTLP metrics and traces directly. Protocol byte counts
+are custom OTEL metrics; prompts and activation payloads are never telemetry
+attributes. The generated tiny checkpoint validates transport behavior only.
+Interactive dashboard runs default to Qwen2.5-0.5B-Instruct; random tiny weights
+require the explicit `--tiny` transport-smoke option.
+
 ## Build and release boundaries
 
 The Cargo workspace version is inherited by both Rust crates. The Python source

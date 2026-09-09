@@ -33,7 +33,10 @@ def create_sidecar_app(
 
     def auth(value: str | None) -> None:
         if value != f"Bearer {local_api_key}":
-            raise HTTPException(status_code=401, detail={"error": {"message": "invalid API key", "type": "authentication_error"}})
+            raise HTTPException(
+                status_code=401,
+                detail={"error": {"message": "invalid API key", "type": "authentication_error"}},
+            )
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -50,6 +53,7 @@ def create_sidecar_app(
         body = await request.json()
         result = he_client.responses.create(**body)
         if isinstance(result, ResponseStream):
+
             def generate():
                 try:
                     for event in result:
@@ -57,6 +61,7 @@ def create_sidecar_app(
                     yield sse_done()
                 finally:
                     result.close()
+
             return StreamingResponse(generate(), media_type="text/event-stream")
         return JSONResponse(result.to_dict())
 
@@ -70,4 +75,7 @@ def create_sidecar_app(
         auth(authorization)
         return JSONResponse(he_client.responses.cancel(response_id).to_dict())
 
+    from .telemetry import instrument_fastapi
+
+    instrument_fastapi(app)
     return app

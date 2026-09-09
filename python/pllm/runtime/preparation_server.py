@@ -316,9 +316,7 @@ def create_preparation_app(
                         "architecture": manifest.architecture,
                         "stage_count": len(manifest.stages),
                         "body_fingerprint": manifest.metadata.get("body_fingerprint"),
-                        "stage_commitment": manifest.metadata.get(
-                            "seeded_stage_commitment"
-                        ),
+                        "stage_commitment": manifest.metadata.get("seeded_stage_commitment"),
                         "weight_bits": engine.weight_bits,
                         "activation_bits": engine.activation_bits,
                     },
@@ -339,9 +337,7 @@ def create_preparation_app(
             value = SessionAuthorization.unpack(raw)
             if value.session_id != session_id:
                 raise ProtocolError("session authorization route mismatch")
-            validate_authorization = getattr(
-                engine, "validate_seeded_session_authorization", None
-            )
+            validate_authorization = getattr(engine, "validate_seeded_session_authorization", None)
             if validate_authorization is None:
                 raise ProtocolError("preparation engine cannot validate session authorization")
             validate_authorization(value)
@@ -405,9 +401,7 @@ def create_preparation_app(
                 envelope = msgpack.unpackb(raw, raw=False, strict_map_key=False)
             except Exception as exc:
                 raise ProtocolError("invalid preparation request") from exc
-            if not isinstance(envelope, dict) or set(envelope) != {
-                "v", "a", "h", "r", "z"
-            }:
+            if not isinstance(envelope, dict) or set(envelope) != {"v", "a", "h", "r", "z"}:
                 raise ProtocolError("invalid preparation request schema")
             if int(envelope["v"]) != PREPARATION_PROTOCOL_VERSION:
                 raise ProtocolError("unsupported preparation protocol")
@@ -562,4 +556,7 @@ def create_preparation_app(
             },
         }
 
+    from .telemetry import instrument_fastapi
+
+    instrument_fastapi(app)
     return app

@@ -88,7 +88,7 @@ pub fn unmask(y: &[u32], r: &[u32], p: u64) -> Result<Vec<i64>, String> {
         .zip(r)
         .map(|(&a, &b)| {
             let value = (a as i64 - b as i64).rem_euclid(p as i64);
-            if (value as u64) >= (p + 1) / 2 {
+            if (value as u64) >= p.div_ceil(2) {
                 value - p as i64
             } else {
                 value

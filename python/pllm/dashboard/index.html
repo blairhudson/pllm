@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PLLM Live Protocol</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">P</span><span>PLLM</span><b>LIVE PROTOCOL</b></div>
+    <div class="status"><i id="status-dot"></i><span id="status-copy">STARTING SERVICES</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">SEE THE PRIVACY BOUNDARY</p>
+        <h1>One prompt.<br><em>No server sees it.</em></h1>
+      </div>
+      <p class="lede">A real private inference run, instrumented end-to-end with OpenTelemetry. The client keeps plaintext. Preparation sees seeds. Inference sees masked activations.</p>
+    </section>
+
+    <section class="topology" id="topology">
+      <article class="service client" data-service="pllm-client">
+        <div class="service-head"><span class="number">01</span><span class="trust trusted">PRIVATE</span></div>
+        <h2>Client</h2><p>Your device</p>
+        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
+        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>MASKS</span></div></div>
+        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM · <b id="tps">0.00</b> TOK/S</div>
+        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
+        <ul><li>Plaintext prompt</li><li>Fresh masks + private state</li><li>Token sampling</li></ul>
+      </article>
+
+      <div class="edge edge-a">
+        <span class="flow forward"></span><span class="flow return"></span>
+        <b id="client-prep-bytes">0 B</b><small>SEED CHANNEL</small>
+      </div>
+
+      <article class="service preparation" data-service="pllm-preparation">
+        <div class="service-head"><span class="number">02</span><span class="trust semi">NON-COLLUDING</span></div>
+        <h2>Preparation</h2><p>Self-hosted or SaaS</p>
+        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
+        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>CORRECTIONS</span></div></div>
+        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM</div>
+        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
+        <ul><li>Expands random masks</li><li>Computes W·r−s</li><li>Never receives activations</li></ul>
+      </article>
+
+      <div class="edge edge-b">
+        <span class="flow forward"></span>
+        <b id="relay-bytes">0 B</b><small>MASKED CORRECTIONS</small>
+      </div>
+
+      <article class="service inference" data-service="pllm-inference">
+        <div class="service-head"><span class="number">03</span><span class="trust untrusted">UNTRUSTED</span></div>
+        <h2>Inference</h2><p>Heavy compute provider</p>
+        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
+        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>MATRIX RUNS</span></div></div>
+        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM · <b id="ttft">--</b> TTFT</div>
+        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
+        <ul><li>Masked matrix execution</li><li>Transformer body weights</li><li>Never receives prompt or seed</li></ul>
+      </article>
+      <div class="edge edge-c"><span class="flow return"></span><b id="inference-bytes">0 B</b><small>MASKED I/O</small></div>
+    </section>
+
+    <section class="workspace">
+      <article class="console">
+        <div class="panel-head"><span>LIVE CHAT</span><span id="run-clock">00:00.0</span></div>
+        <label for="prompt">PROMPT STAYS HERE</label>
+        <textarea id="prompt" rows="3">Explain why neither server can see the prompt.</textarea>
+        <div class="controls"><label>MAX TOKENS <input id="max-tokens" type="number" min="1" max="256" value="24"></label><button id="run">RUN PRIVATE CHAT <span>→</span></button></div>
+        <div class="answer"><span class="speaker" id="model-label">MODEL /</span><p id="answer">Waiting for a live run.</p><i class="cursor"></i></div>
+        <p class="error" id="error"></p>
+      </article>
+
+      <article class="protocol">
+        <div class="panel-head"><span>LIVE NETWORK</span><span id="sequence-count">OTEL / WAITING</span></div>
+        <div class="sequence-head"><span>CLIENT</span><span>PREPARATION</span><span>INFERENCE</span></div>
+        <div class="sequence-body">
+          <div class="lifelines"><i></i><i></i><i></i></div>
+          <div id="sequence-events" class="sequence-events"><p class="sequence-empty">Run a chat to capture protocol operations.</p></div>
+        </div>
+        <div class="sequence-legend"><span><i class="seed"></i>SEED</span><span><i class="masked"></i>MASKED DATA</span><span>SIZE ON ARROW · TIME PER OP</span></div>
+        <div class="invariant"><b>NON-COLLUSION BOUNDARY</b><span>Neither server has enough information alone. If they collude, activation privacy is lost.</span></div>
+      </article>
+    </section>
+
+    <section class="trace-strip"><span>NETWORK / ACTUAL OPERATIONS</span><div>Client sends seed and masked input concurrently · preparation relays correction · inference returns masked result</div></section>
+  </main>
+  <footer><span>REAL CLI PROCESSES</span><span>OTLP / 500 MS</span><span>PUBLIC-WEIGHT PROTOCOL</span></footer>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

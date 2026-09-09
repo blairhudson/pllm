@@ -39,8 +39,15 @@ from .he_runtime import (
 from .loaders import load_gguf, load_hf_directory, load_mlx_directory, load_ollama_model
 from .models import ModelManifest as ImportedModelManifest
 from .protocol import (
-    BINARY_MEDIA_TYPE, HEEnvelope, ProtocolError, ReplayWindow, encode_length_prefixed,
-    iter_length_prefixed, pack_envelope, sse_event, unpack_envelope,
+    BINARY_MEDIA_TYPE,
+    HEEnvelope,
+    ProtocolError,
+    ReplayWindow,
+    encode_length_prefixed,
+    iter_length_prefixed,
+    pack_envelope,
+    sse_event,
+    unpack_envelope,
 )
 from .privacy import PrivacyMode
 from .preparation_protocol import (
@@ -168,7 +175,9 @@ def create_app(
     proprietary_owner_by_principal: dict[tuple[str, str], str] = {}
     for model_id, model in strict_models.items():
         try:
-            bfv_servers[model_id] = BFVCorrelationServer(model.weight, pydeps_path=config.tenseal_path)
+            bfv_servers[model_id] = BFVCorrelationServer(
+                model.weight, pydeps_path=config.tenseal_path
+            )
         except ImportError:
             # TenSEAL is an optional runtime dependency. Clear passthrough and
             # local-test protocol validation still work without it.
@@ -221,12 +230,14 @@ def create_app(
             try:
                 backend_models = [row.to_model_object() for row in await backend_registry.refresh()]
             except Exception as exc:
-                backend_models = [{
-                    "id": "backend-discovery-error",
-                    "object": "model",
-                    "owned_by": "pllm",
-                    "he": {"error": str(exc), "privacy_mode": "trusted_backend"},
-                }]
+                backend_models = [
+                    {
+                        "id": "backend-discovery-error",
+                        "object": "model",
+                        "owned_by": "pllm",
+                        "he": {"error": str(exc), "privacy_mode": "trusted_backend"},
+                    }
+                ]
         try:
             yield
         finally:
@@ -281,7 +292,13 @@ def create_app(
         if token is None or (config.api_keys and token not in config.api_keys):
             raise HTTPException(
                 status_code=401,
-                detail={"error": {"message": "Invalid API key", "type": "authentication_error", "code": "invalid_api_key"}},
+                detail={
+                    "error": {
+                        "message": "Invalid API key",
+                        "type": "authentication_error",
+                        "code": "invalid_api_key",
+                    }
+                },
             )
         return token
 
@@ -291,7 +308,12 @@ def create_app(
         if expected is None or token is None or not secrets.compare_digest(token, expected):
             raise HTTPException(
                 status_code=401,
-                detail={"error": {"message": "Invalid correction push credential", "code": "invalid_push_key"}},
+                detail={
+                    "error": {
+                        "message": "Invalid correction push credential",
+                        "code": "invalid_push_key",
+                    }
+                },
             )
 
     def client_bundle_record(engine_name: str, model_id: str) -> tuple[bytes, dict[str, Any]]:
@@ -351,30 +373,31 @@ def create_app(
                 and getattr(engines[engine_name], "client_bundle", None) is not None
                 else None
             )
-            manifests.append({
-                "id": manifest.id,
-                "object": "model",
-                "created": int(manifest.created_at),
-                "owned_by": "pllm",
-                "he": {
-                    "privacy_mode": (
-                        manifest.metadata.get("privacy_mode", "strict_he_engine")
-                        if engine_name else "manifest_only"
-                    ),
-                    "privacy_protocol": manifest.metadata.get("privacy_protocol"),
-                    "engine": engine_name,
-                    "source_format": manifest.source_format,
-                    "architecture": manifest.architecture,
-                    "stage_count": len(manifest.stages),
-                    "fingerprint": manifest.fingerprint,
-                    "body_fingerprint": manifest.metadata.get("body_fingerprint"),
-                    "stage_commitment": manifest.metadata.get(
-                        "seeded_stage_commitment"
-                    ),
+            manifests.append(
+                {
+                    "id": manifest.id,
+                    "object": "model",
+                    "created": int(manifest.created_at),
+                    "owned_by": "pllm",
+                    "he": {
+                        "privacy_mode": (
+                            manifest.metadata.get("privacy_mode", "strict_he_engine")
+                            if engine_name
+                            else "manifest_only"
+                        ),
+                        "privacy_protocol": manifest.metadata.get("privacy_protocol"),
+                        "engine": engine_name,
+                        "source_format": manifest.source_format,
+                        "architecture": manifest.architecture,
+                        "stage_count": len(manifest.stages),
+                        "fingerprint": manifest.fingerprint,
+                        "body_fingerprint": manifest.metadata.get("body_fingerprint"),
+                        "stage_commitment": manifest.metadata.get("seeded_stage_commitment"),
+                        "client_bundle": bundle_descriptor,
+                    },
                     "client_bundle": bundle_descriptor,
-                },
-                "client_bundle": bundle_descriptor,
-            })
+                }
+            )
         return {"object": "list", "data": strict + manifests + backend_models}
 
     @app.get("/v1/he/capabilities")
@@ -410,7 +433,9 @@ def create_app(
         if kind in {"huggingface", "safetensors", "vllm"}:
             source = str(body.get("repo_id") or body.get("path") or "")
             if not source:
-                raise HTTPException(status_code=400, detail={"error": {"message": "path or repo_id is required"}})
+                raise HTTPException(
+                    status_code=400, detail={"error": {"message": "path or repo_id is required"}}
+                )
             local_path = Path(source).expanduser()
             if local_path.exists():
                 # Keep generic engine-plugin support for local, config-only fixtures.
@@ -435,9 +460,13 @@ def create_app(
                 str(body["name"]),
                 api_key=body.get("api_key"),
             )
-        raise HTTPException(status_code=400, detail={"error": {"message": f"Unsupported model source {kind}"}})
+        raise HTTPException(
+            status_code=400, detail={"error": {"message": f"Unsupported model source {kind}"}}
+        )
 
-    async def register_engine_model(engine_name: str, manifest: ImportedModelManifest) -> ImportedModelManifest:
+    async def register_engine_model(
+        engine_name: str, manifest: ImportedModelManifest
+    ) -> ImportedModelManifest:
         engine = engines.get(engine_name)
         if engine is None:
             raise ValueError(f"unknown HE engine {engine_name!r}")
@@ -471,7 +500,9 @@ def create_app(
         }
 
     @app.post("/v1/he/models/load")
-    async def load_model_plugin(request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def load_model_plugin(
+        request: Request, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         auth_token(authorization)
         body = await request.json()
         engine_name = str(body.get("engine", ""))
@@ -483,11 +514,16 @@ def create_app(
         return {**manifest.to_dict(), "engine": engine_name, "status": "ready"}
 
     @app.delete("/v1/he/models/{model_id:path}")
-    async def unload_model_plugin(model_id: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def unload_model_plugin(
+        model_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         auth_token(authorization)
         engine_name = model_engine_routes.pop(model_id, None)
         if engine_name is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Model is not loaded by an HE engine"}})
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"message": "Model is not loaded by an HE engine"}},
+            )
         for key, scheduler in list(engine_schedulers.items()):
             if key[0] == model_id:
                 await scheduler.close()
@@ -509,10 +545,14 @@ def create_app(
         engine = engines.get(engine_name)
         manifest = imported.get(model_id)
         if engine is None or manifest is None or model_engine_routes.get(model_id) != engine_name:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Unknown engine/model route"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": "Unknown engine/model route"}}
+            )
         stage = next((value for value in manifest.stages if value.id == stage_id), None)
         if stage is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Unknown model stage"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": "Unknown model stage"}}
+            )
         raw = await request.body()
         try:
             payloads = list(iter_length_prefixed(raw))
@@ -522,11 +562,16 @@ def create_app(
             if len(results) != len(payloads):
                 raise ProtocolError("HE engine returned the wrong result count")
         except (ProtocolError, ValueError, RuntimeError) as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "invalid_stage_batch"}})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "invalid_stage_batch"}},
+            )
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
     @app.post("/v1/he/models/inspect")
-    async def inspect_model(request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def inspect_model(
+        request: Request, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         auth_token(authorization)
         body = await request.json()
         manifest = await inspect_source(body)
@@ -543,7 +588,9 @@ def create_app(
         auth_token(authorization)
         engine_name = model_engine_routes.get(model_id)
         if engine_name is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Model has no client bundle"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": "Model has no client bundle"}}
+            )
         payload, descriptor = client_bundle_record(engine_name, model_id)
         headers = {
             "ETag": str(descriptor["etag"]),
@@ -556,7 +603,9 @@ def create_app(
         return FastAPIResponse(payload, media_type="application/msgpack", headers=headers)
 
     @app.get("/v1/he/models/{model_id:path}")
-    async def model_manifest(model_id: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def model_manifest(
+        model_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         auth_token(authorization)
         if model_id in strict_models:
             return strict_models[model_id].manifest.to_model_object()
@@ -569,7 +618,9 @@ def create_app(
         raise HTTPException(status_code=404, detail={"error": {"message": "Unknown model"}})
 
     @app.post("/v1/he/sessions")
-    async def create_session(request: Request, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def create_session(
+        request: Request, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         api_key = auth_token(authorization)
         body = await request.json()
         cleanup_prepared_sessions(reclaim_terminal=True)
@@ -579,7 +630,15 @@ def create_app(
         imported_manifest = imported.get(model_id)
         engine_name = model_engine_routes.get(model_id)
         if model is None and (imported_manifest is None or engine_name is None):
-            raise HTTPException(status_code=400, detail={"error": {"message": "Model has no strict HE runtime", "code": "he_runtime_required"}})
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": {
+                        "message": "Model has no strict HE runtime",
+                        "code": "he_runtime_required",
+                    }
+                },
+            )
         if (
             imported_manifest is not None
             and PrivacyMode.parse(
@@ -601,7 +660,12 @@ def create_app(
         if body.get("execution") == "seeded-preparation" and not config.provider_push_api_key:
             raise HTTPException(
                 status_code=503,
-                detail={"error": {"message": "Correction push credential is not configured", "code": "prepared_runtime_unavailable"}},
+                detail={
+                    "error": {
+                        "message": "Correction push credential is not configured",
+                        "code": "prepared_runtime_unavailable",
+                    }
+                },
             )
         session_id = new_id("hes")
         session = HESession(session_id, new_id("resp"), model_id, api_key)
@@ -612,13 +676,22 @@ def create_app(
         for requested_context in requested_contexts:
             requested_context = str(requested_context)
             if context_owners.get((model_id, requested_context)) != api_key:
-                raise HTTPException(status_code=409, detail={"error": {"message": "Unknown or unauthorized HE context", "code": "he_context_unavailable"}})
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": {
+                            "message": "Unknown or unauthorized HE context",
+                            "code": "he_context_unavailable",
+                        }
+                    },
+                )
             session.context_ids.add(requested_context)
             session.context_id = requested_context
         if session.execution == "seeded-preparation":
-            if sum(
-                item.execution == "seeded-preparation" for item in sessions.values()
-            ) >= config.prepared_session_capacity:
+            if (
+                sum(item.execution == "seeded-preparation" for item in sessions.values())
+                >= config.prepared_session_capacity
+            ):
                 raise HTTPException(
                     status_code=503,
                     detail={"error": {"message": "Prepared session capacity exceeded"}},
@@ -639,11 +712,13 @@ def create_app(
             if session_authorization is None:
                 raise HTTPException(
                     status_code=503,
-                    detail={"error": {"message": "Transformer engine cannot authorize prepared sessions"}},
+                    detail={
+                        "error": {
+                            "message": "Transformer engine cannot authorize prepared sessions"
+                        }
+                    },
                 )
-            expected_authorization = session_authorization(
-                model_id, session.id, max_attempts
-            )
+            expected_authorization = session_authorization(model_id, session.id, max_attempts)
             try:
                 rendezvous.register_session(expected_authorization)
             except RendezvousError as exc:
@@ -664,12 +739,20 @@ def create_app(
                 "created": int(imported_manifest.created_at),
                 "owned_by": "pllm",
                 "he": {
-                    "privacy_mode": imported_manifest.metadata.get("privacy_mode", config.privacy_mode),
+                    "privacy_mode": imported_manifest.metadata.get(
+                        "privacy_mode", config.privacy_mode
+                    ),
                     "privacy_protocol": imported_manifest.metadata.get("privacy_protocol"),
                     "online_fhe": bool(imported_manifest.metadata.get("online_fhe", False)),
-                    "he_preprocessed": bool(imported_manifest.metadata.get("he_preprocessed", False)),
-                    "model_privacy_threat_model": imported_manifest.metadata.get("model_privacy_threat_model"),
-                    "malicious_client_model_privacy": imported_manifest.metadata.get("malicious_client_model_privacy"),
+                    "he_preprocessed": bool(
+                        imported_manifest.metadata.get("he_preprocessed", False)
+                    ),
+                    "model_privacy_threat_model": imported_manifest.metadata.get(
+                        "model_privacy_threat_model"
+                    ),
+                    "malicious_client_model_privacy": imported_manifest.metadata.get(
+                        "malicious_client_model_privacy"
+                    ),
                     "runtime": imported_manifest.metadata.get("client_runtime"),
                     "engine": engine_name,
                     "fingerprint": imported_manifest.fingerprint,
@@ -699,9 +782,14 @@ def create_app(
         cleanup_prepared_sessions()
         session = sessions.get(session_id)
         if session is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Unknown HE session"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": "Unknown HE session"}}
+            )
         if session.api_key != api_key:
-            raise HTTPException(status_code=403, detail={"error": {"message": "HE session belongs to another credential"}})
+            raise HTTPException(
+                status_code=403,
+                detail={"error": {"message": "HE session belongs to another credential"}},
+            )
         session.last_active = time.monotonic()
         return session
 
@@ -809,8 +897,7 @@ def create_app(
             ):
                 raise ProtocolError("prepared inference result mismatch")
             masked = (
-                result.masked_output.astype(np.int64)
-                + correction.correction.astype(np.int64)
+                result.masked_output.astype(np.int64) + correction.correction.astype(np.int64)
             ) % result.modulus
             combined.append(
                 MaskedStageResponse(
@@ -887,9 +974,7 @@ def create_app(
             value = SessionAuthorization.unpack(raw)
             if value.session_id != session_id or value.model != session.model_id:
                 raise ProtocolError("session authorization route/model mismatch")
-            validate_authorization = getattr(
-                engine, "validate_seeded_session_authorization", None
-            )
+            validate_authorization = getattr(engine, "validate_seeded_session_authorization", None)
             if validate_authorization is None:
                 raise ProtocolError("transformer engine cannot validate session authorization")
             validate_authorization(value)
@@ -930,8 +1015,7 @@ def create_app(
             await websocket.close(code=4401, reason="invalid correction push credential")
             return
         offered = {
-            item.strip()
-            for item in websocket.headers.get("sec-websocket-protocol", "").split(",")
+            item.strip() for item in websocket.headers.get("sec-websocket-protocol", "").split(",")
         }
         if CORRECTION_CHANNEL_SUBPROTOCOL not in offered:
             await websocket.close(code=4406, reason="correction subprotocol required")
@@ -997,11 +1081,21 @@ def create_app(
         payload = await request.body()
         audit("bfv_context", payload)
         if not payload:
-            raise HTTPException(status_code=400, detail={"error": {"message": "Empty public context"}})
+            raise HTTPException(
+                status_code=400, detail={"error": {"message": "Empty public context"}}
+            )
         engine_name = model_engine_routes.get(session.model_id)
         engine = engines.get(engine_name) if engine_name else None
         if session.model_id not in bfv_servers and engine is None:
-            raise HTTPException(status_code=503, detail={"error": {"message": "BFV runtime is not installed", "code": "he_runtime_unavailable"}})
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": {
+                        "message": "BFV runtime is not installed",
+                        "code": "he_runtime_unavailable",
+                    }
+                },
+            )
         try:
             if engine is not None:
                 register = getattr(engine, "register_bfv_context", None)
@@ -1011,11 +1105,20 @@ def create_app(
             else:
                 bfv_servers[session.model_id].register_context(context_id, payload)
         except Exception as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "invalid_he_context"}})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "invalid_he_context"}},
+            )
         session.context_id = context_id
         session.context_ids.add(context_id)
         context_owners[(session.model_id, context_id)] = api_key
-        return {"id": context_id, "object": "he.context", "status": "ready", "bytes": len(payload), "reusable": True}
+        return {
+            "id": context_id,
+            "object": "he.context",
+            "status": "ready",
+            "bytes": len(payload),
+            "reusable": True,
+        }
 
     @app.post("/v1/he/sessions/{session_id}/correlations/bfv")
     async def bfv_correlation(
@@ -1027,12 +1130,23 @@ def create_app(
         session = get_session(session_id, api_key)
         context_id = request.headers.get("x-he-context-id") or session.context_id
         if context_id is None or context_id not in session.context_ids:
-            raise HTTPException(status_code=409, detail={"error": {"message": "Register the requested HE context first"}})
+            raise HTTPException(
+                status_code=409,
+                detail={"error": {"message": "Register the requested HE context first"}},
+            )
         stage_id = request.headers.get("x-he-stage-id")
         engine_name = model_engine_routes.get(session.model_id)
         engine = engines.get(engine_name) if engine_name else None
         if session.model_id not in bfv_servers and engine is None:
-            raise HTTPException(status_code=503, detail={"error": {"message": "BFV runtime is not installed", "code": "he_runtime_unavailable"}})
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": {
+                        "message": "BFV runtime is not installed",
+                        "code": "he_runtime_unavailable",
+                    }
+                },
+            )
         encrypted_mask = await request.body()
         audit("bfv_mask", encrypted_mask)
         try:
@@ -1056,7 +1170,10 @@ def create_app(
                     encrypted_mask,
                 )
         except Exception as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "he_correlation_failed"}})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "he_correlation_failed"}},
+            )
         session.correlation_steps += 1
         return FastAPIResponse(result, media_type="application/octet-stream")
 
@@ -1071,9 +1188,14 @@ def create_app(
         session = get_session(session_id, api_key)
         context_id = request.headers.get("x-he-context-id") or session.context_id
         if context_id is None or context_id not in session.context_ids:
-            raise HTTPException(status_code=409, detail={"error": {"message": "Register the requested HE context first"}})
+            raise HTTPException(
+                status_code=409,
+                detail={"error": {"message": "Register the requested HE context first"}},
+            )
         if not x_he_stage_id:
-            raise HTTPException(status_code=400, detail={"error": {"message": "x-he-stage-id is required"}})
+            raise HTTPException(
+                status_code=400, detail={"error": {"message": "x-he-stage-id is required"}}
+            )
         raw = await request.body()
         audit("bfv_correlation_batch", raw)
         try:
@@ -1099,14 +1221,16 @@ def create_app(
                 )
             else:
                 cancel_event = threading.Event()
-                worker = asyncio.create_task(asyncio.to_thread(
-                    evaluate_many,
-                    session.model_id,
-                    x_he_stage_id,
-                    context_id,
-                    encrypted_masks,
-                    cancel_event=cancel_event,
-                ))
+                worker = asyncio.create_task(
+                    asyncio.to_thread(
+                        evaluate_many,
+                        session.model_id,
+                        x_he_stage_id,
+                        context_id,
+                        encrypted_masks,
+                        cancel_event=cancel_event,
+                    )
+                )
                 while not worker.done():
                     await asyncio.sleep(0.1)
                     if await request.is_disconnected():
@@ -1121,7 +1245,10 @@ def create_app(
                         )
                 results = await worker
         except (ProtocolError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "he_correlation_failed"}}) from exc
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "he_correlation_failed"}},
+            ) from exc
         session.correlation_steps += len(results)
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
@@ -1248,10 +1375,15 @@ def create_app(
         engine = engines.get(engine_name) if engine_name else None
         if engine is not None:
             if not stage_id:
-                raise HTTPException(status_code=400, detail={"error": {"message": "stage_id is required"}})
+                raise HTTPException(
+                    status_code=400, detail={"error": {"message": "stage_id is required"}}
+                )
             create = getattr(engine, "create_local_correlations", None)
             if create is None:
-                raise HTTPException(status_code=501, detail={"error": {"message": "HE engine cannot create test correlations"}})
+                raise HTTPException(
+                    status_code=501,
+                    detail={"error": {"message": "HE engine cannot create test correlations"}},
+                )
             rows = await asyncio.to_thread(
                 create,
                 session.model_id,
@@ -1336,14 +1468,14 @@ def create_app(
         api_key = auth_token(authorization)
         session = get_session(session_id, api_key)
         try:
-            execute_payload = await _read_limited_body(
-                request, config.prepared_payload_max_bytes
-            )
+            execute_payload = await _read_limited_body(request, config.prepared_payload_max_bytes)
             audit("execute_http", execute_payload)
             envelope = unpack_envelope(execute_payload)
             result = await execute_envelope(session, envelope)
         except ProtocolError as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "invalid_he_frame"}})
+            raise HTTPException(
+                status_code=400, detail={"error": {"message": str(exc), "code": "invalid_he_frame"}}
+            )
         return FastAPIResponse(pack_envelope(result), media_type=BINARY_MEDIA_TYPE)
 
     @app.post("/v1/he/sessions/{session_id}/stages/{stage_id}")
@@ -1366,10 +1498,15 @@ def create_app(
         engine = engines.get(engine_name) if engine_name else None
         manifest = imported.get(session.model_id)
         if engine is None or manifest is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Session model has no transformer engine"}})
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"message": "Session model has no transformer engine"}},
+            )
         stage = next((value for value in manifest.stages if value.id == stage_id), None)
         if stage is None:
-            raise HTTPException(status_code=404, detail={"error": {"message": "Unknown transformer stage"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": "Unknown transformer stage"}}
+            )
         raw = await _read_limited_body(request, config.prepared_payload_max_bytes)
         audit("execute_stage_batch", raw)
         try:
@@ -1379,6 +1516,7 @@ def create_app(
             if len(payloads) > config.max_batch_size * 16:
                 raise ProtocolError("stage prefill batch is too large")
             if session.execution == "seeded-preparation":
+
                 async def run_prepared(values: list[bytes]) -> list[bytes]:
                     return await engine.execute_stage(session.model_id, stage, values)
 
@@ -1392,7 +1530,10 @@ def create_app(
             if len(results) != len(payloads):
                 raise ProtocolError("HE engine returned the wrong result count")
         except (ProtocolError, ValueError, RuntimeError) as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": str(exc), "code": "invalid_stage_batch"}})
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "invalid_stage_batch"}},
+            )
         session.online_steps += len(payloads)
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
@@ -1468,7 +1609,9 @@ def create_app(
         try:
             adapter, upstream_model_id = backend_registry.resolve(model_id)
         except KeyError:
-            raise HTTPException(status_code=404, detail={"error": {"message": f"Unknown model {model_id}"}})
+            raise HTTPException(
+                status_code=404, detail={"error": {"message": f"Unknown model {model_id}"}}
+            )
         upstream_body = dict(body)
         upstream_body["model"] = upstream_model_id
 
@@ -1476,7 +1619,11 @@ def create_app(
             """Keep public model IDs stable when a backend route is prefixed."""
             if isinstance(value, dict):
                 return {
-                    key: (model_id if key == "model" and item == upstream_model_id else publicize(item))
+                    key: (
+                        model_id
+                        if key == "model" and item == upstream_model_id
+                        else publicize(item)
+                    )
                     for key, item in value.items()
                 }
             if isinstance(value, list):
@@ -1484,23 +1631,31 @@ def create_app(
             return value
 
         if body.get("stream"):
+
             async def generate():
                 async for raw_event in adapter.stream_response(upstream_body):
                     event = publicize(raw_event)
-                    if event.get("type") == "response.completed" and isinstance(event.get("response"), dict):
+                    if event.get("type") == "response.completed" and isinstance(
+                        event.get("response"), dict
+                    ):
                         responses.put(event["response"], api_key)
                     yield sse_event(event)
                 yield b"data: [DONE]\n\n"
+
             return StreamingResponse(generate(), media_type="text/event-stream")
         try:
             value = publicize(await adapter.create_response(upstream_body))
         except Exception as exc:
-            raise HTTPException(status_code=502, detail={"error": {"message": str(exc), "type": "backend_error"}})
+            raise HTTPException(
+                status_code=502, detail={"error": {"message": str(exc), "type": "backend_error"}}
+            )
         responses.put(value, api_key)
         return JSONResponse(value)
 
     @app.get("/v1/responses/{response_id}")
-    async def retrieve_response(response_id: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def retrieve_response(
+        response_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         api_key = auth_token(authorization)
         try:
             return responses.get(response_id, api_key)
@@ -1508,7 +1663,9 @@ def create_app(
             raise HTTPException(status_code=404, detail={"error": {"message": "Unknown response"}})
 
     @app.post("/v1/responses/{response_id}/cancel")
-    async def cancel_response(response_id: str, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    async def cancel_response(
+        response_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
         api_key = auth_token(authorization)
         for session in sessions.values():
             if session.response_id == response_id and session.api_key == api_key:
@@ -1536,7 +1693,10 @@ def create_app(
             },
             "stage_schedulers": {
                 **{model: scheduler.stats() for model, scheduler in schedulers.items()},
-                **{f"{model}:{stage}": scheduler.stats() for (model, stage), scheduler in engine_schedulers.items()},
+                **{
+                    f"{model}:{stage}": scheduler.stats()
+                    for (model, stage), scheduler in engine_schedulers.items()
+                },
             },
             "engines": {
                 name: (getattr(engine, "metrics")() if hasattr(engine, "metrics") else {})
@@ -1546,4 +1706,7 @@ def create_app(
             "correction_channel": dict(correction_channel_metrics),
         }
 
+    from .telemetry import instrument_fastapi
+
+    instrument_fastapi(app)
     return app

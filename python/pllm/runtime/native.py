@@ -3,6 +3,7 @@
 The wire boundary uses immutable little endian byte buffers. Rust owns each
 compiled matrix and one worker pool belongs to each engine, not each layer.
 """
+
 from __future__ import annotations
 
 import json
@@ -78,6 +79,23 @@ class CompiledMatrix:
         totals = x.astype(object) @ self._reference.astype(object).T
         return np.asarray(totals % (1 << 32), dtype=np.uint32)
 
+    def wrap64(self, inputs: np.ndarray) -> np.ndarray:
+        raw = np.asarray(inputs)
+        if raw.ndim < 1 or raw.dtype.kind not in {"i", "u"}:
+            raise NativeKernelError("expected an integer tensor")
+        if raw.shape[-1] != self.shape[1]:
+            raise NativeKernelError("expected weights [out,in] and inputs [...,in]")
+        if raw.dtype.kind == "i" and raw.size and int(raw.min()) < 0:
+            raise NativeKernelError("ring-64 inputs must be unsigned residues")
+        x = np.ascontiguousarray(raw, dtype="<u8")
+        leading = x.shape[:-1]
+        rows = x.reshape(-1, self.shape[1])
+        if self._matrix is not None:
+            data = self._execute("wrap64", rows.tobytes(), rows.shape[0])
+            return np.frombuffer(data, dtype="<u8").reshape(*leading, self.shape[0])
+        totals = rows.astype(object) @ self._reference.astype(object).T
+        return np.asarray(totals % (1 << 64), dtype=np.uint64).reshape(*leading, self.shape[0])
+
     def clear(self, inputs: np.ndarray) -> np.ndarray:
         x = self._inputs(inputs, np.int8, -128, 127)
         if self._matrix is not None:
@@ -114,14 +132,20 @@ class CompiledMatrix:
 class MaskedGEMM:
     """Exact modular kernels. Use compile() once for each immutable model stage."""
 
-    def __init__(self, library: str | Path | None = None, *, threads: int = 0,
-                 build: bool = True, simd: bool = True) -> None:
+    def __init__(
+        self,
+        library: str | Path | None = None,
+        *,
+        threads: int = 0,
+        build: bool = True,
+        simd: bool = True,
+    ) -> None:
         if library is not None:
-            raise NativeKernelError("External C++ libraries are no longer accepted; build pllm._native with Maturin")
+            raise NativeKernelError(
+                "External C++ libraries are no longer accepted; build pllm._native with Maturin"
+            )
         default_threads = min(32, os.cpu_count() or 1)
-        self.threads = int(
-            threads or os.environ.get("PLLM_NATIVE_THREADS", str(default_threads))
-        )
+        self.threads = int(threads or os.environ.get("PLLM_NATIVE_THREADS", str(default_threads)))
         if not 1 <= self.threads <= 32:
             raise NativeKernelError("threads must be in [1,32]")
         self._extension = extension()
@@ -153,6 +177,9 @@ class MaskedGEMM:
 
     def wrap32(self, weights, inputs):
         return self.compile(weights).wrap32(inputs)
+
+    def wrap64(self, weights, inputs):
+        return self.compile(weights).wrap64(inputs)
 
     def clear(self, weights, inputs):
         return self.compile(weights).clear(inputs)
