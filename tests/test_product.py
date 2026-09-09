@@ -39,7 +39,11 @@ def test_settings_round_trip_and_permissions(tmp_path: Path, monkeypatch: pytest
         correlation_mode="bfv",
         correlation_prefetch=9,
         token_cache_size=700,
+        bundle_cache_mode="read-only",
+        bundle_cache_dir=str(tmp_path / "bundles"),
         timeout=45.0,
+        preparation_base_url="https://preparation.example",
+        preparation_api_key="preparation-secret",
     )
     assert settings.save() == path
     loaded = ClientSettings.load()
@@ -54,8 +58,42 @@ def test_settings_environment_overrides_file(tmp_path: Path, monkeypatch: pytest
     ClientSettings(base_url="http://old", api_key="old").save()
     monkeypatch.setenv("PLLM_BASE_URL", "https://new")
     monkeypatch.setenv("PLLM_API_KEY", "new-key")
+    monkeypatch.setenv("PLLM_PREPARATION_BASE_URL", "https://preparation.example")
+    monkeypatch.setenv("PLLM_PREPARATION_API_KEY", "preparation-key")
+    monkeypatch.setenv("PLLM_BUNDLE_CACHE_MODE", "refresh")
+    monkeypatch.setenv("PLLM_BUNDLE_CACHE_DIR", str(tmp_path / "bundle-cache"))
     assert ClientSettings.load().base_url == "https://new"
     assert ClientSettings.load().api_key == "new-key"
+    assert ClientSettings.load().preparation_base_url == "https://preparation.example"
+    assert ClientSettings.load().preparation_api_key == "preparation-key"
+    assert ClientSettings.load().bundle_cache_mode == "refresh"
+    assert ClientSettings.load().bundle_cache_dir == str(tmp_path / "bundle-cache")
+
+
+def test_configure_accepts_bundle_cache_options() -> None:
+    args = _build_parser().parse_args(
+        [
+            "configure",
+            "--bundle-cache-mode",
+            "read-only",
+            "--bundle-cache-dir",
+            "/tmp/pllm-bundles",
+        ]
+    )
+    assert args.bundle_cache_mode == "read-only"
+    assert args.bundle_cache_dir == "/tmp/pllm-bundles"
+
+    sidecar = _build_parser().parse_args(
+        [
+            "sidecar",
+            "--bundle-cache-mode",
+            "refresh",
+            "--bundle-cache-dir",
+            "/tmp/pllm-sidecar-bundles",
+        ]
+    )
+    assert sidecar.bundle_cache_mode == "refresh"
+    assert sidecar.bundle_cache_dir == "/tmp/pllm-sidecar-bundles"
 
 
 def _parse_serve(*extra: str):
@@ -64,8 +102,27 @@ def _parse_serve(*extra: str):
 
 
 def test_chat_accepts_output_token_limit() -> None:
-    args = _build_parser().parse_args(["chat", "--max-output-tokens", "1"])
+    args = _build_parser().parse_args([
+        "chat",
+        "--max-output-tokens",
+        "1",
+        "--preparation-url",
+        "https://preparation.example",
+    ])
     assert args.max_output_tokens == 1
+    assert args.preparation_base_url == "https://preparation.example"
+
+
+def test_preparation_service_has_dedicated_command() -> None:
+    args = _build_parser().parse_args([
+        "preparation",
+        "serve",
+        "org/model",
+        "--api-key",
+        "secret",
+    ])
+    assert args.preparation_command == "serve"
+    assert args.models == ["org/model"]
 
 
 def test_server_delegates_huggingface_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

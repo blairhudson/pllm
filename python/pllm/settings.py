@@ -20,11 +20,12 @@ class ClientSettings:
     model: str | None = None
     transport: str = "auto"
     correlation_mode: str = "bfv"
-    execution_strategy: str = "bfv"
-    secondary_base_url: str | None = None
-    secondary_api_key: str | None = None
+    preparation_base_url: str | None = None
+    preparation_api_key: str | None = None
     correlation_prefetch: int = 4
     token_cache_size: int = 512
+    bundle_cache_mode: str = "read-write"
+    bundle_cache_dir: str | None = None
     timeout: float = 300.0
 
     @classmethod
@@ -40,11 +41,12 @@ class ClientSettings:
             "model": os.getenv("PLLM_MODEL"),
             "transport": os.getenv("PLLM_TRANSPORT"),
             "correlation_mode": os.getenv("PLLM_CORRELATION_MODE"),
-            "execution_strategy": os.getenv("PLLM_EXECUTION_STRATEGY"),
-            "secondary_base_url": os.getenv("PLLM_SECONDARY_BASE_URL"),
-            "secondary_api_key": os.getenv("PLLM_SECONDARY_API_KEY"),
+            "preparation_base_url": os.getenv("PLLM_PREPARATION_BASE_URL"),
+            "preparation_api_key": os.getenv("PLLM_PREPARATION_API_KEY"),
             "correlation_prefetch": os.getenv("PLLM_CORRELATION_PREFETCH"),
             "token_cache_size": os.getenv("PLLM_TOKEN_CACHE_SIZE"),
+            "bundle_cache_mode": os.getenv("PLLM_BUNDLE_CACHE_MODE"),
+            "bundle_cache_dir": os.getenv("PLLM_BUNDLE_CACHE_DIR"),
             "timeout": os.getenv("PLLM_TIMEOUT"),
         }
         for key, value in env.items():

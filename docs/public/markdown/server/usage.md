@@ -8,6 +8,7 @@ Declare the checkpoint policy and choose a supported execution path.
 ```bash
 pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --local-files-only \
   --model-id private-model \
   --host 127.0.0.1 \
@@ -15,6 +16,24 @@ pllm serve "$PLLM_MODEL_SOURCE" \
 ```
 
 Set `PLLM_API_KEY` in the provider environment. Without an explicit key, the reference CLI generates a key and prints it once; this is unsuitable for captured production logs. Use a configured secret for deployment.
+
+## Trusted preparation role
+
+```bash
+pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --model-id private-model \
+  --local-files-only \
+  --host 127.0.0.1 \
+  --port 8001
+```
+
+This public-weight-only service exposes no Responses or inference route. It
+receives seeds, expands `r` and `s`, pushes `W·r-s` to inference's fixed endpoint,
+returns only an acknowledgement, and must erase the masks. The client verifies
+that its model, stage, and exact ring commitments match inference.
 
 ## Separate weights from adversary assumptions
 
@@ -45,6 +64,6 @@ Compilation uses W8A8 by default so ordinary checkpoints retain usable generatio
 
 ## Health and model discovery
 
-`/healthz` is a liveness check. Use authenticated `/v1/models` to inspect loaded model status. A healthy process is not proof that a model compiled, that an HE backend loaded, or that enough preparation is available.
+`/healthz` is a liveness check. Use authenticated `/v1/models` to inspect loaded model status. A healthy process is not proof that a model compiled or that either service will compute honestly.
 
 The provider intentionally rejects plaintext `/v1/responses` for a private model. Applications call the [local gateway](/docs/client/openai) instead.

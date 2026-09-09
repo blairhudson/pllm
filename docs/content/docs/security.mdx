@@ -5,19 +5,25 @@ description: "Name the protected data, the adversary, and what still leaks."
 
 ## Public weights
 
-The client retains plaintext prompts, token IDs, activation scales, decryption keys, masks, and model state. The provider observes encrypted preparation, masked stage values, shapes, stage names, timing, and scheduling.
+The client retains plaintext prompts, token IDs, activation scales, seeds, masks, and model state. The untrusted inference provider observes masked stage values, preparation corrections, shapes, stage names, timing, and scheduling. The trusted preparation service observes fresh seeds and bound stage metadata, derives `r` and `s`, and pushes `W·r-s` to inference. The client never receives this correction.
 
-Under the protocol's assumption that the provider follows its operations, fresh uniform masks hide the online values. Confidentiality of the encrypted preparation also depends on the HE parameters and implementation. Message authentication does not prove the provider computed the intended matrix.
+Inference registers each prepared session with immutable model/body/stage commitments, quantization, and a bounded attempt budget. Before stage traffic, the client sends preparation one compact authorization for that session. Preparation validates and relays it with its distinct provider-push credential. Inference accepts it once and performs no runner computation before authorization; inference-client credentials cannot authorize sessions.
 
-The optional `two-provider` strategy replaces BFV preparation with two fresh
-uniform ring-2^32 shares. Each provider sees only one share and returns one
-linear output share. Privacy requires honest execution and genuinely independent
-administrative domains that do not collude. Two processes, ports, containers, or
-accounts controlled by one operator do not satisfy that assumption. The client
-rejects equal provider origins, non-TLS remote origins, non-public models, and
-different model commitments, but those checks cannot prove organizational
-independence. Anyone observing both plaintext channels could reconstruct the
-activation, so only TLS is accepted away from loopback.
+Preparation sends corrections over one persistent binary WebSocket to a fixed
+provider route. Its `ws` or `wss` URL is derived only from the validated inference
+HTTP(S) origin. Only the provider-push credential authenticates the upgrade.
+Each bounded `CorrectionPush` frame carries its random attempt ID and session
+binding. Delivery is one-way on the critical path; inference reports any rejected
+correction through the matching activation request. Payloads are not audit logged.
+
+Fresh uniform masks in the smallest sufficient exact `u16`, `u24`, or `u32` ring hide online values from inference. Privacy requires
+the preparation service to follow the protocol, erase expanded masks, and not
+collude with inference. Self-hosting places that trust inside the client boundary.
+Two services controlled by one untrusted operator do not satisfy the assumption.
+The client rejects equal origins, non-TLS remote origins, non-public models, and
+different model commitments, but cannot prove operator independence or erasure.
+Anyone observing both channels can recover the activation, so only TLS is
+accepted away from loopback. Authentication does not prove correct computation.
 
 ## Confidential weights
 
@@ -33,9 +39,12 @@ That experiment demonstrates why searching payloads for literal prompt text is i
 
 ## Single use material
 
-Reserve before sending. Once a mask has been exposed in an online request, never return it to an available pool. Timeout, cancellation, rejected speculative work, and an uncertain network result all consume material.
-
-Transactions protect against interrupted writes. They do not protect against restoring an earlier database or virtual machine snapshot. The lifecycle study discards material across new session epochs; the reference runtime should not be advertised as resistant to complete snapshot rollback.
+The client creates one seed per stage attempt and commits it before sending.
+Timeout, cancellation, rejected speculative work, and an uncertain network result
+burn that seed. The client never retries one channel independently and keeps no
+durable pool that could be rolled back. Preparation does not retry after an
+ambiguous WebSocket send. It discards that connection and reconnects only when a
+later independent attempt arrives.
 
 ## Deployment assumptions
 

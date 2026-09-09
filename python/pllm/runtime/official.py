@@ -9,12 +9,16 @@ def create_openai_client(
     *,
     gateway_url: str | None = None,
     gateway_api_key: str | None = None,
+    preparation_url: str | None = None,
+    preparation_api_key: str | None = None,
     api_key: str = "he-local-transport",
     base_url: str = "https://he.local/v1",
     he_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
     token_cache_size: int | None = None,
+    bundle_cache_mode: str | None = None,
+    bundle_cache_dir: str | None = None,
     tenseal_path: str | None = None,
     **client_kwargs: Any,
 ):
@@ -29,8 +33,16 @@ def create_openai_client(
         base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
         token_cache_size=token_cache_size,
+        bundle_cache_mode=bundle_cache_mode,
+        bundle_cache_dir=bundle_cache_dir,
+        preparation_base_url=preparation_url,
+        preparation_api_key=preparation_api_key,
     )
     gateway_url, gateway_api_key = settings.base_url, settings.api_key
+    preparation_url, preparation_api_key = (
+        settings.preparation_base_url,
+        settings.preparation_api_key,
+    )
     he_transport, correlation_mode = settings.transport, settings.correlation_mode
     correlation_prefetch, token_cache_size = settings.correlation_prefetch, settings.token_cache_size
     try:
@@ -41,10 +53,14 @@ def create_openai_client(
     transport = HETransport(
         gateway_url=gateway_url,
         api_key=gateway_api_key,
+        preparation_url=preparation_url,
+        preparation_api_key=preparation_api_key,
         he_transport=he_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
         token_cache_size=token_cache_size,
+        bundle_cache_mode=settings.bundle_cache_mode,
+        bundle_cache_dir=settings.bundle_cache_dir,
         tenseal_path=tenseal_path,
     )
     http_client = _httpx.Client(transport=transport)
@@ -60,12 +76,16 @@ def create_async_openai_client(
     *,
     gateway_url: str | None = None,
     gateway_api_key: str | None = None,
+    preparation_url: str | None = None,
+    preparation_api_key: str | None = None,
     api_key: str = "he-local-transport",
     base_url: str = "https://he.local/v1",
     he_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
     token_cache_size: int | None = None,
+    bundle_cache_mode: str | None = None,
+    bundle_cache_dir: str | None = None,
     tenseal_path: str | None = None,
     **client_kwargs: Any,
 ):
@@ -74,8 +94,16 @@ def create_async_openai_client(
         base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
         token_cache_size=token_cache_size,
+        bundle_cache_mode=bundle_cache_mode,
+        bundle_cache_dir=bundle_cache_dir,
+        preparation_base_url=preparation_url,
+        preparation_api_key=preparation_api_key,
     )
     gateway_url, gateway_api_key = settings.base_url, settings.api_key
+    preparation_url, preparation_api_key = (
+        settings.preparation_base_url,
+        settings.preparation_api_key,
+    )
     he_transport, correlation_mode = settings.transport, settings.correlation_mode
     correlation_prefetch, token_cache_size = settings.correlation_prefetch, settings.token_cache_size
     try:
@@ -86,10 +114,14 @@ def create_async_openai_client(
     transport = HEAsyncTransport(
         gateway_url=gateway_url,
         api_key=gateway_api_key,
+        preparation_url=preparation_url,
+        preparation_api_key=preparation_api_key,
         he_transport=he_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
         token_cache_size=token_cache_size,
+        bundle_cache_mode=settings.bundle_cache_mode,
+        bundle_cache_dir=settings.bundle_cache_dir,
         tenseal_path=tenseal_path,
     )
     http_client = _httpx.AsyncClient(transport=transport)

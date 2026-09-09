@@ -54,7 +54,9 @@ pllm chat
 The client uses the saved server, credential, and model. Override the connection for this invocation:
 
 ```bash
-pllm chat --server http://127.0.0.1:8000 --model private-model
+pllm chat --server http://127.0.0.1:8000 \
+  --preparation-url http://127.0.0.1:8001 \
+  --model private-model
 ```
 
 ## Commands
@@ -68,7 +70,9 @@ pllm chat --server http://127.0.0.1:8000 --model private-model
 | `/help` | Show available commands |
 | `/quit` | Exit the client |
 
-Use `--no-stream` to print a response after it completes. A preparation wait is expected when no material is available; increasing the token limit can also increase the amount of material consumed.
+Use `--no-stream` to print a response after it completes. Each linear stage waits
+for its preparation acknowledgement and masked inference result. Correction bytes
+flow directly from preparation to inference and are reported separately.
 
 ## Local privacy
 
@@ -102,35 +106,37 @@ Explicit SDK arguments override environment variables. Environment variables ove
 | Provider URL | `PLLM_BASE_URL` | `http://127.0.0.1:8000` |
 | Provider credential | `PLLM_API_KEY` | `pllm-local` |
 | Model ID | `PLLM_MODEL` | Discover a single private model |
-| Execution strategy | `PLLM_EXECUTION_STRATEGY` | `bfv` |
-| Second provider URL | `PLLM_SECONDARY_BASE_URL` | None |
-| Second provider credential | `PLLM_SECONDARY_API_KEY` | Primary credential |
+| Preparation URL | `PLLM_PREPARATION_BASE_URL` | None |
+| Preparation credential | `PLLM_PREPARATION_API_KEY` | Provider credential |
 | Transport | `PLLM_TRANSPORT` | `auto` |
 | Preparation | `PLLM_CORRELATION_MODE` | `bfv` |
 | Preparation horizon | `PLLM_CORRELATION_PREFETCH` | `4` |
 | Token cache entries | `PLLM_TOKEN_CACHE_SIZE` | `512` |
+| Bundle cache mode | `PLLM_BUNDLE_CACHE_MODE` | `read-write` |
+| Bundle cache directory | `PLLM_BUNDLE_CACHE_DIR` | `$XDG_CACHE_HOME/pllm/client-bundles` or `~/.cache/pllm/client-bundles` |
 | Timeout, seconds | `PLLM_TIMEOUT` | `300` |
 
 Set an explicit credential. The default value is for local development, not an access policy.
 
-## Use two independent providers
+## Configure public-weight preparation
 
-For public weights, direct sharing avoids online HE preparation:
+Public-weight inference requires a trusted preparation service in addition to
+the untrusted inference provider:
 
 ```bash
 pllm configure \
-  --execution-strategy two-provider \
-  --server https://provider-a.example \
-  --api-key "$PLLM_PROVIDER_A_KEY" \
-  --secondary-base-url https://provider-b.example \
-  --secondary-api-key "$PLLM_PROVIDER_B_KEY"
+  --server https://inference.example \
+  --api-key "$PLLM_INFERENCE_KEY" \
+  --preparation-url https://preparation.example \
+  --preparation-api-key "$PLLM_PREPARATION_KEY"
 ```
 
-The providers must have independent administrative control and must not
-collude. Distinct URLs, processes, ports, containers, or accounts owned by one
-operator do not establish that assumption. Remote provider URLs require HTTPS;
-plain HTTP is accepted only on loopback for development. The client verifies
-that both providers expose identical execution plans and weight commitments.
+Self-host the preparation service when no external preparation operator is
+trusted. It needs the same public model weights, but receives only fresh seeds
+and shape metadata. It must follow the protocol, erase expanded masks, and not
+collude with the inference provider. Remote URLs require HTTPS and distinct
+origins; plain HTTP is accepted only on loopback for development. The client
+verifies matching model and per-stage weight commitments before generation.
 
 ## Protect the settings file
 
@@ -143,7 +149,35 @@ pllm configure --server http://127.0.0.1:8000 --api-key "$PLLM_API_KEY"
 
 For managed environments, inject credentials at process startup and use a protected configuration directory. Do not share this directory between unrelated tenants.
 
-## Tune preparation cautiously
+## Cache public client bundles
+
+Client bundles contain public boundary weights and tokenizer assets. PLLM verifies
+the provider-advertised schema, model ID, and complete payload SHA-256 before use.
+Each generation fetches the current descriptor and rebuilds in-memory model state
+when its bundle fingerprint changes. Cache identity includes normalized inference
+URL, model, and provider credential, keyed by a random cache-local secret so the
+filename alone is not an API-key verifier. One stable record per identity is
+atomically replaced on revision changes. Bundles larger than 8 GiB are rejected,
+directories are created with mode `0700`, and payload files use mode `0600`.
+
+`read-write` reads and updates the cache. `read-only` reads valid entries but does
+not repair or write them. `refresh` downloads and atomically replaces an entry.
+`off` bypasses disk caching. Configure with:
+
+```bash
+pllm configure \
+  --bundle-cache-mode read-write \
+  --bundle-cache-dir ~/.cache/pllm/client-bundles
+```
+
+If the implicit default cache directory is unavailable, PLLM skips disk and uses
+the same fully verified network bundle. An explicitly configured `read-write` or
+`refresh` directory fails clearly instead, so deployment mistakes are visible.
+
+`/audit` reports `bundle_network_bytes`, `bundle_cache_hits`,
+`bundle_cache_misses`, and `bundle_cache_corruptions` separately.
+
+## Tune confidential-weight preparation cautiously
 
 ```bash
 pllm configure --correlation-prefetch 4 --token-cache-size 512 --timeout 600
@@ -162,8 +196,8 @@ URL: /docs/client/install/
 
 Use Python 3.11, 3.12 or 3.13 and UV. A source installation also needs Rust;
 a matching prebuilt wheel does not. The HE option installs TenSEAL. The client
-owns the key, tokenizer, private model state and preparation inventory, so it
-must run inside the customer's trusted environment.
+owns the tokenizer, private model state, fresh mask seeds and reconstruction, so
+it must run inside the customer's trusted environment.
 
 ## From the repository
 
@@ -210,39 +244,43 @@ URL: /docs/client/lifecycle/
 
 ## 1. Validate the model plan
 
-The client obtains the public stage names, dimensions, arithmetic parameters, tokenizer information, scales, and quantized token-boundary matrices for public weights. It keeps its secret key local. Pin the model revision and verify the operator's artifact manifest before accepting a plan.
+The client obtains stage names, dimensions, arithmetic parameters, tokenizer information, scales, and quantized token-boundary matrices from the inference provider. It separately verifies that the preparation service exposes the same public model body and per-stage weight commitments. After inference registers a random prepared session, the client sends preparation one compact authorization binding that session, the model commitments, quantization, and bounded attempt budget. Preparation validates and relays it through its provider-only push channel. Failure closes the inference session; authorization cannot be replayed.
 
 ## 2. Protect each activation
 
-The default BFV strategy creates a random input mask and asks one provider to
-transform it under encryption. The client decrypts the transformed mask and
-stores a single-use pair before the activation is known.
-
-The optional public-weight two-provider strategy instead splits each quantized
-activation into two fresh uniform ring shares. It sends the shares concurrently
-over separate confidential authenticated channels. Neither non-colluding
-provider receives the activation, the other share, or private activation
-scales. This strategy has no preparation inventory.
+For every linear stage, the client creates a fresh 128-bit attempt ID and
+256-bit seed and domain-separates input mask `r` from output mask `s`. Expansion
+binds session, model, body, stage, weight, dimensions, quantization, and exact
+ring profile. It sends only the seed and bound stage metadata
+to the trusted preparation service. At the same time, it sends `x-r` to the
+untrusted inference provider. Preparation pushes `W·r-s` directly to the fixed
+inference endpoint and returns a small acknowledgement. There is no callback URL
+or durable preparation inventory. Inference rejects stage activation before the
+one-time session authorization. Once authorized, it starts stage computation on
+activation while concurrently awaiting the correction.
 
 ## 3. Process the prompt
 
-Token lookup is local for public weights. Prompt rows then pass through private transformer-body projections and local nonlinear operations. BFV consumes one distinct correlation for every private body row; direct sharing consumes fresh shares instead. The client applies the local output head only to the final prefill row. Any preparation must be included in first token latency.
+Token lookup is local for public weights. Prompt rows then pass through masked transformer-body projections and local nonlinear operations. Every stage call consumes its seed before either request is sent; timeout, cancellation, or an ambiguous result burns that attempt without retry. The client applies the local output head only to the final prefill row.
 
 ## 4. Generate and decode
 
-With BFV, the client subtracts the prepared output mask. With two providers, it
-adds both wrapping output shares and interprets the bounded result as signed.
-Bias is added once after reconstruction. Attention, recurrent updates,
+Inference atomically consumes both halves and returns `W·x-s`. The client adds
+`s` and center-decodes the smallest sufficient `u16`, `u24`, or `u32` ring. Bias
+is added once after reconstruction.
+Attention, recurrent updates,
 activation scales, and sampling remain local. The gateway emits ordinary text
 events only after the client reconstructs them.
 
-## 5. Refill or stop
+## 5. Burn or stop
 
-An empty inventory causes preparation work, not mask reuse. Cancelled requests and rejected proposals still spend every correlation that reached the wire. Closing a study session discards remaining preparation; the reference runtime's durable inventory must not be treated as resistant to restoring old storage snapshots.
+Seeds are never reused. A failed attempt starts over with a newly sampled seed;
+the client does not independently retry either half. Completion and cancellation
+leave no reusable ticket batch or durable correlation state.
 
 ## What to measure
 
-Record total request duration, time to first token, gaps between tokens, preparation time, correlations consumed and discarded, and both directions of traffic. A high rate during a short warm interval is not sustained throughput.
+Record total request duration, time to first token, gaps between tokens, preparation and inference server time, failed attempts, client-to-service traffic, one-time authorization bytes, and preparation-to-inference correction bytes separately. A high rate during a short warm interval is not sustained throughput.
 
 The [benchmark guide](/docs/research/benchmarks) separates complete request measurements from matrix kernels and model scale projections.
 
@@ -334,7 +372,7 @@ with OpenAI() as client:
     print(response.output_text)
 ```
 
-`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. The SDK owns the secret key and performs preparation and unmasking locally.
+`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. For public weights, the SDK creates each mask locally from a fresh seed and reconstructs linear results locally.
 
 ## Stream text
 
@@ -380,18 +418,22 @@ from pllm import OpenAI
 with OpenAI(
     base_url=os.environ["PLLM_BASE_URL"],
     api_key=os.environ["PLLM_API_KEY"],
+    preparation_base_url=os.environ["PLLM_PREPARATION_BASE_URL"],
+    preparation_api_key=os.environ["PLLM_PREPARATION_API_KEY"],
     model="private-model",
+    bundle_cache_mode="read-write",
     timeout=600,
 ) as client:
     print(client.responses.create(input="Hello").output_text)
 ```
 
-The constructor also accepts `execution_strategy`, `secondary_base_url`,
-`secondary_api_key`, `he_transport`, `correlation_mode`,
-`correlation_prefetch`, `token_cache_size`, `tenseal_path`, and `http_client`.
-Two-provider execution is available only for public weights and requires
-independently administered providers connected over HTTPS. Most applications
-should leave these at their configured values.
+The constructor also accepts `preparation_base_url`, `preparation_api_key`,
+`he_transport`, `correlation_mode`,
+`correlation_prefetch`, `token_cache_size`, `bundle_cache_mode`,
+`bundle_cache_dir`, `tenseal_path`, and `http_client`.
+Remote preparation is available only for public weights. The preparation
+service must be trusted not to retain masks or collude with the inference
+provider. Most applications should leave these values in saved configuration.
 
 ## Async applications
 
@@ -416,15 +458,17 @@ The reference async wrapper delegates work to threads. It is not a separate nati
 URL: /docs/deployment/docker/
 
 
-The supplied Compose file uses a local model snapshot, a read only model mount, and a writable compiled cache. It binds both service ports to host loopback. Put a TLS reverse proxy in front of the provider when it must be reached from another machine.
+The supplied Compose file mounts the same public snapshot read-only into inference and preparation and gives each a separate compiled cache. It binds all service ports to host loopback. Put TLS reverse proxies in front of remote services.
 
 ## Build and start
 
-From the release root, set `PLLM_MODEL_SOURCE` to an absolute model directory and set both credentials.
+From the release root, set `PLLM_MODEL_SOURCE` to an absolute model directory and set all credentials.
 
 ```bash
 : "${PLLM_MODEL_SOURCE:?Set the absolute checkpoint directory}"
 : "${PLLM_API_KEY:?Set the provider credential}"
+: "${PLLM_PREPARATION_API_KEY:?Set the preparation credential}"
+: "${PLLM_PROVIDER_PUSH_API_KEY:?Set the correction push credential}"
 : "${PLLM_LOCAL_API_KEY:?Set a different local gateway credential}"
 docker compose -f deploy/compose.yaml up --build
 ```
@@ -433,13 +477,19 @@ The Dockerfile installs the supplied runtime with UV. It does not pull an unrela
 
 ## Keep the gateway trusted
 
-The example runs both services on one host for evaluation. On separate machines, run the gateway on the customer's host and point it at the provider's TLS URL. Do not place both in a provider controlled environment and retain the same confidentiality claim.
+The example runs all services on one host for evaluation. In production, keep the gateway and self-hosted preparation on the customer's host and point them at inference over TLS. Do not place preparation under the untrusted inference operator and retain the same confidentiality claim.
+
+The inference proxy must pass binary WebSocket upgrades for
+`/v1/he/corrections/ws`, preserve the provider-push `Authorization` header, and
+disable payload logging. Set its frame/body limit to the configured prepared
+payload limit plus the small channel header, and keep its idle timeout above the
+longest expected pause between decode stages.
 
 ## Data and restart behaviour
 
-Keep compiled public matrices on a persistent volume. Do not persist and restore consumed correlation inventory as though it were reusable model cache. Key and session changes invalidate preparation. Reconnecting after a failed stage must not resend a private activation with a previously used mask.
-
-The current reference has no complete snapshot rollback defence. Avoid VM snapshot restore for active private sessions and treat restarted sessions as fresh work.
+Keep compiled public matrices on persistent volumes. The client stores no durable
+correlation inventory. A failed stage burns its seed and the complete attempt;
+never replay one channel independently.
 
 
 ---
@@ -448,21 +498,29 @@ The current reference has no complete snapshot rollback defence. Avoid VM snapsh
 URL: /docs/deployment/overview/
 
 
-## Three processes with different responsibilities
+## Components with different responsibilities
 
 | Component | Accepts plaintext? | Recommended location |
 | --- | --- | --- |
-| Provider | No prompt text on the private path | Machine that hosts the model matrices |
+| Inference provider | No; receives masked activations | Untrusted model host |
+| Preparation service | No; receives fresh seeds | Customer host or separately trusted operator |
 | Client SDK or gateway | Yes | Customer workstation or trusted customer service |
 | Documentation site | No inference input | Static hosting, separate from either runtime |
 
 ## Local evaluation
 
-Use the provider on port 8000 and the local gateway on port 8080. Keep both bound to loopback. Run one client per conversation while checking memory and lifecycle metrics.
+Use inference on port 8000, preparation on 8001, and the local gateway on 8080. Keep all bound to loopback for evaluation. Run one client per conversation while checking memory and per-channel metrics.
 
 ## Private network evaluation
 
-Place the client inside the customer boundary and the provider close enough that network latency is practical. Protect the provider connection with TLS, firewall it, and keep administrative credentials separate from application credentials. A customer gateway is trusted with plaintext; hosting it at the model provider changes the threat model.
+Place the client and self-hosted preparation inside the customer boundary and inference close enough that network latency is practical. If preparation is remote, its operator must not collude with inference. Protect both connections with TLS and separate credentials. Hosting the gateway or preparation at the untrusted inference operator changes the threat model.
+
+Preparation derives correction `wss` from its configured inference `https`
+origin and keeps that binary connection open across stage calls. Any reverse proxy
+must support WebSocket upgrade on `/v1/he/corrections/ws`, forward the
+`Authorization` header, disable request/frame payload logging, enforce a frame
+limit compatible with `prepared_payload_max_bytes`, and use an idle timeout long
+enough for decode pauses. Do not expose an alternate correction destination.
 
 ## Containers and system services
 
@@ -534,25 +592,35 @@ Install this repository at `/opt/pllm`. Create a dedicated `pllm` system user,
 resolve dependencies, and run `PLLM_NATIVE_CACHE=/var/cache/pllm/native uv run pllm build` before making the service
 filesystem read only. The unit expects `/opt/pllm/.venv/bin/pllm`.
 
-Copy `deploy/pllm-provider.service` to `/etc/systemd/system/` and configure
-`/etc/pllm/provider.env` using `deploy/provider.env.example`. Make the environment
-file readable only by root. Keep checkpoints outside home directories because
-the unit protects those directories.
+Copy `deploy/pllm-provider.service` and `deploy/pllm-preparation.service` to
+`/etc/systemd/system/`. Configure `/etc/pllm/provider.env` and
+`/etc/pllm/preparation.env` from their examples. Configure distinct client,
+preparation, and correction-push credentials; the correction-push value is shared
+only between provider and preparation. Set preparation's fixed inference URL. Keep
+preparation inside the customer boundary or at an independently trusted
+operator. Keep checkpoints outside home directories because the units protect
+those directories.
 
 ```bash
 sudo chmod 600 /etc/pllm/provider.env
+sudo chmod 600 /etc/pllm/preparation.env
 sudo systemctl daemon-reload
 sudo systemctl enable --now pllm-provider
+sudo systemctl enable --now pllm-preparation
 sudo systemctl status pllm-provider
+sudo systemctl status pllm-preparation
 ```
 
-The service binds to loopback. Place a configured TLS reverse proxy in front
-of it for remote access, set request size and timeout limits for preparation
-traffic, and disable payload logging. The local plaintext gateway remains
-inside the customer's trust boundary, not on this provider host.
+Both services bind to loopback. Place configured TLS reverse proxies in front
+of remote endpoints, set request size and timeout limits, and disable payload
+logging. Pass WebSocket upgrades and `Authorization` for
+`/v1/he/corrections/ws`; set its frame limit to the prepared-payload limit plus
+the bounded channel header and keep idle timeout above expected decode pauses.
+The local plaintext gateway remains inside the customer's trust
+boundary.
 
-Discard preparation on restart unless freshness is anchored outside the
-restored state. Restoring a VM snapshot is not equivalent to an ordinary crash.
+The public path stores no reusable preparation inventory. A client creates and
+burns a fresh seed for every stage attempt.
 
 
 ---
@@ -561,9 +629,9 @@ restored state. Restoring a VM snapshot is not equivalent to an ordinary crash.
 URL: /docs/
 
 
-PLLM divides model execution between a client you control and a remote provider. The client keeps conversation text, cryptographic keys, activation scales, and decoded output. The provider evaluates the large matrix operations.
+PLLM divides public-weight execution among a client you control, a trusted preparation service, and an untrusted inference provider. The client keeps conversation text, activation scales, and decoded output. Both services evaluate large matrix operations on separate masked shares.
 
-The fast protocol uses homomorphic encryption during preparation. During generation it uses ordinary integer arithmetic on masked values. It is not a complete model evaluated entirely inside ciphertexts.
+The fast protocol uses fresh seeded `u16`, `u24`, or `u32` masks and ordinary integer arithmetic. Preparation receives the seed and pushes `W·r-s` to inference's fixed authenticated endpoint. Inference receives `x-r`, returns `W·x-s`, and never receives the seed. The client receives only a small preparation acknowledgement, adds its locally expanded `s`, and center-decodes. Preparation must not retain masks or collude with inference.
 
 ## Choose your path
 
@@ -575,13 +643,13 @@ The fast protocol uses homomorphic encryption during preparation. During generat
 | Deploy on a private network | [Deployment overview](/docs/deployment/overview) |
 | Understand the protocol and results | [Read the paper](/docs/research/paper) |
 
-## Two endpoints, not one
+## Three roles
 
-The provider listens on port **8000** by default. It accepts the private stage protocol. The local gateway listens on port **8080** and exposes `/v1/responses` to your application. Plaintext enters the local gateway, not the provider.
+Inference listens on port **8000** and preparation commonly uses **8001**. The local gateway listens on **8080** and exposes `/v1/responses` to your application. Plaintext enters only the trusted client or local gateway.
 
 ## Current scope
 
-The bundled reference runtime is PLLM 0.14 with the recorded privacy corrections. Its CLI and constructor signatures are the basis for these guides. The newer coefficient preparation experiments are supplied separately. They are not yet the default preparation backend of `pllm serve`.
+The bundled reference runtime uses just-in-time seeded preparation for public weights. It keeps no durable mask inventory and performs no public-path BFV work. Historical coefficient preparation experiments remain under `research/` and are not the application default.
 
 Public weights are the documented deployment path. Guarded confidential weights do not protect the model against a modified client. Read [security boundaries](/docs/security) before moving a workload across machines.
 
@@ -613,15 +681,34 @@ Set `PLLM_MODEL_SOURCE` to your local checkpoint directory before running this c
 
 ```bash
 export PLLM_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PREPARATION_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PROVIDER_PUSH_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 : "${PLLM_MODEL_SOURCE:?Set PLLM_MODEL_SOURCE to the checkpoint directory}"
 uv run pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --model-id private-model \
   --local-files-only \
   --compiled-cache-dir .cache/compiled
 ```
 
-The provider key authenticates private requests. Keep it in your secret store. Do not enable `--allow-test-correlations` for private data: that test path lets the server learn the masks.
+## Start trusted preparation
+
+In another trusted process, load the same public checkpoint:
+
+```bash
+uv run pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --model-id private-model \
+  --local-files-only \
+  --compiled-cache-dir .cache/preparation-compiled \
+  --port 8001
+```
+
+Self-host this role unless another preparation operator is trusted not to retain
+masks or collude with inference. Keep all three service credentials in your secret store.
 
 ## Configure the client
 
@@ -632,11 +719,13 @@ umask 077
 uv run pllm configure \
   --server http://127.0.0.1:8000 \
   --api-key "$PLLM_API_KEY" \
+  --preparation-url http://127.0.0.1:8001 \
+  --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
   --model private-model
 uv run pllm chat
 ```
 
-The first response may wait for preparation. A fast generation interval after preparation is not the rate of the complete request.
+Each stage sends preparation and inference work concurrently. Count both links and all first-token work when measuring latency.
 
 ## Use Python
 
@@ -653,7 +742,7 @@ with OpenAI() as client:
 
 ## Check the boundary
 
-Your application owns the plaintext. The configured provider receives encrypted preparation and masked stage inputs. Request timing, shapes, stage names, and approximate lengths remain visible. This implementation assumes the provider follows the protocol; it does not verify every provider computation.
+Your application owns the plaintext. Preparation receives fresh seeds and bound stage metadata; inference receives masked stage inputs. Timing, shapes, stage names, and approximate lengths remain visible. This implementation does not verify every service computation.
 
 
 ---
@@ -683,7 +772,12 @@ pllm serve MODEL_PATH_OR_HUB_ID --weights public
 | `--max-batch-size`, `--max-wait-ms` | Stage coalescing controls |
 | `--allow-test-correlations` | Insecure test option; never use for private data |
 
-Valid activation protection values are `automatic`, `precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`, `encrypted-activations`, and `authenticated-shares`. Valid spelling does not imply that every graph and adversary combination is implemented.
+Valid activation protection values are `automatic`, `seeded-preparation`,
+`precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`,
+`encrypted-activations`, and `authenticated-shares`. Public weights select
+`seeded-preparation`; `precomputed-masks` remains a confidential-weight mode.
+Valid spelling does not imply that every graph and adversary combination is
+implemented.
 
 ## Configure
 
@@ -691,14 +785,31 @@ Valid activation protection values are `automatic`, `precomputed-masks`, `guarde
 pllm configure --server URL --api-key KEY --model MODEL_ID
 ```
 
-Optional fields include `--execution-strategy`, `--secondary-base-url`,
-`--secondary-api-key`, `--transport`, `--correlation-mode`,
-`--correlation-prefetch`, `--token-cache-size`, and `--timeout`.
+Optional fields include `--preparation-url`, `--preparation-api-key`,
+`--transport`, `--correlation-mode`,
+`--correlation-prefetch`, `--token-cache-size`, `--bundle-cache-mode`,
+`--bundle-cache-dir`, and `--timeout`.
+
+`pllm sidecar` accepts the same two bundle-cache options.
+
+## Preparation service
+
+```text
+pllm preparation serve MODEL_PATH_OR_HUB_ID --api-key KEY \
+  --inference-url URL --push-api-key KEY --port 8001
+```
+
+This role is public-weight-only and exposes health, model commitment, and seeded
+preparation routes. It does not expose inference, Responses, client-bundle, or
+model-administration routes. Both services need the same public checkpoint.
+Provider `pllm serve` accepts `--provider-push-api-key`,
+`--rendezvous-timeout`, `--rendezvous-capacity`, and
+`--rendezvous-max-bytes`. All three service credentials must differ.
 
 ## Chat and local gateway
 
 ```text
-pllm chat [--server URL] [--model MODEL_ID] [--execution-strategy bfv|two-provider]
+pllm chat [--server URL] [--model MODEL_ID] [--preparation-url URL]
 pllm sidecar --local-api-key KEY --host 127.0.0.1 --port 8080
 ```
 
@@ -972,7 +1083,9 @@ You sent plaintext to the private provider endpoint. Start `pllm sidecar` in the
 
 ## The provider returns 401
 
-The provider key and local gateway key are different credentials. The application uses `PLLM_LOCAL_API_KEY`; the PLLM client uses `PLLM_API_KEY`. Verify both without printing them into logs.
+Inference, preparation, and the local gateway use separate credentials. The
+application uses `PLLM_LOCAL_API_KEY`; the PLLM client uses `PLLM_API_KEY` and
+`PLLM_PREPARATION_API_KEY`. Verify them without printing them into logs.
 
 ## The client cannot select a model
 
@@ -988,11 +1101,20 @@ Check interpreter and operating system wheel support. Use the `he` extra and ver
 
 ## Generation stalls
 
-Check whether preparation is exhausted, not only whether the socket is open. Count preparation bytes and client decryption time. More prefetched rows can change where the wait occurs without improving sustained throughput.
+Check both service health, per-channel bytes, matrix time and network time. The
+public path has no inventory to exhaust: preparation is performed concurrently
+for every stage. Compare preparation's `correction_push_attempts`,
+`correction_channel_upload_bytes`, and `correction_push_ns` with inference's
+`correction_channel` frames, bytes, failures, and processing time. A connection
+count near frame count indicates that a proxy or idle timeout is defeating
+persistence. Confirm `/v1/he/corrections/ws` supports binary WebSocket upgrades
+and preserves the provider-push `Authorization` header.
 
 ## A stream fails halfway through
 
-Stop that execution and discard uncertain correlations. Do not replay stage frames manually. A new response is new work and may incur preparation and prefill again.
+Stop that execution and discard the attempt. Do not replay either channel
+manually. A new response generates fresh seeds and repeats preparation and
+prefill.
 
 ## A checkpoint loads but does not match its original outputs
 
@@ -1038,7 +1160,25 @@ The local gateway presents familiar Response objects and streaming events. It do
 URL: /docs/research/benchmarks/
 
 
-All figures here come from the supplied lifecycle study. This documentation build does not introduce a new inference benchmark. Download [the raw summary](/downloads/lifecycle-summary.json) and [evidence records](/downloads/evidence.zip).
+Historical figures come from the supplied lifecycle study. A current installed
+prepared-inference acceptance run is reported separately below. Download [the
+raw lifecycle summary](/downloads/lifecycle-summary.json) and [evidence
+records](/downloads/evidence.zip).
+
+## Prepared Qwen acceptance
+
+An installed macOS arm64 wheel generated 32 tokens with
+`Qwen/Qwen2.5-0.5B-Instruct` using separate loopback preparation and inference
+processes. Warm time to first token was **1.54 seconds** and decode throughput was
+**7.06 tokens/s**. Preparation upload was **326,304 bytes**, masked inference
+upload was **52,370,400 bytes**, and inference returned **72,404,832 bytes**.
+Preparation relayed **72,962,400 bytes** directly to inference, leaving total
+online client traffic at **125,373,502 bytes** instead of two full result
+downloads. The tied boundary bundle was **145,970,989 bytes** cold and zero
+bytes warm from the fingerprinted disk cache. This validates arithmetic,
+packaging, compact rings, relay accounting, and local performance, not
+production non-collusion. See `qwen-prepared-inference.json` in the evidence
+archive.
 
 ## Complete preparation
 
@@ -1449,19 +1589,25 @@ URL: /docs/security/
 
 ## Public weights
 
-The client retains plaintext prompts, token IDs, activation scales, decryption keys, masks, and model state. The provider observes encrypted preparation, masked stage values, shapes, stage names, timing, and scheduling.
+The client retains plaintext prompts, token IDs, activation scales, seeds, masks, and model state. The untrusted inference provider observes masked stage values, preparation corrections, shapes, stage names, timing, and scheduling. The trusted preparation service observes fresh seeds and bound stage metadata, derives `r` and `s`, and pushes `W·r-s` to inference. The client never receives this correction.
 
-Under the protocol's assumption that the provider follows its operations, fresh uniform masks hide the online values. Confidentiality of the encrypted preparation also depends on the HE parameters and implementation. Message authentication does not prove the provider computed the intended matrix.
+Inference registers each prepared session with immutable model/body/stage commitments, quantization, and a bounded attempt budget. Before stage traffic, the client sends preparation one compact authorization for that session. Preparation validates and relays it with its distinct provider-push credential. Inference accepts it once and performs no runner computation before authorization; inference-client credentials cannot authorize sessions.
 
-The optional `two-provider` strategy replaces BFV preparation with two fresh
-uniform ring-2^32 shares. Each provider sees only one share and returns one
-linear output share. Privacy requires honest execution and genuinely independent
-administrative domains that do not collude. Two processes, ports, containers, or
-accounts controlled by one operator do not satisfy that assumption. The client
-rejects equal provider origins, non-TLS remote origins, non-public models, and
-different model commitments, but those checks cannot prove organizational
-independence. Anyone observing both plaintext channels could reconstruct the
-activation, so only TLS is accepted away from loopback.
+Preparation sends corrections over one persistent binary WebSocket to a fixed
+provider route. Its `ws` or `wss` URL is derived only from the validated inference
+HTTP(S) origin. Only the provider-push credential authenticates the upgrade.
+Each bounded `CorrectionPush` frame carries its random attempt ID and session
+binding. Delivery is one-way on the critical path; inference reports any rejected
+correction through the matching activation request. Payloads are not audit logged.
+
+Fresh uniform masks in the smallest sufficient exact `u16`, `u24`, or `u32` ring hide online values from inference. Privacy requires
+the preparation service to follow the protocol, erase expanded masks, and not
+collude with inference. Self-hosting places that trust inside the client boundary.
+Two services controlled by one untrusted operator do not satisfy the assumption.
+The client rejects equal origins, non-TLS remote origins, non-public models, and
+different model commitments, but cannot prove operator independence or erasure.
+Anyone observing both channels can recover the activation, so only TLS is
+accepted away from loopback. Authentication does not prove correct computation.
 
 ## Confidential weights
 
@@ -1477,9 +1623,12 @@ That experiment demonstrates why searching payloads for literal prompt text is i
 
 ## Single use material
 
-Reserve before sending. Once a mask has been exposed in an online request, never return it to an available pool. Timeout, cancellation, rejected speculative work, and an uncertain network result all consume material.
-
-Transactions protect against interrupted writes. They do not protect against restoring an earlier database or virtual machine snapshot. The lifecycle study discards material across new session epochs; the reference runtime should not be advertised as resistant to complete snapshot rollback.
+The client creates one seed per stage attempt and commits it before sending.
+Timeout, cancellation, rejected speculative work, and an uncertain network result
+burn that seed. The client never retries one channel independently and keeps no
+durable pool that could be rolled back. Preparation does not retry after an
+ambiguous WebSocket send. It discards that connection and reconnects only when a
+later independent attempt arrives.
 
 ## Deployment assumptions
 
@@ -1588,7 +1737,7 @@ Test a checkpoint in four steps: import coverage, clear quantized execution, pri
 
 ## Public token material
 
-Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from homomorphic preparation and online provider calls. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
+Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from both remote matrix services. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
 
 Proprietary model bundles do not contain these matrices. They retain remote private token lookup and output projection, so public and proprietary latency measurements are not interchangeable.
 
@@ -1723,9 +1872,21 @@ pllm serve "$PLLM_MODEL_SOURCE" \
 
 These are tuning inputs, not a recommended universal optimum. Measure single conversation latency separately from aggregate throughput. Other users can fill a matrix batch without making one user's dependent stages parallel.
 
-## Bound client preparation
+## Measure just-in-time preparation
 
-The reference SDK defaults to four prefetched correlations and a token cache of 512 entries. Public-weight preparation packs those four masks into guarded BFV slot segments and tiles matrices that exceed one segment. Increasing the horizon can help long conversations but wastes work for short ones. The separate coordinate preparation study packs 2,048 future masks under one key; it is not the reference server's default.
+The public path has no prefetch horizon or durable correlation inventory. Every
+stage sends one small seeded request to preparation while inference processes
+the masked activation. Preparation sends its correction directly to inference
+over a persistent binary WebSocket and returns only a small acknowledgement.
+One session authorization still uses HTTP; correction stages do not create fresh
+HTTP request/response routes. Measure client-to-preparation upload,
+ACK download, client-to-inference traffic, and preparation-to-inference
+correction bytes separately. Preparation metrics expose correction payload bytes,
+channel upload bytes, compute nanoseconds, and send nanoseconds. Inference metrics
+expose channel connections, frames, accepted bytes, failures, and processing
+nanoseconds. Preparation upload
+alone is not complete traffic. Byte counters cover application payloads and PLLM's
+MessagePack envelopes, not WebSocket, TLS, or IP framing.
 
 ## Count both links
 
@@ -1749,6 +1910,7 @@ URL: /docs/server/usage/
 ```bash
 pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --local-files-only \
   --model-id private-model \
   --host 127.0.0.1 \
@@ -1756,6 +1918,24 @@ pllm serve "$PLLM_MODEL_SOURCE" \
 ```
 
 Set `PLLM_API_KEY` in the provider environment. Without an explicit key, the reference CLI generates a key and prints it once; this is unsuitable for captured production logs. Use a configured secret for deployment.
+
+## Trusted preparation role
+
+```bash
+pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --model-id private-model \
+  --local-files-only \
+  --host 127.0.0.1 \
+  --port 8001
+```
+
+This public-weight-only service exposes no Responses or inference route. It
+receives seeds, expands `r` and `s`, pushes `W·r-s` to inference's fixed endpoint,
+returns only an acknowledgement, and must erase the masks. The client verifies
+that its model, stage, and exact ring commitments match inference.
 
 ## Separate weights from adversary assumptions
 
@@ -1786,6 +1966,6 @@ Compilation uses W8A8 by default so ordinary checkpoints retain usable generatio
 
 ## Health and model discovery
 
-`/healthz` is a liveness check. Use authenticated `/v1/models` to inspect loaded model status. A healthy process is not proof that a model compiled, that an HE backend loaded, or that enough preparation is available.
+`/healthz` is a liveness check. Use authenticated `/v1/models` to inspect loaded model status. A healthy process is not proof that a model compiled or that either service will compute honestly.
 
 The provider intentionally rejects plaintext `/v1/responses` for a private model. Applications call the [local gateway](/docs/client/openai) instead.

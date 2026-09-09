@@ -1,23 +1,31 @@
 # Deployment overview
 
-Separate the provider, trusted client, and documentation site.
+Separate inference, preparation, the trusted client, and documentation.
 
 
-## Three processes with different responsibilities
+## Components with different responsibilities
 
 | Component | Accepts plaintext? | Recommended location |
 | --- | --- | --- |
-| Provider | No prompt text on the private path | Machine that hosts the model matrices |
+| Inference provider | No; receives masked activations | Untrusted model host |
+| Preparation service | No; receives fresh seeds | Customer host or separately trusted operator |
 | Client SDK or gateway | Yes | Customer workstation or trusted customer service |
 | Documentation site | No inference input | Static hosting, separate from either runtime |
 
 ## Local evaluation
 
-Use the provider on port 8000 and the local gateway on port 8080. Keep both bound to loopback. Run one client per conversation while checking memory and lifecycle metrics.
+Use inference on port 8000, preparation on 8001, and the local gateway on 8080. Keep all bound to loopback for evaluation. Run one client per conversation while checking memory and per-channel metrics.
 
 ## Private network evaluation
 
-Place the client inside the customer boundary and the provider close enough that network latency is practical. Protect the provider connection with TLS, firewall it, and keep administrative credentials separate from application credentials. A customer gateway is trusted with plaintext; hosting it at the model provider changes the threat model.
+Place the client and self-hosted preparation inside the customer boundary and inference close enough that network latency is practical. If preparation is remote, its operator must not collude with inference. Protect both connections with TLS and separate credentials. Hosting the gateway or preparation at the untrusted inference operator changes the threat model.
+
+Preparation derives correction `wss` from its configured inference `https`
+origin and keeps that binary connection open across stage calls. Any reverse proxy
+must support WebSocket upgrade on `/v1/he/corrections/ws`, forward the
+`Authorization` header, disable request/frame payload logging, enforce a frame
+limit compatible with `prepared_payload_max_bytes`, and use an idle timeout long
+enough for decode pauses. Do not expose an alternate correction destination.
 
 ## Containers and system services
 

@@ -3,12 +3,15 @@ import json
 from pathlib import Path
 
 import numpy as np
+import msgpack
+import pytest
 
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
+from pllm.runtime.preparation_protocol import seeded_ring_profile
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse, StageCorrelation, unmask_stage_output
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
-from pllm.runtime.transformer_client import ClientBundle
+from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
@@ -48,7 +51,10 @@ def test_safetensors_engine_loads_fused_stage_and_executes_masked(tmp_path: Path
     assert engine.stats()["execute_items"] == 3
 
 
-def test_public_engine_executes_exact_ring32_shares(tmp_path: Path):
+@pytest.mark.parametrize(("ring", "bits"), [("u16", 16), ("u24", 24), ("u32", 32)])
+def test_public_engine_executes_exact_unsigned_ring_shares(
+    tmp_path: Path, ring: str, bits: int
+):
     root = create_tiny_gemma4_checkpoint(tmp_path / "model")
     manifest = load_hf_directory(root, model_id="tiny-ring32")
     engine = MaskedTransformerEngine(threads=2)
@@ -59,9 +65,12 @@ def test_public_engine_executes_exact_ring32_shares(tmp_path: Path):
     assert metadata.weight_digest
     activation = np.random.default_rng(7).normal(size=(3, metadata.in_features)).astype(np.float32)
     quantized = quantize_activation_per_row(activation, bits=metadata.activation_bits)
-    clear = quantized.values.astype(np.int32).astype(np.uint32)
-    first = np.random.default_rng(11).integers(0, 1 << 32, size=clear.shape, dtype=np.uint32)
-    second = np.subtract(clear, first, dtype=np.uint32)
+    modulus = 1 << bits
+    clear = quantized.values.astype(np.int64) % modulus
+    first = np.random.default_rng(11).integers(
+        0, modulus, size=clear.shape, dtype=np.uint32
+    )
+    second = ((clear - first.astype(np.int64)) % modulus).astype(np.uint32)
     outputs = []
     for label, share in zip(("a", "b"), (first, second)):
         request = MaskedStageRequest(
@@ -70,15 +79,20 @@ def test_public_engine_executes_exact_ring32_shares(tmp_path: Path):
             label,
             share,
             np.ones(quantized.rows, dtype=np.float32),
-            1 << 32,
-            32,
-            ring="u32",
+            modulus,
+            bits,
+            ring=ring,
         )
         payload = run(engine.execute_stage(manifest.id, stage, [request.pack()]))[0]
         response = MaskedStageResponse.unpack(payload)
-        assert response.ring == "u32"
+        assert response.ring == ring
         outputs.append(response.masked_output)
-    actual = np.add(outputs[0], outputs[1], dtype=np.uint32).view(np.int32)
+    combined = (
+        outputs[0].astype(np.uint64) + outputs[1].astype(np.uint64)
+    ) % modulus
+    actual = np.where(combined >= 1 << (bits - 1), combined - modulus, combined).astype(
+        np.int64
+    )
     loaded = engine.models[manifest.id].stages[stage_id]
     expected = quantized.values.astype(np.int32) @ loaded.weight.values.astype(np.int32).T
     np.testing.assert_array_equal(actual, expected)
@@ -100,6 +114,13 @@ def test_public_bundle_exposes_only_local_boundary_weights(tmp_path: Path):
     assert any(key.endswith("input_layernorm.weight") for key in bundle.local_tensors)
     assert not any("q_proj.weight" in key for key in bundle.local_tensors)
     assert bundle.tokenizer_descriptor["type"] == "byte"
+    for stage_id, runtime in engine.models["tiny"].stages.items():
+        if stage_id in {"token_lookup", "lm_head"}:
+            assert bundle.stages[stage_id].seeded_profile is None
+        else:
+            assert bundle.stages[stage_id].seeded_profile == seeded_ring_profile(
+                runtime.signed_output_bound
+            )
 
 
 def test_public_boundary_stages_stay_local_and_head_projects_final_prefill_row(
@@ -163,6 +184,117 @@ def test_engine_precision_applies_to_every_stage(tmp_path: Path):
     assert np.max(np.abs(values)) > 7
     bundle = ClientBundle.unpack(engine.client_bundle("tiny-w8"))
     assert bundle.privacy["protocol"] == "masked_w8a8"
+
+
+def test_tied_w8_bundle_uses_one_canonical_boundary_matrix(tmp_path: Path):
+    from safetensors.torch import load_file
+
+    from pllm.runtime.quantization import quantize_weight_per_row
+
+    root = create_tiny_gemma4_checkpoint(tmp_path / "tied", ple_dim=4)
+    manifest = load_hf_directory(root, model_id="tied-w8")
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    run(engine.load(manifest))
+
+    payload = engine.client_bundle(manifest.id)
+    raw = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+    assert raw["v"] == 2
+    assert set(raw["client_weights"]) == {"tied_embeddings", "token_lookup_aux"}
+    assert raw["stages"]["token_lookup"]["client_weight"]["ref"] == "tied_embeddings"
+    assert raw["stages"]["lm_head"]["client_weight"]["ref"] == "tied_embeddings"
+    stored_bytes = sum(
+        len(row["data"]) + len(row["scales"])
+        for row in raw["client_weights"].values()
+    )
+    legacy_bytes = sum(
+        runtime.weight.values.nbytes + runtime.weight.scales.nbytes
+        for runtime in (
+            engine.models[manifest.id].stages["token_lookup"],
+            engine.models[manifest.id].stages["lm_head"],
+        )
+    )
+    assert legacy_bytes - stored_bytes == manifest.hidden_size * (manifest.vocab_size + 4)
+
+    bundle = ClientBundle.unpack(payload)
+    lookup = bundle.stages["token_lookup"]
+    head = bundle.stages["lm_head"]
+    assert lookup.client_weight is head.client_weight
+    assert lookup.client_weight_scales is head.client_weight_scales
+
+    embedding = load_file(root / "model.safetensors")["model.embed_tokens.weight"].numpy()
+    canonical = quantize_weight_per_row(embedding, bits=8)
+    np.testing.assert_array_equal(head.client_weight, canonical.values)
+    np.testing.assert_array_equal(head.client_weight_scales, canonical.scales)
+
+    ids = np.asarray([0, 17, 257])
+    expected_lookup = canonical.values[ids].astype(np.float32) * canonical.scales[ids, None]
+    actual_lookup = bundle.local_token_lookup(ids)
+    np.testing.assert_array_equal(actual_lookup[:, : manifest.hidden_size], expected_lookup)
+
+    activation = np.random.default_rng(8).normal(size=(3, manifest.hidden_size)).astype(np.float32)
+    quantized = quantize_activation_per_row(activation, bits=8)
+    expected_integer = quantized.values.astype(np.int32) @ canonical.values.astype(np.int32).T
+    expected_head = dequantize_matmul(expected_integer, quantized.scales, canonical.scales)
+    np.testing.assert_array_equal(bundle.local_linear("lm_head", activation), expected_head)
+
+
+def test_tied_w4_bundle_without_ple_rejects_malformed_weight_references(tmp_path: Path):
+    root = create_tiny_gemma4_checkpoint(tmp_path / "tied-w4-no-ple", ple_dim=0)
+    manifest = load_hf_directory(root, model_id="tied-w4-no-ple")
+    engine = MaskedTransformerEngine(threads=1, weight_bits=4, activation_bits=4)
+    run(engine.load(manifest))
+    raw = msgpack.unpackb(engine.client_bundle(manifest.id), raw=False, strict_map_key=False)
+
+    assert raw["privacy"]["protocol"] == "masked_w4a4"
+    assert set(raw["client_weights"]) == {"tied_embeddings"}
+    assert "client_aux_weight" not in raw["stages"]["token_lookup"]
+
+    missing = msgpack.unpackb(msgpack.packb(raw, use_bin_type=True), raw=False)
+    missing["stages"]["token_lookup"]["client_weight"]["ref"] = "missing"
+    with pytest.raises(TransformerClientError, match="unknown client weight reference"):
+        ClientBundle.unpack(msgpack.packb(missing, use_bin_type=True))
+
+    impossible_aux = msgpack.unpackb(msgpack.packb(raw, use_bin_type=True), raw=False)
+    impossible_aux["stages"]["token_lookup"]["client_aux_weight"] = {
+        "ref": "tied_embeddings"
+    }
+    with pytest.raises(TransformerClientError, match="invalid auxiliary client weight shape"):
+        ClientBundle.unpack(msgpack.packb(impossible_aux, use_bin_type=True))
+
+
+def test_untied_bundle_keeps_distinct_boundary_weights(tmp_path: Path):
+    from safetensors.torch import load_file, save_file
+
+    from pllm.runtime.tiny_gemma import create_tiny_llama_checkpoint
+
+    root = create_tiny_llama_checkpoint(tmp_path / "untied", num_hidden_layers=1)
+    config_path = root / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["tie_word_embeddings"] = False
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    tensors = load_file(root / "model.safetensors")
+    tensors["lm_head.weight"] = tensors["model.embed_tokens.weight"] * 0.5
+    save_file(tensors, root / "model.safetensors")
+
+    manifest = load_hf_directory(root, model_id="untied")
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    run(engine.load(manifest))
+    raw = msgpack.unpackb(engine.client_bundle(manifest.id), raw=False, strict_map_key=False)
+    assert set(raw["client_weights"]) == {"token_lookup", "lm_head"}
+    assert raw["stages"]["token_lookup"]["client_weight"]["ref"] == "token_lookup"
+    assert raw["stages"]["lm_head"]["client_weight"]["ref"] == "lm_head"
+
+    bundle = ClientBundle.unpack(engine.client_bundle(manifest.id))
+    token_stage = bundle.stages["token_lookup"]
+    assert token_stage.client_weight is not bundle.stages["lm_head"].client_weight
+
+    ids = np.asarray([2, 2, 57, 257])
+    runtime = engine.models[manifest.id].stages["token_lookup"]
+    qmax = 127
+    integer = runtime.weight.values[:, ids].T.astype(np.int32) * qmax
+    activation_scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
+    expected = dequantize_matmul(integer, activation_scales, runtime.weight.scales)
+    np.testing.assert_array_equal(bundle.local_token_lookup(ids), expected)
 
 
 def test_client_runtime_honors_tokenizer_add_bos_setting(tmp_path: Path):
@@ -412,9 +544,20 @@ def test_gemma4_client_graph_matches_independent_quantized_reference(tmp_path: P
 
     tokenizer = bundle.tokenizer()
     ids = tokenizer.encode("reference", add_bos=True)
-    one_hot = np.zeros((len(ids), 258), dtype=np.float32)
-    one_hot[np.arange(len(ids)), ids] = 1.0
-    lookup = qlinear("token_lookup", one_hot)
+    token_stage = bundle.stages["token_lookup"]
+    assert token_stage.client_weight is not None
+    assert token_stage.client_weight_scales is not None
+    lookup = (
+        token_stage.client_weight[ids].astype(np.float32)
+        * token_stage.client_weight_scales[ids, None]
+    )
+    assert token_stage.client_aux_weight is not None
+    assert token_stage.client_aux_scales is not None
+    auxiliary = (
+        token_stage.client_aux_weight[:, ids].T.astype(np.float32)
+        * token_stage.client_aux_scales[None, :]
+    )
+    lookup = np.concatenate((lookup, auxiliary), axis=-1)
     hidden = lookup[:, :32] * np.sqrt(32.0)
     token_ple = lookup[:, 32:].reshape(len(ids), 2, 4) * 2.0
     context_ple = qlinear("model.per_layer_model_projection", hidden)

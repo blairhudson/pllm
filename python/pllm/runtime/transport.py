@@ -52,19 +52,27 @@ class HETransport(_httpx.BaseTransport):
         *,
         gateway_url: str,
         api_key: str = "he-local",
+        preparation_url: str | None = None,
+        preparation_api_key: str | None = None,
         he_transport: str = "http",
         correlation_mode: str = "bfv",
         correlation_prefetch: int = 4,
         token_cache_size: int = 512,
+        bundle_cache_mode: str = "read-write",
+        bundle_cache_dir: str | None = None,
         tenseal_path: str | None = None,
     ) -> None:
         self.core = HEClientCore(
             base_url=gateway_url,
             api_key=api_key,
+            preparation_base_url=preparation_url,
+            preparation_api_key=preparation_api_key,
             he_transport=he_transport,
             correlation_mode=correlation_mode,
             correlation_prefetch=correlation_prefetch,
             token_cache_size=token_cache_size,
+            bundle_cache_mode=bundle_cache_mode,
+            bundle_cache_dir=bundle_cache_dir,
             tenseal_path=tenseal_path,
         )
         self.forward = _httpx.Client(base_url=gateway_url, timeout=300.0)

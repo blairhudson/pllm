@@ -11,7 +11,7 @@ import threading
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import msgpack
 import numpy as np
@@ -21,6 +21,15 @@ from .engine import EngineCapabilities
 from .he_runtime import BFVCorrelationServer
 from .models import ModelManifest, StageSpec, gemma4_stage_plan, transformer_stage_plan
 from .native_kernels import MaskedGEMM
+from .preparation_protocol import (
+    CorrectionPush,
+    PreparationRequest,
+    SeededRingProfile,
+    SessionAuthorization,
+    expand_output_mask,
+    expand_preparation_mask,
+    seeded_ring_profile,
+)
 from .quantization import (
     QuantizedWeight,
     choose_plain_modulus,
@@ -29,7 +38,7 @@ from .quantization import (
     signed_qmax,
 )
 from .safetensors_store import SafeTensorStore, TensorStoreError
-from .stage_protocol import MaskedStageRequest, MaskedStageResponse, StageCorrelation
+from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
 
@@ -156,7 +165,16 @@ class StageRuntime:
     def signed_output_bound(self) -> int:
         return self._signed_output_bound
 
-    def public_descriptor(self, *, include_weight: bool = False) -> dict[str, Any]:
+    @property
+    def seeded_profile(self) -> SeededRingProfile:
+        return seeded_ring_profile(self.signed_output_bound)
+
+    def public_descriptor(
+        self,
+        *,
+        include_weight: bool = False,
+        include_seeded_profile: bool = False,
+    ) -> dict[str, Any]:
         descriptor = {
             "id": self.spec.id,
             "op": self.spec.op,
@@ -180,6 +198,8 @@ class StageRuntime:
                 "shape": list(self.weight.values.shape),
                 "data": self.weight.values.astype(np.int8, copy=False).tobytes(),
             }
+        if include_seeded_profile:
+            descriptor["seeded_profile"] = self.seeded_profile.to_dict()
         return descriptor
 
 
@@ -218,6 +238,23 @@ def _body_fingerprint(stages: dict[str, StageRuntime]) -> str:
                 else runtime.bias.astype("<f4", copy=False).tobytes(),
             }
         )
+    return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
+
+
+def _seeded_stage_commitment(stages: dict[str, StageRuntime]) -> str:
+    body = [
+        {
+            "id": stage_id,
+            "weight": runtime.weight_digest,
+            "in": runtime.spec.in_features,
+            "out": runtime.spec.out_features,
+            "wb": runtime.spec.weight_bits,
+            "ab": runtime.spec.activation_bits,
+            "profile": runtime.seeded_profile.to_dict(),
+        }
+        for stage_id, runtime in sorted(stages.items())
+        if stage_id not in {"token_lookup", "lm_head"}
+    ]
     return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
 
 
@@ -310,7 +347,7 @@ class MaskedTransformerEngine:
     capabilities = EngineCapabilities(
         name="masked-transformer-w4a4",
         model_sources=("huggingface", "safetensors", "vllm", "mlx-lm"),
-        protocols=("masked.stage/v1", "bfv-correlation/v1"),
+        protocols=("masked.stage/v3", "prepared-correction/v2", "bfv-correlation/v1"),
         online_fhe=False,
         he_preprocessed=True,
         continuous_batching=True,
@@ -443,6 +480,7 @@ class MaskedTransformerEngine:
                 "plain_moduli": moduli,
                 "stage_specific_moduli": self.fixed_modulus is None,
                 "body_fingerprint": _body_fingerprint(runtimes),
+                "seeded_stage_commitment": _seeded_stage_commitment(runtimes),
             }
         )
         if self.modulus is None:
@@ -507,7 +545,7 @@ class MaskedTransformerEngine:
         if stage.op == "lm_head":
             candidates = list(keys)
             if manifest.tied_embeddings:
-                candidates += ["model.embed_tokens.weight", "embed_tokens.weight"]
+                candidates = ["model.embed_tokens.weight", "embed_tokens.weight", *candidates]
             return [(store.resolve_first(candidates), bool(stage.transpose_weight))]
         resolved = [(store.resolve(key), False) for key in keys]
         if stage.transpose_weight:
@@ -851,6 +889,7 @@ class MaskedTransformerEngine:
     async def execute_stage(
         self, model_id: str, stage: StageSpec, payloads: list[bytes]
     ) -> list[bytes]:
+        model = self._model(model_id)
         runtime = self._runtime(model_id, stage.id)
         requests = [MaskedStageRequest.unpack(payload) for payload in payloads]
         if not requests:
@@ -863,11 +902,13 @@ class MaskedTransformerEngine:
             raise TransformerEngineError("masked stage arithmetic profile mismatch")
         ring, modulus, wire_bits = profiles.pop()
         prime_profile = ring == "prime" and modulus == runtime.modulus and wire_bits == runtime.wire_bits
-        wrapping_profile = ring == "u32" and modulus == 1 << 32 and wire_bits == 32
+        wrapping_profile = ring in {"u16", "u24", "u32"} and (
+            modulus, wire_bits
+        ) == (1 << wire_bits, wire_bits)
         if not prime_profile and not wrapping_profile:
             raise TransformerEngineError("masked stage arithmetic profile mismatch")
-        if wrapping_profile and runtime.signed_output_bound >= 1 << 31:
-            raise TransformerEngineError("stage signed output exceeds ring32 range")
+        if wrapping_profile and runtime.signed_output_bound >= 1 << (wire_bits - 1):
+            raise TransformerEngineError("stage signed output exceeds wrapping ring range")
         for request in requests:
             if request.model != model_id or request.stage != stage.id:
                 raise TransformerEngineError("masked stage request route mismatch")
@@ -876,6 +917,26 @@ class MaskedTransformerEngine:
                 or request.masked_input.shape[1] != runtime.spec.in_features
             ):
                 raise TransformerEngineError("masked stage input width mismatch")
+            if request.body_fingerprint and request.body_fingerprint != model.manifest.metadata.get(
+                "body_fingerprint"
+            ):
+                raise TransformerEngineError("masked stage model fingerprint mismatch")
+            if request.weight_digest and request.weight_digest != runtime.weight_digest:
+                raise TransformerEngineError("masked stage weight commitment mismatch")
+            if request.weight_bits and request.weight_bits != runtime.spec.weight_bits:
+                raise TransformerEngineError("masked stage weight quantization mismatch")
+            if request.activation_bits and request.activation_bits != runtime.spec.activation_bits:
+                raise TransformerEngineError("masked stage activation quantization mismatch")
+            if request.session_id and (
+                request.out_features != runtime.spec.out_features
+                or SeededRingProfile(
+                    request.signed_output_bound,
+                    request.ring or "prime",  # type: ignore[arg-type]
+                    request.modulus,
+                    request.wire_bits,
+                ) != runtime.seeded_profile
+            ):
+                raise TransformerEngineError("masked stage seeded profile mismatch")
 
         row_counts = [request.masked_input.shape[0] for request in requests]
         combined = np.ascontiguousarray(
@@ -883,9 +944,9 @@ class MaskedTransformerEngine:
         )
         started = time.perf_counter_ns()
         output = await asyncio.to_thread(
-            runtime.compiled_weight.wrap32 if wrapping_profile else runtime.compiled_weight.modular,
+            runtime.compiled_weight.wrap32 if ring == "u32" else runtime.compiled_weight.modular,
             combined,
-            *(() if wrapping_profile else (runtime.modulus,)),
+            *(() if ring == "u32" else ((modulus,) if wrapping_profile else (runtime.modulus,))),
         )
         elapsed = time.perf_counter_ns() - started
         runtime.calls += len(requests)
@@ -905,13 +966,151 @@ class MaskedTransformerEngine:
                     wire_bits=wire_bits,
                     server_ns=int(elapsed * count / max(1, combined.shape[0])),
                     stage_id=stage.id,
-                    ring="u32" if wrapping_profile else "prime",
+                    ring=cast(RingKind, ring if wrapping_profile else "prime"),
                 ).pack()
             )
         return results
 
+    def validate_seeded_preparation(self, request: PreparationRequest) -> None:
+        model = self._model(request.model)
+        runtime = self._runtime(request.model, request.stage_id)
+        if request.body_fingerprint != model.manifest.metadata.get("body_fingerprint"):
+            raise TransformerEngineError("preparation model body fingerprint mismatch")
+        if request.weight_digest != runtime.weight_digest:
+            raise TransformerEngineError("preparation stage weight commitment mismatch")
+        if request.in_features != runtime.spec.in_features:
+            raise TransformerEngineError("preparation stage input width mismatch")
+        if request.out_features != runtime.spec.out_features:
+            raise TransformerEngineError("preparation stage output width mismatch")
+        if (
+            request.weight_bits != runtime.spec.weight_bits
+            or request.activation_bits != runtime.spec.activation_bits
+        ):
+            raise TransformerEngineError("preparation stage quantization mismatch")
+        if request.profile != runtime.seeded_profile:
+            raise TransformerEngineError("preparation stage ring profile mismatch")
+
+    async def prepare_seeded_stage(self, request: PreparationRequest) -> CorrectionPush:
+        self.validate_seeded_preparation(request)
+        runtime = self._runtime(request.model, request.stage_id)
+        mask = expand_preparation_mask(request)
+        output_mask = expand_output_mask(request)
+        started = time.perf_counter_ns()
+        transformed = await asyncio.to_thread(
+            runtime.compiled_weight.wrap32 if request.ring == "u32" else runtime.compiled_weight.modular,
+            mask,
+            *(() if request.ring == "u32" else (request.modulus,)),
+        )
+        correction = (
+            transformed.astype(np.int64) - output_mask.astype(np.int64)
+        ) % request.modulus
+        elapsed = time.perf_counter_ns() - started
+        runtime.calls += 1
+        runtime.rows += request.rows
+        runtime.server_ns += elapsed
+        return CorrectionPush(
+            attempt_id=request.attempt_id,
+            session_id=request.session_id,
+            model=request.model,
+            body_fingerprint=request.body_fingerprint,
+            server_ns=elapsed,
+            stage_id=request.stage_id,
+            weight_digest=request.weight_digest,
+            rows=request.rows,
+            in_features=request.in_features,
+            out_features=request.out_features,
+            weight_bits=request.weight_bits,
+            activation_bits=request.activation_bits,
+            signed_output_bound=request.signed_output_bound,
+            ring=request.ring,
+            modulus=request.modulus,
+            wire_bits=request.wire_bits,
+            correction=correction.astype(np.uint32),
+        )
+
     async def stage_metadata(self, model_id: str, stage_id: str) -> StageMetadata:
         return self._runtime(model_id, stage_id).metadata
+
+    def seeded_profile(self, model_id: str, stage_id: str) -> SeededRingProfile:
+        return self._runtime(model_id, stage_id).seeded_profile
+
+    def validate_seeded_correction(self, correction: CorrectionPush) -> None:
+        model = self._model(correction.model)
+        runtime = self._runtime(correction.model, correction.stage_id)
+        if (
+            correction.body_fingerprint != model.manifest.metadata.get("body_fingerprint")
+            or correction.weight_digest != runtime.weight_digest
+            or correction.in_features != runtime.spec.in_features
+            or correction.out_features != runtime.spec.out_features
+            or correction.weight_bits != runtime.spec.weight_bits
+            or correction.activation_bits != runtime.spec.activation_bits
+            or correction.profile != runtime.seeded_profile
+        ):
+            raise TransformerEngineError("correction stage metadata mismatch")
+
+    def validate_seeded_activation(self, request: MaskedStageRequest) -> None:
+        model = self._model(request.model)
+        runtime = self._runtime(request.model, request.stage_id)
+        if (
+            request.body_fingerprint != model.manifest.metadata.get("body_fingerprint")
+            or request.weight_digest != runtime.weight_digest
+            or request.masked_input.shape[-1] != runtime.spec.in_features
+            or request.out_features != runtime.spec.out_features
+            or request.weight_bits != runtime.spec.weight_bits
+            or request.activation_bits != runtime.spec.activation_bits
+            or SeededRingProfile(
+                request.signed_output_bound,
+                request.ring or "prime",  # type: ignore[arg-type]
+                request.modulus,
+                request.wire_bits,
+            )
+            != runtime.seeded_profile
+        ):
+            raise TransformerEngineError("prepared activation stage metadata mismatch")
+
+    def seeded_session_authorization(
+        self,
+        model_id: str,
+        session_id: str,
+        max_attempts: int,
+    ) -> SessionAuthorization:
+        model = self._model(model_id)
+        remote = [
+            runtime
+            for stage_id, runtime in model.stages.items()
+            if stage_id not in {"token_lookup", "lm_head"}
+        ]
+        weight_bits = {runtime.spec.weight_bits for runtime in remote}
+        activation_bits = {runtime.spec.activation_bits for runtime in remote}
+        if len(weight_bits) != 1 or len(activation_bits) != 1:
+            raise TransformerEngineError("seeded stages require uniform quantization")
+        return SessionAuthorization(
+            session_id=session_id,
+            model=model_id,
+            body_fingerprint=str(model.manifest.metadata["body_fingerprint"]),
+            stage_commitment=str(model.manifest.metadata["seeded_stage_commitment"]),
+            weight_bits=next(iter(weight_bits)),
+            activation_bits=next(iter(activation_bits)),
+            max_attempts=max_attempts,
+        )
+
+    def validate_seeded_session_authorization(
+        self,
+        authorization: SessionAuthorization,
+    ) -> None:
+        model = self._model(authorization.model)
+        max_budget = max(1, len(model.manifest.stages)) * (
+            max(1, model.manifest.context_length) + 1
+        )
+        if authorization.max_attempts > max_budget:
+            raise TransformerEngineError("session authorization attempt budget exceeds model limit")
+        expected = self.seeded_session_authorization(
+            authorization.model,
+            authorization.session_id,
+            authorization.max_attempts,
+        )
+        if authorization != expected:
+            raise TransformerEngineError("session authorization model commitment mismatch")
 
     async def client_bundle_bytes(self, model_id: str) -> bytes:
         return self.client_bundle(model_id)
@@ -1056,6 +1255,62 @@ class MaskedTransformerEngine:
     def client_bundle(self, model_id: str, *, include_local_weights: bool = True) -> bytes:
         model = self._model(model_id)
         local_stage_ids = {"token_lookup", "lm_head"} if include_local_weights else set()
+        stage_descriptors = {
+            sid: runtime.public_descriptor(
+                include_weight=False,
+                include_seeded_profile=include_local_weights and sid not in local_stage_ids,
+            )
+            for sid, runtime in model.stages.items()
+        }
+        client_weights: dict[str, dict[str, Any]] = {}
+
+        def add_client_weight(weight_id: str, weight: QuantizedWeight) -> None:
+            client_weights[weight_id] = {
+                "dtype": "i1",
+                "shape": list(weight.values.shape),
+                "data": weight.values.astype(np.int8, copy=False).tobytes(),
+                "scales": weight.scales.astype("<f4", copy=False).tobytes(),
+            }
+
+        if include_local_weights:
+            token_lookup = model.stages["token_lookup"]
+            lm_head = model.stages["lm_head"]
+            tied = (
+                model.manifest.tied_embeddings
+                and token_lookup.source_keys
+                and lm_head.source_keys
+                and token_lookup.source_keys[0] == lm_head.source_keys[0]
+            )
+            if tied:
+                add_client_weight("tied_embeddings", lm_head.weight)
+                stage_descriptors["lm_head"]["client_weight"] = {
+                    "ref": "tied_embeddings",
+                    "layout": "linear",
+                }
+                stage_descriptors["token_lookup"]["client_weight"] = {
+                    "ref": "tied_embeddings",
+                    "layout": "embedding",
+                }
+                auxiliary_width = token_lookup.spec.out_features - lm_head.spec.in_features
+                if auxiliary_width:
+                    auxiliary = QuantizedWeight(
+                        np.ascontiguousarray(token_lookup.weight.values[-auxiliary_width:]),
+                        np.ascontiguousarray(token_lookup.weight.scales[-auxiliary_width:]),
+                        token_lookup.weight.bits,
+                    )
+                    add_client_weight("token_lookup_aux", auxiliary)
+                    stage_descriptors["token_lookup"]["client_aux_weight"] = {
+                        "ref": "token_lookup_aux"
+                    }
+            else:
+                for stage_id, runtime in (("token_lookup", token_lookup), ("lm_head", lm_head)):
+                    add_client_weight(stage_id, runtime.weight)
+                    stage_descriptors[stage_id]["client_weight"] = {
+                        "ref": stage_id,
+                        "layout": (
+                            "transposed_embedding" if stage_id == "token_lookup" else "linear"
+                        ),
+                    }
         tensors = {
             key: {
                 "shape": list(value.shape),
@@ -1086,17 +1341,15 @@ class MaskedTransformerEngine:
         )
         return msgpack.packb(
             {
-                "v": 1,
+                "v": 2,
                 "runtime": "masked_transformer",
                 "model": model_id,
                 "manifest": model.manifest.to_dict(),
                 "config": config,
                 "tokenizer": model.tokenizer,
-                "stages": {
-                    sid: runtime.public_descriptor(include_weight=sid in local_stage_ids)
-                    for sid, runtime in model.stages.items()
-                },
+                "stages": stage_descriptors,
                 "local_tensors": tensors,
+                "client_weights": client_weights,
                 "privacy": {
                     "mode": "public",
                     "protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
@@ -1105,12 +1358,18 @@ class MaskedTransformerEngine:
                     "model_weight_correlations_disclosed": True,
                     "dense_weights_in_bundle": bool(local_stage_ids),
                     "local_quantized_stages": sorted(local_stage_ids),
+                    "tied_embedding_quantization": (
+                        "per_token_row_v1" if model.manifest.tied_embeddings else None
+                    ),
                     "token_ids_remote": False,
                     "plaintext_activations_remote": False,
                     "plaintext_logits_remote": False,
                     "client_intermediate_activations": True,
                     "model_privacy_threat_model": "public_weights",
                     "body_fingerprint": model.manifest.metadata["body_fingerprint"],
+                    "stage_commitment": model.manifest.metadata["seeded_stage_commitment"],
+                    "weight_bits": self.weight_bits,
+                    "activation_bits": self.activation_bits,
                 },
             },
             use_bin_type=True,

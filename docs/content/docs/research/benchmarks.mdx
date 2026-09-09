@@ -3,7 +3,25 @@ title: "Benchmarks"
 description: "Read the workload and denominator before reading the speedup."
 ---
 
-All figures here come from the supplied lifecycle study. This documentation build does not introduce a new inference benchmark. Download [the raw summary](/downloads/lifecycle-summary.json) and [evidence records](/downloads/evidence.zip).
+Historical figures come from the supplied lifecycle study. A current installed
+prepared-inference acceptance run is reported separately below. Download [the
+raw lifecycle summary](/downloads/lifecycle-summary.json) and [evidence
+records](/downloads/evidence.zip).
+
+## Prepared Qwen acceptance
+
+An installed macOS arm64 wheel generated 32 tokens with
+`Qwen/Qwen2.5-0.5B-Instruct` using separate loopback preparation and inference
+processes. Warm time to first token was **1.54 seconds** and decode throughput was
+**7.06 tokens/s**. Preparation upload was **326,304 bytes**, masked inference
+upload was **52,370,400 bytes**, and inference returned **72,404,832 bytes**.
+Preparation relayed **72,962,400 bytes** directly to inference, leaving total
+online client traffic at **125,373,502 bytes** instead of two full result
+downloads. The tied boundary bundle was **145,970,989 bytes** cold and zero
+bytes warm from the fingerprinted disk cache. This validates arithmetic,
+packaging, compact rings, relay accounting, and local performance, not
+production non-collusion. See `qwen-prepared-inference.json` in the evidence
+archive.
 
 ## Complete preparation
 

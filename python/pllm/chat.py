@@ -26,9 +26,8 @@ def run_chat(
     base_url: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
-    execution_strategy: str | None = None,
-    secondary_base_url: str | None = None,
-    secondary_api_key: str | None = None,
+    preparation_base_url: str | None = None,
+    preparation_api_key: str | None = None,
     stream: bool = True,
     max_output_tokens: int = 64,
 ) -> None:
@@ -36,9 +35,8 @@ def run_chat(
         base_url=base_url,
         api_key=api_key,
         model=model,
-        execution_strategy=execution_strategy,
-        secondary_base_url=secondary_base_url,
-        secondary_api_key=secondary_api_key,
+        preparation_base_url=preparation_base_url,
+        preparation_api_key=preparation_api_key,
     )
     console = Console()
     history_file = config_path().with_name("chat-history")
@@ -46,11 +44,12 @@ def run_chat(
     session: PromptSession[str] = PromptSession(history=FileHistory(str(history_file)))
     previous_response_id: str | None = None
     with OpenAI(base_url=settings.base_url, api_key=settings.api_key, default_model=settings.model,
-                execution_strategy=settings.execution_strategy,
-                secondary_base_url=settings.secondary_base_url,
-                secondary_api_key=settings.secondary_api_key,
+                preparation_base_url=settings.preparation_base_url,
+                preparation_api_key=settings.preparation_api_key,
                 he_transport=settings.transport, correlation_mode=settings.correlation_mode,
                 correlation_prefetch=settings.correlation_prefetch, token_cache_size=settings.token_cache_size,
+                bundle_cache_mode=settings.bundle_cache_mode,
+                bundle_cache_dir=settings.bundle_cache_dir,
                 timeout=settings.timeout) as client:
         selected = _choose_model(client, settings.model)
         console.print(f"[bold]PLLM chat[/bold]  model={selected}  server={settings.base_url}")
@@ -68,8 +67,9 @@ def run_chat(
             if prompt == "/config":
                 console.print_json(data={"base_url": settings.base_url, "model": selected, "transport": settings.transport,
                                          "correlation_mode": settings.correlation_mode,
-                                         "execution_strategy": settings.execution_strategy,
-                                         "secondary_base_url": settings.secondary_base_url,
+                                         "preparation_base_url": settings.preparation_base_url,
+                                         "bundle_cache_mode": settings.bundle_cache_mode,
+                                         "bundle_cache_dir": settings.bundle_cache_dir,
                                          "config_file": str(config_path())}); continue
             if prompt == "/help":
                 console.print("/clear starts a new conversation. /audit shows the local privacy counters. /quit exits."); continue
@@ -83,11 +83,7 @@ def run_chat(
             if stream:
                 final = None
                 output_started = False
-                status = console.status(
-                    "[cyan]Running private inference...[/cyan]"
-                    if settings.execution_strategy == "two-provider"
-                    else "[cyan]Preparing private inference; first token may take several minutes...[/cyan]"
-                )
+                status = console.status("[cyan]Running private inference...[/cyan]")
                 status.start()
                 try:
                     for event in client.responses.create(**request):
@@ -106,7 +102,7 @@ def run_chat(
                 if final: previous_response_id = str(final["id"])
             else:
                 with console.status(
-                    "[cyan]Preparing private inference; response may take several minutes...[/cyan]"
+                    "[cyan]Running private inference...[/cyan]"
                 ):
                     response = client.responses.create(**request)
                 console.print(Markdown(response.output_text)); previous_response_id = response.id

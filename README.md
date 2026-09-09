@@ -11,12 +11,13 @@
 PLLM is one Python package built with Maturin. Its Rust core handles integer
 matrix execution, wire encoding, quantization and masking. Python handles the
 client, provider, checkpoint importer and Responses API. SEAL through TenSEAL
-provides homomorphic encryption.
+remains available for the separate confidential-weight protocols.
 
 The application sends text to a client inside the customer's trusted environment.
-That client prepares encrypted masks and sends masked tensors to the provider.
-It keeps prompts, token identities, activation scales, keys and decoded output
-local. The provider stores the large projection matrices.
+That client expands fresh random masks, sends only their seeds to a trusted
+preparation service, and sends masked tensors to the untrusted provider. It
+keeps prompts, token identities, activation scales and decoded output local.
+Both services store the public projection matrices.
 
 ```text
 Application / OpenAI SDK
@@ -24,15 +25,19 @@ Application / OpenAI SDK
            ▼
 PLLM client or local gateway
   keys · tokenizer · attention · private state · sampling
-           │ encrypted preparation and masked integer tensors
-           ▼
-PLLM provider
-  checkpoint importer · scheduler · Rust matrix execution
+           ├─ one session authorization ─▶ trusted PLLM preparation ─▶ provider
+           ├─ seed + stage commitment ──▶ trusted PLLM preparation
+           │                               Rust W·r-s
+           │                                      │ persistent correction WebSocket
+           │                                      ▼
+           └─ masked integer tensor ───▶ untrusted PLLM provider
+                                            Rust W·(x-r)+(W·r-s)
 ```
 
-The current protocol assumes the provider follows the computation. Channel
-checks do not prove correct provider execution, and guarded query limits do not
-protect confidential weights from a modified client. See [SECURITY.md](SECURITY.md).
+The preparation service must follow the protocol, erase masks and not collude
+with inference; self-hosting keeps that trust local. Channel checks do not prove
+correct execution, and guarded query limits do not protect confidential weights
+from a modified client. See [SECURITY.md](SECURITY.md).
 
 ## Quick start
 
@@ -59,10 +64,19 @@ Start a supported Hugging Face snapshot on the provider:
 
 ```bash
 export PLLM_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PREPARATION_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PROVIDER_PUSH_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 uv run pllm serve ./models/checkpoint \
   --weights public \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --model-id private-model \
   --host 127.0.0.1 --port 8000
+uv run pllm preparation serve ./models/checkpoint \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --model-id private-model \
+  --host 127.0.0.1 --port 8001
 ```
 
 On the customer machine, use the same provider credential:
@@ -71,6 +85,8 @@ On the customer machine, use the same provider credential:
 uv run pllm configure \
   --server http://127.0.0.1:8000 \
   --api-key "$PLLM_API_KEY" \
+  --preparation-url http://127.0.0.1:8001 \
+  --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
   --model private-model
 uv run pllm chat
 ```

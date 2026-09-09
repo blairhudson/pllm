@@ -6,12 +6,34 @@ services:
       dockerfile: deploy/Dockerfile.runtime
     environment:
       PLLM_API_KEY: ${PLLM_API_KEY:?Set the provider credential}
+      PLLM_PROVIDER_PUSH_API_KEY: ${PLLM_PROVIDER_PUSH_API_KEY:?Set a dedicated correction push credential}
+      PLLM_RENDEZVOUS_TIMEOUT: ${PLLM_RENDEZVOUS_TIMEOUT:-30}
+      PLLM_RENDEZVOUS_CAPACITY: ${PLLM_RENDEZVOUS_CAPACITY:-32768}
+      PLLM_RENDEZVOUS_MAX_BYTES: ${PLLM_RENDEZVOUS_MAX_BYTES:-268435456}
       PLLM_MODEL_SOURCE: /models/checkpoint
       PLLM_MODEL_ID: ${PLLM_MODEL_ID:-private-model}
-    ports: ["127.0.0.1:8000:8000"]
+    network_mode: "service:gateway"
     volumes:
       - ${PLLM_MODEL_SOURCE:?Set an absolute checkpoint directory}:/models/checkpoint:ro
       - compiled:/var/cache/pllm
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+  preparation:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.runtime
+    command: ["preparation"]
+    environment:
+      PLLM_API_KEY: ${PLLM_PREPARATION_API_KEY:?Set the preparation credential}
+      PLLM_INFERENCE_URL: http://127.0.0.1:8000
+      PLLM_PUSH_API_KEY: ${PLLM_PROVIDER_PUSH_API_KEY:?Set the provider push credential}
+      PLLM_PUSH_TIMEOUT: ${PLLM_PUSH_TIMEOUT:-10}
+      PLLM_MODEL_SOURCE: /models/checkpoint
+      PLLM_MODEL_ID: ${PLLM_MODEL_ID:-private-model}
+    network_mode: "service:gateway"
+    volumes:
+      - ${PLLM_MODEL_SOURCE:?Set an absolute checkpoint directory}:/models/checkpoint:ro
+      - preparation-compiled:/var/cache/pllm
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
   gateway:
@@ -22,11 +44,13 @@ services:
     environment:
       PLLM_API_KEY: ${PLLM_API_KEY:?Set the provider credential}
       PLLM_LOCAL_API_KEY: ${PLLM_LOCAL_API_KEY:?Set a different gateway credential}
-      PLLM_BASE_URL: http://provider:8000
+      PLLM_BASE_URL: http://127.0.0.1:8000
+      PLLM_PREPARATION_BASE_URL: http://127.0.0.1:8001
+      PLLM_PREPARATION_API_KEY: ${PLLM_PREPARATION_API_KEY:?Set the preparation credential}
       PLLM_MODEL: ${PLLM_MODEL_ID:-private-model}
     ports: ["127.0.0.1:8080:8080"]
-    depends_on: ["provider"]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
 volumes:
   compiled:
+  preparation-compiled:

@@ -19,6 +19,19 @@ class GatewayConfig:
     max_batch_wait_ms: float = 0.25
     adaptive_batching: bool = True
     response_retention_seconds: float = 3600.0
+    provider_push_api_key: str | None = None
+    rendezvous_timeout_seconds: float = 30.0
+    rendezvous_capacity: int = 32768
+    rendezvous_max_bytes: int = 268_435_456
+    rendezvous_max_attempts_per_session: int = 33_554_432
+    prepared_session_capacity: int = 4096
+    prepared_session_idle_seconds: float = 300.0
+    preparation_request_max_bytes: int = 16_384
+    prepared_payload_max_bytes: int = 268_435_456
+    prepared_tensor_max_elements: int = 67_108_864
+    preparation_inference_url: str | None = None
+    preparation_push_api_key: str | None = None
+    preparation_push_timeout_seconds: float = 10.0
     allow_insecure_local_correlations: bool = False
     tenseal_path: str | None = None
     reference_model_id: str = "he-bigram-demo"
@@ -55,6 +68,19 @@ class GatewayConfig:
             "max_batch_wait_ms": self.max_batch_wait_ms,
             "adaptive_batching": self.adaptive_batching,
             "response_retention_seconds": self.response_retention_seconds,
+            "provider_push_api_key": self.provider_push_api_key,
+            "rendezvous_timeout_seconds": self.rendezvous_timeout_seconds,
+            "rendezvous_capacity": self.rendezvous_capacity,
+            "rendezvous_max_bytes": self.rendezvous_max_bytes,
+            "rendezvous_max_attempts_per_session": self.rendezvous_max_attempts_per_session,
+            "prepared_session_capacity": self.prepared_session_capacity,
+            "prepared_session_idle_seconds": self.prepared_session_idle_seconds,
+            "preparation_request_max_bytes": self.preparation_request_max_bytes,
+            "prepared_payload_max_bytes": self.prepared_payload_max_bytes,
+            "prepared_tensor_max_elements": self.prepared_tensor_max_elements,
+            "preparation_inference_url": self.preparation_inference_url,
+            "preparation_push_api_key": self.preparation_push_api_key,
+            "preparation_push_timeout_seconds": self.preparation_push_timeout_seconds,
             "allow_insecure_local_correlations": self.allow_insecure_local_correlations,
             "tenseal_path": self.tenseal_path,
             "reference_model_id": self.reference_model_id,

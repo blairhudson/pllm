@@ -104,6 +104,66 @@ def test_streaming_lifecycle_retrieve_previous_and_cancel(test_client):
     assert client.responses.cancel(second.id).status == "cancelled"
 
 
+def test_response_stream_close_closes_underlying_generator():
+    finalized = False
+
+    def prepared_events():
+        nonlocal finalized
+        try:
+            yield "created"
+        finally:
+            finalized = True
+
+    stream = ResponseStream(prepared_events())
+    assert next(stream) == "created"
+    stream.close()
+    stream.close()
+    assert finalized is True
+
+
+def test_response_and_session_lifecycle_is_scoped_to_api_principal():
+    app = create_app(
+        GatewayConfig(
+            api_keys=("first", "second"),
+            allow_insecure_local_correlations=True,
+        )
+    )
+    first = {"Authorization": "Bearer first"}
+    second = {"Authorization": "Bearer second"}
+    with TestClient(app) as client:
+        active = client.post(
+            "/v1/he/sessions", headers=first, json={"model": "he-bigram-demo"}
+        ).json()
+        response_id = active["response_id"]
+
+        assert client.post(
+            f"/v1/responses/{response_id}/cancel", headers=second
+        ).json()["status"] == "cancelled"
+        assert app.state.sessions[active["id"]].canceled is False
+        assert client.post(
+            f"/v1/responses/{response_id}/cancel", headers=first
+        ).json()["status"] == "cancelled"
+        assert app.state.sessions[active["id"]].canceled is True
+
+        completed_session = client.post(
+            "/v1/he/sessions", headers=first, json={"model": "he-bigram-demo"}
+        ).json()
+        completed_id = completed_session["response_id"]
+        complete = client.post(
+            f"/v1/he/sessions/{completed_session['id']}/complete",
+            headers=first,
+            json={"usage": {}},
+        )
+        assert complete.status_code == 200
+        assert client.get(
+            f"/v1/responses/{completed_id}", headers=second
+        ).status_code == 404
+        client.post(f"/v1/responses/{completed_id}/cancel", headers=second)
+        assert client.get(
+            f"/v1/responses/{completed_id}", headers=first
+        ).json()["status"] == "completed"
+
+
 def test_unknown_previous_response_is_client_side_error(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", http_client=test_client)
     with pytest.raises(HEAPIError, match="previous_response_id"):
@@ -124,7 +184,8 @@ def test_server_retains_only_redacted_operational_response(test_client):
 def test_metrics_track_online_work(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", correlation_prefetch=16, http_client=test_client)
     client.responses.create(model="he-bigram-demo", input="secret")
-    metrics = test_client.get("/metrics").json()
+    assert test_client.get("/metrics").status_code == 401
+    metrics = test_client.get("/metrics", headers=auth()).json()
     assert metrics["sessions"]["online_steps"] == 9
     assert metrics["stage_schedulers"]["he-bigram-demo"]["items"] == 9
 

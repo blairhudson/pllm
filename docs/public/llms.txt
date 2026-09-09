@@ -9,10 +9,10 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Follow a request](/docs/client/lifecycle/): From preparation to the text your application receives.
 - [Use the OpenAI SDK](/docs/client/openai/): Point the standard SDK at your local gateway, not at the provider.
 - [Python SDK](/docs/client/python/): Keep HE details out of application code.
-- [Deploy with Docker](/docs/deployment/docker/): A provider container and a separate customer gateway.
-- [Deployment overview](/docs/deployment/overview/): Separate the provider, trusted client, and documentation site.
+- [Deploy with Docker](/docs/deployment/docker/): Inference, trusted preparation, and a customer gateway.
+- [Deployment overview](/docs/deployment/overview/): Separate inference, preparation, the trusted client, and documentation.
 - [Publish the documentation](/docs/deployment/site/): Build a static Fumadocs site and deploy through GitHub Pages.
-- [Deploy with systemd](/docs/deployment/systemd/): Run the provider as a dedicated user with a protected environment file.
+- [Deploy with systemd](/docs/deployment/systemd/): Run inference and preparation as separate protected services.
 - [Start here](/docs/): A familiar API. A different privacy boundary.
 - [Run your first private request](/docs/quickstart/): Start a provider, configure the client, and generate a response.
 - [CLI reference](/docs/reference/cli/): The flags below come from the supplied parser.

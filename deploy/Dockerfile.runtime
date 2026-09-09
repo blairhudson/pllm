@@ -26,6 +26,6 @@ COPY deploy/entrypoint.sh /usr/local/bin/pllm-entrypoint
 RUN useradd --uid 10001 --create-home pllm && mkdir -p /var/cache/pllm && chown -R pllm:pllm /var/cache/pllm
 ENV PATH="/opt/pllm/.venv/bin:$PATH" HOME=/home/pllm
 USER 10001:10001
-EXPOSE 8000 8080
+EXPOSE 8000 8001 8080
 ENTRYPOINT ["/usr/local/bin/pllm-entrypoint"]
 CMD ["provider"]

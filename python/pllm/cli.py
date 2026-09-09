@@ -14,7 +14,7 @@ import uvicorn
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from pllm.runtime.authenticated_mpc import TrustedPreprocessor
-from pllm.runtime.cli import server_main, sidecar_main
+from pllm.runtime.cli import preparation_main, server_main, sidecar_main
 from pllm.runtime.formal_security import PROFILES
 from pllm.runtime.he_authenticated_preprocessing import HEAuthenticatedPreprocessor
 from pllm.runtime.native import main as build_native_main
@@ -93,12 +93,12 @@ def _add_client_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--server", "--base-url", dest="base_url", help="remote PLLM server URL")
     parser.add_argument("--api-key", help="remote server API key")
     parser.add_argument(
-        "--execution-strategy",
-        choices=("bfv", "two-provider"),
-        help="private linear execution strategy",
+        "--preparation-url",
+        "--preparation-server",
+        dest="preparation_base_url",
+        help="trusted preparation service URL",
     )
-    parser.add_argument("--secondary-base-url", help="independent second provider URL")
-    parser.add_argument("--secondary-api-key", help="independent second provider API key")
+    parser.add_argument("--preparation-api-key", help="trusted preparation service API key")
     parser.add_argument(
         "--model",
         help="model ID; automatically selected when the server exposes one private model",
@@ -131,7 +131,7 @@ def _protection_to_legacy(
 
     if activation_protection == "automatic":
         if weights == "public":
-            activation_protection = "precomputed-masks"
+            activation_protection = "seeded-preparation"
         elif client_trust == "untrusted":
             activation_protection = "authenticated-shares"
         elif client_trust == "honest":
@@ -140,9 +140,9 @@ def _protection_to_legacy(
             activation_protection = "guarded-blinded-masks"
 
     if weights == "public":
-        if activation_protection != "precomputed-masks":
+        if activation_protection != "seeded-preparation":
             parser.error(
-                "public weights currently use `--activation-protection precomputed-masks`"
+                "public weights require `--activation-protection seeded-preparation`"
             )
         return "public", "guarded"
 
@@ -211,6 +211,7 @@ def _serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         ("--tenseal-path", args.tenseal_path),
         ("--native-library", args.native_library),
         ("--compiled-cache-dir", args.compiled_cache_dir),
+        ("--provider-push-api-key", args.provider_push_api_key),
     )
     for name, value in string_options:
         if value:
@@ -224,6 +225,11 @@ def _serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         ("--guard-max-rows-per-stage", args.guard_max_rows_per_stage),
         ("--guard-max-requests-per-minute", args.guard_max_requests_per_minute),
         ("--guard-output-dither", args.guard_output_dither),
+        ("--rendezvous-timeout", args.rendezvous_timeout),
+        ("--rendezvous-capacity", args.rendezvous_capacity),
+        ("--rendezvous-max-bytes", args.rendezvous_max_bytes),
+        ("--prepared-session-capacity", args.prepared_session_capacity),
+        ("--prepared-session-idle", args.prepared_session_idle),
     )
     for name, value in numeric_options:
         if value is not None:
@@ -260,19 +266,74 @@ def _serve(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     server_main(translated)
 
 
+def _preparation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.preparation_command != "serve":
+        parser.error("choose `pllm preparation serve`")
+    api_key = args.api_key or os.getenv("PLLM_API_KEY")
+    generated = False
+    if not api_key:
+        api_key = secrets.token_urlsafe(24)
+        generated = True
+    inference_url = args.inference_url or os.getenv("PLLM_INFERENCE_URL")
+    push_api_key = args.push_api_key or os.getenv("PLLM_PUSH_API_KEY")
+    if not inference_url or not push_api_key:
+        parser.error("preparation requires --inference-url and --push-api-key")
+    translated = [
+        "--privacy-mode", "public",
+        "--host", args.host,
+        "--port", str(args.port),
+        "--api-key", api_key,
+        "--model-kind", args.model_kind,
+        "--weight-bits", str(args.weight_bits),
+        "--activation-bits", str(args.activation_bits),
+        "--inference-url", inference_url,
+        "--push-api-key", push_api_key,
+        "--push-timeout", str(args.push_timeout),
+    ]
+    for model in args.models:
+        translated.extend(["--model", model])
+    for model_id in args.model_id:
+        translated.extend(["--model-id", model_id])
+    for name, value in (
+        ("--revision", args.revision),
+        ("--hf-token", args.hf_token),
+        ("--hf-cache-dir", args.hf_cache_dir),
+        ("--native-library", args.native_library),
+        ("--compiled-cache-dir", args.compiled_cache_dir),
+        ("--engine-threads", args.engine_threads),
+    ):
+        if value is not None:
+            translated.extend([name, str(value)])
+    if args.local_files_only:
+        translated.append("--local-files-only")
+    print(
+        json.dumps(
+            {
+                "service": "trusted-preparation",
+                "listen": f"http://{args.host}:{args.port}",
+                "models": args.models,
+                "api_key": api_key if generated else "configured",
+            },
+            indent=2,
+        )
+    )
+    preparation_main(translated)
+
+
 def _configure(args: argparse.Namespace) -> None:
     current = ClientSettings.load()
     updated = current.merged(
         base_url=args.base_url,
         api_key=args.api_key,
-        execution_strategy=args.execution_strategy,
-        secondary_base_url=args.secondary_base_url,
-        secondary_api_key=args.secondary_api_key,
+        preparation_base_url=args.preparation_base_url,
+        preparation_api_key=args.preparation_api_key,
         model=args.model,
         transport=args.transport,
         correlation_mode=args.correlation_mode,
         correlation_prefetch=args.correlation_prefetch,
         token_cache_size=args.token_cache_size,
+        bundle_cache_mode=args.bundle_cache_mode,
+        bundle_cache_dir=args.bundle_cache_dir,
         timeout=args.timeout,
     )
     path = updated.save()
@@ -284,8 +345,9 @@ def _configure(args: argparse.Namespace) -> None:
                 "model": updated.model,
                 "transport": updated.transport,
                 "correlation_mode": updated.correlation_mode,
-                "execution_strategy": updated.execution_strategy,
-                "secondary_base_url": updated.secondary_base_url,
+                "preparation_base_url": updated.preparation_base_url,
+                "bundle_cache_mode": updated.bundle_cache_mode,
+                "bundle_cache_dir": updated.bundle_cache_dir,
             },
             indent=2,
         )
@@ -296,14 +358,15 @@ def _run_sidecar(args: argparse.Namespace) -> None:
     settings = ClientSettings.load().merged(
         base_url=args.base_url,
         api_key=args.api_key,
-        execution_strategy=args.execution_strategy,
-        secondary_base_url=args.secondary_base_url,
-        secondary_api_key=args.secondary_api_key,
+        preparation_base_url=args.preparation_base_url,
+        preparation_api_key=args.preparation_api_key,
         model=args.model,
         transport=args.transport,
         correlation_mode=args.correlation_mode,
         correlation_prefetch=args.correlation_prefetch,
         token_cache_size=args.token_cache_size,
+        bundle_cache_mode=args.bundle_cache_mode,
+        bundle_cache_dir=args.bundle_cache_dir,
     )
     translated = [
         "--remote-base-url",
@@ -320,17 +383,19 @@ def _run_sidecar(args: argparse.Namespace) -> None:
         "websocket" if settings.transport == "auto" else settings.transport,
         "--correlation-mode",
         settings.correlation_mode,
-        "--execution-strategy",
-        settings.execution_strategy,
         "--correlation-prefetch",
         str(settings.correlation_prefetch),
         "--token-cache-size",
         str(settings.token_cache_size),
+        "--bundle-cache-mode",
+        settings.bundle_cache_mode,
     ]
-    if settings.secondary_base_url:
-        translated.extend(["--secondary-base-url", settings.secondary_base_url])
-    if settings.secondary_api_key:
-        translated.extend(["--secondary-api-key", settings.secondary_api_key])
+    if settings.bundle_cache_dir:
+        translated.extend(["--bundle-cache-dir", settings.bundle_cache_dir])
+    if settings.preparation_base_url:
+        translated.extend(["--preparation-base-url", settings.preparation_base_url])
+    if settings.preparation_api_key:
+        translated.extend(["--preparation-api-key", settings.preparation_api_key])
     if args.tenseal_path:
         translated.extend(["--tenseal-path", args.tenseal_path])
     sidecar_main(translated)
@@ -443,6 +508,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="activation_protection",
         choices=(
             "automatic",
+            "seeded-preparation",
             "precomputed-masks",
             "guarded-blinded-masks",
             "blinded-masks",
@@ -455,6 +521,12 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--api-key")
+    serve.add_argument("--provider-push-api-key", default=os.getenv("PLLM_PROVIDER_PUSH_API_KEY"))
+    serve.add_argument("--rendezvous-timeout", type=float, default=30.0)
+    serve.add_argument("--rendezvous-capacity", type=int, default=4096)
+    serve.add_argument("--rendezvous-max-bytes", type=int, default=268_435_456)
+    serve.add_argument("--prepared-session-capacity", type=int, default=4096)
+    serve.add_argument("--prepared-session-idle", type=float, default=300.0)
     serve.add_argument("--config")
     serve.add_argument(
         "--model-kind",
@@ -494,6 +566,36 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("public", "proprietary"),
         help=argparse.SUPPRESS,
     )
+
+    preparation = commands.add_parser(
+        "preparation", help="run the trusted public-weight preparation service"
+    )
+    preparation_commands = preparation.add_subparsers(dest="preparation_command")
+    preparation_serve = preparation_commands.add_parser(
+        "serve", help="load public models and serve seeded preparation"
+    )
+    preparation_serve.add_argument("models", nargs="+", help="Hugging Face repository IDs or local model directories")
+    preparation_serve.add_argument("--model-id", action="append", default=[])
+    preparation_serve.add_argument("--host", default="127.0.0.1")
+    preparation_serve.add_argument("--port", type=int, default=8001)
+    preparation_serve.add_argument("--api-key")
+    preparation_serve.add_argument("--inference-url")
+    preparation_serve.add_argument("--push-api-key")
+    preparation_serve.add_argument("--push-timeout", type=float, default=10.0)
+    preparation_serve.add_argument(
+        "--model-kind",
+        default="huggingface",
+        choices=("huggingface", "safetensors", "vllm", "mlx", "mlx-lm"),
+    )
+    preparation_serve.add_argument("--revision")
+    preparation_serve.add_argument("--hf-token")
+    preparation_serve.add_argument("--hf-cache-dir")
+    preparation_serve.add_argument("--local-files-only", action="store_true")
+    preparation_serve.add_argument("--engine-threads", type=int)
+    preparation_serve.add_argument("--native-library")
+    preparation_serve.add_argument("--compiled-cache-dir")
+    preparation_serve.add_argument("--weight-bits", type=int, choices=(4, 8), default=8)
+    preparation_serve.add_argument("--activation-bits", type=int, choices=(4, 8), default=8)
     serve.add_argument(
         "--proprietary-protocol",
         "--protocol",
@@ -511,6 +613,10 @@ def _build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--correlation-mode", choices=("bfv", "local-test"))
     configure.add_argument("--correlation-prefetch", type=int)
     configure.add_argument("--token-cache-size", type=int)
+    configure.add_argument(
+        "--bundle-cache-mode", choices=("read-write", "read-only", "refresh", "off")
+    )
+    configure.add_argument("--bundle-cache-dir")
     configure.add_argument("--timeout", type=float)
 
     chat = commands.add_parser("chat", help="open an interactive private chat session")
@@ -527,6 +633,10 @@ def _build_parser() -> argparse.ArgumentParser:
     sidecar.add_argument("--correlation-mode", choices=("bfv", "local-test"))
     sidecar.add_argument("--correlation-prefetch", type=int)
     sidecar.add_argument("--token-cache-size", type=int)
+    sidecar.add_argument(
+        "--bundle-cache-mode", choices=("read-write", "read-only", "refresh", "off")
+    )
+    sidecar.add_argument("--bundle-cache-dir")
     sidecar.add_argument("--tenseal-path", default=os.getenv("PLLM_PYDEPS"))
 
     commands.add_parser("build", help="build the native modular arithmetic kernels")
@@ -596,6 +706,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     if args.command == "serve":
         _serve(args, parser)
+    elif args.command == "preparation":
+        _preparation(args, parser)
     elif args.command == "configure":
         _configure(args)
     elif args.command == "chat":
@@ -603,9 +715,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             base_url=args.base_url,
             api_key=args.api_key,
             model=args.model,
-            execution_strategy=args.execution_strategy,
-            secondary_base_url=args.secondary_base_url,
-            secondary_api_key=args.secondary_api_key,
+            preparation_base_url=args.preparation_base_url,
+            preparation_api_key=args.preparation_api_key,
             stream=not args.no_stream,
             max_output_tokens=max(1, args.max_output_tokens),
         )

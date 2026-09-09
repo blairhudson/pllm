@@ -10,6 +10,7 @@ from .config import GatewayConfig
 from .guarded_engine import GuardPolicy, GuardedBlindedTransformerEngine
 from .hf_hub import resolve_huggingface_source
 from .privacy import PrivacyMode, ProprietaryProtocol
+from .preparation_server import create_preparation_app
 from .proprietary_engine import DirectFHETransformerEngine
 from .server import create_app
 from .sidecar import create_sidecar_app
@@ -21,8 +22,14 @@ def _env(name: str, default=None):
     return default if value is None else value
 
 
-def server_main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Run the PLLM remote private-inference service")
+def _server_main(argv: list[str] | None = None, *, preparation: bool = False) -> None:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the PLLM trusted preparation service"
+            if preparation
+            else "Run the PLLM remote private-inference service"
+        )
+    )
     parser.add_argument("--config", help="JSON GatewayConfig file")
     parser.add_argument(
         "--privacy-mode", "--mode",
@@ -48,6 +55,27 @@ def server_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--api-key", default=_env("PLLM_API_KEY"))
+    parser.add_argument("--provider-push-api-key", default=_env("PLLM_PROVIDER_PUSH_API_KEY"))
+    parser.add_argument("--rendezvous-timeout", type=float, default=float(_env("PLLM_RENDEZVOUS_TIMEOUT", "30")))
+    parser.add_argument(
+        "--rendezvous-capacity",
+        type=int,
+        default=int(_env("PLLM_RENDEZVOUS_CAPACITY", "32768")),
+    )
+    parser.add_argument("--rendezvous-max-bytes", type=int, default=int(_env("PLLM_RENDEZVOUS_MAX_BYTES", "268435456")))
+    parser.add_argument(
+        "--prepared-session-capacity",
+        type=int,
+        default=int(_env("PLLM_PREPARED_SESSION_CAPACITY", "4096")),
+    )
+    parser.add_argument(
+        "--prepared-session-idle",
+        type=float,
+        default=float(_env("PLLM_PREPARED_SESSION_IDLE", "300")),
+    )
+    parser.add_argument("--inference-url", default=_env("PLLM_INFERENCE_URL"))
+    parser.add_argument("--push-api-key", default=_env("PLLM_PUSH_API_KEY"))
+    parser.add_argument("--push-timeout", type=float, default=float(_env("PLLM_PUSH_TIMEOUT", "10")))
     parser.add_argument("--tenseal-path", default=_env("PLLM_PYDEPS"))
     parser.add_argument("--max-batch-size", type=int)
     parser.add_argument("--max-wait-ms", type=float)
@@ -84,6 +112,14 @@ def server_main(argv: list[str] | None = None) -> None:
 
     config = GatewayConfig.load(args.config) if args.config else GatewayConfig()
     mode = PrivacyMode.parse(args.privacy_mode or config.privacy_mode)
+    if preparation and mode is not PrivacyMode.PUBLIC:
+        parser.error("the preparation service supports public-weight models only")
+    if (
+        not preparation
+        and mode is PrivacyMode.PUBLIC
+        and not (args.provider_push_api_key or config.provider_push_api_key)
+    ):
+        parser.error("public serving requires --provider-push-api-key")
     proprietary_protocol = ProprietaryProtocol.parse(
         args.proprietary_protocol or config.proprietary_protocol
     )
@@ -98,6 +134,17 @@ def server_main(argv: list[str] | None = None) -> None:
     value["proprietary_protocol"] = proprietary_protocol.value
     if args.api_key:
         value["api_keys"] = [args.api_key]
+    if args.provider_push_api_key:
+        value["provider_push_api_key"] = args.provider_push_api_key
+    value["rendezvous_timeout_seconds"] = args.rendezvous_timeout
+    value["rendezvous_capacity"] = args.rendezvous_capacity
+    value["rendezvous_max_bytes"] = args.rendezvous_max_bytes
+    value["prepared_session_capacity"] = args.prepared_session_capacity
+    value["prepared_session_idle_seconds"] = args.prepared_session_idle
+    if preparation:
+        value["preparation_inference_url"] = args.inference_url
+        value["preparation_push_api_key"] = args.push_api_key
+        value["preparation_push_timeout_seconds"] = args.push_timeout
     if args.tenseal_path:
         value["tenseal_path"] = args.tenseal_path
     if args.max_batch_size is not None:
@@ -179,12 +226,26 @@ def server_main(argv: list[str] | None = None) -> None:
             output_dither_bound=args.guard_output_dither,
         )
     engine = engine_type(**engine_kwargs)
+    app = (
+        create_preparation_app(config, engine)
+        if preparation
+        else create_app(config, engines={engine.capabilities.name: engine})
+    )
     uvicorn.run(
-        create_app(config, engines={engine.capabilities.name: engine}),
+        app,
         host=args.host,
         port=args.port,
         access_log=False,
+        ws_max_size=config.prepared_payload_max_bytes,
     )
+
+
+def server_main(argv: list[str] | None = None) -> None:
+    _server_main(argv)
+
+
+def preparation_main(argv: list[str] | None = None) -> None:
+    _server_main(argv, preparation=True)
 
 
 def sidecar_main(argv: list[str] | None = None) -> None:
@@ -199,12 +260,17 @@ def sidecar_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--tenseal-path", default=_env("PLLM_PYDEPS"))
     parser.add_argument("--correlation-mode", choices=["bfv", "local-test"], default="bfv")
-    parser.add_argument("--execution-strategy", choices=["bfv", "two-provider"], default="bfv")
-    parser.add_argument("--secondary-base-url")
-    parser.add_argument("--secondary-api-key")
+    parser.add_argument("--preparation-base-url")
+    parser.add_argument("--preparation-api-key")
     parser.add_argument("--transport", choices=["http", "websocket"], default="websocket")
     parser.add_argument("--correlation-prefetch", type=int, default=4)
     parser.add_argument("--token-cache-size", type=int, default=512)
+    parser.add_argument(
+        "--bundle-cache-mode",
+        choices=["read-write", "read-only", "refresh", "off"],
+        default="read-write",
+    )
+    parser.add_argument("--bundle-cache-dir")
     args = parser.parse_args(argv)
     app = create_sidecar_app(
         remote_base_url=args.remote_base_url,
@@ -212,11 +278,12 @@ def sidecar_main(argv: list[str] | None = None) -> None:
         local_api_key=args.local_api_key,
         tenseal_path=args.tenseal_path,
             correlation_mode=args.correlation_mode,
-            execution_strategy=args.execution_strategy,
-            secondary_base_url=args.secondary_base_url,
-            secondary_api_key=args.secondary_api_key,
+        preparation_base_url=args.preparation_base_url,
+        preparation_api_key=args.preparation_api_key,
         he_transport=args.transport,
         correlation_prefetch=args.correlation_prefetch,
         token_cache_size=args.token_cache_size,
+        bundle_cache_mode=args.bundle_cache_mode,
+        bundle_cache_dir=args.bundle_cache_dir,
     )
     uvicorn.run(app, host=args.host, port=args.port, access_log=False)

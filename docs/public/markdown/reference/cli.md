@@ -24,7 +24,12 @@ pllm serve MODEL_PATH_OR_HUB_ID --weights public
 | `--max-batch-size`, `--max-wait-ms` | Stage coalescing controls |
 | `--allow-test-correlations` | Insecure test option; never use for private data |
 
-Valid activation protection values are `automatic`, `precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`, `encrypted-activations`, and `authenticated-shares`. Valid spelling does not imply that every graph and adversary combination is implemented.
+Valid activation protection values are `automatic`, `seeded-preparation`,
+`precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`,
+`encrypted-activations`, and `authenticated-shares`. Public weights select
+`seeded-preparation`; `precomputed-masks` remains a confidential-weight mode.
+Valid spelling does not imply that every graph and adversary combination is
+implemented.
 
 ## Configure
 
@@ -32,14 +37,31 @@ Valid activation protection values are `automatic`, `precomputed-masks`, `guarde
 pllm configure --server URL --api-key KEY --model MODEL_ID
 ```
 
-Optional fields include `--execution-strategy`, `--secondary-base-url`,
-`--secondary-api-key`, `--transport`, `--correlation-mode`,
-`--correlation-prefetch`, `--token-cache-size`, and `--timeout`.
+Optional fields include `--preparation-url`, `--preparation-api-key`,
+`--transport`, `--correlation-mode`,
+`--correlation-prefetch`, `--token-cache-size`, `--bundle-cache-mode`,
+`--bundle-cache-dir`, and `--timeout`.
+
+`pllm sidecar` accepts the same two bundle-cache options.
+
+## Preparation service
+
+```text
+pllm preparation serve MODEL_PATH_OR_HUB_ID --api-key KEY \
+  --inference-url URL --push-api-key KEY --port 8001
+```
+
+This role is public-weight-only and exposes health, model commitment, and seeded
+preparation routes. It does not expose inference, Responses, client-bundle, or
+model-administration routes. Both services need the same public checkpoint.
+Provider `pllm serve` accepts `--provider-push-api-key`,
+`--rendezvous-timeout`, `--rendezvous-capacity`, and
+`--rendezvous-max-bytes`. All three service credentials must differ.
 
 ## Chat and local gateway
 
 ```text
-pllm chat [--server URL] [--model MODEL_ID] [--execution-strategy bfv|two-provider]
+pllm chat [--server URL] [--model MODEL_ID] [--preparation-url URL]
 pllm sidecar --local-api-key KEY --host 127.0.0.1 --port 8080
 ```
 

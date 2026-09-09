@@ -4,6 +4,7 @@ import math
 import secrets
 import threading
 from collections import OrderedDict, defaultdict, deque
+from concurrent.futures import FIRST_EXCEPTION, wait
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol, cast
 
@@ -11,7 +12,15 @@ import msgpack
 import numpy as np
 
 from .native import CompiledMatrix, MaskedGEMM
+from .preparation_protocol import (
+    PreparationAck,
+    PreparationRequest,
+    SeededRingProfile,
+    expand_output_mask,
+    expand_preparation_mask,
+)
 from .quantization import dequantize_matmul, quantize_activation_per_row, signed_qmax
+from .protocol import ProtocolError
 from .stage_protocol import (
     MaskedStageRequest,
     MaskedStageResponse,
@@ -43,6 +52,11 @@ class StageMetadata:
     layer_index: int | None = None
     client_weight: np.ndarray | None = None
     weight_digest: str = ""
+    client_weight_scales: np.ndarray | None = None
+    client_weight_layout: str = "linear"
+    client_aux_weight: np.ndarray | None = None
+    client_aux_scales: np.ndarray | None = None
+    seeded_profile: SeededRingProfile | None = None
 
     @property
     def scales(self) -> np.ndarray:
@@ -61,6 +75,7 @@ class ClientBundle:
     stages: dict[str, StageMetadata]
     arrays: dict[str, np.ndarray]
     privacy: dict[str, Any]
+    schema_version: int = 1
     _local_kernel: MaskedGEMM | None = field(default=None, init=False, repr=False)
     _local_matrices: dict[str, CompiledMatrix] = field(default_factory=dict, init=False, repr=False)
     _local_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
@@ -79,24 +94,50 @@ class ClientBundle:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise TransformerClientError("invalid transformer client bundle") from exc
-        if not isinstance(value, dict) or int(value.get("v", 0)) != 1:
+        if not isinstance(value, dict) or int(value.get("v", 0)) not in {1, 2}:
             raise TransformerClientError("unsupported transformer client bundle")
+        version = int(value["v"])
         new_format = {"v", "manifest", "runtime", "tokenizer", "arrays", "stages", "privacy"}
         legacy_format = {
             "v", "runtime", "model", "manifest", "config", "tokenizer",
             "stages", "local_tensors", "privacy",
         }
+        reference_format = legacy_format | {"client_weights"}
         keys = set(value)
-        if keys == new_format:
+        if version == 1 and keys == new_format:
             runtime_config = dict(value["runtime"])
             array_rows = value["arrays"]
-        elif keys == legacy_format and value.get("runtime") in {"masked_transformer", "direct_fhe_transformer", "blinded_ole_transformer", "guarded_blinded_transformer"}:
+            weight_rows: dict[str, Any] = {}
+        elif version == 1 and keys == legacy_format and value.get("runtime") in {"masked_transformer", "direct_fhe_transformer", "blinded_ole_transformer", "guarded_blinded_transformer"}:
             runtime_config = dict(value["config"])
             array_rows = value["local_tensors"]
+            weight_rows = {}
+        elif version == 2 and keys == reference_format and value.get("runtime") in {"masked_transformer", "direct_fhe_transformer", "blinded_ole_transformer", "guarded_blinded_transformer"}:
+            runtime_config = dict(value["config"])
+            array_rows = value["local_tensors"]
+            weight_rows = value["client_weights"]
         else:
             raise TransformerClientError("unsupported transformer client bundle")
         manifest = dict(value["manifest"])
+        if str(value.get("model", manifest.get("id", ""))) != str(manifest.get("id", "")):
+            raise TransformerClientError("client bundle model descriptor mismatch")
         privacy = dict(value["privacy"])
+        client_weights: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        for weight_id, weight_row in weight_rows.items():
+            if not isinstance(weight_row, dict) or set(weight_row) != {
+                "dtype", "shape", "data", "scales"
+            }:
+                raise TransformerClientError(f"invalid client weight {weight_id}")
+            shape = tuple(int(item) for item in weight_row["shape"])
+            if weight_row["dtype"] != "i1" or len(shape) != 2:
+                raise TransformerClientError(f"invalid client weight shape for {weight_id}")
+            matrix = np.frombuffer(weight_row["data"], dtype=np.int8).copy()
+            scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
+            if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (
+                shape[0],
+            ):
+                raise TransformerClientError(f"invalid client weight length for {weight_id}")
+            client_weights[str(weight_id)] = (matrix.reshape(shape), scales)
         stage_specs = {
             str(row["id"]): row for row in manifest.get("stages", []) if isinstance(row, dict)
         }
@@ -111,23 +152,84 @@ class ClientBundle:
             if bias is not None and bias.shape != (out_features,):
                 raise TransformerClientError(f"invalid bias count for {stage_id}")
             spec = stage_specs.get(stage_id, {})
+            seeded_profile = None
+            if "seeded_profile" in row:
+                try:
+                    seeded_profile = SeededRingProfile.from_dict(row["seeded_profile"])
+                except ProtocolError as exc:
+                    raise TransformerClientError(
+                        f"invalid seeded ring profile for {stage_id}"
+                    ) from exc
             client_weight = None
+            client_weight_scales = None
+            client_weight_layout = "linear"
             weight_row = row.get("client_weight")
             if weight_row is not None:
                 if privacy.get("mode") != "public" or stage_id not in {"token_lookup", "lm_head"}:
                     raise TransformerClientError("client stage weights require public boundary stages")
-                if not isinstance(weight_row, dict) or set(weight_row) != {"dtype", "shape", "data"}:
+                if not isinstance(weight_row, dict):
                     raise TransformerClientError(f"invalid client weight for {stage_id}")
-                shape = tuple(int(item) for item in weight_row["shape"])
-                if weight_row["dtype"] != "i1" or shape != (
-                    out_features,
-                    int(row["in_features"]),
-                ):
-                    raise TransformerClientError(f"invalid client weight shape for {stage_id}")
-                client_weight = np.frombuffer(weight_row["data"], dtype=np.int8)
-                if client_weight.size != int(np.prod(shape, dtype=np.int64)):
-                    raise TransformerClientError(f"invalid client weight length for {stage_id}")
-                client_weight = client_weight.reshape(shape)
+                if version == 2:
+                    if set(weight_row) != {"ref", "layout"}:
+                        raise TransformerClientError(f"invalid client weight reference for {stage_id}")
+                    reference = client_weights.get(str(weight_row["ref"]))
+                    if reference is None:
+                        raise TransformerClientError(f"unknown client weight reference for {stage_id}")
+                    client_weight, client_weight_scales = reference
+                    client_weight_layout = str(weight_row["layout"])
+                    expected_shape = (
+                        (int(row["in_features"]), min(out_features, client_weight.shape[1]))
+                        if client_weight_layout == "embedding"
+                        else (out_features, int(row["in_features"]))
+                    )
+                    if client_weight_layout not in {"linear", "embedding", "transposed_embedding"}:
+                        raise TransformerClientError(f"invalid client weight layout for {stage_id}")
+                    if client_weight_layout != "embedding" and client_weight.shape != expected_shape:
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                    if client_weight_layout == "embedding" and (
+                        client_weight.shape[0] != int(row["in_features"])
+                        or client_weight.shape[1] > out_features
+                    ):
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                else:
+                    if set(weight_row) != {"dtype", "shape", "data"}:
+                        raise TransformerClientError(f"invalid client weight for {stage_id}")
+                    shape = tuple(int(item) for item in weight_row["shape"])
+                    if weight_row["dtype"] != "i1" or shape != (
+                        out_features,
+                        int(row["in_features"]),
+                    ):
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                    client_weight = np.frombuffer(weight_row["data"], dtype=np.int8)
+                    if client_weight.size != int(np.prod(shape, dtype=np.int64)):
+                        raise TransformerClientError(f"invalid client weight length for {stage_id}")
+                    client_weight = client_weight.reshape(shape)
+                    client_weight_scales = scales
+                    if stage_id == "token_lookup":
+                        client_weight_layout = "transposed_embedding"
+            client_aux_weight = None
+            client_aux_scales = None
+            aux_row = row.get("client_aux_weight")
+            if aux_row is not None:
+                if version != 2 or stage_id != "token_lookup" or set(aux_row) != {"ref"}:
+                    raise TransformerClientError(f"invalid auxiliary client weight for {stage_id}")
+                reference = client_weights.get(str(aux_row["ref"]))
+                if reference is None:
+                    raise TransformerClientError(f"unknown auxiliary client weight for {stage_id}")
+                client_aux_weight, client_aux_scales = reference
+                if client_aux_weight.shape[1] != int(row["in_features"]):
+                    raise TransformerClientError(f"invalid auxiliary client weight shape for {stage_id}")
+            local_width = 0
+            if client_weight is not None:
+                local_width = (
+                    client_weight.shape[1]
+                    if client_weight_layout == "embedding"
+                    else client_weight.shape[0]
+                )
+            if client_aux_weight is not None:
+                local_width += client_aux_weight.shape[0]
+            if client_weight is not None and local_width != out_features:
+                raise TransformerClientError(f"invalid local client weight width for {stage_id}")
             stages[stage_id] = StageMetadata(
                 id=stage_id,
                 op=str(row["op"]),
@@ -144,6 +246,11 @@ class ClientBundle:
                 layer_index=spec.get("layer_index"),
                 client_weight=client_weight,
                 weight_digest=str(row.get("weight_digest", "")),
+                client_weight_scales=client_weight_scales,
+                client_weight_layout=client_weight_layout,
+                client_aux_weight=client_aux_weight,
+                client_aux_scales=client_aux_scales,
+                seeded_profile=seeded_profile,
             )
         # Keep the legacy embedding stage name as a read-only alias. Round 8
         # fuses the token embedding and Gemma PLE table into ``token_lookup``,
@@ -172,11 +279,16 @@ class ClientBundle:
             stages=stages,
             arrays=arrays,
             privacy=privacy,
+            schema_version=version,
         )
 
     def local_linear(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages[stage_id]
-        if stage.client_weight is None:
+        if (
+            stage.client_weight is None
+            or stage.client_weight_scales is None
+            or stage.client_weight_layout != "linear"
+        ):
             raise TransformerClientError(f"stage {stage_id!r} has no local weight")
         quantized = quantize_activation_per_row(activation, bits=stage.activation_bits)
         with self._local_lock:
@@ -190,7 +302,7 @@ class ClientBundle:
         result = dequantize_matmul(
             integer,
             quantized.scales,
-            stage.weight_scales,
+            stage.client_weight_scales,
             output_shape=quantized.original_shape[:-1] + (stage.out_features,),
         )
         if stage.bias is not None:
@@ -199,15 +311,30 @@ class ClientBundle:
 
     def local_token_lookup(self, token_ids: np.ndarray) -> np.ndarray:
         stage = self.stages["token_lookup"]
-        if stage.client_weight is None:
+        if stage.client_weight is None or stage.client_weight_scales is None:
             raise TransformerClientError("token lookup has no local weight")
         ids = np.asarray(token_ids, dtype=np.int64).reshape(-1)
         if ids.size and (int(ids.min()) < 0 or int(ids.max()) >= stage.in_features):
             raise TransformerClientError("token id outside model vocabulary")
-        qmax = signed_qmax(stage.activation_bits)
-        integer = stage.client_weight[:, ids].T.astype(np.int32) * qmax
-        scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
-        result = dequantize_matmul(integer, scales, stage.weight_scales)
+        if stage.client_weight_layout == "embedding":
+            result = (
+                stage.client_weight[ids].astype(np.float32)
+                * stage.client_weight_scales[ids, None]
+            )
+        elif stage.client_weight_layout == "transposed_embedding":
+            qmax = signed_qmax(stage.activation_bits)
+            integer = stage.client_weight[:, ids].T.astype(np.int32) * qmax
+            scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
+            result = dequantize_matmul(integer, scales, stage.client_weight_scales)
+        else:
+            raise TransformerClientError("token lookup has invalid local weight layout")
+        if stage.client_aux_weight is not None:
+            assert stage.client_aux_scales is not None
+            qmax = signed_qmax(stage.activation_bits)
+            integer = stage.client_aux_weight[:, ids].T.astype(np.int32) * qmax
+            scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
+            auxiliary = dequantize_matmul(integer, scales, stage.client_aux_scales)
+            result = np.concatenate((result, auxiliary), axis=-1)
         if stage.bias is not None:
             result = result + stage.bias
         return np.ascontiguousarray(result, dtype=np.float32)
@@ -254,7 +381,7 @@ class ClientBundle:
                 eos_token=self.tokenizer_descriptor.get("eos_token", ""),
                 tools=None,
             ))
-        except Exception:
+        except BaseException:
             # Custom Transformers templates may require extensions such as the
             # ``generation`` tag. Falling back remains deterministic and local.
             suffix = "\nassistant:" if add_generation_prompt else ""
@@ -381,8 +508,16 @@ class StageClientStats:
     download_bytes: int = 0
     correlations: int = 0
     server_ns: int = 0
-    primary_server_ns: int = 0
-    secondary_server_ns: int = 0
+    preparation_upload_bytes: int = 0
+    preparation_download_bytes: int = 0
+    inference_upload_bytes: int = 0
+    inference_download_bytes: int = 0
+    preparation_server_ns: int = 0
+    inference_server_ns: int = 0
+    correction_push_bytes: int = 0
+    correction_push_ns: int = 0
+    attempts: int = 0
+    failures: int = 0
 
 
 class CorrelationInventory:
@@ -490,28 +625,40 @@ class RemoteLinear:
         return output
 
 
-class TwoProviderRemoteLinear:
-    def __init__(self, model_id, stages, primary, secondary, executor) -> None:
+class PreparedRemoteLinear:
+    def __init__(
+        self,
+        model_id,
+        body_fingerprint,
+        stages,
+        preparation,
+        inference,
+        executor,
+        session_id="",
+    ) -> None:
         self.model_id = model_id
+        self.body_fingerprint = body_fingerprint
         self.stages = stages
-        self.primary = primary
-        self.secondary = secondary
+        self.preparation = preparation
+        self.inference = inference
         self.executor = executor
+        self.session_id = session_id
         self.stats = StageClientStats()
 
     @staticmethod
     def _result(payloads: list[bytes], request_id: str, stage: StageMetadata):
         if len(payloads) != 1:
-            raise TransformerClientError("provider returned the wrong result count")
+            raise TransformerClientError("inference provider returned the wrong result count")
         result = MaskedStageResponse.unpack(payloads[0])
         if (
             result.correlation_id != request_id
             or result.stage_id != stage.id
-            or result.ring != "u32"
-            or result.modulus != 1 << 32
-            or result.wire_bits != 32
+            or stage.seeded_profile is None
+            or result.ring != stage.seeded_profile.ring
+            or result.modulus != stage.seeded_profile.modulus
+            or result.wire_bits != stage.seeded_profile.wire_bits
         ):
-            raise TransformerClientError("provider returned a mismatched ring32 result")
+            raise TransformerClientError("service returned a mismatched seeded ring result")
         return result
 
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
@@ -524,39 +671,99 @@ class TwoProviderRemoteLinear:
                 f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
             )
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
-        clear = quantized.values.astype(np.int32, copy=False).astype(np.uint32)
-        mask = np.frombuffer(secrets.token_bytes(clear.size * 4), dtype="<u4").copy()
-        mask = mask.reshape(clear.shape)
-        complement = np.subtract(clear, mask, dtype=np.uint32)
-        hidden_scales = np.ones(quantized.rows, dtype=np.float32)
-        request_ids = ("share-a-" + secrets.token_hex(12), "share-b-" + secrets.token_hex(12))
-        requests = [
-            MaskedStageRequest(
-                model=self.model_id,
-                stage_id=stage_id,
-                correlation_id=request_id,
-                masked_input=share,
-                activation_scales=hidden_scales,
-                modulus=1 << 32,
-                wire_bits=32,
-                ring="u32",
-            ).pack()
-            for request_id, share in zip(request_ids, (mask, complement))
-        ]
-        first = self.executor.submit(self.primary, stage_id, [requests[0]])
-        second = self.executor.submit(self.secondary, stage_id, [requests[1]])
-        first_payloads = first.result()
-        second_payloads = second.result()
-        first_result = self._result(first_payloads, request_ids[0], stage)
-        second_result = self._result(second_payloads, request_ids[1], stage)
-        if first_result.masked_output.shape != second_result.masked_output.shape:
-            raise TransformerClientError("provider result shape mismatch")
-        combined = np.add(
-            first_result.masked_output,
-            second_result.masked_output,
-            dtype=np.uint32,
+        profile = stage.seeded_profile
+        if profile is None:
+            raise TransformerClientError("stage lacks a seeded ring profile")
+        clear = quantized.values.astype(np.int64, copy=False) % profile.modulus
+        attempt_id = secrets.token_hex(16)
+        preparation_request = PreparationRequest(
+            attempt_id=attempt_id,
+            session_id=self.session_id,
+            model=self.model_id,
+            body_fingerprint=self.body_fingerprint,
+            stage_id=stage_id,
+            weight_digest=stage.weight_digest,
+            rows=quantized.rows,
+            in_features=stage.in_features,
+            out_features=stage.out_features,
+            weight_bits=stage.weight_bits,
+            activation_bits=stage.activation_bits,
+            signed_output_bound=profile.signed_output_bound,
+            ring=profile.ring,
+            modulus=profile.modulus,
+            wire_bits=profile.wire_bits,
+            seed=secrets.token_bytes(32),
         )
-        accumulators = combined.view(np.int32).astype(np.int64)
+        mask = expand_preparation_mask(preparation_request)
+        output_mask = expand_output_mask(preparation_request)
+        complement = (
+            clear - mask.astype(np.int64)
+        ) % profile.modulus
+        hidden_scales = np.ones(quantized.rows, dtype=np.float32)
+        inference_request = MaskedStageRequest(
+            model=self.model_id,
+            stage_id=stage_id,
+            correlation_id=attempt_id,
+            masked_input=complement.astype(np.uint32),
+            activation_scales=hidden_scales,
+            modulus=profile.modulus,
+            wire_bits=profile.wire_bits,
+            ring=profile.ring,
+            body_fingerprint=self.body_fingerprint,
+            weight_digest=stage.weight_digest,
+            weight_bits=stage.weight_bits,
+            activation_bits=stage.activation_bits,
+            session_id=self.session_id,
+            out_features=stage.out_features,
+            signed_output_bound=profile.signed_output_bound,
+        ).pack()
+        preparation_payload = preparation_request.pack()
+        self.stats.attempts += 1
+        self.stats.preparation_upload_bytes += len(preparation_payload)
+        self.stats.inference_upload_bytes += len(inference_request)
+        self.stats.upload_bytes += len(preparation_payload) + len(inference_request)
+        prepared = self.executor.submit(self.preparation, stage_id, preparation_payload)
+        inferred = self.executor.submit(self.inference, stage_id, [inference_request])
+        futures = (prepared, inferred)
+        try:
+            done, _ = wait(futures, return_when=FIRST_EXCEPTION)
+            failed = next((future for future in done if future.exception() is not None), None)
+            if failed is not None:
+                failed.result()
+            prepared_payload = prepared.result()
+            ack = PreparationAck.unpack(prepared_payload)
+            if ack.attempt_id != attempt_id or ack.stage_id != stage.id:
+                raise TransformerClientError("preparation acknowledgement mismatch")
+            self.stats.preparation_download_bytes += len(prepared_payload)
+            self.stats.download_bytes += len(prepared_payload)
+            self.stats.correction_push_bytes += ack.correction_bytes
+            self.stats.correction_push_ns += ack.push_ns
+            self.stats.preparation_server_ns += ack.server_ns
+            inference_payloads = inferred.result()
+            self.stats.inference_download_bytes += sum(map(len, inference_payloads))
+            self.stats.download_bytes += sum(map(len, inference_payloads))
+            inference_result = self._result(inference_payloads, attempt_id, stage)
+        except Exception:
+            for future in futures:
+                future.cancel()
+            wait(futures)
+            for future in futures:
+                if not future.cancelled():
+                    future.exception()
+            self.stats.failures += 1
+            raise
+        combined = (
+            inference_result.masked_output.astype(np.int64)
+            + output_mask.astype(np.int64)
+        ) % profile.modulus
+        if profile.ring == "u16":
+            accumulators = combined.astype(np.uint16).view(np.int16).astype(np.int64)
+        elif profile.ring == "u24":
+            accumulators = np.where(
+                combined >= 1 << 23, combined - (1 << 24), combined
+            )
+        else:
+            accumulators = combined.astype(np.uint32).view(np.int32).astype(np.int64)
         output = dequantize_matmul(
             accumulators,
             quantized.scales,
@@ -567,11 +774,8 @@ class TwoProviderRemoteLinear:
             output = output + stage.bias
         self.stats.calls += 1
         self.stats.rows += quantized.rows
-        self.stats.upload_bytes += sum(map(len, requests))
-        self.stats.download_bytes += sum(map(len, first_payloads + second_payloads))
-        self.stats.server_ns += first_result.server_ns + second_result.server_ns
-        self.stats.primary_server_ns += first_result.server_ns
-        self.stats.secondary_server_ns += second_result.server_ns
+        self.stats.inference_server_ns += inference_result.server_ns
+        self.stats.server_ns += ack.server_ns + inference_result.server_ns
         return np.ascontiguousarray(output, dtype=np.float32)
 
 

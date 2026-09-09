@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -9,17 +10,23 @@ import numpy as np
 from .protocol import ProtocolError
 from .quantization import centered_residues, positive_residues
 
-STAGE_PROTOCOL_VERSION = 1
-RingKind = Literal["u16", "u32", "prime"]
+STAGE_PROTOCOL_VERSION = 3
+RingKind = Literal["u16", "u24", "u32", "prime"]
 
 
 def _ring_from(modulus: int, wire_bits: int, ring: str | None) -> RingKind:
     if ring is not None:
-        if ring not in {"u16", "u32", "prime"}:
+        if ring not in {"u16", "u24", "u32", "prime"}:
             raise ProtocolError("unsupported ring kind")
+        if ring.startswith("u") and (modulus, wire_bits) != (
+            1 << int(ring[1:]), int(ring[1:])
+        ):
+            raise ProtocolError("ring, modulus, and wire width mismatch")
         return ring  # type: ignore[return-value]
     if modulus == 1 << 16 and wire_bits == 16:
         return "u16"
+    if modulus == 1 << 24 and wire_bits == 24:
+        return "u24"
     if modulus == 1 << 32 and wire_bits == 32:
         return "u32"
     return "prime"
@@ -56,6 +63,13 @@ class MaskedStageRequest:
     modulus: int
     wire_bits: int
     ring: RingKind | None = None
+    body_fingerprint: str = ""
+    weight_digest: str = ""
+    weight_bits: int = 0
+    activation_bits: int = 0
+    session_id: str = ""
+    out_features: int = 0
+    signed_output_bound: int = 0
 
     @property
     def stage(self) -> str:
@@ -83,6 +97,13 @@ class MaskedStageRequest:
                 "ring": ring,
                 "modulus": int(self.modulus),
                 "wire_bits": int(self.wire_bits),
+                "body_fingerprint": self.body_fingerprint,
+                "weight_digest": self.weight_digest,
+                "weight_bits": self.weight_bits,
+                "activation_bits": self.activation_bits,
+                "session_id": self.session_id,
+                "out_features": self.out_features,
+                "signed_output_bound": self.signed_output_bound,
                 "shape": list(value.shape),
                 # The true activation scales stay on the client. This v1 field
                 # is retained only as a public constant for wire compatibility.
@@ -93,14 +114,22 @@ class MaskedStageRequest:
         )
 
     @classmethod
-    def unpack(cls, payload: bytes) -> "MaskedStageRequest":
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+    ) -> "MaskedStageRequest":
         try:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise ProtocolError("invalid masked stage request") from exc
         required = {
             "v", "model", "stage_id", "correlation_id", "ring", "modulus",
-            "wire_bits", "shape", "scales", "data",
+            "wire_bits", "body_fingerprint", "weight_digest", "weight_bits",
+            "activation_bits", "shape", "scales", "data",
+            "session_id", "out_features", "signed_output_bound",
         }
         if not isinstance(value, dict) or set(value) != required:
             raise ProtocolError("invalid masked stage request schema")
@@ -109,9 +138,21 @@ class MaskedStageRequest:
         shape = tuple(int(item) for item in value["shape"])
         if len(shape) not in {1, 2} or any(item <= 0 for item in shape):
             raise ProtocolError("invalid masked stage input shape")
-        wire_bits = int(value["wire_bits"])
-        scales = np.frombuffer(value["scales"], dtype="<f4").copy()
         rows = 1 if len(shape) == 1 else shape[0]
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("masked stage row count exceeds model context")
+        if max_tensor_elements is not None and math.prod(shape) > max_tensor_elements:
+            raise ProtocolError("masked stage tensor allocation is too large")
+        wire_bits = int(value["wire_bits"])
+        data = value["data"]
+        scales_payload = value["scales"]
+        if not isinstance(data, (bytes, bytearray)) or len(data) != (
+            math.prod(shape) * (wire_bits // 8)
+        ):
+            raise ProtocolError("masked stage input payload length mismatch")
+        if not isinstance(scales_payload, (bytes, bytearray)):
+            raise ProtocolError("invalid activation scales")
+        scales = np.frombuffer(bytes(scales_payload), dtype="<f4").copy()
         if scales.size not in {1, rows}:
             raise ProtocolError("activation scale count does not match stage rows")
         ring = _ring_from(int(value["modulus"]), wire_bits, str(value["ring"]))
@@ -119,11 +160,18 @@ class MaskedStageRequest:
             model=str(value["model"]),
             stage_id=str(value["stage_id"]),
             correlation_id=str(value["correlation_id"]),
-            masked_input=unpack_residues(value["data"], shape, wire_bits),
+            masked_input=unpack_residues(bytes(data), shape, wire_bits),
             activation_scales=scales,
             modulus=int(value["modulus"]),
             wire_bits=wire_bits,
             ring=ring,
+            body_fingerprint=str(value["body_fingerprint"]),
+            weight_digest=str(value["weight_digest"]),
+            weight_bits=int(value["weight_bits"]),
+            activation_bits=int(value["activation_bits"]),
+            session_id=str(value["session_id"]),
+            out_features=int(value["out_features"]),
+            signed_output_bound=int(value["signed_output_bound"]),
         )
 
 
@@ -211,6 +259,9 @@ def unmask_stage_output(response: MaskedStageResponse, correlation: StageCorrela
     if ring == "u16":
         raw = (value.astype(np.uint16) - transformed.astype(np.uint16)).astype(np.uint16)
         return raw.view(np.int16).astype(np.int64)
+    if ring == "u24":
+        raw = (value.astype(np.int64) - transformed.astype(np.int64)) % (1 << 24)
+        return np.where(raw >= 1 << 23, raw - (1 << 24), raw)
     if ring == "u32":
         raw = (value.astype(np.uint32) - transformed.astype(np.uint32)).astype(np.uint32)
         return raw.view(np.int32).astype(np.int64)
@@ -230,6 +281,8 @@ def encode_signed_with_mask(values: np.ndarray, correlation: StageCorrelation) -
     ring = correlation.ring or "prime"
     if ring == "u16":
         return (signed.astype(np.uint16) + mask.astype(np.uint16)).astype(np.uint16)
+    if ring == "u24":
+        return ((signed + mask.astype(np.int64)) % (1 << 24)).astype(np.uint32)
     if ring == "u32":
         return (signed.astype(np.uint32) + mask.astype(np.uint32)).astype(np.uint32)
     from ._native_support import extension
@@ -245,7 +298,7 @@ def decode_unmasked(values: np.ndarray, correlation: StageCorrelation) -> np.nda
         correlation_id=correlation.id,
         masked_output=np.asarray(values),
         modulus=correlation.modulus,
-        wire_bits=16 if correlation.ring == "u16" else 32,
+        wire_bits={"u16": 16, "u24": 24}.get(correlation.ring or "prime", 32),
         ring=correlation.ring or "prime",
     )
     return unmask_stage_output(response, correlation)
@@ -253,7 +306,7 @@ def decode_unmasked(values: np.ndarray, correlation: StageCorrelation) -> np.nda
 
 def correlation_to_wire(item: StageCorrelation) -> dict[str, Any]:
     ring = item.ring or "prime"
-    wire_bits = 16 if ring == "u16" else 32
+    wire_bits = {"u16": 16, "u24": 24}.get(ring, 32)
     return {
         "id": item.id,
         "stage_id": item.stage_id,
@@ -418,7 +471,7 @@ class BlindedStageCorrelation:
 
 def blinded_correlation_to_wire(item: BlindedStageCorrelation) -> dict[str, Any]:
     ring = item.ring or "prime"
-    wire_bits = 16 if ring == "u16" else 32
+    wire_bits = {"u16": 16, "u24": 24}.get(ring, 32)
     return {
         "id": item.id,
         "stage_id": item.stage_id,

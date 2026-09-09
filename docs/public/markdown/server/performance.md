@@ -22,9 +22,21 @@ pllm serve "$PLLM_MODEL_SOURCE" \
 
 These are tuning inputs, not a recommended universal optimum. Measure single conversation latency separately from aggregate throughput. Other users can fill a matrix batch without making one user's dependent stages parallel.
 
-## Bound client preparation
+## Measure just-in-time preparation
 
-The reference SDK defaults to four prefetched correlations and a token cache of 512 entries. Public-weight preparation packs those four masks into guarded BFV slot segments and tiles matrices that exceed one segment. Increasing the horizon can help long conversations but wastes work for short ones. The separate coordinate preparation study packs 2,048 future masks under one key; it is not the reference server's default.
+The public path has no prefetch horizon or durable correlation inventory. Every
+stage sends one small seeded request to preparation while inference processes
+the masked activation. Preparation sends its correction directly to inference
+over a persistent binary WebSocket and returns only a small acknowledgement.
+One session authorization still uses HTTP; correction stages do not create fresh
+HTTP request/response routes. Measure client-to-preparation upload,
+ACK download, client-to-inference traffic, and preparation-to-inference
+correction bytes separately. Preparation metrics expose correction payload bytes,
+channel upload bytes, compute nanoseconds, and send nanoseconds. Inference metrics
+expose channel connections, frames, accepted bytes, failures, and processing
+nanoseconds. Preparation upload
+alone is not complete traffic. Byte counters cover application payloads and PLLM's
+MessagePack envelopes, not WebSocket, TLS, or IP framing.
 
 ## Count both links
 

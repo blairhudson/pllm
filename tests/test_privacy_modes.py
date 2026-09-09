@@ -9,7 +9,7 @@ import httpx
 import numpy as np
 import pytest
 
-from conftest import start_gateway
+from conftest import start_gateway, start_preparation
 from pllm.runtime import OpenAI, PrivacyMode
 from pllm.runtime import hf_hub
 from pllm.runtime.client import _BFVStageClient
@@ -190,8 +190,15 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
             engines={engine.capabilities.name: engine},
             privacy_mode=mode,
         )
+        preparation = None
         try:
             model_id = f"tiny-{mode}"
+            if mode == "public":
+                preparation_engine = MaskedTransformerEngine(threads=1)
+                run(preparation_engine.load(load_hf_directory(root, model_id=model_id)))
+                preparation = start_preparation(
+                    preparation_engine, gateway.base_url, gateway.push_api_key
+                )
             with httpx.Client(base_url=gateway.base_url, timeout=120) as admin:
                 loaded = admin.post(
                     "/v1/he/models/load",
@@ -212,6 +219,8 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
             with OpenAI(
                 api_key=gateway.api_key,
                 base_url=gateway.base_url,
+                preparation_base_url=preparation.base_url if preparation else None,
+                preparation_api_key=preparation.api_key if preparation else None,
                 correlation_mode="bfv",
                 correlation_prefetch=1,
                 tenseal_path=PYDEPS,
@@ -228,7 +237,8 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
                 assert audit["plaintext_prompt_bytes_sent"] == 0
                 assert audit["plaintext_token_ids_sent"] == 0
                 if mode == "public":
-                    assert audit["correlation_count"] > 0
+                    assert audit["preparation_upload_bytes"] > 0
+                    assert audit["inference_upload_bytes"] > 0
                     assert audit["online_steps"] > 0
                     assert audit["direct_fhe_steps"] == 0
                 else:
@@ -243,6 +253,8 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
             assert canary.encode() not in remote_audit
         finally:
             gateway.close()
+            if preparation is not None:
+                preparation.close()
     assert set(results) == {"public", "proprietary"}
     assert results["public"] == results["proprietary"]
     assert len(results["public"]) == 1
@@ -275,6 +287,7 @@ def test_server_cli_mode_selects_engine_and_hf_model(
         "pllm serve",
         "--mode", mode,
         "--api-key", "test",
+        "--provider-push-api-key", "push-test",
         "--model", str(root),
         "--model-id", f"tiny-{mode}",
         "--local-files-only",

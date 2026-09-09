@@ -1,17 +1,19 @@
 # Deploy with Docker
 
-A provider container and a separate customer gateway.
+Inference, trusted preparation, and a customer gateway.
 
 
-The supplied Compose file uses a local model snapshot, a read only model mount, and a writable compiled cache. It binds both service ports to host loopback. Put a TLS reverse proxy in front of the provider when it must be reached from another machine.
+The supplied Compose file mounts the same public snapshot read-only into inference and preparation and gives each a separate compiled cache. It binds all service ports to host loopback. Put TLS reverse proxies in front of remote services.
 
 ## Build and start
 
-From the release root, set `PLLM_MODEL_SOURCE` to an absolute model directory and set both credentials.
+From the release root, set `PLLM_MODEL_SOURCE` to an absolute model directory and set all credentials.
 
 ```bash
 : "${PLLM_MODEL_SOURCE:?Set the absolute checkpoint directory}"
 : "${PLLM_API_KEY:?Set the provider credential}"
+: "${PLLM_PREPARATION_API_KEY:?Set the preparation credential}"
+: "${PLLM_PROVIDER_PUSH_API_KEY:?Set the correction push credential}"
 : "${PLLM_LOCAL_API_KEY:?Set a different local gateway credential}"
 docker compose -f deploy/compose.yaml up --build
 ```
@@ -20,10 +22,16 @@ The Dockerfile installs the supplied runtime with UV. It does not pull an unrela
 
 ## Keep the gateway trusted
 
-The example runs both services on one host for evaluation. On separate machines, run the gateway on the customer's host and point it at the provider's TLS URL. Do not place both in a provider controlled environment and retain the same confidentiality claim.
+The example runs all services on one host for evaluation. In production, keep the gateway and self-hosted preparation on the customer's host and point them at inference over TLS. Do not place preparation under the untrusted inference operator and retain the same confidentiality claim.
+
+The inference proxy must pass binary WebSocket upgrades for
+`/v1/he/corrections/ws`, preserve the provider-push `Authorization` header, and
+disable payload logging. Set its frame/body limit to the configured prepared
+payload limit plus the small channel header, and keep its idle timeout above the
+longest expected pause between decode stages.
 
 ## Data and restart behaviour
 
-Keep compiled public matrices on a persistent volume. Do not persist and restore consumed correlation inventory as though it were reusable model cache. Key and session changes invalidate preparation. Reconnecting after a failed stage must not resend a private activation with a previously used mask.
-
-The current reference has no complete snapshot rollback defence. Avoid VM snapshot restore for active private sessions and treat restarted sessions as fresh work.
+Keep compiled public matrices on persistent volumes. The client stores no durable
+correlation inventory. A failed stage burns its seed and the complete attempt;
+never replay one channel independently.

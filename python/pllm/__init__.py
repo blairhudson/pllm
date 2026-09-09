@@ -38,10 +38,12 @@ _EXPORTS = {'AsyncOpenAI': ('pllm.runtime.client', 'AsyncOpenAI'),
  'SecurityClaim': ('pllm.runtime.formal_security', 'SecurityClaim'),
  'TrustedPreprocessor': ('pllm.runtime.authenticated_mpc', 'TrustedPreprocessor'),
  'check_linear_result': ('pllm.runtime.linear_integrity', 'check_linear_result'),
- 'create_app': ('pllm.runtime.server', 'create_app'),
+  'create_app': ('pllm.runtime.server', 'create_app'),
+  'create_preparation_app': ('pllm.runtime.preparation_server', 'create_preparation_app'),
  'create_async_openai_client': ('pllm.runtime.official', 'create_async_openai_client'),
  'create_linear_check_key': ('pllm.runtime.linear_integrity', 'create_linear_check_key'),
  'create_openai_client': ('pllm.runtime.official', 'create_openai_client'),
+ 'create_preparation_app': ('pllm.runtime.preparation_server', 'create_preparation_app'),
  'create_sidecar_app': ('pllm.runtime.sidecar', 'create_sidecar_app'),
  'secure_argmax': ('pllm.runtime.secure_selection', 'secure_argmax')}
 

@@ -10,7 +10,7 @@ import httpx
 import numpy as np
 import pytest
 
-from conftest import start_gateway
+from conftest import start_gateway, start_preparation
 from pllm.runtime import OpenAI, ProprietaryProtocol
 from pllm.runtime.blinded_engine import BlindedTransformerEngine
 from pllm.runtime.client import _BFVStageClient
@@ -179,8 +179,15 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
             engines={engine.capabilities.name: engine},
             privacy_mode=mode,
         )
+        preparation = None
         try:
             model_id = f"tiny-{mode}"
+            if mode == "public":
+                preparation_engine = MaskedTransformerEngine(threads=1)
+                run(preparation_engine.load(load_hf_directory(root, model_id=model_id)))
+                preparation = start_preparation(
+                    preparation_engine, gateway.base_url, gateway.push_api_key
+                )
             with httpx.Client(base_url=gateway.base_url, timeout=180) as admin:
                 loaded = admin.post(
                     "/v1/he/models/load",
@@ -196,6 +203,8 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
             with OpenAI(
                 api_key=gateway.api_key,
                 base_url=gateway.base_url,
+                preparation_base_url=preparation.base_url if preparation else None,
+                preparation_api_key=preparation.api_key if preparation else None,
                 correlation_mode=correlation_mode,
                 correlation_prefetch=1,
                 tenseal_path=PYDEPS,
@@ -210,12 +219,17 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
                 assert response.status == "completed"
                 assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
                 assert client.privacy_audit.plaintext_token_ids_sent == 0
-                assert client.privacy_audit.correlation_count > 0
+                if mode == "public":
+                    assert client.privacy_audit.preparation_upload_bytes > 0
+                else:
+                    assert client.privacy_audit.correlation_count > 0
                 results[mode] = response.output_text
             remote = b"\n".join(payload for _, payload in gateway.audit)
             assert canary.encode() not in remote
         finally:
             gateway.close()
+            if preparation is not None:
+                preparation.close()
     assert results["public"] == results["proprietary"]
 
 

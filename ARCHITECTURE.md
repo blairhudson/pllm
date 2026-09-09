@@ -50,28 +50,43 @@ at the repository root.
 A matrix is copied into Rust once at compilation, then reused for later calls.
 Input and output conversions are explicit. This is not a zero copy interface.
 The present snapshot consumes one extra signed byte per weight while the source
-matrix is retained for HE preparation. Benchmarks must count that storage and
-buffer conversion work.
+matrix is retained for metadata and preparation-service loading. Benchmarks must
+count that storage and buffer conversion work.
 
-Moving arithmetic to Rust does not remove network round trips, preparation
-traffic, client attention state, or the cost of HE encryption and decryption.
-No speed claim follows merely from the choice of implementation language.
+Moving arithmetic to Rust does not remove two network round trips per linear
+stage, preparation responses, or client attention state. No speed claim follows
+merely from the choice of implementation language.
 
-Public-weight BFV correlation preparation uses tiled diagonal matrix-vector
-evaluation. An 8,192-coefficient BFV context packs as many as four masks per
-ciphertext group, tiles matrices larger than one guarded slot segment, and
-returns packed output tiles rather than one ciphertext per output coordinate.
-Contexts are shared by plaintext modulus, while ciphertext envelopes bind the
-matrix dimensions and tile layout. Direct-FHE and blinded execution retain
-their separate legacy transport.
+The legacy packed-BFV correlation backend remains available to research and
+confidential-weight protocol code but is not selected by public inference.
+Direct-FHE and blinded execution retain their separate transport.
 
-Public-weight deployments may instead select direct two-provider sharing. The
-client splits each quantized activation into fresh uniform ring-2^32 shares,
-submits both requests concurrently over separate authenticated confidential
-connections, and reconstructs the exact signed W8A8 result locally. Rust uses
-wrapping AVX2 or NEON multiplication for this ring. This strategy performs no
-HE preparation and relies on two independently administered honest providers
-not colluding. BFV remains the default and the single-provider alternative.
+Public-weight deployments use just-in-time seeded preparation. Inference first
+registers a random session with immutable model, body, stage, quantization, and
+attempt-budget commitments. Before stage execution, the client sends one compact
+session authorization to preparation. Preparation validates it against its loaded
+model and relays it to inference with the provider-only push credential. Inference
+accepts that exact session once and starts no runner computation before acceptance.
+For each linear stage, the client then creates a fresh 128-bit attempt ID and
+256-bit seed. A domain-separated expansion binds session, model, body, stage, weight, shape,
+quantization, ring, modulus, and wire width and produces input mask `r` and
+output mask `s`. The client sends the seed to preparation and `x-r` to inference
+concurrently. Preparation computes and pushes `W·r-s` exactly once to a fixed
+inference endpoint over one persistent one-way binary WebSocket and returns only a
+small client acknowledgement after the send. Each bounded correction frame carries
+its session and random attempt ID; inference reports a rejection through the matching
+activation request.
+The WebSocket URL is derived from the validated inference HTTP(S) origin, and only
+the provider push credential authenticates its upgrade. A failed or ambiguous send
+is never replayed; the next independent attempt may establish a new connection.
+For an authorized session, inference starts its runner on activation while awaiting the correction,
+then atomically burns both halves and returns `W·x-s`; the client adds `s` and
+center-decodes.
+Stages use the smallest exact `u16`, `u24`, or `u32` ring selected from the exact
+signed output bound. The preparation role is public-weight-only, holds the same
+model body, and must follow the protocol, erase masks, and not collude with the
+inference provider. Self-hosting keeps that trust inside the client boundary.
+The online public path does not use BFV or durable correlation inventory.
 
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The customer evaluates token lookup locally and applies the output
@@ -79,19 +94,31 @@ head only to the final prefill row. This removes vocabulary-sized HE work from
 the online public-weight path. Transformer-body matrices remain provider-owned;
 proprietary bundles never include either boundary matrix.
 
+Bundle schema 2 stores quantized matrices once and lets stages reference them.
+For tied embeddings, one vocabulary-by-hidden matrix uses per-token row scales;
+token lookup gathers its rows and `lm_head` multiplies by the same array. This is
+not numerically identical to schema 1 token lookup, which independently quantized
+the transposed matrix with per-hidden-feature scales. Output-head quantization is
+unchanged. Any per-layer token table remains a separate auxiliary object using
+its existing orientation.
+
 ## Application boundary
 
-The customer client owns plaintext input, secret keys, private activation scales,
-model state, output decoding and public token-boundary matrices. The provider
-owns transformer-body matrices and receives encrypted preparation data and
-masked integer tensors. The local Responses gateway is inside the customer
-boundary. An ordinary provider endpoint cannot be made private by changing its
-URL in an unmodified SDK.
+The customer client owns plaintext input, fresh seeds, private activation
+scales, model state, output decoding and public token-boundary matrices. The
+trusted preparation service and untrusted inference provider both hold the
+public transformer body. Preparation receives seeds; inference receives masked
+integer tensors and the direct preparation correction, never the seed. The
+client never receives the correction. Client-to-inference,
+client-to-preparation, and preparation-to-inference credentials are distinct.
+The local Responses gateway is inside the customer boundary.
+An ordinary provider endpoint cannot be made private by changing its URL in an
+unmodified SDK.
 
-The public weight protocols assume each provider follows the computation. The
-arithmetic simulator, guarded controls and HTTP authentication do not establish
-security against arbitrary malicious participants. These limits do not change
-with the packaging layout.
+The public protocol assumes both roles follow the computation and do not
+collude. The arithmetic simulator, guarded controls and transport authentication do
+not establish security against arbitrary malicious participants. These limits
+do not change with the packaging layout.
 
 ## Repository boundaries
 

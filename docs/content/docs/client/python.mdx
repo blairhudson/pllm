@@ -16,7 +16,7 @@ with OpenAI() as client:
     print(response.output_text)
 ```
 
-`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. The SDK owns the secret key and performs preparation and unmasking locally.
+`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. For public weights, the SDK creates each mask locally from a fresh seed and reconstructs linear results locally.
 
 ## Stream text
 
@@ -62,18 +62,22 @@ from pllm import OpenAI
 with OpenAI(
     base_url=os.environ["PLLM_BASE_URL"],
     api_key=os.environ["PLLM_API_KEY"],
+    preparation_base_url=os.environ["PLLM_PREPARATION_BASE_URL"],
+    preparation_api_key=os.environ["PLLM_PREPARATION_API_KEY"],
     model="private-model",
+    bundle_cache_mode="read-write",
     timeout=600,
 ) as client:
     print(client.responses.create(input="Hello").output_text)
 ```
 
-The constructor also accepts `execution_strategy`, `secondary_base_url`,
-`secondary_api_key`, `he_transport`, `correlation_mode`,
-`correlation_prefetch`, `token_cache_size`, `tenseal_path`, and `http_client`.
-Two-provider execution is available only for public weights and requires
-independently administered providers connected over HTTPS. Most applications
-should leave these at their configured values.
+The constructor also accepts `preparation_base_url`, `preparation_api_key`,
+`he_transport`, `correlation_mode`,
+`correlation_prefetch`, `token_cache_size`, `bundle_cache_mode`,
+`bundle_cache_dir`, `tenseal_path`, and `http_client`.
+Remote preparation is available only for public weights. The preparation
+service must be trusted not to retain masks or collude with the inference
+provider. Most applications should leave these values in saved configuration.
 
 ## Async applications
 

@@ -24,15 +24,34 @@ Set `PLLM_MODEL_SOURCE` to your local checkpoint directory before running this c
 
 ```bash
 export PLLM_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PREPARATION_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_PROVIDER_PUSH_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 : "${PLLM_MODEL_SOURCE:?Set PLLM_MODEL_SOURCE to the checkpoint directory}"
 uv run pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --model-id private-model \
   --local-files-only \
   --compiled-cache-dir .cache/compiled
 ```
 
-The provider key authenticates private requests. Keep it in your secret store. Do not enable `--allow-test-correlations` for private data: that test path lets the server learn the masks.
+## Start trusted preparation
+
+In another trusted process, load the same public checkpoint:
+
+```bash
+uv run pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --model-id private-model \
+  --local-files-only \
+  --compiled-cache-dir .cache/preparation-compiled \
+  --port 8001
+```
+
+Self-host this role unless another preparation operator is trusted not to retain
+masks or collude with inference. Keep all three service credentials in your secret store.
 
 ## Configure the client
 
@@ -43,11 +62,13 @@ umask 077
 uv run pllm configure \
   --server http://127.0.0.1:8000 \
   --api-key "$PLLM_API_KEY" \
+  --preparation-url http://127.0.0.1:8001 \
+  --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
   --model private-model
 uv run pllm chat
 ```
 
-The first response may wait for preparation. A fast generation interval after preparation is not the rate of the complete request.
+Each stage sends preparation and inference work concurrently. Count both links and all first-token work when measuring latency.
 
 ## Use Python
 
@@ -64,4 +85,4 @@ with OpenAI() as client:
 
 ## Check the boundary
 
-Your application owns the plaintext. The configured provider receives encrypted preparation and masked stage inputs. Request timing, shapes, stage names, and approximate lengths remain visible. This implementation assumes the provider follows the protocol; it does not verify every provider computation.
+Your application owns the plaintext. Preparation receives fresh seeds and bound stage metadata; inference receives masked stage inputs. Timing, shapes, stage names, and approximate lengths remain visible. This implementation does not verify every service computation.

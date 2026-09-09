@@ -10,7 +10,9 @@ pllm chat
 The client uses the saved server, credential, and model. Override the connection for this invocation:
 
 ```bash
-pllm chat --server http://127.0.0.1:8000 --model private-model
+pllm chat --server http://127.0.0.1:8000 \
+  --preparation-url http://127.0.0.1:8001 \
+  --model private-model
 ```
 
 ## Commands
@@ -24,7 +26,9 @@ pllm chat --server http://127.0.0.1:8000 --model private-model
 | `/help` | Show available commands |
 | `/quit` | Exit the client |
 
-Use `--no-stream` to print a response after it completes. A preparation wait is expected when no material is available; increasing the token limit can also increase the amount of material consumed.
+Use `--no-stream` to print a response after it completes. Each linear stage waits
+for its preparation acknowledgement and masked inference result. Correction bytes
+flow directly from preparation to inference and are reported separately.
 
 ## Local privacy
 

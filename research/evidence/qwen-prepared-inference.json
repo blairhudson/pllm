@@ -1,0 +1,32 @@
+{
+  "date": "2026-09-08",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "pllm_version": "0.17.0a1",
+  "artifact": "installed macOS arm64 wheel",
+  "topology": "separate loopback inference and preparation processes with authenticated correction relay",
+  "prompt": "Write the numbers from 1 to 40 in words.",
+  "max_output_tokens": 32,
+  "tokens": 32,
+  "time_to_first_token_seconds": 1.5357981249690056,
+  "total_seconds": 6.0709524168632925,
+  "decode_tokens_per_second": 7.060784939361555,
+  "privacy_audit": {
+    "plaintext_prompt_bytes_sent": 0,
+    "plaintext_token_ids_sent": 0,
+    "online_steps": 3168,
+    "preparation_upload_bytes": 326304,
+    "preparation_download_bytes": 271966,
+    "inference_upload_bytes": 52370400,
+    "inference_download_bytes": 72404832,
+    "online_client_traffic_bytes": 125373502,
+    "preparation_to_inference_relay_bytes": 72962400,
+    "client_bundle_cold_download_bytes": 145970989,
+    "client_bundle_warm_download_bytes": 0,
+    "client_bundle_cache_hits": 1,
+    "preparation_server_ns": 1835240282,
+    "inference_server_ns": 1815462769,
+    "preparation_relay_send_ns": 190491197
+  },
+  "output_prefix": "Sure, here are the numbers from one to forty spelled out as words:\n\n1. One\n2. Two\n3. Three\n4. Four\n5",
+  "security_note": "Loopback process separation validates arithmetic, compact-ring transport, relay accounting, tied-bundle deduplication and cache reuse, not production non-collusion."
+}

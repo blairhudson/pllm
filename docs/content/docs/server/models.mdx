@@ -59,6 +59,6 @@ Test a checkpoint in four steps: import coverage, clear quantized execution, pri
 
 ## Public token material
 
-Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from homomorphic preparation and online provider calls. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
+Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from both remote matrix services. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
 
 Proprietary model bundles do not contain these matrices. They retain remote private token lookup and output projection, so public and proprietary latency measurements are not interchangeable.

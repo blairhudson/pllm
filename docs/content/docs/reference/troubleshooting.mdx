@@ -9,7 +9,9 @@ You sent plaintext to the private provider endpoint. Start `pllm sidecar` in the
 
 ## The provider returns 401
 
-The provider key and local gateway key are different credentials. The application uses `PLLM_LOCAL_API_KEY`; the PLLM client uses `PLLM_API_KEY`. Verify both without printing them into logs.
+Inference, preparation, and the local gateway use separate credentials. The
+application uses `PLLM_LOCAL_API_KEY`; the PLLM client uses `PLLM_API_KEY` and
+`PLLM_PREPARATION_API_KEY`. Verify them without printing them into logs.
 
 ## The client cannot select a model
 
@@ -25,11 +27,20 @@ Check interpreter and operating system wheel support. Use the `he` extra and ver
 
 ## Generation stalls
 
-Check whether preparation is exhausted, not only whether the socket is open. Count preparation bytes and client decryption time. More prefetched rows can change where the wait occurs without improving sustained throughput.
+Check both service health, per-channel bytes, matrix time and network time. The
+public path has no inventory to exhaust: preparation is performed concurrently
+for every stage. Compare preparation's `correction_push_attempts`,
+`correction_channel_upload_bytes`, and `correction_push_ns` with inference's
+`correction_channel` frames, bytes, failures, and processing time. A connection
+count near frame count indicates that a proxy or idle timeout is defeating
+persistence. Confirm `/v1/he/corrections/ws` supports binary WebSocket upgrades
+and preserves the provider-push `Authorization` header.
 
 ## A stream fails halfway through
 
-Stop that execution and discard uncertain correlations. Do not replay stage frames manually. A new response is new work and may incur preparation and prefill again.
+Stop that execution and discard the attempt. Do not replay either channel
+manually. A new response generates fresh seeds and repeats preparation and
+prefill.
 
 ## A checkpoint loads but does not match its original outputs
 

@@ -2,20 +2,27 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
+import hmac
 import json
+import os
+import posixpath
 import secrets
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Generic, TypeVar
 from urllib.parse import urlparse, urlunparse
 
 import httpx
 import msgpack
 import numpy as np
+from filelock import FileLock
 
 from .secure_random import FieldRandom
 
@@ -38,27 +45,25 @@ from .protocol import (
     pack_envelope,
     unpack_envelope,
 )
+from .preparation_protocol import SessionAuthorization, SessionAuthorizationAck
 from .stage_protocol import (
     BlindedStageCorrelation,
     BlindedStageRequest,
     BlindedStageResponse,
     DirectFHEStageRequest,
     DirectFHEStageResponse,
-    StageCorrelation,
     blinded_correlation_from_wire,
-    correlation_from_wire,
 )
-from .tiled_bfv import TiledBFVClient
 from .quantization import dequantize_matmul, quantize_activation_per_row
 from .transformer_client import (
     ClientBundle,
-    CorrelationInventory,
     MaskedTransformerClientRuntime,
     RemoteLinear,
     RuntimeSnapshot,
     StageClientStats,
     StageMetadata,
-    TwoProviderRemoteLinear,
+    PreparedRemoteLinear,
+    TransformerClientError,
 )
 from .responses import normalize_input, prompt_text
 from .security import derive_session_key
@@ -66,6 +71,39 @@ from .tokenizer import AlphabetTokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 T = TypeVar("T")
+
+_BUNDLE_CACHE_MODES = {"read-write", "read-only", "refresh", "off"}
+_MAX_CLIENT_BUNDLE_BYTES = 8 * 1024 * 1024 * 1024
+
+
+def _default_bundle_cache_dir() -> Path:
+    base = Path(os.getenv("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return base / "pllm" / "client-bundles"
+
+
+def _normalized_inference_endpoint(value: str) -> str:
+    parsed = urlparse(value)
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("base_url must be an HTTP(S) URL")
+    scheme = parsed.scheme.lower()
+    host = parsed.hostname.lower()
+    port = parsed.port
+    if port is not None and port != (443 if scheme == "https" else 80):
+        host = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
+    elif ":" in host:
+        host = f"[{host}]"
+    path = posixpath.normpath(parsed.path or "/")
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{scheme}://{host}{path.rstrip('/') or '/'}"
 
 
 class HEAPIError(RuntimeError):
@@ -75,10 +113,15 @@ class HEAPIError(RuntimeError):
         self.body = body
 
 
+class _BundleIntegrityError(HEAPIError):
+    pass
+
+
 class ResponseStream(Generic[T]):
     def __init__(self, iterator: Iterator[T], close: Callable[[], None] | None = None) -> None:
         self.iterator = iterator
         self._close = close
+        self._closed = False
 
     def __iter__(self) -> "ResponseStream[T]":
         return self
@@ -87,9 +130,17 @@ class ResponseStream(Generic[T]):
         return next(self.iterator)
 
     def close(self) -> None:
-        if self._close is not None:
-            self._close()
-            self._close = None
+        if self._closed:
+            return
+        self._closed = True
+        callback, self._close = self._close, None
+        try:
+            iterator_close = getattr(self.iterator, "close", None)
+            if iterator_close is not None:
+                iterator_close()
+        finally:
+            if callback is not None:
+                callback()
 
     def __enter__(self) -> "ResponseStream[T]":
         return self
@@ -116,12 +167,22 @@ class PrivacyAudit:
     direct_fhe_upload_bytes: int = 0
     direct_fhe_download_bytes: int = 0
     direct_fhe_steps: int = 0
-    direct_share_primary_upload_bytes: int = 0
-    direct_share_primary_download_bytes: int = 0
-    direct_share_secondary_upload_bytes: int = 0
-    direct_share_secondary_download_bytes: int = 0
-    direct_share_primary_server_ns: int = 0
-    direct_share_secondary_server_ns: int = 0
+    preparation_upload_bytes: int = 0
+    preparation_download_bytes: int = 0
+    inference_upload_bytes: int = 0
+    inference_download_bytes: int = 0
+    preparation_server_ns: int = 0
+    inference_server_ns: int = 0
+    correction_push_bytes: int = 0
+    correction_push_ns: int = 0
+    session_authorization_upload_bytes: int = 0
+    session_authorization_download_bytes: int = 0
+    preparation_attempts: int = 0
+    preparation_failures: int = 0
+    bundle_network_bytes: int = 0
+    bundle_cache_hits: int = 0
+    bundle_cache_misses: int = 0
+    bundle_cache_corruptions: int = 0
 
     def to_dict(self) -> dict[str, int]:
         return {name: int(getattr(self, name)) for name in self.__dataclass_fields__}
@@ -271,6 +332,7 @@ class _BFVStageClient:
 @dataclass(slots=True)
 class _TransformerCryptoState:
     bundle: ClientBundle
+    bundle_fingerprint: str
     mode: str
     privacy_mode: str = "public"
     privacy_protocol: str = "masked_w4a4"
@@ -278,131 +340,21 @@ class _TransformerCryptoState:
     locks: dict[str, threading.Lock] = field(default_factory=lambda: defaultdict(threading.Lock))
     rng: FieldRandom = field(default_factory=FieldRandom)
     bfv_clients: dict[int, _BFVStageClient] = field(default_factory=dict)
-    tiled_bfv_clients: dict[int, TiledBFVClient] = field(default_factory=dict)
     context_ids: dict[int, str] = field(default_factory=dict)
-    tiled_context_lock: threading.Lock = field(default_factory=threading.Lock)
     blinded_owner_id: str = field(default_factory=lambda: new_id("owner"))
     token_cache: OrderedDict[int, np.ndarray] = field(default_factory=OrderedDict)
     token_cache_lock: threading.Lock = field(default_factory=threading.Lock)
+    preparation_verified: bool = False
 
 
 @dataclass(slots=True)
 class _TransformerConversationState:
     model_id: str
+    bundle_fingerprint: str
     token_ids: list[int]
     rendered_context: str
     snapshot: RuntimeSnapshot
     next_logits: np.ndarray
-
-
-class _TransformerCorrelationProvider:
-    def __init__(
-        self,
-        *,
-        client: "HEClientCore",
-        session_id: str,
-        state: _TransformerCryptoState,
-        prefetch: int,
-    ) -> None:
-        self.owner = client
-        self.session_id = session_id
-        self.state = state
-        self.prefetch = max(1, int(prefetch))
-        self.model_id = state.bundle.model_id
-
-    def take_many(self, stage: StageMetadata, count: int) -> list[StageCorrelation]:
-        with self.state.locks[stage.id]:
-            queue = self.state.queues[stage.id]
-            missing = count - len(queue)
-            if missing > 0:
-                queue.extend(self._create(stage, max(missing, self.prefetch)))
-            if len(queue) < count:
-                raise HEModelError(f"correlation inventory exhausted for {stage.id}")
-            values = [queue.popleft() for _ in range(count)]
-            for item in values:
-                if item.consumed:
-                    raise HEModelError("correlation reuse detected")
-                item.consumed = True
-            return values
-
-    def _create(self, stage: StageMetadata, count: int) -> list[StageCorrelation]:
-        if self.state.mode == "local-test":
-            response = self.owner.http.post(
-                f"/v1/he/sessions/{self.session_id}/correlations/local-test",
-                headers=self.owner.headers,
-                json={"count": count, "stage_id": stage.id, "ring": stage.ring},
-            )
-            _raise(response)
-            value = msgpack.unpackb(response.content, raw=False, strict_map_key=False)
-            rows = [correlation_from_wire(item) for item in value["items"]]
-            self.owner.audit.correlation_count += len(rows)
-            return rows
-        if self.state.mode != "bfv":
-            raise ValueError(f"unsupported transformer correlation mode {self.state.mode!r}")
-        modulus = int(stage.modulus)
-        with self.state.tiled_context_lock:
-            bfv = self.state.tiled_bfv_clients.get(modulus)
-            context_id = self.state.context_ids.get(modulus)
-            if bfv is None or context_id is None:
-                bfv = TiledBFVClient(
-                    stage.in_features,
-                    stage.out_features,
-                    plain_modulus=modulus,
-                    threads=he_worker_threads(),
-                    tenseal_path=self.owner.tenseal_path,
-                )
-                context_id = new_id(f"ctx{modulus}")
-                register = self.owner.http.put(
-                    f"/v1/he/sessions/{self.session_id}/contexts/{context_id}",
-                    headers={
-                        **self.owner.headers,
-                        "Content-Type": "application/octet-stream",
-                    },
-                    content=bfv.public_context,
-                )
-                _raise(register)
-                self.state.tiled_bfv_clients[modulus] = bfv
-                self.state.context_ids[modulus] = context_id
-                self.owner.audit.public_context_bytes += len(bfv.public_context)
-        bfv = bfv.for_shape(stage.in_features, stage.out_features)
-        masks = [
-            self.state.rng.integers(0, modulus, size=stage.in_features, dtype=np.uint32)
-            for _ in range(count)
-        ]
-        encrypted = bfv.encrypt_many(np.stack(masks))
-        group_sizes = bfv.group_sizes(len(masks))
-        upload = encode_length_prefixed(encrypted)
-        self.owner.audit.encrypted_correlation_upload_bytes += len(upload)
-        response = self.owner.http.post(
-            f"/v1/he/sessions/{self.session_id}/correlations/bfv/batch",
-            headers={
-                **self.owner.headers,
-                "Content-Type": "application/octet-stream",
-                "X-HE-Stage-ID": stage.id,
-                "X-HE-Context-ID": context_id,
-            },
-            content=upload,
-        )
-        _raise(response)
-        self.owner.audit.encrypted_correlation_download_bytes += len(response.content)
-        payloads = list(iter_length_prefixed(response.content))
-        if len(payloads) != len(group_sizes):
-            raise HEModelError("BFV correlation batch returned the wrong group count")
-        transformed_rows = bfv.decrypt_many(payloads, group_sizes)
-        rows: list[StageCorrelation] = []
-        for mask, transformed in zip(masks, transformed_rows, strict=True):
-            rows.append(
-                StageCorrelation(
-                    id=new_id("corr"),
-                    stage_id=stage.id,
-                    ring="prime",
-                    modulus=modulus,
-                    mask=mask,
-                    transformed_mask=transformed,
-                )
-            )
-        self.owner.audit.correlation_count += len(rows)
-        return rows
 
 
 class _BlindedCorrelationProvider:
@@ -796,64 +748,73 @@ class HEClientCore:
         default_model: str | None = None,
         he_transport: str = "http",
         correlation_mode: str = "bfv",
-        execution_strategy: str = "bfv",
-        secondary_base_url: str | None = None,
-        secondary_api_key: str | None = None,
+        preparation_base_url: str | None = None,
+        preparation_api_key: str | None = None,
         correlation_prefetch: int = 4,
         token_cache_size: int = 512,
+        bundle_cache_mode: str = "read-write",
+        bundle_cache_dir: str | Path | None = None,
         tenseal_path: str | None = None,
         timeout: float = 300.0,
         http_client: httpx.Client | None = None,
-        secondary_http_client: httpx.Client | None = None,
+        preparation_http_client: httpx.Client | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.default_model = default_model
         self.he_transport = he_transport
         self.correlation_mode = correlation_mode
-        if execution_strategy not in {"bfv", "two-provider"}:
-            raise ValueError("execution_strategy must be 'bfv' or 'two-provider'")
-        self.execution_strategy = execution_strategy
         self.correlation_prefetch = correlation_prefetch
         self.token_cache_size = max(0, int(token_cache_size))
+        if bundle_cache_mode not in _BUNDLE_CACHE_MODES:
+            raise ValueError(
+                "bundle_cache_mode must be read-write, read-only, refresh, or off"
+            )
+        self.bundle_cache_mode = bundle_cache_mode
+        self._bundle_cache_explicit = bundle_cache_dir is not None
+        self.bundle_cache_dir = Path(bundle_cache_dir).expanduser() if bundle_cache_dir else (
+            _default_bundle_cache_dir()
+        )
+        self._bundle_endpoint = _normalized_inference_endpoint(self.base_url)
         self.tenseal_path = tenseal_path
         self._owns_http = http_client is None
         self.http = http_client or httpx.Client(base_url=self.base_url, timeout=timeout)
         self.headers = {"Authorization": f"Bearer {api_key}"}
-        self._owns_secondary_http = secondary_http_client is None and secondary_base_url is not None
-        self.secondary_http = secondary_http_client
-        if self.secondary_http is None and secondary_base_url is not None:
-            self.secondary_http = httpx.Client(
-                base_url=secondary_base_url.rstrip("/"), timeout=timeout
+        self._owns_preparation_http = (
+            preparation_http_client is None and preparation_base_url is not None
+        )
+        self.preparation_http = preparation_http_client
+        if self.preparation_http is None and preparation_base_url is not None:
+            self.preparation_http = httpx.Client(
+                base_url=preparation_base_url.rstrip("/"), timeout=timeout
             )
-        if execution_strategy == "two-provider" and self.secondary_http is None:
-            raise ValueError("two-provider execution requires secondary_base_url")
-        if execution_strategy == "two-provider":
-            assert self.secondary_http is not None
-            provider_urls = (self.http.base_url, self.secondary_http.base_url)
-            if provider_urls[0] == provider_urls[1]:
-                raise ValueError("two-provider execution requires distinct provider origins")
-            for provider_url in provider_urls:
+        if self.preparation_http is not None:
+            if not preparation_api_key:
+                raise ValueError("preparation_api_key is required for preparation service")
+            if preparation_api_key == api_key:
+                raise ValueError("inference and preparation credentials must be distinct")
+            provider_urls = (self.http.base_url, self.preparation_http.base_url)
+            origins = [
+                (
+                    item.scheme,
+                    item.host,
+                    item.port or (443 if item.scheme == "https" else 80),
+                )
+                for item in provider_urls
+            ]
+            if origins[0] == origins[1]:
+                raise ValueError("preparation and inference require distinct origins")
+            for name, provider_url in zip(
+                ("base_url", "preparation_base_url"), provider_urls, strict=True
+            ):
                 if provider_url.scheme != "https" and provider_url.host not in {
                     "127.0.0.1",
                     "localhost",
                     "::1",
                 }:
-                    raise ValueError("two-provider execution requires HTTPS except on loopback")
-        if execution_strategy == "two-provider":
-            assert self.secondary_http is not None
-            provider_urls = (self.http.base_url, self.secondary_http.base_url)
-            if provider_urls[0] == provider_urls[1]:
-                raise ValueError("two-provider execution requires distinct provider origins")
-            for provider_url in provider_urls:
-                if provider_url.scheme != "https" and provider_url.host not in {
-                    "127.0.0.1",
-                    "localhost",
-                    "::1",
-                }:
-                    raise ValueError("two-provider execution requires HTTPS except on loopback")
-        self.secondary_headers = {
-            "Authorization": f"Bearer {secondary_api_key or api_key}"
+                    raise ValueError(f"{name} must use HTTPS outside loopback")
+        self.preparation_headers = {
+            "Authorization": f"Bearer {preparation_api_key}"
         }
         self._provider_executor = ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="pllm-provider"
@@ -921,8 +882,8 @@ class HEClientCore:
             )
             return session_value, model, source
 
-    def _model_manifest(self, model_id: str) -> dict[str, Any]:
-        cached = self._model_manifests.get(model_id)
+    def _model_manifest(self, model_id: str, *, refresh: bool = False) -> dict[str, Any]:
+        cached = None if refresh else self._model_manifests.get(model_id)
         if cached is not None:
             return cached
         response = self.http.get(f"/v1/he/models/{model_id}", headers=self.headers)
@@ -931,6 +892,288 @@ class HEClientCore:
         self._model_manifests[model_id] = value
         return value
 
+    def _client_bundle_descriptor(self, model_id: str) -> dict[str, Any]:
+        descriptor = self._model_manifest(model_id, refresh=True).get("client_bundle")
+        if not isinstance(descriptor, dict) or set(descriptor) != {
+            "schema", "sha256", "size", "etag"
+        }:
+            raise HEAPIError("provider model descriptor lacks client bundle fingerprint", 409)
+        fingerprint = str(descriptor["sha256"])
+        if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
+            raise HEAPIError("provider client bundle fingerprint is invalid", 409)
+        if descriptor["etag"] != f'"{fingerprint}"':
+            raise HEAPIError("provider client bundle descriptor is invalid", 409)
+        try:
+            schema = int(descriptor["schema"])
+            size = int(descriptor["size"])
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise HEAPIError("provider client bundle descriptor is invalid", 409) from exc
+        if schema < 1 or size < 1 or size > _MAX_CLIENT_BUNDLE_BYTES:
+            raise HEAPIError("provider client bundle descriptor is invalid", 409)
+        return descriptor
+
+    @staticmethod
+    def _ensure_private_directory(path: Path) -> None:
+        existed = path.exists()
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if not existed:
+            path.chmod(0o700)
+
+    def _bundle_cache_namespace(self, *, create: bool) -> bytes | None:
+        key_path = self.bundle_cache_dir / ".identity-key"
+        if not create:
+            try:
+                key = key_path.read_bytes()
+            except FileNotFoundError:
+                return None
+            if len(key) != 32:
+                raise OSError(f"invalid bundle cache identity key: {key_path}")
+            return key
+
+        self._ensure_private_directory(self.bundle_cache_dir)
+        with FileLock(str(key_path) + ".lock"):
+            try:
+                key = key_path.read_bytes()
+            except FileNotFoundError:
+                key = secrets.token_bytes(32)
+                descriptor = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                try:
+                    with os.fdopen(descriptor, "wb") as stream:
+                        stream.write(key)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                except BaseException:
+                    try:
+                        key_path.unlink()
+                    except OSError:
+                        pass
+                    raise
+            if len(key) != 32:
+                raise OSError(f"invalid bundle cache identity key: {key_path}")
+            return key
+
+    def _bundle_cache_path(
+        self,
+        model_id: str,
+        fingerprint: str | None = None,
+        *,
+        create_namespace: bool = True,
+    ) -> Path | None:
+        del fingerprint
+        namespace = self._bundle_cache_namespace(create=create_namespace)
+        if namespace is None:
+            return None
+        identity = json.dumps(
+            {
+                "endpoint": self._bundle_endpoint,
+                "model": model_id,
+                "credential": self.api_key,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        key = hmac.new(namespace, identity, hashlib.sha256).hexdigest()
+        return self.bundle_cache_dir / key[:2] / f"{key}.msgpack"
+
+    @staticmethod
+    def _read_cached_bundle(
+        path: Path,
+        *,
+        model_id: str,
+        fingerprint: str,
+        schema: int,
+        size: int,
+    ) -> tuple[ClientBundle | None, str]:
+        if not path.is_file():
+            return None, "miss"
+        try:
+            payload = path.read_bytes()
+            if len(payload) != size or hashlib.sha256(payload).hexdigest() != fingerprint:
+                try:
+                    stale = ClientBundle.unpack(payload)
+                except (TransformerClientError, ValueError, TypeError):
+                    return None, "corrupt"
+                if stale.model_id == model_id and stale.schema_version == schema:
+                    return None, "miss"
+                return None, "corrupt"
+            bundle = ClientBundle.unpack(payload)
+            if bundle.model_id != model_id or bundle.schema_version != schema:
+                return None, "corrupt"
+            return bundle, "hit"
+        except (OSError, TransformerClientError, ValueError, TypeError):
+            return None, "corrupt"
+
+    def _download_client_bundle(
+        self,
+        model_id: str,
+        *,
+        fingerprint: str,
+        schema: int,
+        size: int,
+    ) -> tuple[ClientBundle, bytes]:
+        response = self.http.get(
+            f"/v1/he/models/{model_id}/client-bundle",
+            headers=self.headers,
+        )
+        _raise(response)
+        payload = response.content
+        self.audit.bundle_network_bytes += len(payload)
+        if (
+            len(payload) != size
+            or hashlib.sha256(payload).hexdigest() != fingerprint
+            or response.headers.get("X-PLLM-Bundle-SHA256") != fingerprint
+        ):
+            raise _BundleIntegrityError("provider client bundle fingerprint mismatch", 409)
+        try:
+            bundle = ClientBundle.unpack(payload)
+        except TransformerClientError as exc:
+            raise _BundleIntegrityError("provider client bundle is invalid", 409) from exc
+        if bundle.model_id != model_id or bundle.schema_version != schema:
+            raise _BundleIntegrityError("provider client bundle descriptor mismatch", 409)
+        return bundle, payload
+
+    @staticmethod
+    def _write_cached_bundle(path: Path, payload: bytes) -> None:
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=path.parent, prefix=f".{path.name}.", delete=False
+            ) as stream:
+                temporary = Path(stream.name)
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            temporary.chmod(0o600)
+            os.replace(temporary, path)
+            try:
+                directory = os.open(
+                    path.parent,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
+            except OSError:
+                # Directory fsync is unsupported on some otherwise safe filesystems.
+                pass
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
+
+    def _load_client_bundle_descriptor(
+        self,
+        model_id: str,
+        descriptor: dict[str, Any],
+    ) -> ClientBundle:
+        fingerprint = str(descriptor["sha256"])
+        schema = int(descriptor["schema"])
+        size = int(descriptor["size"])
+        if self.bundle_cache_mode == "off":
+            return self._download_client_bundle(
+                model_id, fingerprint=fingerprint, schema=schema, size=size
+            )[0]
+
+        path: Path | None = None
+        downloaded: tuple[ClientBundle, bytes] | None = None
+        try:
+            path = self._bundle_cache_path(
+                model_id,
+                fingerprint,
+                create_namespace=self.bundle_cache_mode != "read-only",
+            )
+        except OSError as exc:
+            if self._bundle_cache_explicit:
+                raise HEAPIError(f"configured bundle cache is unavailable: {exc}") from exc
+            return self._download_client_bundle(
+                model_id, fingerprint=fingerprint, schema=schema, size=size
+            )[0]
+
+        if self.bundle_cache_mode == "read-only":
+            try:
+                if path is None:
+                    bundle, status = None, "miss"
+                else:
+                    bundle, status = self._read_cached_bundle(
+                        path,
+                        model_id=model_id,
+                        fingerprint=fingerprint,
+                        schema=schema,
+                        size=size,
+                    )
+            except OSError:
+                bundle, status = None, "miss"
+            if status == "hit":
+                self.audit.bundle_cache_hits += 1
+                assert bundle is not None
+                return bundle
+            if status == "corrupt":
+                self.audit.bundle_cache_corruptions += 1
+            else:
+                self.audit.bundle_cache_misses += 1
+            return self._download_client_bundle(
+                model_id, fingerprint=fingerprint, schema=schema, size=size
+            )[0]
+
+        assert path is not None
+        try:
+            self._ensure_private_directory(path.parent)
+            with FileLock(str(path) + ".lock"):
+                if self.bundle_cache_mode == "read-write":
+                    bundle, status = self._read_cached_bundle(
+                        path,
+                        model_id=model_id,
+                        fingerprint=fingerprint,
+                        schema=schema,
+                        size=size,
+                    )
+                    if status == "hit":
+                        self.audit.bundle_cache_hits += 1
+                        assert bundle is not None
+                        return bundle
+                    if status == "corrupt":
+                        self.audit.bundle_cache_corruptions += 1
+                    else:
+                        self.audit.bundle_cache_misses += 1
+                downloaded = self._download_client_bundle(
+                    model_id, fingerprint=fingerprint, schema=schema, size=size
+                )
+                self._write_cached_bundle(path, downloaded[1])
+                return downloaded[0]
+        except OSError as exc:
+            if self._bundle_cache_explicit:
+                raise HEAPIError(f"configured bundle cache is unavailable: {exc}") from exc
+            if downloaded is not None:
+                return downloaded[0]
+            return self._download_client_bundle(
+                model_id, fingerprint=fingerprint, schema=schema, size=size
+            )[0]
+
+    def _load_client_bundle_record(
+        self,
+        model_id: str,
+        descriptor: dict[str, Any] | None = None,
+    ) -> tuple[ClientBundle, str]:
+        descriptor = descriptor or self._client_bundle_descriptor(model_id)
+        for attempt in range(2):
+            try:
+                bundle = self._load_client_bundle_descriptor(model_id, descriptor)
+                return bundle, str(descriptor["sha256"])
+            except _BundleIntegrityError:
+                if attempt:
+                    raise
+                current = self._client_bundle_descriptor(model_id)
+                if current == descriptor:
+                    raise
+                descriptor = current
+        raise AssertionError("unreachable")
+
+    def _load_client_bundle(self, model_id: str) -> ClientBundle:
+        return self._load_client_bundle_record(model_id)[0]
+
     def _open_transformer_session(
         self,
         model_id: str,
@@ -938,63 +1181,96 @@ class HEClientCore:
         max_output_tokens: int,
     ) -> tuple[dict[str, Any], _TransformerCryptoState, Any | None]:
         with self._transformer_state_lock:
+            descriptor = self._client_bundle_descriptor(model_id)
+            bundle_fingerprint = str(descriptor["sha256"])
             state = self._transformer_states.get(model_id)
-            if state is None:
-                bundle_response = self.http.get(
-                    f"/v1/he/models/{model_id}/client-bundle",
-                    headers=self.headers,
+            if state is None or state.bundle_fingerprint != bundle_fingerprint:
+                bundle, bundle_fingerprint = self._load_client_bundle_record(
+                    model_id, descriptor
                 )
-                _raise(bundle_response)
-                bundle = ClientBundle.unpack(bundle_response.content)
                 state = _TransformerCryptoState(
                     bundle=bundle,
+                    bundle_fingerprint=bundle_fingerprint,
                     mode=self.correlation_mode,
                     privacy_mode=str(bundle.privacy.get("mode", "public")),
                     privacy_protocol=str(bundle.privacy.get("protocol", "masked_w4a4")),
                 )
                 self._transformer_states[model_id] = state
 
-            has_secondary = False
-            if self.execution_strategy == "two-provider":
-                if state.privacy_mode != "public":
-                    raise HEAPIError("two-provider execution requires public model weights", 400)
-                if self.secondary_http is None:
-                    raise HEAPIError("two-provider execution requires a secondary provider", 400)
-                model_response = self.secondary_http.get(
+            prepared_public = False
+            if state.privacy_mode == "public":
+                if self.preparation_http is None:
+                    raise HEAPIError("public inference requires a preparation service", 400)
+                inference_response = self.http.get("/v1/models", headers=self.headers)
+                _raise(inference_response)
+                inference_models = [
+                    item
+                    for item in inference_response.json().get("data", [])
+                    if item.get("id") == model_id
+                ]
+                if len(inference_models) != 1:
+                    raise HEAPIError("inference service does not serve the requested model", 404)
+                inference = inference_models[0].get("he") or {}
+                if (
+                    inference.get("body_fingerprint")
+                    != state.bundle.privacy.get("body_fingerprint")
+                    or inference.get("stage_commitment")
+                    != state.bundle.privacy.get("stage_commitment")
+                    or inference.get("architecture")
+                    != state.bundle.manifest.get("architecture")
+                    or inference.get("stage_count")
+                    != len(state.bundle.manifest.get("stages", []))
+                ):
+                    raise HEAPIError("inference and client model commitments do not match", 409)
+                model_response = self.preparation_http.get(
                     "/v1/models",
-                    headers=self.secondary_headers,
+                    headers=self.preparation_headers,
                 )
                 _raise(model_response)
-                secondary_models = [
+                preparation_models = [
                     item
                     for item in model_response.json().get("data", [])
                     if item.get("id") == model_id
                 ]
-                if len(secondary_models) != 1:
-                    raise HEAPIError("secondary provider does not serve the requested model", 404)
-                secondary_he = secondary_models[0].get("he") or {}
+                if len(preparation_models) != 1:
+                    raise HEAPIError("preparation service does not serve the requested model", 404)
+                preparation = preparation_models[0].get("preparation") or {}
                 remote_stages = [
                     stage
                     for stage in state.bundle.stages.values()
                     if stage.client_weight is None and stage.id != "embed_tokens"
                 ]
-                if not remote_stages or any(not stage.weight_digest for stage in remote_stages):
-                    raise HEAPIError("provider bundle lacks stage weight commitments", 409)
+                if not remote_stages or any(
+                    not stage.weight_digest or stage.seeded_profile is None
+                    for stage in remote_stages
+                ):
+                    raise HEAPIError(
+                        "provider bundle lacks stage weight or ring commitments", 409
+                    )
                 if (
-                    secondary_he.get("privacy_mode") != "public"
-                    or secondary_he.get("body_fingerprint")
+                    preparation.get("protocol") != "seeded-correction/v2"
+                    or preparation.get("body_fingerprint")
                     != state.bundle.privacy.get("body_fingerprint")
-                    or secondary_he.get("architecture") != state.bundle.manifest.get("architecture")
-                    or secondary_he.get("stage_count")
+                    or preparation.get("stage_commitment")
+                    != state.bundle.privacy.get("stage_commitment")
+                    or preparation.get("weight_bits")
+                    != state.bundle.privacy.get("weight_bits")
+                    or preparation.get("activation_bits")
+                    != state.bundle.privacy.get("activation_bits")
+                    or preparation.get("architecture") != state.bundle.manifest.get("architecture")
+                    or preparation.get("stage_count")
                     != len(state.bundle.manifest.get("stages", []))
                 ):
-                    raise HEAPIError("provider model commitments do not match", 409)
-                has_secondary = True
+                    raise HEAPIError("preparation and inference model commitments do not match", 409)
+                state.preparation_verified = True
+                prepared_public = True
 
             session_body: dict[str, Any] = {
                 "model": model_id,
                 "max_output_tokens": max_output_tokens,
             }
+            if prepared_public:
+                session_body["execution"] = "seeded-preparation"
             if state.context_ids:
                 session_body["context_ids"] = list(state.context_ids.values())
             session_response = self.http.post(
@@ -1006,24 +1282,64 @@ class HEClientCore:
             session_value = session_response.json()
             session_id = str(session_value["id"])
 
-            if has_secondary:
-                assert self.secondary_http is not None
-                secondary_response = self.secondary_http.post(
-                    "/v1/he/sessions",
-                    headers=self.secondary_headers,
-                    json={"model": model_id, "max_output_tokens": max_output_tokens},
-                )
-                _raise(secondary_response)
-                provider = str(secondary_response.json()["id"])
-            elif state.privacy_mode == "public":
-                if state.mode not in {"bfv", "local-test"}:
-                    raise ValueError(f"unsupported transformer correlation mode {state.mode!r}")
-                provider: Any | None = _TransformerCorrelationProvider(
-                    client=self,
-                    session_id=session_id,
-                    state=state,
-                    prefetch=self.correlation_prefetch,
-                )
+            if prepared_public:
+                try:
+                    descriptor = session_value.get("preparation_authorization") or {}
+                    expected_descriptor = {
+                        "body_fingerprint": state.bundle.privacy.get("body_fingerprint"),
+                        "stage_commitment": state.bundle.privacy.get("stage_commitment"),
+                        "weight_bits": state.bundle.privacy.get("weight_bits"),
+                        "activation_bits": state.bundle.privacy.get("activation_bits"),
+                    }
+                    if any(
+                        descriptor.get(name) != expected
+                        for name, expected in expected_descriptor.items()
+                    ):
+                        raise HEAPIError(
+                            "inference session authorization commitments do not match", 409
+                        )
+                    authorization = SessionAuthorization(
+                        session_id=session_id,
+                        model=model_id,
+                        body_fingerprint=str(expected_descriptor["body_fingerprint"]),
+                        stage_commitment=str(expected_descriptor["stage_commitment"]),
+                        weight_bits=int(expected_descriptor["weight_bits"]),
+                        activation_bits=int(expected_descriptor["activation_bits"]),
+                        max_attempts=int(descriptor["max_attempts"]),
+                    )
+                    authorization_payload = authorization.pack()
+                    self.audit.session_authorization_upload_bytes += len(
+                        authorization_payload
+                    )
+                    authorization_response = self.preparation_http.post(
+                        f"/v1/preparation/sessions/{session_id}/authorize",
+                        headers={
+                            **self.preparation_headers,
+                            "Content-Type": "application/octet-stream",
+                        },
+                        content=authorization_payload,
+                    )
+                    _raise(authorization_response)
+                    self.audit.session_authorization_download_bytes += len(
+                        authorization_response.content
+                    )
+                    authorization_ack = SessionAuthorizationAck.unpack(
+                        authorization_response.content
+                    )
+                    if authorization_ack.session_id != session_id:
+                        raise HEModelError(
+                            "preparation session authorization acknowledgement mismatch"
+                        )
+                except BaseException:
+                    try:
+                        self.http.post(
+                            f"/v1/responses/{session_value['response_id']}/cancel",
+                            headers=self.headers,
+                        )
+                    except Exception:
+                        pass
+                    raise
+                provider: Any | None = True
             elif state.privacy_mode == "proprietary":
                 if state.privacy_protocol in {"blinded_ole_w4a4", "guarded_blinded_w4a4"}:
                     if state.mode not in {"bfv", "local-test"}:
@@ -1051,7 +1367,7 @@ class HEClientCore:
         *,
         stages: list[str] | None = None,
     ) -> dict[str, Any]:
-        descriptor = self._model_manifest(model_id)
+        descriptor = self._model_manifest(model_id, refresh=True)
         target = max(0, int(count))
         if descriptor.get("metadata", {}).get("client_runtime") in {
             "masked_transformer_v1",
@@ -1059,6 +1375,11 @@ class HEClientCore:
             "blinded_ole_transformer_v1",
             "guarded_blinded_transformer_v1",
         }:
+            if descriptor.get("metadata", {}).get("privacy_mode") == "public":
+                raise HEModelError(
+                    "public transformer preprocessing was replaced by just-in-time "
+                    "seeded preparation"
+                )
             session, state, provider = self._open_transformer_session(model_id, max_output_tokens=1)
             if state.privacy_mode == "proprietary" and state.privacy_protocol == "direct_bfv_w4a4":
                 complete = self.http.post(
@@ -1131,8 +1452,8 @@ class HEClientCore:
 
     def close(self) -> None:
         self._provider_executor.shutdown(wait=True, cancel_futures=True)
-        if self._owns_secondary_http and self.secondary_http is not None:
-            self.secondary_http.close()
+        if self._owns_preparation_http and self.preparation_http is not None:
+            self.preparation_http.close()
         if self._owns_http:
             self.http.close()
 
@@ -1195,7 +1516,7 @@ class HEClientCore:
             if str(previous_id) not in self.histories:
                 raise HEAPIError("unknown previous_response_id in client-private cache", 404)
             previous_history = self.histories[str(previous_id)]
-        descriptor = self._model_manifest(model_id)
+        descriptor = self._model_manifest(model_id, refresh=True)
         if descriptor.get("metadata", {}).get("client_runtime") in {
             "masked_transformer_v1",
             "direct_fhe_transformer_v1",
@@ -1478,44 +1799,41 @@ class HEClientCore:
             self.audit.online_steps += 1
             return [result.payload]
 
-        def direct_exchange(client, headers, target_session_id, stage_id, payloads, secondary):
+        def direct_exchange(stage_id, payloads):
             upload = encode_length_prefixed(payloads)
-            response = client.post(
-                f"/v1/he/sessions/{target_session_id}/stages/{stage_id}",
-                headers={**headers, "Content-Type": "application/octet-stream"},
+            response = self.http.post(
+                f"/v1/he/sessions/{session_id}/stages/{stage_id}",
+                headers={**self.headers, "Content-Type": "application/octet-stream"},
                 content=upload,
             )
             _raise(response)
             self.audit.masked_online_upload_bytes += len(upload)
             self.audit.masked_online_download_bytes += len(response.content)
-            if secondary:
-                self.audit.direct_share_secondary_upload_bytes += len(upload)
-                self.audit.direct_share_secondary_download_bytes += len(response.content)
-            else:
-                self.audit.direct_share_primary_upload_bytes += len(upload)
-                self.audit.direct_share_primary_download_bytes += len(response.content)
-                self.audit.online_steps += len(payloads)
+            self.audit.online_steps += len(payloads)
             return list(iter_length_prefixed(response.content))
 
-        secondary_session_id = provider if self.execution_strategy == "two-provider" else None
-        if secondary_session_id is not None:
-            assert isinstance(secondary_session_id, str)
-            assert self.secondary_http is not None
-            remote = TwoProviderRemoteLinear(
+        def preparation_exchange(stage_id, payload):
+            if self.preparation_http is None:
+                raise HEModelError("public mode requires a preparation service")
+            response = self.preparation_http.post(
+                f"/v1/preparation/stages/{stage_id}",
+                headers={**self.preparation_headers, "Content-Type": "application/octet-stream"},
+                content=payload,
+            )
+            _raise(response)
+            return response.content
+
+        if state.privacy_mode == "public":
+            if provider is not True:
+                raise HEModelError("public mode requires a verified preparation service")
+            remote = PreparedRemoteLinear(
                 model_id=model_id,
+                body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
                 stages=state.bundle.stages,
-                primary=lambda stage_id, payloads: direct_exchange(
-                    self.http, self.headers, session_id, stage_id, payloads, False
-                ),
-                secondary=lambda stage_id, payloads: direct_exchange(
-                    self.secondary_http,
-                    self.secondary_headers,
-                    secondary_session_id,
-                    stage_id,
-                    payloads,
-                    True,
-                ),
+                preparation=preparation_exchange,
+                inference=direct_exchange,
                 executor=self._provider_executor,
+                session_id=session_id,
             )
         elif state.privacy_protocol == "direct_bfv_w4a4":
             remote = _DirectFHERemoteLinear(
@@ -1561,6 +1879,7 @@ class HEClientCore:
         output_ids: list[int] = []
         output_chunks: list[str] = []
         previous_text = ""
+        session_completed = False
 
         created = {
             "id": response_id,
@@ -1616,7 +1935,11 @@ class HEClientCore:
             if previous_id:
                 with self._transformer_conversation_lock:
                     candidate = self._transformer_conversations.get(str(previous_id))
-                    if candidate is not None and candidate.model_id == model_id:
+                    if (
+                        candidate is not None
+                        and candidate.model_id == model_id
+                        and candidate.bundle_fingerprint == state.bundle_fingerprint
+                    ):
                         prior = candidate
 
             suffix: list[int] | None = None
@@ -1671,9 +1994,6 @@ class HEClientCore:
                 event_sequence += 1
                 logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
 
-            if isinstance(remote, TwoProviderRemoteLinear):
-                self.audit.direct_share_primary_server_ns += remote.stats.primary_server_ns
-                self.audit.direct_share_secondary_server_ns += remote.stats.secondary_server_ns
             self.audit.token_lookup_cache_hits += runtime.token_cache_hits
             self.audit.token_lookup_cache_misses += runtime.token_cache_misses
             if previous_id:
@@ -1751,6 +2071,7 @@ class HEClientCore:
             with self._transformer_conversation_lock:
                 self._transformer_conversations[response_id] = _TransformerConversationState(
                     model_id=model_id,
+                    bundle_fingerprint=state.bundle_fingerprint,
                     token_ids=[*input_ids, *output_ids],
                     rendered_context=rendered + text,
                     snapshot=runtime.snapshot(),
@@ -1762,14 +2083,7 @@ class HEClientCore:
                 json={"usage": usage.to_dict()},
             )
             _raise(complete)
-            if secondary_session_id is not None:
-                assert self.secondary_http is not None
-                secondary_complete = self.secondary_http.post(
-                    f"/v1/he/sessions/{secondary_session_id}/complete",
-                    headers=self.secondary_headers,
-                    json={"usage": usage.to_dict()},
-                )
-                _raise(secondary_complete)
+            session_completed = True
             yield ResponseEvent.from_dict(
                 {
                     "type": "response.completed",
@@ -1778,6 +2092,24 @@ class HEClientCore:
                 }
             )
         finally:
+            if isinstance(remote, PreparedRemoteLinear):
+                self.audit.preparation_upload_bytes += remote.stats.preparation_upload_bytes
+                self.audit.preparation_download_bytes += remote.stats.preparation_download_bytes
+                self.audit.inference_upload_bytes += remote.stats.inference_upload_bytes
+                self.audit.inference_download_bytes += remote.stats.inference_download_bytes
+                self.audit.preparation_server_ns += remote.stats.preparation_server_ns
+                self.audit.inference_server_ns += remote.stats.inference_server_ns
+                self.audit.correction_push_bytes += remote.stats.correction_push_bytes
+                self.audit.correction_push_ns += remote.stats.correction_push_ns
+                self.audit.preparation_attempts += remote.stats.attempts
+                self.audit.preparation_failures += remote.stats.failures
+                if not session_completed:
+                    try:
+                        self.http.post(
+                            f"/v1/responses/{response_id}/cancel", headers=self.headers
+                        )
+                    except Exception:
+                        pass
             channel.close()
 
 
@@ -1891,15 +2223,16 @@ class OpenAI:
         model: str | None = None,
         he_transport: str | None = None,
         correlation_mode: str | None = None,
-        execution_strategy: str | None = None,
-        secondary_base_url: str | None = None,
-        secondary_api_key: str | None = None,
+        preparation_base_url: str | None = None,
+        preparation_api_key: str | None = None,
         correlation_prefetch: int | None = None,
         token_cache_size: int | None = None,
+        bundle_cache_mode: str | None = None,
+        bundle_cache_dir: str | Path | None = None,
         tenseal_path: str | None = None,
         timeout: float | None = None,
         http_client: httpx.Client | None = None,
-        secondary_http_client: httpx.Client | None = None,
+        preparation_http_client: httpx.Client | None = None,
     ) -> None:
         from pllm.settings import ClientSettings
 
@@ -1909,11 +2242,12 @@ class OpenAI:
             model=default_model or model,
             transport=he_transport,
             correlation_mode=correlation_mode,
-            execution_strategy=execution_strategy,
-            secondary_base_url=secondary_base_url,
-            secondary_api_key=secondary_api_key,
+            preparation_base_url=preparation_base_url,
+            preparation_api_key=preparation_api_key,
             correlation_prefetch=correlation_prefetch,
             token_cache_size=token_cache_size,
+            bundle_cache_mode=bundle_cache_mode,
+            bundle_cache_dir=bundle_cache_dir,
             timeout=timeout,
         )
         self._core = HEClientCore(
@@ -1922,15 +2256,16 @@ class OpenAI:
             default_model=settings.model,
             he_transport=settings.transport,
             correlation_mode=settings.correlation_mode,
-            execution_strategy=settings.execution_strategy,
-            secondary_base_url=settings.secondary_base_url,
-            secondary_api_key=settings.secondary_api_key,
+            preparation_base_url=settings.preparation_base_url,
+            preparation_api_key=settings.preparation_api_key,
             correlation_prefetch=settings.correlation_prefetch,
             token_cache_size=settings.token_cache_size,
+            bundle_cache_mode=settings.bundle_cache_mode,
+            bundle_cache_dir=settings.bundle_cache_dir,
             tenseal_path=tenseal_path,
             timeout=settings.timeout,
             http_client=http_client,
-            secondary_http_client=secondary_http_client,
+            preparation_http_client=preparation_http_client,
         )
         self.responses = ResponsesResource(self._core)
         self.models = ModelsResource(self._core)

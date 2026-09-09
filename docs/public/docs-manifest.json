@@ -45,13 +45,13 @@
     "key": "deployment/docker",
     "url": "/docs/deployment/docker/",
     "title": "Deploy with Docker",
-    "description": "A provider container and a separate customer gateway."
+    "description": "Inference, trusted preparation, and a customer gateway."
   },
   {
     "key": "deployment/overview",
     "url": "/docs/deployment/overview/",
     "title": "Deployment overview",
-    "description": "Separate the provider, trusted client, and documentation site."
+    "description": "Separate inference, preparation, the trusted client, and documentation."
   },
   {
     "key": "deployment/site",
@@ -63,7 +63,7 @@
     "key": "deployment/systemd",
     "url": "/docs/deployment/systemd/",
     "title": "Deploy with systemd",
-    "description": "Run the provider as a dedicated user with a protected environment file."
+    "description": "Run inference and preparation as separate protected services."
   },
   {
     "key": "index",

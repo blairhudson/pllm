@@ -5,38 +5,42 @@ description: "From preparation to the text your application receives."
 
 ## 1. Validate the model plan
 
-The client obtains the public stage names, dimensions, arithmetic parameters, tokenizer information, scales, and quantized token-boundary matrices for public weights. It keeps its secret key local. Pin the model revision and verify the operator's artifact manifest before accepting a plan.
+The client obtains stage names, dimensions, arithmetic parameters, tokenizer information, scales, and quantized token-boundary matrices from the inference provider. It separately verifies that the preparation service exposes the same public model body and per-stage weight commitments. After inference registers a random prepared session, the client sends preparation one compact authorization binding that session, the model commitments, quantization, and bounded attempt budget. Preparation validates and relays it through its provider-only push channel. Failure closes the inference session; authorization cannot be replayed.
 
 ## 2. Protect each activation
 
-The default BFV strategy creates a random input mask and asks one provider to
-transform it under encryption. The client decrypts the transformed mask and
-stores a single-use pair before the activation is known.
-
-The optional public-weight two-provider strategy instead splits each quantized
-activation into two fresh uniform ring shares. It sends the shares concurrently
-over separate confidential authenticated channels. Neither non-colluding
-provider receives the activation, the other share, or private activation
-scales. This strategy has no preparation inventory.
+For every linear stage, the client creates a fresh 128-bit attempt ID and
+256-bit seed and domain-separates input mask `r` from output mask `s`. Expansion
+binds session, model, body, stage, weight, dimensions, quantization, and exact
+ring profile. It sends only the seed and bound stage metadata
+to the trusted preparation service. At the same time, it sends `x-r` to the
+untrusted inference provider. Preparation pushes `W·r-s` directly to the fixed
+inference endpoint and returns a small acknowledgement. There is no callback URL
+or durable preparation inventory. Inference rejects stage activation before the
+one-time session authorization. Once authorized, it starts stage computation on
+activation while concurrently awaiting the correction.
 
 ## 3. Process the prompt
 
-Token lookup is local for public weights. Prompt rows then pass through private transformer-body projections and local nonlinear operations. BFV consumes one distinct correlation for every private body row; direct sharing consumes fresh shares instead. The client applies the local output head only to the final prefill row. Any preparation must be included in first token latency.
+Token lookup is local for public weights. Prompt rows then pass through masked transformer-body projections and local nonlinear operations. Every stage call consumes its seed before either request is sent; timeout, cancellation, or an ambiguous result burns that attempt without retry. The client applies the local output head only to the final prefill row.
 
 ## 4. Generate and decode
 
-With BFV, the client subtracts the prepared output mask. With two providers, it
-adds both wrapping output shares and interprets the bounded result as signed.
-Bias is added once after reconstruction. Attention, recurrent updates,
+Inference atomically consumes both halves and returns `W·x-s`. The client adds
+`s` and center-decodes the smallest sufficient `u16`, `u24`, or `u32` ring. Bias
+is added once after reconstruction.
+Attention, recurrent updates,
 activation scales, and sampling remain local. The gateway emits ordinary text
 events only after the client reconstructs them.
 
-## 5. Refill or stop
+## 5. Burn or stop
 
-An empty inventory causes preparation work, not mask reuse. Cancelled requests and rejected proposals still spend every correlation that reached the wire. Closing a study session discards remaining preparation; the reference runtime's durable inventory must not be treated as resistant to restoring old storage snapshots.
+Seeds are never reused. A failed attempt starts over with a newly sampled seed;
+the client does not independently retry either half. Completion and cancellation
+leave no reusable ticket batch or durable correlation state.
 
 ## What to measure
 
-Record total request duration, time to first token, gaps between tokens, preparation time, correlations consumed and discarded, and both directions of traffic. A high rate during a short warm interval is not sustained throughput.
+Record total request duration, time to first token, gaps between tokens, preparation and inference server time, failed attempts, client-to-service traffic, one-time authorization bytes, and preparation-to-inference correction bytes separately. A high rate during a short warm interval is not sustained throughput.
 
 The [benchmark guide](/docs/research/benchmarks) separates complete request measurements from matrix kernels and model scale projections.

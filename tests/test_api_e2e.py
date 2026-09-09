@@ -132,7 +132,8 @@ def test_models_capabilities_and_metrics(gateway):
     ) as client:
         client.responses.create(model="he-bigram-demo", input="x", max_output_tokens=32)
 
-    metrics = httpx.get(f"{gateway.base_url}/metrics").json()
+    assert httpx.get(f"{gateway.base_url}/metrics").status_code == 401
+    metrics = httpx.get(f"{gateway.base_url}/metrics", headers=headers).json()
     assert metrics["sessions"]["total"] >= 1
     assert metrics["sessions"]["online_steps"] >= 9
     assert metrics["stage_schedulers"]["he-bigram-demo"]["items"] >= 9

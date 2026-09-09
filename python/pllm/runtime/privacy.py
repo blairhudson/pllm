@@ -27,8 +27,8 @@ class PrivacyMode(str, Enum):
     def description(self) -> str:
         if self is self.PUBLIC:
             return (
-                "Fast private inference for public weights. HE prepares fresh single use "
-                "correlations before the online request."
+                "Fast private inference for public weights. A trusted preparation service "
+                "expands fresh masks while inference sees only masked input."
             )
         return (
             "Private inference for proprietary weights. Guarded mode limits layer queries. "
