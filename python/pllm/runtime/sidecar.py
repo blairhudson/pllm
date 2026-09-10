@@ -24,6 +24,10 @@ def create_sidecar_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         try:
+            core = getattr(he_client, "_core", None)
+            model = getattr(core, "default_model", None)
+            if core is not None and model and getattr(core, "preparation_http", None):
+                he_client.preprocess(model, count=max(core.prepared_inventory_rows, 256))
             yield
         finally:
             if owned:
@@ -64,6 +68,17 @@ def create_sidecar_app(
 
             return StreamingResponse(generate(), media_type="text/event-stream")
         return JSONResponse(result.to_dict())
+
+    @app.post("/v1/preprocess")
+    async def preprocess(request: Request, authorization: str | None = Header(default=None)):
+        auth(authorization)
+        body = await request.json()
+        core = getattr(he_client, "_core", None)
+        model = body.get("model") or getattr(core, "default_model", None)
+        if not isinstance(model, str) or not model:
+            raise HTTPException(status_code=400, detail={"error": {"message": "model is required"}})
+        count = int(body.get("count") or getattr(core, "prepared_inventory_rows", 64))
+        return JSONResponse(he_client.preprocess(model, count=count))
 
     @app.get("/v1/responses/{response_id}")
     async def retrieve(response_id: str, authorization: str | None = Header(default=None)):

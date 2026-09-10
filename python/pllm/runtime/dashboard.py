@@ -48,7 +48,7 @@ def _create_demo_checkpoint(path: Path) -> Path:
         "num_attention_heads": heads,
         "num_key_value_heads": kv_heads,
         "head_dim": head_dim,
-        "max_position_embeddings": 256,
+        "max_position_embeddings": 1024,
         "sliding_window": 64,
         "layer_types": ["full_attention"],
         "hidden_activation": "silu",
@@ -66,7 +66,7 @@ def _create_demo_checkpoint(path: Path) -> Path:
             {
                 "bos_token": "<bos>",
                 "eos_token": "<eos>",
-                "model_max_length": 256,
+                "model_max_length": 1024,
                 "chat_template": (
                     "{% for message in messages %}{{ message['role'] }}: "
                     "{{ message['content'] }}\\n{% endfor %}assistant: "
@@ -124,7 +124,8 @@ class OTelStore:
         )
         self._history: dict[str, deque[dict[str, float]]] = defaultdict(lambda: deque(maxlen=180))
         self._spans: deque[dict[str, Any]] = deque(maxlen=300)
-        self._protocol_spans: deque[dict[str, Any]] = deque(maxlen=100)
+        self._protocol_spans: deque[dict[str, Any]] = deque(maxlen=65_536)
+        self._protocol_sequence = 0
 
     def ingest_metrics(self, payload: bytes) -> None:
         message = ExportMetricsServiceRequest.FromString(payload)
@@ -191,13 +192,17 @@ class OTelStore:
                                 ),
                                 "route": attrs.get("http.route", attrs.get("url.path")),
                                 "stage": attrs.get("pllm.stage"),
+                                "phase": attrs.get("pllm.phase", "online"),
                                 "flows": flow_bytes,
                                 "start": span.start_time_unix_nano / 1e9,
                                 "time": span.end_time_unix_nano / 1e9,
                             }
                         self._spans.append(item)
                         if span.name == "pllm.prepared_linear":
-                            self._protocol_spans.append(item)
+                            self._protocol_sequence += 1
+                            self._protocol_spans.append(
+                                {**item, "sequence": self._protocol_sequence}
+                            )
 
     def _sum_metric(self, service: str, name: str, **attributes: str) -> float:
         total = 0.0
@@ -218,7 +223,7 @@ class OTelStore:
             "threads": self._sum_metric(service, "process.thread.count"),
         }
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, protocol_after: int = 0) -> dict[str, Any]:
         with self._lock:
             services = {
                 name: {**self._service_values(name), "history": list(self._history.get(name, ()))}
@@ -240,7 +245,12 @@ class OTelStore:
                 "traffic": dict(traffic),
                 "operations": int(operations),
                 "spans": list(self._spans)[-30:],
-                "protocol_spans": list(self._protocol_spans),
+                "protocol_spans": [
+                    span
+                    for span in self._protocol_spans
+                    if int(span["sequence"]) > protocol_after
+                ],
+                "protocol_cursor": self._protocol_sequence,
             }
 
 
@@ -280,7 +290,19 @@ class DashboardRuntime:
             "first_token_at": None,
             "finished_at": None,
             "error": None,
+            "inventory": {},
+            "online_traffic": {},
+            "preparation_online_cpu_seconds": 0.0,
         }
+        self._inventory_rows = 256 if config.model_path is None else 64
+        self._online_traffic_baseline: dict[str, float] = {}
+        self._preparation_cpu_baseline: float | None = None
+        self._online_traffic_final: dict[str, float] | None = None
+        self._preparation_online_cpu_final: float | None = None
+        self._preparation_attempts_baseline = 0
+        self._preparation_online_operations = 0
+        self._inventory_burned_total = 0
+        self._inventory_consumed_total = 0
 
     def _set(self, **values: Any) -> None:
         with self._lock:
@@ -297,9 +319,9 @@ class DashboardRuntime:
             inference_url = f"http://127.0.0.1:{inference_port}"
             preparation_url = f"http://127.0.0.1:{preparation_port}"
             inference_key, preparation_key, push_key = (
-                secrets.token_urlsafe(24),
-                secrets.token_urlsafe(24),
-                secrets.token_urlsafe(24),
+                "dash_" + secrets.token_urlsafe(24),
+                "dash_" + secrets.token_urlsafe(24),
+                "dash_" + secrets.token_urlsafe(24),
             )
             common = [sys.executable, "-m", "pllm"]
             inference = [
@@ -320,6 +342,10 @@ class DashboardRuntime:
                 inference_key,
                 "--provider-push-api-key",
                 push_key,
+                "--rendezvous-capacity",
+                "131072",
+                "--rendezvous-max-bytes",
+                "1073741824",
             ]
             preparation = [
                 *common,
@@ -351,10 +377,22 @@ class DashboardRuntime:
                 preparation_api_key=preparation_key,
                 bundle_cache_dir=root / "bundle-cache",
                 timeout=300,
+                prepared_inventory_rows=self._inventory_rows,
+                background_inventory_refill=False,
             )
             self._set(
-                phase="idle",
+                phase="preparing",
                 endpoints={"preparation": preparation_url, "inference": inference_url},
+            )
+            await asyncio.to_thread(
+                self._client.preprocess,
+                self.config.model_id,
+                count=self._inventory_rows,
+            )
+            await asyncio.sleep(0.6)
+            self._set(
+                phase="ready",
+                inventory=self._client.prepared_inventory_status(self.config.model_id),
             )
         except Exception as exc:
             self._set(phase="error", error=f"startup failed: {type(exc).__name__}: {exc}")
@@ -404,27 +442,61 @@ class DashboardRuntime:
 
     def begin(self, prompt: str, max_output_tokens: int) -> None:
         with self._lock:
-            if self._state["phase"] == "running":
-                raise RuntimeError("a benchmark chat is already running")
+            if self._state["phase"] != "ready":
+                raise RuntimeError("prepared inventory is not ready")
             if self._client is None:
                 raise RuntimeError("benchmark services are not ready")
             self._state.update(
-                phase="running",
+                phase="preparing",
                 prompt=prompt,
                 text="",
                 tokens=0,
-                started_at=time.time(),
+                started_at=None,
                 first_token_at=None,
                 finished_at=None,
                 error=None,
                 max_output_tokens=max_output_tokens,
             )
         threading.Thread(
-            target=self._run_chat,
+            target=self._prepare_then_run,
             args=(prompt, max_output_tokens),
             daemon=True,
             name="pllm-dashboard-chat",
         ).start()
+
+    def _prepare_then_run(self, prompt: str, max_output_tokens: int) -> None:
+        assert self._client is not None
+        try:
+            required = max(
+                self._inventory_rows,
+                self._client.prepared_rows_for_response(
+                    prompt,
+                    max_output_tokens,
+                    model=self.config.model_id,
+                ),
+            )
+            self._client.preprocess(self.config.model_id, count=required)
+            time.sleep(0.6)
+            telemetry = self.store.snapshot()
+            with self._lock:
+                self._online_traffic_baseline = dict(telemetry["traffic"])
+                self._preparation_cpu_baseline = float(
+                    telemetry["services"]["pllm-preparation"].get("cpu_seconds", 0.0)
+                )
+                self._preparation_attempts_baseline = int(
+                    self._client.privacy_audit.preparation_attempts
+                )
+                self._online_traffic_final = None
+                self._preparation_online_cpu_final = None
+                self._preparation_online_operations = 0
+                self._state.update(
+                    phase="online",
+                    started_at=time.time(),
+                    inventory=self._client.prepared_inventory_status(self.config.model_id),
+                )
+            self._run_chat(prompt, max_output_tokens)
+        except Exception as exc:
+            self._set(phase="error", finished_at=time.time(), error=f"{type(exc).__name__}: {exc}")
 
     def _run_chat(self, prompt: str, max_output_tokens: int) -> None:
         assert self._client is not None
@@ -448,11 +520,48 @@ class DashboardRuntime:
                         self._state["text"] += event.delta or ""
                         self._state["tokens"] += 1
                         self._state["first_token_at"] = self._state["first_token_at"] or now
-                self._set(phase="completed", finished_at=time.time())
+            time.sleep(0.6)
+            telemetry = self.store.snapshot()
+            traffic = telemetry["traffic"]
+            with self._lock:
+                self._online_traffic_final = {
+                    edge: max(
+                        0.0,
+                        float(value) - self._online_traffic_baseline.get(edge, 0.0),
+                    )
+                    for edge, value in traffic.items()
+                }
+                preparation_cpu = float(
+                    telemetry["services"]["pllm-preparation"].get("cpu_seconds", 0.0)
+                )
+                baseline_cpu = self._preparation_cpu_baseline
+                self._preparation_online_cpu_final = (
+                    0.0
+                    if baseline_cpu is None
+                    else max(0.0, preparation_cpu - baseline_cpu)
+                )
+                self._preparation_online_operations = max(
+                    0,
+                    self._client.privacy_audit.preparation_attempts
+                    - self._preparation_attempts_baseline,
+                )
+            self._set(phase="refilling", finished_at=time.time())
+            previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
+            self._client.preprocess(
+                self.config.model_id,
+                count=self._inventory_rows,
+            )
+            self._inventory_burned_total += int(previous_inventory["burned"])
+            self._inventory_consumed_total += int(previous_inventory["consumed"])
+            time.sleep(0.6)
+            self._set(
+                phase="ready",
+                inventory=self._client.prepared_inventory_status(self.config.model_id),
+            )
         except Exception as exc:
             self._set(phase="error", finished_at=time.time(), error=f"{type(exc).__name__}: {exc}")
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, protocol_after: int = 0) -> dict[str, Any]:
         with self._lock:
             state = dict(self._state)
         now = state["finished_at"] or time.time()
@@ -466,7 +575,29 @@ class DashboardRuntime:
         }
         audit = self._client.privacy_audit if self._client is not None else None
         state["privacy"] = asdict(audit) if audit is not None else {}
-        telemetry = self.store.snapshot()
+        telemetry = self.store.snapshot(protocol_after)
+        if self._client is not None:
+            inventory = dict(self._client.prepared_inventory_status(self.config.model_id))
+            inventory["burned"] = int(inventory.get("burned", 0)) + self._inventory_burned_total
+            inventory["consumed"] = (
+                int(inventory.get("consumed", 0)) + self._inventory_consumed_total
+            )
+            state["inventory"] = inventory
+        state["online_traffic"] = self._online_traffic_final or {
+            edge: max(0.0, amount - self._online_traffic_baseline.get(edge, 0.0))
+            for edge, amount in telemetry["traffic"].items()
+        }
+        preparation_cpu = float(
+            telemetry["services"]["pllm-preparation"].get("cpu_seconds", 0.0)
+        )
+        state["preparation_online_cpu_seconds"] = (
+            self._preparation_online_cpu_final
+            if self._preparation_online_cpu_final is not None
+            else 0.0
+            if self._preparation_cpu_baseline is None
+            else max(0.0, preparation_cpu - self._preparation_cpu_baseline)
+        )
+        state["preparation_online_operations"] = self._preparation_online_operations
         telemetry["services"].setdefault("pllm-client", {})["status"] = "live"
         for service, role in (
             ("pllm-preparation", "preparation"),
@@ -526,8 +657,8 @@ def create_dashboard_app(config: DashboardConfig) -> FastAPI:
         return FileResponse(assets / name)
 
     @app.get("/api/snapshot")
-    async def snapshot() -> dict[str, Any]:
-        return runtime.snapshot()
+    async def snapshot(protocol_after: int = 0) -> dict[str, Any]:
+        return runtime.snapshot(protocol_after)
 
     @app.post("/api/run", status_code=202)
     async def run(request: Request) -> dict[str, str]:
@@ -536,9 +667,9 @@ def create_dashboard_app(config: DashboardConfig) -> FastAPI:
         if not prompt or len(prompt.encode()) > 16_384:
             raise HTTPException(status_code=400, detail="prompt must contain 1 to 16384 bytes")
         maximum = int(body.get("max_output_tokens", config.default_max_output_tokens))
-        if not 1 <= maximum <= 256:
+        if not 1 <= maximum <= 512:
             raise HTTPException(
-                status_code=400, detail="max_output_tokens must be between 1 and 256"
+                status_code=400, detail="max_output_tokens must be between 1 and 512"
             )
         try:
             runtime.begin(prompt, maximum)

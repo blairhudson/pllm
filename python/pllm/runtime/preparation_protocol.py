@@ -15,7 +15,7 @@ from .stage_protocol import RingKind, pack_residues, unpack_residues
 PREPARATION_PROTOCOL_VERSION = 2
 PREPARATION_SEED_BYTES = 32
 _ATTEMPT_RE = re.compile(r"[0-9a-f]{32}")
-_MAX_IDENTIFIER_BYTES = 512
+PREPARATION_MAX_IDENTIFIER_BYTES = 512
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +69,7 @@ def validate_attempt_id(value: str) -> None:
 def _validate_identifiers(*values: str, kind: str) -> None:
     if not all(values):
         raise ProtocolError(f"{kind} identifiers and commitments must be non-empty")
-    if any(len(value.encode("utf-8")) > _MAX_IDENTIFIER_BYTES for value in values):
+    if any(len(value.encode("utf-8")) > PREPARATION_MAX_IDENTIFIER_BYTES for value in values):
         raise ProtocolError(f"{kind} identifier is too large")
 
 
@@ -260,6 +260,8 @@ class SessionAuthorization:
     weight_bits: int
     activation_bits: int
     max_attempts: int
+    rows: int
+    stage_ids: tuple[str, ...]
 
     def metadata(self) -> tuple[Any, ...]:
         return (
@@ -270,6 +272,8 @@ class SessionAuthorization:
             self.weight_bits,
             self.activation_bits,
             self.max_attempts,
+            self.rows,
+            self.stage_ids,
         )
 
     def _validate(self) -> None:
@@ -284,6 +288,11 @@ class SessionAuthorization:
             raise ProtocolError("unsupported session authorization quantization")
         if self.max_attempts <= 0:
             raise ProtocolError("session authorization attempt budget must be positive")
+        _validate_identifiers(*self.stage_ids, kind="session authorization stage")
+        if self.rows <= 0 or not self.stage_ids or len(self.stage_ids) != len(set(self.stage_ids)):
+            raise ProtocolError("invalid session authorization inventory shape")
+        if self.max_attempts != self.rows * len(self.stage_ids):
+            raise ProtocolError("session authorization attempt budget mismatch")
 
     def pack(self) -> bytes:
         self._validate()
@@ -293,6 +302,7 @@ class SessionAuthorization:
                 "h": self.session_id, "m": self.model, "b": self.body_fingerprint,
                 "t": self.stage_commitment, "wb": self.weight_bits,
                 "ab": self.activation_bits, "a": self.max_attempts,
+                "r": self.rows, "s": list(self.stage_ids),
             },
             use_bin_type=True,
         )
@@ -303,7 +313,7 @@ class SessionAuthorization:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise ProtocolError("invalid session authorization") from exc
-        required = {"v", "h", "m", "b", "t", "wb", "ab", "a"}
+        required = {"v", "h", "m", "b", "t", "wb", "ab", "a", "r", "s"}
         if not isinstance(value, dict) or set(value) != required:
             raise ProtocolError("invalid session authorization schema")
         if int(value["v"]) != PREPARATION_PROTOCOL_VERSION:
@@ -313,6 +323,7 @@ class SessionAuthorization:
             body_fingerprint=str(value["b"]), stage_commitment=str(value["t"]),
             weight_bits=int(value["wb"]), activation_bits=int(value["ab"]),
             max_attempts=int(value["a"]),
+            rows=int(value["r"]), stage_ids=tuple(str(item) for item in value["s"]),
         )
         result._validate()
         return result
@@ -438,7 +449,7 @@ class CorrectionPush:
                 payload,
                 raw=False,
                 strict_map_key=False,
-                max_str_len=_MAX_IDENTIFIER_BYTES,
+                max_str_len=PREPARATION_MAX_IDENTIFIER_BYTES,
                 max_bin_len=len(payload),
                 max_array_len=0,
                 max_map_len=18,
@@ -476,6 +487,41 @@ class CorrectionPush:
         )
         result._validate(max_rows=max_rows, max_tensor_elements=max_tensor_elements)
         return result
+
+
+def derive_online_attempt_id(
+    request: PreparationRequest | CorrectionPush,
+    row_index: int,
+) -> str:
+    """Derive one online attempt ID from a bulk preparation attempt row."""
+    request._validate()
+    if isinstance(row_index, bool) or not isinstance(row_index, int):
+        raise ProtocolError("bulk preparation row index must be an integer")
+    if row_index < 0 or row_index >= request.rows:
+        raise ProtocolError("bulk preparation row index is out of bounds")
+    domain = msgpack.packb(
+        [
+            request.session_id,
+            request.model,
+            request.body_fingerprint,
+            request.attempt_id,
+            request.stage_id,
+            request.weight_digest,
+            request.rows,
+            request.in_features,
+            request.out_features,
+            request.weight_bits,
+            request.activation_bits,
+            request.signed_output_bound,
+            request.ring,
+            request.modulus,
+            request.wire_bits,
+            row_index,
+        ],
+        use_bin_type=True,
+    )
+    digest = hashlib.sha256(b"pllm-online-attempt-id-v1\x00" + domain).digest()
+    return digest[:16].hex()
 
 
 @dataclass(frozen=True, slots=True)

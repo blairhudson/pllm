@@ -16,6 +16,7 @@ def create_openai_client(
     he_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
+    prepared_inventory_rows: int | None = None,
     token_cache_size: int | None = None,
     bundle_cache_mode: str | None = None,
     bundle_cache_dir: str | None = None,
@@ -32,6 +33,7 @@ def create_openai_client(
     settings = ClientSettings.load().merged(
         base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
+        prepared_inventory_rows=prepared_inventory_rows,
         token_cache_size=token_cache_size,
         bundle_cache_mode=bundle_cache_mode,
         bundle_cache_dir=bundle_cache_dir,
@@ -58,18 +60,26 @@ def create_openai_client(
         he_transport=he_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
+        prepared_inventory_rows=settings.prepared_inventory_rows,
         token_cache_size=token_cache_size,
         bundle_cache_mode=settings.bundle_cache_mode,
         bundle_cache_dir=settings.bundle_cache_dir,
         tenseal_path=tenseal_path,
     )
-    http_client = _httpx.Client(transport=transport)
-    return OfficialOpenAI(
-        api_key=api_key,
-        base_url=base_url,
-        http_client=http_client,
-        **client_kwargs,
-    )
+    try:
+        http_client = _httpx.Client(transport=transport)
+        client = OfficialOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            http_client=http_client,
+            **client_kwargs,
+        )
+    except BaseException:
+        transport.close()
+        raise
+    if hasattr(transport, "preprocess"):
+        client.pllm_preprocess = transport.preprocess
+    return client
 
 
 def create_async_openai_client(
@@ -83,6 +93,7 @@ def create_async_openai_client(
     he_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
+    prepared_inventory_rows: int | None = None,
     token_cache_size: int | None = None,
     bundle_cache_mode: str | None = None,
     bundle_cache_dir: str | None = None,
@@ -93,6 +104,7 @@ def create_async_openai_client(
     settings = ClientSettings.load().merged(
         base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
+        prepared_inventory_rows=prepared_inventory_rows,
         token_cache_size=token_cache_size,
         bundle_cache_mode=bundle_cache_mode,
         bundle_cache_dir=bundle_cache_dir,
@@ -119,15 +131,23 @@ def create_async_openai_client(
         he_transport=he_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
+        prepared_inventory_rows=settings.prepared_inventory_rows,
         token_cache_size=token_cache_size,
         bundle_cache_mode=settings.bundle_cache_mode,
         bundle_cache_dir=settings.bundle_cache_dir,
         tenseal_path=tenseal_path,
     )
-    http_client = _httpx.AsyncClient(transport=transport)
-    return OfficialAsyncOpenAI(
-        api_key=api_key,
-        base_url=base_url,
-        http_client=http_client,
-        **client_kwargs,
-    )
+    try:
+        http_client = _httpx.AsyncClient(transport=transport)
+        client = OfficialAsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            http_client=http_client,
+            **client_kwargs,
+        )
+    except BaseException:
+        transport.sync.close()
+        raise
+    if hasattr(transport, "preprocess"):
+        client.pllm_preprocess = transport.preprocess
+    return client

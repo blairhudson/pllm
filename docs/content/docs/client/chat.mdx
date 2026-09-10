@@ -26,9 +26,10 @@ pllm chat --server http://127.0.0.1:8000 \
 | `/help` | Show available commands |
 | `/quit` | Exit the client |
 
-Use `--no-stream` to print a response after it completes. Each linear stage waits
-for its preparation acknowledgement and masked inference result. Correction bytes
-flow directly from preparation to inference and are reported separately.
+Use `--no-stream` to print a response after it completes. Before the first chat,
+the client prepares and seals an in-memory inventory. Each online linear stage then
+sends only a one-time ticket and masked input to inference; preparation is idle.
+Inventory preparation and correction bytes are reported separately.
 
 ## Local privacy
 

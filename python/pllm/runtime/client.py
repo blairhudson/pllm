@@ -45,7 +45,14 @@ from .protocol import (
     pack_envelope,
     unpack_envelope,
 )
-from .preparation_protocol import SessionAuthorization, SessionAuthorizationAck
+from .preparation_protocol import (
+    PreparationAck,
+    PreparationRequest,
+    SessionAuthorization,
+    SessionAuthorizationAck,
+    expand_output_mask,
+    expand_preparation_mask,
+)
 from .stage_protocol import (
     BlindedStageCorrelation,
     BlindedStageRequest,
@@ -58,6 +65,9 @@ from .quantization import dequantize_matmul, quantize_activation_per_row
 from .transformer_client import (
     ClientBundle,
     MaskedTransformerClientRuntime,
+    PreparedInventory,
+    PreparedInventoryLease,
+    PreparedStageRows,
     RemoteLinear,
     RuntimeSnapshot,
     StageClientStats,
@@ -160,6 +170,7 @@ class PrivacyAudit:
     masked_online_download_bytes: int = 0
     correlation_count: int = 0
     online_steps: int = 0
+    inference_stage_calls: int = 0
     token_lookup_cache_hits: int = 0
     token_lookup_cache_misses: int = 0
     kv_continuation_hits: int = 0
@@ -178,6 +189,8 @@ class PrivacyAudit:
     session_authorization_upload_bytes: int = 0
     session_authorization_download_bytes: int = 0
     preparation_attempts: int = 0
+    preparation_rows: int = 0
+    preparation_requests_during_online: int = 0
     preparation_failures: int = 0
     bundle_network_bytes: int = 0
     bundle_cache_hits: int = 0
@@ -344,6 +357,11 @@ class _TransformerCryptoState:
     blinded_owner_id: str = field(default_factory=lambda: new_id("owner"))
     token_cache: OrderedDict[int, np.ndarray] = field(default_factory=OrderedDict)
     token_cache_lock: threading.Lock = field(default_factory=threading.Lock)
+    prepared_inventory: PreparedInventory | None = None
+    prepared_inventory_spare: PreparedInventory | None = None
+    retired_inventories: list[PreparedInventory] = field(default_factory=list)
+    active_prepared_responses: int = 0
+    refill_in_progress: bool = False
     preparation_verified: bool = False
 
 
@@ -751,6 +769,8 @@ class HEClientCore:
         preparation_base_url: str | None = None,
         preparation_api_key: str | None = None,
         correlation_prefetch: int = 4,
+        prepared_inventory_rows: int = 64,
+        background_inventory_refill: bool = True,
         token_cache_size: int = 512,
         bundle_cache_mode: str = "read-write",
         bundle_cache_dir: str | Path | None = None,
@@ -765,6 +785,11 @@ class HEClientCore:
         self.he_transport = he_transport
         self.correlation_mode = correlation_mode
         self.correlation_prefetch = correlation_prefetch
+        if prepared_inventory_rows < 1:
+            raise ValueError("prepared_inventory_rows must be positive")
+        self.prepared_inventory_rows = prepared_inventory_rows
+        self.background_inventory_refill = background_inventory_refill
+        self._closing = False
         self.token_cache_size = max(0, int(token_cache_size))
         if bundle_cache_mode not in _BUNDLE_CACHE_MODES:
             raise ValueError(
@@ -827,6 +852,9 @@ class HEClientCore:
         self._crypto_state_lock = threading.Lock()
         self._transformer_states: dict[str, _TransformerCryptoState] = {}
         self._transformer_state_lock = threading.Lock()
+        self._activity_lock = threading.Lock()
+        self._online_active = 0
+        self._preparation_active = 0
         self._transformer_conversations: dict[str, _TransformerConversationState] = {}
         self._transformer_conversation_lock = threading.Lock()
         self._model_manifests: dict[str, dict[str, Any]] = {}
@@ -1174,12 +1202,15 @@ class HEClientCore:
     def _load_client_bundle(self, model_id: str) -> ClientBundle:
         return self._load_client_bundle_record(model_id)[0]
 
-    def _open_transformer_session(
-        self,
-        model_id: str,
-        *,
-        max_output_tokens: int,
-    ) -> tuple[dict[str, Any], _TransformerCryptoState, Any | None]:
+    @staticmethod
+    def _remote_stages(state: _TransformerCryptoState) -> list[StageMetadata]:
+        return [
+            stage
+            for stage in state.bundle.stages.values()
+            if stage.client_weight is None and stage.id != "embed_tokens"
+        ]
+
+    def _transformer_state(self, model_id: str) -> _TransformerCryptoState:
         with self._transformer_state_lock:
             descriptor = self._client_bundle_descriptor(model_id)
             bundle_fingerprint = str(descriptor["sha256"])
@@ -1197,8 +1228,7 @@ class HEClientCore:
                 )
                 self._transformer_states[model_id] = state
 
-            prepared_public = False
-            if state.privacy_mode == "public":
+            if state.privacy_mode == "public" and not state.preparation_verified:
                 if self.preparation_http is None:
                     raise HEAPIError("public inference requires a preparation service", 400)
                 inference_response = self.http.get("/v1/models", headers=self.headers)
@@ -1235,11 +1265,7 @@ class HEClientCore:
                 if len(preparation_models) != 1:
                     raise HEAPIError("preparation service does not serve the requested model", 404)
                 preparation = preparation_models[0].get("preparation") or {}
-                remote_stages = [
-                    stage
-                    for stage in state.bundle.stages.values()
-                    if stage.client_weight is None and stage.id != "embed_tokens"
-                ]
+                remote_stages = self._remote_stages(state)
                 if not remote_stages or any(
                     not stage.weight_digest or stage.seeded_profile is None
                     for stage in remote_stages
@@ -1248,7 +1274,7 @@ class HEClientCore:
                         "provider bundle lacks stage weight or ring commitments", 409
                     )
                 if (
-                    preparation.get("protocol") != "seeded-correction/v2"
+                    preparation.get("protocol") != "seeded-inventory/v1"
                     or preparation.get("body_fingerprint")
                     != state.bundle.privacy.get("body_fingerprint")
                     or preparation.get("stage_commitment")
@@ -1263,84 +1289,390 @@ class HEClientCore:
                 ):
                     raise HEAPIError("preparation and inference model commitments do not match", 409)
                 state.preparation_verified = True
-                prepared_public = True
+            return state
+
+    def _prepare_inventory_locked(
+        self,
+        model_id: str,
+        state: _TransformerCryptoState,
+        rows: int,
+    ) -> PreparedInventory:
+        self._begin_preparation()
+        try:
+            return self._prepare_inventory(model_id, state, rows)
+        finally:
+            self._end_preparation()
+
+    def _prepare_inventory(
+        self,
+        model_id: str,
+        state: _TransformerCryptoState,
+        rows: int,
+    ) -> PreparedInventory:
+        if self.preparation_http is None:
+            raise HEAPIError("public inference requires a preparation service", 400)
+        remote_stages = self._remote_stages(state)
+        response = self.http.post(
+            "/v1/he/inventories",
+            headers=self.headers,
+            json={
+                "model": model_id,
+                "rows": rows,
+            },
+        )
+        _raise(response)
+        value = response.json()
+        inventory_id = str(value["id"])
+        try:
+            descriptor = value.get("preparation_authorization") or {}
+            expected = {
+                "body_fingerprint": state.bundle.privacy.get("body_fingerprint"),
+                "stage_commitment": state.bundle.privacy.get("stage_commitment"),
+                "weight_bits": state.bundle.privacy.get("weight_bits"),
+                "activation_bits": state.bundle.privacy.get("activation_bits"),
+            }
+            if any(descriptor.get(name) != item for name, item in expected.items()):
+                raise HEAPIError("inventory authorization commitments do not match", 409)
+            weight_bits = expected["weight_bits"]
+            activation_bits = expected["activation_bits"]
+            if not isinstance(weight_bits, int) or not isinstance(activation_bits, int):
+                raise HEAPIError("inventory authorization precision is invalid", 409)
+            authorization = SessionAuthorization(
+                session_id=inventory_id,
+                model=model_id,
+                body_fingerprint=str(expected["body_fingerprint"]),
+                stage_commitment=str(expected["stage_commitment"]),
+                weight_bits=weight_bits,
+                activation_bits=activation_bits,
+                max_attempts=int(descriptor["max_attempts"]),
+                rows=int(descriptor["rows"]),
+                stage_ids=tuple(str(stage_id) for stage_id in descriptor["stage_ids"]),
+            )
+            if authorization.rows != rows or authorization.stage_ids != tuple(
+                stage.id for stage in remote_stages
+            ):
+                raise HEModelError("preparation inventory authorization mismatch")
+            authorization_payload = authorization.pack()
+            self.audit.session_authorization_upload_bytes += len(authorization_payload)
+            authorized = self.preparation_http.post(
+                f"/v1/preparation/inventories/{inventory_id}/authorize",
+                headers={
+                    **self.preparation_headers,
+                    "Content-Type": "application/octet-stream",
+                },
+                content=authorization_payload,
+            )
+            _raise(authorized)
+            self.audit.session_authorization_download_bytes += len(authorized.content)
+            if SessionAuthorizationAck.unpack(authorized.content).session_id != inventory_id:
+                raise HEModelError("preparation inventory authorization mismatch")
+
+            prepared_stages: dict[str, PreparedStageRows] = {}
+            for stage in remote_stages:
+                profile = stage.seeded_profile
+                assert profile is not None
+                request = PreparationRequest(
+                    attempt_id=secrets.token_hex(16),
+                    session_id=inventory_id,
+                    model=model_id,
+                    body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
+                    stage_id=stage.id,
+                    weight_digest=stage.weight_digest,
+                    rows=rows,
+                    in_features=stage.in_features,
+                    out_features=stage.out_features,
+                    seed=secrets.token_bytes(32),
+                    weight_bits=int(state.bundle.privacy["weight_bits"]),
+                    activation_bits=int(state.bundle.privacy["activation_bits"]),
+                    signed_output_bound=profile.signed_output_bound,
+                    ring=profile.ring,
+                    modulus=profile.modulus,
+                    wire_bits=profile.wire_bits,
+                )
+                payload = request.pack()
+                self.audit.preparation_upload_bytes += len(payload)
+                from .telemetry import record_protocol_bytes, start_protocol_span
+
+                protocol_span = start_protocol_span(
+                    stage.id,
+                    len(payload),
+                    0,
+                    phase="offline",
+                )
+                try:
+                    prepared = self.preparation_http.post(
+                        f"/v1/preparation/inventories/{inventory_id}/stages/{stage.id}",
+                        headers={
+                            **self.preparation_headers,
+                            "Content-Type": "application/octet-stream",
+                        },
+                        content=payload,
+                    )
+                    _raise(prepared)
+                except Exception as exc:
+                    protocol_span.record_exception(exc)
+                    protocol_span.end()
+                    raise
+                self.audit.preparation_attempts += 1
+                self.audit.preparation_rows += request.rows
+                self.audit.preparation_download_bytes += len(prepared.content)
+                try:
+                    ack = PreparationAck.unpack(prepared.content)
+                except Exception as exc:
+                    protocol_span.record_exception(exc)
+                    protocol_span.end()
+                    raise
+                if ack.attempt_id != request.attempt_id or ack.stage_id != stage.id:
+                    error = HEModelError("preparation inventory acknowledgement mismatch")
+                    protocol_span.record_exception(error)
+                    protocol_span.end()
+                    raise error
+                self.audit.correction_push_bytes += ack.correction_bytes
+                self.audit.preparation_server_ns += ack.server_ns
+                self.audit.correction_push_ns += ack.push_ns
+                record_protocol_bytes("client", "preparation", len(payload), stage.id)
+                record_protocol_bytes(
+                    "preparation", "client", len(prepared.content), stage.id
+                )
+                protocol_span.set_attribute(
+                    "pllm.preparation_inference.bytes", ack.correction_bytes
+                )
+                protocol_span.set_attribute(
+                    "pllm.preparation_client.bytes", len(prepared.content)
+                )
+                protocol_span.end()
+                prepared_stages[stage.id] = PreparedStageRows(
+                    request=request,
+                    input_mask=expand_preparation_mask(request),
+                    output_mask=expand_output_mask(request),
+                )
+            sealed = self.http.post(
+                f"/v1/he/inventories/{inventory_id}/ready",
+                headers=self.headers,
+            )
+            _raise(sealed)
+            if sealed.json().get("status") != "ready":
+                raise HEModelError("inference did not commit prepared inventory")
+            return PreparedInventory(inventory_id, rows, prepared_stages)
+        except BaseException:
+            self.audit.preparation_failures += 1
+            try:
+                self.http.post(
+                    f"/v1/he/inventories/{inventory_id}/cancel", headers=self.headers
+                )
+            except Exception:
+                pass
+            try:
+                self.preparation_http.post(
+                    f"/v1/preparation/inventories/{inventory_id}/cancel",
+                    headers=self.preparation_headers,
+                )
+            except Exception:
+                pass
+            raise
+
+    def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
+        try:
+            self.http.post(
+                f"/v1/he/inventories/{inventory.id}/cancel", headers=self.headers
+            )
+        except Exception:
+            pass
+        if self.preparation_http is not None:
+            try:
+                self.preparation_http.post(
+                    f"/v1/preparation/inventories/{inventory.id}/cancel",
+                    headers=self.preparation_headers,
+                )
+            except Exception:
+                pass
+
+    def _prepared_inventory_is_live(self, inventory: PreparedInventory) -> bool:
+        try:
+            response = self.http.get(
+                f"/v1/he/inventories/{inventory.id}", headers=self.headers
+            )
+        except httpx.HTTPError:
+            raise
+        if response.status_code in {404, 409, 410}:
+            return False
+        _raise(response)
+        value = response.json()
+        return (
+            value.get("status") == "ready"
+            and int(value.get("next_row", -1)) == inventory.claimed
+        )
+
+    def _install_prepared_inventory_locked(
+        self,
+        state: _TransformerCryptoState,
+        inventory: PreparedInventory,
+    ) -> None:
+        previous = state.prepared_inventory
+        state.prepared_inventory = inventory
+        if previous is None or previous is inventory:
+            return
+        if previous.status()["reserved"] == 0:
+            self._cancel_prepared_inventory(previous)
+        else:
+            state.retired_inventories.append(previous)
+
+    def _background_refill(
+        self,
+        model_id: str,
+        state: _TransformerCryptoState,
+    ) -> None:
+        with self._transformer_state_lock:
+            inventory = state.prepared_inventory
+            if (
+                self._closing
+                or state.active_prepared_responses != 0
+                or inventory is None
+                or state.prepared_inventory_spare is not None
+                or state.refill_in_progress
+            ):
+                return
+            state.refill_in_progress = True
+            capacity = max(self.prepared_inventory_rows, inventory.capacity)
+        try:
+            spare = self._prepare_inventory_locked(model_id, state, capacity)
+        except Exception:
+            spare = None
+        with self._transformer_state_lock:
+            state.refill_in_progress = False
+            if (
+                spare is not None
+                and not self._closing
+                and state.active_prepared_responses == 0
+                and state.prepared_inventory is inventory
+                and state.prepared_inventory_spare is None
+            ):
+                state.prepared_inventory_spare = spare
+            elif spare is not None:
+                self._cancel_prepared_inventory(spare)
+
+    def _finish_prepared_response(
+        self,
+        model_id: str,
+        state: _TransformerCryptoState,
+        inventory: PreparedInventoryLease,
+    ) -> None:
+        inventory.close()
+        self._end_online()
+        with self._transformer_state_lock:
+            state.active_prepared_responses = max(0, state.active_prepared_responses - 1)
+            retained: list[PreparedInventory] = []
+            for retired in state.retired_inventories:
+                if retired.status()["reserved"] == 0:
+                    self._cancel_prepared_inventory(retired)
+                else:
+                    retained.append(retired)
+            state.retired_inventories = retained
+            if (
+                self.background_inventory_refill
+                and not self._closing
+                and state.active_prepared_responses == 0
+                and state.prepared_inventory_spare is None
+            ):
+                self._provider_executor.submit(self._background_refill, model_id, state)
+
+    def _begin_online(self) -> None:
+        with self._activity_lock:
+            if self._preparation_active:
+                raise HEModelError("prepared inventory refill is in progress; retry when ready")
+            self._online_active += 1
+
+    def _end_online(self) -> None:
+        with self._activity_lock:
+            self._online_active = max(0, self._online_active - 1)
+
+    def _begin_preparation(self) -> None:
+        with self._activity_lock:
+            if self._online_active:
+                self.audit.preparation_requests_during_online += 1
+                raise HEModelError("preparation cannot run while inference is online")
+            self._preparation_active += 1
+
+    def _end_preparation(self) -> None:
+        with self._activity_lock:
+            self._preparation_active = max(0, self._preparation_active - 1)
+
+    def _open_transformer_session(
+        self,
+        model_id: str,
+        *,
+        max_output_tokens: int,
+        required_rows: int | None = None,
+    ) -> tuple[dict[str, Any], _TransformerCryptoState, Any | None]:
+        state = self._transformer_state(model_id)
+        prepared_public = state.privacy_mode == "public"
+        provider: Any | None
+        with self._transformer_state_lock:
+            if prepared_public:
+                if state.refill_in_progress:
+                    raise HEModelError("prepared inventory refill is in progress; retry when ready")
+                needed = max(1, int(required_rows or max_output_tokens + 1))
+                inventory = state.prepared_inventory
+                if inventory is not None and not self._prepared_inventory_is_live(inventory):
+                    self._cancel_prepared_inventory(inventory)
+                    state.prepared_inventory = None
+                    inventory = None
+                if (
+                    (inventory is None or inventory.available < needed)
+                    and state.prepared_inventory_spare is not None
+                    and state.prepared_inventory_spare.available >= needed
+                ):
+                    spare = state.prepared_inventory_spare
+                    state.prepared_inventory_spare = None
+                    if self._prepared_inventory_is_live(spare):
+                        inventory = spare
+                        self._install_prepared_inventory_locked(state, inventory)
+                    else:
+                        self._cancel_prepared_inventory(spare)
+                if inventory is None or inventory.available < needed:
+                    raise HEModelError(
+                        "prepared inventory is unavailable or exhausted; "
+                        "call client.preprocess() before inference"
+                    )
+                provider = inventory.reserve(needed)
+            else:
+                provider = None
 
             session_body: dict[str, Any] = {
                 "model": model_id,
                 "max_output_tokens": max_output_tokens,
             }
             if prepared_public:
+                assert provider is not None
                 session_body["execution"] = "seeded-preparation"
+                session_body["inventory_id"] = provider.inventory_id
+                session_body["inventory_start"] = provider.reservation_start
+                session_body["inventory_rows"] = provider.reservation_rows
             if state.context_ids:
                 session_body["context_ids"] = list(state.context_ids.values())
-            session_response = self.http.post(
-                "/v1/he/sessions",
-                headers=self.headers,
-                json=session_body,
-            )
-            _raise(session_response)
-            session_value = session_response.json()
-            session_id = str(session_value["id"])
-
+            online_started = False
+            try:
+                if prepared_public:
+                    self._begin_online()
+                    online_started = True
+                session_response = self.http.post(
+                    "/v1/he/sessions",
+                    headers=self.headers,
+                    json=session_body,
+                )
+                _raise(session_response)
+                session_value = session_response.json()
+                session_id = str(session_value["id"])
+            except BaseException:
+                if prepared_public and provider is not None:
+                    provider.close()
+                    if online_started:
+                        self._end_online()
+                raise
             if prepared_public:
-                try:
-                    descriptor = session_value.get("preparation_authorization") or {}
-                    expected_descriptor = {
-                        "body_fingerprint": state.bundle.privacy.get("body_fingerprint"),
-                        "stage_commitment": state.bundle.privacy.get("stage_commitment"),
-                        "weight_bits": state.bundle.privacy.get("weight_bits"),
-                        "activation_bits": state.bundle.privacy.get("activation_bits"),
-                    }
-                    if any(
-                        descriptor.get(name) != expected
-                        for name, expected in expected_descriptor.items()
-                    ):
-                        raise HEAPIError(
-                            "inference session authorization commitments do not match", 409
-                        )
-                    authorization = SessionAuthorization(
-                        session_id=session_id,
-                        model=model_id,
-                        body_fingerprint=str(expected_descriptor["body_fingerprint"]),
-                        stage_commitment=str(expected_descriptor["stage_commitment"]),
-                        weight_bits=int(expected_descriptor["weight_bits"]),
-                        activation_bits=int(expected_descriptor["activation_bits"]),
-                        max_attempts=int(descriptor["max_attempts"]),
-                    )
-                    authorization_payload = authorization.pack()
-                    self.audit.session_authorization_upload_bytes += len(
-                        authorization_payload
-                    )
-                    authorization_response = self.preparation_http.post(
-                        f"/v1/preparation/sessions/{session_id}/authorize",
-                        headers={
-                            **self.preparation_headers,
-                            "Content-Type": "application/octet-stream",
-                        },
-                        content=authorization_payload,
-                    )
-                    _raise(authorization_response)
-                    self.audit.session_authorization_download_bytes += len(
-                        authorization_response.content
-                    )
-                    authorization_ack = SessionAuthorizationAck.unpack(
-                        authorization_response.content
-                    )
-                    if authorization_ack.session_id != session_id:
-                        raise HEModelError(
-                            "preparation session authorization acknowledgement mismatch"
-                        )
-                except BaseException:
-                    try:
-                        self.http.post(
-                            f"/v1/responses/{session_value['response_id']}/cancel",
-                            headers=self.headers,
-                        )
-                    except Exception:
-                        pass
-                    raise
-                provider: Any | None = True
-            elif state.privacy_mode == "proprietary":
+                state.active_prepared_responses += 1
+
+            if state.privacy_mode == "proprietary":
                 if state.privacy_protocol in {"blinded_ole_w4a4", "guarded_blinded_w4a4"}:
                     if state.mode not in {"bfv", "local-test"}:
                         raise ValueError(f"unsupported proprietary correlation mode {state.mode!r}")
@@ -1356,7 +1688,7 @@ class HEClientCore:
                     raise HEModelError(
                         f"unsupported proprietary protocol {state.privacy_protocol!r}"
                     )
-            else:
+            elif state.privacy_mode != "public":
                 raise HEModelError(f"unsupported server privacy mode {state.privacy_mode!r}")
             return session_value, state, provider
 
@@ -1376,10 +1708,71 @@ class HEClientCore:
             "guarded_blinded_transformer_v1",
         }:
             if descriptor.get("metadata", {}).get("privacy_mode") == "public":
-                raise HEModelError(
-                    "public transformer preprocessing was replaced by just-in-time "
-                    "seeded preparation"
-                )
+                state = self._transformer_state(model_id)
+                selected = set(stages or (stage.id for stage in self._remote_stages(state)))
+                expected = {stage.id for stage in self._remote_stages(state)}
+                if selected != expected:
+                    raise ValueError("prepared inventories require every remote stage")
+                with self._transformer_state_lock:
+                    if state.active_prepared_responses:
+                        raise HEModelError("prepared inventory refill requires an idle model")
+                    prepared_inventory = state.prepared_inventory
+                    if prepared_inventory is not None and not self._prepared_inventory_is_live(
+                        prepared_inventory
+                    ):
+                        self._cancel_prepared_inventory(prepared_inventory)
+                        state.prepared_inventory = None
+                        prepared_inventory = None
+                    if (
+                        (prepared_inventory is None or prepared_inventory.available < target)
+                        and state.prepared_inventory_spare is not None
+                        and state.prepared_inventory_spare.available >= target
+                    ):
+                        spare = state.prepared_inventory_spare
+                        state.prepared_inventory_spare = None
+                        if self._prepared_inventory_is_live(spare):
+                            prepared_inventory = spare
+                            self._install_prepared_inventory_locked(state, prepared_inventory)
+                        else:
+                            self._cancel_prepared_inventory(spare)
+                    if prepared_inventory is None or prepared_inventory.available < target:
+                        if state.prepared_inventory_spare is not None:
+                            self._cancel_prepared_inventory(state.prepared_inventory_spare)
+                            state.prepared_inventory_spare = None
+                        prepared_inventory = self._prepare_inventory_locked(
+                            model_id,
+                            state,
+                            max(self.prepared_inventory_rows, target),
+                        )
+                        self._install_prepared_inventory_locked(state, prepared_inventory)
+                        generated = prepared_inventory.capacity
+                    else:
+                        generated = 0
+                    if self.background_inventory_refill:
+                        spare = state.prepared_inventory_spare
+                        if spare is not None and spare.available < target:
+                            self._cancel_prepared_inventory(spare)
+                            state.prepared_inventory_spare = None
+                            spare = None
+                        if spare is None:
+                            state.prepared_inventory_spare = self._prepare_inventory_locked(
+                                model_id,
+                                state,
+                                max(self.prepared_inventory_rows, target),
+                            )
+                            generated += state.prepared_inventory_spare.capacity
+                    available = prepared_inventory.available
+                return {
+                    "object": "he.preprocessing_result",
+                    "model": model_id,
+                    "privacy_mode": "public",
+                    "protocol": "seeded-inventory/v1",
+                    "status": "ready",
+                    "generated": generated,
+                    "available_per_stage": {
+                        stage_id: available for stage_id in expected
+                    },
+                }
             session, state, provider = self._open_transformer_session(model_id, max_output_tokens=1)
             if state.privacy_mode == "proprietary" and state.privacy_protocol == "direct_bfv_w4a4":
                 complete = self.http.post(
@@ -1450,8 +1843,54 @@ class HEClientCore:
             "context_reused": self.audit.public_context_bytes > 0,
         }
 
+    def prepared_inventory_status(self, model: str) -> dict[str, Any]:
+        with self._transformer_state_lock:
+            state = self._transformer_states.get(model)
+            if state is None or state.prepared_inventory is None:
+                return {
+                    "status": "not-loaded",
+                    "capacity": 0,
+                    "available": 0,
+                    "reserved": 0,
+                    "burned": 0,
+                }
+            return state.prepared_inventory.status()
+
+    def prepared_rows_for_response(
+        self,
+        model: str,
+        input: str,
+        max_output_tokens: int,
+        *,
+        instructions: str | None = None,
+    ) -> int:
+        state = self._transformer_state(model)
+        messages: list[dict[str, str]] = []
+        if instructions:
+            messages.append({"role": "system", "content": instructions})
+        messages.append({"role": "user", "content": input})
+        rendered = state.bundle.render_prompt(messages, add_generation_prompt=True)
+        tokenizer = state.bundle.tokenizer()
+        add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
+        ids = tokenizer.encode(rendered, add_bos=add_bos)
+        return len(ids or [int(state.bundle.config["bos_token_id"])]) + max_output_tokens
+
     def close(self) -> None:
+        self._closing = True
         self._provider_executor.shutdown(wait=True, cancel_futures=True)
+        with self._transformer_state_lock:
+            inventories: list[PreparedInventory] = []
+            for state in self._transformer_states.values():
+                if state.prepared_inventory is not None:
+                    inventories.append(state.prepared_inventory)
+                if state.prepared_inventory_spare is not None:
+                    inventories.append(state.prepared_inventory_spare)
+                inventories.extend(state.retired_inventories)
+                state.prepared_inventory = None
+                state.prepared_inventory_spare = None
+                state.retired_inventories.clear()
+        for inventory in inventories:
+            self._cancel_prepared_inventory(inventory)
         if self._owns_preparation_http and self.preparation_http is not None:
             self.preparation_http.close()
         if self._owns_http:
@@ -1739,12 +2178,17 @@ class HEClientCore:
         previous_history: str | None = None,
     ) -> Iterator[ResponseEvent]:
         model_id = str(body["model"])
-        session_value, state, provider = self._open_transformer_session(
-            model_id,
-            max_output_tokens=int(body.get("max_output_tokens") or 64),
+        state = self._transformer_state(model_id)
+        max_tokens = max(
+            1,
+            min(
+                int(body.get("max_output_tokens") or 64),
+                int(descriptor.get("context_length", 4096)),
+            ),
         )
-        session_id = str(session_value["id"])
-        response_id = str(session_value["response_id"])
+        temperature = float(body.get("temperature") or 0.0)
+        raw_top_p = body.get("top_p")
+        top_p = None if raw_top_p is None else float(raw_top_p)
         current_messages = normalize_input(
             body.get("input", ""), instructions=body.get("instructions")
         )
@@ -1754,7 +2198,51 @@ class HEClientCore:
             structured.extend(self.message_histories.get(str(previous_id), []))
         structured.extend({"role": row.role, "content": row.text} for row in current_messages)
         rendered = state.bundle.render_prompt(structured, add_generation_prompt=True)
-        channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.he_transport)
+        add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
+        tokenizer = state.bundle.tokenizer()
+        input_ids = tokenizer.encode(rendered, add_bos=add_bos)
+        required_input_rows = len(input_ids or [int(state.bundle.config["bos_token_id"])])
+        if previous_id:
+            with self._transformer_conversation_lock:
+                candidate = self._transformer_conversations.get(str(previous_id))
+            if (
+                candidate is not None
+                and candidate.model_id == model_id
+                and candidate.bundle_fingerprint == state.bundle_fingerprint
+                and rendered.startswith(candidate.rendered_context)
+            ):
+                required_input_rows = len(
+                    tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
+                )
+        required_rows = required_input_rows + max_tokens
+        session_value, state, provider = self._open_transformer_session(
+            model_id,
+            max_output_tokens=max_tokens,
+            required_rows=required_rows,
+        )
+        session_id = str(session_value["id"])
+        response_id = str(session_value["response_id"])
+        channel: _Channel | None = None
+
+        def abandon_transformer_session() -> None:
+            if channel is not None:
+                channel.close()
+            if isinstance(provider, PreparedInventoryLease):
+                self._finish_prepared_response(model_id, state, provider)
+            try:
+                self.http.post(
+                    f"/v1/he/sessions/{session_id}/cancel",
+                    headers=self.headers,
+                )
+            except Exception:
+                pass
+
+        try:
+            channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.he_transport)
+        except BaseException:
+            abandon_transformer_session()
+            raise
+        assert channel is not None
         key = derive_session_key(self.api_key, session_id)
         sequence = 0
 
@@ -1810,30 +2298,19 @@ class HEClientCore:
             self.audit.masked_online_upload_bytes += len(upload)
             self.audit.masked_online_download_bytes += len(response.content)
             self.audit.online_steps += len(payloads)
+            self.audit.inference_stage_calls += 1
             return list(iter_length_prefixed(response.content))
 
-        def preparation_exchange(stage_id, payload):
-            if self.preparation_http is None:
-                raise HEModelError("public mode requires a preparation service")
-            response = self.preparation_http.post(
-                f"/v1/preparation/stages/{stage_id}",
-                headers={**self.preparation_headers, "Content-Type": "application/octet-stream"},
-                content=payload,
-            )
-            _raise(response)
-            return response.content
-
         if state.privacy_mode == "public":
-            if provider is not True:
-                raise HEModelError("public mode requires a verified preparation service")
+            if not isinstance(provider, PreparedInventoryLease):
+                abandon_transformer_session()
+                raise HEModelError("public mode requires a prepared inventory lease")
             remote = PreparedRemoteLinear(
                 model_id=model_id,
                 body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
                 stages=state.bundle.stages,
-                preparation=preparation_exchange,
                 inference=direct_exchange,
-                executor=self._provider_executor,
-                session_id=session_id,
+                inventory=provider,
             )
         elif state.privacy_protocol == "direct_bfv_w4a4":
             remote = _DirectFHERemoteLinear(
@@ -1857,23 +2334,17 @@ class HEClientCore:
             if provider is None:
                 raise HEModelError("public mode requires a correlation provider")
             remote = RemoteLinear(state.bundle.stages, provider, exchange)
-        runtime = MaskedTransformerClientRuntime(
-            state.bundle,
-            remote,
-            token_cache=state.token_cache,
-            token_cache_size=self.token_cache_size,
-            token_cache_lock=state.token_cache_lock,
-        )
-        max_tokens = max(
-            1,
-            min(
-                int(body.get("max_output_tokens") or 64),
-                int(descriptor.get("context_length", 4096)),
-            ),
-        )
-        temperature = float(body.get("temperature") or 0.0)
-        top_p = body.get("top_p")
-        top_p = None if top_p is None else float(top_p)
+        try:
+            runtime = MaskedTransformerClientRuntime(
+                state.bundle,
+                remote,
+                token_cache=state.token_cache,
+                token_cache_size=self.token_cache_size,
+                token_cache_lock=state.token_cache_lock,
+            )
+        except BaseException:
+            abandon_transformer_session()
+            raise
         message_id = new_id("msg")
         event_sequence = 0
         output_ids: list[int] = []
@@ -2101,8 +2572,7 @@ class HEClientCore:
                 self.audit.inference_server_ns += remote.stats.inference_server_ns
                 self.audit.correction_push_bytes += remote.stats.correction_push_bytes
                 self.audit.correction_push_ns += remote.stats.correction_push_ns
-                self.audit.preparation_attempts += remote.stats.attempts
-                self.audit.preparation_failures += remote.stats.failures
+                self._finish_prepared_response(model_id, state, remote.inventory)
                 if not session_completed:
                     try:
                         self.http.post(
@@ -2226,6 +2696,8 @@ class OpenAI:
         preparation_base_url: str | None = None,
         preparation_api_key: str | None = None,
         correlation_prefetch: int | None = None,
+        prepared_inventory_rows: int | None = None,
+        background_inventory_refill: bool = True,
         token_cache_size: int | None = None,
         bundle_cache_mode: str | None = None,
         bundle_cache_dir: str | Path | None = None,
@@ -2245,6 +2717,7 @@ class OpenAI:
             preparation_base_url=preparation_base_url,
             preparation_api_key=preparation_api_key,
             correlation_prefetch=correlation_prefetch,
+            prepared_inventory_rows=prepared_inventory_rows,
             token_cache_size=token_cache_size,
             bundle_cache_mode=bundle_cache_mode,
             bundle_cache_dir=bundle_cache_dir,
@@ -2259,6 +2732,8 @@ class OpenAI:
             preparation_base_url=settings.preparation_base_url,
             preparation_api_key=settings.preparation_api_key,
             correlation_prefetch=settings.correlation_prefetch,
+            prepared_inventory_rows=settings.prepared_inventory_rows,
+            background_inventory_refill=background_inventory_refill,
             token_cache_size=settings.token_cache_size,
             bundle_cache_mode=settings.bundle_cache_mode,
             bundle_cache_dir=settings.bundle_cache_dir,
@@ -2274,6 +2749,43 @@ class OpenAI:
     @property
     def privacy_audit(self) -> PrivacyAudit:
         return self._core.audit
+
+    def preprocess(
+        self,
+        model: str | None = None,
+        *,
+        count: int | None = None,
+        stages: list[str] | None = None,
+    ) -> dict[str, Any]:
+        model_id = model or self._core.default_model
+        if model_id is None:
+            raise ValueError("model is required")
+        target = count if count is not None else self._core.prepared_inventory_rows
+        return self._core.preprocess(model_id, count=target, stages=stages)
+
+    def prepared_inventory_status(self, model: str | None = None) -> dict[str, Any]:
+        model_id = model or self._core.default_model
+        if model_id is None:
+            raise ValueError("model is required")
+        return self._core.prepared_inventory_status(model_id)
+
+    def prepared_rows_for_response(
+        self,
+        input: str,
+        max_output_tokens: int,
+        *,
+        model: str | None = None,
+        instructions: str | None = None,
+    ) -> int:
+        model_id = model or self._core.default_model
+        if model_id is None:
+            raise ValueError("model is required")
+        return self._core.prepared_rows_for_response(
+            model_id,
+            input,
+            max_output_tokens,
+            instructions=instructions,
+        )
 
     def close(self) -> None:
         self._core.close()
@@ -2296,11 +2808,14 @@ class AsyncResponsesResource:
 
             async def iterate() -> AsyncIterator[ResponseEvent]:
                 sentinel = object()
-                while True:
-                    event = await asyncio.to_thread(_next_or, stream, sentinel)
-                    if event is sentinel:
-                        break
-                    yield event
+                try:
+                    while True:
+                        event = await asyncio.to_thread(_next_or, stream, sentinel)
+                        if event is sentinel:
+                            break
+                        yield event
+                finally:
+                    await asyncio.to_thread(stream.close)
 
             return iterate()
         return await asyncio.to_thread(self.resource.create, **kwargs)
@@ -2384,6 +2899,36 @@ class AsyncOpenAI:
     @property
     def privacy_audit(self) -> PrivacyAudit:
         return self.sync.privacy_audit
+
+    async def preprocess(
+        self,
+        model: str | None = None,
+        *,
+        count: int | None = None,
+        stages: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self.sync.preprocess,
+            model,
+            count=count,
+            stages=stages,
+        )
+
+    async def prepared_rows_for_response(
+        self,
+        input: str,
+        max_output_tokens: int,
+        *,
+        model: str | None = None,
+        instructions: str | None = None,
+    ) -> int:
+        return await asyncio.to_thread(
+            self.sync.prepared_rows_for_response,
+            input,
+            max_output_tokens,
+            model=model,
+            instructions=instructions,
+        )
 
     async def close(self) -> None:
         await asyncio.to_thread(self.sync.close)

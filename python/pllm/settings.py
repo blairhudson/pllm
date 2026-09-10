@@ -23,6 +23,7 @@ class ClientSettings:
     preparation_base_url: str | None = None
     preparation_api_key: str | None = None
     correlation_prefetch: int = 4
+    prepared_inventory_rows: int = 64
     token_cache_size: int = 512
     bundle_cache_mode: str = "read-write"
     bundle_cache_dir: str | None = None
@@ -44,6 +45,7 @@ class ClientSettings:
             "preparation_base_url": os.getenv("PLLM_PREPARATION_BASE_URL"),
             "preparation_api_key": os.getenv("PLLM_PREPARATION_API_KEY"),
             "correlation_prefetch": os.getenv("PLLM_CORRELATION_PREFETCH"),
+            "prepared_inventory_rows": os.getenv("PLLM_PREPARED_INVENTORY_ROWS"),
             "token_cache_size": os.getenv("PLLM_TOKEN_CACHE_SIZE"),
             "bundle_cache_mode": os.getenv("PLLM_BUNDLE_CACHE_MODE"),
             "bundle_cache_dir": os.getenv("PLLM_BUNDLE_CACHE_DIR"),
@@ -53,6 +55,7 @@ class ClientSettings:
             if value not in (None, ""):
                 values[key] = value
         values["correlation_prefetch"] = int(values.get("correlation_prefetch", 4))
+        values["prepared_inventory_rows"] = int(values.get("prepared_inventory_rows", 64))
         values["token_cache_size"] = int(values.get("token_cache_size", 512))
         values["timeout"] = float(values.get("timeout", 300.0))
         return cls(**{f.name: values[f.name] for f in fields(cls) if f.name in values})

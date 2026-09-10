@@ -6,7 +6,12 @@ import threading
 import time
 from dataclasses import dataclass
 
-from .preparation_protocol import CorrectionPush, SessionAuthorization, validate_attempt_id
+from .preparation_protocol import (
+    CorrectionPush,
+    SessionAuthorization,
+    derive_online_attempt_id,
+    validate_attempt_id,
+)
 from .protocol import ProtocolError
 from .stage_protocol import MaskedStageRequest
 
@@ -22,6 +27,7 @@ class _Entry:
     correction: CorrectionPush | None = None
     correction_bytes: int = 0
     activated: bool = False
+    preloaded: bool = False
     activation_metadata: tuple[object, ...] | None = None
 
 
@@ -127,7 +133,7 @@ class CorrectionRendezvous:
     def _cleanup_locked(self, now: float) -> None:
         cutoff = now - self.timeout
         for key, entry in list(self._entries.items()):
-            if entry.created <= cutoff:
+            if not entry.preloaded and entry.created <= cutoff:
                 self._burn_locked(key)
         session_cutoff = now - self.session_idle_timeout
         for session_id, session in list(self._sessions.items()):
@@ -184,6 +190,96 @@ class CorrectionRendezvous:
                 self._burn_locked(key)
                 raise RendezvousError("correction arrived after attempt cancellation") from exc
 
+    def preload_bulk(self, correction: CorrectionPush, payload_bytes: int) -> None:
+        correction._validate()
+        values = correction.correction
+        if values.shape != (correction.rows, correction.out_features):
+            raise RendezvousError("correction shape mismatch")
+        if payload_bytes <= 0:
+            raise RendezvousError("correction payload is empty")
+
+        attempt_ids = [
+            derive_online_attempt_id(correction, row_index)
+            for row_index in range(correction.rows)
+        ]
+        keys = [self._key(correction.session_id, attempt_id) for attempt_id in attempt_ids]
+        if len(set(keys)) != len(keys):
+            raise RendezvousError("bulk correction contains duplicate attempt keys")
+
+        with self._lock:
+            now = time.monotonic()
+            self._cleanup_locked(now)
+            session = self._sessions.get(correction.session_id)
+            if session is None:
+                raise RendezvousError("correction session is not active")
+            if not session.authorized:
+                raise RendezvousError("correction session is not authorized")
+            if (
+                correction.model != session.expected.model
+                or correction.body_fingerprint != session.expected.body_fingerprint
+                or correction.weight_bits != session.expected.weight_bits
+                or correction.activation_bits != session.expected.activation_bits
+            ):
+                raise RendezvousError("correction and session authorization metadata mismatch")
+            if any(key[1] in session.burned for key in keys):
+                raise RendezvousError("attempt was already consumed or burned")
+            if any(key in self._entries for key in keys):
+                raise RendezvousError("duplicate correction push")
+            if len(self._entries) + correction.rows > self.capacity:
+                raise RendezvousError("correction rendezvous capacity exceeded")
+            active_for_session = sum(key[0] == correction.session_id for key in self._entries)
+            if (
+                len(session.burned) + active_for_session + correction.rows
+                > session.expected.max_attempts
+            ):
+                raise RendezvousError("session attempt capacity exceeded")
+            if self._bytes + payload_bytes > self.max_bytes:
+                raise RendezvousError("correction rendezvous byte capacity exceeded")
+
+            per_row_bytes, remainder = divmod(payload_bytes, correction.rows)
+            entries: list[tuple[tuple[str, bytes], _Entry]] = []
+            for row_index, (key, attempt_id) in enumerate(zip(keys, attempt_ids, strict=True)):
+                row_correction = CorrectionPush(
+                    attempt_id=attempt_id,
+                    session_id=correction.session_id,
+                    model=correction.model,
+                    body_fingerprint=correction.body_fingerprint,
+                    stage_id=correction.stage_id,
+                    weight_digest=correction.weight_digest,
+                    rows=1,
+                    in_features=correction.in_features,
+                    out_features=correction.out_features,
+                    weight_bits=correction.weight_bits,
+                    activation_bits=correction.activation_bits,
+                    signed_output_bound=correction.signed_output_bound,
+                    ring=correction.ring,
+                    modulus=correction.modulus,
+                    wire_bits=correction.wire_bits,
+                    correction=values[row_index : row_index + 1].copy(),
+                    server_ns=correction.server_ns,
+                )
+                future: concurrent.futures.Future[CorrectionPush] = (
+                    concurrent.futures.Future()
+                )
+                future.set_result(row_correction)
+                entries.append(
+                    (
+                        key,
+                        _Entry(
+                            created=now,
+                            correction_future=future,
+                            correction=row_correction,
+                            correction_bytes=per_row_bytes + (row_index < remainder),
+                            preloaded=True,
+                        ),
+                    )
+                )
+
+            self._entries.update(entries)
+            self._bytes += payload_bytes
+            session.last_active = now
+            self.attempts += correction.rows
+
     @staticmethod
     def _request_metadata(request: MaskedStageRequest) -> tuple[object, ...]:
         rows = 1 if request.masked_input.ndim == 1 else request.masked_input.shape[0]
@@ -213,6 +309,9 @@ class CorrectionRendezvous:
                 self._burn_locked(key)
                 raise RendezvousError("duplicate activation attempt")
             entry.activated = True
+            if entry.preloaded:
+                entry.created = now
+                entry.preloaded = False
             entry.activation_metadata = metadata
             if entry.correction is not None and entry.correction.metadata() != metadata:
                 self._burn_locked(key)
@@ -254,6 +353,14 @@ class CorrectionRendezvous:
         with self._lock:
             if self._entries.get(key) is entry:
                 self._burn_locked(key)
+
+    def burn_reserved(self, session_id: str, attempt_ids: frozenset[str]) -> None:
+        """Burn every still-unused row reserved for one execution session."""
+        with self._lock:
+            for attempt_id in attempt_ids:
+                key = self._key(session_id, attempt_id)
+                if key in self._entries:
+                    self._burn_locked(key, failure=False)
 
     def terminal(self, session_id: str) -> None:
         with self._lock:

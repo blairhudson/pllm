@@ -24,6 +24,7 @@ Explicit SDK arguments override environment variables. Environment variables ove
 | Model ID | `PLLM_MODEL` | Discover a single private model |
 | Preparation URL | `PLLM_PREPARATION_BASE_URL` | None |
 | Preparation credential | `PLLM_PREPARATION_API_KEY` | Provider credential |
+| Prepared inventory rows per stage | `PLLM_PREPARED_INVENTORY_ROWS` | `64` |
 | Transport | `PLLM_TRANSPORT` | `auto` |
 | Preparation | `PLLM_CORRELATION_MODE` | `bfv` |
 | Preparation horizon | `PLLM_CORRELATION_PREFETCH` | `4` |
@@ -48,11 +49,16 @@ pllm configure \
 ```
 
 Self-host the preparation service when no external preparation operator is
-trusted. It needs the same public model weights, but receives only fresh seeds
-and shape metadata. It must follow the protocol, erase expanded masks, and not
-collude with the inference provider. Remote URLs require HTTPS and distinct
+trusted. It needs the same public model weights, but receives only batched stage
+root seeds and shape metadata before chat. It must follow the protocol, erase
+expanded masks, and not collude with the inference provider. Remote URLs require HTTPS and distinct
 origins; plain HTTP is accepted only on loopback for development. The client
 verifies matching model and per-stage weight commitments before generation.
+
+`PLLM_PREPARED_INVENTORY_ROWS` controls each offline stage batch. The client keeps
+unreserved rows in memory for later chats and refills only while idle. Larger
+values reduce refill frequency but increase preparation time, memory, and rows
+burned when a reservation ends early. Restart or idle expiry discards inventory.
 
 ## Protect the settings file
 

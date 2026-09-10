@@ -30,10 +30,12 @@ pllm preparation serve "$PLLM_MODEL_SOURCE" \
   --port 8001
 ```
 
-This public-weight-only service exposes no Responses or inference route. It
-receives seeds, expands `r` and `s`, pushes `W·r-s` to inference's fixed endpoint,
-returns only an acknowledgement, and must erase the masks. The client verifies
-that its model, stage, and exact ring commitments match inference.
+This public-weight-only service exposes no Responses or inference route. Before
+chat, it receives one root seed per stage for a batch of rows, expands `r` and
+`s`, pushes `W·r-s` rows to inference's fixed endpoint, waits for durable
+acknowledgement, and must erase the masks. Inference seals the complete inventory
+`READY`. Preparation remains idle during online chat. The client verifies that its
+model, stage, and exact ring commitments match inference.
 
 ## Separate weights from adversary assumptions
 

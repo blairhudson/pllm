@@ -32,6 +32,8 @@ longest expected pause between decode stages.
 
 ## Data and restart behaviour
 
-Keep compiled public matrices on persistent volumes. The client stores no durable
-correlation inventory. A failed stage burns its seed and the complete attempt;
-never replay one channel independently.
+Keep compiled public matrices on persistent volumes. Prepared inventory remains
+in memory and is discarded when client or inference restarts or when inference's
+idle timeout expires. Unreserved rows may serve later chats. A reservation burns
+all of its rows after cancellation, early end of stream, or failure; tickets must
+never be replayed. Refill runs only while the client is idle.

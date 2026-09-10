@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -13,7 +12,7 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from pllm.runtime.client import OpenAI
+from pllm.runtime.client import HEClientCore, OpenAI
 from pllm.runtime.config import GatewayConfig
 from pllm.runtime.correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -21,6 +20,7 @@ from pllm.runtime.correction_channel import (
     CorrectionWebSocketClient,
 )
 from pllm.runtime.correction_rendezvous import CorrectionRendezvous, RendezvousError
+from pllm.runtime.he_runtime import HEModelError
 from pllm.runtime.preparation_protocol import (
     CorrectionPush,
     PreparationAck,
@@ -28,6 +28,7 @@ from pllm.runtime.preparation_protocol import (
     SeededRingProfile,
     SessionAuthorization,
     SessionAuthorizationAck,
+    derive_online_attempt_id,
     expand_output_mask,
     expand_preparation_mask,
     seeded_ring_profile,
@@ -37,8 +38,11 @@ from pllm.runtime.privacy import PrivacyMode
 from pllm.runtime.protocol import ProtocolError
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
 from pllm.runtime.transformer_client import (
+    PreparedInventory,
     PreparedRemoteLinear,
+    PreparedStageRows,
     StageMetadata,
+    TransformerClientError,
     quantize_activation_per_row,
 )
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -173,63 +177,67 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
         role="qkv", layer_index=0, ring="prime", weight_digest="weight-def",
         seeded_profile=profile,
     )
-    corrections: dict[str, np.ndarray] = {}
-    ready = threading.Condition()
     seen: dict[str, bytes] = {}
-    preparation_context = request(
+    prepared = request(
+        rows=2,
         signed_output_bound=profile.signed_output_bound,
         ring=profile.ring,
         modulus=profile.modulus,
         wire_bits=profile.wire_bits,
-    ).context
-
-    def prepare(_stage_id: str, payload: bytes) -> bytes:
-        value = PreparationRequest.unpack(payload, context=preparation_context)
-        r = expand_preparation_mask(value)
-        s = expand_output_mask(value)
-        correction = (ring_dot(r, weight, profile.modulus).astype(np.int64) - s) % profile.modulus
-        packed = CorrectionPush(
-            value.attempt_id, value.session_id, value.model, value.body_fingerprint,
-            value.stage_id, value.weight_digest, value.rows, value.in_features,
-            value.out_features, value.weight_bits, value.activation_bits,
-            value.signed_output_bound, value.ring, value.modulus, value.wire_bits,
-            correction.astype(np.uint32), 11,
-        ).pack()
-        with ready:
-            corrections[value.attempt_id] = correction
-            ready.notify_all()
-        seen["seed"] = value.seed
-        return PreparationAck(value.attempt_id, value.stage_id, len(packed), 11).pack()
+    )
+    input_mask = expand_preparation_mask(prepared)
+    output_mask = expand_output_mask(prepared)
+    correction = (
+        ring_dot(input_mask, weight, profile.modulus).astype(np.int64) - output_mask
+    ) % profile.modulus
 
     def infer(_stage_id: str, requests: list[bytes]) -> list[bytes]:
-        value = MaskedStageRequest.unpack(requests[0])
-        with ready:
-            ready.wait_for(lambda: value.correlation_id in corrections, timeout=2)
-            correction = corrections.pop(value.correlation_id)
-        seen["inference"] = requests[0]
-        output = (ring_dot(value.masked_input, weight, profile.modulus).astype(np.int64) + correction) % profile.modulus
-        return [MaskedStageResponse(
-            correlation_id=value.correlation_id, masked_output=output.astype(np.uint32),
-            modulus=profile.modulus, wire_bits=profile.wire_bits, server_ns=13,
-            stage_id=value.stage_id, ring=profile.ring,
-        ).pack()]
+        responses = []
+        for row_index, payload in enumerate(requests):
+            value = MaskedStageRequest.unpack(payload)
+            seen[f"inference-{row_index}"] = payload
+            output = (
+                ring_dot(value.masked_input, weight, profile.modulus).astype(np.int64)
+                + correction[row_index : row_index + 1]
+            ) % profile.modulus
+            responses.append(
+                MaskedStageResponse(
+                    correlation_id=value.correlation_id,
+                    masked_output=output.astype(np.uint32),
+                    modulus=profile.modulus,
+                    wire_bits=profile.wire_bits,
+                    server_ns=13,
+                    stage_id=value.stage_id,
+                    ring=profile.ring,
+                ).pack()
+            )
+        return responses
 
-    executor = ThreadPoolExecutor(max_workers=2)
+    inventory = PreparedInventory(
+        prepared.session_id,
+        2,
+        {
+            metadata.id: PreparedStageRows(
+                request=prepared,
+                input_mask=input_mask,
+                output_mask=output_mask,
+            )
+        },
+    )
     remote = PreparedRemoteLinear(
-        "model-v1", "body-abc", {metadata.id: metadata}, prepare, infer, executor,
-        session_id="hes-test",
+        "model-v1", "body-abc", {metadata.id: metadata}, inventory.reserve(2), infer,
     )
     clear = np.array([[5, -3, 2], [-8, 4, 7]], dtype=np.float32)
     actual = remote(metadata.id, clear)
-    executor.shutdown()
     quantized = quantize_activation_per_row(clear, bits=8)
     expected = (quantized.values.astype(np.int64) @ weight.astype(np.int64).T) * quantized.scales[:, None] + metadata.bias
     np.testing.assert_array_equal(actual, expected.astype(np.float32))
-    wire = msgpack.unpackb(seen["inference"], raw=False)
+    wire = msgpack.unpackb(seen["inference-0"], raw=False)
     assert len(wire["correlation_id"]) == 32
-    assert "seed" not in wire and "z" not in wire and seen["seed"] not in seen["inference"]
-    assert remote.stats.preparation_download_bytes < 128
-    assert remote.stats.correction_push_bytes > remote.stats.preparation_download_bytes
+    assert "seed" not in wire and "z" not in wire
+    assert prepared.seed not in seen["inference-0"]
+    assert remote.stats.preparation_upload_bytes == 0
+    assert remote.stats.preparation_download_bytes == 0
 
 
 def session_authorization(**overrides: object) -> SessionAuthorization:
@@ -243,6 +251,8 @@ def session_authorization(**overrides: object) -> SessionAuthorization:
         "max_attempts": 10,
     }
     values.update(overrides)
+    values["rows"] = values["max_attempts"]
+    values["stage_ids"] = ("layer.0.qkv",)
     return SessionAuthorization(**values)
 
 
@@ -261,6 +271,202 @@ def correction_and_activation(attempt: str = ATTEMPT):
         np.ones((1, 3), dtype=np.uint32),
     )
     return correction, req
+
+
+def bulk_correction(rows: int = 3, **overrides: object) -> CorrectionPush:
+    profile = seeded_ring_profile(123)
+    values = {
+        "attempt_id": ATTEMPT,
+        "session_id": "hes",
+        "model": "m",
+        "body_fingerprint": "b",
+        "stage_id": "s",
+        "weight_digest": "w",
+        "rows": rows,
+        "in_features": 2,
+        "out_features": 3,
+        "weight_bits": 8,
+        "activation_bits": 8,
+        "signed_output_bound": profile.signed_output_bound,
+        "ring": profile.ring,
+        "modulus": profile.modulus,
+        "wire_bits": profile.wire_bits,
+        "correction": np.arange(rows * 3, dtype=np.uint32).reshape(rows, 3),
+    }
+    values.update(overrides)
+    return CorrectionPush(**values)
+
+
+def row_activation(correction: CorrectionPush, row_index: int) -> MaskedStageRequest:
+    return MaskedStageRequest(
+        model=correction.model,
+        stage_id=correction.stage_id,
+        correlation_id=derive_online_attempt_id(correction, row_index),
+        masked_input=np.ones((1, correction.in_features), dtype=np.uint32),
+        activation_scales=1.0,
+        modulus=correction.modulus,
+        wire_bits=correction.wire_bits,
+        ring=correction.ring,
+        body_fingerprint=correction.body_fingerprint,
+        weight_digest=correction.weight_digest,
+        weight_bits=correction.weight_bits,
+        activation_bits=correction.activation_bits,
+        session_id=correction.session_id,
+        out_features=correction.out_features,
+        signed_output_bound=correction.signed_output_bound,
+    )
+
+
+def test_online_attempt_ids_are_deterministic_unique_and_domain_bound():
+    bulk = bulk_correction()
+    preparation = request(
+        attempt_id=bulk.attempt_id,
+        session_id=bulk.session_id,
+        model=bulk.model,
+        body_fingerprint=bulk.body_fingerprint,
+        stage_id=bulk.stage_id,
+        weight_digest=bulk.weight_digest,
+        rows=bulk.rows,
+        in_features=bulk.in_features,
+        out_features=bulk.out_features,
+        weight_bits=bulk.weight_bits,
+        activation_bits=bulk.activation_bits,
+        signed_output_bound=bulk.signed_output_bound,
+        ring=bulk.ring,
+        modulus=bulk.modulus,
+        wire_bits=bulk.wire_bits,
+    )
+    ids = [derive_online_attempt_id(bulk, row) for row in range(bulk.rows)]
+    assert ids == [derive_online_attempt_id(preparation, row) for row in range(bulk.rows)]
+    assert len(set(ids)) == bulk.rows
+    assert all(len(value) == 32 for value in ids)
+
+    profile = seeded_ring_profile(124)
+    changes = (
+        {"session_id": "other"},
+        {"model": "other"},
+        {"body_fingerprint": "other"},
+        {"attempt_id": "1" * 32},
+        {"stage_id": "other"},
+        {"weight_digest": "other"},
+        {
+            "signed_output_bound": profile.signed_output_bound,
+            "ring": profile.ring,
+            "modulus": profile.modulus,
+            "wire_bits": profile.wire_bits,
+        },
+    )
+    for changed in changes:
+        assert derive_online_attempt_id(bulk_correction(**changed), 0) != ids[0]
+    for invalid in (-1, bulk.rows):
+        with pytest.raises(ProtocolError, match="out of bounds"):
+            derive_online_attempt_id(bulk, invalid)
+
+
+@pytest.mark.parametrize(
+    ("limits", "message"),
+    [
+        ({"capacity": 2, "max_bytes": 100, "max_attempts": 10}, "rendezvous capacity"),
+        ({"capacity": 4, "max_bytes": 100, "max_attempts": 2}, "attempt capacity"),
+        ({"capacity": 4, "max_bytes": 9, "max_attempts": 10}, "byte capacity"),
+    ],
+)
+def test_bulk_preload_capacity_rejection_is_atomic(limits: dict[str, int], message: str):
+    authorization = session_authorization(max_attempts=limits["max_attempts"])
+    rendezvous = CorrectionRendezvous(
+        timeout=1,
+        capacity=limits["capacity"],
+        max_bytes=limits["max_bytes"],
+    )
+    rendezvous.register_session(authorization)
+    rendezvous.authorize_session(authorization, len(authorization.pack()))
+    with pytest.raises(RendezvousError, match=message):
+        rendezvous.preload_bulk(bulk_correction(), 10)
+    assert rendezvous.stats()["entries"] == 0
+    assert rendezvous.stats()["bytes"] == 0
+    assert rendezvous.stats()["attempts"] == 0
+
+
+def test_bulk_preloads_survive_until_activation_then_use_normal_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import pllm.runtime.correction_rendezvous as rendezvous_module
+
+    now = 10.0
+    monkeypatch.setattr(rendezvous_module.time, "monotonic", lambda: now)
+    authorization = session_authorization()
+    rendezvous = CorrectionRendezvous(
+        timeout=1,
+        capacity=4,
+        max_bytes=100,
+        session_idle_timeout=10,
+    )
+    rendezvous.register_session(authorization)
+    rendezvous.authorize_session(authorization, len(authorization.pack()))
+    bulk = bulk_correction(rows=2)
+    rendezvous.preload_bulk(bulk, 10)
+
+    now = 12.0
+    activation = row_activation(bulk, 0)
+    entry = rendezvous.activate(activation)
+    assert rendezvous.stats()["entries"] == 2
+
+    now = 13.1
+    assert rendezvous.stats()["entries"] == 1
+    with pytest.raises(RendezvousError, match="consumed or burned"):
+        rendezvous.activate(activation)
+
+
+def test_bulk_preload_metadata_consumption_replay_and_exact_byte_accounting():
+    async def scenario():
+        authorization = session_authorization()
+        rendezvous = CorrectionRendezvous(timeout=1, capacity=4, max_bytes=100)
+        rendezvous.register_session(authorization)
+        rendezvous.authorize_session(authorization, len(authorization.pack()))
+        bulk = bulk_correction()
+        rendezvous.preload_bulk(bulk, 10)
+        assert rendezvous.stats()["bytes"] == 10
+
+        with pytest.raises(RendezvousError, match="duplicate correction push"):
+            rendezvous.preload_bulk(bulk, 10)
+        assert rendezvous.stats()["entries"] == 3
+        assert rendezvous.stats()["bytes"] == 10
+
+        expected_bytes = (6, 3, 0)
+        for row_index, remaining_bytes in enumerate(expected_bytes):
+            activation = row_activation(bulk, row_index)
+            entry = rendezvous.activate(activation)
+            correction = await rendezvous.correction(activation, entry)
+            assert correction.rows == 1
+            assert correction.metadata() == rendezvous._request_metadata(activation)
+            np.testing.assert_array_equal(
+                correction.correction,
+                bulk.correction[row_index : row_index + 1],
+            )
+            assert rendezvous.stats()["bytes"] == remaining_bytes
+
+        with pytest.raises(RendezvousError, match="consumed or burned"):
+            rendezvous.preload_bulk(bulk, 10)
+        assert rendezvous.stats()["entries"] == 0
+        assert rendezvous.stats()["bytes"] == 0
+
+    asyncio.run(scenario())
+
+
+def test_reserved_inventory_rows_are_burned_before_activation():
+    authorization = session_authorization()
+    rendezvous = CorrectionRendezvous(timeout=1, capacity=4, max_bytes=100)
+    rendezvous.register_session(authorization)
+    rendezvous.authorize_session(authorization, len(authorization.pack()))
+    bulk = bulk_correction()
+    rendezvous.preload_bulk(bulk, 10)
+    reserved = frozenset(derive_online_attempt_id(bulk, row) for row in (1, 2))
+
+    rendezvous.burn_reserved(bulk.session_id, reserved)
+
+    assert rendezvous.stats()["entries"] == 1
+    with pytest.raises(RendezvousError, match="consumed or burned"):
+        rendezvous.activate(row_activation(bulk, 1))
 
 
 def test_rendezvous_supports_both_orders_after_one_session_authorization():
@@ -446,16 +652,40 @@ def test_preparation_session_registry_bounds_owners_attempts_and_idle_lifetime(
         registry.reserve(session_authorization(session_id="second"), "owner")
     with pytest.raises(ProtocolError, match="not authorized"):
         registry.authorization(first.session_id, "other")
-    registry.consume(first.session_id, ATTEMPT, "owner")
+    with pytest.raises(ProtocolError, match="outside the authorized inventory"):
+        registry.consume(first.session_id, "layer.0.qkv", 2, "3" * 32, "owner")
+    registry.consume(first.session_id, "layer.0.qkv", 1, ATTEMPT, "owner")
     with pytest.raises(ProtocolError, match="already consumed"):
-        registry.consume(first.session_id, ATTEMPT, "owner")
-    with pytest.raises(ProtocolError, match="attempt capacity"):
-        registry.consume(first.session_id, "1" * 32, "owner")
+        registry.consume(first.session_id, "layer.0.qkv", 1, ATTEMPT, "owner")
+    with pytest.raises(ProtocolError, match="stage was already consumed"):
+        registry.consume(first.session_id, "layer.0.qkv", 1, "2" * 32, "owner")
+    with pytest.raises(ProtocolError, match="outside the authorized inventory"):
+        registry.consume(first.session_id, "layer.0.o", 1, "1" * 32, "owner")
 
     now = 16.0
     second = session_authorization(session_id="second")
     registry.reserve(second, "owner")
     assert registry.stats()["sessions"] == 1
+
+
+def test_client_activity_gate_prevents_preparation_and_online_overlap():
+    core = HEClientCore(
+        base_url="http://127.0.0.1:18000",
+        api_key="client",
+        preparation_base_url="http://127.0.0.1:18001",
+        preparation_api_key="preparation",
+    )
+    try:
+        core._begin_preparation()
+        with pytest.raises(HEModelError, match="refill is in progress"):
+            core._begin_online()
+        core._end_preparation()
+        core._begin_online()
+        with pytest.raises(HEModelError, match="cannot run while inference is online"):
+            core._begin_preparation()
+        core._end_online()
+    finally:
+        core.close()
 
 
 def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
@@ -546,7 +776,9 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
         stage_commitment="stages",
         weight_bits=value.weight_bits,
         activation_bits=value.activation_bits,
-        max_attempts=100,
+        max_attempts=value.rows,
+        rows=value.rows,
+        stage_ids=(value.stage_id,),
     )
     authorization_payload = authorization.pack()
     with TestClient(app) as client:
@@ -555,37 +787,37 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
             "v", "a", "h", "r", "z"
         }
         unauthorized = client.post(
-            f"/v1/preparation/stages/{value.stage_id}",
+            f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={"Authorization": "Bearer preparation"},
             content=compact_payload,
         )
         assert unauthorized.status_code == 400
         authorized = client.post(
-            f"/v1/preparation/sessions/{value.session_id}/authorize",
+            f"/v1/preparation/inventories/{value.session_id}/authorize",
             headers={"Authorization": "Bearer preparation"},
             content=authorization_payload,
         )
         assert authorized.status_code == 200, authorized.text
         replayed_authorization = client.post(
-            f"/v1/preparation/sessions/{value.session_id}/authorize",
+            f"/v1/preparation/inventories/{value.session_id}/authorize",
             headers={"Authorization": "Bearer preparation"},
             content=authorization_payload,
         )
         assert replayed_authorization.status_code == 400
         wrong_owner = client.post(
-            f"/v1/preparation/stages/{value.stage_id}",
+            f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={"Authorization": "Bearer other-preparation"},
             content=compact_payload,
         )
         assert wrong_owner.status_code == 400
         response = client.post(
-            f"/v1/preparation/stages/{value.stage_id}",
+            f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={"Authorization": "Bearer preparation"},
             content=compact_payload,
         )
         assert response.status_code == 200, response.text
         replayed_attempt = client.post(
-            f"/v1/preparation/stages/{value.stage_id}",
+            f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={"Authorization": "Bearer preparation"},
             content=compact_payload,
         )
@@ -595,7 +827,7 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
             "/metrics", headers={"Authorization": "Bearer preparation"}
         ).status_code == 200
         oversized = client.post(
-            f"/v1/preparation/stages/{value.stage_id}",
+            f"/v1/preparation/inventories/{value.session_id}/stages/{value.stage_id}",
             headers={
                 "Authorization": "Bearer preparation",
                 "Content-Length": "16385",
@@ -604,7 +836,7 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
         )
         assert oversized.status_code == 413
         oversized_authorization = client.post(
-            f"/v1/preparation/sessions/{value.session_id}/authorize",
+            f"/v1/preparation/inventories/{value.session_id}/authorize",
             headers={
                 "Authorization": "Bearer preparation",
                 "Content-Length": "16385",
@@ -624,38 +856,22 @@ def test_preparation_service_authorizes_once_then_computes_and_pushes_once():
     assert events == ["authorization", "compute", "correction"]
 
 
-def test_client_failure_cancels_and_drains_sibling_provider_future():
-    profile = seeded_ring_profile(123)
-    metadata = StageMetadata(
-        id="s", op="linear", in_features=2, out_features=3,
-        weight_bits=8, activation_bits=8, modulus=profile.modulus,
-        wire_bits=profile.wire_bits, ring=profile.ring,
-        weight_scales=np.ones(3, dtype=np.float32), weight_digest="w",
-        seeded_profile=profile,
+def test_inventory_reservation_burns_unused_rows():
+    value = request(rows=4)
+    stage_rows = PreparedStageRows(
+        value,
+        np.zeros((4, value.in_features), dtype=np.uint32),
+        np.zeros((4, value.out_features), dtype=np.uint32),
     )
-    started = threading.Barrier(2)
-    inference_finished = threading.Event()
-
-    def prepare(_stage_id, _payload):
-        started.wait(timeout=1)
-        raise RuntimeError("preparation failed")
-
-    def infer(_stage_id, _payloads):
-        started.wait(timeout=1)
-        try:
-            threading.Event().wait(0.02)
-            raise RuntimeError("inference failed")
-        finally:
-            inference_finished.set()
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        remote = PreparedRemoteLinear(
-            "m", "b", {"s": metadata}, prepare, infer, executor, session_id="hes"
-        )
-        with pytest.raises(RuntimeError, match="failed"):
-            remote("s", np.ones((1, 2), dtype=np.float32))
-        assert inference_finished.is_set()
-        assert remote.stats.failures == 1
+    inventory = PreparedInventory(value.session_id, 4, {value.stage_id: stage_rows})
+    abandoned = inventory.reserve(3)
+    abandoned.take(value.stage_id, 1)
+    assert inventory.available == 1
+    final = inventory.reserve(1)
+    _, _, ids = final.take(value.stage_id, 1)
+    assert ids == [derive_online_attempt_id(value, 3)]
+    with pytest.raises(TransformerClientError, match="exhausted"):
+        final.take(value.stage_id, 1)
 
 
 def test_remote_services_require_https_and_three_distinct_credentials():
@@ -690,13 +906,13 @@ def test_correction_endpoint_accepts_only_push_credential():
     )
     with TestClient(app) as client:
         rejected = client.post(
-            f"/v1/he/sessions/hes/corrections/{ATTEMPT}",
+            f"/v1/he/inventories/hes/corrections/{ATTEMPT}",
             headers={"Authorization": "Bearer client-key"},
             content=b"invalid",
         )
         assert rejected.status_code == 401
         authenticated = client.post(
-            f"/v1/he/sessions/hes/corrections/{ATTEMPT}",
+            f"/v1/he/inventories/hes/corrections/{ATTEMPT}",
             headers={"Authorization": "Bearer push-key"},
             content=b"invalid",
         )

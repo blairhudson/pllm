@@ -107,13 +107,20 @@ def record_protocol_operation(stage: str) -> None:
         _protocol_operations.add(1, {"stage": stage})
 
 
-def start_protocol_span(stage: str, preparation_bytes: int, inference_bytes: int) -> Any:
+def start_protocol_span(
+    stage: str,
+    preparation_bytes: int,
+    inference_bytes: int,
+    *,
+    phase: str = "online",
+) -> Any:
     from opentelemetry import trace
 
     return trace.get_tracer("pllm.protocol").start_span(
         "pllm.prepared_linear",
         attributes={
             "pllm.stage": stage,
+            "pllm.phase": phase,
             "pllm.client_preparation.bytes": preparation_bytes,
             "pllm.client_inference.bytes": inference_bytes,
         },

@@ -36,5 +36,7 @@ the bounded channel header and keep idle timeout above expected decode pauses.
 The local plaintext gateway remains inside the customer's trust
 boundary.
 
-The public path stores no reusable preparation inventory. A client creates and
-burns a fresh seed for every stage attempt.
+The public path keeps reusable prepared inventory only in memory. Restart or idle
+expiry discards it. The client refills only while idle and may use unreserved rows
+across chats; cancellation, early end of stream, and failure burn every unused row
+in the affected reservation.

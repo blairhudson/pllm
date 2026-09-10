@@ -51,11 +51,14 @@ from .protocol import (
 )
 from .privacy import PrivacyMode
 from .preparation_protocol import (
+    PREPARATION_MAX_IDENTIFIER_BYTES,
     CorrectionPush,
     PreparationAck,
+    PreparationRequest,
     SeededRingProfile,
     SessionAuthorization,
     SessionAuthorizationAck,
+    derive_online_attempt_id,
     validate_attempt_id,
 )
 from .stage_protocol import (
@@ -84,6 +87,18 @@ class HESession:
     online_steps: int = 0
     correlation_steps: int = 0
     execution: str = "he"
+    inventory_id: str | None = None
+    inventory_rows: int = 0
+    inventory_stages: frozenset[str] = frozenset()
+    prepared_stages: set[str] = field(default_factory=set)
+    inventory_roots: dict[str, PreparationRequest] = field(default_factory=dict)
+    inventory_next_row: int = 0
+    inventory_ready: bool = False
+    reserved_attempts: frozenset[tuple[str, str]] = frozenset()
+    reservation_start: int = 0
+    reservation_rows: int = 0
+    inventory_reserved_entries: int = 0
+    inventory_reserved_bytes: int = 0
     last_active: float = field(default_factory=time.monotonic)
 
     @property
@@ -187,6 +202,7 @@ def create_app(
         for model_id, model in strict_models.items()
     }
     sessions: dict[str, HESession] = {}
+    inventory_lock = threading.Lock()
     responses = RetainedResponses(config.response_retention_seconds)
     imported: dict[str, ImportedModelManifest] = {}
     model_engine_routes: dict[str, str] = {}
@@ -272,10 +288,17 @@ def create_app(
         if audit_hook is not None:
             audit_hook(kind, payload)
 
+    def burn_prepared_reservation(session: HESession) -> None:
+        if session.inventory_id and session.reserved_attempts:
+            rendezvous.burn_reserved(
+                session.inventory_id,
+                frozenset(attempt_id for _, attempt_id in session.reserved_attempts),
+            )
+
     def cleanup_prepared_sessions(*, reclaim_terminal: bool = False) -> None:
         cutoff = time.monotonic() - config.prepared_session_idle_seconds
         for session_id, session in list(sessions.items()):
-            if session.execution != "seeded-preparation" or not (
+            if session.execution not in {"seeded-preparation", "seeded-inventory"} or not (
                 session.last_active <= cutoff
                 or reclaim_terminal
                 and (session.canceled or session.completed)
@@ -285,7 +308,10 @@ def create_app(
                 session.canceled = True
             if sessions.get(session_id) is session:
                 sessions.pop(session_id)
-            rendezvous.terminal(session_id)
+            if session.execution == "seeded-inventory":
+                rendezvous.terminal(session_id)
+            else:
+                burn_prepared_reservation(session)
 
     def auth_token(value: str | None) -> str:
         token = bearer_token(value)
@@ -696,36 +722,52 @@ def create_app(
                     status_code=503,
                     detail={"error": {"message": "Prepared session capacity exceeded"}},
                 )
-            assert imported_manifest is not None
-            max_attempts = max(1, len(imported_manifest.stages)) * (
-                max(1, imported_manifest.context_length) + 1
-            )
-            if max_attempts > config.rendezvous_max_attempts_per_session:
-                raise HTTPException(
-                    status_code=503,
-                    detail={"error": {"message": "Model context exceeds rendezvous capacity"}},
+            inventory_id = str(body.get("inventory_id") or "")
+            with inventory_lock:
+                inventory = sessions.get(inventory_id)
+                if (
+                    inventory is None
+                    or inventory.execution != "seeded-inventory"
+                    or inventory.api_key != api_key
+                    or inventory.model_id != model_id
+                    or not inventory.inventory_ready
+                    or inventory.canceled
+                    or inventory.completed
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"error": {"message": "Prepared inventory is not ready"}},
+                    )
+                try:
+                    reservation_start = int(body.get("inventory_start", -1))
+                    reservation_rows = int(body.get("inventory_rows", 0))
+                except (TypeError, ValueError) as exc:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={"error": {"message": "Invalid inventory reservation"}},
+                    ) from exc
+                if (
+                    reservation_start != inventory.inventory_next_row
+                    or reservation_rows <= 0
+                    or reservation_start + reservation_rows > inventory.inventory_rows
+                    or set(inventory.inventory_roots) != set(inventory.inventory_stages)
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"error": {"message": "Inventory reservation is unavailable"}},
+                    )
+                reserved_attempts = frozenset(
+                    (stage_id, derive_online_attempt_id(root, row))
+                    for stage_id, root in inventory.inventory_roots.items()
+                    for row in range(reservation_start, reservation_start + reservation_rows)
                 )
-            assert engine_name is not None
-            session_authorization = getattr(
-                engines[engine_name], "seeded_session_authorization", None
-            )
-            if session_authorization is None:
-                raise HTTPException(
-                    status_code=503,
-                    detail={
-                        "error": {
-                            "message": "Transformer engine cannot authorize prepared sessions"
-                        }
-                    },
-                )
-            expected_authorization = session_authorization(model_id, session.id, max_attempts)
-            try:
-                rendezvous.register_session(expected_authorization)
-            except RendezvousError as exc:
-                raise HTTPException(
-                    status_code=503,
-                    detail={"error": {"message": str(exc)}},
-                ) from exc
+                inventory.inventory_next_row += reservation_rows
+                inventory.last_active = time.monotonic()
+            session.inventory_id = inventory_id
+            session.reservation_start = reservation_start
+            session.reservation_rows = reservation_rows
+            session.reserved_attempts = reserved_attempts
+            expected_authorization = None
         else:
             expected_authorization = None
         sessions[session_id] = session
@@ -778,6 +820,112 @@ def create_app(
             }
         return result
 
+    @app.post("/v1/he/inventories")
+    async def create_prepared_inventory(
+        request: Request, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        api_key = auth_token(authorization)
+        body = await request.json()
+        cleanup_prepared_sessions(reclaim_terminal=True)
+        audit("inventory", json.dumps(body, separators=(",", ":")).encode())
+        model_id = str(body.get("model", ""))
+        manifest = imported.get(model_id)
+        engine_name = model_engine_routes.get(model_id)
+        if manifest is None or engine_name is None or not config.provider_push_api_key:
+            raise HTTPException(
+                status_code=503,
+                detail={"error": {"message": "Prepared inventory runtime is unavailable"}},
+            )
+        try:
+            rows = int(body.get("rows", 0))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail={"error": {"message": "Invalid rows"}}) from exc
+        if rows <= 0 or rows > manifest.context_length:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"message": "Inventory rows exceed model context"}},
+            )
+        engine = engines[engine_name]
+        stage_ids = engine.seeded_stage_ids(model_id)
+        if not stage_ids:
+            raise HTTPException(status_code=400, detail={"error": {"message": "No prepared stages"}})
+        max_attempts = rows * len(stage_ids)
+        stage_map = {stage.id: stage for stage in manifest.stages}
+        reserved_bytes = sum(
+            rows
+            * stage_map[stage_id].out_features
+            * (engine.seeded_profile(model_id, stage_id).wire_bits // 8)
+                + 8 * PREPARATION_MAX_IDENTIFIER_BYTES
+                + 4_096
+            for stage_id in stage_ids
+        )
+        with inventory_lock:
+            active_inventories = [
+                item
+                for item in sessions.values()
+                if item.execution == "seeded-inventory"
+                and not item.canceled
+                and not item.completed
+            ]
+            if (
+                max_attempts > config.rendezvous_max_attempts_per_session
+                or sum(item.inventory_reserved_entries for item in active_inventories)
+                + max_attempts
+                > config.rendezvous_capacity
+                or sum(item.inventory_reserved_bytes for item in active_inventories)
+                + reserved_bytes
+                > config.rendezvous_max_bytes
+                or len(active_inventories) >= config.prepared_session_capacity
+            ):
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "error": {
+                            "message": "Prepared inventory capacity exhausted"
+                        }
+                    },
+                )
+        session_id = new_id("hei")
+        session = HESession(session_id, "", model_id, api_key)
+        session.execution = "seeded-inventory"
+        session.inventory_rows = rows
+        session.inventory_stages = frozenset(stage_ids)
+        session.inventory_reserved_entries = max_attempts
+        session.inventory_reserved_bytes = reserved_bytes
+        session_authorization = getattr(
+            engines[engine_name], "seeded_session_authorization", None
+        )
+        if session_authorization is None:
+            raise HTTPException(
+                status_code=503,
+                detail={"error": {"message": "Transformer engine cannot authorize inventory"}},
+            )
+        expected = session_authorization(model_id, session_id, max_attempts)
+        try:
+            rendezvous.register_session(expected)
+        except RendezvousError as exc:
+            raise HTTPException(
+                status_code=503, detail={"error": {"message": str(exc)}}
+            ) from exc
+        sessions[session_id] = session
+        return {
+            "id": session_id,
+            "object": "he.inventory",
+            "model": model_id,
+            "status": "preparing",
+            "rows": rows,
+            "stage_count": len(stage_ids),
+            "preparation_authorization": {
+                "body_fingerprint": expected.body_fingerprint,
+                "stage_commitment": expected.stage_commitment,
+                "weight_bits": expected.weight_bits,
+                "activation_bits": expected.activation_bits,
+                "max_attempts": expected.max_attempts,
+                "rows": expected.rows,
+                "stage_ids": list(expected.stage_ids),
+            },
+        }
+
     def get_session(session_id: str, api_key: str) -> HESession:
         cleanup_prepared_sessions()
         session = sessions.get(session_id)
@@ -809,11 +957,25 @@ def create_app(
             raise ProtocolError("session is already terminal")
         if session.execution != "seeded-preparation":
             raise ProtocolError("session does not accept prepared corrections")
+        inventory = sessions.get(session.inventory_id or "")
+        if (
+            inventory is None
+            or inventory.execution != "seeded-inventory"
+            or not inventory.inventory_ready
+            or inventory.canceled
+            or inventory.completed
+            or inventory.api_key != session.api_key
+            or inventory.model_id != session.model_id
+        ):
+            raise ProtocolError("prepared inventory is not active")
+        inventory.last_active = time.monotonic()
         validate_attempt_id(request.correlation_id)
         if (
-            request.session_id != session.id
+            request.session_id != inventory.id
             or request.model != session.model_id
             or request.stage_id != stage_id
+            or stage_id not in inventory.inventory_stages
+            or (request.stage_id, request.correlation_id) not in session.reserved_attempts
         ):
             raise ProtocolError("prepared activation session/model/stage mismatch")
         validate_activation = getattr(engine, "validate_seeded_activation", None)
@@ -922,8 +1084,8 @@ def create_app(
         manifest = imported.get(session.model_id)
         if engine is None or manifest is None:
             raise ProtocolError("correction session has no transformer engine")
-        if session.canceled or session.completed or session.execution != "seeded-preparation":
-            raise ProtocolError("correction session is not active")
+        if session.canceled or session.completed or session.execution != "seeded-inventory":
+            raise ProtocolError("correction inventory is not active")
         session.last_active = time.monotonic()
         return session, engine, manifest.context_length
 
@@ -949,11 +1111,37 @@ def create_app(
             raise ProtocolError("correction route mismatch")
         if correction.model != session.model_id:
             raise ProtocolError("correction model mismatch")
+        if correction.rows != session.inventory_rows:
+            raise ProtocolError("correction inventory row count mismatch")
+        if correction.stage_id not in session.inventory_stages:
+            raise ProtocolError("correction inventory stage mismatch")
         validate_correction = getattr(engine, "validate_seeded_correction", None)
         if validate_correction is None:
             raise ProtocolError("transformer engine cannot validate corrections")
         validate_correction(correction)
-        rendezvous.push(correction, len(raw))
+        with inventory_lock:
+            if correction.stage_id in session.prepared_stages:
+                raise ProtocolError("correction inventory stage was already prepared")
+            rendezvous.preload_bulk(correction, len(raw))
+            session.prepared_stages.add(correction.stage_id)
+            session.inventory_roots[correction.stage_id] = PreparationRequest(
+                attempt_id=correction.attempt_id,
+                session_id=correction.session_id,
+                model=correction.model,
+                body_fingerprint=correction.body_fingerprint,
+                stage_id=correction.stage_id,
+                weight_digest=correction.weight_digest,
+                rows=correction.rows,
+                in_features=correction.in_features,
+                out_features=correction.out_features,
+                weight_bits=correction.weight_bits,
+                activation_bits=correction.activation_bits,
+                signed_output_bound=correction.signed_output_bound,
+                ring=correction.ring,
+                modulus=correction.modulus,
+                wire_bits=correction.wire_bits,
+                seed=b"\0" * 32,
+            )
         return PreparationAck(
             correction.attempt_id,
             correction.stage_id,
@@ -961,7 +1149,7 @@ def create_app(
             correction.server_ns,
         ).pack()
 
-    @app.post("/v1/he/sessions/{session_id}/authorize")
+    @app.post("/v1/he/inventories/{session_id}/authorize")
     async def authorize_prepared_session(
         session_id: str,
         request: Request,
@@ -989,7 +1177,7 @@ def create_app(
             media_type=BINARY_MEDIA_TYPE,
         )
 
-    @app.post("/v1/he/sessions/{session_id}/corrections/{attempt_id}")
+    @app.post("/v1/he/inventories/{session_id}/corrections/{attempt_id}")
     async def push_prepared_correction(
         session_id: str,
         attempt_id: str,
@@ -1006,6 +1194,75 @@ def create_app(
                 detail={"error": {"message": str(exc), "code": "correction_rejected"}},
             ) from exc
         return FastAPIResponse(ack, media_type=BINARY_MEDIA_TYPE)
+
+    @app.post("/v1/he/inventories/{session_id}/ready")
+    async def seal_prepared_inventory(
+        session_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        api_key = auth_token(authorization)
+        session = get_session(session_id, api_key)
+        with inventory_lock:
+            if session.execution != "seeded-inventory" or session.canceled or session.completed:
+                raise HTTPException(
+                    status_code=409, detail={"error": {"message": "Inventory is not active"}}
+                )
+            if session.prepared_stages != set(session.inventory_stages):
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": {"message": "Inventory preparation is incomplete"}},
+                )
+            session.inventory_ready = True
+            session.last_active = time.monotonic()
+        return {
+            "id": session.id,
+            "object": "he.inventory",
+            "status": "ready",
+            "rows": session.inventory_rows,
+            "stage_count": len(session.inventory_stages),
+        }
+
+    @app.get("/v1/he/inventories/{session_id}")
+    async def get_prepared_inventory(
+        session_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        api_key = auth_token(authorization)
+        cleanup_prepared_sessions(reclaim_terminal=True)
+        session = sessions.get(session_id)
+        if (
+            session is None
+            or session.execution != "seeded-inventory"
+            or session.api_key != api_key
+            or session.canceled
+            or session.completed
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"message": "Unknown prepared inventory"}},
+            )
+        session.last_active = time.monotonic()
+        return {
+            "id": session_id,
+            "status": "ready" if session.inventory_ready else "preparing",
+            "rows": session.inventory_rows,
+            "next_row": session.inventory_next_row,
+            "stage_count": len(session.prepared_stages),
+        }
+
+    @app.post("/v1/he/inventories/{session_id}/cancel")
+    async def cancel_prepared_inventory(
+        session_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        api_key = auth_token(authorization)
+        session = get_session(session_id, api_key)
+        if session.execution != "seeded-inventory":
+            raise HTTPException(
+                status_code=409, detail={"error": {"message": "Session is not an inventory"}}
+            )
+        session.canceled = True
+        rendezvous.terminal(session.id)
+        return {"id": session.id, "object": "he.inventory", "status": "cancelled"}
 
     @app.websocket("/v1/he/corrections/ws")
     async def push_prepared_correction_websocket(websocket: WebSocket) -> None:
@@ -1563,6 +1820,18 @@ def create_app(
         except ProtocolError as exc:
             await websocket.close(code=4400, reason=str(exc))
 
+    @app.post("/v1/he/sessions/{session_id}/cancel")
+    async def cancel_he_session(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        api_key = auth_token(authorization)
+        session = get_session(session_id, api_key)
+        session.canceled = True
+        session.last_active = time.monotonic()
+        burn_prepared_reservation(session)
+        return {"id": session_id, "status": "cancelled"}
+
     @app.post("/v1/he/sessions/{session_id}/complete")
     async def complete_session(
         session_id: str,
@@ -1574,7 +1843,7 @@ def create_app(
         body = await request.json()
         audit("complete", json.dumps(body, separators=(",", ":")).encode())
         session.completed = True
-        rendezvous.terminal(session.id)
+        burn_prepared_reservation(session)
         # Operational record only: plaintext output remains in the client cache.
         value = {
             "id": session.response_id,
@@ -1670,7 +1939,7 @@ def create_app(
         for session in sessions.values():
             if session.response_id == response_id and session.api_key == api_key:
                 session.canceled = True
-                rendezvous.terminal(session.id)
+                burn_prepared_reservation(session)
         try:
             return responses.cancel(response_id, api_key)
         except KeyError:

@@ -52,6 +52,11 @@ def run_chat(
                 bundle_cache_dir=settings.bundle_cache_dir,
                 timeout=settings.timeout) as client:
         selected = _choose_model(client, settings.model)
+        with console.status("Preparing offline inventory..."):
+            client.preprocess(
+                selected,
+                count=max(settings.prepared_inventory_rows, max_output_tokens + 64),
+            )
         console.print(f"[bold]PLLM chat[/bold]  model={selected}  server={settings.base_url}")
         console.print("Commands: /clear /models /audit /config /help /quit")
         while True:
@@ -73,6 +78,14 @@ def run_chat(
                                          "config_file": str(config_path())}); continue
             if prompt == "/help":
                 console.print("/clear starts a new conversation. /audit shows the local privacy counters. /quit exits."); continue
+            required_rows = client.prepared_rows_for_response(
+                prompt,
+                max_output_tokens,
+                model=selected,
+            )
+            if client.prepared_inventory_status(selected)["available"] < required_rows:
+                with console.status("Refilling offline inventory..."):
+                    client.preprocess(selected, count=required_rows)
             request: dict[str, Any] = {
                 "model": selected,
                 "input": prompt,

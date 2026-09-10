@@ -264,6 +264,8 @@ def sidecar_main(argv: list[str] | None = None) -> None:
     parser.add_argument("--preparation-api-key")
     parser.add_argument("--transport", choices=["http", "websocket"], default="websocket")
     parser.add_argument("--correlation-prefetch", type=int, default=4)
+    parser.add_argument("--prepared-inventory-rows", type=int, default=64)
+    parser.add_argument("--default-model")
     parser.add_argument("--token-cache-size", type=int, default=512)
     parser.add_argument(
         "--bundle-cache-mode",
@@ -282,6 +284,8 @@ def sidecar_main(argv: list[str] | None = None) -> None:
         preparation_api_key=args.preparation_api_key,
         he_transport=args.transport,
         correlation_prefetch=args.correlation_prefetch,
+        prepared_inventory_rows=args.prepared_inventory_rows,
+        default_model=args.default_model,
         token_cache_size=args.token_cache_size,
         bundle_cache_mode=args.bundle_cache_mode,
         bundle_cache_dir=args.bundle_cache_dir,

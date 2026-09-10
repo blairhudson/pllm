@@ -1034,6 +1034,14 @@ class MaskedTransformerEngine:
     def seeded_profile(self, model_id: str, stage_id: str) -> SeededRingProfile:
         return self._runtime(model_id, stage_id).seeded_profile
 
+    def seeded_stage_ids(self, model_id: str) -> tuple[str, ...]:
+        model = self._model(model_id)
+        return tuple(
+            stage_id
+            for stage_id in model.stages
+            if stage_id not in {"token_lookup", "lm_head"}
+        )
+
     def validate_seeded_correction(self, correction: CorrectionPush) -> None:
         model = self._model(correction.model)
         runtime = self._runtime(correction.model, correction.stage_id)
@@ -1092,6 +1100,8 @@ class MaskedTransformerEngine:
             weight_bits=next(iter(weight_bits)),
             activation_bits=next(iter(activation_bits)),
             max_attempts=max_attempts,
+            rows=max_attempts // len(self.seeded_stage_ids(model_id)),
+            stage_ids=self.seeded_stage_ids(model_id),
         )
 
     def validate_seeded_session_authorization(

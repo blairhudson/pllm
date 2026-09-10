@@ -9,6 +9,7 @@ description: "Keep HE details out of application code."
 from pllm import OpenAI
 
 with OpenAI() as client:
+    client.preprocess(count=256)
     response = client.responses.create(
         input="Explain the preparation phase.",
         max_output_tokens=128,
@@ -16,7 +17,7 @@ with OpenAI() as client:
     print(response.output_text)
 ```
 
-`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. For public weights, the SDK creates each mask locally from a fresh seed and reconstructs linear results locally.
+`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. For public weights, call `preprocess()` before the first chat; inference fails closed rather than doing preparation on the online path. The SDK reserves one-time rows for each execution and refills a spare inventory only while idle. Keep one client open to reuse unreserved rows across chats.
 
 ## Stream text
 
@@ -24,6 +25,7 @@ with OpenAI() as client:
 from pllm import OpenAI
 
 with OpenAI() as client:
+    client.preprocess(count=256)
     with client.responses.create(
         input="Describe the client and provider boundary.",
         max_output_tokens=128,
@@ -43,6 +45,7 @@ The direct SDK returns PLLM response types. The [local gateway](/docs/client/ope
 from pllm import OpenAI
 
 with OpenAI() as client:
+    client.preprocess(count=256)
     first = client.responses.create(input="What does a mask hide?")
     second = client.responses.create(
         input="And what happens when it is reused?",
@@ -68,6 +71,7 @@ with OpenAI(
     bundle_cache_mode="read-write",
     timeout=600,
 ) as client:
+    client.preprocess(count=256)
     print(client.responses.create(input="Hello").output_text)
 ```
 
@@ -87,6 +91,7 @@ from pllm import AsyncOpenAI
 
 async def main() -> None:
     async with AsyncOpenAI() as client:
+        await client.preprocess(count=256)
         response = await client.responses.create(input="Hello")
         print(response.output_text)
 

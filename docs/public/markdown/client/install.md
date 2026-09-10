@@ -7,7 +7,8 @@ Use UV to install the CLI and Python client from this repository.
 
 Use Python 3.11, 3.12 or 3.13 and UV. A source installation also needs Rust;
 a matching prebuilt wheel does not. The HE option installs TenSEAL. The client
-owns the tokenizer, private model state, fresh mask seeds and reconstruction, so
+owns the tokenizer, private model state, in-memory mask inventory and
+reconstruction, so
 it must run inside the customer's trusted environment.
 
 ## From the repository

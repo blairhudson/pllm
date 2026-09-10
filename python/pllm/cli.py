@@ -339,6 +339,7 @@ def _configure(args: argparse.Namespace) -> None:
         transport=args.transport,
         correlation_mode=args.correlation_mode,
         correlation_prefetch=args.correlation_prefetch,
+        prepared_inventory_rows=args.prepared_inventory_rows,
         token_cache_size=args.token_cache_size,
         bundle_cache_mode=args.bundle_cache_mode,
         bundle_cache_dir=args.bundle_cache_dir,
@@ -372,6 +373,7 @@ def _run_sidecar(args: argparse.Namespace) -> None:
         transport=args.transport,
         correlation_mode=args.correlation_mode,
         correlation_prefetch=args.correlation_prefetch,
+        prepared_inventory_rows=args.prepared_inventory_rows,
         token_cache_size=args.token_cache_size,
         bundle_cache_mode=args.bundle_cache_mode,
         bundle_cache_dir=args.bundle_cache_dir,
@@ -404,6 +406,9 @@ def _run_sidecar(args: argparse.Namespace) -> None:
         translated.extend(["--preparation-base-url", settings.preparation_base_url])
     if settings.preparation_api_key:
         translated.extend(["--preparation-api-key", settings.preparation_api_key])
+    if settings.model:
+        translated.extend(["--default-model", settings.model])
+    translated.extend(["--prepared-inventory-rows", str(settings.prepared_inventory_rows)])
     if args.tenseal_path:
         translated.extend(["--tenseal-path", args.tenseal_path])
     sidecar_main(translated)
@@ -537,7 +542,7 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--api-key")
     serve.add_argument("--provider-push-api-key", default=os.getenv("PLLM_PROVIDER_PUSH_API_KEY"))
     serve.add_argument("--rendezvous-timeout", type=float, default=30.0)
-    serve.add_argument("--rendezvous-capacity", type=int, default=4096)
+    serve.add_argument("--rendezvous-capacity", type=int, default=32768)
     serve.add_argument("--rendezvous-max-bytes", type=int, default=268_435_456)
     serve.add_argument("--prepared-session-capacity", type=int, default=4096)
     serve.add_argument("--prepared-session-idle", type=float, default=300.0)
@@ -630,6 +635,7 @@ def _build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--transport", choices=("auto", "websocket", "http"))
     configure.add_argument("--correlation-mode", choices=("bfv", "local-test"))
     configure.add_argument("--correlation-prefetch", type=int)
+    configure.add_argument("--prepared-inventory-rows", type=int)
     configure.add_argument("--token-cache-size", type=int)
     configure.add_argument(
         "--bundle-cache-mode", choices=("read-write", "read-only", "refresh", "off")
@@ -652,6 +658,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sidecar.add_argument("--transport", choices=("auto", "websocket", "http"))
     sidecar.add_argument("--correlation-mode", choices=("bfv", "local-test"))
     sidecar.add_argument("--correlation-prefetch", type=int)
+    sidecar.add_argument("--prepared-inventory-rows", type=int)
     sidecar.add_argument("--token-cache-size", type=int)
     sidecar.add_argument(
         "--bundle-cache-mode", choices=("read-write", "read-only", "refresh", "off")

@@ -5,7 +5,7 @@ A familiar API. A different privacy boundary.
 
 PLLM divides public-weight execution among a client you control, a trusted preparation service, and an untrusted inference provider. The client keeps conversation text, activation scales, and decoded output. Both services evaluate large matrix operations on separate masked shares.
 
-The fast protocol uses fresh seeded `u16`, `u24`, or `u32` masks and ordinary integer arithmetic. Preparation receives the seed and pushes `W·r-s` to inference's fixed authenticated endpoint. Inference receives `x-r`, returns `W·x-s`, and never receives the seed. The client receives only a small preparation acknowledgement, adds its locally expanded `s`, and center-decodes. Preparation must not retain masks or collude with inference.
+The fast protocol uses seeded `u16`, `u24`, or `u32` mask inventory and ordinary integer arithmetic. Before chat, the client sends batched stage root seeds to preparation. Preparation pushes `W·r-s` rows to inference's fixed authenticated endpoint and waits for durable acknowledgement; inference seals the complete inventory `READY`. During chat, the client sends inference only a one-time ticket and `x-r`. Inference atomically consumes the row, returns `W·x-s`, and never receives the seed. The client adds its locally expanded `s` and center-decodes. Preparation must not retain masks or collude with inference.
 
 ## Choose your path
 
@@ -23,6 +23,6 @@ Inference listens on port **8000** and preparation commonly uses **8001**. The l
 
 ## Current scope
 
-The bundled reference runtime uses just-in-time seeded preparation for public weights. It keeps no durable mask inventory and performs no public-path BFV work. Historical coefficient preparation experiments remain under `research/` and are not the application default.
+The bundled reference runtime prepares an in-memory seeded inventory before public-weight chat. It defaults to 64 rows per stage, configurable with `PLLM_PREPARED_INVENTORY_ROWS`, and reuses unreserved rows across chats. Preparation stays idle during online execution; refill happens only while the client is idle. Inventory is discarded on restart or idle expiry, and reservations burn unused rows after cancellation, early end of stream, or failure. The public path performs no BFV work. Historical coefficient preparation experiments remain under `research/` and are not the application default.
 
 Public weights are the documented deployment path. Guarded confidential weights do not protect the model against a modified client. Read [security boundaries](/docs/security) before moving a workload across machines.

@@ -27,6 +27,11 @@ def _sync_stream(http: Any, iterator: Iterator[bytes]) -> Any:
         def __iter__(self) -> Iterator[bytes]:
             return iterator
 
+        def close(self) -> None:
+            close = getattr(iterator, "close", None)
+            if close is not None:
+                close()
+
     return Stream()
 
 
@@ -34,6 +39,15 @@ def _async_stream(http: Any, iterator: AsyncIterator[bytes]) -> Any:
     class Stream(http.AsyncByteStream):
         def __aiter__(self) -> AsyncIterator[bytes]:
             return iterator
+
+        async def aclose(self) -> None:
+            close = getattr(iterator, "aclose", None)
+            if close is not None:
+                await close()
+                return
+            sync_close = getattr(iterator, "close", None)
+            if sync_close is not None:
+                sync_close()
 
     return Stream()
 
@@ -57,6 +71,7 @@ class HETransport(_httpx.BaseTransport):
         he_transport: str = "http",
         correlation_mode: str = "bfv",
         correlation_prefetch: int = 4,
+        prepared_inventory_rows: int = 64,
         token_cache_size: int = 512,
         bundle_cache_mode: str = "read-write",
         bundle_cache_dir: str | None = None,
@@ -70,12 +85,18 @@ class HETransport(_httpx.BaseTransport):
             he_transport=he_transport,
             correlation_mode=correlation_mode,
             correlation_prefetch=correlation_prefetch,
+            prepared_inventory_rows=prepared_inventory_rows,
             token_cache_size=token_cache_size,
             bundle_cache_mode=bundle_cache_mode,
             bundle_cache_dir=bundle_cache_dir,
             tenseal_path=tenseal_path,
         )
         self.forward = _httpx.Client(base_url=gateway_url, timeout=300.0)
+
+    def preprocess(self, model: str, *, count: int | None = None) -> dict[str, Any]:
+        """Build a READY public inventory before sending Responses requests."""
+        target = count if count is not None else self.core.prepared_inventory_rows
+        return self.core.preprocess(model, count=target)
 
     def handle_request(self, request: Any) -> Any:
         response_httpx = _request_httpx(request)
@@ -176,6 +197,21 @@ class HEAsyncTransport(_httpx.AsyncBaseTransport):
 
     async def aclose(self) -> None:
         await asyncio.to_thread(self.sync.close)
+
+    async def preprocess(
+        self,
+        model: str,
+        *,
+        count: int | None = None,
+        stages: list[str] | None = None,
+    ) -> dict[str, Any]:
+        target = count if count is not None else self.sync.core.prepared_inventory_rows
+        return await asyncio.to_thread(
+            self.sync.core.preprocess,
+            model,
+            count=target,
+            stages=stages,
+        )
 
 
 def _next_or(iterator: Iterator[Any], sentinel: Any) -> Any:

@@ -16,7 +16,9 @@ pllm sidecar \
   --transport http
 ```
 
-This process accepts your plaintext Responses request, runs the client portion of inference, and sends private stage messages to the configured provider. Keep it in the customer's trusted environment. HTTP above is loopback; use TLS for a provider on another host.
+The gateway prepares its default public model before it becomes healthy. It accepts your plaintext Responses request, runs the client portion of inference, and sends private stage messages to the configured provider. Keep it in the customer's trusted environment. HTTP above is loopback; use TLS for a provider on another host.
+
+If a later request needs more rows than remain READY, refill outside the inference request with authenticated `POST /v1/preprocess` and JSON fields `model` and `count`. The response path never falls back to online preparation.
 
 ## Call the standard SDK
 

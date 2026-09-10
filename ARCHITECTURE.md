@@ -53,40 +53,41 @@ The present snapshot consumes one extra signed byte per weight while the source
 matrix is retained for metadata and preparation-service loading. Benchmarks must
 count that storage and buffer conversion work.
 
-Moving arithmetic to Rust does not remove two network round trips per linear
-stage, preparation responses, or client attention state. No speed claim follows
-merely from the choice of implementation language.
+Moving arithmetic to Rust does not remove dependent client-to-inference stage
+exchanges, offline preparation work, or client attention state. No speed claim
+follows merely from the choice of implementation language.
 
 The legacy packed-BFV correlation backend remains available to research and
 confidential-weight protocol code but is not selected by public inference.
 Direct-FHE and blinded execution retain their separate transport.
 
-Public-weight deployments use just-in-time seeded preparation. Inference first
-registers a random session with immutable model, body, stage, quantization, and
-attempt-budget commitments. Before stage execution, the client sends one compact
-session authorization to preparation. Preparation validates it against its loaded
-model and relays it to inference with the provider-only push credential. Inference
-accepts that exact session once and starts no runner computation before acceptance.
-For each linear stage, the client then creates a fresh 128-bit attempt ID and
-256-bit seed. A domain-separated expansion binds session, model, body, stage, weight, shape,
-quantization, ring, modulus, and wire width and produces input mask `r` and
-output mask `s`. The client sends the seed to preparation and `x-r` to inference
-concurrently. Preparation computes and pushes `W·r-s` exactly once to a fixed
-inference endpoint over one persistent one-way binary WebSocket and returns only a
-small client acknowledgement after the send. Each bounded correction frame carries
-its session and random attempt ID; inference reports a rejection through the matching
-activation request.
-The WebSocket URL is derived from the validated inference HTTP(S) origin, and only
-the provider push credential authenticates its upgrade. A failed or ambiguous send
-is never replayed; the next independent attempt may establish a new connection.
-For an authorized session, inference starts its runner on activation while awaiting the correction,
-then atomically burns both halves and returns `W·x-s`; the client adds `s` and
-center-decodes.
+Public-weight deployments use offline seeded inventory preparation. Before chat,
+the client asks inference to create an inventory with immutable model, body, stage,
+quantization, and attempt-budget commitments. It authorizes that inventory through
+trusted preparation, then sends preparation one root seed and a batch size for each
+remote stage. Batches default to 64 rows and are configurable with
+`PLLM_PREPARED_INVENTORY_ROWS`. Domain-separated expansion binds each row to the
+inventory, model, body, stage, weight, shape, quantization, ring, modulus, and wire
+width and produces one-time input mask `r`, output mask `s`, and ticket.
+Preparation computes each batch of `W·r-s`, pushes it to inference's fixed endpoint,
+and waits for inference's durable acknowledgement. After every stage is loaded, the
+client asks inference to seal the inventory; only then does inference report `READY`.
+The push WebSocket URL is derived from the validated inference HTTP(S) origin, and
+only the provider push credential authenticates its upgrade.
+
+At chat start, the client reserves inventory rows for the execution. Each online
+stage message contains only the one-time ticket and `x-r`. Inference atomically
+consumes the matching preloaded row and returns `W·x-s`; the client adds `s` and
+center-decodes. Online chat is therefore client-to-inference only. Preparation is
+idle online, and refill occurs only while the client is idle between executions.
+Inventory is in memory and may be reused across chats, but restart or idle expiry
+discards it. Reservation is a burn boundary: cancellation, early end of stream, or
+failure also burns every unused row reserved for that execution.
 Stages use the smallest exact `u16`, `u24`, or `u32` ring selected from the exact
 signed output bound. The preparation role is public-weight-only, holds the same
 model body, and must follow the protocol, erase masks, and not collude with the
 inference provider. Self-hosting keeps that trust inside the client boundary.
-The online public path does not use BFV or durable correlation inventory.
+The online public path does not use BFV or contact preparation.
 
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The customer evaluates token lookup locally and applies the output
@@ -104,12 +105,12 @@ its existing orientation.
 
 ## Application boundary
 
-The customer client owns plaintext input, fresh seeds, private activation
-scales, model state, output decoding and public token-boundary matrices. The
-trusted preparation service and untrusted inference provider both hold the
-public transformer body. Preparation receives seeds; inference receives masked
-integer tensors and the direct preparation correction, never the seed. The
-client never receives the correction. Client-to-inference,
+The customer client owns plaintext input, inventory root seeds and masks, private
+activation scales, model state, output decoding and public token-boundary matrices.
+The trusted preparation service and untrusted inference provider both hold the
+public transformer body. Preparation receives batched stage root seeds before
+chat; inference receives the resulting corrections and later the masked integer
+tensors, never the seeds. The client never receives the correction. Client-to-inference,
 client-to-preparation, and preparation-to-inference credentials are distinct.
 The local Responses gateway is inside the customer boundary.
 An ordinary provider endpoint cannot be made private by changing its URL in an

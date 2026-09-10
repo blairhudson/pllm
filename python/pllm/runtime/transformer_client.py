@@ -4,7 +4,6 @@ import math
 import secrets
 import threading
 from collections import OrderedDict, defaultdict, deque
-from concurrent.futures import FIRST_EXCEPTION, wait
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol, cast
 
@@ -16,6 +15,7 @@ from .preparation_protocol import (
     PreparationAck,
     PreparationRequest,
     SeededRingProfile,
+    derive_online_attempt_id,
     expand_output_mask,
     expand_preparation_mask,
 )
@@ -34,6 +34,112 @@ from .tokenizer import AlphabetTokenizer, Tokenizer
 
 class TransformerClientError(RuntimeError):
     pass
+
+
+@dataclass(slots=True)
+class PreparedStageRows:
+    request: PreparationRequest
+    input_mask: np.ndarray
+    output_mask: np.ndarray
+
+
+@dataclass(slots=True)
+class PreparedInventoryLease:
+    inventory_id: str
+    stages: dict[str, PreparedStageRows]
+    start: int
+    rows: int
+    _owner: "PreparedInventory" = field(repr=False)
+    _offsets: dict[str, int] = field(default_factory=dict)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _closed: bool = False
+
+    @property
+    def reservation_start(self) -> int:
+        return self.start
+
+    @property
+    def reservation_rows(self) -> int:
+        return self.rows
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            consumed = min(
+                (self._offsets.get(stage_id, 0) for stage_id in self.stages),
+                default=0,
+            )
+        self._owner._finish(self.rows, consumed)
+
+    def take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
+        stage = self.stages.get(stage_id)
+        if stage is None or count <= 0:
+            raise TransformerClientError("prepared inventory stage request is invalid")
+        with self._lock:
+            offset = self._offsets.get(stage_id, 0)
+            if offset + count > self.rows:
+                raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
+            begin = self.start + offset
+            end = begin + count
+            self._offsets[stage_id] = offset + count
+        attempts = [
+            derive_online_attempt_id(stage.request, row)
+            for row in range(begin, end)
+        ]
+        return stage.input_mask[begin:end], stage.output_mask[begin:end], attempts
+
+
+@dataclass(slots=True)
+class PreparedInventory:
+    id: str
+    capacity: int
+    stages: dict[str, PreparedStageRows]
+    _reserved: int = 0
+    _active: int = 0
+    _burned: int = 0
+    _consumed: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    @property
+    def available(self) -> int:
+        with self._lock:
+            return self.capacity - self._reserved
+
+    @property
+    def claimed(self) -> int:
+        with self._lock:
+            return self._reserved
+
+    def reserve(self, rows: int) -> PreparedInventoryLease:
+        if rows <= 0:
+            raise TransformerClientError("prepared inventory reservation must be positive")
+        with self._lock:
+            if self._reserved + rows > self.capacity:
+                raise TransformerClientError("prepared inventory does not have enough rows")
+            start = self._reserved
+            self._reserved += rows
+            self._active += rows
+        return PreparedInventoryLease(self.id, self.stages, start, rows, self)
+
+    def _finish(self, rows: int, consumed: int) -> None:
+        with self._lock:
+            self._active -= rows
+            self._consumed += consumed
+            self._burned += rows - consumed
+
+    def status(self) -> dict[str, int | str]:
+        with self._lock:
+            return {
+                "id": self.id,
+                "status": "ready",
+                "capacity": self.capacity,
+                "available": self.capacity - self._reserved,
+                "reserved": self._active,
+                "burned": self._burned,
+                "consumed": self._consumed,
+            }
 
 
 @dataclass(frozen=True, slots=True)
@@ -693,35 +799,31 @@ class PreparedRemoteLinear:
         model_id,
         body_fingerprint,
         stages,
-        preparation,
+        inventory,
         inference,
-        executor,
-        session_id="",
     ) -> None:
         self.model_id = model_id
         self.body_fingerprint = body_fingerprint
         self.stages = stages
-        self.preparation = preparation
         self.inference = inference
-        self.executor = executor
-        self.session_id = session_id
+        self.inventory = inventory
         self.stats = StageClientStats()
 
     @staticmethod
-    def _result(payloads: list[bytes], request_id: str, stage: StageMetadata):
-        if len(payloads) != 1:
+    def _result(payloads: list[bytes], request_ids: list[str], stage: StageMetadata):
+        if len(payloads) != len(request_ids):
             raise TransformerClientError("inference provider returned the wrong result count")
-        result = MaskedStageResponse.unpack(payloads[0])
-        if (
+        results = [MaskedStageResponse.unpack(payload) for payload in payloads]
+        if stage.seeded_profile is None or any(
             result.correlation_id != request_id
             or result.stage_id != stage.id
-            or stage.seeded_profile is None
             or result.ring != stage.seeded_profile.ring
             or result.modulus != stage.seeded_profile.modulus
             or result.wire_bits != stage.seeded_profile.wire_bits
+            for result, request_id in zip(results, request_ids, strict=True)
         ):
             raise TransformerClientError("service returned a mismatched seeded ring result")
-        return result
+        return results
 
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages.get(stage_id)
@@ -736,103 +838,56 @@ class PreparedRemoteLinear:
         profile = stage.seeded_profile
         if profile is None:
             raise TransformerClientError("stage lacks a seeded ring profile")
-        clear = quantized.values.astype(np.int64, copy=False) % profile.modulus
-        attempt_id = secrets.token_hex(16)
-        preparation_request = PreparationRequest(
-            attempt_id=attempt_id,
-            session_id=self.session_id,
-            model=self.model_id,
-            body_fingerprint=self.body_fingerprint,
-            stage_id=stage_id,
-            weight_digest=stage.weight_digest,
-            rows=quantized.rows,
-            in_features=stage.in_features,
-            out_features=stage.out_features,
-            weight_bits=stage.weight_bits,
-            activation_bits=stage.activation_bits,
-            signed_output_bound=profile.signed_output_bound,
-            ring=profile.ring,
-            modulus=profile.modulus,
-            wire_bits=profile.wire_bits,
-            seed=secrets.token_bytes(32),
-        )
-        mask = expand_preparation_mask(preparation_request)
-        output_mask = expand_output_mask(preparation_request)
+        clear = quantized.values.reshape(quantized.rows, stage.in_features).astype(
+            np.int64, copy=False
+        ) % profile.modulus
+        mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         complement = (clear - mask.astype(np.int64)) % profile.modulus
-        hidden_scales = np.ones(quantized.rows, dtype=np.float32)
-        inference_request = MaskedStageRequest(
-            model=self.model_id,
-            stage_id=stage_id,
-            correlation_id=attempt_id,
-            masked_input=complement.astype(np.uint32),
-            activation_scales=hidden_scales,
-            modulus=profile.modulus,
-            wire_bits=profile.wire_bits,
-            ring=profile.ring,
-            body_fingerprint=self.body_fingerprint,
-            weight_digest=stage.weight_digest,
-            weight_bits=stage.weight_bits,
-            activation_bits=stage.activation_bits,
-            session_id=self.session_id,
-            out_features=stage.out_features,
-            signed_output_bound=profile.signed_output_bound,
-        ).pack()
-        preparation_payload = preparation_request.pack()
-        self.stats.attempts += 1
-        self.stats.preparation_upload_bytes += len(preparation_payload)
-        self.stats.inference_upload_bytes += len(inference_request)
-        self.stats.upload_bytes += len(preparation_payload) + len(inference_request)
+        inference_requests = [
+            MaskedStageRequest(
+                model=self.model_id,
+                stage_id=stage_id,
+                correlation_id=attempt_id,
+                masked_input=complement[row : row + 1].astype(np.uint32),
+                activation_scales=np.ones(1, dtype=np.float32),
+                modulus=profile.modulus,
+                wire_bits=profile.wire_bits,
+                ring=profile.ring,
+                body_fingerprint=self.body_fingerprint,
+                weight_digest=stage.weight_digest,
+                weight_bits=stage.weight_bits,
+                activation_bits=stage.activation_bits,
+                session_id=self.inventory.inventory_id,
+                out_features=stage.out_features,
+                signed_output_bound=profile.signed_output_bound,
+            ).pack()
+            for row, attempt_id in enumerate(attempt_ids)
+        ]
+        inference_upload_bytes = sum(map(len, inference_requests))
+        self.stats.inference_upload_bytes += inference_upload_bytes
+        self.stats.upload_bytes += inference_upload_bytes
         record_protocol_operation(stage_id)
-        record_protocol_bytes("client", "preparation", len(preparation_payload), stage_id)
-        record_protocol_bytes("client", "inference", len(inference_request), stage_id)
-        protocol_span = start_protocol_span(
-            stage_id, len(preparation_payload), len(inference_request)
-        )
-        prepared = self.executor.submit(self.preparation, stage_id, preparation_payload)
-        inferred = self.executor.submit(self.inference, stage_id, [inference_request])
-        futures = (prepared, inferred)
+        record_protocol_bytes("client", "inference", inference_upload_bytes, stage_id)
+        protocol_span = start_protocol_span(stage_id, 0, inference_upload_bytes)
         try:
-            done, _ = wait(futures, return_when=FIRST_EXCEPTION)
-            failed = next((future for future in done if future.exception() is not None), None)
-            if failed is not None:
-                failed.result()
-            prepared_payload = prepared.result()
-            ack = PreparationAck.unpack(prepared_payload)
-            if ack.attempt_id != attempt_id or ack.stage_id != stage.id:
-                raise TransformerClientError("preparation acknowledgement mismatch")
-            self.stats.preparation_download_bytes += len(prepared_payload)
-            self.stats.download_bytes += len(prepared_payload)
-            self.stats.correction_push_bytes += ack.correction_bytes
-            record_protocol_bytes("preparation", "client", len(prepared_payload), stage_id)
-            record_protocol_bytes("preparation", "inference", ack.correction_bytes, stage_id)
-            self.stats.correction_push_ns += ack.push_ns
-            self.stats.preparation_server_ns += ack.server_ns
-            inference_payloads = inferred.result()
+            inference_payloads = self.inference(stage_id, inference_requests)
             self.stats.inference_download_bytes += sum(map(len, inference_payloads))
             self.stats.download_bytes += sum(map(len, inference_payloads))
             record_protocol_bytes(
                 "inference", "client", sum(map(len, inference_payloads)), stage_id
             )
-            inference_result = self._result(inference_payloads, attempt_id, stage)
+            inference_results = self._result(inference_payloads, attempt_ids, stage)
         except Exception as exc:
             protocol_span.record_exception(exc)
             protocol_span.end()
-            for future in futures:
-                future.cancel()
-            wait(futures)
-            for future in futures:
-                if not future.cancelled():
-                    future.exception()
-            self.stats.failures += 1
             raise
-        protocol_span.set_attribute("pllm.preparation_client.bytes", len(prepared_payload))
-        protocol_span.set_attribute("pllm.preparation_inference.bytes", ack.correction_bytes)
         protocol_span.set_attribute(
             "pllm.inference_client.bytes", sum(map(len, inference_payloads))
         )
         protocol_span.end()
+        masked_output = np.concatenate([result.masked_output for result in inference_results], axis=0)
         combined = (
-            inference_result.masked_output.astype(np.int64) + output_mask.astype(np.int64)
+            masked_output.astype(np.int64) + output_mask.astype(np.int64)
         ) % profile.modulus
         if profile.ring == "u16":
             accumulators = combined.astype(np.uint16).view(np.int16).astype(np.int64)
@@ -850,8 +905,9 @@ class PreparedRemoteLinear:
             output = output + stage.bias
         self.stats.calls += 1
         self.stats.rows += quantized.rows
-        self.stats.inference_server_ns += inference_result.server_ns
-        self.stats.server_ns += ack.server_ns + inference_result.server_ns
+        inference_server_ns = sum(result.server_ns for result in inference_results)
+        self.stats.inference_server_ns += inference_server_ns
+        self.stats.server_ns += inference_server_ns
         return np.ascontiguousarray(output, dtype=np.float32)
 
 

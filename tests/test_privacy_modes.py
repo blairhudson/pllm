@@ -226,6 +226,11 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
                 tenseal_path=PYDEPS,
                 timeout=120,
             ) as client:
+                if mode == "public":
+                    rows = client.prepared_rows_for_response(
+                        canary, 1, model=model_id
+                    )
+                    client.preprocess(model_id, count=rows)
                 response = client.responses.create(
                     model=model_id,
                     input=canary,

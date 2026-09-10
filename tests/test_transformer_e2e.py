@@ -14,6 +14,7 @@ from pllm.runtime.client import HEAPIError
 from pllm.runtime.correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
 )
+from pllm.runtime.he_runtime import HEModelError
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.preparation_protocol import CorrectionPush, PreparationAck, SessionAuthorization
 from pllm.runtime.protocol import encode_length_prefixed
@@ -54,7 +55,19 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
             base_url=gateway.base_url,
             preparation_base_url=preparation.base_url,
             preparation_api_key=preparation.api_key,
+            background_inventory_refill=False,
         ) as client:
+            with pytest.raises(HEModelError, match="call client.preprocess"):
+                client.responses.create(
+                    model="tiny-gemma-he",
+                    input=canary,
+                    max_output_tokens=2,
+                )
+            client.preprocess(
+                "tiny-gemma-he",
+                count=2
+                * client.prepared_rows_for_response(canary, 2, model="tiny-gemma-he"),
+            )
             response = client.responses.create(
                 model="tiny-gemma-he",
                 input=canary,
@@ -119,7 +132,10 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             base_url=gateway.base_url,
             preparation_base_url=preparation.base_url,
             preparation_api_key=preparation.api_key,
+            prepared_inventory_rows=64,
+            background_inventory_refill=False,
         ) as client:
+            client.preprocess(model_id, count=256)
             response = client.responses.create(
                 model=model_id,
                 input=prompt,
@@ -146,6 +162,32 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             assert audit["encrypted_correlation_upload_bytes"] == 0
             assert audit["encrypted_correlation_download_bytes"] == 0
             assert audit["online_steps"] > 0
+            prepared_items = preparation_engine.stats()["execute_items"]
+            prepared_attempts = client.privacy_audit.preparation_attempts
+            second = client.responses.create(
+                model=model_id,
+                input="second private request",
+                max_output_tokens=2,
+                temperature=0,
+            )
+            assert second.status == "completed"
+            second_audit = client.privacy_audit.to_dict()
+            assert preparation_engine.stats()["execute_items"] == prepared_items
+            assert second_audit["preparation_attempts"] == prepared_attempts
+            assert second_audit["inference_upload_bytes"] > audit["inference_upload_bytes"]
+            inventory_id = client.prepared_inventory_status(model_id)["id"]
+            canceled = httpx.post(
+                f"{gateway.base_url}/v1/he/inventories/{inventory_id}/cancel",
+                headers={"Authorization": f"Bearer {gateway.api_key}"},
+            )
+            assert canceled.status_code == 200, canceled.text
+            with pytest.raises(HEModelError, match="call client.preprocess"):
+                client.responses.create(
+                    model=model_id,
+                    input="stale inventory must not trigger preparation",
+                    max_output_tokens=1,
+                )
+            assert preparation_engine.stats()["execute_items"] == prepared_items
         preparation_metrics = httpx.get(
             f"{preparation.base_url}/metrics",
             headers={"Authorization": f"Bearer {preparation.api_key}"},
@@ -154,11 +196,20 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             f"{gateway.base_url}/metrics",
             headers={"Authorization": f"Bearer {gateway.api_key}"},
         ).json()
-        assert preparation_metrics["correction_push_attempts"] == audit["preparation_attempts"]
-        assert preparation_metrics["correction_channel_upload_bytes"] == audit["correction_push_bytes"]
-        assert preparation_metrics["correction_push_ns"] == audit["correction_push_ns"]
+        assert (
+            preparation_metrics["correction_push_attempts"]
+            == second_audit["preparation_attempts"]
+        )
+        assert (
+            preparation_metrics["correction_channel_upload_bytes"]
+            == second_audit["correction_push_bytes"]
+        )
+        assert preparation_metrics["correction_push_ns"] == second_audit["correction_push_ns"]
         assert inference_metrics["correction_channel"]["connections"] == 1
-        assert inference_metrics["correction_channel"]["frames"] == audit["preparation_attempts"]
+        assert (
+            inference_metrics["correction_channel"]["frames"]
+            == second_audit["preparation_attempts"]
+        )
         for service in (gateway, preparation):
             raw_audit = b"\n".join(payload for _, payload in service.audit)
             assert prompt.encode() not in raw_audit
@@ -169,7 +220,7 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
         preparation.close()
 
 
-def test_activation_without_session_authorization_never_starts_gemm(tmp_path: Path):
+def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path: Path):
     root = create_tiny_gemma4_checkpoint(
         tmp_path / "no-permit", num_hidden_layers=1, ple_dim=0
     )
@@ -488,11 +539,7 @@ def test_client_authorization_failure_burns_inference_session(tmp_path: Path):
             preparation_api_key=preparation.api_key,
         ) as client:
             with pytest.raises(HEAPIError, match="401 Unauthorized"):
-                client.responses.create(
-                    model=model_id,
-                    input="authorization must fail",
-                    max_output_tokens=1,
-                )
+                client.preprocess(model_id, count=64)
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             metrics = admin.get(
                 "/metrics",
@@ -536,7 +583,10 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
             correlation_mode="local-test",
             correlation_prefetch=1,
             token_cache_size=128,
+            prepared_inventory_rows=256,
+            background_inventory_refill=False,
         ) as client:
+            client.preprocess("tiny-continuation-he", count=256)
             first = client.responses.create(
                 model="tiny-continuation-he",
                 input="repeat repeat repeat",

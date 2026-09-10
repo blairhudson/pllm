@@ -18,7 +18,7 @@
         <p class="eyebrow">SEE THE PRIVACY BOUNDARY</p>
         <h1>One prompt.<br><em>No server sees it.</em></h1>
       </div>
-      <p class="lede">A real private inference run, instrumented end-to-end with OpenTelemetry. The client keeps plaintext. Preparation sees seeds. Inference sees masked activations.</p>
+      <p class="lede">A real private inference run, instrumented end-to-end with OpenTelemetry. Preparation builds one-time corrections before chat; online traffic stays between Client and Inference.</p>
     </section>
 
     <section class="topology" id="topology">
@@ -34,7 +34,7 @@
 
       <div class="edge edge-a">
         <span class="flow forward"></span><span class="flow return"></span>
-        <b id="client-prep-bytes">0 B</b><small>SEED CHANNEL</small>
+        <b id="client-prep-bytes">0 B</b><small>OFFLINE SEED BATCH</small>
       </div>
 
       <article class="service preparation" data-service="pllm-preparation">
@@ -42,14 +42,14 @@
         <h2>Preparation</h2><p>Self-hosted or SaaS</p>
         <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
         <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>CORRECTIONS</span></div></div>
-        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM</div>
+        <div class="live-now"><span>ONLINE Δ</span><b id="prep-online-cpu">0 GEMMs</b> · <b data-metric="memory">0 MB</b> RAM</div>
         <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
-        <ul><li>Expands random masks</li><li>Computes W·r−s</li><li>Never receives activations</li></ul>
+        <ul><li>Runs before chat</li><li>Computes W·r−s inventory</li><li>Idle during online inference</li></ul>
       </article>
 
       <div class="edge edge-b">
         <span class="flow forward"></span>
-        <b id="relay-bytes">0 B</b><small>MASKED CORRECTIONS</small>
+        <b id="relay-bytes">0 B</b><small>OFFLINE INVENTORY</small>
       </div>
 
       <article class="service inference" data-service="pllm-inference">
@@ -61,7 +61,7 @@
         <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
         <ul><li>Masked matrix execution</li><li>Transformer body weights</li><li>Never receives prompt or seed</li></ul>
       </article>
-      <div class="edge edge-c"><span class="flow return"></span><b id="inference-bytes">0 B</b><small>MASKED I/O</small></div>
+      <div class="edge edge-c"><span class="flow return"></span><b id="inference-bytes">0 B</b><small>ONLINE MASKED I/O</small></div>
     </section>
 
     <section class="workspace">
@@ -69,7 +69,8 @@
         <div class="panel-head"><span>LIVE CHAT</span><span id="run-clock">00:00.0</span></div>
         <label for="prompt">PROMPT STAYS HERE</label>
         <textarea id="prompt" rows="3">Explain why neither server can see the prompt.</textarea>
-        <div class="controls"><label>MAX TOKENS <input id="max-tokens" type="number" min="1" max="256" value="24"></label><button id="run">RUN PRIVATE CHAT <span>→</span></button></div>
+        <div class="controls"><label>MAX TOKENS <input id="max-tokens" type="number" min="1" max="512" value="24"></label><button id="run">RUN PRIVATE CHAT <span>→</span></button></div>
+        <div class="inventory-grid"><span>INVENTORY</span><b id="inventory-capacity">0</b><small>CAPACITY</small><b id="inventory-available">0</b><small>AVAILABLE</small><b id="inventory-reserved">0</b><small>RESERVED</small><b id="inventory-consumed">0</b><small>CONSUMED</small><b id="inventory-burned">0</b><small>BURNED</small></div>
         <div class="answer"><span class="speaker" id="model-label">MODEL /</span><p id="answer">Waiting for a live run.</p><i class="cursor"></i></div>
         <p class="error" id="error"></p>
       </article>
@@ -81,12 +82,12 @@
           <div class="lifelines"><i></i><i></i><i></i></div>
           <div id="sequence-events" class="sequence-events"><p class="sequence-empty">Run a chat to capture protocol operations.</p></div>
         </div>
-        <div class="sequence-legend"><span><i class="seed"></i>SEED</span><span><i class="masked"></i>MASKED DATA</span><span>SIZE ON ARROW · TIME PER OP</span></div>
+        <div class="sequence-legend"><span><i class="masked"></i>ONLINE MASKED DATA</span><span>PREPARATION ALREADY COMPLETE</span><span>SIZE ON ARROW · TIME PER OP</span></div>
         <div class="invariant"><b>NON-COLLUSION BOUNDARY</b><span>Neither server has enough information alone. If they collude, activation privacy is lost.</span></div>
       </article>
     </section>
 
-    <section class="trace-strip"><span>NETWORK / ACTUAL OPERATIONS</span><div>Client sends seed and masked input concurrently · preparation relays correction · inference returns masked result</div></section>
+    <section class="trace-strip"><span>NETWORK / ACTUAL OPERATIONS</span><div>Offline: Client → Preparation → Inference seals READY inventory · Online: Client sends ticket + x−r · Inference consumes once and returns Wx−s</div></section>
   </main>
   <footer><span>REAL CLI PROCESSES</span><span>OTLP / 500 MS</span><span>PUBLIC-WEIGHT PROTOCOL</span></footer>
   <script src="/assets/app.js"></script>

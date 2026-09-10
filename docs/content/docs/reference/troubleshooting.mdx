@@ -27,20 +27,23 @@ Check interpreter and operating system wheel support. Use the `he` extra and ver
 
 ## Generation stalls
 
-Check both service health, per-channel bytes, matrix time and network time. The
-public path has no inventory to exhaust: preparation is performed concurrently
-for every stage. Compare preparation's `correction_push_attempts`,
-`correction_channel_upload_bytes`, and `correction_push_ns` with inference's
-`correction_channel` frames, bytes, failures, and processing time. A connection
-count near frame count indicates that a proxy or idle timeout is defeating
-persistence. Confirm `/v1/he/corrections/ws` supports binary WebSocket upgrades
-and preserves the provider-push `Authorization` header.
+Check whether the prepared inventory reached `READY` and has enough unreserved
+rows. Restart and inference idle expiry discard it; refill runs only between
+executions. If preparation stalls, compare preparation's
+`correction_push_attempts`, `correction_channel_upload_bytes`, and
+`correction_push_ns` with inference's correction-channel frames, durable
+acknowledgements, bytes, failures, and processing time. A connection count near
+frame count indicates that a proxy or idle timeout is defeating persistence.
+Confirm `/v1/he/corrections/ws` supports binary WebSocket upgrades and preserves
+the provider-push `Authorization` header. Once inventory is `READY`, online stalls
+are on the client-to-inference path; preparation should be idle.
 
 ## A stream fails halfway through
 
-Stop that execution and discard the attempt. Do not replay either channel
-manually. A new response generates fresh seeds and repeats preparation and
-prefill.
+Stop that execution and discard its reservation. Cancellation, early end of
+stream, and failure burn all unused reserved rows. Do not replay a ticket. A later
+response may use remaining unreserved rows; if too few remain, the idle client
+creates and seals a new inventory before starting it.
 
 ## A checkpoint loads but does not match its original outputs
 

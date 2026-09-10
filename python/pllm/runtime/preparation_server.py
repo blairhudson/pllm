@@ -33,6 +33,7 @@ from .preparation_protocol import (
 from .privacy import PrivacyMode
 from .protocol import BINARY_MEDIA_TYPE, ProtocolError
 from .security import bearer_token
+from .telemetry import record_protocol_bytes
 from .transformer_engine import MaskedTransformerEngine, TransformerEngineError
 
 
@@ -61,6 +62,7 @@ class _AuthorizedSession:
     authorization: SessionAuthorization
     owner: str
     attempts: set[bytes]
+    stages: set[str]
     last_active: float
     active: bool = False
 
@@ -92,7 +94,7 @@ class PreparationSessionRegistry:
             if len(self._sessions) >= self.capacity:
                 raise ProtocolError("preparation session capacity exceeded")
             self._sessions[authorization.session_id] = _AuthorizedSession(
-                authorization, owner, set(), now
+                authorization, owner, set(), set(), now
             )
 
     def activate(self, session_id: str, owner: str) -> None:
@@ -103,10 +105,10 @@ class PreparationSessionRegistry:
             session.active = True
             session.last_active = time.monotonic()
 
-    def release(self, session_id: str, owner: str) -> None:
+    def release(self, session_id: str, owner: str, *, force: bool = False) -> None:
         with self._lock:
             session = self._sessions.get(session_id)
-            if session is not None and session.owner == owner and not session.active:
+            if session is not None and session.owner == owner and (force or not session.active):
                 self._sessions.pop(session_id)
 
     def authorization(self, session_id: str, owner: str) -> SessionAuthorization:
@@ -117,7 +119,14 @@ class PreparationSessionRegistry:
                 raise ProtocolError("preparation session is not authorized")
             return session.authorization
 
-    def consume(self, session_id: str, attempt_id: str, owner: str) -> None:
+    def consume(
+        self,
+        session_id: str,
+        stage_id: str,
+        rows: int,
+        attempt_id: str,
+        owner: str,
+    ) -> None:
         validate_attempt_id(attempt_id)
         attempt = bytes.fromhex(attempt_id)
         with self._lock:
@@ -126,11 +135,16 @@ class PreparationSessionRegistry:
             session = self._sessions.get(session_id)
             if session is None or session.owner != owner or not session.active:
                 raise ProtocolError("preparation session is not authorized")
+            if stage_id not in session.authorization.stage_ids or rows != session.authorization.rows:
+                raise ProtocolError("preparation request is outside the authorized inventory")
             if attempt in session.attempts:
                 raise ProtocolError("preparation attempt was already consumed")
+            if stage_id in session.stages:
+                raise ProtocolError("preparation stage was already consumed")
             if len(session.attempts) >= session.authorization.max_attempts:
                 raise ProtocolError("preparation session attempt capacity exceeded")
             session.attempts.add(attempt)
+            session.stages.add(stage_id)
             session.last_active = now
 
     def stats(self) -> dict[str, int]:
@@ -312,7 +326,7 @@ def create_preparation_app(
                     "object": "model",
                     "owned_by": "pllm-preparation",
                     "preparation": {
-                        "protocol": "seeded-correction/v2",
+                        "protocol": "seeded-inventory/v1",
                         "architecture": manifest.architecture,
                         "stage_count": len(manifest.stages),
                         "body_fingerprint": manifest.metadata.get("body_fingerprint"),
@@ -324,8 +338,8 @@ def create_preparation_app(
             )
         return {"object": "list", "data": rows}
 
-    @app.post("/v1/preparation/sessions/{session_id}/authorize")
-    async def authorize_session(
+    @app.post("/v1/preparation/inventories/{session_id}/authorize")
+    async def authorize_inventory(
         session_id: str,
         request: Request,
         authorization: str | None = Header(default=None),
@@ -344,7 +358,7 @@ def create_preparation_app(
             session_registry.reserve(value, owner)
             reserved = True
             pushed = await push_http.post(
-                f"/v1/he/sessions/{session_id}/authorize",
+                f"/v1/he/inventories/{session_id}/authorize",
                 headers={
                     "Authorization": f"Bearer {config.preparation_push_api_key}",
                     "Content-Type": BINARY_MEDIA_TYPE,
@@ -388,8 +402,18 @@ def create_preparation_app(
             )
         return FastAPIResponse(result, media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/preparation/stages/{stage_id}")
-    async def prepare_stage(
+    @app.post("/v1/preparation/inventories/{session_id}/cancel")
+    async def cancel_inventory(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        owner = authenticate(authorization)
+        session_registry.release(session_id, owner, force=True)
+        return {"id": session_id, "status": "canceled"}
+
+    @app.post("/v1/preparation/inventories/{session_id}/stages/{stage_id}")
+    async def prepare_inventory_stage(
+        session_id: str,
         stage_id: str,
         request: Request,
         authorization: str | None = Header(default=None),
@@ -405,7 +429,8 @@ def create_preparation_app(
                 raise ProtocolError("invalid preparation request schema")
             if int(envelope["v"]) != PREPARATION_PROTOCOL_VERSION:
                 raise ProtocolError("unsupported preparation protocol")
-            session_id = str(envelope.get("h", ""))
+            if str(envelope.get("h", "")) != session_id:
+                raise ProtocolError("inventory route mismatch")
             session = session_registry.authorization(session_id, owner)
             request_stage_id = stage_id
             model = engine.models[session.model]
@@ -438,7 +463,13 @@ def create_preparation_app(
             if validate_preparation is None:
                 raise ProtocolError("preparation engine cannot validate requests")
             validate_preparation(value)
-            session_registry.consume(value.session_id, value.attempt_id, owner)
+            session_registry.consume(
+                value.session_id,
+                value.stage_id,
+                value.rows,
+                value.attempt_id,
+                owner,
+            )
             correction = await engine.prepare_seeded_stage(value)
             correction_payload = correction.pack()
             metrics.correction_compute_ns += correction.server_ns
@@ -449,7 +480,7 @@ def create_preparation_app(
                 if correction_channel is None:
                     metrics.correction_channel_upload_bytes += len(correction_payload)
                     pushed = await push_http.post(
-                        f"/v1/he/sessions/{value.session_id}/corrections/{value.attempt_id}",
+                        f"/v1/he/inventories/{value.session_id}/corrections/{value.attempt_id}",
                         headers={
                             "Authorization": f"Bearer {config.preparation_push_api_key}",
                             "Content-Type": BINARY_MEDIA_TYPE,
@@ -464,7 +495,7 @@ def create_preparation_app(
                         value.session_id,
                         value.attempt_id,
                         correction_payload,
-                        wait_for_ack=False,
+                        wait_for_ack=True,
                     )
                     if wire_bytes != len(correction_payload):
                         raise ProtocolError("correction channel byte accounting mismatch")
@@ -481,6 +512,9 @@ def create_preparation_app(
                     or push_ack.correction_bytes != len(correction_payload)
                 ):
                     raise ProtocolError("inference correction acknowledgement mismatch")
+            record_protocol_bytes(
+                "preparation", "inference", len(correction_payload), value.stage_id
+            )
             result = PreparationAck(
                 value.attempt_id,
                 value.stage_id,
@@ -496,6 +530,7 @@ def create_preparation_app(
             httpx.HTTPError,
         ) as exc:
             metrics.failures += 1
+            session_registry.release(session_id, owner)
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -505,6 +540,9 @@ def create_preparation_app(
                     }
                 },
             ) from exc
+        except BaseException:
+            session_registry.release(session_id, owner)
+            raise
         metrics.calls += 1
         metrics.rows += value.rows
         metrics.upload_bytes += len(raw)

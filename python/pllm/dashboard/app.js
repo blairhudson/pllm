@@ -2,6 +2,8 @@ const $ = (q, root=document) => root.querySelector(q);
 const $$ = (q, root=document) => [...root.querySelectorAll(q)];
 let snapshot = null;
 let clockTimer = null;
+let protocolCursor = 0;
+let sequenceSpans = [];
 
 function bytes(n=0) {
   if (n < 1024) return `${Math.round(n)} B`;
@@ -31,7 +33,7 @@ function spark(path, history) {
   path.setAttribute("d", points.join(" "));
 }
 function phaseText(phase) {
-  return ({starting:"STARTING REAL SERVICES",idle:"READY / OTEL CONNECTED",running:"PRIVATE INFERENCE RUNNING",completed:"RUN COMPLETE",error:"ATTENTION REQUIRED"})[phase] || phase;
+  return ({starting:"STARTING REAL SERVICES",preparing:"PREPARING OFFLINE INVENTORY",ready:"READY / INVENTORY SEALED",online:"PRIVATE INFERENCE ONLINE",refilling:"REFILLING OFFLINE INVENTORY",error:"ATTENTION REQUIRED"})[phase] || phase;
 }
 function shortStage(stage="linear") {
   return (stage || "linear").replace(/^model\./, "").replace(/layers\.(\d+)\./, "L$1 / ").replaceAll("_proj", "");
@@ -47,76 +49,113 @@ function flowRow(source, destination, label, amount, kind) {
   row.append(route);
   return row;
 }
-function renderSequence(spans, operationCount) {
-  const operations = spans.filter(span => span.name === "pllm.prepared_linear" && span.flows);
-  const visible = operations.slice(-6).reverse();
+function renderSequence(incoming, cursor) {
   const container = $("#sequence-events");
-  if (!visible.length) {
-    const empty = document.createElement("p");
-    empty.className = "sequence-empty";
-    empty.textContent = "Run a chat to capture protocol operations.";
-    container.replaceChildren(empty);
-    $("#sequence-count").textContent = "OTEL / WAITING";
+  if (cursor < protocolCursor) {
+    protocolCursor = 0;
+    sequenceSpans = [];
+    container.replaceChildren();
     return;
   }
-  const cards = visible.map(span => {
+  sequenceSpans.push(...incoming);
+  protocolCursor = cursor;
+  const operations = sequenceSpans
+    .filter(span => span.name === "pllm.prepared_linear" && span.flows)
+    .sort((left, right) => (left.start - right.start) || (left.sequence - right.sequence));
+  const additions = incoming
+    .filter(span => span.name === "pllm.prepared_linear" && span.flows)
+    .sort((left, right) => left.sequence - right.sequence);
+  if (!operations.length) {
+    const empty = document.createElement("p");
+    empty.className = "sequence-empty";
+    empty.textContent = "Preparing inventory operations.";
+    container.replaceChildren(empty);
+    $("#sequence-count").textContent = "WAITING FOR PREPARATION";
+    return;
+  }
+  const cards = additions.map(span => {
     const card = document.createElement("article");
-    card.className = "sequence-operation";
+    card.className = `sequence-operation ${span.phase === "offline" ? "offline" : "online"}`;
     const head = document.createElement("div");
     head.className = "sequence-operation-head";
     const stage = document.createElement("strong");
     stage.textContent = shortStage(span.stage);
+    const phase = document.createElement("span");
+    phase.className = "sequence-phase";
+    phase.textContent = span.phase === "offline" ? "OFFLINE PREP" : "ONLINE";
     const duration = document.createElement("span");
     duration.textContent = `${span.duration_ms.toFixed(1)} ms`;
-    head.append(stage, duration);
-    card.append(
-      head,
-      flowRow("client", "preparation", "seed", span.flows.client_preparation || 0, "seed"),
-      flowRow("client", "inference", "x-r", span.flows.client_inference || 0, "masked"),
-      flowRow("preparation", "inference", "Wr-s", span.flows.preparation_inference || 0, "seed"),
-      flowRow("preparation", "client", "ack", span.flows.preparation_client || 0, "ack"),
-      flowRow("inference", "client", "Wx-s", span.flows.inference_client || 0, "masked")
-    );
+    head.append(stage, phase, duration);
+    const flows = span.phase === "offline"
+      ? [
+          flowRow("client", "preparation", "seed batch", span.flows.client_preparation || 0, "offline"),
+          flowRow("preparation", "inference", "W·r−s", span.flows.preparation_inference || 0, "offline"),
+          flowRow("preparation", "client", "durable ACK", span.flows.preparation_client || 0, "offline")
+        ]
+      : [
+          flowRow("client", "inference", "ticket + x-r", span.flows.client_inference || 0, "masked"),
+          flowRow("inference", "client", "Wx-s", span.flows.inference_client || 0, "masked")
+        ];
+    card.append(head, ...flows);
     return card;
   });
-  container.replaceChildren(...cards);
-  $("#sequence-count").textContent = `LATEST ${visible.length} / ${Number(operationCount || operations.length).toLocaleString()} OPS`;
+  if (!container.querySelector(".sequence-operation")) container.replaceChildren(...cards);
+  else container.append(...cards);
+  const prepared = operations.filter(span => span.phase === "offline").length;
+  $("#sequence-count").textContent = `ALL ${operations.length.toLocaleString()} OPS · ${prepared.toLocaleString()} PREP`;
+  cards.at(-1)?.scrollIntoView({block:"nearest"});
 }
 function render(data) {
   snapshot = data;
   const run = data.run, otel = data.otel;
-  document.body.classList.toggle("running", run.phase === "running");
-  $("#topology").classList.toggle("running", run.phase === "running");
-  $(".status").classList.toggle("live", ["idle","running","completed"].includes(run.phase));
+  document.body.classList.toggle("running", run.phase === "online");
+  $("#topology").classList.toggle("running", run.phase === "online");
+  $(".status").classList.toggle("live", ["ready","online","refilling"].includes(run.phase));
   $("#status-copy").textContent = phaseText(run.phase);
-  $("#run").disabled = !["idle","completed","error"].includes(run.phase) || !run.processes?.preparation?.running;
-  $("#run").textContent = run.phase === "running" ? "RUNNING…" : "RUN PRIVATE CHAT  →";
-  $("#answer").textContent = run.text || (run.phase === "running" ? "Preparing first token…" : "Waiting for a live run.");
+  $("#run").disabled = run.phase !== "ready" || !run.processes?.inference?.running;
+  $("#run").textContent = run.phase === "online" ? "RUNNING…" : "RUN PRIVATE CHAT  →";
+  $("#answer").textContent = run.text || (run.phase === "online" ? "Computing first token…" : "Waiting for a live run.");
   $("#model-label").textContent = `MODEL / ${run.model_id || "unknown"}${run.tiny ? " / RANDOM-WEIGHT TRANSPORT TEST" : ""}`;
   $("#error").textContent = run.error || "";
   $("#tps").textContent = Number(run.tps || 0).toFixed(2);
   $("#ttft").textContent = run.ttft_seconds == null ? "--" : `${run.ttft_seconds.toFixed(2)}s`;
-  const traffic = otel.traffic || {};
+  const traffic = otel.traffic || {}, onlineTraffic = run.online_traffic || {};
   $("#client-prep-bytes").textContent = bytes((traffic["client->preparation"]||0)+(traffic["preparation->client"]||0));
   $("#relay-bytes").textContent = bytes(traffic["preparation->inference"]||run.privacy?.correction_push_bytes||0);
-  $("#inference-bytes").textContent = bytes((traffic["client->inference"]||0)+(traffic["inference->client"]||0));
+  $("#inference-bytes").textContent = bytes((onlineTraffic["client->inference"]||0)+(onlineTraffic["inference->client"]||0));
+  const inventory = run.inventory || {};
+  $("#inventory-capacity").textContent = Number(inventory.capacity || 0).toLocaleString();
+  $("#inventory-available").textContent = Number(inventory.available || 0).toLocaleString();
+  $("#inventory-reserved").textContent = Number(inventory.reserved || 0).toLocaleString();
+  $("#inventory-burned").textContent = Number(inventory.burned || 0).toLocaleString();
+  $("#inventory-consumed").textContent = Number(inventory.consumed || 0).toLocaleString();
+  $("#prep-online-cpu").textContent = `${Number(run.preparation_online_operations || 0).toLocaleString()} GEMMs`;
   $$(".service").forEach(card => {
     const service = otel.services[card.dataset.service] || {};
     const actor = card.dataset.service.replace("pllm-", "");
     const totals = actorTraffic(traffic, actor);
+    const work = actor === "client"
+      ? run.privacy?.online_steps
+      : actor === "preparation"
+        ? run.privacy?.preparation_rows
+        : run.privacy?.inference_stage_calls;
     $('[data-metric="cpu-time"]',card).textContent = cpuTime(Number(service.cpu_seconds || 0));
     $('[data-metric="sent"]',card).textContent = bytes(totals.sent);
     $('[data-metric="received"]',card).textContent = bytes(totals.received);
-    $('[data-metric="work"]',card).textContent = Number(otel.operations || run.privacy?.linear_calls || 0).toLocaleString();
-    $('[data-metric="cpu"]',card).textContent = `${Number(service.cpu_percent||0).toFixed(1)}%`;
+    $('[data-metric="work"]',card).textContent = Number(work || 0).toLocaleString();
+    const cpuMetric = $('[data-metric="cpu"]', card);
+    if (cpuMetric) cpuMetric.textContent = `${Number(service.cpu_percent||0).toFixed(1)}%`;
     $('[data-metric="memory"]',card).textContent = bytes(service.memory_bytes||0);
     spark($("[data-spark]",card), service.history);
   });
-  renderSequence(otel.protocol_spans || otel.spans || [], otel.operations || run.privacy?.linear_calls || 0);
+  renderSequence(otel.protocol_spans || [], Number(otel.protocol_cursor || 0));
 }
 async function poll() {
-  try { const response = await fetch("/api/snapshot", {cache:"no-store"}); render(await response.json()); }
-  catch (_) { $("#status-copy").textContent = "COLLECTOR OFFLINE / KEEP CLI RUNNING"; }
+  try { const response = await fetch(`/api/snapshot?protocol_after=${protocolCursor}`, {cache:"no-store"}); render(await response.json()); }
+  catch (error) {
+    console.error("dashboard poll failed", error);
+    $("#status-copy").textContent = "COLLECTOR OFFLINE / KEEP CLI RUNNING";
+  }
 }
 async function run() {
   const prompt = $("#prompt").value.trim(), max = Number($("#max-tokens").value);

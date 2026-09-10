@@ -5,7 +5,7 @@ description: "Measure the complete lifecycle before increasing a batch."
 
 ## Start with serial latency
 
-If a token requires `R` dependent exchanges and each exchange adds `L` seconds, network dependency alone contributes `R × L`. A persistent WebSocket removes connection setup but not those dependencies.
+If a token requires `R` dependent client-to-inference exchanges and each exchange adds `L` seconds, online network dependency alone contributes `R × L`. The preparation WebSocket preloads inventory offline and is not an additional online round.
 
 The Qwen3.5-27B study plan has 257 exchanges. At 20 ms per exchange, the dependency floor is 5.14 seconds per token before arithmetic or transfer.
 
@@ -22,21 +22,25 @@ pllm serve "$PLLM_MODEL_SOURCE" \
 
 These are tuning inputs, not a recommended universal optimum. Measure single conversation latency separately from aggregate throughput. Other users can fill a matrix batch without making one user's dependent stages parallel.
 
-## Measure just-in-time preparation
+## Measure offline inventory preparation
 
-The public path has no prefetch horizon or durable correlation inventory. Every
-stage sends one small seeded request to preparation while inference processes
-the masked activation. Preparation sends its correction directly to inference
-over a persistent binary WebSocket and returns only a small acknowledgement.
-One session authorization still uses HTTP; correction stages do not create fresh
-HTTP request/response routes. Measure client-to-preparation upload,
-ACK download, client-to-inference traffic, and preparation-to-inference
-correction bytes separately. Preparation metrics expose correction payload bytes,
-channel upload bytes, compute nanoseconds, and send nanoseconds. Inference metrics
-expose channel connections, frames, accepted bytes, failures, and processing
-nanoseconds. Preparation upload
-alone is not complete traffic. Byte counters cover application payloads and PLLM's
-MessagePack envelopes, not WebSocket, TLS, or IP framing.
+Before chat, the client creates an inventory and sends one root seed per stage for
+a batch of rows. The default is 64 rows per stage and
+`PLLM_PREPARED_INVENTORY_ROWS` configures it. Preparation sends each `W·r-s` batch
+to inference over a persistent binary WebSocket and waits for durable
+acknowledgement. Inference seals the complete inventory `READY`. Online stages then
+carry only ticket plus `x-r` from client to inference and `W·x-s` back; preparation
+is idle. Refill occurs only between executions.
+
+Measure authorization and root-seed upload, durable acknowledgements,
+preparation-to-inference correction bytes, seal latency, warm client-to-inference
+traffic, and consumed or burned rows separately. Preparation metrics expose
+correction payload bytes, channel upload bytes, compute nanoseconds, and send
+nanoseconds. Inference metrics expose channel connections, frames, accepted bytes,
+failures, and processing nanoseconds. Byte counters cover application payloads and
+PLLM's MessagePack envelopes, not WebSocket, TLS, or IP framing. Restart or idle
+expiry discards inventory; cancellation, early end of stream, and failure burn
+unused reserved rows, so requested batch size is not useful throughput.
 
 ## Count both links
 

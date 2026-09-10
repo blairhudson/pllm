@@ -210,6 +210,11 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
                 tenseal_path=PYDEPS,
                 timeout=180,
             ) as client:
+                if mode == "public":
+                    rows = client.prepared_rows_for_response(
+                        canary, 1, model=model_id
+                    )
+                    client.preprocess(model_id, count=rows)
                 response = client.responses.create(
                     model=model_id,
                     input=canary,

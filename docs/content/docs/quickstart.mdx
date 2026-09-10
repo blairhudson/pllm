@@ -68,7 +68,10 @@ uv run pllm configure \
 uv run pllm chat
 ```
 
-Each stage sends preparation and inference work concurrently. Count both links and all first-token work when measuring latency.
+Before chat starts, the client prepares and seals an inventory with at least 64
+rows per stage. Set `PLLM_PREPARED_INVENTORY_ROWS` to tune that batch. Online chat
+then contacts inference only; preparation remains idle until an idle-time refill.
+Measure initial inventory work separately from warm online latency.
 
 ## Use Python
 
@@ -76,6 +79,7 @@ Each stage sends preparation and inference work concurrently. Count both links a
 from pllm import OpenAI
 
 with OpenAI() as client:
+    client.preprocess(count=256)
     response = client.responses.create(
         input="Explain how this request remains private.",
         max_output_tokens=64,
@@ -85,4 +89,8 @@ with OpenAI() as client:
 
 ## Check the boundary
 
-Your application owns the plaintext. Preparation receives fresh seeds and bound stage metadata; inference receives masked stage inputs. Timing, shapes, stage names, and approximate lengths remain visible. This implementation does not verify every service computation.
+Your application owns the plaintext and in-memory mask inventory. Before chat,
+preparation receives batched stage root seeds and bound metadata; inference receives
+the resulting corrections. Online, inference receives one-time tickets and masked
+stage inputs. Timing, shapes, stage names, and approximate lengths remain visible.
+This implementation does not verify every service computation.

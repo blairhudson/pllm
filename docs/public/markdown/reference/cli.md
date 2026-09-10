@@ -52,11 +52,14 @@ pllm preparation serve MODEL_PATH_OR_HUB_ID --api-key KEY \
 ```
 
 This role is public-weight-only and exposes health, model commitment, and seeded
-preparation routes. It does not expose inference, Responses, client-bundle, or
+inventory authorization and stage-preparation routes. It does not expose inference, Responses, client-bundle, or
 model-administration routes. Both services need the same public checkpoint.
 Provider `pllm serve` accepts `--provider-push-api-key`,
 `--rendezvous-timeout`, `--rendezvous-capacity`, and
-`--rendezvous-max-bytes`. All three service credentials must differ.
+`--rendezvous-max-bytes` for offline inventory loading, plus
+`--prepared-session-idle` for memory-only inventory expiry. Public client inventory
+batches default to 64 rows per stage; configure them with
+`PLLM_PREPARED_INVENTORY_ROWS`. All three service credentials must differ.
 
 ## Chat and local gateway
 
