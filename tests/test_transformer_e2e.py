@@ -220,6 +220,66 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
         preparation.close()
 
 
+def test_seeded_preparation_accepts_prefill_larger_than_decode_scheduler_batch(
+    tmp_path: Path,
+):
+    root = create_tiny_gemma4_checkpoint(
+        tmp_path / "tiny-long-prefill",
+        num_hidden_layers=1,
+        ple_dim=0,
+        max_position_embeddings=1024,
+    )
+    engine = MaskedTransformerEngine(threads=1)
+    gateway = start_gateway(engines={engine.capabilities.name: engine})
+    model_id = "tiny-long-prefill"
+    preparation, _ = prepared_service(root, model_id, gateway)
+    prompt = "P" * 520
+    try:
+        with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
+            loaded = admin.post(
+                "/v1/he/models/load",
+                headers={"Authorization": f"Bearer {gateway.api_key}"},
+                json={
+                    "engine": engine.capabilities.name,
+                    "kind": "huggingface",
+                    "path": str(root),
+                    "model_id": model_id,
+                },
+            )
+            assert loaded.status_code == 200, loaded.text
+
+        with OpenAI(
+            api_key=gateway.api_key,
+            base_url=gateway.base_url,
+            preparation_base_url=preparation.base_url,
+            preparation_api_key=preparation.api_key,
+            background_inventory_refill=False,
+        ) as client:
+            required = client.prepared_rows_for_response(prompt, 1, model=model_id)
+            assert required > 32 * 16
+            client.preprocess(model_id, count=required)
+            inventory_id = client.prepared_inventory_status(model_id)["id"]
+            response = client.responses.create(
+                model=model_id,
+                input=prompt,
+                max_output_tokens=1,
+                temperature=0,
+            )
+            assert response.status == "completed"
+            assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+            retired = httpx.get(
+                f"{gateway.base_url}/v1/he/inventories/{inventory_id}",
+                headers={"Authorization": f"Bearer {gateway.api_key}"},
+            )
+            assert retired.status_code == 404
+            replacement = client.preprocess(model_id, count=required)
+            assert replacement["generated"] == required
+            assert client.prepared_inventory_status(model_id)["id"] != inventory_id
+    finally:
+        gateway.close()
+        preparation.close()
+
+
 def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path: Path):
     root = create_tiny_gemma4_checkpoint(
         tmp_path / "no-permit", num_hidden_layers=1, ple_dim=0

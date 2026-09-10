@@ -78,7 +78,10 @@ only the provider push credential authenticates its upgrade.
 At chat start, the client reserves inventory rows for the execution. Each online
 stage message contains only the one-time ticket and `x-r`. Inference atomically
 consumes the matching preloaded row and returns `W·x-s`; the client adds `s` and
-center-decodes. Online chat is therefore client-to-inference only. Preparation is
+center-decodes. Prefill batches this as one ticket vector and one packed matrix
+per stage rather than one serialized envelope per row; decode retains one ticket
+per stage over its persistent connection. Online chat is therefore
+client-to-inference only. Preparation is
 idle online, and refill occurs only while the client is idle between executions.
 Inventory is in memory and may be reused across chats, but restart or idle expiry
 discards it. Reservation is a burn boundary: cancellation, early end of stream, or

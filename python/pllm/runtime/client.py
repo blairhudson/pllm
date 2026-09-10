@@ -60,6 +60,7 @@ from .stage_protocol import (
     DirectFHEStageRequest,
     DirectFHEStageResponse,
     blinded_correlation_from_wire,
+    prepared_stage_batch_rows,
 )
 from .quantization import dequantize_matmul, quantize_activation_per_row
 from .transformer_client import (
@@ -2252,7 +2253,10 @@ class HEClientCore:
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
             self.audit.inference_stage_calls += 1
-            if len(payloads) > 1:
+            compact_rows = (
+                prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
+            )
+            if len(payloads) > 1 or compact_rows is not None:
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
                     self.audit.masked_online_upload_bytes += len(upload)
@@ -2265,7 +2269,7 @@ class HEClientCore:
                 if state.privacy_protocol != "direct_bfv_w4a4":
                     self.audit.masked_online_download_bytes += len(response.content)
                 results = list(iter_length_prefixed(response.content))
-                self.audit.online_steps += len(payloads)
+                self.audit.online_steps += compact_rows or len(payloads)
                 return results
             envelope = HEEnvelope.create(
                 request_id=f"{response_id}:{sequence}",

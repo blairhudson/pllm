@@ -940,7 +940,10 @@ class MaskedTransformerEngine:
 
         row_counts = [request.masked_input.shape[0] for request in requests]
         combined = np.ascontiguousarray(
-            np.concatenate([r.masked_input for r in requests], axis=0), dtype=np.uint32
+            requests[0].masked_input
+            if len(requests) == 1
+            else np.concatenate([r.masked_input for r in requests], axis=0),
+            dtype=np.uint32,
         )
         started = time.perf_counter_ns()
         output = await asyncio.to_thread(

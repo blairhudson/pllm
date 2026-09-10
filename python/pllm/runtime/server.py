@@ -64,8 +64,11 @@ from .preparation_protocol import (
 from .stage_protocol import (
     MaskedStageRequest,
     MaskedStageResponse,
+    PreparedStageBatchRequest,
+    PreparedStageBatchResponse,
     blinded_correlation_to_wire,
     correlation_to_wire,
+    prepared_stage_batch_rows,
 )
 from .responses import ResponsesError
 from .security import bearer_token, derive_session_key
@@ -294,6 +297,30 @@ def create_app(
                 session.inventory_id,
                 frozenset(attempt_id for _, attempt_id in session.reserved_attempts),
             )
+
+    def retire_exhausted_inventory(session: HESession) -> None:
+        if session.execution != "seeded-preparation" or not session.inventory_id:
+            return
+        with inventory_lock:
+            inventory = sessions.get(session.inventory_id)
+            if (
+                inventory is None
+                or inventory.execution != "seeded-inventory"
+                or inventory.canceled
+                or inventory.completed
+                or inventory.inventory_next_row < inventory.inventory_rows
+                or any(
+                    candidate.execution == "seeded-preparation"
+                    and candidate.inventory_id == inventory.id
+                    and not candidate.canceled
+                    and not candidate.completed
+                    for candidate in sessions.values()
+                )
+            ):
+                return
+            inventory.completed = True
+            inventory.last_active = time.monotonic()
+            rendezvous.terminal(inventory.id)
 
     def cleanup_prepared_sessions(*, reclaim_terminal: bool = False) -> None:
         cutoff = time.monotonic() - config.prepared_session_idle_seconds
@@ -991,24 +1018,14 @@ def create_app(
         if profile != prepared_profile(engine, session.model_id, stage_id):
             raise ProtocolError("prepared activation ring profile mismatch")
 
-    async def execute_prepared_payloads(
+    async def run_prepared_requests(
         session: HESession,
         stage_id: str,
         engine: Any,
-        payloads: list[bytes],
+        requests: list[MaskedStageRequest],
+        engine_payloads: list[bytes],
         runner: Callable[[list[bytes]], Any],
-    ) -> list[bytes]:
-        manifest = imported.get(session.model_id)
-        if manifest is None:
-            raise ProtocolError("prepared session model is unavailable")
-        requests = [
-            MaskedStageRequest.unpack(
-                payload,
-                max_rows=manifest.context_length,
-                max_tensor_elements=config.prepared_tensor_max_elements,
-            )
-            for payload in payloads
-        ]
+    ) -> tuple[list[CorrectionPush], list[bytes]]:
         for prepared_request in requests:
             validate_prepared_request(session, stage_id, prepared_request, engine)
         activations = []
@@ -1027,7 +1044,7 @@ def create_app(
             asyncio.create_task(rendezvous.correction(prepared_request, entry))
             for prepared_request, entry in zip(requests, activations, strict=True)
         ]
-        results_task = asyncio.create_task(runner(payloads))
+        results_task = asyncio.create_task(runner(engine_payloads))
         try:
             corrections, results = await asyncio.gather(
                 asyncio.gather(*correction_tasks), results_task
@@ -1040,6 +1057,116 @@ def create_app(
             for prepared_request, entry in zip(requests, activations, strict=True):
                 rendezvous.abort(prepared_request, entry)
             raise
+        if session.canceled or session.completed:
+            raise ProtocolError("session is already terminal")
+        return corrections, results
+
+    async def execute_prepared_payloads(
+        session: HESession,
+        stage_id: str,
+        engine: Any,
+        payloads: list[bytes],
+        runner: Callable[[list[bytes]], Any],
+    ) -> list[bytes]:
+        manifest = imported.get(session.model_id)
+        if manifest is None:
+            raise ProtocolError("prepared session model is unavailable")
+        batch_rows = (
+            prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
+        )
+        if batch_rows is not None:
+            batch = PreparedStageBatchRequest.unpack(
+                payloads[0],
+                max_rows=min(manifest.context_length, config.prepared_stage_batch_rows),
+                max_tensor_elements=config.prepared_tensor_max_elements,
+            )
+            inventory = sessions.get(session.inventory_id or "")
+            root = inventory.inventory_roots.get(stage_id) if inventory is not None else None
+            if root is None:
+                raise ProtocolError("prepared inventory stage is unavailable")
+            if batch.wire_bits != root.wire_bits:
+                raise ProtocolError("prepared stage batch wire width mismatch")
+
+            def batch_request(correlation_id: str, masked_input: np.ndarray):
+                return MaskedStageRequest(
+                    model=root.model,
+                    stage_id=stage_id,
+                    correlation_id=correlation_id,
+                    masked_input=masked_input,
+                    activation_scales=np.ones(1, dtype=np.float32),
+                    modulus=root.modulus,
+                    wire_bits=root.wire_bits,
+                    ring=root.ring,
+                    body_fingerprint=root.body_fingerprint,
+                    weight_digest=root.weight_digest,
+                    weight_bits=root.weight_bits,
+                    activation_bits=root.activation_bits,
+                    session_id=root.session_id,
+                    out_features=root.out_features,
+                    signed_output_bound=root.signed_output_bound,
+                )
+
+            engine_request = batch_request(batch.batch_id, batch.masked_input)
+            validation_request = batch_request(
+                batch.correlation_ids[0], batch.masked_input[0:1]
+            )
+            validate_prepared_request(session, stage_id, validation_request, engine)
+            if any(
+                (stage_id, correlation_id) not in session.reserved_attempts
+                for correlation_id in batch.correlation_ids
+            ):
+                raise ProtocolError("stage correlation was not reserved for this response")
+            corrections = rendezvous.consume_preloaded_batch(
+                engine_request, batch.correlation_ids
+            )
+            results = await runner([engine_request.pack()])
+            if len(results) != 1:
+                raise ProtocolError("HE engine returned the wrong batch result count")
+            result = MaskedStageResponse.unpack(results[0])
+            correction = np.concatenate(
+                [item.correction for item in corrections], axis=0
+            )
+            if (
+                result.correlation_id != batch.batch_id
+                or result.stage_id != stage_id
+                or result.ring != root.ring
+                or result.modulus != root.modulus
+                or result.wire_bits != root.wire_bits
+                or result.masked_output.shape != correction.shape
+            ):
+                raise ProtocolError("prepared inference batch result mismatch")
+            masked = (
+                result.masked_output.astype(np.int64) + correction.astype(np.int64)
+            ) % result.modulus
+            return [
+                PreparedStageBatchResponse(
+                    batch_id=batch.batch_id,
+                    masked_output=masked.astype(np.uint32),
+                    wire_bits=result.wire_bits,
+                    server_ns=result.server_ns,
+                ).pack()
+            ]
+
+        requests = [
+            MaskedStageRequest.unpack(
+                payload,
+                max_rows=manifest.context_length,
+                max_tensor_elements=config.prepared_tensor_max_elements,
+            )
+            for payload in payloads
+        ]
+        if len(requests) == 1:
+            request = requests[0]
+            validate_prepared_request(session, stage_id, request, engine)
+            corrections = rendezvous.consume_preloaded_batch(
+                request,
+                (request.correlation_id,),
+            )
+            results = await runner(payloads)
+        else:
+            corrections, results = await run_prepared_requests(
+                session, stage_id, engine, requests, payloads, runner
+            )
         if session.canceled or session.completed:
             raise ProtocolError("session is already terminal")
         if len(results) != len(payloads):
@@ -1673,6 +1800,7 @@ def create_app(
     async def execute_envelope(session: HESession, envelope: HEEnvelope) -> HEEnvelope:
         envelope.verify(session.key)
         session.replay.accept(envelope)
+        logical_rows = 1
         if session.canceled or session.completed:
             raise ProtocolError("session is already terminal")
         if envelope.session_id != session.id or envelope.model != session.model_id:
@@ -1686,6 +1814,7 @@ def create_app(
             if scheduler is None:
                 raise ProtocolError("unknown transformer stage")
             if session.execution == "seeded-preparation":
+                logical_rows = prepared_stage_batch_rows(envelope.payload) or 1
                 engine_name = model_engine_routes.get(session.model_id)
                 engine = engines.get(engine_name) if engine_name else None
                 if engine is None:
@@ -1704,7 +1833,7 @@ def create_app(
             result_kind = "masked.transformer.stage.result"
         else:
             raise ProtocolError("unsupported HE frame kind")
-        session.online_steps += 1
+        session.online_steps += logical_rows
         return HEEnvelope.create(
             request_id=envelope.request_id,
             session_id=session.id,
@@ -1770,7 +1899,11 @@ def create_app(
             payloads = list(iter_length_prefixed(raw))
             if not payloads:
                 raise ProtocolError("empty stage batch")
-            if len(payloads) > config.max_batch_size * 16:
+            compact_rows = (
+                prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
+            )
+            logical_rows = compact_rows or len(payloads)
+            if logical_rows > config.prepared_stage_batch_rows:
                 raise ProtocolError("stage prefill batch is too large")
             if session.execution == "seeded-preparation":
 
@@ -1791,7 +1924,7 @@ def create_app(
                 status_code=400,
                 detail={"error": {"message": str(exc), "code": "invalid_stage_batch"}},
             )
-        session.online_steps += len(payloads)
+        session.online_steps += logical_rows
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
     @app.websocket("/v1/he/ws/{session_id}")
@@ -1830,6 +1963,7 @@ def create_app(
         session.canceled = True
         session.last_active = time.monotonic()
         burn_prepared_reservation(session)
+        retire_exhausted_inventory(session)
         return {"id": session_id, "status": "cancelled"}
 
     @app.post("/v1/he/sessions/{session_id}/complete")
@@ -1844,6 +1978,7 @@ def create_app(
         audit("complete", json.dumps(body, separators=(",", ":")).encode())
         session.completed = True
         burn_prepared_reservation(session)
+        retire_exhausted_inventory(session)
         # Operational record only: plaintext output remains in the client cache.
         value = {
             "id": session.response_id,

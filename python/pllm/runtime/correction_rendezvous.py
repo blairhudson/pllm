@@ -281,11 +281,17 @@ class CorrectionRendezvous:
             self.attempts += correction.rows
 
     @staticmethod
-    def _request_metadata(request: MaskedStageRequest) -> tuple[object, ...]:
-        rows = 1 if request.masked_input.ndim == 1 else request.masked_input.shape[0]
+    def _request_metadata(
+        request: MaskedStageRequest,
+        *,
+        correlation_id: str | None = None,
+        rows: int | None = None,
+    ) -> tuple[object, ...]:
+        if rows is None:
+            rows = 1 if request.masked_input.ndim == 1 else request.masked_input.shape[0]
         return (
             request.session_id, request.model, request.body_fingerprint,
-            request.correlation_id, request.stage_id, request.weight_digest,
+            correlation_id or request.correlation_id, request.stage_id, request.weight_digest,
             rows, request.masked_input.shape[-1], request.out_features,
             request.weight_bits, request.activation_bits,
             request.signed_output_bound, request.ring, request.modulus,
@@ -347,6 +353,70 @@ class CorrectionRendezvous:
             self._burn_locked(key, failure=False)
             self.consumed += 1
         return correction
+
+    def consume_preloaded_batch(
+        self,
+        request: MaskedStageRequest,
+        correlation_ids: tuple[str, ...],
+    ) -> list[CorrectionPush]:
+        rows = 1 if request.masked_input.ndim == 1 else request.masked_input.shape[0]
+        if rows != len(correlation_ids) or not correlation_ids:
+            raise RendezvousError("prepared batch correlation count mismatch")
+        keys = [self._key(request.session_id, item) for item in correlation_ids]
+        if len(set(keys)) != len(keys):
+            raise RendezvousError("prepared batch correlation ids must be unique")
+
+        with self._lock:
+            now = time.monotonic()
+            self._cleanup_locked(now)
+            session = self._sessions.get(request.session_id)
+            if session is None:
+                raise RendezvousError("correction session is not active")
+            if not session.authorized:
+                raise RendezvousError("correction session is not authorized")
+            if (
+                request.model != session.expected.model
+                or request.body_fingerprint != session.expected.body_fingerprint
+            ):
+                raise RendezvousError("activation and session authorization metadata mismatch")
+
+            entries: list[_Entry] = []
+            corrections: list[CorrectionPush] = []
+            try:
+                for key, correlation_id in zip(keys, correlation_ids, strict=True):
+                    if key[1] in session.burned:
+                        raise RendezvousError("attempt was already consumed or burned")
+                    entry = self._entries.get(key)
+                    if entry is None or entry.correction is None:
+                        raise RendezvousError("prepared correction is not preloaded")
+                    if entry.activated:
+                        raise RendezvousError("duplicate activation attempt")
+                    metadata = self._request_metadata(
+                        request, correlation_id=correlation_id, rows=1
+                    )
+                    if entry.correction.metadata() != metadata:
+                        raise RendezvousError(
+                            "correction and activation metadata mismatch"
+                        )
+                    entries.append(entry)
+                    corrections.append(entry.correction)
+            except RendezvousError:
+                for key in keys:
+                    self._burn_locked(key)
+                raise
+
+            for key, entry, correlation_id in zip(
+                keys, entries, correlation_ids, strict=True
+            ):
+                entry.activated = True
+                entry.preloaded = False
+                entry.activation_metadata = self._request_metadata(
+                    request, correlation_id=correlation_id, rows=1
+                )
+                self._burn_locked(key, failure=False)
+            session.last_active = now
+            self.consumed += rows
+            return corrections
 
     def abort(self, request: MaskedStageRequest, entry: _Entry) -> None:
         key = self._key(request.session_id, request.correlation_id)

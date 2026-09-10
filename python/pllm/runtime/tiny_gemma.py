@@ -19,6 +19,7 @@ def create_tiny_gemma4_checkpoint(
     num_key_value_heads: int = 2,
     head_dim: int = 8,
     ple_dim: int = 0,
+    max_position_embeddings: int = 256,
 ) -> Path:
     root = Path(path)
     root.mkdir(parents=True, exist_ok=True)
@@ -38,7 +39,7 @@ def create_tiny_gemma4_checkpoint(
         "num_attention_heads": num_attention_heads,
         "num_key_value_heads": num_key_value_heads,
         "head_dim": head_dim,
-        "max_position_embeddings": 256,
+        "max_position_embeddings": max_position_embeddings,
         "sliding_window": 64,
         "layer_types": ["sliding_attention"] * max(0, num_hidden_layers - 1) + ["full_attention"],
         "hidden_activation": "silu",
@@ -60,7 +61,9 @@ def create_tiny_gemma4_checkpoint(
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     (root / "tokenizer_config.json").write_text(json.dumps({
-        "bos_token": "<bos>", "eos_token": "<eos>", "model_max_length": 256,
+        "bos_token": "<bos>",
+        "eos_token": "<eos>",
+        "model_max_length": max_position_embeddings,
         "chat_template": "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\\n{% endfor %}assistant: ",
     }, indent=2) + "\n", encoding="utf-8")
 

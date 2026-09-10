@@ -103,8 +103,8 @@
     },
     {
       "path": "ARCHITECTURE.md",
-      "bytes": 8365,
-      "sha256": "da7824124d5268b2ba6e4148f94b8d133d2cc0439c9226c7e7fa5f3ad3f5d537"
+      "bytes": 8552,
+      "sha256": "92f560226237cb0f34a3ca1092890d2c168641a511521a6ceaf8650e6d1bc530"
     },
     {
       "path": "CHANGELOG.md",
@@ -1078,8 +1078,8 @@
     },
     {
       "path": "python/pllm/runtime/client.py",
-      "bytes": 120999,
-      "sha256": "84398e79836e0dc688d92a276e66fc34798c0c472cb67905ea76776410ec4c90"
+      "bytes": 121204,
+      "sha256": "8bfccdb85e9201df1ffa1b82c5e2ae558082041969cfe3ecd08d00b72ec94488"
     },
     {
       "path": "python/pllm/runtime/compact.py",
@@ -1088,8 +1088,8 @@
     },
     {
       "path": "python/pllm/runtime/config.py",
-      "bytes": 4096,
-      "sha256": "66e151fb43767d3ad48ddd06ff100f5f56cd21442a0a71368948bed4719fb71d"
+      "bytes": 4211,
+      "sha256": "fefc4c9c67ec87037a776346a00bfb0f1f2e88a61fe9f3d87770a798b88632b9"
     },
     {
       "path": "python/pllm/runtime/correction_channel.py",
@@ -1098,8 +1098,8 @@
     },
     {
       "path": "python/pllm/runtime/correction_rendezvous.py",
-      "bytes": 17166,
-      "sha256": "abd88a9572c3ed6fe79d3710eb3b98e5f1b7c85bec92eb02307f6b3ca787deee"
+      "bytes": 20312,
+      "sha256": "9737a64a08e64fa1d2cdc19c4ee494c56a19ba074684984bbb6ebc468d43572e"
     },
     {
       "path": "python/pllm/runtime/correlation_ledger.py",
@@ -1263,8 +1263,8 @@
     },
     {
       "path": "python/pllm/runtime/server.py",
-      "bytes": 86541,
-      "sha256": "c9a97904b20d0431bb5d85a97cb4b80b7567b1f09e065bbfbc31d9818e1cafd5"
+      "bytes": 92601,
+      "sha256": "7edf6bce01f3210555fce0900b74f1e60a9daca693103868c6828e4a097de0df"
     },
     {
       "path": "python/pllm/runtime/shared_attention.py",
@@ -1313,8 +1313,8 @@
     },
     {
       "path": "python/pllm/runtime/stage_protocol.py",
-      "bytes": 27990,
-      "sha256": "f109928407c89951df86287f4d3247ae46e49a4ddaeddb60f10085cc3a65170d"
+      "bytes": 35366,
+      "sha256": "1cc61468d106e83477f8b069c166570b66767d1f26c42ecfc05cef4ac18fa462"
     },
     {
       "path": "python/pllm/runtime/synthetic.py",
@@ -1333,8 +1333,8 @@
     },
     {
       "path": "python/pllm/runtime/tiny_gemma.py",
-      "bytes": 7717,
-      "sha256": "77f2a92334541b666826feffec33fce5a9df3f3ac88ee21a4a34529e0d1d4e0d"
+      "bytes": 7813,
+      "sha256": "1e59d652f67caccc0dfa5227afb60b7f5680f366330db2996a42e3b726ec9962"
     },
     {
       "path": "python/pllm/runtime/tiny_llama.py",
@@ -1348,13 +1348,13 @@
     },
     {
       "path": "python/pllm/runtime/transformer_client.py",
-      "bytes": 62629,
-      "sha256": "bb1eab809f2b9cc4561906022346de96aa0e87e00d9fbd658b285e1c91d2387b"
+      "bytes": 64151,
+      "sha256": "9d42a50bb05e2028cfa683b3fb23d3e6f8a75a6ceb4ead16aa3da69bd0400d59"
     },
     {
       "path": "python/pllm/runtime/transformer_engine.py",
-      "bytes": 60450,
-      "sha256": "20641e093e1d811a7bdd9af19ed4cb27fa9de26f0b48d2a219b72abd74c913a6"
+      "bytes": 60539,
+      "sha256": "e027422b957dd7152701bcb2f43ed6c238afe61d31928671c10034185128cd99"
     },
     {
       "path": "python/pllm/runtime/transport.py",
@@ -2143,8 +2143,8 @@
     },
     {
       "path": "tests/test_preparation.py",
-      "bytes": 42217,
-      "sha256": "334b2639963a41eed86614e4c89dff681204fa27c7e3d7d37c44d5fcae799f51"
+      "bytes": 43189,
+      "sha256": "d5f8c86e1a733b2ed18ab8d4be84d0d53d25cedd66db9085e7c6c27ae982b972"
     },
     {
       "path": "tests/test_privacy_modes.py",
@@ -2218,8 +2218,8 @@
     },
     {
       "path": "tests/test_transformer_e2e.py",
-      "bytes": 27787,
-      "sha256": "7692ff66516be4c97d18700368454650a54bffe2bdd63c16542fd13ba4d91344"
+      "bytes": 30183,
+      "sha256": "5582796833f829bc4b76744255f9462d2817ceeffb312ca7dfe10032c8b340ed"
     },
     {
       "path": "tests/test_transformer_engine.py",

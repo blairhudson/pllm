@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -11,6 +12,8 @@ from .protocol import ProtocolError
 from .quantization import centered_residues, positive_residues
 
 STAGE_PROTOCOL_VERSION = 3
+PREPARED_STAGE_BATCH_REQUEST_MAGIC = b"PLLMPSB1"
+PREPARED_STAGE_BATCH_RESPONSE_MAGIC = b"PLLMPSR1"
 RingKind = Literal["u16", "u24", "u32", "prime"]
 
 
@@ -51,6 +54,166 @@ def unpack_residues(payload: bytes, shape: tuple[int, ...], wire_bits: int) -> n
         return unpack_unsigned(payload, width=wire_bits // 8, count=math.prod(shape)).reshape(shape)
     except (ValueError, CompactCodecError) as exc:
         raise ProtocolError(str(exc)) from exc
+
+
+def _packed_stage_id(value: str, *, kind: str) -> bytes:
+    try:
+        packed = bytes.fromhex(value)
+    except (TypeError, ValueError) as exc:
+        raise ProtocolError(f"{kind} must contain 128 random bits") from exc
+    if len(packed) != 16:
+        raise ProtocolError(f"{kind} must contain 128 random bits")
+    return packed
+
+
+def prepared_stage_batch_rows(payload: bytes) -> int | None:
+    if not payload.startswith(PREPARED_STAGE_BATCH_REQUEST_MAGIC):
+        return None
+    header = len(PREPARED_STAGE_BATCH_REQUEST_MAGIC)
+    if len(payload) < header + 4:
+        raise ProtocolError("invalid prepared stage batch header")
+    rows = struct.unpack_from(">I", payload, header)[0]
+    if rows <= 1:
+        raise ProtocolError("prepared stage batch must contain multiple rows")
+    return rows
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedStageBatchRequest:
+    """Compact multi-row request for the public prepared path."""
+
+    batch_id: str
+    correlation_ids: tuple[str, ...]
+    masked_input: np.ndarray
+    wire_bits: int
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_input, dtype=np.uint32)
+        if value.ndim != 2 or value.shape[0] <= 1 or value.shape[1] <= 0:
+            raise ProtocolError("prepared stage batch must be a non-empty matrix")
+        rows, columns = value.shape
+        if len(self.correlation_ids) != rows or len(set(self.correlation_ids)) != rows:
+            raise ProtocolError("prepared stage batch tickets must be unique per row")
+        batch = _packed_stage_id(self.batch_id, kind="prepared stage batch ID")
+        tickets = b"".join(
+            _packed_stage_id(item, kind="prepared stage ticket")
+            for item in self.correlation_ids
+        )
+        body = msgpack.packb(
+            [batch, tickets, columns, self.wire_bits, pack_residues(value, self.wire_bits)],
+            use_bin_type=True,
+        )
+        return PREPARED_STAGE_BATCH_REQUEST_MAGIC + struct.pack(">I", rows) + body
+
+    @classmethod
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+    ) -> "PreparedStageBatchRequest":
+        rows = prepared_stage_batch_rows(payload)
+        if rows is None:
+            raise ProtocolError("invalid prepared stage batch magic")
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("prepared stage batch row count exceeds model context")
+        offset = len(PREPARED_STAGE_BATCH_REQUEST_MAGIC) + 4
+        try:
+            value = msgpack.unpackb(payload[offset:], raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid prepared stage batch request") from exc
+        if not isinstance(value, list) or len(value) != 5:
+            raise ProtocolError("invalid prepared stage batch request schema")
+        batch, tickets, raw_columns, raw_wire_bits, data = value
+        if not isinstance(batch, (bytes, bytearray)) or len(batch) != 16:
+            raise ProtocolError("prepared stage batch ID must contain 128 random bits")
+        if not isinstance(tickets, (bytes, bytearray)) or len(tickets) != rows * 16:
+            raise ProtocolError("prepared stage batch ticket count mismatch")
+        columns = int(raw_columns)
+        wire_bits = int(raw_wire_bits)
+        if columns <= 0:
+            raise ProtocolError("prepared stage batch width must be positive")
+        if max_tensor_elements is not None and rows * columns > max_tensor_elements:
+            raise ProtocolError("prepared stage batch tensor allocation is too large")
+        if not isinstance(data, (bytes, bytearray)) or len(data) != (
+            rows * columns * (wire_bits // 8)
+        ):
+            raise ProtocolError("prepared stage batch payload length mismatch")
+        ticket_bytes = bytes(tickets)
+        return cls(
+            batch_id=bytes(batch).hex(),
+            correlation_ids=tuple(
+                ticket_bytes[index : index + 16].hex()
+                for index in range(0, len(ticket_bytes), 16)
+            ),
+            masked_input=unpack_residues(bytes(data), (rows, columns), wire_bits),
+            wire_bits=wire_bits,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedStageBatchResponse:
+    batch_id: str
+    masked_output: np.ndarray
+    wire_bits: int
+    server_ns: int = 0
+
+    def pack(self) -> bytes:
+        value = np.asarray(self.masked_output, dtype=np.uint32)
+        if value.ndim != 2 or value.shape[0] <= 1 or value.shape[1] <= 0:
+            raise ProtocolError("prepared stage batch result must be a non-empty matrix")
+        rows, columns = value.shape
+        batch = _packed_stage_id(self.batch_id, kind="prepared stage batch ID")
+        body = msgpack.packb(
+            [batch, columns, self.wire_bits, self.server_ns, pack_residues(value, self.wire_bits)],
+            use_bin_type=True,
+        )
+        return PREPARED_STAGE_BATCH_RESPONSE_MAGIC + struct.pack(">I", rows) + body
+
+    @classmethod
+    def unpack(
+        cls,
+        payload: bytes,
+        *,
+        max_rows: int | None = None,
+        max_tensor_elements: int | None = None,
+    ) -> "PreparedStageBatchResponse":
+        if not payload.startswith(PREPARED_STAGE_BATCH_RESPONSE_MAGIC):
+            raise ProtocolError("invalid prepared stage batch result magic")
+        header = len(PREPARED_STAGE_BATCH_RESPONSE_MAGIC)
+        if len(payload) < header + 4:
+            raise ProtocolError("invalid prepared stage batch result header")
+        rows = struct.unpack_from(">I", payload, header)[0]
+        if rows <= 1:
+            raise ProtocolError("prepared stage batch result must contain multiple rows")
+        if max_rows is not None and rows > max_rows:
+            raise ProtocolError("prepared stage batch result row count exceeds model context")
+        try:
+            value = msgpack.unpackb(payload[header + 4 :], raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise ProtocolError("invalid prepared stage batch response") from exc
+        if not isinstance(value, list) or len(value) != 5:
+            raise ProtocolError("invalid prepared stage batch response schema")
+        batch, raw_columns, raw_wire_bits, raw_server_ns, data = value
+        if not isinstance(batch, (bytes, bytearray)) or len(batch) != 16:
+            raise ProtocolError("prepared stage batch ID must contain 128 random bits")
+        columns = int(raw_columns)
+        wire_bits = int(raw_wire_bits)
+        if columns <= 0:
+            raise ProtocolError("prepared stage batch result width must be positive")
+        if max_tensor_elements is not None and rows * columns > max_tensor_elements:
+            raise ProtocolError("prepared stage batch result allocation is too large")
+        if not isinstance(data, (bytes, bytearray)) or len(data) != (
+            rows * columns * (wire_bits // 8)
+        ):
+            raise ProtocolError("prepared stage batch result payload length mismatch")
+        return cls(
+            batch_id=bytes(batch).hex(),
+            masked_output=unpack_residues(bytes(data), (rows, columns), wire_bits),
+            wire_bits=wire_bits,
+            server_ns=int(raw_server_ns),
+        )
 
 
 @dataclass(frozen=True, slots=True)

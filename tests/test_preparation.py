@@ -36,7 +36,12 @@ from pllm.runtime.preparation_protocol import (
 from pllm.runtime.preparation_server import PreparationSessionRegistry, create_preparation_app
 from pllm.runtime.privacy import PrivacyMode
 from pllm.runtime.protocol import ProtocolError
-from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
+from pllm.runtime.stage_protocol import (
+    MaskedStageRequest,
+    MaskedStageResponse,
+    PreparedStageBatchRequest,
+    PreparedStageBatchResponse,
+)
 from pllm.runtime.transformer_client import (
     PreparedInventory,
     PreparedRemoteLinear,
@@ -192,26 +197,21 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
     ) % profile.modulus
 
     def infer(_stage_id: str, requests: list[bytes]) -> list[bytes]:
-        responses = []
-        for row_index, payload in enumerate(requests):
-            value = MaskedStageRequest.unpack(payload)
-            seen[f"inference-{row_index}"] = payload
-            output = (
-                ring_dot(value.masked_input, weight, profile.modulus).astype(np.int64)
-                + correction[row_index : row_index + 1]
-            ) % profile.modulus
-            responses.append(
-                MaskedStageResponse(
-                    correlation_id=value.correlation_id,
-                    masked_output=output.astype(np.uint32),
-                    modulus=profile.modulus,
-                    wire_bits=profile.wire_bits,
-                    server_ns=13,
-                    stage_id=value.stage_id,
-                    ring=profile.ring,
-                ).pack()
-            )
-        return responses
+        assert len(requests) == 1
+        value = PreparedStageBatchRequest.unpack(requests[0])
+        seen["inference"] = requests[0]
+        output = (
+            ring_dot(value.masked_input, weight, profile.modulus).astype(np.int64)
+            + correction
+        ) % profile.modulus
+        return [
+            PreparedStageBatchResponse(
+                batch_id=value.batch_id,
+                masked_output=output.astype(np.uint32),
+                wire_bits=profile.wire_bits,
+                server_ns=13,
+            ).pack()
+        ]
 
     inventory = PreparedInventory(
         prepared.session_id,
@@ -232,10 +232,10 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
     quantized = quantize_activation_per_row(clear, bits=8)
     expected = (quantized.values.astype(np.int64) @ weight.astype(np.int64).T) * quantized.scales[:, None] + metadata.bias
     np.testing.assert_array_equal(actual, expected.astype(np.float32))
-    wire = msgpack.unpackb(seen["inference-0"], raw=False)
-    assert len(wire["correlation_id"]) == 32
-    assert "seed" not in wire and "z" not in wire
-    assert prepared.seed not in seen["inference-0"]
+    wire = PreparedStageBatchRequest.unpack(seen["inference"])
+    assert len(wire.correlation_ids) == 2
+    assert all(len(item) == 32 for item in wire.correlation_ids)
+    assert prepared.seed not in seen["inference"]
     assert remote.stats.preparation_upload_bytes == 0
     assert remote.stats.preparation_download_bytes == 0
 
@@ -451,6 +451,35 @@ def test_bulk_preload_metadata_consumption_replay_and_exact_byte_accounting():
         assert rendezvous.stats()["bytes"] == 0
 
     asyncio.run(scenario())
+
+
+def test_bulk_activation_consumes_rows_once_without_per_row_tasks():
+    authorization = session_authorization()
+    rendezvous = CorrectionRendezvous(timeout=1, capacity=4, max_bytes=100)
+    rendezvous.register_session(authorization)
+    rendezvous.authorize_session(authorization, len(authorization.pack()))
+    bulk = bulk_correction()
+    rendezvous.preload_bulk(bulk, 10)
+    correlation_ids = tuple(
+        derive_online_attempt_id(bulk, row_index) for row_index in range(bulk.rows)
+    )
+    request = replace(
+        row_activation(bulk, 0),
+        correlation_id="f" * 32,
+        masked_input=np.ones((bulk.rows, bulk.in_features), dtype=np.uint32),
+    )
+
+    corrections = rendezvous.consume_preloaded_batch(request, correlation_ids)
+
+    np.testing.assert_array_equal(
+        np.concatenate([item.correction for item in corrections], axis=0),
+        bulk.correction,
+    )
+    assert rendezvous.stats()["entries"] == 0
+    assert rendezvous.stats()["bytes"] == 0
+    assert rendezvous.stats()["burned"] == bulk.rows
+    with pytest.raises(RendezvousError, match="consumed or burned"):
+        rendezvous.consume_preloaded_batch(request, correlation_ids)
 
 
 def test_reserved_inventory_rows_are_burned_before_activation():

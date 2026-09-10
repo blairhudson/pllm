@@ -24,6 +24,8 @@ from .protocol import ProtocolError
 from .stage_protocol import (
     MaskedStageRequest,
     MaskedStageResponse,
+    PreparedStageBatchRequest,
+    PreparedStageBatchResponse,
     RingKind,
     StageCorrelation,
     unmask_stage_output,
@@ -843,26 +845,36 @@ class PreparedRemoteLinear:
         ) % profile.modulus
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         complement = (clear - mask.astype(np.int64)) % profile.modulus
-        inference_requests = [
-            MaskedStageRequest(
-                model=self.model_id,
-                stage_id=stage_id,
-                correlation_id=attempt_id,
-                masked_input=complement[row : row + 1].astype(np.uint32),
-                activation_scales=np.ones(1, dtype=np.float32),
-                modulus=profile.modulus,
-                wire_bits=profile.wire_bits,
-                ring=profile.ring,
-                body_fingerprint=self.body_fingerprint,
-                weight_digest=stage.weight_digest,
-                weight_bits=stage.weight_bits,
-                activation_bits=stage.activation_bits,
-                session_id=self.inventory.inventory_id,
-                out_features=stage.out_features,
-                signed_output_bound=profile.signed_output_bound,
-            ).pack()
-            for row, attempt_id in enumerate(attempt_ids)
-        ]
+        batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
+        if batch_id is not None:
+            inference_requests = [
+                PreparedStageBatchRequest(
+                    batch_id=batch_id,
+                    correlation_ids=tuple(attempt_ids),
+                    masked_input=complement.astype(np.uint32),
+                    wire_bits=profile.wire_bits,
+                ).pack()
+            ]
+        else:
+            inference_requests = [
+                MaskedStageRequest(
+                    model=self.model_id,
+                    stage_id=stage_id,
+                    correlation_id=attempt_ids[0],
+                    masked_input=complement.astype(np.uint32),
+                    activation_scales=np.ones(1, dtype=np.float32),
+                    modulus=profile.modulus,
+                    wire_bits=profile.wire_bits,
+                    ring=profile.ring,
+                    body_fingerprint=self.body_fingerprint,
+                    weight_digest=stage.weight_digest,
+                    weight_bits=stage.weight_bits,
+                    activation_bits=stage.activation_bits,
+                    session_id=self.inventory.inventory_id,
+                    out_features=stage.out_features,
+                    signed_output_bound=profile.signed_output_bound,
+                ).pack()
+            ]
         inference_upload_bytes = sum(map(len, inference_requests))
         self.stats.inference_upload_bytes += inference_upload_bytes
         self.stats.upload_bytes += inference_upload_bytes
@@ -876,7 +888,31 @@ class PreparedRemoteLinear:
             record_protocol_bytes(
                 "inference", "client", sum(map(len, inference_payloads)), stage_id
             )
-            inference_results = self._result(inference_payloads, attempt_ids, stage)
+            if batch_id is not None:
+                if len(inference_payloads) != 1:
+                    raise TransformerClientError(
+                        "inference provider returned the wrong batch result count"
+                    )
+                batch_result = PreparedStageBatchResponse.unpack(
+                    inference_payloads[0],
+                    max_rows=quantized.rows,
+                    max_tensor_elements=quantized.rows * stage.out_features,
+                )
+                if (
+                    batch_result.batch_id != batch_id
+                    or batch_result.wire_bits != profile.wire_bits
+                    or batch_result.masked_output.shape
+                    != (quantized.rows, stage.out_features)
+                ):
+                    raise TransformerClientError(
+                        "service returned a mismatched prepared batch result"
+                    )
+                masked_output = batch_result.masked_output
+                inference_server_ns = batch_result.server_ns
+            else:
+                inference_results = self._result(inference_payloads, attempt_ids, stage)
+                masked_output = inference_results[0].masked_output
+                inference_server_ns = inference_results[0].server_ns
         except Exception as exc:
             protocol_span.record_exception(exc)
             protocol_span.end()
@@ -885,7 +921,6 @@ class PreparedRemoteLinear:
             "pllm.inference_client.bytes", sum(map(len, inference_payloads))
         )
         protocol_span.end()
-        masked_output = np.concatenate([result.masked_output for result in inference_results], axis=0)
         combined = (
             masked_output.astype(np.int64) + output_mask.astype(np.int64)
         ) % profile.modulus
@@ -905,7 +940,6 @@ class PreparedRemoteLinear:
             output = output + stage.bias
         self.stats.calls += 1
         self.stats.rows += quantized.rows
-        inference_server_ns = sum(result.server_ns for result in inference_results)
         self.stats.inference_server_ns += inference_server_ns
         self.stats.server_ns += inference_server_ns
         return np.ascontiguousarray(output, dtype=np.float32)

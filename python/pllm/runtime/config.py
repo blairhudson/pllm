@@ -29,6 +29,7 @@ class GatewayConfig:
     preparation_request_max_bytes: int = 16_384
     prepared_payload_max_bytes: int = 268_435_456
     prepared_tensor_max_elements: int = 67_108_864
+    prepared_stage_batch_rows: int = 4096
     preparation_inference_url: str | None = None
     preparation_push_api_key: str | None = None
     preparation_push_timeout_seconds: float = 10.0
@@ -78,6 +79,7 @@ class GatewayConfig:
             "preparation_request_max_bytes": self.preparation_request_max_bytes,
             "prepared_payload_max_bytes": self.prepared_payload_max_bytes,
             "prepared_tensor_max_elements": self.prepared_tensor_max_elements,
+            "prepared_stage_batch_rows": self.prepared_stage_batch_rows,
             "preparation_inference_url": self.preparation_inference_url,
             "preparation_push_api_key": self.preparation_push_api_key,
             "preparation_push_timeout_seconds": self.preparation_push_timeout_seconds,
