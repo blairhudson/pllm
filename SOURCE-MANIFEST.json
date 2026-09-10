@@ -183,8 +183,8 @@
     },
     {
       "path": "benchmarks/README.md",
-      "bytes": 2223,
-      "sha256": "c640dc5b14be40fa44c2a3855c5237d35d38a6e51842597b6e4e28b051456487"
+      "bytes": 2384,
+      "sha256": "e336b59afbfa01ad1ff8c4e2353328031a7a551c598c5259601c09832f564572"
     },
     {
       "path": "benchmarks/client_native.py",
@@ -1078,8 +1078,8 @@
     },
     {
       "path": "python/pllm/runtime/client.py",
-      "bytes": 121128,
-      "sha256": "97cacb6775dacd679d44310f8af1d654e9dad693e18a8dafafb424db314697f8"
+      "bytes": 120999,
+      "sha256": "84398e79836e0dc688d92a276e66fc34798c0c472cb67905ea76776410ec4c90"
     },
     {
       "path": "python/pllm/runtime/compact.py",
@@ -1108,8 +1108,8 @@
     },
     {
       "path": "python/pllm/runtime/dashboard.py",
-      "bytes": 31082,
-      "sha256": "7604edbd0b7c4093582e4b31852182c24c60c989220bfc6aa6e85b0cae7af48d"
+      "bytes": 30998,
+      "sha256": "9da307302410b75095f96da9ffedbb74a2348298efecb48178b75d6f4281254e"
     },
     {
       "path": "python/pllm/runtime/engine.py",
@@ -1348,8 +1348,8 @@
     },
     {
       "path": "python/pllm/runtime/transformer_client.py",
-      "bytes": 61680,
-      "sha256": "768748a18cb48b9b1f8b3724fcee84b8d2ac870ae2ecef3d150ac2e4a6fb9aa8"
+      "bytes": 62629,
+      "sha256": "bb1eab809f2b9cc4561906022346de96aa0e87e00d9fbd658b285e1c91d2387b"
     },
     {
       "path": "python/pllm/runtime/transformer_engine.py",
@@ -2093,8 +2093,8 @@
     },
     {
       "path": "tests/test_dashboard.py",
-      "bytes": 5462,
-      "sha256": "2c2a0fe4fc4138f3511d28d5549818445d02dc1a80d6ee00b03953da3b031734"
+      "bytes": 7457,
+      "sha256": "2bb3c2cd50aa7f2a1f516a749b408f7d576cd9c18a4f575f28fcd1f2cf843edf"
     },
     {
       "path": "tests/test_decoder_simulator.py",
@@ -2218,13 +2218,13 @@
     },
     {
       "path": "tests/test_transformer_e2e.py",
-      "bytes": 27568,
-      "sha256": "99a0ea511be848945f561b4be378afb7f2187e6fe8ecfe1271999e453bc95368"
+      "bytes": 27787,
+      "sha256": "7692ff66516be4c97d18700368454650a54bffe2bdd63c16542fd13ba4d91344"
     },
     {
       "path": "tests/test_transformer_engine.py",
-      "bytes": 37974,
-      "sha256": "1eecd3175af3aa5e915bc7f24f0cb5f25812239232bd0d4a37a77ef7ea2e1b65"
+      "bytes": 39297,
+      "sha256": "2f5174d9305a086141112e24f38f378bf112586a7b86feeb048d23956a7d0116"
     },
     {
       "path": "tests/test_transport_sidecar.py",

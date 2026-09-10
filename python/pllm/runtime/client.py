@@ -373,6 +373,7 @@ class _TransformerConversationState:
     rendered_context: str
     snapshot: RuntimeSnapshot
     next_logits: np.ndarray
+    pending_token_ids: list[int]
 
 
 class _BlindedCorrelationProvider:
@@ -1873,7 +1874,9 @@ class HEClientCore:
         tokenizer = state.bundle.tokenizer()
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         ids = tokenizer.encode(rendered, add_bos=add_bos)
-        return len(ids or [int(state.bundle.config["bos_token_id"])]) + max_output_tokens
+        return len(ids or [int(state.bundle.config["bos_token_id"])]) + max(
+            0, max_output_tokens - 1
+        )
 
     def close(self) -> None:
         self._closing = True
@@ -2213,8 +2216,8 @@ class HEClientCore:
             ):
                 required_input_rows = len(
                     tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
-                )
-        required_rows = required_input_rows + max_tokens
+                ) + len(candidate.pending_token_ids)
+        required_rows = required_input_rows + max(0, max_tokens - 1)
         session_value, state, provider = self._open_transformer_session(
             model_id,
             max_output_tokens=max_tokens,
@@ -2248,6 +2251,7 @@ class HEClientCore:
 
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
+            self.audit.inference_stage_calls += 1
             if len(payloads) > 1:
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
@@ -2287,20 +2291,6 @@ class HEClientCore:
             self.audit.online_steps += 1
             return [result.payload]
 
-        def direct_exchange(stage_id, payloads):
-            upload = encode_length_prefixed(payloads)
-            response = self.http.post(
-                f"/v1/he/sessions/{session_id}/stages/{stage_id}",
-                headers={**self.headers, "Content-Type": "application/octet-stream"},
-                content=upload,
-            )
-            _raise(response)
-            self.audit.masked_online_upload_bytes += len(upload)
-            self.audit.masked_online_download_bytes += len(response.content)
-            self.audit.online_steps += len(payloads)
-            self.audit.inference_stage_calls += 1
-            return list(iter_length_prefixed(response.content))
-
         if state.privacy_mode == "public":
             if not isinstance(provider, PreparedInventoryLease):
                 abandon_transformer_session()
@@ -2309,7 +2299,7 @@ class HEClientCore:
                 model_id=model_id,
                 body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
                 stages=state.bundle.stages,
-                inference=direct_exchange,
+                inference=exchange,
                 inventory=provider,
             )
         elif state.privacy_protocol == "direct_bfv_w4a4":
@@ -2433,11 +2423,17 @@ class HEClientCore:
             if prior is not None and suffix is not None:
                 runtime.restore(prior.snapshot)
                 continuation_used = True
-                logits = runtime.forward_ids(suffix)[-1] if suffix else prior.next_logits.copy()
+                pending_input_ids = [*prior.pending_token_ids, *suffix]
+                logits = (
+                    runtime.forward_ids(pending_input_ids)[-1]
+                    if pending_input_ids
+                    else prior.next_logits.copy()
+                )
                 input_ids = full_input_ids
                 caches = runtime.caches
             else:
                 input_ids, logits, caches = runtime.prepare_ids(full_input_ids)
+            pending_token_ids: list[int] = []
             for step in range(max_tokens):
                 token = runtime.sample(logits, temperature=temperature, top_p=top_p)
                 if token == int(runtime.cfg["eos_token_id"]):
@@ -2463,6 +2459,9 @@ class HEClientCore:
                     }
                 )
                 event_sequence += 1
+                if step + 1 >= max_tokens:
+                    pending_token_ids = [token]
+                    break
                 logits, caches = runtime.decode_step(token, caches, len(input_ids) + step)
 
             self.audit.token_lookup_cache_hits += runtime.token_cache_hits
@@ -2547,6 +2546,7 @@ class HEClientCore:
                     rendered_context=rendered + text,
                     snapshot=runtime.snapshot(),
                     next_logits=np.asarray(logits, dtype=np.float32).copy(),
+                    pending_token_ids=pending_token_ids,
                 )
             complete = self.http.post(
                 f"/v1/he/sessions/{session_id}/complete",

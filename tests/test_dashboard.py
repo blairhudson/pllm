@@ -142,3 +142,63 @@ def test_dashboard_snapshot_normalizes_unprepared_inventory() -> None:
     inventory = runtime.snapshot()["run"]["inventory"]
     assert inventory["burned"] == 3
     assert inventory["consumed"] == 5
+
+
+def test_completed_dashboard_run_does_not_eagerly_refill(monkeypatch) -> None:
+    class Client:
+        privacy_audit = SimpleNamespace(preparation_attempts=0)
+
+        def __init__(self) -> None:
+            self.preprocess_calls = 0
+            self.responses = SimpleNamespace(
+                create=lambda **_kwargs: [
+                    SimpleNamespace(type="response.output_text.delta", delta="token")
+                ]
+            )
+
+        def preprocess(self, *_args, **_kwargs) -> None:
+            self.preprocess_calls += 1
+
+        @staticmethod
+        def prepared_inventory_status(_model: str) -> dict[str, object]:
+            return {
+                "id": "inventory",
+                "status": "ready",
+                "capacity": 64,
+                "available": 63,
+                "reserved": 0,
+                "burned": 0,
+                "consumed": 1,
+            }
+
+    client = Client()
+    runtime = object.__new__(DashboardRuntime)
+    runtime._lock = threading.Lock()
+    runtime._state = {
+        "phase": "online",
+        "text": "",
+        "tokens": 0,
+        "first_token_at": None,
+        "finished_at": None,
+    }
+    runtime._client = client
+    runtime.config = SimpleNamespace(model_id="model")
+    runtime.store = SimpleNamespace(
+        snapshot=lambda: {
+            "traffic": {},
+            "services": {"pllm-preparation": {"cpu_seconds": 0.0}},
+        }
+    )
+    runtime._online_traffic_baseline = {}
+    runtime._preparation_cpu_baseline = 0.0
+    runtime._preparation_attempts_baseline = 0
+    runtime._online_traffic_final = None
+    runtime._preparation_online_cpu_final = None
+    runtime._preparation_online_operations = 0
+    monkeypatch.setattr("pllm.runtime.dashboard.time.sleep", lambda _seconds: None)
+
+    runtime._run_chat("private prompt", 1)
+
+    assert client.preprocess_calls == 0
+    assert runtime._state["phase"] == "ready", runtime._state.get("error")
+    assert runtime._state["inventory"]["available"] == 63

@@ -422,7 +422,7 @@ class DashboardRuntime:
         )
 
     async def _wait_for_health(self, base_url: str, role: str) -> None:
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + 300
         async with httpx.AsyncClient(timeout=1) as client:
             while time.monotonic() < deadline:
                 process = self._processes[role]
@@ -467,15 +467,17 @@ class DashboardRuntime:
     def _prepare_then_run(self, prompt: str, max_output_tokens: int) -> None:
         assert self._client is not None
         try:
-            required = max(
-                self._inventory_rows,
-                self._client.prepared_rows_for_response(
-                    prompt,
-                    max_output_tokens,
-                    model=self.config.model_id,
-                ),
+            previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
+            required = self._client.prepared_rows_for_response(
+                prompt,
+                max_output_tokens,
+                model=self.config.model_id,
             )
             self._client.preprocess(self.config.model_id, count=required)
+            current_inventory = self._client.prepared_inventory_status(self.config.model_id)
+            if current_inventory.get("id") != previous_inventory.get("id"):
+                self._inventory_burned_total += int(previous_inventory.get("burned", 0))
+                self._inventory_consumed_total += int(previous_inventory.get("consumed", 0))
             time.sleep(0.6)
             telemetry = self.store.snapshot()
             with self._lock:
@@ -545,17 +547,9 @@ class DashboardRuntime:
                     self._client.privacy_audit.preparation_attempts
                     - self._preparation_attempts_baseline,
                 )
-            self._set(phase="refilling", finished_at=time.time())
-            previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
-            self._client.preprocess(
-                self.config.model_id,
-                count=self._inventory_rows,
-            )
-            self._inventory_burned_total += int(previous_inventory["burned"])
-            self._inventory_consumed_total += int(previous_inventory["consumed"])
-            time.sleep(0.6)
             self._set(
                 phase="ready",
+                finished_at=time.time(),
                 inventory=self._client.prepared_inventory_status(self.config.model_id),
             )
         except Exception as exc:

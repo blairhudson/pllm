@@ -36,6 +36,8 @@ The first run downloads the public model if it is not already cached. The
 loopback dashboard starts real `pllm serve` and `pllm preparation serve`
 processes, runs the PLLM client in the dashboard process, and displays OTEL
 process metrics, HTTP traces, protocol traffic, TTFT, and generation throughput.
+Completed runs retain unused inventory rows instead of preparing another batch;
+the next run refills only when its exact row requirement exceeds that remainder.
 Use another local or Hugging Face public-weight checkpoint with:
 
 ```bash

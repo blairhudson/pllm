@@ -596,6 +596,9 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
             before_qkv_rows = engine.models["tiny-continuation-he"].stages[
                 "layers.0.self_attn.qkv_proj"
             ].rows
+            # The final emitted token is carried into a future continuation
+            # instead of paying for a transformer pass after the response ends.
+            assert before_qkv_rows == first.usage.input_tokens
             second = client.responses.create(
                 model="tiny-continuation-he",
                 previous_response_id=first.id,

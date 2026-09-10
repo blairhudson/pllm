@@ -918,6 +918,34 @@ MaskedStageClient = RemoteLinear
 class LayerCache:
     key: np.ndarray | None = None
     value: np.ndarray | None = None
+    length: int = 0
+
+    def append(self, key: np.ndarray, value: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        required = self.length + key.shape[0]
+        key_storage = self.key
+        value_storage = self.value
+        if key_storage is None or value_storage is None or required > key_storage.shape[0]:
+            capacity = max(64, 1 << (required - 1).bit_length())
+            next_key = np.empty((capacity, *key.shape[1:]), dtype=key.dtype)
+            next_value = np.empty((capacity, *value.shape[1:]), dtype=value.dtype)
+            if self.length:
+                if key_storage is None or value_storage is None:
+                    raise TransformerClientError("KV cache storage is unavailable")
+                next_key[: self.length] = key_storage[: self.length]
+                next_value[: self.length] = value_storage[: self.length]
+            self.key, self.value = next_key, next_value
+            key_storage, value_storage = next_key, next_value
+        key_storage[self.length : required] = key
+        value_storage[self.length : required] = value
+        self.length = required
+        return key_storage[:required], value_storage[:required]
+
+    def copy_active(self) -> "LayerCache":
+        return LayerCache(
+            None if self.key is None else self.key[: self.length].copy(),
+            None if self.value is None else self.value[: self.length].copy(),
+            self.length,
+        )
 
 
 @dataclass(slots=True)
@@ -1010,13 +1038,7 @@ class MaskedTransformerClientRuntime:
     def snapshot(self) -> RuntimeSnapshot:
         return RuntimeSnapshot(
             position=int(self.position),
-            caches=[
-                LayerCache(
-                    None if row.key is None else row.key.copy(),
-                    None if row.value is None else row.value.copy(),
-                )
-                for row in self.caches
-            ],
+            caches=[row.copy_active() for row in self.caches],
             shared_kv={
                 key: (value[0].copy(), value[1].copy()) for key, value in self.shared_kv.items()
             },
@@ -1024,13 +1046,7 @@ class MaskedTransformerClientRuntime:
 
     def restore(self, snapshot: RuntimeSnapshot) -> None:
         self.position = int(snapshot.position)
-        self.caches = [
-            LayerCache(
-                None if row.key is None else row.key.copy(),
-                None if row.value is None else row.value.copy(),
-            )
-            for row in snapshot.caches
-        ]
+        self.caches = [row.copy_active() for row in snapshot.caches]
         self.shared_kv = {
             key: (value[0].copy(), value[1].copy()) for key, value in snapshot.shared_kv.items()
         }
@@ -1080,6 +1096,8 @@ class MaskedTransformerClientRuntime:
             if token == int(self.cfg["eos_token_id"]):
                 break
             yield token, self.tokenizer.decode([token])
+            if step + 1 == max_output_tokens:
+                break
             logits, caches = self.decode_step(token, caches, len(ids) + step)
 
     def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False) -> np.ndarray:
@@ -1294,11 +1312,7 @@ class MaskedTransformerClientRuntime:
                 value = self._norm_unscaled(value)
             key = self._rope(key, positions, index)
             cache = self.caches[index]
-            key_cache = key if cache.key is None else np.concatenate((cache.key, key), axis=0)
-            value_cache = (
-                value if cache.value is None else np.concatenate((cache.value, value), axis=0)
-            )
-            cache.key, cache.value = key_cache, value_cache
+            key_cache, value_cache = cache.append(key, value)
             if self._producer_by_type.get(layer_type) == index:
                 self.shared_kv[layer_type] = (key_cache, value_cache)
         if self.qk_norm:
@@ -1306,17 +1320,16 @@ class MaskedTransformerClientRuntime:
         query = self._rope(query, positions, index)
 
         groups = self.heads // kv_heads
-        repeated_k = np.repeat(key_cache, groups, axis=1)
-        repeated_v = np.repeat(value_cache, groups, axis=1)
+        grouped_query = query.reshape(hidden.shape[0], kv_heads, groups, head_dim)
         output = np.empty((hidden.shape[0], self.heads, head_dim), dtype=np.float32)
         for row, position in enumerate(positions):
-            end = min(int(position) + 1, repeated_k.shape[0])
+            end = min(int(position) + 1, key_cache.shape[0])
             start = 0
             if layer_type == "sliding_attention" and self.sliding_window:
                 start = max(0, end - int(self.sliding_window))
-            keys = repeated_k[start:end]
-            values = repeated_v[start:end]
-            scores = np.einsum("hd,thd->ht", query[row], keys)
+            keys = key_cache[start:end]
+            values = value_cache[start:end]
+            scores = np.einsum("kgd,tkd->kgt", grouped_query[row], keys)
             configured_scaling = self.cfg.get("attention_scaling")
             scores *= float(
                 1.0 / math.sqrt(head_dim) if configured_scaling is None else configured_scaling
@@ -1324,7 +1337,9 @@ class MaskedTransformerClientRuntime:
             scores -= scores.max(axis=-1, keepdims=True)
             probabilities = np.exp(scores).astype(np.float32)
             probabilities /= probabilities.sum(axis=-1, keepdims=True)
-            output[row] = np.einsum("ht,thd->hd", probabilities, values)
+            output[row] = np.einsum("kgt,tkd->kgd", probabilities, values).reshape(
+                self.heads, head_dim
+            )
         return self.remote(
             f"layers.{index}.self_attn.o_proj", output.reshape(hidden.shape[0], q_width)
         )

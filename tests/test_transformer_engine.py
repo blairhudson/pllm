@@ -11,12 +11,40 @@ from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per
 from pllm.runtime.preparation_protocol import seeded_ring_profile
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse, StageCorrelation, unmask_stage_output
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
-from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
+from pllm.runtime.transformer_client import ClientBundle, LayerCache, TransformerClientError
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
 def run(value):
     return asyncio.run(value)
+
+
+def test_layer_cache_grows_geometrically_and_snapshots_only_active_rows():
+    cache = LayerCache()
+    first = np.arange(30 * 4, dtype=np.float32).reshape(30, 2, 2)
+    keys, values = cache.append(first, first + 1)
+
+    assert keys.shape == (30, 2, 2)
+    assert cache.key is not None
+    assert cache.key.shape == (64, 2, 2)
+    storage = cache.key
+
+    cache.append(np.ones((1, 2, 2), dtype=np.float32), np.ones((1, 2, 2), dtype=np.float32))
+    assert cache.key is storage
+
+    keys, _ = cache.append(
+        np.full((40, 2, 2), 2, dtype=np.float32),
+        np.full((40, 2, 2), 3, dtype=np.float32),
+    )
+    assert keys.shape == (71, 2, 2)
+    assert cache.key is not None
+    assert cache.key.shape == (128, 2, 2)
+    np.testing.assert_array_equal(keys[:30], first)
+
+    snapshot = cache.copy_active()
+    assert snapshot.length == 71
+    assert snapshot.key is not None
+    assert snapshot.key.shape == (71, 2, 2)
 
 
 def test_safetensors_engine_loads_fused_stage_and_executes_masked(tmp_path: Path):
@@ -171,6 +199,14 @@ def test_public_boundary_stages_stay_local_and_head_projects_final_prefill_row(
         .rows
         == 3
     )
+
+    qkv = engine.models["tiny-local-boundaries"].stages["layers.0.self_attn.qkv_proj"]
+    calls = qkv.calls
+    non_eos = (int(runtime.cfg["eos_token_id"]) + 1) % int(runtime.cfg["vocab_size"])
+    monkeypatch.setattr(runtime, "sample", lambda *_args, **_kwargs: non_eos)
+
+    assert len(list(runtime.generate_steps("a", max_output_tokens=1))) == 1
+    assert qkv.calls == calls + 1
 
 
 def test_engine_precision_applies_to_every_stage(tmp_path: Path):
