@@ -32,7 +32,7 @@ dependencies = [
   "opentelemetry-sdk>=1.36,<2",
   "prompt-toolkit>=3.0,<4", "rich>=13.9,<16", "safetensors>=0.4,<1",
   "sentencepiece>=0.2,<1", "tokenizers>=0.21,<1", "uvicorn>=0.30,<1",
-  "websockets>=15,<16",
+  "websockets>=15,<18",
 ]
 
 [project.optional-dependencies]
