@@ -1,6 +1,6 @@
 # Python SDK
 
-Keep HE details out of application code.
+Prepare explicit inventory, then use a Responses-shaped local client.
 
 
 ## Generate text
@@ -8,27 +8,39 @@ Keep HE details out of application code.
 ```python
 from pllm import OpenAI
 
+prompt = "Explain the prepared inventory lifecycle."
+maximum = 128
+
 with OpenAI() as client:
-    client.preprocess(count=256)
+    required = client.prepared_rows_for_response(prompt, maximum)
+    client.preprocess(count=required)
     response = client.responses.create(
-        input="Explain the preparation phase.",
-        max_output_tokens=128,
+        input=prompt,
+        max_output_tokens=maximum,
     )
     print(response.output_text)
 ```
 
-`OpenAI()` reads the saved PLLM configuration. An explicit `model` on a request overrides the selected model. For public weights, call `preprocess()` before the first chat; inference fails closed rather than doing preparation on the online path. The SDK reserves one-time rows for each execution and refills a spare inventory only while idle. Keep one client open to reuse unreserved rows across chats.
+`OpenAI()` reads saved settings. `preprocess()` completes before the response
+enters its online phase; there is no online preparation fallback. Keep one client
+open to reuse unreserved inventory. A request-level `model` overrides the saved
+default.
 
 ## Stream text
 
 ```python
 from pllm import OpenAI
 
+prompt = "Describe the client and inference boundary."
+maximum = 128
+
 with OpenAI() as client:
-    client.preprocess(count=256)
+    client.preprocess(
+        count=client.prepared_rows_for_response(prompt, maximum)
+    )
     with client.responses.create(
-        input="Describe the client and provider boundary.",
-        max_output_tokens=128,
+        input=prompt,
+        max_output_tokens=maximum,
         stream=True,
     ) as stream:
         for event in stream:
@@ -37,26 +49,29 @@ with OpenAI() as client:
     print()
 ```
 
-The direct SDK returns PLLM response types. The [local gateway](/docs/client/openai) is the path to response objects parsed by the official SDK.
+Closing a stream early closes its execution and burns all unused reserved rows.
+It does not make those rows available to another response.
 
-## Continue a conversation
+## Continue local state
 
 ```python
 from pllm import OpenAI
 
 with OpenAI() as client:
     client.preprocess(count=256)
-    first = client.responses.create(input="What does a mask hide?")
+    first = client.responses.create(input="What does a one-time mask hide?")
     second = client.responses.create(
-        input="And what happens when it is reused?",
+        input="Why must its reservation burn on failure?",
         previous_response_id=first.id,
     )
     print(second.output_text)
 ```
 
-Conversation state belongs to this client process. Reusing the ID on another client or after losing local state is not a server history restore operation.
+Conversation state and continuation caches belong to this client process.
+`previous_response_id` is not remote server history and cannot restore state in a
+new client. Ensure prepared capacity covers both responses before starting them.
 
-## Explicit connection settings
+## Explicit connection
 
 ```python
 import os
@@ -67,35 +82,47 @@ with OpenAI(
     api_key=os.environ["PLLM_API_KEY"],
     preparation_base_url=os.environ["PLLM_PREPARATION_BASE_URL"],
     preparation_api_key=os.environ["PLLM_PREPARATION_API_KEY"],
-    model="private-model",
+    model="demo-model",
+    prepared_inventory_rows=256,
     bundle_cache_mode="read-write",
     timeout=600,
 ) as client:
-    client.preprocess(count=256)
-    print(client.responses.create(input="Hello").output_text)
+    prompt = "Hello"
+    client.preprocess(
+        count=client.prepared_rows_for_response(prompt, 64)
+    )
+    print(client.responses.create(input=prompt).output_text)
 ```
 
-The constructor also accepts `preparation_base_url`, `preparation_api_key`,
-`he_transport`, `correlation_mode`,
-`correlation_prefetch`, `token_cache_size`, `bundle_cache_mode`,
-`bundle_cache_dir`, `tenseal_path`, and `http_client`.
-Remote preparation is available only for public weights. The preparation
-service must be trusted not to retain masks or collude with the inference
-provider. Most applications should leave these values in saved configuration.
+The constructor also accepts `he_transport`, `background_inventory_refill`,
+`bundle_cache_dir`, and an injected `http_client`. `correlation_mode`,
+`correlation_prefetch`, `token_cache_size`, and `tenseal_path` exist for legacy
+confidential-weight/BFV paths and do not control public seeded inventory.
 
-## Async applications
+`timeout` covers client HTTP operations, not preparation's correction ACK,
+inference inventory expiry, or proxy WebSocket lifetime.
+
+## Async client
 
 ```python
 import asyncio
 from pllm import AsyncOpenAI
 
 async def main() -> None:
+    prompt = "Explain compact prefill."
+    maximum = 64
     async with AsyncOpenAI() as client:
-        await client.preprocess(count=256)
-        response = await client.responses.create(input="Hello")
+        required = await client.prepared_rows_for_response(prompt, maximum)
+        await client.preprocess(count=required)
+        response = await client.responses.create(
+            input=prompt,
+            max_output_tokens=maximum,
+        )
         print(response.output_text)
 
 asyncio.run(main())
 ```
 
-The reference async wrapper delegates work to threads. It is not a separate native async inference engine. Use one client and private state per independent conversation when measuring concurrency.
+The async wrapper delegates current work to threads; it is not a separate native
+async engine. Isolate client state per concurrent conversation and measure memory,
+inventory, and server batching under the intended concurrency.

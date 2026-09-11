@@ -1,4 +1,4 @@
-.PHONY: sync test test-core test-native test-reference he lint build paper docs check clean
+.PHONY: sync test test-core test-native test-reference he lint build paper whitepaper docs check clean
 UV ?= uv
 PAPER_PYTHON ?= 3.13
 
@@ -20,11 +20,14 @@ build:
 	uv build
 paper:
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/build_paper.py
-docs: paper
+whitepaper:
+	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/build_whitepaper.py --publish
+docs: paper whitepaper
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/prepare_docs.py
 	cd docs && npm install && npm test && npm run typecheck && npm run build
 check:
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/check_repository.py
 clean:
-	rm -f paper/main.pdf
+	$(MAKE) -C paper clean
+	rm -f paper/whitepaper.pdf paper/whitepaper-source.zip
 	rm -rf build dist docs/.next docs/out .pytest_cache

@@ -3,10 +3,10 @@
   "pages": [
     "install",
     "configuration",
+    "lifecycle",
     "python",
     "chat",
     "openai",
-    "agents",
-    "lifecycle"
+    "agents"
   ]
 }

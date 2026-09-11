@@ -1,58 +1,77 @@
-# Follow a request
+# Follow a response
 
-From preparation to the text your application receives.
+Commit, prepare, reserve, batch prefill, decode, and burn safely.
 
 
-## 1. Validate the model plan
+## 1. Validate model and boundaries
 
-The client obtains stage names, dimensions, arithmetic parameters, tokenizer information, scales, and quantized token-boundary matrices from the inference provider. It separately verifies that the preparation service exposes the same public model body and per-stage weight commitments.
+The client fetches graph metadata, tokenizer assets, quantization parameters,
+stage shapes, signed output bounds, and public quantized token-boundary matrices.
+It verifies that inference and preparation expose matching model-body and exact
+per-stage weight commitments.
 
-## 2. Prepare inventory before chat
+For tied embeddings, schema 2 references one canonical vocabulary-by-hidden
+matrix for local token lookup and output head. Untied boundaries remain separate.
+Transformer-body matrices are not included in the client bundle.
 
-Before chat, the client asks inference to create an inventory and sends trusted
-preparation one compact authorization for it. It then sends one root seed and a
-batch size for each remote stage. The default is 64 rows per stage; set
-`PLLM_PREPARED_INVENTORY_ROWS` to change it. Domain separation expands each root
-into one-time tickets, input masks `r`, and output masks `s`, bound to the
-inventory and exact stage commitments.
+## 2. Build inventory offline
 
-Preparation computes batched `W·r-s` rows and pushes them directly to inference's
-fixed endpoint. It waits for inference's durable acknowledgement for every stage.
-After all batches arrive, inference seals the inventory and reports `READY`.
-Preparation does not participate in online chat.
+The client asks inference to create an inventory bound to immutable model, body,
+stage, weight, shape, quantization, ring, wire-width, and attempt-budget metadata.
+It authorizes that inventory through preparation, then sends one root seed and row
+count for every remote stage. Batches default to at least 64 rows and are
+configurable with `PLLM_PREPARED_INVENTORY_ROWS`.
 
-## 3. Process the prompt
+Domain-separated expansion binds each row to the complete inventory and stage
+commitment and derives input mask `r`, output mask `s`, and a random one-time
+ticket. Preparation computes batched `W*r-s`, pushes it one way to inference, and
+waits for durable acknowledgement. After every stage arrives, the client asks
+inference to seal the inventory. Online use fails closed until status is `READY`.
 
-At chat start, the client reserves enough inventory rows for the execution. Token
-lookup is local for public weights. Prompt rows then pass through masked
-transformer-body projections and local nonlinear operations. For each stage, the
-client sends inference only the row's ticket and `x-r`. Inference atomically
-consumes the matching preloaded correction and returns `W·x-s`. There is no
-client-to-preparation online request or preparation acknowledgement. The client
-applies the local output head only to the final prefill row.
+## 3. Reserve before online work
 
-## 4. Generate and decode
+The client tokenizes the rendered prompt locally and reserves enough rows for
+prefill plus at most `max_output_tokens - 1` decode steps. Reservation happens
+before the inference session opens. Reserved rows can only become consumed or
+burned, never available again.
 
-The client adds `s` and center-decodes the smallest sufficient `u16`, `u24`, or
-`u32` ring. Bias is added once after reconstruction.
-Attention, recurrent updates,
-activation scales, and sampling remain local. The gateway emits ordinary text
-events only after the client reconstructs them.
+## 4. Compact prompt prefill
 
-## 5. Burn or stop
+Public token lookup runs locally. Each remote transformer stage receives one
+compact request containing the prompt's ticket vector and packed `x-r` matrix,
+rather than one authenticated envelope per row. Inference atomically consumes all
+matching preloaded corrections and returns one packed `W*x-s` matrix. The client
+adds `s`, center-decodes, and runs attention, normalization, and nonlinear work
+locally.
 
-Tickets and rows are never reused. An in-memory inventory may supply multiple
-chats, but restart or idle expiry discards it. A reservation burns its full range:
-cancellation, early end of stream, and failure burn any rows that execution did
-not reach. Refill creates a new batch only while the client is idle between
-executions, never concurrently with online chat.
+Only the final prompt row needs logits. The public output head therefore runs
+locally on that row instead of sending a vocabulary-sized remote stage.
 
-## What to measure
+## 5. Persistent decode
 
-Record inventory creation and refill separately from total request duration, time
-to first token, gaps between tokens, inference server time, failed attempts,
-client-to-inference traffic, preparation authorization and seed bytes, and
-preparation-to-inference correction bytes. Report reserved, consumed, and burned
-rows. A high rate from an already prepared inventory is not cold-start throughput.
+Decode retains one client-to-inference WebSocket for the execution. Each remote
+stage sends one ticket and masked row and receives one masked output. The client
+reconstructs, updates attention or recurrent state, applies the local output head,
+and samples text. Preparation remains idle for the complete online phase.
 
-The [benchmark guide](/docs/research/benchmarks) separates complete request measurements from matrix kernels and model scale projections.
+Each stage uses its committed smallest exact `u16`, `u24`, or `u32` ring. Bias is
+added once after reconstruction; private activation scales never cross the
+service boundary.
+
+## 6. Complete, burn, or refill
+
+Reached rows are consumed. Successful early stop, cancellation, timeout, stream
+abandonment, and failure burn every unused row in the reservation. Unreserved rows
+can serve later responses. Inventory exists only in memory and is discarded on
+client/inference restart or inference idle expiry.
+
+After all online responses finish, the default client may prepare a spare
+inventory. It never overlaps preparation with online inference.
+
+## Measure each phase
+
+Record cold model/bundle loading, inventory authorization, seed upload, correction
+push bytes, acknowledgements, seal latency, warm prefill, TTFT, decode gaps,
+client-to-inference bytes, and consumed/burned/unreserved rows separately. A warm
+run against READY inventory is not cold-start throughput. Use the
+[live dashboard](/docs/reference/dashboard) for current loopback instrumentation.

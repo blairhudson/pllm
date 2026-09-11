@@ -1,71 +1,104 @@
 ---
-title: "Run a provider"
-description: "Declare the checkpoint policy and choose a supported execution path."
+title: "Run both services"
+description: "Serve a public transformer body and preload committed corrections."
 ---
 
-## Public checkpoint
+## Inference
+
+```bash
+pllm serve "$PLLM_MODEL_SOURCE" \
+  --weights public \
+  --model-id demo-model \
+  --api-key "$PLLM_API_KEY" \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --local-files-only \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+`--weights public` selects `seeded-preparation`. It means model confidentiality
+from the client is not required; it does not establish malicious-provider
+security. Without `--api-key`, the CLI generates a key and prints it once. Use an
+explicit protected value anywhere logs can be retained.
+
+Inference registers committed inventories, accepts one-way correction batches
+from the push credential, and reports `READY` only after every remote stage is
+loaded and sealed. Online, it atomically consumes each ticket and returns masked
+stage output.
+
+## Trusted preparation
+
+```bash
+pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --model-id demo-model \
+  --api-key "$PLLM_PREPARATION_API_KEY" \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --local-files-only \
+  --host 127.0.0.1 \
+  --port 8001
+```
+
+This role is public-weight-only and exposes model commitments plus inventory
+authorization and stage-preparation routes. It has no Responses or online
+inference endpoint. Before chat it receives one root seed and row count per stage,
+expands one-time `r`, `s`, and tickets, computes `W*r-s`, pushes the correction to
+inference's fixed origin, and waits for durable acknowledgement. It must erase
+expanded masks and remain independent of inference.
+
+The preparation listener's environment credential is `PLLM_API_KEY`. Its fixed
+inference and push values are `PLLM_INFERENCE_URL` and `PLLM_PUSH_API_KEY` when
+flags are omitted. Inference reads `PLLM_PROVIDER_PUSH_API_KEY`. The push value is
+shared only across those two service settings; all client-facing credentials must
+differ.
+
+## Online behavior
+
+Once inventory is `READY`, preparation is idle. Prefill arrives at inference as
+one compact ticket vector and packed masked matrix per stage over HTTP. Decode
+uses one ticket per stage over the response's persistent WebSocket. Stages use the
+smallest committed exact `u16`, `u24`, or `u32` ring.
+
+Public token lookup and output head run at the client. Inference and preparation
+execute only remote transformer-body stages. This changes bundle size and remote
+stage counts; include both when comparing deployments.
+
+## Compile and cache
 
 ```bash
 pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
   --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --local-files-only \
-  --model-id private-model \
-  --host 127.0.0.1 \
-  --port 8000
+  --model-id demo-model \
+  --compiled-cache-dir .cache/inference \
+  --quantization-chunk-rows 64
 ```
 
-Set `PLLM_API_KEY` in the provider environment. Without an explicit key, the reference CLI generates a key and prints it once; this is unsuitable for captured production logs. Use a configured secret for deployment.
+W8A8 is the default. `--weight-bits 4 --activation-bits 4` selects a smaller
+research representation. Parity means agreement with the matching clear
+quantized graph, not the original floating checkpoint or equivalent language
+quality.
 
-## Trusted preparation role
-
-```bash
-pllm preparation serve "$PLLM_MODEL_SOURCE" \
-  --api-key "$PLLM_PREPARATION_API_KEY" \
-  --inference-url http://127.0.0.1:8000 \
-  --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
-  --model-id private-model \
-  --local-files-only \
-  --host 127.0.0.1 \
-  --port 8001
-```
-
-This public-weight-only service exposes no Responses or inference route. Before
-chat, it receives one root seed per stage for a batch of rows, expands `r` and
-`s`, pushes `W·r-s` rows to inference's fixed endpoint, waits for durable
-acknowledgement, and must erase the masks. Inference seals the complete inventory
-`READY`. Preparation remains idle during online chat. The client verifies that its
-model, stage, and exact ring commitments match inference.
-
-## Separate weights from adversary assumptions
-
-`--weights public` means that model confidentiality from the client is not required. It does not mean that any malicious provider is safe.
-
-`--weights confidential --client-trust guarded` selects blinded preparation and operational query limits. The client still sees intermediate results. These controls do not establish cryptographic model confidentiality against a modified client.
+## Optional confidential-weight paths
 
 ```bash
 pllm serve "$PLLM_MODEL_SOURCE" \
   --weights confidential \
-  --client-trust untrusted
+  --client-trust guarded
 ```
 
-This combination is rejected for arbitrary Hugging Face graphs. There is no silent fallback to guarded execution. The authenticated arithmetic preview is a simulator, not a distributed malicious security implementation.
+Guarded and blinded modes use legacy HE-preprocessed correlations; direct mode is
+a separate BFV reference path. They require the optional HE dependency and have a
+different wire lifecycle. The client still observes intermediate outputs, so
+query budgets do not establish model confidentiality against a modified client.
 
-## Compile once
+`--client-trust untrusted` and authenticated shares fail closed for arbitrary
+Hugging Face serving. `pllm secure` is an arithmetic research simulator, not a
+deployed malicious-security service.
 
-```bash
-pllm serve "$PLLM_MODEL_SOURCE" \
-  --weights public \
-  --local-files-only \
-  --model-id private-model \
-  --compiled-cache-dir .cache/compiled \
-  --quantization-chunk-rows 64
-```
+## Health and discovery
 
-Compilation uses W8A8 by default so ordinary checkpoints retain usable generation quality. `--weight-bits 4 --activation-bits 4` selects the smaller research representation. Bit equality with a clear quantized graph does not mean equality with the original floating point checkpoint.
-
-## Health and model discovery
-
-`/healthz` is a liveness check. Use authenticated `/v1/models` to inspect loaded model status. A healthy process is not proof that a model compiled or that either service will compute honestly.
-
-The provider intentionally rejects plaintext `/v1/responses` for a private model. Applications call the [local gateway](/docs/client/openai) instead.
+`/healthz` and `/health` are liveness endpoints. Authenticated `/v1/models`
+reports loaded model metadata. Liveness does not prove model compilation,
+inventory readiness, honest execution, output quality, or operator independence.

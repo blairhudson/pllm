@@ -6,15 +6,23 @@ import shutil
 import zipfile
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
+ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 def zip_files(output: Path, root: Path, files: list[Path]) -> None:
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         checksums = []
         for path in sorted(files):
             name = path.relative_to(root).as_posix()
-            archive.write(path, name)
-            checksums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {name}")
-        archive.writestr("SHA256SUMS.txt", "\n".join(checksums) + "\n")
+            content = path.read_bytes()
+            info = zipfile.ZipInfo(name, ZIP_TIMESTAMP)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, content)
+            checksums.append(f"{hashlib.sha256(content).hexdigest()}  {name}")
+        info = zipfile.ZipInfo("SHA256SUMS.txt", ZIP_TIMESTAMP)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0o100644 << 16
+        archive.writestr(info, "\n".join(checksums) + "\n")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -26,10 +34,21 @@ def main() -> None:
     downloads.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(args.paper, downloads / "paper.pdf")
     files = [
-        ROOT / "paper" / name
-        for name in ("manuscript.md", "paper.lua", "web.template.md", "README.md", "Makefile")
+        ROOT / "LICENSE",
+        *(
+            ROOT / "paper" / name
+            for name in (
+                "IMPLEMENTATION-STATUS.md",
+                "Makefile",
+                "README.md",
+                "manuscript.md",
+                "paper.lua",
+                "references.bib",
+                "web.template.md",
+            )
+        ),
+        ROOT / "scripts/build_paper.py",
     ]
-    files.append(ROOT / "scripts/build_paper.py")
     zip_files(downloads / "paper-source.zip", ROOT, files)
     evidence = ROOT / "research/evidence"
     files = [p for p in evidence.rglob("*") if p.is_file() and p.suffix in {".json", ".csv", ".md", ".patch"}]

@@ -9,103 +9,109 @@
     "key": "client/chat",
     "url": "/docs/client/chat/",
     "title": "Chat from the terminal",
-    "description": "Stream a conversation without writing application code."
+    "description": "Prepare while idle, then stream over the client-to-inference path."
   },
   {
     "key": "client/configuration",
     "url": "/docs/client/configuration/",
-    "title": "Configure once",
-    "description": "The SDK and chat CLI share the same local settings."
+    "title": "Configure the client",
+    "description": "Separate inference, preparation, inventory, cache, and timeout settings."
   },
   {
     "key": "client/install",
     "url": "/docs/client/install/",
     "title": "Install the client",
-    "description": "Use UV to install the CLI and Python client from this repository."
+    "description": "Build the current public client from this source with UV and Maturin."
   },
   {
     "key": "client/lifecycle",
     "url": "/docs/client/lifecycle/",
-    "title": "Follow a request",
-    "description": "From preparation to the text your application receives."
+    "title": "Follow a response",
+    "description": "Commit, prepare, reserve, batch prefill, decode, and burn safely."
   },
   {
     "key": "client/openai",
     "url": "/docs/client/openai/",
     "title": "Use the OpenAI SDK",
-    "description": "Point the standard SDK at your local gateway, not at the provider."
+    "description": "Point standard Responses clients at a trusted local gateway, never inference."
   },
   {
     "key": "client/python",
     "url": "/docs/client/python/",
     "title": "Python SDK",
-    "description": "Keep HE details out of application code."
+    "description": "Prepare explicit inventory, then use a Responses-shaped local client."
   },
   {
     "key": "deployment/docker",
     "url": "/docs/deployment/docker/",
     "title": "Deploy with Docker",
-    "description": "Inference, trusted preparation, and a customer gateway."
+    "description": "Run the three-role loopback topology and understand what it does not prove."
   },
   {
     "key": "deployment/overview",
     "url": "/docs/deployment/overview/",
     "title": "Deployment overview",
-    "description": "Separate inference, preparation, the trusted client, and documentation."
+    "description": "Place three trust roles, route two online transports, and size inventory safely."
   },
   {
     "key": "deployment/site",
     "url": "/docs/deployment/site/",
     "title": "Publish the documentation",
-    "description": "Build a static Fumadocs site and deploy through GitHub Pages."
+    "description": "Validate and export a static site with no inference endpoint."
   },
   {
     "key": "deployment/systemd",
     "url": "/docs/deployment/systemd/",
     "title": "Deploy with systemd",
-    "description": "Run inference and preparation as separate protected services."
+    "description": "Install separate inference and preparation services with explicit caches and secrets."
   },
   {
     "key": "index",
     "url": "/docs/",
     "title": "Start here",
-    "description": "A familiar API. A different privacy boundary."
+    "description": "Offline prepared inventory, online masked inference, and a local Responses boundary."
   },
   {
     "key": "quickstart",
     "url": "/docs/quickstart/",
-    "title": "Run your first private request",
-    "description": "Start a provider, configure the client, and generate a response."
+    "title": "Run your first prepared request",
+    "description": "Start inference and preparation, seal an inventory, and generate locally."
   },
   {
     "key": "reference/cli",
     "url": "/docs/reference/cli/",
     "title": "CLI reference",
-    "description": "The flags below come from the supplied parser."
+    "description": "Current public-path commands, role-specific flags, and legacy boundaries."
   },
   {
     "key": "reference/compatibility",
     "url": "/docs/reference/compatibility/",
-    "title": "Compatibility matrix",
-    "description": "What the supplied code implements, and what was actually exercised."
+    "title": "Compatibility and limits",
+    "description": "Current implemented surfaces, validation scope, and unsupported behavior."
+  },
+  {
+    "key": "reference/dashboard",
+    "url": "/docs/reference/dashboard/",
+    "title": "Live protocol dashboard",
+    "description": "Run current source end to end and interpret its observed metrics."
   },
   {
     "key": "reference/development",
     "url": "/docs/reference/development/",
     "title": "Project structure",
-    "description": "Work on the Rust core, Python package, documentation and paper in one repository."
+    "description": "Build and test the Rust core, Python runtime, and current docs independently."
   },
   {
     "key": "reference/releasing",
     "url": "/docs/reference/releasing/",
     "title": "Build and release",
-    "description": "GitHub checks, PyPI publication and Pages deployment."
+    "description": "Use committed locks, verified native artifacts, and scoped publication permissions."
   },
   {
     "key": "reference/troubleshooting",
     "url": "/docs/reference/troubleshooting/",
     "title": "Troubleshooting",
-    "description": "Resolve configuration and lifecycle failures without weakening the protocol."
+    "description": "Diagnose role, inventory, timeout, transport, and checkpoint failures safely."
   },
   {
     "key": "research/architecture",
@@ -122,8 +128,8 @@
   {
     "key": "research/paper",
     "url": "/docs/research/paper/",
-    "title": "Private LLM Inference",
-    "description": "The full paper. Preparation, decoding, and the client and provider boundary."
+    "title": "Executable BFV Mask Preparation for Public-Weight Language-Model Inference: A Historical PLLM Study",
+    "description": "Historical executable study of BFV-prepared additive masks for public-weight integer linear layers."
   },
   {
     "key": "research/reproduce",
@@ -141,36 +147,36 @@
     "key": "security",
     "url": "/docs/security/",
     "title": "Security boundaries",
-    "description": "Name the protected data, the adversary, and what still leaks."
+    "description": "Protected values, visible metadata, required trust, and unsupported claims."
   },
   {
     "key": "server/install",
     "url": "/docs/server/install/",
-    "title": "Install a provider",
-    "description": "Build the Rust extension and load a supported checkpoint."
+    "title": "Install the services",
+    "description": "Build the Rust extension and validate a public checkpoint source."
   },
   {
     "key": "server/models",
     "url": "/docs/server/models/",
     "title": "Model support",
-    "description": "Distinguish tensor import, graph execution, and quality validation."
+    "description": "Separate tensor import, graph execution, public bundles, and quality evidence."
   },
   {
     "key": "server/native",
     "url": "/docs/server/native/",
     "title": "Rust execution core",
-    "description": "Maturin packaging, integer kernels, backend inspection and measured comparisons."
+    "description": "Maturin packaging, exact integer kernels, thread policy, and evidence limits."
   },
   {
     "key": "server/performance",
     "url": "/docs/server/performance/",
-    "title": "Tune the right bottleneck",
-    "description": "Measure the complete lifecycle before increasing a batch."
+    "title": "Measure and tune",
+    "description": "Separate cold inventory, compact prefill, persistent decode, and local boundaries."
   },
   {
     "key": "server/usage",
     "url": "/docs/server/usage/",
-    "title": "Run a provider",
-    "description": "Declare the checkpoint policy and choose a supported execution path."
+    "title": "Run both services",
+    "description": "Serve a public transformer body and preload committed corrections."
   }
 ]

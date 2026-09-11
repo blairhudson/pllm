@@ -87,6 +87,16 @@ def shutdown_telemetry() -> None:
         _trace_provider.shutdown()
 
 
+def force_flush_telemetry(timeout_millis: int = 2_000) -> bool:
+    """Export current process samples before a benchmark window is archived."""
+    flushed = True
+    if _meter_provider is not None:
+        flushed = bool(_meter_provider.force_flush(timeout_millis)) and flushed
+    if _trace_provider is not None:
+        flushed = bool(_trace_provider.force_flush(timeout_millis)) and flushed
+    return flushed
+
+
 def instrument_fastapi(app: Any) -> None:
     if not _configured:
         return

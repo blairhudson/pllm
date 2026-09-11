@@ -3,92 +3,185 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PLLM Live Protocol</title>
+  <title>PLLM Benchmark Dashboard</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
-  <header>
-    <div class="brand"><span class="mark">P</span><span>PLLM</span><b>LIVE PROTOCOL</b></div>
-    <div class="status"><i id="status-dot"></i><span id="status-copy">STARTING SERVICES</span></div>
+  <header class="app-header">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">P</span>
+      <div><strong>PLLM</strong><span>PRIVATE INFERENCE BENCHMARK</span></div>
+    </div>
+    <div class="status" role="status" aria-live="polite">
+      <i id="status-dot" aria-hidden="true"></i>
+      <span id="status-copy">STARTING SERVICES</span>
+    </div>
   </header>
 
   <main>
-    <section class="hero">
-      <div>
-        <p class="eyebrow">SEE THE PRIVACY BOUNDARY</p>
-        <h1>One prompt.<br><em>No server sees it.</em></h1>
+    <section class="panel run-panel" aria-labelledby="run-heading">
+      <div class="section-heading run-heading">
+        <div><p class="eyebrow">CURRENT SESSION</p><h1 id="run-heading">Run private inference</h1></div>
+        <span id="run-clock" class="mono">00:00.0</span>
       </div>
-      <p class="lede">A real private inference run, instrumented end-to-end with OpenTelemetry. Preparation builds one-time corrections before chat; online traffic stays between Client and Inference.</p>
+      <form id="run-form" class="run-form" autocomplete="off">
+        <label class="prompt-field" for="prompt"><span>Prompt <small>live memory only</small></span><textarea id="prompt" rows="2">Explain why neither server can see the prompt.</textarea></label>
+        <label class="token-field" for="max-tokens"><span>Max output</span><input id="max-tokens" type="number" min="1" max="512" value="24" inputmode="numeric"></label>
+        <button id="run" type="submit" disabled>RUN PRIVATE CHAT</button>
+      </form>
+      <div class="response-row">
+        <span class="response-label" id="model-label">MODEL / WAITING</span>
+        <p id="answer">Waiting for live services.</p>
+        <i class="cursor" aria-hidden="true"></i>
+      </div>
+      <div class="run-feedback"><p class="error" id="error" role="alert"></p><p id="submission-status" aria-live="polite"></p></div>
     </section>
 
-    <section class="topology" id="topology">
-      <article class="service client" data-service="pllm-client">
-        <div class="service-head"><span class="number">01</span><span class="trust trusted">PRIVATE</span></div>
-        <h2>Client</h2><p>Your device</p>
-        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
-        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>MASKS</span></div></div>
-        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM · <b id="tps">0.00</b> TOK/S</div>
-        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
-        <ul><li>Plaintext prompt</li><li>Fresh masks + private state</li><li>Token sampling</li></ul>
-      </article>
-
-      <div class="edge edge-a">
-        <span class="flow forward"></span><span class="flow return"></span>
-        <b id="client-prep-bytes">0 B</b><small>OFFLINE SEED BATCH</small>
+    <section class="panel summary-panel" aria-labelledby="selection-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">RUN SUMMARY</p><h2 id="selection-title">Current live run</h2></div>
+        <span id="selection-meta">Live snapshot</span>
       </div>
-
-      <article class="service preparation" data-service="pllm-preparation">
-        <div class="service-head"><span class="number">02</span><span class="trust semi">NON-COLLUDING</span></div>
-        <h2>Preparation</h2><p>Self-hosted or SaaS</p>
-        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
-        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>CORRECTIONS</span></div></div>
-        <div class="live-now"><span>ONLINE Δ</span><b id="prep-online-cpu">0 GEMMs</b> · <b data-metric="memory">0 MB</b> RAM</div>
-        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
-        <ul><li>Runs before chat</li><li>Computes W·r−s inventory</li><li>Idle during online inference</li></ul>
-      </article>
-
-      <div class="edge edge-b">
-        <span class="flow forward"></span>
-        <b id="relay-bytes">0 B</b><small>OFFLINE INVENTORY</small>
+      <div class="kpi-grid">
+        <article><span>State</span><strong id="kpi-state">Starting</strong></article>
+        <article><span>Model</span><strong id="kpi-model">--</strong></article>
+        <article><span>Actual context</span><strong id="kpi-context">--</strong><small>tokens</small></article>
+        <article><span>Output</span><strong id="kpi-output">0</strong><small>tokens</small></article>
+        <article><span>Total time</span><strong id="kpi-duration">--</strong></article>
+        <article><span>First token</span><strong id="kpi-ttft">--</strong><small>TTFT</small></article>
+        <article><span>Decode rate</span><strong id="kpi-tps">0.00</strong><small>tok/s</small></article>
+        <article><span>Online I/O</span><strong id="kpi-io">0 B</strong><small>masked</small></article>
       </div>
-
-      <article class="service inference" data-service="pllm-inference">
-        <div class="service-head"><span class="number">03</span><span class="trust untrusted">UNTRUSTED</span></div>
-        <h2>Inference</h2><p>Heavy compute provider</p>
-        <div class="effort-label">CUMULATIVE EFFORT / PROCESS START</div>
-        <div class="metrics"><div><b data-metric="cpu-time">0.00s</b><span>CPU TIME</span></div><div><b data-metric="sent">0 B</b><span>SENT</span></div><div><b data-metric="received">0 B</b><span>RECEIVED</span></div><div><b data-metric="work">0</b><span>MATRIX RUNS</span></div></div>
-        <div class="live-now"><span>NOW</span><b data-metric="cpu">0%</b> CPU · <b data-metric="memory">0 MB</b> RAM · <b id="ttft">--</b> TTFT</div>
-        <svg class="spark" viewBox="0 0 300 44" preserveAspectRatio="none"><path data-spark></path></svg>
-        <ul><li>Masked matrix execution</li><li>Transformer body weights</li><li>Never receives prompt or seed</li></ul>
-      </article>
-      <div class="edge edge-c"><span class="flow return"></span><b id="inference-bytes">0 B</b><small>ONLINE MASKED I/O</small></div>
     </section>
 
-    <section class="workspace">
-      <article class="console">
-        <div class="panel-head"><span>LIVE CHAT</span><span id="run-clock">00:00.0</span></div>
-        <label for="prompt">PROMPT STAYS HERE</label>
-        <textarea id="prompt" rows="3">Explain why neither server can see the prompt.</textarea>
-        <div class="controls"><label>MAX TOKENS <input id="max-tokens" type="number" min="1" max="512" value="24"></label><button id="run">RUN PRIVATE CHAT <span>→</span></button></div>
-        <div class="inventory-grid"><span>INVENTORY</span><b id="inventory-capacity">0</b><small>CAPACITY</small><b id="inventory-available">0</b><small>AVAILABLE</small><b id="inventory-reserved">0</b><small>RESERVED</small><b id="inventory-consumed">0</b><small>CONSUMED</small><b id="inventory-burned">0</b><small>BURNED</small></div>
-        <div class="answer"><span class="speaker" id="model-label">MODEL /</span><p id="answer">Waiting for a live run.</p><i class="cursor"></i></div>
-        <p class="error" id="error"></p>
-      </article>
-
-      <article class="protocol">
-        <div class="panel-head"><span>LIVE NETWORK</span><span id="sequence-count">OTEL / WAITING</span></div>
-        <div class="sequence-head"><span>CLIENT</span><span>PREPARATION</span><span>INFERENCE</span></div>
-        <div class="sequence-body">
-          <div class="lifelines"><i></i><i></i><i></i></div>
-          <div id="sequence-events" class="sequence-events"><p class="sequence-empty">Run a chat to capture protocol operations.</p></div>
+    <section class="analysis-grid" aria-label="Persisted run comparison">
+      <article class="panel matrix-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">COVERAGE</p><h2 id="matrix-heading">Model cohort x actual context</h2></div>
+          <span id="matrix-metric-label">Median total time</span>
         </div>
-        <div class="sequence-legend"><span><i class="masked"></i>ONLINE MASKED DATA</span><span>PREPARATION ALREADY COMPLETE</span><span>SIZE ON ARROW · TIME PER OP</span></div>
-        <div class="invariant"><b>NON-COLLUSION BOUNDARY</b><span>Neither server has enough information alone. If they collude, activation privacy is lost.</span></div>
+        <div class="table-scroll matrix-scroll" tabindex="0" role="region" aria-labelledby="matrix-heading">
+          <table id="matrix-table">
+            <caption class="sr-only">Completed persisted runs grouped by model fingerprint, cold or warm mode, and actual context token count</caption>
+            <thead id="matrix-head"></thead>
+            <tbody id="matrix-body"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="matrix-empty">No persisted run matrix available.</p>
+      </article>
+
+      <article class="panel chart-panel">
+        <div class="section-heading chart-heading">
+          <div><p class="eyebrow">COMPARISON</p><h2>Performance by context</h2></div>
+          <label for="metric-select">Metric<select id="metric-select">
+            <option value="duration">Total time</option>
+            <option value="ttft">Time to first token</option>
+            <option value="tps">Decode throughput</option>
+            <option value="online_bytes">Online masked I/O</option>
+            <option value="cpu">Aggregate CPU time</option>
+          </select></label>
+        </div>
+        <div class="chart-wrap">
+          <svg id="comparison-chart" viewBox="0 0 720 300" role="img" aria-label="Persisted run metric comparison by actual context tokens"></svg>
+          <p class="empty-state" id="chart-empty">No comparable persisted measurements.</p>
+        </div>
+        <div id="chart-legend" class="chart-legend" aria-label="Model cohort legend"></div>
       </article>
     </section>
 
-    <section class="trace-strip"><span>NETWORK / ACTUAL OPERATIONS</span><div>Offline: Client → Preparation → Inference seals READY inventory · Online: Client sends ticket + x−r · Inference consumes once and returns Wx−s</div></section>
+    <section class="panel runs-panel" aria-labelledby="runs-heading">
+      <div class="section-heading">
+        <div><p class="eyebrow">ARCHIVE</p><h2 id="runs-heading">Persisted runs</h2></div>
+        <span id="run-count">0 runs</span>
+      </div>
+      <label class="run-select-label" for="run-select">Selected run<select id="run-select"><option value="">Current live run</option></select></label>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="runs-heading">
+        <table id="run-table">
+          <caption class="sr-only">Persisted benchmark runs</caption>
+          <thead><tr><th scope="col">Started</th><th scope="col">State</th><th scope="col">Model</th><th scope="col">Actual context</th><th scope="col">Output</th><th scope="col">TTFT</th><th scope="col">Tok/s</th><th scope="col">Total</th></tr></thead>
+          <tbody id="run-table-body"></tbody>
+        </table>
+      </div>
+      <p id="history-state" class="history-state" role="status">Loading persisted runs...</p>
+    </section>
+
+    <section class="panel detail-panel" aria-labelledby="detail-heading">
+      <div class="section-heading">
+        <div><p class="eyebrow">MEASUREMENTS</p><h2 id="detail-heading">Selected run detail</h2></div>
+        <span>No prompt or output retained</span>
+      </div>
+      <div class="detail-grid">
+        <article><h3>Timing</h3><dl id="timing-detail" class="measure-list"></dl></article>
+        <article><h3>Directional I/O</h3><dl id="io-detail" class="measure-list"></dl></article>
+        <article><h3>Inventory</h3><dl id="inventory-detail" class="measure-list"></dl></article>
+        <article><h3>Resources</h3><dl id="resource-detail" class="measure-list"></dl></article>
+      </div>
+      <article class="privacy-panel">
+        <div><h3>Measured privacy invariants</h3><p>Observed transport counters. Non-collusion remains protocol assumption, not measured proof.</p></div>
+        <div id="privacy-detail" class="invariant-list"></div>
+      </article>
+    </section>
+
+    <details class="panel disclosure" id="topology-details">
+      <summary><span><b>Topology / service metrics</b><small>Client, preparation, inference, process resources, and cumulative traffic</small></span><span id="topology-source">CURRENT LIVE RUN</span></summary>
+      <section class="topology" id="topology" aria-label="Three service protocol topology">
+        <article class="service client" data-service="pllm-client">
+          <div class="service-head"><span>01 / CLIENT</span><b class="trust trusted">PRIVATE</b></div>
+          <p>Prompt, masks, sampling</p>
+          <div class="service-live"><span data-metric="status">WAITING</span><b data-metric="cpu">0.0%</b> CPU <b data-metric="memory">0 B</b> RAM</div>
+          <div class="service-metrics"><div><span>CPU time</span><b data-metric="cpu-time">0.00s</b></div><div><span>Sent</span><b data-metric="sent">0 B</b></div><div><span>Received</span><b data-metric="received">0 B</b></div><div><span>Masks</span><b data-metric="work">0</b></div></div>
+          <svg class="spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-label="Client CPU history"><path data-spark></path></svg>
+          <div class="service-foot"><span>Decode</span><b id="tps">0.00</b> TOK/S</div>
+        </article>
+
+        <div class="edge edge-a"><span class="flow forward"></span><span class="flow return"></span><b id="client-prep-bytes">0 B</b><small>OFFLINE SEED + ACK</small></div>
+
+        <article class="service preparation" data-service="pllm-preparation">
+          <div class="service-head"><span>02 / PREPARATION</span><b class="trust semi">NON-COLLUDING</b></div>
+          <p>Offline W*r-s inventory</p>
+          <div class="service-live"><span data-metric="status">WAITING</span><b data-metric="cpu">0.0%</b> CPU <b data-metric="memory">0 B</b> RAM</div>
+          <div class="service-metrics"><div><span>CPU time</span><b data-metric="cpu-time">0.00s</b></div><div><span>Sent</span><b data-metric="sent">0 B</b></div><div><span>Received</span><b data-metric="received">0 B</b></div><div><span>Corrections</span><b data-metric="work">0</b></div></div>
+          <svg class="spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-label="Preparation CPU history"><path data-spark></path></svg>
+          <div class="service-foot"><span>Online work</span><b id="prep-online-cpu">0 GEMMs</b></div>
+        </article>
+
+        <div class="edge edge-b"><span class="flow forward"></span><b id="relay-bytes">0 B</b><small>OFFLINE CORRECTIONS</small></div>
+
+        <article class="service inference" data-service="pllm-inference">
+          <div class="service-head"><span>03 / INFERENCE</span><b class="trust untrusted">UNTRUSTED</b></div>
+          <p>Masked matrix execution</p>
+          <div class="service-live"><span data-metric="status">WAITING</span><b data-metric="cpu">0.0%</b> CPU <b data-metric="memory">0 B</b> RAM</div>
+          <div class="service-metrics"><div><span>CPU time</span><b data-metric="cpu-time">0.00s</b></div><div><span>Sent</span><b data-metric="sent">0 B</b></div><div><span>Received</span><b data-metric="received">0 B</b></div><div><span>Matrix runs</span><b data-metric="work">0</b></div></div>
+          <svg class="spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-label="Inference CPU history"><path data-spark></path></svg>
+          <div class="service-foot"><span>First token</span><b id="ttft">--</b> TTFT</div>
+        </article>
+        <div class="edge edge-c"><span class="flow return"></span><b id="inference-bytes">0 B</b><small>ONLINE TICKET + MASKED I/O</small></div>
+      </section>
+    </details>
+
+    <details class="panel disclosure" id="network-details">
+      <summary><span><b id="network-heading">LIVE NETWORK / CAPTURED SEQUENCE</b><small>Latest 500 rendered; up to 65,536 operations retained in browser memory</small></span><span id="sequence-count">OTEL / WAITING</span></summary>
+      <section class="protocol" aria-label="Protocol network sequence">
+        <div class="sequence-frame" tabindex="0" role="region" aria-labelledby="network-heading">
+          <div class="sequence-canvas">
+            <div class="sequence-head"><span>CLIENT</span><span>PREPARATION</span><span>INFERENCE</span></div>
+            <div class="sequence-body">
+              <div class="lifelines" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div id="sequence-events" class="sequence-events"><p class="sequence-empty">Run a chat to capture protocol operations.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="sequence-legend"><span><i class="masked"></i>ONLINE MASKED DATA</span><span><i class="offline"></i>OFFLINE PREPARATION</span><span>SIZE ON ARROW / TIME PER OP</span></div>
+        <div class="boundary-note"><b>NON-COLLUSION BOUNDARY</b><span>Neither server has enough information alone. Collusion reveals activation privacy.</span></div>
+      </section>
+    </details>
+
+    <section class="traffic-note" aria-label="Traffic semantics">
+      <b>TRAFFIC SEMANTICS</b>
+      <span>Topology service sent/received = cumulative OTEL counters. Offline links = cumulative preparation traffic. Online link and KPI = per-run client-to-inference plus inference-to-client delta.</span>
+    </section>
   </main>
+
   <footer><span>REAL CLI PROCESSES</span><span>OTLP / 500 MS</span><span>PUBLIC-WEIGHT PROTOCOL</span></footer>
   <script src="/assets/app.js"></script>
 </body>

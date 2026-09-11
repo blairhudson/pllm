@@ -1,51 +1,89 @@
 ---
 title: "Security boundaries"
-description: "Name the protected data, the adversary, and what still leaks."
+description: "Protected values, visible metadata, required trust, and unsupported claims."
 ---
 
-## Public weights
+## Public path actors
 
-The client retains plaintext prompts, token IDs, activation scales, inventory root seeds, masks, and model state. The untrusted inference provider observes prepared corrections, masked stage values, shapes, stage names, timing, and scheduling. Before chat, the trusted preparation service observes batched stage root seeds and bound metadata, derives `r` and `s`, and pushes `W·r-s` rows to inference. The client never receives this correction.
+| Role | Private or trusted state | Data received from another role |
+| --- | --- | --- |
+| Client or local gateway | Prompt, tokens, activation scales, attention state, root seeds, masks, sampling, decoded output | Public bundle, acknowledgements, `W*x-s` |
+| Trusted preparation | Public transformer body; expanded masks until erased | Inventory authorization, stage root seeds and row counts |
+| Inference | Public transformer body and prepared corrections | Inventory authorization, tickets, and `x-r` |
 
-Inference registers each prepared inventory with immutable model/body/stage commitments, quantization, and a bounded attempt budget. The client sends preparation one compact inventory authorization. Preparation validates and relays it with its distinct provider-push credential. After preparation has pushed every stage batch and received durable acknowledgement, inference seals the inventory `READY`. It rejects online use before that transition; inference-client credentials cannot authorize inventories.
+The public bundle gives the client quantized token lookup and output-head matrices.
+Those vocabulary boundaries execute locally. Preparation and inference retain the
+remote transformer body.
 
-Preparation sends batched corrections over one persistent binary WebSocket to a
-fixed provider route before chat. Its `ws` or `wss` URL is derived only from the
-validated inference HTTP(S) origin. Only the provider-push credential authenticates
-the upgrade. Each bounded `CorrectionPush` frame carries its inventory and stage
-binding. Preparation waits for inference's durable acknowledgement. Payloads are
-not audit logged.
+## Offline before READY
 
-Fresh uniform masks in the smallest sufficient exact `u16`, `u24`, or `u32` ring hide online values from inference. Privacy requires
-the preparation service to follow the protocol, erase expanded masks, and not
-collude with inference. Self-hosting places that trust inside the client boundary.
-Two services controlled by one untrusted operator do not satisfy the assumption.
-The client rejects equal origins, non-TLS remote origins, non-public models, and
-different model commitments, but cannot prove operator independence or erasure.
-Anyone observing both channels can recover the activation, so only TLS is
-accepted away from loopback. Authentication does not prove correct computation.
+An inventory binds model, body, stage, weight, shape, quantization, ring, wire
+width, and attempt budget. The client sends preparation one authorization and one
+domain-separated root seed per remote stage. Preparation derives one-time `r`,
+`s`, and tickets, computes batched `W*r-s`, and pushes corrections one way to
+inference's fixed `/v1/he/corrections/ws` endpoint.
 
-## Confidential weights
+Only the provider-push credential can authenticate that WebSocket. Its URL is
+derived from preparation's configured inference origin; clients cannot select a
+callback destination. Preparation waits for bounded durable acknowledgements and
+must erase expanded masks. Inference reports `READY` only after every stage batch
+is present and the client seals the inventory.
 
-The client sees intermediate outputs in public, blinded, and guarded paths. A modified client can submit chosen layer inputs and reconstruct a matrix from enough independent queries. Blinding preparation removes one equation source but does not remove this layer oracle.
+## Online after reservation
 
-Guarded controls limit traffic and bind requests to a principal. They do not establish model secrecy. A protocol for hostile clients must enforce the computation while keeping intermediate values shared or encrypted with a suitable output policy.
+Each response reserves a row range. Inference receives a one-time ticket and
+`x-r`, consumes the matching correction atomically, and returns `W*x-s`. The
+client adds local `s` and center-decodes in an exact `u16`, `u24`, or `u32` ring.
 
-## What the fixes address
+Prefill sends compact ticket vectors and packed matrices. Decode sends one ticket
+per stage over a persistent client-to-inference connection. Preparation is idle
+and receives no online request. Refill can run only after all online responses for
+that client are finished.
 
-The included correction patch keeps activation scales local, replaces mask generation with operating system randomness and unbiased modular sampling, and makes result check challenges unpredictable by default. The synthetic scale experiment identified 4,092 of 4,096 token rows before this correction.
+Rows never return to availability after reservation. Cancellation, timeout,
+failure, rejected work, and early completion burn unused reserved rows as well as
+attempted rows. Process restart or prepared-session idle expiry discards all
+memory-only inventory.
 
-That experiment demonstrates why searching payloads for literal prompt text is insufficient. Private metadata can reveal content even when the text itself is absent.
+## Assumptions and leakage
 
-## Single use material
+The claim is honest-but-curious and non-colluding. Preparation must follow the
+protocol, erase masks, and not collude with inference. Inference must execute the
+documented computation. Authentication and commitments do not prove either fact.
+Self-hosting preparation keeps its trust inside the customer boundary; placing it
+under the inference operator does not satisfy non-collusion.
 
-Each prepared row has a one-time ticket. Inference atomically consumes the row
-when it accepts the matching online `x-r`; replay is rejected. The client reserves
-an inventory range before execution, so timeout, cancellation, early end of stream,
-failure, and rejected speculative work burn unused reserved rows as well as rows
-already attempted. Unreserved rows may serve later chats. Inventory exists only in
-memory and is discarded on process restart or idle expiry; it cannot be rolled back.
+Both services observe model IDs, stage names, shapes, timing, scheduling, failure
+patterns, and approximate lengths. Anyone who obtains both seed-side information
+and masked online activations can recover private values. Use distinct TLS origins
+away from loopback and separate credentials for every channel.
 
-## Deployment assumptions
+## Not provided
 
-Keep the local gateway and client device trusted. Restrict network access. Disable external conversation tracing. Audit log destinations. Independent review of the complete malicious provider protocol is still required before making a claim against actively hostile model hosts.
+- No protection against arbitrary malicious or colluding services.
+- No proof of operator independence, secure erasure, or correct model execution.
+- No model-confidentiality guarantee from guarded query limits: a modified client
+  still sees intermediate outputs and can make chosen-input queries.
+- No security conclusion from zero literal prompt bytes in telemetry.
+- No production certification, side-channel audit, or universal deployment
+  hardening claim.
+
+The authenticated arithmetic command is a simulator. Blinded confidential-weight
+and direct-BFV modes are optional legacy/research paths, not the current public
+protocol and not stronger defaults.
+
+## Operational rules
+
+Keep client and local gateway inside the customer boundary. Disable external
+prompt tracing and payload logs. Protect config and model paths. Use loopback HTTP
+only for local evaluation; remote inference and preparation require distinct HTTPS
+origins.
+
+The provider's prepared-session idle setting controls inventory lifetime. Client
+HTTP timeout, preparation correction-ACK timeout, rendezvous timeout, and proxy
+WebSocket idle timeout are separate controls. A correction connection may
+reconnect for a later inventory; a dropped decode connection terminates the
+current execution and burns its unused reservation.
+
+The source distribution's root `SECURITY.md` contains vulnerability-reporting
+guidance. This static site intentionally does not embed an assumed repository URL.

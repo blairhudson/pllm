@@ -6,10 +6,9 @@ authors:
   - family-names: Hudson
     given-names: Blair
 version: 0.17.0a1
-date-released: 2026-09-06
 license: Apache-2.0
 abstract: >-
-  A research runtime for private language model inference using homomorphic
+  A research runtime for private language model inference using offline seeded
   preparation, masked integer matrix operations and a local Responses interface.
 keywords:
   - private inference

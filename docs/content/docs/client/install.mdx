@@ -1,48 +1,65 @@
 ---
 title: "Install the client"
-description: "Use UV to install the CLI and Python client from this repository."
+description: "Build the current public client from this source with UV and Maturin."
 ---
 
 ## Requirements
 
-Use Python 3.11, 3.12 or 3.13 and UV. A source installation also needs Rust;
-a matching prebuilt wheel does not. The HE option installs TenSEAL. The client
-owns the tokenizer, private model state, in-memory mask inventory and
-reconstruction, so
-it must run inside the customer's trusted environment.
+PLLM supports Python 3.11, 3.12, and 3.13. A source install needs UV and the Rust
+toolchain selected by `rust-toolchain.toml`; a matching platform wheel does not
+need a compiler. The client must run inside the customer boundary because it owns
+plaintext, activation scales, attention state, inventory seeds, and output
+reconstruction.
 
-## From the repository
+The public seeded-inventory path uses ordinary Rust integer arithmetic and does
+not need TenSEAL.
+
+## From this repository
 
 ```bash
 cd pllm
-uv sync --extra he
+uv sync
+uv run pllm build
 uv run pllm --help
 ```
 
-Install a persistent command from the same checkout:
+`pllm build` reports whether `pllm._native` is loaded. It does not compile code at
+service startup.
+
+Install a persistent command from the checked source tree:
 
 ```bash
-uv tool install '.[he]'
+uv tool install .
 pllm --help
 ```
 
-Or execute an isolated command without keeping a tool installation:
+Or run one isolated invocation:
 
 ```bash
-uvx --from '.[he]' pllm --help
+uvx --from . pllm --help
 ```
 
-These commands select the local source. They do not assume that a package named
-`pllm` on a public registry belongs to this project. After a verified release
-has been published to the project you control, the corresponding registry
-installation is `uv tool install 'pllm[he]'`.
+These local-source commands do not assume that a registry project with the same
+name belongs to this repository. Use a registry install only after verifying an
+actual published release and its provenance.
 
-## Optional SDK integration
+## Optional integrations
+
+Install the official OpenAI SDK for integration tests or direct adapter use:
 
 ```bash
-uv sync --extra he --extra sdk
+uv sync --extra sdk
 ```
 
-The PLLM client can be imported directly. An ordinary OpenAI SDK can instead
-use the local gateway. Continue with [configuration](/docs/client/configuration/),
-[the Python client](/docs/client/python/) or [the OpenAI SDK](/docs/client/openai/).
+Install TenSEAL only for explicitly selected blinded confidential-weight,
+direct-BFV, or historical research paths:
+
+```bash
+uv sync --extra he
+```
+
+The `he` extra does not make the current public path more private and is not part
+of its online execution.
+
+Continue with [configuration](/docs/client/configuration), the
+[Python client](/docs/client/python), or [local OpenAI gateway](/docs/client/openai).

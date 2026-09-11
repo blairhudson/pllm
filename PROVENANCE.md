@@ -1,24 +1,41 @@
 # Source provenance
 
-This repository was reworked from the supplied `pllm-rust-maturin.zip` archive.
-Its SHA256 digest is:
+This repository was originally reworked from the supplied
+`pllm-rust-maturin.zip` archive. Its SHA-256 digest is:
 
 ```text
 4c43e9e54d9fe3eccc2dbfb26e4511240240689f6cc7ba95b5adb933169945d7
 ```
 
-The current source version is 0.17.0a1. The changes consolidate the Python
-implementation into `python/pllm`, divide the Rust core and PyO3 binding into a
-Cargo workspace, add lazy public exports, and align the build, tests, deployment,
-Fumadocs and release workflows.
+The current source version is `0.17.0a1`. The workspace has one installed Python
+namespace, `python/pllm`, a Python-independent Rust core, and a PyO3 binding built
+with Maturin. Git history after the archive migration records the seeded relay,
+offline prepared inventory, prepared transformer execution, and long-context
+prefill changes independently.
 
-The Rust algorithms were carried forward from that archive. Matrix state was
-encapsulated when exposing the core as a standalone crate. The HE scheme and
-model arithmetic were not replaced. Historical research results are preserved
-with their original scope. The paper was converted to canonical Pandoc Markdown
-without relabelling any historical result as Rust performance.
+The current public-weight application path is not the archive's BFV lifecycle
+experiment. It creates a committed seeded inventory offline, pushes one-way
+`W*r-s` correction batches to inference, seals the inventory `READY`, and keeps
+online traffic between client and inference. Later changes added one-time row
+reservation and burn, `u16`/`u24`/`u32` rings, compact batched prefill, persistent
+decode transport, and local public token-boundary matrices.
 
-The `verification` directory retains the initial migration evidence. Current
-local results are listed in `VALIDATION.md`; previous release outputs are not
-relabeled as current checks. Cross-platform wheel builds and publication remain
-enforced by the supplied workflows.
+The current loopback benchmark dashboard is operational instrumentation for that
+three-role path. Its schema-versioned SQLite history stores sanitized, insert-only
+run summaries for local model/context comparison; it is not historical study
+evidence and does not turn one local run into a general benchmark claim.
+
+Rust arithmetic and codecs evolved from the supplied implementation, with matrix
+state encapsulated behind the standalone core API. Python still owns model and
+protocol orchestration. SEAL/TenSEAL remains an external dependency only for
+explicit BFV and confidential-weight compatibility paths and research.
+
+Historical research measurements remain under `research/` with their original
+scope. They are not relabeled as current Rust performance, public seeded-inventory
+performance, or loaded-model throughput. Generated site and paper assets have
+their own build provenance and are not authoritative descriptions of current
+runtime behavior.
+
+`verification/` retains initial migration evidence. [VALIDATION.md](VALIDATION.md)
+records checks run against later source states; configured CI jobs are requirements,
+not evidence that a particular revision passed remotely.

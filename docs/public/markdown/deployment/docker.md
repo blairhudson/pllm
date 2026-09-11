@@ -1,39 +1,69 @@
 # Deploy with Docker
 
-Inference, trusted preparation, and a customer gateway.
+Run the three-role loopback topology and understand what it does not prove.
 
 
-The supplied Compose file mounts the same public snapshot read-only into inference and preparation and gives each a separate compiled cache. It binds all service ports to host loopback. Put TLS reverse proxies in front of remote services.
+The supplied Compose topology starts inference, preparation, and the local gateway
+in one network namespace. It mounts the same public checkpoint read-only into both
+matrix services, gives each a compiled cache, and publishes only gateway port 8080
+on host loopback.
+
+This demonstrates current transport and inventory behavior. One host does not
+demonstrate preparation/inference operator independence.
 
 ## Build and start
 
-From the release root, set `PLLM_MODEL_SOURCE` to an absolute model directory and set all credentials.
+From the release root, use an absolute checkpoint directory and four distinct
+credentials:
 
 ```bash
 : "${PLLM_MODEL_SOURCE:?Set the absolute checkpoint directory}"
-: "${PLLM_API_KEY:?Set the provider credential}"
-: "${PLLM_PREPARATION_API_KEY:?Set the preparation credential}"
+: "${PLLM_API_KEY:?Set the inference client credential}"
+: "${PLLM_PREPARATION_API_KEY:?Set the preparation client credential}"
 : "${PLLM_PROVIDER_PUSH_API_KEY:?Set the correction push credential}"
-: "${PLLM_LOCAL_API_KEY:?Set a different local gateway credential}"
+: "${PLLM_LOCAL_API_KEY:?Set the local gateway credential}"
 docker compose -f deploy/compose.yaml up --build
 ```
 
-The Dockerfile installs the supplied runtime with UV. It does not pull an unrelated registry package named `pllm`. The build needs package network access; image build and HE wheel compatibility must be tested on the target architecture.
+Compose maps `PLLM_PREPARATION_API_KEY` to preparation's listener
+`PLLM_API_KEY`, and maps `PLLM_PROVIDER_PUSH_API_KEY` to preparation's
+`PLLM_PUSH_API_KEY`. Inference itself reads `PLLM_PROVIDER_PUSH_API_KEY`.
+Clients use `PLLM_PREPARATION_BASE_URL` and `PLLM_PREPARATION_API_KEY`.
 
-## Keep the gateway trusted
+The image builds this repository and its Rust extension; it does not install an
+unverified registry project. Its current locked image also includes the optional
+HE extra for compatibility, although public seeded inference does not execute BFV.
+Test base-image, TenSEAL-wheel, and native-wheel availability on the target
+architecture.
 
-The example runs all services on one host for evaluation. In production, keep the gateway and self-hosted preparation on the customer's host and point them at inference over TLS. Do not place preparation under the untrusted inference operator and retain the same confidentiality claim.
+## Split trust for remote evaluation
 
-The inference proxy must pass binary WebSocket upgrades for
-`/v1/he/corrections/ws`, preserve the provider-push `Authorization` header, and
-disable payload logging. Set its frame/body limit to the configured prepared
-payload limit plus the small channel header, and keep its idle timeout above the
-longest expected pause between decode stages.
+Keep gateway and self-hosted preparation on the customer-controlled host. Point
+them at inference over TLS. If preparation is operated elsewhere, it must be
+trusted to erase masks and not collude with inference.
 
-## Data and restart behaviour
+An inference proxy must support binary upgrades for both
+`/v1/he/corrections/ws` and `/v1/he/ws/*`, preserve authentication and requested
+subprotocols, and disable payload logging. Allow large bounded HTTP stage batches
+without buffering. Keep decode WebSocket idle timeout above legitimate online
+stage gaps. An idle correction connection may close and reconnect before a later
+new inventory.
 
-Keep compiled public matrices on persistent volumes. Prepared inventory remains
-in memory and is discarded when client or inference restarts or when inference's
-idle timeout expires. Unreserved rows may serve later chats. A reservation burns
-all of its rows after cancellation, early end of stream, or failure; tickets must
-never be replayed. Refill runs only while the client is idle.
+## Tune explicit bounds
+
+Compose exposes provider rendezvous timeout, row capacity, and aggregate bytes as
+`PLLM_RENDEZVOUS_TIMEOUT`, `PLLM_RENDEZVOUS_CAPACITY`, and
+`PLLM_RENDEZVOUS_MAX_BYTES`. Preparation correction operations use
+`PLLM_PUSH_TIMEOUT`. Add `PLLM_PREPARED_SESSION_IDLE` and
+`PLLM_PREPARED_SESSION_CAPACITY` to the provider environment when overriding
+their 300-second and 4,096-session defaults.
+
+Capacity must cover rows for every remote stage and concurrent inventory. Timeout
+settings are not interchangeable; see [deployment overview](/docs/deployment/overview).
+
+## Data lifetime
+
+Compiled public matrices can live on persistent cache volumes. Prepared
+corrections, client masks, reservations, and attention state remain memory-only.
+Restart or inventory idle expiry discards them. Cancellation, failure, or early
+completion burns unused reserved rows. Refill starts only while the client is idle.

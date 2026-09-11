@@ -23,11 +23,11 @@ async def main() -> None:
             name="Private assistant",
             instructions="Answer in plain English.",
             model=OpenAIResponsesModel(
-                model="private-model",
+                model="demo-model",
                 openai_client=client,
             ),
         )
-        result = await Runner.run(agent, "Explain homomorphic preparation.")
+        result = await Runner.run(agent, "Explain offline prepared inventory.")
         print(result.final_output)
 
 asyncio.run(main())

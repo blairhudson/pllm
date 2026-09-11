@@ -1,28 +1,49 @@
-# Private LLM Inference
+# Executable BFV mask preparation study
 
-A two column research draft by Blair Hudson. `manuscript.md` is the canonical
-Pandoc Markdown source. `paper.lua` preserves compact tables and numbered
-equations in the PDF while keeping the web edition readable. Recorded numerical
-evidence is under `../research/evidence/`.
+`manuscript.md` is the canonical source for this historical public-weight
+masking study. Results describe `research/lifecycle` version
+`0.14.0+inference.study1`, not the current PLLM runtime. Numerical evidence is
+under `../research/evidence/`; citations are maintained in `references.bib`.
+
+## Build
+
+From repository root:
 
 ```bash
-uv run --no-project --python 3.13 python ../scripts/build_paper.py
+uv run --no-project --python 3.13 python scripts/build_paper.py pdf
 ```
 
-From the repository root, `make paper` does the same. Then run
-`uv run --no-project --python 3.13 python scripts/prepare_docs.py` to update site
-downloads.
+The `pdf` target emits all submission-facing files together:
 
-Install Pandoc and either Tectonic or a TeX Live distribution. The GitHub
-workflow uses TeX Live; the build script prefers Tectonic when both are present.
-The document is a research draft; no arXiv identifier or acceptance is implied.
+* `paper/main.tex`: standalone Pandoc-generated LaTeX; do not edit directly.
+* `paper/main.pdf`: compiled from that exact `main.tex`.
+* `paper/build-metadata.json`: source hashes, Git revision, normalized timestamp,
+  and tool versions.
+* `paper/arxiv-source.tar.gz`: deterministic submission archive with a
+  self-contained root `main.tex`, build note, and metadata. The build extracts
+  the archive and compiles that copy as its final portability check.
 
-The application runtime and lifecycle experiments are separate implementations.
-The paper retains that distinction. No new inference benchmark is claimed by
-this repository packaging revision.
+The website article remains a separate generated target:
 
-## Native runtime migration
+```bash
+uv run --no-project --python 3.13 python scripts/build_paper.py web
+```
 
-The manuscript records the earlier measured Python/C++ implementation. The current
-Rust source and its validation status are described in [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md).
-Historical timings are not Rust benchmarks.
+With no target, the script builds both paper artifacts and website article.
+Install Pandoc and either Tectonic or pdfLaTeX. Set `SOURCE_DATE_EPOCH` to an
+integer Unix timestamp for a caller-selected normalized build time; otherwise
+the script uses the current Git commit time.
+
+## Scope boundary
+
+The historical study used Python/C++ code and TenSEAL 0.3.17. Current mixed
+Python/Rust implementation status is summarized in
+[IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md). Historical timings are
+not current Rust or serving benchmarks.
+
+## Submission metadata
+
+The manuscript lists Blair Hudson as draft author. Before submission, user must
+choose final author list/order, affiliations and ORCIDs, primary/cross-list arXiv
+categories, arXiv distribution license, and whether to reserve or later add a
+DOI. Build does not guess these fields.

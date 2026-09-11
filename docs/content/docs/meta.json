@@ -3,13 +3,14 @@
   "pages": [
     "index",
     "quickstart",
-    "---Build with PLLM---",
+    "---Run the current public path---",
     "client",
     "server",
     "deployment",
-    "---Understand the system---",
-    "research",
+    "---Trust and evidence---",
     "security",
-    "reference"
+    "reference",
+    "---Historical research---",
+    "research"
   ]
 }

@@ -1,22 +1,64 @@
-# Compatibility matrix
+# Compatibility and limits
 
-What the supplied code implements, and what was actually exercised.
+Current implemented surfaces, validation scope, and unsupported behavior.
 
 
-| Surface | Reference implementation | Validation boundary |
+## Runtime matrix
+
+| Surface | Current implementation | Evidence boundary |
 | --- | --- | --- |
-| `pllm serve`, `configure`, `chat`, `sidecar` | Present | CLI help and source contracts inspected |
-| Direct `pllm.OpenAI` client | Present | Reference application tests |
-| Local `/v1/responses` text create | Present | Local transport tests |
-| Text SSE stream | Present | Event generation tests |
-| Retrieve and cancel | Present | Not a promise of background response execution |
-| `previous_response_id` | Local client history | Not cross client server storage |
-| Official OpenAI SDK | Local gateway integration pattern | Current installed package conformance not established |
-| Agents SDK | Text adapter example | Current installed package integration not established |
-| Function tools and structured outputs | Not established for the private path | Do not enable based on API resemblance |
-| Full Open Responses acceptance suite | Not run | No full conformance claim |
-| Real Qwen3.5-27B generation | Not run | Synthetic stage dimensions only |
-| Coefficient preparation backend | Separate experiment code | Not wired into default `pllm serve` |
-| Rust extension and Maturin wheel | Not in the available source | No native Rust performance claim |
+| Public seeded inventory | Implemented: authorize, batch prepare, push, ACK, seal `READY` | Repository protocol and transformer integration tests |
+| Online public path | Client-to-inference only; preparation idle | Audit counters and end-to-end tests |
+| Prompt prefill | Compact ticket vector and packed stage matrix over HTTP | Codec, server bound, and long-prefill tests |
+| Decode | One ticket per stage over persistent client WebSocket by default | WebSocket and transformer integration tests |
+| Row reservation/burn | Exact response reservation; unused reserved rows burn | Inventory and cancellation/failure tests |
+| Exact stage rings | `u16`, `u24`, `u32` selected from signed bounds | Quantization, codec, and engine tests |
+| Public boundary matrices | Local token lookup and final-row output head; schema 2 tied references | Bundle and transformer parity tests |
+| Rust extension | Present Maturin/PyO3 implementation | Native capability and wheel lanes; Python reference is separate |
+| Direct `pllm.OpenAI` | Text create/stream, local continuation, preprocess controls | Application and transformer tests |
+| Local sidecar | Text create/stream, models, local retrieve/cancel, preprocess | Local API and installed SDK test lanes |
+| Live dashboard | Real loopback roles, OTLP, and insert-only sanitized SQLite history | Dashboard/history tests; real checkpoint result depends on executed run |
 
-Compatibility has three distinct meanings: a method name exists, a request is accepted, and the full semantics pass the selected SDK's tests. The documentation does not treat one as proof of the others.
+## Model and client scope
+
+Dense supported Llama/Mistral, Qwen2/Qwen2.5, and selected Gemma text graphs have
+reference implementations. Reading a tensor format is not complete graph or
+quality support. No current validation claims loaded Qwen3.5-27B generation,
+sparse expert privacy, GPU execution, or every Hub checkpoint variant.
+
+The direct client and sidecar resemble OpenAI Responses for text. They do not
+claim every current OpenAI SDK semantic, full Open Responses acceptance, tools,
+structured output, background execution, multimodal input, hosted tools, or Agents
+handoffs. Pin and test the exact SDK/application behavior you deploy.
+
+`previous_response_id` uses local client history and continuation state. It is not
+cross-client server storage or recovery after process loss.
+
+## Security scope
+
+Public activation privacy requires honest-but-curious execution, preparation mask
+erasure, and no preparation/inference collusion. Tests do not prove those operator
+properties or malicious security. Timing, shapes, scheduling, and approximate
+lengths remain visible.
+
+Guarded/blinded confidential-weight modes and direct BFV remain optional. A
+modified client can observe intermediate results and make chosen-input queries;
+guardrails are not cryptographic model confidentiality. Authenticated shares are
+an arithmetic research preview and fail closed for arbitrary model serving.
+
+## Operational limits
+
+- Prepared inventory is in memory only and expires after restart or configured
+  idle time.
+- Default row/byte/session bounds may not fit every model, inventory size, or
+  concurrency level.
+- Public boundary matrices increase client bundle transfer, storage, and RAM.
+- Compact prefill still sends one dependent request per remote stage.
+- Decode remains latency-sensitive to dependent client/inference round trips.
+- Native runtime is CPU-only; no GPU backend is advertised.
+- Docker/systemd files are templates, not a certified production deployment.
+- Live dashboard values apply only to the observed revision, model, host, and
+  inventory state.
+
+See [Validation records](/docs/reference/development) for how to reproduce checks
+without turning configured CI into an executed claim.

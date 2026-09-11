@@ -1,14 +1,15 @@
-# Implementation status
+# Historical and current implementation boundary
 
-The manuscript records the preparation and inference lifecycle experiments from
-before the Rust workspace migration. Its measurements retain that scope.
+Paper measurements belong only to executable study under `research/lifecycle`.
+Its project metadata identifies version `0.14.0+inference.study1`, derived from
+persisted PLLM 0.14 research source. It uses Python, PyTorch, TenSEAL, and the
+artifact's C++ SEAL binding. Target-sized weights are synthetic.
 
-The current implementation is a mixed Python and Rust package, version
-0.17.0a1. The source lives in `python/pllm`, `crates/pllm-core` and
-`crates/pllm-python`. The Python numeric reference and real HE protocol tests
-were run after the namespace migration. Rust compilation and performance were
-not measured in the authoring environment.
+Current package is mixed Python/Rust PLLM 0.17.0a1. Its source lives under
+`python/pllm`, `crates/pllm-core`, and `crates/pllm-python`. Current package
+tests, protocol behavior, native-kernel performance, serving interfaces, and
+security properties are not evaluated by paper experiments.
 
-See `../VALIDATION.md`, `../verification/` and
-`../docs/content/docs/server/native.mdx`. A workspace change is not evidence of a
-new cryptographic result, model quality result or throughput result.
+Repository migration is not evidence of a new cryptographic result, checkpoint
+quality result, or throughput result. Reuse of historical numbers for current
+runtime requires a fresh, versioned reproduction.

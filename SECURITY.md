@@ -1,71 +1,133 @@
 # Security
 
-## Intended boundary
+## Current public-weight claim
 
-The client owns plaintext input, generated text, token IDs, activation scales,
-fresh mask seeds and model state. Public-weight inference uses two service roles:
-a trusted preparation service receives seeds, derives `r` and `s`, and pushes
-`W·r-s` directly to a fixed inference endpoint. The untrusted inference provider
-receives `x-r`, combines the correction, and returns `W·x-s`; the client adds
-`s`. The client never receives the correction and supplies no callback URL. Both hold
-the public projection matrices. Message authentication is not verification of
-arbitrary model execution.
+PLLM's public path splits each remote linear operation across a customer client,
+a trusted preparation role, and an inference role. It aims to keep plaintext
+activations from either service viewed alone under an honest-but-curious,
+non-colluding threat model. "Untrusted inference" means inference is not given
+plaintext; it does not mean the protocol verifies a malicious provider.
 
-Before sending stage traffic, the client asks preparation to authorize one random
-inference session. That compact authorization binds model/body/stage commitments,
-quantization, and the bounded attempt budget. Preparation validates it against its
-loaded model and relays it with a distinct provider push credential. Inference
-accepts it once; inference-client credentials cannot authorize sessions, and no
-prepared runner computation starts for an unauthorized session.
+| Role | Holds | Receives | Must not receive |
+| --- | --- | --- | --- |
+| Client or local gateway | Prompts, tokens, activation scales, attention state, inventory root seeds, masks, sampling state, decoded output, public token-boundary matrices | Model plan, acknowledgements, masked stage outputs | `W*r-s` corrections |
+| Trusted preparation | Public transformer body | Inventory authorization, stage root seeds, row counts, committed metadata | Prompts, online activations, inference credential |
+| Inference | Public transformer body, prepared corrections | Inventory authorization, then one-time tickets and `x-r` | Root seeds, masks, activation scales, plaintext prompts |
 
-Corrections use a persistent binary WebSocket from preparation to the fixed
-inference origin. Preparation derives `ws` only from a validated loopback `http`
-origin and `wss` only from a validated `https` origin; configuration cannot supply
-a separate WebSocket host or path. The upgrade accepts only the provider push
-credential and a fixed subprotocol. Each bounded frame contains a bounded session
-identifier and random attempt ID in one `CorrectionPush`. Delivery is one-way;
-inference burns rejected frames and reports failure through the matching activation
-request. Neither service logs correction payloads.
+Public bundles expose quantized token lookup and output-head matrices to the
+client. Transformer-body stages stay at preparation and inference. For tied
+embeddings, bundle schema 2 stores one canonical matrix referenced by both local
+boundaries; untied matrices remain separate.
 
-Both services can observe model identifiers, stage names, tensor shapes,
-scheduling, timing and approximate lengths. Preparation must erase expanded
-masks and must not collude with inference; either condition failing reveals the
-activation. Self-hosting preparation keeps that trust inside the client boundary.
-Quantization parity refers to the clear integer reference, not the original
-floating checkpoint.
+## Offline preparation
+
+Before chat, the client asks inference to register an inventory with immutable
+model, body, stage, weight, shape, quantization, ring, wire-width, and attempt-budget
+commitments. It sends preparation one authorization, then one root seed and batch
+size for every remote stage. Domain-separated expansion produces one-time input
+mask `r`, output mask `s`, and ticket per row.
+
+Preparation computes each `W*r-s` batch and pushes it one way to inference's fixed
+`/v1/he/corrections/ws` endpoint. The WebSocket URL is derived from preparation's
+validated inference HTTP(S) origin; a client cannot supply a callback. Only the
+provider-push credential authenticates the upgrade. Preparation waits for a bounded
+durable acknowledgement, then erases expanded masks. After every stage is loaded,
+the client asks inference to seal the inventory. Inference reports `READY` only
+after the complete committed inventory exists.
+
+## Online execution
+
+At response start, the client reserves a contiguous inventory range. Each online
+row carries only its one-time ticket and `x-r`. Inference atomically consumes the
+matching preloaded correction and returns `W*x-s`; the client adds `s` and
+center-decodes. Fresh uniform masks use the smallest exact `u16`, `u24`, or `u32`
+ring selected from the signed output bound.
+
+Prompt prefill sends a compact ticket vector and packed masked matrix per stage.
+Decode sends one ticket per stage over a persistent client-to-inference connection.
+Preparation receives no online request. It may prepare a spare inventory only
+while the client has no active response.
+
+Inventory is memory-only. Inference restart or configured idle expiry discards it.
+A reservation is a burn boundary: successful completion consumes reached rows;
+cancellation, failure, timeout, or early end also burns every unused row reserved
+for that execution. Tickets and masks must never be replayed or restored from a
+snapshot.
+
+## Required assumptions
+
+- Preparation follows the protocol, erases expanded masks, and does not collude
+  with inference. If it retains masks or colludes, activation privacy is lost.
+- Inference follows the stated computation. Authentication, commitments, bounded
+  frames, and one-time tickets do not prove arbitrary model execution.
+- Client software and its host remain trusted. A modified client changes the
+  assumptions for confidential-weight modes.
+- Remote inference and preparation use distinct TLS origins. Loopback HTTP is
+  accepted only for local evaluation.
+- Credentials are distinct for client-to-inference, client-to-preparation,
+  preparation-to-inference push, and any local gateway.
+
+Self-hosting preparation keeps its trust inside the customer boundary. Running
+both services under one untrusted operator does not satisfy non-collusion.
+
+## Observable information
+
+Both services can observe model IDs, stage names, tensor shapes, timing, scheduling,
+failure patterns, and approximate input or output lengths. Inference also stores
+prepared correction sizes and sees masked online tensors. Preparation sees seed
+batch sizes and timing before chat. Transport encryption does not hide this
+metadata from each endpoint.
+
+Activation scales remain local because they can fingerprint private activations.
+A zero count for literal prompt bytes is useful instrumentation, not proof that all
+metadata is harmless.
 
 ## Unsupported guarantees
 
-Guarded and blinded profiles do not protect confidential weights from a client
-that can replace its runtime and query layers. The authenticated arithmetic
-preview is a simulator; it is not a distributed protocol demonstrating security
-against malicious participants. Its tests do not establish such a guarantee.
+The public protocol is not secure against arbitrary malicious or colluding
+participants. The authenticated arithmetic command is a simulator, not a deployed
+distributed protocol. Guarded and blinded confidential-weight modes expose
+intermediate outputs to the client; query limits do not prevent a modified client
+from reconstructing a matrix with enough chosen inputs. Direct BFV is a separate
+slow reference path. None of these modes is selected by public seeded preparation.
 
-There is no durable public-path preparation inventory. Every stage creates a
-fresh seed, and any failed or ambiguous attempt burns that seed and both channel
-requests. A disconnect after a send is ambiguous: preparation never retries that
-correction. It drops the socket and reconnects only for a later independent
-attempt. Never retry only one channel or reuse a mask. Remote endpoints require
-TLS and distinct origins; loopback is allowed for local evaluation. Use three
-distinct credentials for client-to-inference, client-to-preparation, and
-preparation-to-inference traffic. Inference bounds pending attempts and bytes,
-times out unmatched halves, rejects authorization replay, and tombstones consumed
-or burned attempt IDs. Keep the
-local plaintext gateway on loopback or a protected customer network.
+Repository tests establish implementation properties, not a cryptographic audit,
+provider independence, secure erasure, side-channel resistance, operational
+hardening, or production readiness.
+
+## Operational controls
+
+Keep the plaintext gateway on loopback or a protected customer network. Disable
+payload logging and external prompt tracing. Protect model and config directories,
+and avoid putting credentials in command histories or captured process listings.
+
+The benchmark dashboard is also loopback-only. It rejects non-loopback Host and
+browser Origin values, authenticates OTLP ingestion with a fresh per-launch token,
+and writes its sanitized SQLite archive with owner-only permissions. The live page
+does display the current prompt and output to its local browser; unlike the
+archive, it is not a text-free interface and must not be exposed through an
+unauthenticated proxy.
+
+Use limits large enough for committed inventory batches but still bounded. The
+provider's prepared-session idle timeout controls READY inventory lifetime; the
+client HTTP timeout and preparation push timeout control different operations.
+Closing the correction WebSocket while idle is recoverable for a later new
+inventory. Closing the client-to-inference decode WebSocket ends that execution and
+burns its unused reservation.
 
 ## Reporting a vulnerability
 
-Enable GitHub private vulnerability reporting in the repository's security
-settings. Submit reports through the repository **Security → Advisories → Report
-a vulnerability** page. If private reporting has not been enabled, open an issue
-asking for a private contact, without exploit details or sensitive data.
+Enable GitHub private vulnerability reporting in the repository settings. Submit
+reports through **Security -> Advisories -> Report a vulnerability**. If private
+reporting is unavailable, open an issue requesting a private contact without
+including exploit details or sensitive data.
 
-Reports should identify the revision, affected privacy profile, adversary,
-reproduction steps and observed disclosure. Do not attach production prompts,
-keys, model secrets, mask seeds or preparation responses.
+Identify the revision, privacy profile, assumed adversary, reproduction steps, and
+observed disclosure. Do not attach real prompts, credentials, model secrets, mask
+seeds, or preparation responses.
 
 ## CI and release boundary
 
-Pull requests run without deployment credentials. PyPI publication has a separate
-job, an environment approval gate and an OIDC identity. GitHub Pages has a
-separate deployment job. A successful test run is not a cryptographic audit.
+Pull requests run without deployment credentials. PyPI publication and static
+documentation deployment use separate jobs and permissions. Passing CI or
+publishing an artifact is not a cryptographic or deployment audit.

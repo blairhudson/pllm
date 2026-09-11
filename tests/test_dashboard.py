@@ -1,4 +1,6 @@
+import asyncio
 import threading
+from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,7 +10,7 @@ from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 
 from pllm.cli import _build_parser
-from pllm.runtime.dashboard import DashboardRuntime, OTelStore
+from pllm.runtime.dashboard import DashboardRuntime, OTelStore, _http_origin
 
 
 def _resource_attribute(resource, key: str, value: str) -> None:
@@ -89,6 +91,40 @@ def test_otel_store_keeps_bounded_span_details() -> None:
     assert store.snapshot(protocol_after=1)["protocol_spans"] == []
 
 
+def test_otel_store_reports_protocol_cursor_gaps() -> None:
+    request = ExportTraceServiceRequest()
+    resource = request.resource_spans.add()
+    _resource_attribute(resource.resource, "service.name", "pllm-client")
+    span = resource.scope_spans.add().spans.add()
+    span.name = "pllm.prepared_linear"
+    span.start_time_unix_nano = 1_000_000
+    span.end_time_unix_nano = 2_000_000
+    _integer_attribute(span, "pllm.client_inference.bytes", 1)
+    store = OTelStore()
+    store._protocol_spans = deque(maxlen=1)
+    store.ingest_traces(request.SerializeToString())
+    store.ingest_traces(request.SerializeToString())
+
+    snapshot = store.snapshot(protocol_after=0)
+
+    assert snapshot["protocol_truncated"] is True
+    assert snapshot["protocol_oldest_sequence"] == 2
+
+
+def test_dashboard_origin_formats_ipv6() -> None:
+    assert _http_origin("::1", 8791) == "http://[::1]:8791"
+
+
+def test_otel_run_window_preserves_missing_process_samples() -> None:
+    store = OTelStore()
+    store.begin_run_window("run_missing")
+
+    metrics = store.finish_run_window("run_missing")
+
+    assert metrics["client"]["cpu_seconds"] is None
+    assert metrics["client"]["rss_peak_bytes"] is None
+
+
 def test_dashboard_assets_are_packaged_beside_python_package() -> None:
     assets = Path(__file__).parents[1] / "python" / "pllm" / "dashboard"
     assert {path.name for path in assets.iterdir()} == {"app.js", "index.html", "style.css"}
@@ -152,7 +188,13 @@ def test_completed_dashboard_run_does_not_eagerly_refill(monkeypatch) -> None:
             self.preprocess_calls = 0
             self.responses = SimpleNamespace(
                 create=lambda **_kwargs: [
-                    SimpleNamespace(type="response.output_text.delta", delta="token")
+                    SimpleNamespace(type="response.output_text.delta", delta="token"),
+                    SimpleNamespace(
+                        type="response.completed",
+                        response=SimpleNamespace(
+                            usage=SimpleNamespace(input_tokens=1, output_tokens=1)
+                        ),
+                    ),
                 ]
             )
 
@@ -202,3 +244,43 @@ def test_completed_dashboard_run_does_not_eagerly_refill(monkeypatch) -> None:
     assert client.preprocess_calls == 0
     assert runtime._state["phase"] == "ready", runtime._state.get("error")
     assert runtime._state["inventory"]["available"] == 63
+
+
+def test_incomplete_dashboard_stream_is_not_reported_as_success() -> None:
+    runtime = DashboardRuntime(
+        SimpleNamespace(model_id="model", model_path=None, default_max_output_tokens=8),
+        OTelStore(),
+    )
+    runtime._client = SimpleNamespace(
+        privacy_audit=None,
+        prepared_inventory_status=lambda _model: {},
+        responses=SimpleNamespace(
+            create=lambda **_kwargs: [
+                SimpleNamespace(type="response.output_text.delta", delta="partial")
+            ]
+        ),
+    )
+
+    runtime._run_chat("prompt", 1)
+
+    assert runtime._state["phase"] == "error"
+    assert "response.completed" in runtime._state["error"]
+
+
+def test_dashboard_stop_does_not_wait_forever_for_client_close() -> None:
+    release = threading.Event()
+    runtime = DashboardRuntime(
+        SimpleNamespace(model_id="model", model_path=None, default_max_output_tokens=8),
+        OTelStore(),
+    )
+    runtime._CLIENT_CLOSE_TIMEOUT_SECONDS = 0.01
+    runtime._BACKGROUND_JOIN_TIMEOUT_SECONDS = 0.01
+    runtime._client = SimpleNamespace(close=lambda: release.wait())
+
+    asyncio.run(asyncio.wait_for(runtime.stop(), timeout=0.5))
+
+    threads = list(runtime._background_threads)
+    assert threads and all(thread.daemon for thread in threads)
+    release.set()
+    for thread in threads:
+        thread.join(timeout=0.5)

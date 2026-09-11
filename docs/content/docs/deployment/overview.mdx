@@ -1,46 +1,89 @@
 ---
 title: "Deployment overview"
-description: "Separate inference, preparation, the trusted client, and documentation."
+description: "Place three trust roles, route two online transports, and size inventory safely."
 ---
 
-## Components with different responsibilities
+## Place roles by data, not convenience
 
-| Component | Accepts plaintext? | Recommended location |
+| Component | Plaintext or seed access | Intended placement |
 | --- | --- | --- |
-| Inference provider | No; receives masked activations | Untrusted model host |
-| Preparation service | No; receives batched stage root seeds before chat | Customer host or separately trusted operator |
-| Client SDK or gateway | Yes | Customer workstation or trusted customer service |
-| Documentation site | No inference input | Static hosting, separate from either runtime |
+| Client SDK or local gateway | Prompt, tokens, activations, root seeds, masks, decoded output | Customer-controlled host |
+| Trusted preparation | Stage root seeds before chat; public transformer body | Customer host or separately trusted non-colluding operator |
+| Inference | Prepared corrections and masked online values; public transformer body | Compute provider |
+| Static documentation | No runtime input | Independent static host |
 
-## Local evaluation
+The privacy claim assumes preparation and inference follow the protocol and do not
+collude. Putting both roles under one untrusted operator does not preserve that
+claim. Self-hosting preparation keeps seed-side trust in the customer boundary.
 
-Use inference on port 8000, preparation on 8001, and the local gateway on 8080.
-Keep all bound to loopback for evaluation. Reuse one client for sequential chats
-so unreserved inventory remains available; isolate concurrent conversations while
-checking memory and per-channel metrics.
+## Lifecycle and routes
 
-## Private network evaluation
+Before chat, client-to-preparation HTTP carries inventory authorization and root
+seed batches. Preparation pushes corrections one way to inference over
+`/v1/he/corrections/ws` and waits for acknowledgements. Inference seals the
+complete inventory `READY`.
 
-Place the client and self-hosted preparation inside the customer boundary and inference close enough that network latency is practical. If preparation is remote, its operator must not collude with inference. Protect both connections with TLS and separate credentials. Hosting the gateway or preparation at the untrusted inference operator changes the threat model.
+Online, the client contacts inference only:
 
-Preparation derives correction `wss` from its configured inference `https`
-origin and uses that binary connection to preload stage batches before chat. Any reverse proxy
-must support WebSocket upgrade on `/v1/he/corrections/ws`, forward the
-`Authorization` header, disable request/frame payload logging, enforce a frame
-limit compatible with `prepared_payload_max_bytes`, and use an idle timeout long
-enough for decode pauses. Do not expose an alternate correction destination.
+- Prefill uses binary HTTP on `/v1/he/sessions/{session}/stages/{stage}` with a
+  compact ticket vector and packed masked matrix.
+- Decode normally uses persistent `/v1/he/ws/{session}` with one ticket per stage.
 
-Prepared inventory is memory-only. Inference discards it on restart or idle expiry;
-the client may reuse unreserved rows across chats but refills only while idle.
-Cancellation, early end of stream, or failure burns unused rows in that chat's
-reservation.
+Preparation stays idle. Refill can start only between online responses.
 
-## Containers and system services
+## TLS and proxy behavior
 
-Use [Docker](/docs/deployment/docker) for repeatable environments or [systemd](/docs/deployment/systemd) for a managed Linux host. The supplied deployment files are templates checked for command alignment, not evidence of a live production deployment.
+Loopback HTTP is accepted for local evaluation. Remote preparation and inference
+must use distinct HTTPS origins and credentials. Reverse proxies in front of
+inference must preserve `Authorization`, pass both WebSocket routes and their
+subprotocols, disable binary payload logging, avoid buffering large bodies, and
+enforce explicit frame/body bounds.
 
-## The docs are not a gateway
+Set HTTP timeouts high enough for compact prefill and WebSocket idle timeout above
+the longest legitimate gap between decode stage requests. The correction socket
+can reconnect for a later inventory after an idle close; its active lifetime must
+cover one correction send, inference processing, and acknowledgement.
 
-The Fumadocs application is a static site. It does not expose a prompt box that forwards secrets to a public server. Search runs in the browser over a static documentation index, and no analytics or remote font service is configured.
+## Independent timeout controls
 
-[Deploy the site](/docs/deployment/site) independently on a static host.
+| Owner | Control | Source default | Scope |
+| --- | --- | --- | --- |
+| Client | `PLLM_TIMEOUT` | 300 s | Client HTTP, bundle, and offline preparation requests |
+| Client | fixed in runtime | 30 s | Decode WebSocket upgrade only |
+| Client | no setting | No application deadline | Decode WebSocket receive; bound with external application/proxy policy |
+| Preparation | `--push-timeout` / `PLLM_PUSH_TIMEOUT` | 10 s | Correction connection/send/ACK |
+| Inference | `--rendezvous-timeout` / `PLLM_RENDEZVOUS_TIMEOUT` | 30 s | Unmatched non-preloaded entries |
+| Inference | `--prepared-session-idle` / `PLLM_PREPARED_SESSION_IDLE` | 300 s | Memory-only READY inventory lifetime |
+| Proxy | HTTP/WebSocket settings | None supplied by PLLM | External transport lifetime |
+
+Do not solve an inventory-expiry error by only extending client HTTP timeout.
+Do not keep the offline correction socket open for decode traffic; it has no
+online role.
+
+Default `auto` transport attempts persistent decode and falls back to HTTP only if
+the initial WebSocket upgrade fails. Explicit HTTP transport gets per-stage client
+HTTP deadlines but gives up persistent decode.
+
+## Capacity and restart
+
+Inventory is never durable. Client or inference restart and inference idle expiry
+discard it. Starting a response reserves its row range. Cancellation, failure,
+timeout, or early completion burns every unused reserved row. Unreserved rows may
+serve later responses.
+
+Provider defaults allow 32,768 live correction entries, 256 MiB aggregate
+correction payload, and 4,096 live prepared sessions. These are safety bounds, not
+universal model sizing. Estimate rows times every remote stage's output width and
+2/3/4-byte ring, then include concurrent inventories and overhead. Tune row and
+byte limits together and monitor rejection counters.
+
+## Templates
+
+Use [Docker](/docs/deployment/docker) for the bundled one-host evaluation or
+[systemd](/docs/deployment/systemd) for separate Linux services. Templates have
+not been certified as a production deployment. Verify target architecture,
+checkpoint quality, secrets, TLS, limits, logging, monitoring, restart behavior,
+and non-collusion placement.
+
+The [documentation site](/docs/deployment/site) is a static export and never acts
+as a gateway. Browser search uses a static local index.

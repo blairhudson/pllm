@@ -1,44 +1,49 @@
 ---
 title: "Publish the documentation"
-description: "Build a static Fumadocs site and deploy through GitHub Pages."
+description: "Validate and export a static site with no inference endpoint."
 ---
 
-## Local build
+## Local content checks
 
-From the repository root:
+From `docs/`:
 
 ```bash
-make paper
-uv run --no-project --python 3.13 python scripts/prepare_docs.py
-cd docs
-npm install
+npm ci
+npm run check:content
 npm test
+```
+
+These checks do not regenerate paper or historical evidence. A full framework
+validation additionally runs:
+
+```bash
 npm run typecheck
 npm run build
 ```
 
-Use `npm ci` after committing the lockfile. Deploy the `out/` directory to a
-static host. No inference provider is part of this site.
+The static export is written to `out/`. It contains documentation, browser search,
+and checked public assets only. It does not contain or proxy an inference service.
 
-## GitHub Pages
+## Repository-path export
 
-In repository Settings, select **Pages → GitHub Actions**. The supplied
-`.github/workflows/pages.yml` reads the Pages configuration, builds the paper
-and site, uploads the static output and deploys it from the `github-pages`
-environment. Only the `main` branch can deploy.
-
-The workflow handles project paths such as `/pllm/` and configured custom
-domains. Test the former locally with:
+Test a project Pages path without hardcoding an owner:
 
 ```bash
 NEXT_PUBLIC_BASE_PATH=/pllm npm run build
 ```
 
-Downloads, raw HTML links, search and Markdown exports use the configured path.
-The PR workflow independently typechecks and builds the same application.
+The configured base path prefixes framework routes, search, downloads, and links
+inside repository-owned HTML. The Pages workflow obtains the actual path from
+GitHub's Pages configuration.
 
-## Public assets
+## Deployment boundary
 
-Search is executed in the browser. The search index, paper and recorded
-benchmark evidence are public. Never put API keys, prompts, HE secrets, model
-weights or preparation inventories under `public/`.
+Configure **Settings -> Pages -> GitHub Actions** in the repository you control.
+The supplied workflow builds and uploads a static artifact through the
+`github-pages` environment. A successful local build is not evidence that a
+remote deployment occurred.
+
+Search executes entirely in the browser. Never put credentials, prompts, private
+model weights, activation telemetry, root seeds, masks, or prepared inventory
+under `public/` or `out/`. Historical paper/evidence assets have their own
+canonical build and should not be regenerated during operational docs edits.

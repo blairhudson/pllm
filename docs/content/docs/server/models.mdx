@@ -1,64 +1,55 @@
 ---
 title: "Model support"
-description: "Distinguish tensor import, graph execution, and quality validation."
+description: "Separate tensor import, graph execution, public bundles, and quality evidence."
 ---
 
-| Source or graph | Reference status |
+| Source or graph | Current source status |
 | --- | --- |
-| Local float Safetensors, single file or shards | Implemented importer |
-| Dense Llama and Mistral graph | Implemented reference graph |
-| Qwen2 graph | Implemented reference graph |
-| Supported Gemma text layouts | Implemented reference graph |
-| Supported MLX affine quantization | Selected layouts only |
-| vLLM directory containing HF tensors | Imported as tensors, not delegated private execution |
-| Qwen3.5-27B complete checkpoint | Not executed; stage dimensions and small hybrid study only |
-| Sparse expert models | No private routing implementation |
-| GGUF / llama.cpp | Metadata inspection and trusted plaintext routing only |
-| Ollama | Metadata inspection and trusted plaintext routing only |
-| Rust and Maturin runtime | Implemented integer matrix executor and Python binding |
+| Local float Safetensors, single file or shards | Importer implemented |
+| Dense Llama and Mistral decoder graphs | Reference graph implemented |
+| Qwen2/Qwen2.5 decoder graph | Reference graph implemented; dashboard default is Qwen2.5-0.5B-Instruct |
+| Supported Gemma text layouts | Reference graph implemented |
+| Selected MLX affine quantization layouts | Partial importer support |
+| vLLM directory containing Hugging Face tensors | Tensors imported; execution is not delegated to vLLM |
+| Qwen3.5-27B complete checkpoint generation | Not executed in current validation |
+| Sparse expert routing | No private routing implementation |
+| GGUF, llama.cpp, or Ollama | Metadata/trusted routing only; no current private graph |
 
-## Hub authentication and caching
+Reading configuration and tensors does not prove complete operator coverage.
+Validate a checkpoint in four separate steps: import coverage, clear quantized
+execution, private-versus-clear quantized parity, and language quality against the
+source model on representative held-out prompts.
 
-Remote model IDs use the standard Hugging Face Hub environment. Set `HF_TOKEN`
-for private or gated repositories. PLLM delegates token discovery to
-`huggingface_hub`, so stored `hf auth login` credentials also work. Explicit
-`--hf-token` and `--hf-cache-dir` options override those defaults.
+## Hub resolution and cache
 
-`pllm serve` keeps up to 8 MiB range requests open over 32 concurrent HTTP
-streams while recording each finished 512 KiB checkpoint durably. Restarting the
-same command reuses those checkpoints and redownloads only data that was active at
-the interruption. The final file is SHA-256 verified before becoming visible to
-the compiler. Set `PLLM_HF_DOWNLOAD_WORKERS` from 1 through 64 to change the
-concurrency.
+Remote IDs use Hugging Face credentials. Set `HF_TOKEN` for private or gated
+repositories, use stored `hf auth login` state, or pass `--hf-token`. Pin
+`--revision` when repeatability matters. `--hf-cache-dir` overrides cache location.
 
-Completed models are reused without a network request. The default model cache is
-`~/.cache/pllm/models`; `PLLM_HF_MODEL_CACHE` overrides it. If set, `HF_HOME` or
-`HF_HUB_CACHE` supplies the base cache location instead, with `HF_HUB_CACHE`
-taking precedence. Keep the same
-`--hf-cache-dir` when supplying one.
+The downloader uses resumable ranged requests and records completed chunks. Set
+`PLLM_HF_DOWNLOAD_WORKERS` from 1 through 64 to change concurrency. The default
+PLLM model cache is `~/.cache/pllm/models`; `PLLM_HF_MODEL_CACHE` overrides it.
+Otherwise `HF_HUB_CACHE` takes precedence over `HF_HOME` as a base location.
 
-A completed cache pins the requested revision, including mutable names such as
-`main`, to the resolved commit. Remove that model's cache directory when you
-intend to refresh a mutable revision, or pass a new explicit `--revision`.
+A completed cache pins a mutable requested name such as `main` to the resolved
+commit. Pass a different explicit revision or remove that model's cache directory
+when intentionally refreshing it. Keep the compiled cache separately so unchanged
+source files and quantization settings can reuse compiled matrices.
 
-```bash
-export HF_TOKEN=hf_...
-pllm serve Qwen/Qwen2.5-1.5B-Instruct \
-  --weights public \
-  --compiled-cache-dir ~/.cache/pllm/compiled
-```
+## Public boundary matrices
 
-Keep the compiled cache between starts. PLLM reuses both Hub downloads and
-quantized matrices when source files and compilation settings are unchanged.
+Public bundle schema 2 includes quantized token lookup and output-head matrices.
+The client gathers token rows locally and applies the head only to the final
+prefill row, then once per decode step. These vocabulary-sized operations do not
+contact either remote service.
 
-## A source format is not an execution guarantee
+For tied embeddings, one vocabulary-by-hidden matrix uses per-token row scales and
+is referenced by both boundaries. This lookup is not numerically identical to the
+old schema 1 independently quantized transpose; output-head quantization remains
+unchanged. Untied embeddings and model-specific per-layer token tables stay
+separate.
 
-Reading a configuration does not establish that every operator is supported. A model becomes a private execution candidate only after tensor names, shapes, nonlinear operations, tokenizer behaviour, and continuation state are validated.
-
-Test a checkpoint in four steps: import coverage, clear quantized execution, private versus clear quantized parity, and language quality relative to the original checkpoint. The last step needs representative prompts and held out evaluation data.
-
-## Public token material
-
-Public model bundles include the compiled token-lookup and output-head matrices. The client performs token lookup locally and applies the output head only to the final prefill row. This removes the two vocabulary-sized stages from both remote matrix services. It also increases the one-time model-plan transfer and client memory footprint; count both quantized matrix copies when measuring deployment cost.
-
-Proprietary model bundles do not contain these matrices. They retain remote private token lookup and output projection, so public and proprietary latency measurements are not interchangeable.
+Count bundle network bytes, verified disk cache, and client memory when evaluating
+this tradeoff. Confidential-weight bundles do not expose these matrices and retain
+remote token lookup/output projection, so their measurements are not comparable to
+the public path.

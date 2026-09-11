@@ -1,24 +1,29 @@
 # Use the OpenAI SDK
 
-Point the standard SDK at your local gateway, not at the provider.
+Point standard Responses clients at a trusted local gateway, never inference.
 
 
 ## Start the local gateway
 
-After [configuring PLLM](/docs/client/configuration), generate a separate local credential:
+After [configuring both services](/docs/client/configuration), create a fourth,
+local-only credential:
 
 ```bash
-export PLLM_LOCAL_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_LOCAL_API_KEY="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 pllm sidecar \
   --host 127.0.0.1 \
   --port 8080 \
-  --local-api-key "$PLLM_LOCAL_API_KEY" \
-  --transport http
+  --local-api-key "$PLLM_LOCAL_API_KEY"
 ```
 
-The gateway prepares its default public model before it becomes healthy. It accepts your plaintext Responses request, runs the client portion of inference, and sends private stage messages to the configured provider. Keep it in the customer's trusted environment. HTTP above is loopback; use TLS for a provider on another host.
+The sidecar accepts plaintext and owns the PLLM client, so it belongs inside the
+customer boundary. It prepares at least 256 rows for its configured public model
+before startup completes. With default `auto` transport, compact prefill uses
+stage-batch HTTP requests and one-row decode reuses a persistent
+client-to-inference WebSocket.
 
-If a later request needs more rows than remain READY, refill outside the inference request with authenticated `POST /v1/preprocess` and JSON fields `model` and `count`. The response path never falls back to online preparation.
+Never point an ordinary SDK at inference on port 8000. That service accepts only
+the private stage protocol for a public-path model.
 
 ## Call the standard SDK
 
@@ -32,14 +37,32 @@ with OpenAI(
     max_retries=0,
 ) as client:
     response = client.responses.create(
-        model="private-model",
-        input="Explain this private execution path.",
+        model="demo-model",
+        input="Explain why preparation is offline.",
         max_output_tokens=64,
     )
     print(response.output_text)
 ```
 
-Retries are disabled in this example so an uncertain streaming outcome does not silently create a second private execution. Retry policies must distinguish a new response from a replayed stage.
+Retries are disabled because an ambiguous stream or connection failure burns the
+first execution's unused reservation. A new Responses request is new work, not a
+replay of one-time stage tickets.
+
+## Refill outside a response
+
+If a later prompt needs more rows than remain READY, call the sidecar's
+authenticated control route while no response is active:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $PLLM_LOCAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"demo-model","count":512}' \
+  http://127.0.0.1:8080/v1/preprocess
+```
+
+The response route fails closed when inventory is insufficient. It never contacts
+preparation after online execution begins.
 
 ## Streaming
 
@@ -53,15 +76,20 @@ with OpenAI(
     max_retries=0,
 ) as client:
     with client.responses.create(
-        model="private-model", input="Hello", stream=True,
+        model="demo-model",
+        input="Describe row reservation.",
+        max_output_tokens=64,
+        stream=True,
     ) as events:
         for event in events:
             if event.type == "response.output_text.delta":
                 print(event.delta, end="", flush=True)
 ```
 
-## Compatibility scope
+## Compatibility boundary
 
-The reference gateway implements response creation, text streaming, model discovery, retrieval, and cancellation. Its available tests do not establish conformance with every current SDK version or all Open Responses features. Tools, structured outputs, background responses, and multimodal requests must not be assumed to work on the private path.
-
-See [the compatibility matrix](/docs/reference/compatibility). The design follows the [Open Responses specification](https://www.openresponses.org/specification); it is not described as passing that project's entire acceptance suite.
+The gateway implements text response creation and streaming, model discovery,
+local retrieval, and cancellation. API resemblance does not establish support for
+tools, structured outputs, background execution, multimodal input, or every SDK
+release. Pin and test the SDK used by your application. See the
+[compatibility matrix](/docs/reference/compatibility).

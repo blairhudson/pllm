@@ -683,6 +683,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--tiny", action="store_true", help="use random tiny weights for a transport smoke test"
     )
     dashboard.add_argument("--max-output-tokens", type=int, default=24)
+    dashboard.add_argument(
+        "--history-db",
+        metavar="PATH",
+        help="benchmark SQLite path; defaults to XDG state storage, use :memory: for tests",
+    )
     dashboard.add_argument("--no-open", action="store_true", help="do not open a browser")
 
     commands.add_parser("build", help="build the native modular arithmetic kernels")

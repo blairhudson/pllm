@@ -3,29 +3,37 @@ title: "Benchmarks"
 description: "Read the workload and denominator before reading the speedup."
 ---
 
-Historical figures come from the supplied lifecycle study. A current installed
-prepared-inference acceptance run is reported separately below. Download [the
-raw lifecycle summary](/downloads/lifecycle-summary.json) and [evidence
+Historical figures come from the supplied lifecycle study. Download [the raw
+lifecycle summary](/downloads/lifecycle-summary.json) and [evidence
 records](/downloads/evidence.zip).
 
-## Prepared Qwen acceptance
+## Current runtime
 
-An installed macOS arm64 wheel generated 32 tokens with
-`Qwen/Qwen2.5-0.5B-Instruct` using separate loopback preparation and inference
-processes. Warm time to first token was **1.54 seconds** and decode throughput was
-**7.06 tokens/s**. Preparation upload was **326,304 bytes**, masked inference
-upload was **52,370,400 bytes**, and inference returned **72,404,832 bytes**.
-Preparation relayed **72,962,400 bytes** directly to inference, leaving total
-online client traffic at **125,373,502 bytes** instead of two full result
-downloads. The tied boundary bundle was **145,970,989 bytes** cold and zero
-bytes warm from the fingerprinted disk cache. This validates arithmetic,
-packaging, compact rings, relay accounting, and local performance, not
-production non-collusion. See `qwen-prepared-inference.json` in the evidence
-archive.
+No current offline-inventory model run is published as retained benchmark
+evidence in this revision. Development acceptance runs informed the runtime, but
+their sanitized records, exact commands, model revisions, and host manifests
+were not retained together. Quoting their numbers here would make them less
+reproducible than the historical evidence below.
+
+Use `pllm benchmark dashboard` to create new immutable, text-free records. For a
+comparison, hold the model-body fingerprint, cold/warm mode, prompt-token count,
+output allowance, host, and software revision constant; repeat each cell; then
+export the sanitized records with an environment manifest before publishing a
+claim. The model/fingerprint/context matrix is intended to make that missing
+study straightforward rather than imply it has already been completed.
+
+## Superseded relay canary
+
+The 8 September 2026 installed canary used the earlier just-in-time seeded
+relay: 32 output tokens from a 16-token prompt, 1.54 s warm TTFT, 7.06 tokens/s,
+and 125.37 MB of client/inference traffic. It remains a historical regression
+point for compact rings, tied boundary matrices, and bundle caching. It does not
+describe the current offline Preparation-to-Inference inventory lifecycle. See
+`qwen-prepared-inference.json` in the evidence archive.
 
 ## Complete preparation
 
-For a 768 input, 256 output matrix and 2,048 future masks, the matched coordinate addition path took **3.122 seconds**. The completed coefficient GEMM path took **0.633 seconds**, or **4.93 times faster**. Both include encryption, conversion, server arithmetic, ciphertext reconstruction, and client decryption. Physical network transfer is excluded.
+For a 768 input, 256 output matrix and 2,048 future masks, the matched coordinate addition path took **3.122 seconds**. The completed coefficient GEMM path took **0.633 seconds**, a **4.93x speedup**. Both include encryption, conversion, server arithmetic, ciphertext reconstruction, and client decryption. Physical network transfer is excluded.
 
 ## Large stage measurements
 

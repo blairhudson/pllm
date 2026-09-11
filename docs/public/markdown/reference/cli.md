@@ -1,73 +1,131 @@
 # CLI reference
 
-The flags below come from the supplied parser.
+Current public-path commands, role-specific flags, and legacy boundaries.
 
 
-## Server
+Use `pllm <command> --help` from the installed revision as the authoritative flag
+list. Argument abbreviation is disabled.
+
+| Command | Current purpose |
+| --- | --- |
+| `pllm serve` | Run inference and load checkpoint models |
+| `pllm preparation serve` | Run trusted public-weight preparation |
+| `pllm configure` | Save client defaults |
+| `pllm chat` | Prepare inventory and run interactive local chat |
+| `pllm sidecar` | Expose a customer-side Responses gateway |
+| `pllm benchmark dashboard` | Start current three-role loopback dashboard |
+| `pllm build` | Inspect installed native backend capabilities |
+| `pllm security` | Print protocol claim summaries |
+
+`secure`, `market`, and `provider` commands are research/experimental surfaces,
+not required for the current public prepared-inventory path.
+
+## Inference
 
 ```text
-pllm serve MODEL_PATH_OR_HUB_ID --weights public
+pllm serve MODEL_PATH_OR_HUB_ID --weights public \
+  --provider-push-api-key KEY
 ```
 
 | Option | Meaning |
 | --- | --- |
-| `--model-id` | Exposed model identifier; repeat once per loaded model |
-| `--weights public\|confidential` | Who may learn the checkpoint |
-| `--client-trust honest\|guarded\|untrusted` | Client behaviour assumption |
-| `--activation-protection` | Explicit protocol selection |
-| `--host`, `--port` | Bind address; defaults to loopback and 8000 |
-| `--revision` | Hugging Face source revision |
-| `--local-files-only` | Do not fetch missing checkpoint files |
-| `--compiled-cache-dir` | Runtime matrix cache |
-| `--quantization-chunk-rows` | Bound compile working rows; default 64 |
-| `--engine-threads` | Native execution threads |
-| `--max-batch-size`, `--max-wait-ms` | Stage coalescing controls |
-| `--allow-test-correlations` | Insecure test option; never use for private data |
+| `--model-id` | Public model identity; supply once for each model source |
+| `--weights public\|confidential` | Required checkpoint disclosure policy |
+| `--client-trust honest\|guarded\|untrusted` | Client assumption for confidential paths |
+| `--activation-protection` | Explicit protocol override |
+| `--api-key` | Client-to-inference credential; generated and printed if omitted |
+| `--provider-push-api-key` | Required preparation-to-inference credential for public serving |
+| `--host`, `--port` | Bind address; defaults `127.0.0.1:8000` |
+| `--revision`, `--hf-token`, `--hf-cache-dir` | Hub resolution controls |
+| `--local-files-only` | Reject missing local checkpoint files instead of downloading |
+| `--compiled-cache-dir` | Compiled matrix cache |
+| `--quantization-chunk-rows` | Maximum compile working rows; default 64 |
+| `--weight-bits`, `--activation-bits` | Quantization widths; default 8/8 |
+| `--engine-threads` | Persistent native executor threads, 1 through 32 |
+| `--max-batch-size`, `--max-wait-ms`, `--fixed-batch-wait` | Cross-request provider batching |
+| `--allow-test-correlations` | Insecure test mode; never use for private data |
 
-Valid activation protection values are `automatic`, `seeded-preparation`,
-`precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`,
-`encrypted-activations`, and `authenticated-shares`. Public weights select
-`seeded-preparation`; `precomputed-masks` remains a confidential-weight mode.
-Valid spelling does not imply that every graph and adversary combination is
-implemented.
+Public weights allow only `seeded-preparation`. Confidential weights can select
+`precomputed-masks`, `guarded-blinded-masks`, `blinded-masks`, or
+`encrypted-activations` where implemented. `authenticated-shares` fails closed for
+arbitrary Hugging Face graphs.
+
+## Prepared inventory controls
+
+| Inference option | Environment | Default | Scope |
+| --- | --- | --- | --- |
+| `--rendezvous-timeout` | `PLLM_RENDEZVOUS_TIMEOUT` | 30 s | Unmatched non-preloaded entry |
+| `--rendezvous-capacity` | `PLLM_RENDEZVOUS_CAPACITY` | 32,768 | Aggregate live correction rows |
+| `--rendezvous-max-bytes` | `PLLM_RENDEZVOUS_MAX_BYTES` | 256 MiB | Aggregate live correction payload |
+| `--prepared-session-capacity` | `PLLM_PREPARED_SESSION_CAPACITY` | 4,096 | Live inventory/session count |
+| `--prepared-session-idle` | `PLLM_PREPARED_SESSION_IDLE` | 300 s | Memory-only inventory idle expiry |
+
+Rendezvous timeout is not READY inventory retention. Size row and byte limits
+together from model stages, ring widths, inventory rows, and concurrency.
+
+## Preparation
+
+```text
+pllm preparation serve MODEL_PATH_OR_HUB_ID \
+  --api-key KEY \
+  --inference-url URL \
+  --push-api-key KEY
+```
+
+This role loads public models only. Its listener credential uses `PLLM_API_KEY`;
+fixed inference origin uses `PLLM_INFERENCE_URL`; push credential uses
+`PLLM_PUSH_API_KEY`. `--push-timeout` / `PLLM_PUSH_TIMEOUT` defaults to 10 seconds
+for correction connection/send/ACK operations. Its default bind is
+`127.0.0.1:8001`.
+
+Inference expects the same push value under `PLLM_PROVIDER_PUSH_API_KEY`. Do not
+reuse either service-facing credential for another channel.
 
 ## Configure
 
 ```text
-pllm configure --server URL --api-key KEY --model MODEL_ID
+pllm configure --server URL --api-key KEY \
+  --preparation-url URL --preparation-api-key KEY --model MODEL_ID
 ```
 
-Optional fields include `--preparation-url`, `--preparation-api-key`,
-`--transport`, `--correlation-mode`,
-`--correlation-prefetch`, `--token-cache-size`, `--bundle-cache-mode`,
-`--bundle-cache-dir`, and `--timeout`.
+Current public controls include `--transport`, `--prepared-inventory-rows`,
+`--bundle-cache-mode`, `--bundle-cache-dir`, and `--timeout`. The corresponding
+environment values are `PLLM_TRANSPORT`, `PLLM_PREPARED_INVENTORY_ROWS`,
+`PLLM_BUNDLE_CACHE_MODE`, `PLLM_BUNDLE_CACHE_DIR`, and `PLLM_TIMEOUT`.
 
-`pllm sidecar` accepts the same two bundle-cache options.
+`PLLM_TIMEOUT` applies to direct-client HTTP operations. Persistent decode uses a
+fixed 30-second WebSocket connect timeout and currently has no per-receive
+`PLLM_TIMEOUT` deadline. Proxy WebSocket idle settings are separate.
 
-## Preparation service
+`--correlation-mode`, `--correlation-prefetch`, and `--token-cache-size` remain for
+legacy confidential-weight/BFV paths. They do not tune public seeded inventory or
+local public token lookup.
 
-```text
-pllm preparation serve MODEL_PATH_OR_HUB_ID --api-key KEY \
-  --inference-url URL --push-api-key KEY --port 8001
-```
-
-This role is public-weight-only and exposes health, model commitment, and seeded
-inventory authorization and stage-preparation routes. It does not expose inference, Responses, client-bundle, or
-model-administration routes. Both services need the same public checkpoint.
-Provider `pllm serve` accepts `--provider-push-api-key`,
-`--rendezvous-timeout`, `--rendezvous-capacity`, and
-`--rendezvous-max-bytes` for offline inventory loading, plus
-`--prepared-session-idle` for memory-only inventory expiry. Public client inventory
-batches default to 64 rows per stage; configure them with
-`PLLM_PREPARED_INVENTORY_ROWS`. All three service credentials must differ.
-
-## Chat and local gateway
+## Chat and sidecar
 
 ```text
-pllm chat [--server URL] [--model MODEL_ID] [--preparation-url URL]
+pllm chat [--server URL] [--preparation-url URL] [--model MODEL_ID]
 pllm sidecar --local-api-key KEY --host 127.0.0.1 --port 8080
 ```
 
-The sidecar reads saved provider settings. In the reference wrapper, `auto` is translated to WebSocket at startup; use `--transport http` explicitly when the deployment cannot support WebSocket upgrades.
+Chat prepares before prompting and calculates required rows before every response.
+`--no-stream` changes rendering; `--max-output-tokens` also changes row
+reservation.
 
-Download [the captured CLI help](/downloads/cli-help.txt) for the complete parser output. No `pllm gateway` or `pllm build-native` alias is invented by these guides; the supplied commands are `sidecar` and `build`.
+Sidecar reads saved service settings, prepares its default public model during
+startup, and exposes `/v1/responses`, `/v1/models`, retrieval/cancellation, and
+authenticated `/v1/preprocess`. `auto` selects persistent WebSocket decode;
+explicit `http` is a compatibility choice for networks without client WebSocket
+support.
+
+## Dashboard
+
+```text
+pllm benchmark dashboard [--model SOURCE] [--model-id ID] \
+  [--max-output-tokens N] [--history-db PATH] [--no-open]
+```
+
+Defaults are loopback port 8791 and `Qwen/Qwen2.5-0.5B-Instruct`. `--tiny` creates
+random tiny weights for transport smoke only. Non-loopback dashboard binds are
+rejected. `--history-db` selects the insert-only SQLite run store; `:memory:` keeps
+history ephemeral. See [metric definitions](/docs/reference/dashboard).

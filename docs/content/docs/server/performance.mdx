@@ -1,53 +1,108 @@
 ---
-title: "Tune the right bottleneck"
-description: "Measure the complete lifecycle before increasing a batch."
+title: "Measure and tune"
+description: "Separate cold inventory, compact prefill, persistent decode, and local boundaries."
 ---
 
-## Start with serial latency
+## Measure the actual lifecycle
 
-If a token requires `R` dependent client-to-inference exchanges and each exchange adds `L` seconds, online network dependency alone contributes `R × L`. The preparation WebSocket preloads inventory offline and is not an additional online round.
+Record at least four phases separately:
 
-The Qwen3.5-27B study plan has 257 exchanges. At 20 ms per exchange, the dependency floor is 5.14 seconds per token before arithmetic or transfer.
+| Phase | Work included |
+| --- | --- |
+| Model and bundle load | Checkpoint resolution, quantization, compiled cache, public boundary bundle transfer/verification |
+| Offline inventory | Authorization, seed upload, `W*r-s`, correction push/ACK, seal to `READY` |
+| Prompt prefill | Local token lookup, compact multi-row remote stages, local nonlinear work, final-row local head |
+| Decode | Persistent client-to-inference stage exchanges, local state/head/sampling, stream delivery |
 
-## Batch compatible stages
+A warm response using existing READY rows is not cold-start throughput. A matrix
+kernel call is not a token. Report prompt length, output limit and actual tokens,
+model revision, quantization, ring distribution, hardware, thread count, transport,
+and whether public boundary matrices were already cached.
+
+## Current online shape
+
+Each dependent remote stage still incurs client-to-inference latency. Public
+preparation removes the second service from online execution; it does not make
+dependent transformer stages parallel.
+
+Prefill reduces framing and request overhead by packing all prompt-row tickets and
+masked values into one stage request. Decode retains one authenticated WebSocket
+for single-row stages. Reverse proxies should therefore optimize large bounded
+binary HTTP requests and long-lived low-volume decode connections differently.
+
+## Inventory capacity
+
+`PLLM_PREPARED_INVENTORY_ROWS` controls minimum rows per prepared stage batch. A
+response reserves prompt rows plus up to `max_output_tokens - 1` decode rows. Track
+capacity, available, reserved, consumed, and burned rows. Large batches reduce
+refill frequency but increase preparation time, correction memory, and discard on
+restart or idle expiry. Early stop burns only the unused portion of that response's
+reservation, not all unreserved inventory.
+
+Approximate inference correction storage from:
+
+```text
+inventory rows * sum(remote stage output widths * stage ring bytes)
+```
+
+Then add framing, indexes, concurrent inventories, and process overhead. Tune
+`--rendezvous-capacity` and `--rendezvous-max-bytes` together; defaults are bounds,
+not a promise that every model and batch fits.
+
+## Timeouts
+
+- Client `PLLM_TIMEOUT` bounds HTTP bundle, preparation, and explicit HTTP-mode
+  stage operations.
+- Persistent decode uses a fixed 30-second WebSocket connect timeout and currently
+  no per-receive `PLLM_TIMEOUT` deadline.
+- Preparation `--push-timeout` bounds correction connection/send/ACK work.
+- Inference `--rendezvous-timeout` bounds unmatched non-preloaded entries; it does
+  not retain READY inventory.
+- Inference `--prepared-session-idle` controls memory-only inventory expiry.
+- Proxy HTTP timeouts must cover compact prefill; decode WebSocket idle timeout
+  must exceed legitimate gaps between online stages.
+
+Closing an idle correction WebSocket is recoverable for a later independent
+inventory. Closing decode terminates that execution and burns unused reserved
+rows. Increase each timeout only after identifying which boundary expired.
+
+## Threads and batching
 
 ```bash
 pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
-  --local-files-only \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
   --max-batch-size 16 \
   --max-wait-ms 0.5 \
   --engine-threads 4
 ```
 
-These are tuning inputs, not a recommended universal optimum. Measure single conversation latency separately from aggregate throughput. Other users can fill a matrix batch without making one user's dependent stages parallel.
+These are experiment inputs, not recommended universal values. Other sessions can
+fill provider batches, but one conversation's dependent stages remain serial.
+Measure single-response latency separately from aggregate throughput. Compare one
+thread against larger persistent pools on real stage shapes.
 
-## Measure offline inventory preparation
+## Run the current dashboard
 
-Before chat, the client creates an inventory and sends one root seed per stage for
-a batch of rows. The default is 64 rows per stage and
-`PLLM_PREPARED_INVENTORY_ROWS` configures it. Preparation sends each `W·r-s` batch
-to inference over a persistent binary WebSocket and waits for durable
-acknowledgement. Inference seals the complete inventory `READY`. Online stages then
-carry only ticket plus `x-r` from client to inference and `W·x-s` back; preparation
-is idle. Refill occurs only between executions.
+```bash
+pllm benchmark dashboard
+```
 
-Measure authorization and root-seed upload, durable acknowledgements,
-preparation-to-inference correction bytes, seal latency, warm client-to-inference
-traffic, and consumed or burned rows separately. Preparation metrics expose
-correction payload bytes, channel upload bytes, compute nanoseconds, and send
-nanoseconds. Inference metrics expose channel connections, frames, accepted bytes,
-failures, and processing nanoseconds. Byte counters cover application payloads and
-PLLM's MessagePack envelopes, not WebSocket, TLS, or IP framing. Restart or idle
-expiry discards inventory; cancellation, early end of stream, and failure burn
-unused reserved rows, so requested batch size is not useful throughput.
+The loopback dashboard starts real client, preparation, and inference roles using
+Qwen2.5-0.5B-Instruct by default. It reports observed TTFT, generation rate,
+process use, protocol bytes, and inventory state. It persists sanitized run records
+for model/context comparison by default; use `--history-db :memory:` for an
+ephemeral session. Use `--tiny` only for a quick random-weight transport smoke
+test. No number is embedded here because results depend on the executed revision,
+checkpoint, hardware, and run state.
 
-## Count both links
+See the [dashboard guide](/docs/reference/dashboard) for metric definitions and
+limitations.
 
-Report input and output bytes separately, and include the preparation stream. State whether a bandwidth assumption is shared or available independently in both directions. The paper's 1.34 tokens/s figure is a bandwidth ceiling for a model plan, not measured Qwen throughput.
+## Keep private values local
 
-## Keep scales private
-
-Activation scales stay local. Do not send them to simplify a server dequantization path. The integer provider operation does not need them, and a scale can fingerprint a private activation.
-
-See [the benchmark record](/docs/research/benchmarks) for comparable scopes and downloadable results.
+Never send activation scales to simplify provider dequantization. They are not
+needed by the integer operation and can fingerprint private activations. OTEL
+attributes must not contain prompts or activation payloads. Protocol byte metrics
+cover application payloads and PLLM envelopes, not all WebSocket, TLS, or IP
+framing; state that scope when reporting bandwidth.

@@ -1,38 +1,55 @@
 ---
 title: "Chat from the terminal"
-description: "Stream a conversation without writing application code."
+description: "Prepare while idle, then stream over the client-to-inference path."
 ---
+
+After [configuration](/docs/client/configuration):
 
 ```bash
 pllm chat
 ```
 
-The client uses the saved server, credential, and model. Override the connection for this invocation:
+Override nonsecret connection fields for one invocation when needed:
 
 ```bash
-pllm chat --server http://127.0.0.1:8000 \
+pllm chat \
+  --server http://127.0.0.1:8000 \
   --preparation-url http://127.0.0.1:8001 \
-  --model private-model
+  --model demo-model
 ```
+
+## Lifecycle
+
+Before displaying the first prompt, chat creates and seals a public prepared
+inventory. Before each later response it tokenizes locally, calculates the exact
+row requirement, and refills only if the client is idle and too few rows remain.
+
+Once a response starts, preparation receives no requests. Prompt prefill uses
+compact multi-row stage messages to inference. Decode reuses the persistent
+client-to-inference connection. Cancellation, transport failure, or early output
+burns all unused rows reserved for that response.
 
 ## Commands
 
-| Command | Behaviour |
+| Command | Behavior |
 | --- | --- |
-| `/clear` | Start a new local conversation |
-| `/models` | List the provider's models |
-| `/audit` | Show local privacy counters |
+| `/clear` | Start new local conversation state |
+| `/models` | List models exposed by inference |
+| `/audit` | Show local privacy and traffic counters |
 | `/config` | Show active nonsecret connection settings |
-| `/help` | Show available commands |
-| `/quit` | Exit the client |
+| `/help` | Show commands |
+| `/quit` | Close client and discard its memory-only inventory |
 
-Use `--no-stream` to print a response after it completes. Before the first chat,
-the client prepares and seals an in-memory inventory. Each online linear stage then
-sends only a one-time ticket and masked input to inference; preparation is idle.
-Inventory preparation and correction bytes are reported separately.
+Use `--no-stream` to print only after a response completes. Use
+`--max-output-tokens` to change the reservation plan as well as generation limit.
 
-## Local privacy
+`/audit` separates preparation seed/correction traffic, masked online traffic,
+stage calls, inventory rows, bundle network/cache use, and forbidden preparation
+attempts during online execution. Counters describe this process; zero literal
+prompt bytes is not proof that timing and shape metadata are harmless.
 
-Terminal capture, shell sessions, and application logging can record plaintext even though the provider does not receive it. Run chat within your trusted environment. Avoid shared terminal recordings for sensitive prompts.
+## Local plaintext
 
-The audit counters report literal payload categories. A count of zero plaintext prompt bytes does not establish that all metadata is harmless. [Security boundaries](/docs/security) explains the activation scale issue and the remaining traffic signals.
+Terminal history, screen capture, process tracing, and application logs can record
+plaintext even when services do not receive it. Run chat inside the customer
+boundary and protect `~/.config/pllm/chat-history` as sensitive conversation data.

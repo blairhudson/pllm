@@ -1,61 +1,83 @@
 ---
-title: "Run your first private request"
-description: "Start a provider, configure the client, and generate a response."
+title: "Run your first prepared request"
+description: "Start inference and preparation, seal an inventory, and generate locally."
 ---
 
-Use this repository for both processes. There is no requirement to trust a package that happens to share the `pllm` name on a public registry. These commands use a local Hugging Face snapshot so the checkpoint revision is under your control.
+This quickstart runs every role from the same checkout on loopback. Use a local
+public Hugging Face snapshot so checkpoint contents and revision are explicit.
 
-## Install the runtime
+## 1. Install
 
-From the release root:
+Use Python 3.11, 3.12, or 3.13, UV, and the Rust toolchain selected by
+`rust-toolchain.toml`:
 
 ```bash
 cd pllm
-uv sync --extra he
+uv sync
 uv run pllm build
 uv run pllm --version
 ```
 
-A Rust toolchain is required to build this source checkout. Maturin builds the native extension during `uv sync`. Installing a matching platform wheel requires no Rust compiler. Python 3.13 matches the recorded HE experiments. See the [installation guide](/docs/server/install) for supported inputs and dependency checks.
+Maturin builds `pllm._native` during `uv sync`. The current public path does not
+need TenSEAL or `--extra he`. A matching released wheel does not need Rust at
+runtime.
 
-## Start the provider
+## 2. Set local inputs
 
-Set `PLLM_MODEL_SOURCE` to your local checkpoint directory before running this command. The directory must contain its configuration, tokenizer assets, and supported Safetensors weights.
+Make these values available to the inference, preparation, and client terminals.
+All three credentials must differ:
 
 ```bash
+export PLLM_MODEL_SOURCE="$(pwd)/models/checkpoint"
 export PLLM_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export PLLM_PREPARATION_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export PLLM_PROVIDER_PUSH_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-: "${PLLM_MODEL_SOURCE:?Set PLLM_MODEL_SOURCE to the checkpoint directory}"
-uv run pllm serve "$PLLM_MODEL_SOURCE" \
-  --weights public \
-  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
-  --model-id private-model \
-  --local-files-only \
-  --compiled-cache-dir .cache/compiled
 ```
 
-## Start trusted preparation
+`PLLM_MODEL_SOURCE` must contain supported config, tokenizer, and Safetensors
+files. These shell names are convenient for this guide; explicit flags below make
+each process boundary unambiguous.
 
-In another trusted process, load the same public checkpoint:
+## 3. Start inference
+
+```bash
+uv run pllm serve "$PLLM_MODEL_SOURCE" \
+  --weights public \
+  --model-id demo-model \
+  --api-key "$PLLM_API_KEY" \
+  --provider-push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
+  --local-files-only \
+  --compiled-cache-dir .cache/inference \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+Inference stores prepared corrections and later executes masked transformer-body
+stages. It intentionally does not accept plaintext Responses requests for this
+model.
+
+## 4. Start trusted preparation
+
+In a second trusted process with the same checkpoint and shell values:
 
 ```bash
 uv run pllm preparation serve "$PLLM_MODEL_SOURCE" \
+  --model-id demo-model \
   --api-key "$PLLM_PREPARATION_API_KEY" \
   --inference-url http://127.0.0.1:8000 \
   --push-api-key "$PLLM_PROVIDER_PUSH_API_KEY" \
-  --model-id private-model \
   --local-files-only \
-  --compiled-cache-dir .cache/preparation-compiled \
+  --compiled-cache-dir .cache/preparation \
+  --host 127.0.0.1 \
   --port 8001
 ```
 
-Self-host this role unless another preparation operator is trusted not to retain
-masks or collude with inference. Keep all three service credentials in your secret store.
+Preparation is public-weight-only. It receives root seeds before chat, computes
+`W*r-s`, pushes corrections to inference's fixed endpoint, waits for durable
+acknowledgements, and must erase expanded masks. Self-host it unless another
+operator is trusted to follow that protocol and not collude with inference.
 
-## Configure the client
-
-In another terminal, use the same provider key. On another machine, replace the loopback URL with the provider's HTTPS address.
+## 5. Configure and chat
 
 ```bash
 umask 077
@@ -64,33 +86,46 @@ uv run pllm configure \
   --api-key "$PLLM_API_KEY" \
   --preparation-url http://127.0.0.1:8001 \
   --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
-  --model private-model
+  --model demo-model
 uv run pllm chat
 ```
 
-Before chat starts, the client prepares and seals an inventory with at least 64
-rows per stage. Set `PLLM_PREPARED_INVENTORY_ROWS` to tune that batch. Online chat
-then contacts inference only; preparation remains idle until an idle-time refill.
-Measure initial inventory work separately from warm online latency.
+The chat CLI prepares an inventory before showing the prompt. For each response it
+calculates the row requirement, refills if needed while idle, reserves the full
+range, and then contacts inference only. Prompt rows use compact stage batches;
+decode reuses a persistent connection. The default inventory minimum is 64 rows
+per stage (`PLLM_PREPARED_INVENTORY_ROWS`).
 
-## Use Python
+## 6. Use Python directly
 
 ```python
 from pllm import OpenAI
 
+prompt = "Explain why preparation is offline."
+maximum = 64
+
 with OpenAI() as client:
-    client.preprocess(count=256)
+    rows = client.prepared_rows_for_response(prompt, maximum)
+    client.preprocess(count=rows)
     response = client.responses.create(
-        input="Explain how this request remains private.",
-        max_output_tokens=64,
+        input=prompt,
+        max_output_tokens=maximum,
     )
     print(response.output_text)
 ```
 
-## Check the boundary
+`preprocess()` must finish before `responses.create()`. It may also prepare a
+spare inventory for the default idle-refill policy. Keep the client open to reuse
+unreserved rows.
 
-Your application owns the plaintext and in-memory mask inventory. Before chat,
-preparation receives batched stage root seeds and bound metadata; inference receives
-the resulting corrections. Online, inference receives one-time tickets and masked
-stage inputs. Timing, shapes, stage names, and approximate lengths remain visible.
-This implementation does not verify every service computation.
+## Verify the boundary
+
+Before `READY`, preparation sees bound metadata and stage seed batches; inference
+sees authorizations and corrections. Online, inference sees tickets, masked
+inputs, stage metadata, timing, and approximate lengths. Neither service receives
+plaintext or activation scales on the documented path, but privacy depends on
+honest execution and non-collusion. [Read the complete limits](/docs/security).
+
+For remote evaluation, inference and preparation must use distinct HTTPS origins.
+Tune client HTTP timeout, preparation push timeout, provider inventory expiry, and
+proxy WebSocket idle timeout independently; see [deployment](/docs/deployment/overview).

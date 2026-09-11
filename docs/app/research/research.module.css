@@ -1,0 +1,345 @@
+.researchPage {
+  --rh-green: var(--accent);
+  --rh-ink: var(--text);
+  --rh-muted: var(--muted);
+  --rh-panel: var(--panel);
+  --rh-line: var(--line);
+}
+
+.researchPage :global(.rh-shell) {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 36px 84px;
+}
+
+.researchPage :global(.rh-hero) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, .5fr);
+  gap: 72px;
+  padding: 92px 0 68px;
+  border-bottom: 1px solid var(--rh-line);
+}
+
+.researchPage :global(.rh-kicker),
+.researchPage :global(.rh-status),
+.researchPage :global(.rh-scope),
+.researchPage :global(.rh-date),
+.researchPage :global(.rh-evidence),
+.researchPage :global(.rh-legend) {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.researchPage :global(.rh-kicker) {
+  margin: 0 0 22px;
+  color: var(--rh-green);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.researchPage h1 {
+  max-width: 780px;
+  margin: 0;
+  font-size: clamp(50px, 7vw, 86px);
+  font-weight: 580;
+  letter-spacing: -.06em;
+  line-height: .95;
+}
+
+.researchPage :global(.rh-intro) {
+  max-width: 700px;
+  margin: 25px 0 0;
+  color: var(--rh-muted);
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.researchPage :global(.rh-hero-aside) {
+  align-self: end;
+  padding: 25px 0 2px 27px;
+  border-left: 1px solid var(--rh-line);
+}
+
+.researchPage :global(.rh-hero-aside p) {
+  margin: 0 0 17px;
+  color: var(--rh-muted);
+  font-size: 13px;
+}
+
+.researchPage :global(.rh-links) {
+  display: grid;
+  gap: 8px;
+}
+
+.researchPage :global(.rh-links a) {
+  padding: 11px 13px;
+  border: 1px solid var(--rh-line);
+  border-radius: 4px;
+  color: var(--rh-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.researchPage :global(.rh-links a:first-child) {
+  border-color: var(--rh-green);
+  background: var(--rh-green);
+  color: var(--bg);
+}
+
+.researchPage :global(.rh-links a:hover) {
+  border-color: var(--rh-green);
+}
+
+.researchPage :global(.rh-history-head) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  padding: 58px 0 38px;
+}
+
+.researchPage :global(.rh-history-head h2) {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 590;
+  letter-spacing: -.045em;
+  line-height: 1.05;
+}
+
+.researchPage :global(.rh-history-head p) {
+  max-width: 560px;
+  margin: 0;
+  color: var(--rh-muted);
+  font-size: 14px;
+}
+
+.researchPage :global(.rh-legend) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 17px;
+  grid-column: 1 / -1;
+  color: var(--rh-muted);
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.researchPage :global(.rh-legend b) {
+  color: var(--rh-ink);
+}
+
+.researchPage :global(.rh-timeline) {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.researchPage :global(.rh-timeline)::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 113px;
+  width: 1px;
+  background: var(--rh-line);
+  content: '';
+}
+
+.researchPage :global(.rh-item) {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 42px;
+}
+
+.researchPage :global(.rh-date) {
+  padding-top: 27px;
+  color: var(--rh-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.researchPage :global(.rh-card) {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 30px;
+  padding: 25px 28px;
+  border: 1px solid var(--rh-line);
+  border-radius: 7px;
+  background: var(--rh-panel);
+}
+
+.researchPage :global(.rh-card)::before {
+  position: absolute;
+  top: 31px;
+  left: -26px;
+  width: 9px;
+  height: 9px;
+  border: 3px solid var(--bg);
+  border-radius: 50%;
+  background: var(--rh-green);
+  box-shadow: 0 0 0 1px var(--rh-line);
+  content: '';
+}
+
+.researchPage :global(.rh-card h3) {
+  margin: 5px 0 9px;
+  font-size: 22px;
+  font-weight: 620;
+  letter-spacing: -.025em;
+  line-height: 1.2;
+}
+
+.researchPage :global(.rh-card p) {
+  margin: 0;
+  color: var(--rh-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.researchPage :global(.rh-card-meta) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-left: 20px;
+  border-left: 1px solid var(--rh-line);
+}
+
+.researchPage :global(.rh-status),
+.researchPage :global(.rh-scope) {
+  display: inline-block;
+  padding: 4px 7px;
+  border: 1px solid var(--rh-line);
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.researchPage :global(.rh-status[data-status='adopted']) {
+  border-color: var(--rh-green);
+  background: var(--rh-green);
+  color: var(--bg);
+}
+
+.researchPage :global(.rh-status[data-status='superseded']) {
+  color: var(--amber);
+}
+
+.researchPage :global(.rh-status[data-status='research-only']) {
+  border-style: dashed;
+}
+
+.researchPage :global(.rh-scope) {
+  color: var(--rh-muted);
+}
+
+.researchPage :global(.rh-evidence) {
+  margin-top: auto;
+  color: var(--rh-muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.researchPage :global(.rh-evidence code) {
+  color: var(--rh-ink);
+}
+
+.researchPage :global(.rh-note) {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 30px;
+  margin: 42px 0 0 134px;
+  padding: 22px 26px;
+  border: 1px solid var(--rh-line);
+  border-left: 3px solid var(--rh-green);
+}
+
+.researchPage :global(.rh-note strong) {
+  font-size: 13px;
+}
+
+.researchPage :global(.rh-note p) {
+  margin: 0;
+  color: var(--rh-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 780px) {
+  .researchPage :global(.rh-shell) {
+    padding: 0 22px 60px;
+  }
+
+  .researchPage :global(.rh-hero),
+  .researchPage :global(.rh-history-head) {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .researchPage :global(.rh-hero) {
+    padding: 54px 0 45px;
+  }
+
+  .researchPage :global(.rh-hero-aside) {
+    padding: 22px 0 0;
+    border-top: 1px solid var(--rh-line);
+    border-left: 0;
+  }
+
+  .researchPage :global(.rh-history-head) {
+    padding-top: 42px;
+  }
+
+  .researchPage :global(.rh-timeline)::before {
+    left: 5px;
+  }
+
+  .researchPage :global(.rh-item) {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding-left: 24px;
+  }
+
+  .researchPage :global(.rh-date) {
+    padding: 0;
+    text-align: left;
+  }
+
+  .researchPage :global(.rh-card) {
+    grid-template-columns: 1fr;
+    gap: 19px;
+    padding: 21px;
+  }
+
+  .researchPage :global(.rh-card)::before {
+    top: -25px;
+    left: -24px;
+  }
+
+  .researchPage :global(.rh-card-meta) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 17px 0 0;
+    border-top: 1px solid var(--rh-line);
+    border-left: 0;
+  }
+
+  .researchPage :global(.rh-evidence) {
+    width: 100%;
+  }
+
+  .researchPage :global(.rh-note) {
+    display: block;
+    margin-left: 24px;
+  }
+
+  .researchPage :global(.rh-note p) {
+    margin-top: 8px;
+  }
+}

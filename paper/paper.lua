@@ -90,16 +90,22 @@ local function table_latex(div)
   end
 
   local columns = div.attributes["latex-columns"] or string.rep("l", #table_element.colspecs)
+  local environment = "tabular"
+  local arguments = "{" .. columns .. "}"
+  if columns:find("X", 1, true) then
+    environment = "tabularx"
+    arguments = "{\\columnwidth}{" .. columns .. "}"
+  end
   local latex = {
     "\\begin{table}[t]",
     "\\centering\\small",
     "\\setlength{\\tabcolsep}{4.5pt}",
-    "\\begin{tabular}{" .. columns .. "}",
+    "\\begin{" .. environment .. "}" .. arguments,
     "\\toprule",
     table.remove(rows, 1),
     table.concat(rows, "\n"),
     "\\bottomrule",
-    "\\end{tabular}",
+    "\\end{" .. environment .. "}",
     "\\caption{" .. write_latex({ caption }) .. "}",
     "\\label{" .. div.identifier .. "}",
     "\\end{table}",

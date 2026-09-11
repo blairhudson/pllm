@@ -1,10 +1,11 @@
 {
   "title": "Reference",
   "pages": [
-    "development",
     "cli",
+    "dashboard",
     "compatibility",
     "troubleshooting",
+    "development",
     "releasing"
   ]
 }

@@ -138,6 +138,11 @@ are custom OTEL metrics; prompts and activation payloads are never telemetry
 attributes. The generated tiny checkpoint validates transport behavior only.
 Interactive dashboard runs default to Qwen2.5-0.5B-Instruct; random tiny weights
 require the explicit `--tiny` transport-smoke option.
+Completed and failed benchmark summaries are appended to a schema-versioned local
+SQLite archive. Its matrix groups only completed runs by model ID, immutable body
+fingerprint, cold/warm mode, and exact input-token count. The archive never stores
+prompts, generated text, token IDs, activation payloads, seeds, masks, credentials,
+or protocol spans.
 
 ## Build and release boundaries
 

@@ -1,90 +1,103 @@
-# Configure once
+# Configure the client
 
-The SDK and chat CLI share the same local settings.
+Separate inference, preparation, inventory, cache, and timeout settings.
 
+
+## Save public-path settings
 
 ```bash
 umask 077
 pllm configure \
   --server http://127.0.0.1:8000 \
   --api-key "$PLLM_API_KEY" \
-  --model private-model
+  --preparation-url http://127.0.0.1:8001 \
+  --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
+  --model demo-model
 ```
 
-The path is `~/.config/pllm/config.toml`, or `$XDG_CONFIG_HOME/pllm/config.toml`. `PLLM_CONFIG` overrides the complete file path.
+Settings are written to `~/.config/pllm/config.toml`, or
+`$XDG_CONFIG_HOME/pllm/config.toml`. `PLLM_CONFIG` overrides the complete path.
+The writer requests mode `0600` where the platform supports it, but values remain
+plaintext on disk.
 
-## Configuration order
+Explicit SDK or CLI arguments override environment variables. Environment
+variables override the saved file; unspecified fields use these source defaults:
 
-Explicit SDK arguments override environment variables. Environment variables override the saved file. Unspecified fields use the defaults below.
-
-| Setting | Environment | Default |
+| Client setting | Environment | Default |
 | --- | --- | --- |
-| Provider URL | `PLLM_BASE_URL` | `http://127.0.0.1:8000` |
-| Provider credential | `PLLM_API_KEY` | `pllm-local` |
-| Model ID | `PLLM_MODEL` | Discover a single private model |
+| Inference URL | `PLLM_BASE_URL` | `http://127.0.0.1:8000` |
+| Inference credential | `PLLM_API_KEY` | `pllm-local` |
+| Model ID | `PLLM_MODEL` | Discover only when one model is available |
 | Preparation URL | `PLLM_PREPARATION_BASE_URL` | None |
-| Preparation credential | `PLLM_PREPARATION_API_KEY` | Provider credential |
-| Prepared inventory rows per stage | `PLLM_PREPARED_INVENTORY_ROWS` | `64` |
-| Transport | `PLLM_TRANSPORT` | `auto` |
-| Preparation | `PLLM_CORRELATION_MODE` | `bfv` |
-| Preparation horizon | `PLLM_CORRELATION_PREFETCH` | `4` |
-| Token cache entries | `PLLM_TOKEN_CACHE_SIZE` | `512` |
+| Preparation credential | `PLLM_PREPARATION_API_KEY` | None; required when URL is set |
+| Minimum prepared rows per stage | `PLLM_PREPARED_INVENTORY_ROWS` | `64` |
+| Online transport | `PLLM_TRANSPORT` | `auto` |
 | Bundle cache mode | `PLLM_BUNDLE_CACHE_MODE` | `read-write` |
 | Bundle cache directory | `PLLM_BUNDLE_CACHE_DIR` | `$XDG_CACHE_HOME/pllm/client-bundles` or `~/.cache/pllm/client-bundles` |
-| Timeout, seconds | `PLLM_TIMEOUT` | `300` |
+| Direct client/chat HTTP timeout | `PLLM_TIMEOUT` | `300` seconds |
+| Legacy correlation mode | `PLLM_CORRELATION_MODE` | `bfv` |
+| Legacy correlation prefetch | `PLLM_CORRELATION_PREFETCH` | `4` |
+| Legacy remote token cache | `PLLM_TOKEN_CACHE_SIZE` | `512` |
 
-Set an explicit credential. The default value is for local development, not an access policy.
+Always set explicit credentials outside isolated local development. Inference and
+preparation credentials must differ. Remote origins must be distinct HTTPS
+origins; plain HTTP is accepted only for loopback.
 
-## Configure public-weight preparation
+## Size prepared inventory
 
-Public-weight inference requires a trusted preparation service in addition to
-the untrusted inference provider:
+`PLLM_PREPARED_INVENTORY_ROWS` is the minimum capacity used when creating each
+stage inventory. A particular response may require more: prompt token rows plus
+up to `max_output_tokens - 1` decode rows. `pllm chat` calculates this before each
+response. Direct clients can call `prepared_rows_for_response()` and pass its
+result to `preprocess()`.
 
-```bash
-pllm configure \
-  --server https://inference.example \
-  --api-key "$PLLM_INFERENCE_KEY" \
-  --preparation-url https://preparation.example \
-  --preparation-api-key "$PLLM_PREPARATION_KEY"
-```
+Unreserved rows remain available for later chats. Starting a response reserves
+its exact requirement; early completion or failure burns only unused rows from
+that reservation. Larger inventory settings increase preparation work, client and
+inference memory, and rows discarded on restart or idle expiry. They do not turn
+unused reserved rows back into inventory.
 
-Self-host the preparation service when no external preparation operator is
-trusted. It needs the same public model weights, but receives only batched stage
-root seeds and shape metadata before chat. It must follow the protocol, erase
-expanded masks, and not collude with the inference provider. Remote URLs require HTTPS and distinct
-origins; plain HTTP is accepted only on loopback for development. The client
-verifies matching model and per-stage weight commitments before generation.
+Default clients may prepare a spare inventory while idle. No refill starts while
+an online response is active.
 
-`PLLM_PREPARED_INVENTORY_ROWS` controls each offline stage batch. The client keeps
-unreserved rows in memory for later chats and refills only while idle. Larger
-values reduce refill frequency but increase preparation time, memory, and rows
-burned when a reservation ends early. Restart or idle expiry discards inventory.
+## Understand timeouts
 
-## Protect the settings file
+`PLLM_TIMEOUT` configures HTTP operations made by the direct client and chat CLI,
+including bundle transfer and offline preparation requests. Raise it when a real
+checkpoint or inventory batch legitimately takes longer, but keep an upper bound.
+It does not configure:
 
-The reference writer applies mode `0600` on systems that support it. The API key is stored as text, not encrypted. Set a restrictive umask before first configuration and verify the result:
+- preparation's `--push-timeout` for a correction send and acknowledgement;
+- inference's `--rendezvous-timeout` for unmatched non-preloaded entries;
+- inference's `--prepared-session-idle` lifetime for memory-only inventory;
+- reverse-proxy HTTP or WebSocket idle limits.
 
-```bash
-umask 077
-pllm configure --server http://127.0.0.1:8000 --api-key "$PLLM_API_KEY"
-```
+Tune those at their owning process. A longer client timeout cannot restore an
+inventory that expired at inference.
 
-For managed environments, inject credentials at process startup and use a protected configuration directory. Do not share this directory between unrelated tenants.
+Persistent decode currently uses a fixed 30-second WebSocket connect timeout and
+does not apply `PLLM_TIMEOUT` to each socket receive. Set proxy idle limits for
+the longest legitimate decode gap. Selecting `--transport http` applies the HTTP
+timeout to stage calls, but gives up persistent decode transport.
 
 ## Cache public client bundles
 
-Client bundles contain public boundary weights and tokenizer assets. PLLM verifies
-the provider-advertised schema, model ID, and complete payload SHA-256 before use.
-Each generation fetches the current descriptor and rebuilds in-memory model state
-when its bundle fingerprint changes. Cache identity includes normalized inference
-URL, model, and provider credential, keyed by a random cache-local secret so the
-filename alone is not an API-key verifier. One stable record per identity is
-atomically replaced on revision changes. Bundles larger than 8 GiB are rejected,
-directories are created with mode `0700`, and payload files use mode `0600`.
+Client bundles contain tokenizer assets, graph metadata, and public quantized
+token lookup/output-head matrices. PLLM verifies the advertised schema, model ID,
+and complete payload SHA-256. Each generation checks the descriptor and rebuilds
+in-memory state when its fingerprint changes.
 
-`read-write` reads and updates the cache. `read-only` reads valid entries but does
-not repair or write them. `refresh` downloads and atomically replaces an entry.
-`off` bypasses disk caching. Configure with:
+Cache identity includes normalized inference URL, model, and provider credential,
+keyed by a random cache-local secret so a filename is not an API-key verifier.
+Payloads larger than 8 GiB are rejected. Directories request mode `0700`; payload
+files request `0600`.
+
+| Mode | Behavior |
+| --- | --- |
+| `read-write` | Read valid entries and atomically update changed bundles |
+| `read-only` | Read valid entries without writing or repair |
+| `refresh` | Download and atomically replace the selected entry |
+| `off` | Bypass disk cache |
 
 ```bash
 pllm configure \
@@ -92,17 +105,14 @@ pllm configure \
   --bundle-cache-dir ~/.cache/pllm/client-bundles
 ```
 
-If the implicit default cache directory is unavailable, PLLM skips disk and uses
-the same fully verified network bundle. An explicitly configured `read-write` or
-`refresh` directory fails clearly instead, so deployment mistakes are visible.
+If the implicit default cache is unavailable, PLLM uses the verified network
+bundle without disk caching. An explicitly configured writable cache fails
+clearly instead. `/audit` separates network bytes, hits, misses, and corruptions.
 
-`/audit` reports `bundle_network_bytes`, `bundle_cache_hits`,
-`bundle_cache_misses`, and `bundle_cache_corruptions` separately.
+## Legacy settings
 
-## Tune confidential-weight preparation cautiously
-
-```bash
-pllm configure --correlation-prefetch 4 --token-cache-size 512 --timeout 600
-```
-
-More prepared material can smooth generation but also increases memory, startup work, and unused material after cancellation. It does not reduce the amount of preparation consumed by a useful token.
+`PLLM_CORRELATION_MODE`, `PLLM_CORRELATION_PREFETCH`, and
+`PLLM_TOKEN_CACHE_SIZE` apply to older confidential-weight/BFV execution paths.
+Public seeded inventory ignores BFV correlation selection and performs public
+token lookup locally. Do not tune legacy prefetch as if it controlled public
+inventory rows.

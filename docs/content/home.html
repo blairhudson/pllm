@@ -1,60 +1,64 @@
 <div class="shell">
  <section class="hero">
   <div>
-   <p class="eyebrow"><span class="status-dot"></span> PRIVATE INFERENCE / OPEN RESEARCH</p>
-   <h1>Run the model.<br/>Keep the<br/><span>conversation.</span></h1>
-   <p class="hero-intro">Private language model inference with homomorphic preparation, a client you control, and a familiar Responses interface.</p>
-   <div class="button-row"><a class="button primary" href="/docs/quickstart/">Start building <span>↗</span></a><a class="button" href="/research/">Read the paper <span>→</span></a></div>
-   <p class="hero-note"><span aria-hidden="true">⌘</span> One Python package. A clear client and provider boundary.</p>
+   <p class="eyebrow"><span class="status-dot"></span> CURRENT PUBLIC PATH / ALPHA</p>
+   <h1>Prepare<br/>offline. Infer<br/><span>privately.</span></h1>
+   <p class="hero-intro">Private language model inference with one-time prepared inventory, a client you control, and a familiar Responses interface.</p>
+   <div class="button-row"><a class="button primary" href="/docs/quickstart/">Run the quickstart <span>↗</span></a><a class="button" href="/docs/reference/dashboard/">Open the live guide <span>→</span></a></div>
+   <p class="hero-note"><span aria-hidden="true">⌁</span> Online traffic stays between client and inference.</p>
   </div>
-  <div class="architecture" aria-label="Client and provider architecture">
-   <div class="diagram-header"><span>THE EXECUTION BOUNDARY</span><span>PUBLIC WEIGHTS</span></div>
+  <div class="architecture" aria-label="Offline preparation and online inference architecture">
+   <div class="diagram-header"><span>THE EXECUTION BOUNDARY</span><span>SEEDED INVENTORY / V1</span></div>
    <div class="diagram-grid">
-    <div class="boundary"><div class="boundary-label"><span class="mini-icon" aria-hidden="true">&gt;_</span>Your client<span class="boundary-tag">TRUSTED</span></div><p>The conversation starts and finishes here.</p><div class="field-tags"><span>Prompt + tokens</span><span>Secret key</span><span>Private state</span></div></div>
-    <div class="transit"><span class="wire-pill">↓ encrypted preparation</span><span class="wire-pill">↑ masked results</span></div>
-    <div class="boundary provider"><div class="boundary-label"><span class="mini-icon" aria-hidden="true">▦</span>Remote provider<span class="boundary-tag">MODEL MATRICES</span></div><p>Large matrix operations. No plaintext prompt on this path.</p><div class="field-tags"><span>Integer GEMM</span><span>Compiled weights</span><span>Stage batches</span></div></div>
+    <div class="boundary"><div class="boundary-label"><span class="mini-icon" aria-hidden="true">&gt;_</span>Your client<span class="boundary-tag">TRUSTED</span></div><p>Prompt, activations, state, and decoded text stay here.</p><div class="field-tags"><span>Tokens + scales</span><span>Attention state</span><span>Boundary matrices</span></div></div>
+    <div class="transit"><span class="wire-pill">OFFLINE · root seeds →</span><span class="wire-pill">TRUSTED PREPARATION</span><span class="wire-pill">→ W·r−s · READY</span><span class="wire-pill">ONLINE · no contact</span></div>
+    <div class="boundary provider"><div class="boundary-label"><span class="mini-icon" aria-hidden="true">▦</span>Inference<span class="boundary-tag">PUBLIC BODY</span></div><p>Consumes each ticket once and returns a masked result.</p><div class="field-tags"><span>ticket + x−r</span><span>Integer GEMM</span><span>W·x−s</span></div></div>
    </div>
-   <div class="diagram-foot"><span aria-hidden="true">↳</span><span>Assumption: <strong>the provider follows the protocol.</strong> <a href="/docs/security/">Details →</a></span></div>
+   <div class="diagram-foot"><span aria-hidden="true">↳</span><span>Claim requires <strong>honest-but-curious roles and no collusion.</strong> <a href="/docs/security/">Read limits →</a></span></div>
   </div>
  </section>
- <section class="metrics-strip" aria-label="Research measurements">
-  <div class="metrics-intro"><strong>Evidence before extrapolation.</strong>One matrix batch is not a generated token.<br/><a href="/docs/research/benchmarks/">Explore the measurements →</a></div>
-  <div class="metric"><div class="metric-value">4.93×</div><div class="metric-label">faster complete preparation</div><div class="metric-kind">MEASURED · 768 → 256</div></div>
-  <div class="metric"><div class="metric-value">2,048</div><div class="metric-label">future masks in one batch</div><div class="metric-kind">ONE KEY · COORDINATE LAYOUT</div></div>
-  <div class="metric"><div class="metric-value">257</div><div class="metric-label">exchanges in the 27B plan</div><div class="metric-kind">DERIVED · NOT MODEL TPS</div></div>
+ <section class="metrics-strip" aria-label="Current implementation facts">
+  <div class="metrics-intro"><strong>Measure the complete run.</strong>Preparation time, online latency, traffic, and burned rows are different results.<br/><a href="/docs/reference/dashboard/">Launch the current dashboard →</a></div>
+  <div class="metric"><div class="metric-value">3</div><div class="metric-label">real loopback roles</div><div class="metric-kind">CLIENT · PREP · INFERENCE</div></div>
+  <div class="metric"><div class="metric-value">0</div><div class="metric-label">prep operations online</div><div class="metric-kind">CHECKED BY LIVE COUNTERS</div></div>
+  <div class="metric"><div class="metric-value">16/24/32</div><div class="metric-label">exact ring widths</div><div class="metric-kind">SELECTED PER STAGE</div></div>
  </section>
  <section class="section">
-  <div class="section-number">01 / BUILD WITH PLLM</div>
-  <div class="section-head"><h2>Two sides. One interface.</h2><p>Start from the role you own. Keep cryptographic details out of application code.</p></div>
+  <div class="section-number">01 / START THE CURRENT PATH</div>
+  <div class="section-head"><h2>One package. Three clear roles.</h2><p>Public inference needs no HE extra. Build the Rust extension, start both services, then prepare before chat.</p></div>
   <div class="cards-two">
-   <div class="path-card"><div class="card-top"><div class="card-icon">⌁ CLIENT</div><h3>Your app stays familiar.</h3><p>Configure once, stream responses, and keep decryption inside your environment.</p></div><div class="terminal"><button class="copy-code" data-copy aria-label="Copy Python example">Copy</button><pre><span class="code-blue">from</span> pllm <span class="code-blue">import</span> OpenAI
+   <div class="path-card"><div class="card-top"><div class="card-icon">⌁ CLIENT</div><h3>Keep application state local.</h3><p>Size an inventory before the request, then use the Responses-shaped client.</p></div><div class="terminal"><button class="copy-code" data-copy aria-label="Copy Python example">Copy</button><pre><span class="code-blue">from</span> pllm <span class="code-blue">import</span> OpenAI
 
+prompt = <span class="code-green">"Explain prepared inference."</span>
 <span class="code-blue">with</span> OpenAI() <span class="code-blue">as</span> client:
-    response = client.responses.create(
-        input=<span class="code-green">"Explain private inference."</span>
-    )
-    print(response.output_text)</pre></div><div class="card-link-row"><a href="/docs/client/install/">Install →</a><a href="/docs/client/python/">Python SDK →</a><a href="/docs/client/openai/">OpenAI SDK →</a></div></div>
-   <div class="path-card"><div class="card-top"><div class="card-icon">▦ PROVIDER</div><h3>Serve the heavy operations.</h3><p>Load supported Safetensors layouts and serve the private matrix protocol.</p></div><div class="terminal"><button class="copy-code" data-copy aria-label="Copy provider command">Copy</button><pre><span class="code-muted"># From the supplied runtime source</span>
-uv sync --extra he
-uv run pllm build
+    rows = client.prepared_rows_for_response(prompt, 64)
+    client.preprocess(count=rows)
+    print(client.responses.create(
+        input=prompt, max_output_tokens=64
+    ).output_text)</pre></div><div class="card-link-row"><a href="/docs/client/install/">Install →</a><a href="/docs/client/python/">Python SDK →</a><a href="/docs/client/openai/">OpenAI SDK →</a></div></div>
+    <div class="path-card"><div class="card-top"><div class="card-icon">▦ SERVICES</div><h3>Load the public body twice.</h3><p>Inference stores corrections; trusted preparation computes them before chat.</p></div><div class="terminal"><button class="copy-code" data-copy aria-label="Copy service commands">Copy</button><pre><span class="code-muted"># Run in service shell 1.</span>
+uv run pllm serve <span class="code-green">"$PLLM_MODEL_SOURCE"</span> --weights public \
+  --api-key <span class="code-green">"$PLLM_API_KEY"</span> --provider-push-api-key <span class="code-green">"$PLLM_PROVIDER_PUSH_API_KEY"</span>
 
-uv run pllm serve <span class="code-green">"$PLLM_MODEL_SOURCE"</span> \
-  --weights public \
-  --model-id private-model</pre></div><div class="card-link-row"><a href="/docs/server/install/">Install →</a><a href="/docs/server/usage/">Serve →</a><a href="/docs/deployment/overview/">Deploy →</a></div></div>
+<span class="code-muted"># Run in service shell 2.</span>
+uv run pllm preparation serve <span class="code-green">"$PLLM_MODEL_SOURCE"</span> \
+  --api-key <span class="code-green">"$PLLM_PREPARATION_API_KEY"</span> \
+  --inference-url http://127.0.0.1:8000 \
+  --push-api-key <span class="code-green">"$PLLM_PROVIDER_PUSH_API_KEY"</span></pre></div><div class="card-link-row"><a href="/docs/quickstart/">Credentials + setup →</a><a href="/docs/server/usage/">Serve →</a><a href="/docs/deployment/overview/">Deploy →</a></div></div>
   </div>
  </section>
  <section class="section">
-  <div class="section-number">02 / UNDER THE INTERFACE</div>
-  <div class="section-head"><h2>Private, one operation at a time.</h2><p>Homomorphic work happens before the activation is needed. Every mask is used once.</p></div>
+  <div class="section-number">02 / FOLLOW ONE RESPONSE</div>
+  <div class="section-head"><h2>Offline work stays offline.</h2><p>Inventory lifecycle is explicit. No hidden preparation fallback enters the response path.</p></div>
   <div class="lifecycle-layout">
-   <div class="lifecycle-tabs" role="tablist" aria-label="Inference lifecycle"><button class="phase-button" role="tab" id="tab-prepare" aria-controls="panel-prepare" aria-selected="true" data-phase="prepare"><span class="phase-number">01</span>Prepare</button><button class="phase-button" role="tab" id="tab-prefill" aria-controls="panel-prefill" aria-selected="false" data-phase="prefill"><span class="phase-number">02</span>Process the prompt</button><button class="phase-button" role="tab" id="tab-decode" aria-controls="panel-decode" aria-selected="false" data-phase="decode"><span class="phase-number">03</span>Generate + decode</button></div>
-   <div class="phase-panel" id="panel-prepare" role="tabpanel" aria-labelledby="tab-prepare" data-panel="prepare"><h3>Prepare without revealing the mask.</h3><p>The client encrypts fresh random masks. The provider transforms them with the model matrix, and the client decrypts the matching output masks.</p><div class="phase-equation">Enc(r) → Enc(Wr)<br/>The secret key stays on your side.</div></div>
-   <div class="phase-panel" id="panel-prefill" role="tabpanel" aria-labelledby="tab-prefill" data-panel="prefill" hidden><h3>Turn the prompt into private model state.</h3><p>The client tokenises locally and connects masked matrix operations with attention, recurrence, and nonlinear operations. Every prompt row consumes fresh preparation.</p><div class="phase-equation">private activation x → x + r mod p<br/>The provider receives the masked value.</div></div>
-   <div class="phase-panel" id="panel-decode" role="tabpanel" aria-labelledby="tab-decode" data-panel="decode" hidden><h3>Recover the result. Keep the text.</h3><p>The client subtracts the prepared mask, updates private state, and samples a token. It emits normal Responses events only after the result is reconstructed locally.</p><div class="phase-equation">W(x + r) − Wr = Wx mod p<br/>Decoded output returns to your application.</div></div>
+   <div class="lifecycle-tabs" role="tablist" aria-label="Prepared inference lifecycle"><button class="phase-button" role="tab" id="tab-prepare" aria-controls="panel-prepare" aria-selected="true" data-phase="prepare"><span class="phase-number">01</span>Seal READY inventory</button><button class="phase-button" role="tab" id="tab-prefill" aria-controls="panel-prefill" aria-selected="false" data-phase="prefill"><span class="phase-number">02</span>Batch the prompt</button><button class="phase-button" role="tab" id="tab-decode" aria-controls="panel-decode" aria-selected="false" data-phase="decode"><span class="phase-number">03</span>Decode persistently</button></div>
+   <div class="phase-panel" id="panel-prepare" role="tabpanel" aria-labelledby="tab-prepare" data-panel="prepare"><h3>Commit, prepare, acknowledge.</h3><p>The client authorizes an inventory and sends one root seed per remote stage. Preparation expands one-time masks, pushes W·r−s batches to inference, and waits for durable acceptance. Inference reports READY only after every stage is loaded.</p><div class="phase-equation">Client → seed batch → Preparation → W·r−s → Inference<br/>Correction never returns to the client.</div></div>
+   <div class="phase-panel" id="panel-prefill" role="tabpanel" aria-labelledby="tab-prefill" data-panel="prefill" hidden><h3>Reserve once. Pack prompt rows.</h3><p>Token lookup runs locally. Each remote stage receives one compact ticket vector and one packed x−r matrix for all prompt rows. The client applies the local output head only to the final prefill row.</p><div class="phase-equation">ticket[] + (x−r)[] → W·x−s<br/>u16, u24, or u32 is selected per stage.</div></div>
+    <div class="phase-panel" id="panel-decode" role="tabpanel" aria-labelledby="tab-decode" data-panel="decode" hidden><h3>Keep one online connection.</h3><p>Decode reuses a persistent client-to-inference WebSocket. Preparation remains idle. Every stage consumes one ticket; completion, cancellation, or failure burns every unused reserved row. Refill can start only after the response closes and the client is idle.</p><div class="phase-equation">Client + s → center-decode → local state + sampling<br/>No ticket or mask is reused.</div></div>
   </div>
  </section>
  <section class="research-block">
-  <a href="/research/" class="paper-cover" aria-label="Read Private LLM Inference"><div class="cover-tag">PLLM RESEARCH / MANUSCRIPT 02</div><h3>Private LLM<br/>Inference</h3><p>Preparation, decoding, and the boundary between client and provider.</p><div class="cover-bottom"><span>BLAIR HUDSON</span><span>SEPTEMBER 2026 ↗</span></div></a>
-  <div class="research-intro"><div class="section-number">03 / THE RESEARCH</div><h2>Read the method.<br/>Inspect the evidence.</h2><p>From ciphertext coefficient GEMM to an entire decoded response. The paper separates measured preparation, complete small model execution, and capacity projections for a 27B model.</p><div class="research-links"><a href="/research/">Read online →</a><a href="/downloads/paper.pdf">Paper PDF ↗</a><a href="/downloads/evidence.zip">Evidence ↓</a></div><div class="evidence-note">No measured 27B generation rate. No claim of protection against an actively malicious provider. The scope is part of the result.</div></div>
+  <a href="/docs/reference/dashboard/" class="paper-cover" aria-label="Read the live protocol dashboard guide"><div class="cover-tag">PLLM / LIVE PROTOCOL</div><h3>See every<br/>boundary<br/>move.</h3><p>Real roles, current source, observed traffic.</p><div class="cover-bottom"><span>LOOPBACK OTEL</span><span>RUN LOCALLY ↗</span></div></a>
+  <div class="research-intro"><div class="section-number">03 / CURRENT EVIDENCE + LIMITS</div><h2>Your runs.<br/>Compared honestly.</h2><p><code>pllm benchmark dashboard</code> starts real client, preparation, and inference processes with Qwen2.5-0.5B-Instruct by default. It records sanitized timing, traffic, resources, inventory, and actual context counts for local comparison without retaining prompt or output text.</p><div class="research-links"><a href="/docs/reference/dashboard/">Dashboard guide →</a><a href="/docs/server/performance/">Measure performance →</a><a href="/research/">Historical research →</a></div><div class="evidence-note">First launch may download a public model. Use <code>--history-db :memory:</code> for no persisted run history. <code>--tiny</code> is transport smoke only. Neither mode proves universal speed, quality, non-collusion, malicious security, or production readiness. BFV and confidential-weight modes are optional legacy paths.</div></div>
  </section>
 </div>
