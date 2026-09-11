@@ -22,7 +22,7 @@ classifiers = [
   "Topic :: Security :: Cryptography",
 ]
 dependencies = [
-  "cryptography>=44,<47", "fastapi>=0.115,<1", "filelock>=3.19,<4",
+  "cryptography>=44,<51", "fastapi>=0.115,<1", "filelock>=3.19,<4",
   "huggingface-hub>=0.34,<2", "httpx>=0.28,<1", "jinja2>=3.1,<4",
   "msgpack>=1.0,<2", "ml-dtypes>=0.5,<1", "numpy>=1.26,<3",
   "opentelemetry-api>=1.36,<2", "opentelemetry-exporter-otlp-proto-http>=1.36,<2",
