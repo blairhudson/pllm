@@ -2,35 +2,33 @@
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
-- [Use the Agents SDK](/pllm/docs/client/agents/): Keep the Responses endpoint and tracing inside your chosen trust boundary.
-- [Chat from the terminal](/pllm/docs/client/chat/): Prepare while idle, then stream over the client-to-inference path.
-- [Configure the client](/pllm/docs/client/configuration/): Separate inference, preparation, inventory, cache, and timeout settings.
-- [Install the client](/pllm/docs/client/install/): Build the current public client from this source with UV and Maturin.
-- [Follow a response](/pllm/docs/client/lifecycle/): Commit, prepare, reserve, batch prefill, decode, and burn safely.
-- [Use the OpenAI SDK](/pllm/docs/client/openai/): Point standard Responses clients at a trusted local gateway, never inference.
-- [Python SDK](/pllm/docs/client/python/): Prepare explicit inventory, then use a Responses-shaped local client.
-- [Deploy with Docker](/pllm/docs/deployment/docker/): Run the three-role loopback topology and understand what it does not prove.
-- [Deployment overview](/pllm/docs/deployment/overview/): Place three trust roles, route two online transports, and size inventory safely.
-- [Publish the documentation](/pllm/docs/deployment/site/): Validate and export a static site with no inference endpoint.
-- [Deploy with systemd](/pllm/docs/deployment/systemd/): Install separate inference and preparation services with explicit caches and secrets.
-- [Start here](/pllm/docs/): Offline prepared inventory, online masked inference, and a local Responses boundary.
-- [Run your first prepared request](/pllm/docs/quickstart/): Start inference and preparation, seal an inventory, and generate locally.
-- [CLI reference](/pllm/docs/reference/cli/): Current public-path commands, role-specific flags, and legacy boundaries.
-- [Compatibility and limits](/pllm/docs/reference/compatibility/): Current implemented surfaces, validation scope, and unsupported behavior.
-- [Live protocol dashboard](/pllm/docs/reference/dashboard/): Run current source end to end and interpret its observed metrics.
-- [Project structure](/pllm/docs/reference/development/): Build and test the Rust core, Python runtime, and current docs independently.
-- [Build and release](/pllm/docs/reference/releasing/): Use committed locks, verified native artifacts, and scoped publication permissions.
-- [Troubleshooting](/pllm/docs/reference/troubleshooting/): Diagnose role, inventory, timeout, transport, and checkpoint failures safely.
-- [How PLLM works](/pllm/docs/research/architecture/): A local Responses interface around a private matrix protocol.
-- [Benchmarks](/pllm/docs/research/benchmarks/): Read the workload and denominator before reading the speedup.
-- [Executable BFV Mask Preparation for Public-Weight Language-Model Inference: A Historical PLLM Study](/pllm/docs/research/paper/): Historical executable study of BFV-prepared additive masks for public-weight integer linear layers.
-- [Reproduce the study](/pllm/docs/research/reproduce/): Keep the experiment environment separate from the serving runtime.
-- [Implementation roadmap](/pllm/docs/research/roadmap/): The next work follows measured costs, not a new model architecture.
-- [Security boundaries](/pllm/docs/security/): Protected values, visible metadata, required trust, and unsupported claims.
-- [Install the services](/pllm/docs/server/install/): Build the Rust extension and validate a public checkpoint source.
-- [Model support](/pllm/docs/server/models/): Separate tensor import, graph execution, public bundles, and quality evidence.
-- [Rust execution core](/pllm/docs/server/native/): Maturin packaging, exact integer kernels, thread policy, and evidence limits.
-- [Measure and tune](/pllm/docs/server/performance/): Separate cold inventory, compact prefill, persistent decode, and local boundaries.
-- [Run both services](/pllm/docs/server/usage/): Serve a public transformer body and preload committed corrections.
-- [Research history](/pllm/research/): PLLM protocol research from the BFV bridge to offline prepared inference.
-- [PLLM whitepaper](/pllm/whitepaper/): A two-page decision brief for prepared private inference.
+- [Use the Agents SDK](/docs/client/agents/): Keep the Responses endpoint and tracing inside your chosen trust boundary.
+- [Chat from the terminal](/docs/client/chat/): Prepare while idle, then stream over the client-to-inference path.
+- [Configure the client](/docs/client/configuration/): Separate inference, preparation, inventory, cache, and timeout settings.
+- [Install the client](/docs/client/install/): Install the PLLM client from PyPI with UV.
+- [Follow a response](/docs/client/lifecycle/): Commit, prepare, reserve, batch prefill, decode, and burn safely.
+- [Use the OpenAI SDK](/docs/client/openai/): Point standard Responses clients at a trusted local gateway, never inference.
+- [Python SDK](/docs/client/python/): Use a Responses-compatible client with automatic offline preparation.
+- [Deploy with Docker](/docs/deployment/docker/): Run the three-role loopback topology and understand what it does not prove.
+- [Deployment overview](/docs/deployment/overview/): Place three trust roles, route two online transports, and size inventory safely.
+- [Deploy with systemd](/docs/deployment/systemd/): Install separate inference and preparation services with explicit caches and secrets.
+- [Start here](/docs/): Offline prepared inventory, online masked inference, and a local Responses boundary.
+- [Run your first prepared request](/docs/quickstart/): Start inference and preparation, seal an inventory, and generate locally.
+- [CLI reference](/docs/reference/cli/): Current public-path commands, role-specific flags, and legacy boundaries.
+- [Compatibility and limits](/docs/reference/compatibility/): Current implemented surfaces, validation scope, and unsupported behavior.
+- [Live protocol dashboard](/docs/reference/dashboard/): Run current source end to end and interpret its observed metrics.
+- [Project structure](/docs/reference/development/): Build and test the Rust core, Python runtime, and current docs independently.
+- [Build and release](/docs/reference/releasing/): Use committed locks, verified native artifacts, and scoped publication permissions.
+- [Troubleshooting](/docs/reference/troubleshooting/): Diagnose role, inventory, timeout, transport, and checkpoint failures safely.
+- [Security boundaries](/docs/security/): Protected values, visible metadata, required trust, and unsupported claims.
+- [Install the services](/docs/server/install/): Install PLLM services from PyPI and validate a public checkpoint source.
+- [Model support](/docs/server/models/): Separate tensor import, graph execution, public bundles, and quality evidence.
+- [Rust execution core](/docs/server/native/): Maturin packaging, exact integer kernels, thread policy, and evidence limits.
+- [Measure and tune](/docs/server/performance/): Separate cold inventory, compact prefill, persistent decode, and local boundaries.
+- [Run both services](/docs/server/usage/): Serve a public transformer body and preload committed corrections.
+- [Private inference](/research/architecture/): How model providers can execute useful inference without seeing plaintext client data.
+- [Global compute market](/research/market/): How private inference can widen access to AI compute without requiring providers to see client data.
+- [PLLM: Offline-Correlated Private Inference for Public-Weight Language Models](/research/paper/): A three-role private language-model runtime that prepares one-time masked matrix correlations before online inference.
+- [Run your own benchmark](/research/reproduce/): Measure private inference on your hardware and extend PLLM's map of eligible compute.
+- [PLLM research](/research/): The mission, protocol, and evidence for a global market in private AI compute.
+- [PLLM whitepaper](/research/whitepaper/): A two-page overview of prepared private inference.

@@ -1,15 +1,20 @@
-# Historical and current implementation boundary
+# Implementation and evidence status
 
-Paper measurements belong only to executable study under `research/lifecycle`.
-Its project metadata identifies version `0.14.0+inference.study1`, derived from
-persisted PLLM 0.14 research source. It uses Python, PyTorch, TenSEAL, and the
-artifact's C++ SEAL binding. Target-sized weights are synthetic.
+The paper describes the current public-weight runtime:
 
-Current package is mixed Python/Rust PLLM 0.17.0a1. Its source lives under
-`python/pllm`, `crates/pllm-core`, and `crates/pllm-python`. Current package
-tests, protocol behavior, native-kernel performance, serving interfaces, and
-security properties are not evaluated by paper experiments.
+- client-owned plaintext, token boundaries, nonlinear state, and sampling;
+- offline Preparation computation and acknowledged correction upload;
+- sealed one-use inventory at Inference;
+- packed prefill and persistent decode transport;
+- native exact-ring matrix execution; and
+- immutable text-free dashboard records.
 
-Repository migration is not evidence of a new cryptographic result, checkpoint
-quality result, or throughput result. Reuse of historical numbers for current
-runtime requires a fresh, versioned reproduction.
+The retained study is `research/evidence/current-runtime-2026-09-11.json`. It
+contains nine warm Qwen2.5-0.5B loopback runs from source revision `277d19f`,
+with exact public prompts, model identifiers, raw measurements, and limitations.
+It is the evidence source for the paper tables.
+
+The study does not establish WAN or GPU performance, energy use, token price,
+market operation, model quality, malicious security, operator independence, or
+secure erasure. Historical BFV results under `research/lifecycle` are separate
+and are not reused as current-runtime evidence.

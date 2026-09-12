@@ -10,11 +10,12 @@
 \usepackage{enumitem}
 \usepackage{titlesec}
 \usepackage{fancyhdr}
+\usepackage{booktabs,tabularx,colortbl}
 \usepackage[hidelinks]{hyperref}
 \hypersetup{
-  pdftitle={Private LLM inference, prepared before the prompt},
+  pdftitle={Private inference for an open compute world},
   pdfauthor={Blair Hudson},
-  pdfsubject={PLLM public-weight prepared inference decision brief},
+  pdfsubject={PLLM public-weight prepared inference},
   pdfkeywords={private inference, prepared inventory, non-collusion}
 }
 
@@ -38,7 +39,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
-\fancyfoot[L]{\fontsize{7}{8}\selectfont\color{pllmMuted} PLLM WHITEPAPER / REVISION 1.0}
+\fancyfoot[L]{\fontsize{7}{8}\selectfont\color{pllmMuted} PLLM WHITEPAPER}
 \fancyfoot[R]{\fontsize{7}{8}\selectfont\color{pllmMuted} \thepage\ / 2}
 
 \newcommand{\evidence}[1]{\textcolor{pllmGreen}{\bfseries\scriptsize #1}}
@@ -47,119 +48,130 @@
 \begin{document}
 \thispagestyle{fancy}
 
-\begin{minipage}[t]{.66\textwidth}
-{\fontsize{8}{9}\selectfont\bfseries\color{pllmGreen}\MakeUppercase{Private inference / decision brief}}\\[5pt]
-{\fontsize{26}{27}\selectfont\bfseries Private LLM inference,\\prepared before the prompt}\\[7pt]
-{\fontsize{11}{14}\selectfont\color{pllmMuted} PLLM separates public-model computation across a customer client, trusted preparation service, and inference provider. Fresh one-time inventory moves preparation off the online path without removing its cost or trust assumptions.}
-\end{minipage}\hfill
-\begin{minipage}[t]{.28\textwidth}
-\raggedleft\fontsize{8}{11}\selectfont
-\textbf{Blair Hudson}\\
-11 September 2026\\
-Revision 1.0\\[7pt]
-\color{pllmGreen}\textbf{CURRENT DESIGN}\\
-\color{pllmMuted}Public-weight runtime\\
-PLLM v0.17.0a1
+\begin{minipage}[t]{\textwidth}
+{\fontsize{26}{27}\selectfont\bfseries Private inference for\\an open compute world}\\[7pt]
+{\fontsize{11}{14}\selectfont\color{pllmMuted} Private inference lets organisations use remote AI compute without exposing prompts, context or generated output to the infrastructure provider. PLLM keeps sensitive data on the client while sending privacy-protected inference requests to remote providers, creating a path from concentrated cloud infrastructure to a global market of independent compute.}
 \end{minipage}
 
 \vspace{8pt}\textcolor{pllmLine}{\rule{\textwidth}{.6pt}}\vspace{5pt}
 
 \begin{tikzpicture}[x=1cm,y=1cm,>=Latex,font=\sffamily]
   \tikzset{
-    role/.style={draw=pllmLine,rounded corners=2pt,minimum height=1.45cm,align=left,inner sep=8pt},
+    role/.style={draw=pllmLine,rounded corners=3pt,minimum height=1.72cm,align=left,inner sep=9pt},
     flow/.style={draw=pllmGreen,line width=.8pt,-{Latex[length=4pt]}},
-    note/.style={font=\fontsize{6.4}{7.2}\selectfont,fill=white,inner sep=2pt,text=pllmMuted,align=center}
+    note/.style={font=\fontsize{6.4}{7.2}\selectfont,fill=white,inner sep=2pt,text=pllmMuted,align=center},
+    order/.style={circle,fill=pllmInk,text=white,font=\bfseries\fontsize{6}{6}\selectfont,inner sep=0pt,minimum size=12pt}
   }
-  \node[role,fill=pllmPale,text width=3.80cm] (client) at (2.05,2.48) {\textbf{1 / CUSTOMER CLIENT}\\[-1pt]\fontsize{7.4}{8.4}\selectfont prompt, tokens, masks, scales, state, sampling};
-  \node[role,fill=pllmWarm,text width=3.80cm] (prep) at (8.20,2.48) {\textbf{2 / TRUSTED PREPARATION}\\[-1pt]\fontsize{7.4}{8.4}\selectfont root seeds, public body; computes $W r-s$};
-  \node[role,fill=white,text width=3.80cm] (infer) at (14.35,2.48) {\textbf{3 / INFERENCE PROVIDER}\\[-1pt]\fontsize{7.4}{8.4}\selectfont corrections, tickets, $x-r$; masked stages};
-  \draw[flow] (client.east) -- node[note,above,text width=1.45cm] {OFFLINE\\ROOT SEEDS} (prep.west);
-  \draw[flow] (prep.east) -- node[note,above,text width=1.65cm] {CORRECTION\\INVENTORY $Wr-s$} (infer.west);
-  \coordinate (clientOnline) at ([xshift=-.32cm,yshift=-.45cm]client.south);
-  \coordinate (inferOnline) at ([xshift=-.32cm,yshift=-.45cm]infer.south);
-  \draw[flow] ([xshift=-.32cm]client.south) -- (clientOnline) -- node[note,above] {ONLINE / TICKET + $x-r$} (inferOnline) -- ([xshift=-.32cm]infer.south);
-  \coordinate (inferReturn) at ([xshift=.32cm,yshift=-1.04cm]infer.south);
-  \coordinate (clientReturn) at ([xshift=.32cm,yshift=-1.04cm]client.south);
-  \draw[flow] ([xshift=.32cm]infer.south) -- (inferReturn) -- node[note,below] {$Wx-s$; CLIENT ADDS $s$} (clientReturn) -- ([xshift=.32cm]client.south);
-  \draw[dashed,pllmGreen,line width=.8pt] (11.28,.20) -- (11.28,3.65);
-  \node[font=\fontsize{6.4}{7}\selectfont\bfseries,text=pllmGreen,fill=white,inner sep=2pt] at (11.28,3.55) {NON-COLLUSION};
+  \node[role,fill=pllmPale,text width=3.80cm] (client) at (1.95,2.90) {\evidence{01}\quad\textbf{Client}\\[4pt]\fontsize{7.4}{8.4}\selectfont Prompt, masks, state, sampling};
+  \node[role,fill=pllmWarm,text width=3.80cm] (prep) at (8.20,2.90) {\evidence{02}\quad\textbf{Trusted preparation}\\[4pt]\fontsize{7.4}{8.4}\selectfont Root seeds and public body; computes $W r-s$};
+  \node[role,fill=white,text width=3.80cm] (infer) at (14.45,2.90) {\evidence{03}\quad\textbf{Inference provider}\\[4pt]\fontsize{7.4}{8.4}\selectfont Corrections, tickets and $x-r$};
+  \draw[dashed,pllmGreen,line width=.8pt] (11.33,.56) -- (11.33,4.90);
+  \draw[flow] (client.east) -- (prep.west);
+  \node[note] at (5.48,3.32) {ROOT SEEDS};
+  \node[order] at (4.38,3.32) {1};
+  \draw[flow] (prep.east) -- (infer.west);
+  \node[note] at (11.58,3.32) {$Wr-s$ ROWS};
+  \node[order] at (10.48,3.32) {2};
+  \coordinate (clientOnline) at ([xshift=-.32cm,yshift=.70cm]client.north);
+  \coordinate (inferOnline) at ([xshift=-.32cm,yshift=.70cm]infer.north);
+  \draw[flow] ([xshift=-.32cm]client.north) -- (clientOnline) -- (inferOnline) -- ([xshift=-.32cm]infer.north);
+  \node[note] at (8.25,4.78) {ONLINE / TICKET + $x-r$};
+  \node[order] at (6.18,4.78) {3};
+  \coordinate (inferReturn) at ([xshift=.32cm,yshift=-.70cm]infer.south);
+  \coordinate (clientReturn) at ([xshift=.32cm,yshift=-.70cm]client.south);
+  \draw[flow] ([xshift=.32cm]infer.south) -- (inferReturn) -- (clientReturn) -- ([xshift=.32cm]client.south);
+  \node[note] at (8.25,1.02) {$Wx-s$; CLIENT ADDS $s$};
+  \node[order] at (6.18,1.02) {4};
+  \node[font=\fontsize{6.4}{7}\selectfont\bfseries,text=pllmGreen,fill=white,inner sep=2pt] at (11.33,.56) {SEPARATE OPERATORS};
 \end{tikzpicture}
 
 \vspace{1pt}
 \begin{multicols}{2}
 \section*{What PLLM changes}
-Ordinary hosted inference exposes prompts and generated text to one provider. PLLM instead keeps tokenization, nonlinear operations, attention state, sampling, and decoding in the customer environment. Public transformer-body matrices run remotely as masked integer projections. This is a deployment boundary, not a claim that an unmodified model API becomes private by changing its URL.\refmark{1}
+Ordinary hosted inference bundles computation with access to prompts and generated text. PLLM instead keeps tokenization, nonlinear operations, attention state, sampling, and decoding in the client environment. Public transformer-body matrices run remotely as masked integer projections. Compute can therefore be selected independently from willingness to disclose client language. This is a protocol boundary, not a URL setting.\refmark{1}
 
 \section*{Prepared inventory}
-Before chat, the client commits an inventory to one model, body, stage set, quantization profile, and attempt budget. It sends one domain-separated root seed per stage to preparation. Preparation expands one-time input masks $r$, output masks $s$, and tickets, computes $Wr-s$, then pushes each batch to inference. Inference durably acknowledges every stage and seals the inventory \texttt{READY}. Online, it atomically consumes a ticket and returns
+Before chat, the client commits an inventory to one model, body, stage set, quantization profile, and attempt budget. It sends one domain-separated root seed per stage to preparation. Preparation expands one-time input masks $r$, output masks $s$, and tickets, computes $Wr-s$, then pushes each batch to inference. Inference acknowledges accepted stage batches and seals the inventory \texttt{READY}. Online, it atomically consumes a ticket and returns
 \[
 W(x-r)+(Wr-s)=Wx-s.
 \]
 The client adds $s$. Prefill rows share a compact matrix envelope; decode retains one ticket per stage on a persistent connection. Unused reserved rows burn on cancellation or failure. Inventory is memory-only and disappears on restart or idle expiry.\refmark{1}
 
+\columnbreak
 \section*{Boundary, not invisibility}
 \textbf{Protected from inference:} plaintext prompts and outputs, token identities, root seeds, masks, activation scales, local attention and recurrent state, and sampling choices. Preparation sees seeds and bound stage metadata, but not online masked activations. Inference sees corrections and masked activations, but not seeds.
 
 \textbf{Still exposed:} both services know the public model, stage names, tensor shapes, quantization profile, scheduling, timing, traffic volume, and approximate sequence lengths. Preparation must follow the protocol, erase expanded masks, and not collude with inference. Two services under one untrusted operator do not meet this assumption; authentication and TLS protect channels but do not prove independence, erasure, or correct model execution.\refmark{2}
 
-Fresh uniform masks hide each online integer activation from inference when viewed alone. That claim is narrower than end-to-end confidential computing: it assumes protocol-conforming roles, keeps nonlinear work and state on the client, and does not verify provider execution. A network observer able to join both channels, a preparation service retaining masks, or colluding services can recover activation information. Deployment review must therefore name operators and log-access paths, not merely count endpoints.
+SHAKE-256 expands each fresh root seed into pseudorandom masks. Under that computational assumption, each masked activation hides its input from inference when viewed alone. The claim assumes protocol-conforming roles, mask non-retention, and non-collusion; Python releases masks after use but verified physical zeroization is not established. Deployment review must therefore name operators and log-access paths, not merely count endpoints.
 \end{multicols}
 
 \clearpage
 \thispagestyle{fancy}
 
-{\fontsize{8}{9}\selectfont\bfseries\color{pllmGreen}\MakeUppercase{Evidence and adoption gates}}\\[3pt]
-{\fontsize{20}{22}\selectfont\bfseries Price the whole lifecycle, then decide.}
+{\fontsize{20}{22}\selectfont\bfseries A world of compute, without exposing client data.}
 
 \vspace{7pt}
 \begin{tikzpicture}[x=1cm,y=1cm,font=\sffamily]
-  \tikzset{rung/.style={draw=pllmLine,rounded corners=2pt,minimum height=1.16cm,align=left,inner sep=7pt}}
-  \node[rung,fill=pllmPale,text width=4.65cm] at (2.45,.65) {\evidence{MEASURED}\\[-1pt]\fontsize{7.2}{8.2}\selectfont Historical BFV stages, small-decoder parity, seeded-relay loopback run};
-  \node[rung,fill=pllmWarm,text width=4.65cm] at (8.25,.65) {\evidence{DERIVED / PROJECTED}\\[-1pt]\fontsize{7.2}{8.2}\selectfont Model-shape storage, communication, dependency floors; not throughput};
-  \node[rung,fill=white,text width=4.65cm] at (14.05,.65) {\evidence{MISSING}\\[-1pt]\fontsize{7.2}{8.2}\selectfont Controlled inventory economics, 27B generation, production audit};
-  \draw[-{Latex[length=4pt]},pllmGreen,line width=.9pt] (4.92,.65) -- (5.74,.65);
-  \draw[-{Latex[length=4pt]},pllmGreen,line width=.9pt] (10.72,.65) -- (11.54,.65);
+  \tikzset{rung/.style={draw=pllmLine,rounded corners=3pt,minimum height=1.2cm,align=left,inner sep=7pt}}
+  \node[rung,fill=pllmGreen,text=white,draw=pllmGreen,text width=3.55cm] at (1.9,.65) {\textbf{01\quad Protect}\\[2pt]\fontsize{7.2}{8.2}\selectfont Keep language and state at the client edge};
+  \node[rung,fill=white,text width=3.55cm] at (6.35,.65) {\evidence{02\quad Admit}\\[2pt]\fontsize{7.2}{8.2}\selectfont Open supply to compatible independent capacity};
+  \node[rung,fill=white,text width=3.55cm] at (10.8,.65) {\evidence{03\quad Route}\\[2pt]\fontsize{7.2}{8.2}\selectfont Select by price, latency, region, energy and availability};
+  \node[rung,fill=white,text width=3.55cm] at (15.25,.65) {\evidence{04\quad Expand}\\[2pt]\fontsize{7.2}{8.2}\selectfont Widen access through broader compute supply};
+  \foreach \x in {3.82,8.27,12.72}{\draw[-{Latex[length=4pt]},pllmGreen,line width=.9pt] (\x,.65) -- +(0.55,0);}
 \end{tikzpicture}
 
 \vspace{2pt}
 \begin{minipage}[t]{.485\textwidth}\vspace{0pt}
-\section*{Economic cost ledger}
-No repository evidence supports an ROI or savings percentage. A deployment model should count:
-\begin{itemize}
-  \item \textbf{Client:} local tokenization, nonlinear math, KV/recurrent state, public boundary matrices, memory, and model-plan transfer.
-  \item \textbf{Preparation:} duplicate public body storage, mask expansion, matrix work, correction egress, secure erasure, and idle capacity.
-  \item \textbf{Inference:} body storage, masked projection compute, inventory memory, online ingress/egress, and ticket bookkeeping.
-  \item \textbf{Operations:} three credentials, TLS endpoints, telemetry, upgrades, replenishment, failures, and independent control of preparation.
-\end{itemize}
-Unit economics therefore depend on prompt shape, generated tokens, stage dimensions, concurrent demand, refill batch, burn rate, bandwidth price, and required operator separation.
+\section*{Unlock untrusted capacity}
+Hosted inference usually requires the buyer to trust the compute owner with plaintext. Masked execution separates those choices. Regional clouds, renewable projects, sovereign infrastructure, colocation operators, and independent machines could compete without becoming custodians of client language. Participation still requires compatible execution, availability, credentials, and enforceable market rules---but not permission to read the workload.
 
-\section*{Potential impact}
-Offline preparation removes preparation round trips from time-to-token, but does not remove preparation compute or correction traffic. Batching can amortize fixed work while increasing stranded or burned inventory. Compact prefill transport and geometric KV allocation reduce serialization and client-copy pressure; neither proves lower cloud spend. Self-hosting preparation can simplify trust ownership while moving hardware and operations to the customer.
+\section*{Follow available energy}
+Solar generation, grid congestion, and idle capacity vary by place and hour. A scheduler could move masked public-model work toward abundant renewable generation and replenish offline inventory where latency matters less. Privacy makes broader routing plausible; it does not make it free. Dependent client exchanges, correction placement, distance, and operator separation remain physical constraints. PLLM does not yet measure an energy saving.
+
+\section*{Price the complete lifecycle}
+{\fontsize{7.2}{8.4}\selectfont\arrayrulecolor{pllmLine}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{1.55cm}X@{}}
+\toprule
+Client & Local model work, state, memory and traffic \\
+Preparation & Body storage, matrix work, correction egress and erasure \\
+Inference & Masked compute, inventory, traffic and tickets \\
+Market & Discovery, settlement, verification and operator separation \\
+\bottomrule
+\end{tabularx}}
+Broader supply can create price pressure and wider access to private AI. This is a market mechanism, not a measured savings result.
 \end{minipage}\hfill
 \begin{minipage}[t]{.485\textwidth}\vspace{0pt}
 
-\section*{Evidence ladder}
-\evidence{MEASURED.} The historical lifecycle study measured a 768-by-256 BFV preparation stage at 0.633 seconds for 2,048 correlations versus 3.122 seconds for its matched control, a 4.93x speedup. A trained small decoder produced 96 tokens matching its clear quantized target. A separate 8 September loopback run used Qwen2.5-0.5B, three processes, and the earlier just-in-time seeded relay: 32 tokens in 6.07 seconds. These results do not benchmark current offline inventory.\refmark{3}\refmark{4}
+\section*{No plaintext training feed}
+On the current path, Inference receives one-time tickets and $x-r$; Preparation receives seeds and stage commitments. Neither is sent literal plaintext prompts, token IDs, or decoded output. Under protocol compliance, pseudorandom masks, mask non-retention, and non-collusion, the data plane removes the direct plaintext feed a provider could otherwise retain for training. This is a technical barrier rather than only a policy promise, but not a universal no-learning guarantee: metadata remains visible and collusion defeats the split.\refmark{2}
 
-\evidence{DERIVED.} The same study calculated 48.22 GiB for 2,048 raw Qwen3.5-27B mask sets and a 1.34 token/s ceiling on an aggregate 1 Gbit/s link under stated occupancy assumptions. These are capacity models, not measured 27B generation or present-runtime economics.\refmark{3}
+\section*{Current implementation evidence}
+Nine warm Qwen2.5-0.5B runs used revision \texttt{277d19f} on an Apple M5, with three repetitions per exact context after one warmup.\refmark{3}
 
-\evidence{MISSING.} Production non-collusion and malicious-provider review; controlled repeated cold/warm preparation, latency, throughput, burn-rate, and dollar-cost studies; full-checkpoint 27B generation; GPU, energy, failure-recovery, and multi-tenant studies.
+\vspace{2pt}
+{\fontsize{7.5}{9}\selectfont\arrayrulecolor{pllmGreen}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}Xrrr@{}}
+\toprule
+\rowcolor{pllmPale}Input tokens & Output & TTFT & Client I/O \\
+\midrule
+30 & 9 & 0.978 s & 63.33 MB \\
+63 & 16 & 1.374 s & 126.29 MB \\
+255 & 16 & 5.158 s & 432.71 MB \\
+\bottomrule
+\end{tabularx}}
 
-\section*{Decision gates}
-\begin{enumerate}
-  \item \textbf{Trust:} preparation has independent control or sits inside the customer boundary; exposed metadata is acceptable.
-  \item \textbf{Correctness:} target checkpoint, context, quantization, and output quality pass workload-specific validation.
-  \item \textbf{Economics:} measured cold and warm ledgers beat explicit latency, capacity, and cost ceilings, including burned rows.
-  \item \textbf{Operations:} credential separation, TLS, erasure, observability, restart behavior, and incident response survive a pilot.
-\end{enumerate}
-Proceed only when all four gates have named owners and recorded evidence.
+\vspace{4pt}
+All records ended with authoritative completion events, one retained model/body fingerprint pair, zero online Preparation protocol work, and zero plaintext prompt/token-byte audit counters. These are local CPU loopback measurements, not WAN, GPU, energy, price, or quality results.
+
+\section*{Deployment gates}
+Preparation must be independently controlled or client-hosted; target-model quality must pass; the full cost ledger must beat explicit ceilings; and credential separation, erasure, restart behavior, and incident response must survive a pilot.
 
 \section*{References}
 \fontsize{7.2}{8.5}\selectfont
-[1] PLLM \texttt{ARCHITECTURE.md}, v0.17.0a1 source distribution, 11 Sep 2026.\par
-[2] PLLM \texttt{SECURITY.md} and website Security page, v0.17.0a1 source distribution.\par
-[3] PLLM \texttt{research/evidence/CLAIMS.json} and \texttt{STUDY\_REPORT.md}, historical evidence snapshot.\par
-[4] PLLM \texttt{research/evidence/qwen-prepared-inference.json}, 8 Sep 2026; loopback and pre-inventory.
+[1] PLLM, \href{https://pllm.run/research/architecture/}{Private inference}.\par
+[2] PLLM, \href{https://pllm.run/docs/security/}{Security boundaries}.\par
+[3] PLLM, \href{https://pllm.run/research/reproduce/}{Run your own benchmark}; \href{https://pllm.run/downloads/current-runtime-2026-09-11.json}{retained study data}.
 
 \end{minipage}
 

@@ -12,7 +12,6 @@ export default async function Page({ params }: Props) {
   const MDX = page.data.body;
   const key = slug?.join('/') || 'index';
   return <DocsPage toc={page.data.toc} full={page.data.full}>
-    <div className="page-eyebrow">PLLM / DOCUMENTATION</div>
     <DocsTitle id="main-content" tabIndex={-1}>{page.data.title}</DocsTitle>
     <DocsDescription>{page.data.description}</DocsDescription>
     <div className="doc-actions"><span>PLLM documentation</span><a href={withBasePath(`/markdown/${key}.md`)}>View Markdown ↗</a></div>
@@ -22,7 +21,12 @@ export default async function Page({ params }: Props) {
 export const dynamicParams = false;
 export function generateStaticParams() { return source.generateParams(); }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = source.getPage((await params).slug);
+  const { slug } = await params;
+  const page = source.getPage(slug);
   if (!page) notFound();
-  return { title: page.data.title, description: page.data.description };
+  return {
+    title: page.data.title,
+    description: page.data.description,
+    alternates: { canonical: `/docs/${slug?.join('/') ? `${slug.join('/')}/` : ''}` },
+  };
 }

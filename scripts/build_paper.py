@@ -28,7 +28,8 @@ TEX = PAPER / "main.tex"
 PDF = PAPER / "main.pdf"
 METADATA = PAPER / "build-metadata.json"
 ARXIV_ARCHIVE = PAPER / "arxiv-source.tar.gz"
-WEB = ROOT / "docs/content/docs/research/paper.mdx"
+WEB = ROOT / "docs/content/research/paper.mdx"
+CURRENT_EVIDENCE = ROOT / "research/evidence/current-runtime-2026-09-11.json"
 
 
 def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
@@ -100,6 +101,35 @@ def pandoc_command() -> list[str]:
 
 def build_tex(env: dict[str, str]) -> None:
     run([*pandoc_command(), "--to=latex", f"--output={TEX}"], env=env)
+    source = TEX.read_text()
+    author = "\\author{Blair Hudson · deployscience labs · blair@deployscience.com}"
+    if author not in source:
+        raise SystemExit("Generated TeX does not contain the expected paper byline")
+    source = source.replace(
+        author,
+        "\\author{Blair Hudson\\\\[0.2em]deployscience labs\\\\[0.2em]blair@deployscience.com}",
+        1,
+    )
+    start = source.index("\\maketitle\n\\begin{abstract}")
+    body_start = start + len("\\maketitle\n\\begin{abstract}")
+    body_end = source.index("\\end{abstract}", body_start)
+    end = body_end + len("\\end{abstract}")
+    abstract = source[body_start:body_end].strip()
+    source = (
+        source[:start]
+        + "\\twocolumn[\n\\begin{@twocolumnfalse}\n"
+        + "\\begin{minipage}{\\textwidth}\n"
+        + "\\maketitle\n\\normalsize\n"
+        + "\\noindent\\textbf{Abstract}\\par\n"
+        + "\\vspace{0.35\\baselineskip}\n"
+        + "\\noindent "
+        + abstract
+        + "\\par\n\\vspace{1.2\\baselineskip}\n"
+        + "\\end{minipage}"
+        + "\n\\end{@twocolumnfalse}\n]\n"
+        + source[end:]
+    )
+    TEX.write_text(source)
     print(f"Built {TEX.relative_to(ROOT)}.")
 
 
@@ -128,20 +158,46 @@ def compile_pdf(selected: str, env: dict[str, str]) -> None:
     print(f"Built {PDF.relative_to(ROOT)} from main.tex with {Path(selected).name}.")
 
 
+def verify_page_limit() -> int:
+    output = capture(["pdfinfo", str(PDF)])
+    if output is None:
+        raise SystemExit("pdfinfo is required to enforce the four-page paper limit")
+    pages = next(
+        (
+            int(line.split(":", 1)[1].strip())
+            for line in output.splitlines()
+            if line.startswith("Pages:")
+        ),
+        None,
+    )
+    if pages is None:
+        raise SystemExit("pdfinfo did not report a paper page count")
+    if not 1 <= pages <= 4:
+        raise SystemExit(f"Technical paper must be 1-4 pages; built {pages}")
+    return pages
+
+
 def first_line(command: list[str]) -> str:
     output = capture(command)
     return output.splitlines()[0] if output else "unavailable"
 
 
 def write_metadata(selected: str, epoch: int) -> None:
-    source_paths = (SOURCE, BIBLIOGRAPHY, FILTER, Path(__file__).resolve())
+    source_paths = (
+        SOURCE,
+        BIBLIOGRAPHY,
+        FILTER,
+        CURRENT_EVIDENCE,
+        Path(__file__).resolve(),
+    )
     archive_members = [
         "main.tex",
         "README.txt",
         "build-metadata.json",
+        "current-runtime-2026-09-11.json",
     ]
     record = {
-        "artifact": "historical executable BFV public-weight masking study",
+        "artifact": "current offline-correlated public-weight inference study",
         "canonical_source": SOURCE.relative_to(ROOT).as_posix(),
         "normalized_timestamp_utc": datetime.fromtimestamp(epoch, timezone.utc)
         .isoformat()
@@ -152,8 +208,7 @@ def write_metadata(selected: str, epoch: int) -> None:
             "Git HEAD is the base revision; SHA-256 values identify built working-tree sources"
         ),
         "sources": {
-            path.relative_to(ROOT).as_posix(): {"sha256": sha256(path)}
-            for path in source_paths
+            path.relative_to(ROOT).as_posix(): {"sha256": sha256(path)} for path in source_paths
         },
         "generated": {
             TEX.relative_to(ROOT).as_posix(): {"sha256": sha256(TEX)},
@@ -179,11 +234,13 @@ def build_arxiv_archive(epoch: int) -> None:
                 "PLLM arXiv source bundle\n\n"
                 "Compile main.tex directly with pdfLaTeX. The bibliography and figures "
                 "are embedded; no shell escape, network access, or repository files are "
-                "required. This paper reports only the historical BFV lifecycle study "
-                "identified in main.tex, not the current PLLM runtime.\n"
+                "required. This paper reports the current offline-inventory runtime "
+                "identified in main.tex. The included JSON contains the public workload "
+                "manifest, environment, exact measurements, and limitations.\n"
             ).encode(),
         ),
         ("build-metadata.json", METADATA.read_bytes()),
+        ("current-runtime-2026-09-11.json", CURRENT_EVIDENCE.read_bytes()),
     )
     with ARXIV_ARCHIVE.open("wb") as raw:
         with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=epoch) as compressed:
@@ -222,9 +279,11 @@ def build_paper(engine: str | None) -> None:
     env = build_environment(epoch)
     build_tex(env)
     compile_pdf(selected, env)
+    pages = verify_page_limit()
     write_metadata(selected, epoch)
     build_arxiv_archive(epoch)
     verify_arxiv_archive(selected, env)
+    print(f"Verified technical paper page limit ({pages}/4).")
 
 
 def build_web() -> None:
@@ -245,6 +304,7 @@ def build_web() -> None:
         lambda match: f"[{match.group(1)}]({match.group(1)})",
         WEB.read_text(),
     )
+    article = article.replace("``` math\n", "```text\n")
     WEB.write_text(article)
     print(f"Built {WEB.relative_to(ROOT)}.")
 

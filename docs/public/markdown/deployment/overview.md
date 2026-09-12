@@ -7,14 +7,14 @@ Place three trust roles, route two online transports, and size inventory safely.
 
 | Component | Plaintext or seed access | Intended placement |
 | --- | --- | --- |
-| Client SDK or local gateway | Prompt, tokens, activations, root seeds, masks, decoded output | Customer-controlled host |
-| Trusted preparation | Stage root seeds before chat; public transformer body | Customer host or separately trusted non-colluding operator |
+| Client SDK or local gateway | Prompt, tokens, activations, root seeds, masks, decoded output | Client-controlled host |
+| Trusted preparation | Stage root seeds before chat; public transformer body | Client host or separately trusted non-colluding operator |
 | Inference | Prepared corrections and masked online values; public transformer body | Compute provider |
 | Static documentation | No runtime input | Independent static host |
 
 The privacy claim assumes preparation and inference follow the protocol and do not
 collude. Putting both roles under one untrusted operator does not preserve that
-claim. Self-hosting preparation keeps seed-side trust in the customer boundary.
+claim. Self-hosting preparation keeps seed-side trust in the client boundary.
 
 ## Lifecycle and routes
 
@@ -84,6 +84,3 @@ Use [Docker](/docs/deployment/docker) for the bundled one-host evaluation or
 not been certified as a production deployment. Verify target architecture,
 checkpoint quality, secrets, TLS, limits, logging, monitoring, restart behavior,
 and non-collusion placement.
-
-The [documentation site](/docs/deployment/site) is a static export and never acts
-as a gateway. Browser search uses a static local index.

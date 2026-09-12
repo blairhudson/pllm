@@ -12,7 +12,7 @@ list. Argument abbreviation is disabled.
 | `pllm preparation serve` | Run trusted public-weight preparation |
 | `pllm configure` | Save client defaults |
 | `pllm chat` | Prepare inventory and run interactive local chat |
-| `pllm sidecar` | Expose a customer-side Responses gateway |
+| `pllm sidecar` | Expose a client-side Responses gateway |
 | `pllm benchmark dashboard` | Start current three-role loopback dashboard |
 | `pllm build` | Inspect installed native backend capabilities |
 | `pllm security` | Print protocol claim summaries |

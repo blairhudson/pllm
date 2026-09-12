@@ -1,37 +1,38 @@
 ---
-title: "Executable BFV Mask Preparation for Public-Weight Language-Model Inference: A Historical PLLM Study"
-author: Blair Hudson
+title: "PLLM: Offline-Correlated Private Inference for Public-Weight Language Models"
+author: "Blair Hudson · deployscience labs · blair@deployscience.com"
 date: 11 September 2026
 web-date: September 2026
-edition: "03"
-description: Historical executable study of BFV-prepared additive masks for public-weight integer linear layers.
-subject: BFV mask preparation, public-weight private inference, and resource accounting
-web-note: This edition narrows the paper to the retained lifecycle study. Its results describe the historical Python/C++ artifact, not the current PLLM runtime.
+edition: "04"
+description: A three-role private language-model runtime that prepares one-time masked matrix correlations before online inference.
+subject: private language-model inference, offline correlations, additive masking, systems evaluation
+web-note: Current implementation, protocol boundary, and Qwen2.5-0.5B loopback evaluation.
 abstract: |
-  This paper documents a historical, executable study of additive masking for
-  public-weight integer linear layers. A client prepares fresh pairs $(r,Wr)$ by
-  encrypting masks with BFV; online evaluation then uses ordinary masked modular
-  matrix multiplication. The artifact completes a coefficient-matrix evaluator
-  through SEAL ciphertext reconstruction and client decryption. On one retained
-  CPU environment, the median complete preparation time for a matched 768 by 256
-  stage falls from 3.122 to 0.633 seconds over three samples, a 4.93x speedup.
-  Five Qwen3.5-27B-shaped stages are executed with synthetic signed four-bit
-  matrices and 2,048 masks per stage. A separate small trained decoder exercises
-  preparation, depletion, masked execution, and decoding across client and
-  server processes; each recorded configuration is one run of 96 generated
-  token positions. Capacity calculations derived from the public model
-  configuration project a 48.22 GiB raw inventory for 2,048 complete token sets
-  and a 1.34 token/s aggregate-link ceiling at 1 Gbit/s under idealized compact
-  transfer. These are projections, not achieved model rates. No Qwen checkpoint,
-  GPU, physical wide-area network, language-quality evaluation, formal security
-  proof, or current PLLM runtime benchmark is reported.
+  AI compute is globally distributed, but access remains concentrated because
+  buying hosted inference usually requires giving the provider access to prompts,
+  activations, and outputs. Private inference can separate computation from data
+  access, allowing useful capacity to serve sensitive demand without
+  receiving client language. We investigate offline-correlated masking as a
+  practical foundation for that market and implement it in PLLM for public-weight
+  transformer models. A client creates one-time masks through a trusted
+  Preparation service, which pushes $Wr-s$ corrections to an untrusted Inference
+  service before a response. Online, the client sends a ticket and $x-r$;
+  Inference returns $Wx-s$; and the client reconstructs $Wx$. The runtime binds
+  prepared inventory to immutable model and stage commitments, atomically consumes
+  tickets, burns unused reservations, packs prefill, and uses a persistent decode
+  connection. Nine warm Qwen2.5-0.5B loopback runs across exact 30-, 63-, and
+  255-token contexts produced median time-to-first-token of 0.978, 1.374, and 5.158
+  seconds. Every run recorded zero online Preparation protocol work and zero
+  plaintext prompt or token bytes in its audit counters. These results demonstrate
+  that offline preparation can leave online inference to protected client-provider
+  exchange while executing a complete public-weight language model.
 bibliography: paper/references.bib
 link-citations: true
 reference-section-title: References
 documentclass: article
-classoption: [10pt, twocolumn]
+classoption: [9pt, twocolumn]
 papersize: letter
-geometry: [margin=0.78in, columnsep=0.27in]
+geometry: [margin=0.68in, columnsep=0.24in]
 colorlinks: false
 indent: true
 header-includes:
@@ -46,330 +47,219 @@ header-includes:
     \usetikzlibrary{arrows.meta,positioning}
     \setlist{nosep,leftmargin=*}
     \setlength{\emergencystretch}{1.5em}
-    \setlength{\parskip}{2pt}
+    \setlength{\parskip}{1.5pt}
 ---
 
 ## Introduction
 
-Private inference papers can make an online matrix kernel look inexpensive while leaving preparation, client cryptography, transfer, startup, and discarded work outside the reported rate. Autoregressive decoding makes that omission important: one output token traverses many serial stages, and a prepared mask pair can be used only once.
+Useful hosted inference ordinarily requires the model operator to receive client
+language. Contract, access control, and retention policy may constrain later use,
+but the service still obtains plaintext prompts, token identities, activations,
+and generated output. This coupling narrows the set of acceptable providers and
+requires every compute seller to be trusted with client data.
 
-This paper examines one narrow design point. Weights are public signed integers. A trusted client keeps activations and model state local, while a remote service applies the public matrices. Before inference, BFV encryption prepares additive linear correlations. During inference, no ciphertext operation is required for a linear stage; the service evaluates ordinary modular matrix multiplication on a masked activation. The construction is related to input-independent correlated preprocessing [@beaver1991circuit], but this study neither introduces a new cryptosystem nor claims a general secure-computation protocol.
+PLLM is a working public-weight inference runtime that separates access to client
+language from linear computation. The client runs tokenization, boundary matrices,
+attention, nonlinear operations, model state, sampling, and decoding. Remote
+services evaluate quantized transformer-body projections over one-time masked
+integer tensors. The current path uses no homomorphic encryption online and sends
+no plaintext prompt or token bytes to either remote role.
 
-The work is historical in a precise sense. All numerical results come from `research/lifecycle`, whose project version is `0.14.0+inference.study1`. That artifact was derived from the persisted PLLM 0.14 research baseline. The repository's current mixed Python/Rust PLLM runtime is a separate implementation. It is not exercised here, and no timing or security conclusion in this paper transfers to it without new validation.
+Private neural inference systems commonly combine homomorphic encryption, secret
+sharing, and secure two-party computation [@huang2022cheetah; @chen2022thex;
+@hao2022iron]. PLLM instead exploits public weights and separates correlation
+generation in time. The resulting boundary is intentionally narrower: remote
+linear algebra is private under non-collusion, while nonlinear state remains at
+the client. This design has three concrete contributions:
 
-The study contributes four reproducible observations. First, it completes an integer coefficient path through valid BFV ciphertext reconstruction and decryption. Second, it measures complete preparation for five dense stage shapes taken from a public large-model configuration, while using synthetic weights. Third, it runs a small learned hybrid decoder across isolated processes from an empty mask inventory. Fourth, it separates those measurements from model-scale capacity calculations. This separation is the central reporting result: exact arithmetic at a target shape is not full-checkpoint inference, and a derived ceiling is not measured throughput.
+1. an offline-correlation protocol with immutable inventory commitments,
+   acknowledged readiness, one-use tickets, and fail-closed burn semantics;
+2. a Python/Rust implementation with compact exact rings, packed prefill,
+   persistent decode transport, local token boundaries, and authenticated role
+   separation; and
+3. a retained current-runtime evaluation that measures preparation, online
+   latency, client traffic, lifecycle events, and privacy telemetry separately.
 
-## System and Threat Model
+## Protocol and threat model
 
-### Parties and data
+### Roles and arithmetic
 
-For each linear stage, the client holds an activation vector $x$, a BFV secret key, fresh masks, activation scales, and local recurrent or attention state. The service holds a public integer matrix $W$ and public arithmetic parameters. Model identity, matrix shapes, request counts, timing, batch occupancy, and preparation schedules are not hidden. The embedding is local in the model-scale plan.
+The **Client** owns plaintext input, one-time root seeds, private activation
+scales, nonlinear state, boundary matrices, sampling, and output decoding.
+**Preparation** holds the public transformer body, expands masks, computes offline
+correlations, and is trusted to erase them. **Inference** holds the same public
+body and consumes correlations during online projection. Preparation and Inference
+are honest-but-curious and must not collude.
 
-The intended confidentiality goal is limited to inputs against a service that follows the prescribed computation while inspecting its transcript. Weights are explicitly public. The study does not address model confidentiality, malicious-client queries, malicious-service correctness, traffic-analysis resistance, denial of service, or collusion with the trusted client environment.
+For a public quantized matrix $W$ and private integer activation $x$, the Client
+and Preparation expand a fresh 32-byte root seed with SHAKE-256 into pseudorandom
+input mask $r$, output mask $s$, and ticket. Preparation computes
 
-For a fresh uniform $r$, the online value $x+r\pmod p$ is uniform for fixed $x$. That algebraic fact does not by itself prove security of the combined preparation and online protocol. The intended argument also depends on BFV hiding $r$, correct fresh randomness, one-time correlation use, and the stated service behavior. The BFV construction is described in its original paper [@fan2012bfv]; the implementation uses Microsoft SEAL through TenSEAL [@microsoft-seal; @benaissa2021tenseal].
+$$c = Wr-s.$$
 
-### What the prototype checks
+It pushes $c$ to Inference before the response. Online, the Client sends a random
+ticket and $x-r$. Inference atomically consumes the corresponding correction and
+returns
 
-The prototype uses operating-system randomness with rejection sampling for masks. Framed messages use HMAC-SHA256 plus sequence and epoch fields; retained tests reject modified authentication data, repeated frames, repeated correlation identifiers, and old epochs. These tests establish behavior of the tested implementation, not verifiable execution of $W$ or a malicious-security theorem.
+$$W(x-r)+c=W(x-r)+(Wr-s)=Wx-s.$$
 
-SEAL accepts the principal parameter set when asked to enforce its `tc128` level. The Homomorphic Encryption Standard gives broader parameter guidance [@albrecht2018hestandard], but this paper does not independently estimate security. Measured invariant-noise budgets only show margin for the tested ciphertext operations. They are not a security level or a substitute for cryptographic review.
+The Client adds $s$ and center-decodes the result. Assuming SHAKE-256 output is
+computationally indistinguishable from random, $x-r$ hides $x$ from Inference and
+$s$ hides the correction. Preparation knows $r$ and $s$ but does not receive
+$x-r$. Reuse would expose relationships between activations, so every row is
+consumed exactly once.
 
-## Protocol
+### Offline inventory lifecycle
 
-### Prepared linear masking
+The Client first asks Inference to create an inventory committed to the model ID,
+immutable body fingerprint, complete stage set, quantization parameters, ring,
+wire width, and attempt budget. It authorizes this inventory through Preparation,
+then sends one root seed and row count per remote stage. Domain-separated expansion
+binds each derived $r$, $s$, and ticket to all commitments.
 
-Let $W\in\mathbb Z^{m\times n}$ and let arithmetic use $\mathbb Z_p$. During preparation, the client samples $r\leftarrow\mathbb Z_p^n$, sends $\operatorname{Enc}(r)$, and retains $r$. The service returns $\operatorname{Enc}(Wr)$, which the client decrypts and retains. During online evaluation, the client sends $d=x+r\pmod p$, the service returns $u=Wd\pmod p$, and the client computes
+Preparation batch-computes $Wr-s$, pushes complete stage batches over a fixed
+authenticated WebSocket, and waits for accepted acknowledgement. Inference reports
+`READY` only after every committed stage has loaded. Online requests never invoke
+Preparation. A response reserves a disjoint row range atomically; cancellation,
+failure, replay, or early completion burns its unused tail. Inventories live in
+bounded process memory and disappear on replacement, restart, or idle expiry.
 
-::: {.numbered-equation}
-$$
-u-Wr = W(x+r)-Wr = Wx \pmod p.
-$$
-:::
+### Security boundary
 
-Reusing $r$ reveals the modular difference between two inputs because $(x_1+r)-(x_2+r)=x_1-x_2$. Consequently, submission burns the correlation even after cancellation, failure, or proposal rejection. Reusing already recovered values inside local deterministic computation is different and does not resend a masked input.
+Inference does not receive literal plaintext prompts, token IDs, decoded output,
+seeds, masks, activation scales, local attention state, or sampling choices.
+Preparation does not receive online masked activations. Under pseudorandom masks,
+protocol-conforming services, mask non-retention, authenticated channels, and
+non-collusion, neither service receives the values needed to reconstruct client
+language alone. The data plane therefore removes the direct plaintext feed that a
+provider could otherwise retain for training.
+
+This boundary does not cover all information. Both services observe the public
+model, stage names, tensor shapes, quantization, scheduling, timing, traffic
+volume, and approximate sequence length. Collusion or retained masks defeats the
+split. Authentication and TLS do not prove role independence, erasure, or correct
+execution, and the runtime does not defend against arbitrary malicious
+participants. Python releases mask objects after use, but physical memory
+zeroization has not been established. The client endpoint and local gateway
+remain inside the trusted boundary.
+
+## Implementation
+
+PLLM is one Python distribution with a PyO3 extension backed by `pllm-core`. Rust
+owns validated immutable integer matrices, bounded coefficient arithmetic,
+codecs, operating-system randomness, runtime AVX2 selection, and a persistent
+Rayon pool. Python owns the model graph, importers, quantization metadata,
+inventory protocol, scheduling, transport, and Response API.
+
+Transformer matrices are quantized once and copied into Rust once at compilation.
+Each stage selects the smallest exact $2^{16}$, $2^{24}$, or $2^{32}$ ring from
+its signed output bound. Public bundles store each quantized matrix once and refer
+to it from stages. Tied embeddings share one row-quantized vocabulary matrix.
+Token lookup and output-head evaluation remain local, so vocabulary-sized
+projections do not cross the online boundary.
+
+Prefill sends one ticket vector and one packed masked matrix per stage rather than
+one envelope and task per prompt row. Inference consumes the matching correction
+batch atomically. Decode uses one persistent authenticated WebSocket and a
+synchronous one-row correction path. Grouped-query attention reuses KV material;
+KV buffers grow geometrically; and an unused final-token transformer pass is
+deferred. These choices preserve one-use semantics while reducing framing,
+allocation, and event-loop work.
+
+Three distinct credentials authenticate Client-to-Inference,
+Client-to-Preparation, and Preparation-to-Inference channels. Stage and model
+commitments prevent cross-session substitution. Request size, stage count,
+inventory bytes, reservations, and idle lifetime are bounded. The dashboard acts
+as a loopback OTLP collector: it archives immutable schema-3 summaries but never
+prompts, generated text, token IDs, activations, seeds, masks, credentials, or
+protocol payloads.
+
+## Evaluation
+
+### Method
+
+The retained study used PLLM revision `277d19f`, Python 3.13.15, and
+Qwen2.5-0.5B-Instruct revision
+`7ae557604adf67be50417f59c2c2f167def9a775` [@qwen25] on macOS 26.5.2 with an
+Apple M5 and 32 GiB memory. Client, Preparation, and Inference were separate
+loopback processes. One excluded warmup preceded nine warm runs: three repetitions
+at each exact 30-, 63-, and 255-token context. Output was capped at 16 tokens.
+Dashboard records were accepted only after an authoritative `response.completed`
+event and settled telemetry. The accompanying evidence artifact retains the public
+prompts, revision, model fingerprints, raw values, and limitations.
+
+**Latency.** Table 1 reports medians; parentheses give the observed TTFT range.
+Online time starts after inventory readiness, while full time includes preparation
+and transition overhead. The shortest workload stopped after nine output tokens;
+the other workloads produced 16, so generation throughput is not compared between
+rows.
 
 ```{=latex}
-\begin{figure*}[t]
-\centering
-\begin{tikzpicture}[font=\small,box/.style={draw,rounded corners=2pt,align=center,text width=6.3cm,minimum height=1.05cm},>=Latex]
-\node[box] (c1) at (0,0) {\textbf{Trusted client: preparation}\\Sample fresh masks; encrypt\\Keep the secret key};
-\node[box] (s1) at (8,0) {\textbf{Remote service: preparation}\\Apply public weights to ciphertext coefficients};
-\node[box] (c2) at (0,-2) {\textbf{Trusted client: online}\\Keep private state; send masked integer inputs};
-\node[box] (s2) at (8,-2) {\textbf{Remote service: online}\\Apply ordinary modular matrix operations};
-\node[box] (c3) at (0,-4) {\textbf{Trusted client: output}\\Unmask; apply scales; select and decode tokens};
-\node[box] (s3) at (8,-4) {\textbf{Observable metadata}\\Stage shapes, counts, timing and session identity};
-\draw[->] (c1.east) -- node[above]{BFV inputs} (s1.west);
-\draw[->] (s1.south west) -- node[above,sloped]{BFV results} (c2.north east);
-\draw[->] (c1.south) -- node[left]{decrypt and retain} (c2.north);
-\draw[->] (c2.east) -- node[above]{masked inputs} (s2.west);
-\draw[->] (s2.south west) -- node[above,sloped]{masked outputs} (c3.north east);
-\draw[->] (c2.south) -- node[left]{local graph} (c3.north);
-\draw[->,dashed] (s3.north) -- (s2.south);
-\end{tikzpicture}
-\caption{Studied execution boundary. Preparation belongs in the resource budget. The client is trusted; the service-side online operation is masked modular arithmetic.}
-\label{execution-boundary}
-\end{figure*}
+\begin{table}[t]
+\centering\small
+\caption{Current loopback latency; three runs per row.}
+\begin{tabular}{rrrrr}
+\toprule
+Input & Out. & TTFT (range), s & Online, s & Full, s \\
+\midrule
+30 & 9 & 0.978 (0.935--0.982) & 2.618 & 4.674 \\
+63 & 16 & 1.374 (1.353--1.379) & 3.194 & 5.347 \\
+255 & 16 & 5.158 (4.961--5.289) & 7.442 & 13.059 \\
+\bottomrule
+\end{tabular}
+\end{table}
 ```
 
-::: {.web-only}
-
-#### Studied execution boundary
-
-```text
-Trusted client
-  secret key, masks, activation scales, private model state
-      | BFV preparation / masked integer inputs
-Remote service
-  public integer matrices, coefficient evaluation, modular GEMM
-      | BFV preparation results / masked integer outputs
-Trusted client
-  decrypt, unmask, update state, select and decode
+```{=html}
+<table><caption>Current offline-inventory loopback latency; three runs per row.</caption><thead><tr><th>Input</th><th>Output</th><th>TTFT, s</th><th>Online, s</th><th>Full, s</th></tr></thead><tbody><tr><td>30</td><td>9</td><td>0.978 (0.935--0.982)</td><td>2.618</td><td>4.674</td></tr><tr><td>63</td><td>16</td><td>1.374 (1.353--1.379)</td><td>3.194</td><td>5.347</td></tr><tr><td>255</td><td>16</td><td>5.158 (4.961--5.289)</td><td>7.442</td><td>13.059</td></tr></tbody></table>
 ```
 
-:::
-
-### Coordinate packing
-
-For $B\leq N$ future masks, coordinate $i$ is encoded as
-
-::: {.numbered-equation}
-$$
-P_i(X)=\sum_{b=0}^{B-1} r_{b,i}X^b.
-$$
-:::
-
-The service evaluates $Q_j=\sum_i W_{j,i}\operatorname{Enc}(P_i)$. Coefficient $b$ of the decrypted $Q_j$ is $(Wr_b)_j\pmod p$. Scalar linear combinations do not mix polynomial coefficients, so this evaluator uses no rotations, Galois keys, bootstrapping, relinearization, or ciphertext-ciphertext multiplication. Masks packed in one ciphertext share one client key; this layout does not combine unrelated customers.
-
-In the measured profile, a BFV ciphertext has two polynomials, one coefficient prime $q$, and $N=2,048$ coefficients per polynomial. Representing $n$ ciphertexts as an $n$ by $2N$ residue matrix $A$ gives
-
-::: {.numbered-equation}
-$$
-C=WA\pmod q.
-$$
-:::
-
-The server splits residues into eight-bit digits, shifts each digit into signed int8, evaluates exact integer GEMM with PyTorch [@paszke2019pytorch], restores the public offset with row sums, and recombines digits modulo $q$. The implementation checks int32 dot-product bounds and uses int64 Horner accumulation. It does not use floating-point GEMM for ciphertext coefficients.
-
-### Library boundary and signed range
-
-The bridge parses the measured SEAL 4.3.3 serialization layout and reconstructs ciphertexts accepted by SEAL's loader. It accepts only coefficient-form BFV ciphertexts with two polynomials and one prime. This is an artifact-specific bridge, not a general SEAL serialization API.
-
-Ring exactness is not enough to recover an intended signed dot product. For W4A4 values in $[-7,7]$, the magnitude is at most $49n$; centered recovery therefore requires $p>98n$. The principal $p=2,097,169$ covers the largest tested width, 17,408. This bound says nothing about quantization error relative to a floating checkpoint.
-
-## Artifact and Targets
-
-### Historical artifact
-
-The executable study is under `research/lifecycle`. Its Python project pins Python 3.13, NumPy 2.3.5, PyTorch 2.10.0, and TenSEAL 0.3.17 through `pyproject.toml` and `uv.lock`. TenSEAL 0.3.17 vendors SEAL 4.3.3. The coefficient bridge, preparation evaluator, online masked evaluator, planner, small decoder, recurrent benchmark, and 45-test historical suite are all in that directory. Retained JSON records are mirrored under `research/evidence`.
-
-`paper/IMPLEMENTATION-STATUS.md` records the implementation boundary. In particular, current PLLM package tests, current Rust kernels, current serving behavior, and current security properties are outside this paper. The word "artifact" below always means the historical lifecycle study.
-
-### Large target shapes
-
-The planner reads dimensions from the public Qwen3.5-27B configuration and the corresponding Transformers implementation [@qwen35-27b; @wolf2020transformers]. The configuration describes 64 text blocks: 48 Gated DeltaNet blocks and 16 gated-attention blocks. Gated DeltaNet supplies the recurrent structure [@yang2025gateddelta]. Projections are fused only when they consume the same activation.
-
-::: {#table-targets .paper-table latex-columns="Xrrr"}
-
-#### Table 1
-
-| Stage           | Input | Output | Count |
-|:----------------|------:|-------:|------:|
-| DeltaNet input  | 5,120 | 16,480 |    48 |
-| Attention input | 5,120 | 14,336 |    16 |
-| Mixer output    | 6,144 |  5,120 |    64 |
-| MLP expansion   | 5,120 | 34,816 |    64 |
-| MLP contraction |17,408 |  5,120 |    64 |
-| Vocabulary head | 5,120 |248,320 |     1 |
-
-Config-derived public text plan. It contains 257 serial dense-stage calls and 25.62 billion matrix elements per model copy. No full checkpoint was loaded.
-
-:::
-
-Every target-shaped benchmark matrix is deterministic synthetic W4 data. Dimensions and invocation counts are config-derived; weights, timings, and arithmetic checks do not establish Qwen model quality. The local-embedding assumption also has a cost: the plan derives 606.25 MiB for ideal int4 storage or 2.37 GiB at BF16, before other client state.
-
-### Lifecycle fixture
-
-The separate lifecycle target is a trained four-block, width-32 decoder: three DeltaNet blocks, one gated-attention block, causal convolution, partial rotary embeddings, RMS normalization, SwiGLU, and a vocabulary head. It trains for 160 steps on a short authored corpus. This learned fixture exercises control flow and exact W4A4 agreement; it is not a language-quality dataset or a scaled model surrogate.
-
-## Evaluation Method
-
-### Evidence classes
-
-We use three labels throughout. **Measured** values are retained wall-clock or correctness observations from executed artifact code. **Config-derived** values are arithmetic over saved public dimensions and counts. **Projected** values combine measurements with config-derived counts or idealized bandwidth assumptions. Synthetic target-shaped execution is measured, but it remains synthetic rather than checkpoint execution.
-
-The retained benchmark host ran Linux 6.18.35 on an AMD EPYC 9V74 environment exposing five logical CPUs, a quota of four CPU equivalents, and 4 GiB of memory. It used Python 3.13.5, NumPy 2.3.5, CPU-only PyTorch 2.10.0, and TenSEAL 0.3.17. No GPU or physical network was used.
-
-### Samples and timing boundaries
-
-The matched 768 by 256 control and coefficient paths each retain three complete samples. Each of the five target-shaped preparation stages retains two samples. The 1,024-row head preparation tile retains two samples. Complete preparation timing includes mask sampling, encryption/export, coefficient conversion, server evaluation, ciphertext import, and decryption. It excludes key setup, correctness-reference calculation, and physical transfer. Raw first-use observations remain in the JSON.
-
-Compiled online matrix benchmarks retain four timings for each non-head stage at batches 1, 8, and 16. The separately allocated full 5,120 by 248,320 head retains three timings per batch. The compact serialization comparison retains three samples. The W4A8 parameter check retains one execution. Recurrent timing groups retain seven samples.
-
-Each cell in the lifecycle latency table is one complete run, not a median or repeated trial. There are six configurations: ordinary and four-proposal decoding at injected delays of 0, 1, and 10 ms. Each run trains the same deterministic fixture and generates 96 token positions after an 18-token prompt. Small sample counts preclude confidence intervals and broad hardware conclusions.
-
-### Correctness checks
-
-Target-sized preparation checks compare every output column for 16 mask rows with independent NumPy integer arithmetic. Small BFV tests compare every row. Coefficient tests compare against unbounded Python arithmetic and SEAL ciphertext additions. Full-head online checks compare 128 output rows for every batch row. The historical JUnit record reports 45 tests, zero failures, zero errors, and zero skips.
-
-## Results
-
-### Complete BFV preparation
-
-[Table 2](#table-preparation) reports medians. At 768 by 256, the matched control median is 3.122 s and coefficient-GEMM preparation is 0.633 s, a 4.93x speedup. This is a complete preparation comparison for 2,048 correlations, not a generated-token rate.
-
-::: {#table-preparation .paper-table latex-columns="Xrr"}
-
-#### Table 2
-
-| Matrix stage              | Batch time (s) | Correlations/s |
-|:--------------------------|---------------:|---------------:|
-| 768 to 256, control       |          3.122 |          656.1 |
-| 768 to 256, coefficient   |          0.633 |        3,235.3 |
-| 5,120 to 16,480           |          16.56 |          123.7 |
-| 5,120 to 14,336           |          15.24 |          134.4 |
-| 6,144 to 5,120            |           8.39 |          244.2 |
-| 5,120 to 34,816           |          32.26 |           63.5 |
-| 17,408 to 5,120           |          19.03 |          107.6 |
-
-Measured actual BFV preparation with 2,048 masks per stage. Matched rows have three samples each; target-shaped rows have two. Target-shaped weights are synthetic W4.
-
-:::
-
-For the expansion, median server GEMM is 15.46 s, client encryption/export 2.35 s, and client import/decryption 13.82 s. For the contraction, client encryption/export alone is 8.80 s. These component measurements show that speeding only the server coefficient GEMM does not remove client cost.
-
-SEAL's seeded symmetric serialization plus a lossless seven-byte coefficient encoding reduces the measured 768 by 256 payload from 33.55 MB to 19.31 MB, 42.5%. The median local encode/evaluate/decode path is 0.691 s versus 0.633 s for the raw coefficient path. This is a transfer-size tradeoff; no network was measured.
-
-### Online arithmetic and activation range
-
-The synthetic full vocabulary matrix is allocated and executed online. Median masked times for batches 1, 8, and 16 are 0.115, 0.233, and 0.357 s per batch, respectively, from three samples each. Preparation for that full head is not measured: only a 1,024-output preparation tile is measured and later projected.
-
-A separate one-run arithmetic check raises activations from W4A4 to W4A8. At width 17,408, $p=33,554,467$ recovers signed extrema $\pm15,475,712$ exactly and leaves a measured 14-bit invariant-noise budget. Online residues require four bytes instead of three. This is parameter compatibility for synthetic extrema, not evidence of checkpoint accuracy.
-
-### Small lifecycle execution
-
-The ordinary zero-delay run starts with an empty inventory, prepares 2,176 correlations, consumes 1,904, and leaves 272. It takes 2.899 s, of which 2.012 s is recorded preparation; clear W4A4 execution takes 0.240 s. First masked token latency is 1.090 s. A second preparation cycle is visible after initial inventory depletion.
-
-Prompt-lookup proposals evaluate four candidates per verification block. At zero delay, calls fall from 1,632 to 646 (60.4%), while consumed correlations rise from 1,904 to 3,434. Rejected rows still consume fresh material. [Table 3](#table-lifecycle) therefore reports both favorable and unfavorable cases.
-
-::: {#table-lifecycle .paper-table latex-columns="rrrr"}
-
-#### Table 3
-
-| Added delay | Ordinary (s) | Proposals (s) | Ratio |
-|------------:|-------------:|--------------:|------:|
-|        0 ms |         2.90 |          4.27 |  0.68 |
-|        1 ms |         4.91 |          5.35 |  0.92 |
-|       10 ms |        20.11 |         11.29 |  1.78 |
-
-Measured single complete run per cell, each generating 96 token positions. Delay is inserted once per online exchange. Ratio is ordinary/proposals.
-
-:::
-
-For all six runs, the retained `exact_tokens` field is true relative to the corresponding clear W4A4 execution. Exact final-logit equality is retained only for the three ordinary runs; proposal records leave that field unset. The repeated fixture favors prompt lookup, and the inserted application delay is not a wide-area-network measurement. The artifact does not implement the general distribution-preserving speculative sampler described by @leviathan2023speculative.
-
-### Recurrent replay
-
-The recurrent benchmark uses synthetic activations for one Qwen-sized layer. Across 48 DeltaNet layers, eight complete FP32 snapshots derive to 1.125 GiB. Saved projection traces derive to 27.14 MiB plus the 144 MiB base state, about 42x less incremental storage. A four-position same-kernel replay has a 1.962 ms median over seven samples and exactly equals the saved state from that same kernel.
-
-Changing from the elementwise reference to the matrix-kernel implementation changes floating summation order. The retained maximum absolute errors are $1.49\times10^{-8}$ for output and $5.96\times10^{-8}$ for final state, not bit equality. These are synthetic FP32 observations from one layer, not checkpoint-parity evidence.
-
-## Capacity Analysis
-
-### Dense work projection
-
-Summing measured per-stage online medians using the config-derived counts in [Table 1](#table-targets) produces [Table 4](#table-online-projection). It is a projection of dense integer work. It excludes preparation, transfer, attention, recurrence, normalization, embedding access, and all other graph work. Rows in a batch can represent concurrent sessions or candidate positions; aggregate row rate is not one user's generation rate.
-
-::: {#table-online-projection .paper-table latex-columns="rrrr"}
-
-#### Table 4
-
-| Batch | Clear s/row | Masked s/row | Masked rows/s |
-|------:|------------:|-------------:|--------------:|
-|     1 |       0.710 |        1.976 |         0.506 |
-|     8 |       0.217 |        0.731 |         1.369 |
-|    16 |       0.101 |        0.395 |         2.534 |
-
-Projected dense work for the public 27B text plan, using measured synthetic stage medians. These are not full-model rates.
-
-:::
-
-The same method projects 2.486 s of summed serial stage wall time per complete token set. Full-head output work is scaled from the measured 1,024-row tile to 248,320 rows while common input work is counted once. Preparing 2,048 complete sets projects to 5,091 s (84.9 min) on the benchmark host. No complete model preparation run was performed.
-
-### Communication, inventory, and interaction
-
-The plan contains 2,167,808 input and 4,152,320 output values per decode step. Three-byte online residues derive to 18.96 MB per token. Raw coordinate preparation adds 101.12 MB per full-occupancy token set. Applying the measured seeded-input and seven-byte-output formats projects preparation to 74.63 MB.
-
-On an ideal aggregate 1 Gbit/s link shared by both directions, compact preparation plus online payload has a 1.34 token/s ceiling. If each direction independently provides 1 Gbit/s, the corresponding ceiling is 1.77 token/s. Both ignore headers, compute, contention, startup, and unused preparation. The 6.59 token/s online-only value omits the larger preparation stream and is not a sustained bound.
-
-Storing uint32 input and output masks for 2,048 complete sets derives to 48.22 GiB. Regenerating input masks from a securely managed seed would still leave 31.68 GiB of output masks. These figures are storage calculations, not measured resident memory. At 257 serial stage exchanges, 20 ms of delay per exchange alone derives to 5.14 s per token before arithmetic or transfer.
-
-## Related Work
-
-BFV provides the exact encrypted arithmetic used during preparation [@fan2012bfv]. SEAL and TenSEAL provide the implementation boundary [@microsoft-seal; @benaissa2021tenseal], while the HE Standard provides parameter-selection context [@albrecht2018hestandard]. This study's prepared $(r,Wr)$ pairs share the broad offline/online motivation of correlated preprocessing such as Beaver's circuit randomization [@beaver1991circuit], but they are specialized to public linear maps and generated here with BFV.
-
-Cheetah designs two-party neural-network linear protocols that avoid expensive rotations and combines them with protocols for nonlinear operations [@huang2022cheetah]. THE-X and Iron study private Transformer inference under different model, approximation, and protocol choices [@chen2022thex; @hao2022iron]. In contrast, this artifact leaves nonlinear and stateful operators at the trusted client, makes weights public, and does not evaluate a complete pretrained Transformer. It therefore should not be compared as an end-to-end replacement.
-
-Integer-only inference and post-training language-model quantization require accuracy evaluation against floating models [@jacob2018quantization; @frantar2023gptq]. The present W4 and W4A8 experiments check modular range and exactness only. PyTorch supplies integer kernels [@paszke2019pytorch], and Transformers plus the Qwen model metadata supply target shapes [@wolf2020transformers; @qwen35-27b]; neither use implies checkpoint execution.
-
-Gated DeltaNet defines the recurrent update used by the target plan [@yang2025gateddelta]. TreeWY, by Sneha Murthy Ghantasala, develops tree-structured WY verification and accepted-state reconstruction for Gated DeltaNet hybrids [@ghantasala2026treewy]. The historical artifact instead performs simple sequential replay of an accepted prefix. It does not claim TreeWY's method or results.
-
-## Limitations and Operational Risk
-
-No large checkpoint was downloaded or loaded. Target-shaped matrices are synthetic; model dimensions and counts come from saved configuration analysis. The study reports no language quality, long-context behavior, GPU result, physical network result, multi-user scheduler, energy use, or full-model throughput. Two or three timing samples cannot characterize variance, and lifecycle table cells have only one run.
-
-The threat model is semi-honest and informal. There is no simulation-based proof, independent parameter review, ciphertext-validation analysis for hostile responses, verifiable model execution, malicious-client policy, or protection for proprietary weights. Transport authentication does not establish correct matrix evaluation. Invariant-noise measurements are correctness diagnostics under the tested path, not evidence against active attacks.
-
-Operational correctness depends on never reusing a correlation. Both processes mark material consumed before replying and reject old epochs in the demonstration, but restoration of a whole process or virtual-machine snapshot is not handled. Cancellation and ambiguous network failure must burn reserved material. Persistent recovery would require a freshness source outside any restored state.
-
-The bridge depends on an inspected SEAL serialization representation and should not parse untrusted arbitrary ciphertexts without a separate review. Mutable target source URLs are recorded with the evidence, but an immutable external Qwen/Transformers revision was not captured; the saved `model-plan.json` is therefore the authoritative target-shape record. Current PLLM runtime code has changed since this artifact and requires its own protocol, correctness, and performance evaluation.
-
-## Reproducibility
-
-The canonical paper source is `paper/manuscript.md`; citations are maintained in `paper/references.bib`. `scripts/build_paper.py` generates `paper/main.tex`, compiles `paper/main.pdf`, writes content hashes and tool versions to `paper/build-metadata.json`, and creates `paper/arxiv-source.tar.gz`. The archive contains a root `main.tex` whose references are already rendered, plus a build note and machine-readable metadata. The canonical Markdown, bibliography, and Lua filter remain in the repository and the separate website source download. Website article generation remains the separate `web` target.
-
-From repository root, reproduce the retained historical test suite with:
-
-```bash
-cd research/lifecycle
-uv sync --frozen --group test
-uv run --frozen python -m pytest -q
+**Traffic and preparation.** Client traffic grows with activation rows and stage
+width. Correction bytes move from Preparation to Inference before online timing.
+The stage-row count is total matrix work across all 96 remote stages. The retained
+aggregate does not claim a per-run burn count.
+
+```{=latex}
+\begin{table}[t]
+\centering\small
+\caption{Lifecycle traffic and offline preparation.}
+\begin{tabular}{rrrr}
+\toprule
+Input & Client I/O & Correction push & Stage rows \\
+\midrule
+30 & 63.33 MB & 59.80 MB & 6,144 \\
+63 & 126.29 MB & 72.88 MB & 7,488 \\
+255 & 432.71 MB & 252.18 MB & 25,920 \\
+\bottomrule
+\end{tabular}
+\end{table}
 ```
 
-The retained JUnit file `study-tests.xml` records 45 passed tests. This count belongs to the historical artifact, not the current repository-wide suite. Zstandard must be available to the serialization bridge; on macOS the recorded setup used Homebrew's `zstd`.
-
-Representative experiment invocations, run from `research/lifecycle`, are:
-
-```bash
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=4 uv run --frozen python -m pllm_study.benchmark --input 768 --output 256 --rounds 3 --json results/reproduction-768-256.json
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --frozen python -m pllm_study.lifecycle --json results/reproduction-lifecycle.json
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 uv run --frozen python -m pllm_study.lifecycle --rtt-ms 10 --draft 4 --json results/reproduction-proposals.json
+```{=html}
+<table><caption>Lifecycle traffic and offline preparation.</caption><thead><tr><th>Input</th><th>Client I/O</th><th>Correction push</th><th>Stage rows</th></tr></thead><tbody><tr><td>30</td><td>63.33 MB</td><td>59.80 MB</td><td>6,144</td></tr><tr><td>63</td><td>126.29 MB</td><td>72.88 MB</td><td>7,488</td></tr><tr><td>255</td><td>432.71 MB</td><td>252.18 MB</td><td>25,920</td></tr></tbody></table>
 ```
 
-Full target runs require substantially more time and memory; `run-optimized.sh` records their original order. Retained claims should be checked against `research/evidence/CLAIMS.json`, then against the named raw JSON rather than regenerated timing on different hardware.
+All nine records shared the retained model and body fingerprints, recorded zero
+online Preparation requests and operations, and recorded zero plaintext prompt and
+token bytes in the audit counters. The installed-wheel transport smoke completed all three
+roles with nonzero process metrics and a one-signal clean shutdown. The repository
+gate passed 400 Python tests with native kernels, the same 400 with forced scalar
+kernels, and 11 Rust tests.
 
-Build paper and arXiv files from repository root with:
-
-```bash
-uv run --no-project --python 3.13 python scripts/build_paper.py pdf
-```
-
-Build the historical fixture itself with its locked environment:
-
-```text
-cd research/lifecycle
-uv build
-```
-
-The build requires Pandoc and Tectonic or pdfLaTeX. `SOURCE_DATE_EPOCH` can pin generated timestamps; otherwise the script uses the repository commit time and records it. arXiv category, submission license, final author list and affiliations, and DOI policy are submission metadata, not inferred by the build.
+These measurements isolate current implementation behavior, not general model
+performance. They use one CPU host and loopback networking; include no GPU, WAN,
+concurrency, malicious-provider test, or output-quality evaluation. Preparation is
+offline with respect to token latency but remains real
+compute and traffic. At 255 input tokens it dominates the difference between
+online and full-response time, while client traffic reaches 432.71 MB. Private
+execution therefore removes provider access to client data, not communication cost.
 
 ## Conclusion
 
-The historical artifact demonstrates an executable BFV path for preparing one-time additive masks for public integer matrices. Its strongest measured comparison is narrow: at 768 by 256 and batch 2,048, complete median preparation changes from 3.122 to 0.633 s on one retained CPU environment. Target-shaped synthetic runs show that ciphertext-coefficient GEMM can complete large stages, while client cryptography, preparation traffic, inventory, and serial interaction remain material costs.
-
-The small decoder confirms that the artifact can connect preparation, depletion, masked linear calls, local state, and token selection across processes. It does not validate a Qwen checkpoint or current PLLM. Keeping measured, config-derived, projected, and unevaluated claims separate is therefore not presentation detail; it defines the result.
-
-## References {.unnumbered}
-
-::: {#refs}
-:::
+PLLM demonstrates public-weight language-model inference in which remote providers
+perform useful matrix work without receiving plaintext client language. Offline
+one-time correlations remove Preparation from the online path; immutable
+commitments, atomic consumption, and burn semantics close the inventory lifecycle;
+and packed transport makes real Qwen execution practical on a CPU loopback. The
+measured result is a precise boundary: private content under non-colluding,
+honest-but-curious roles, with visible metadata and substantial client traffic.

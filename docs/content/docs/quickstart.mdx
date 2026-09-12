@@ -3,24 +3,23 @@ title: "Run your first prepared request"
 description: "Start inference and preparation, seal an inventory, and generate locally."
 ---
 
-This quickstart runs every role from the same checkout on loopback. Use a local
-public Hugging Face snapshot so checkpoint contents and revision are explicit.
+This quickstart runs every role on one loopback host. Use a local public Hugging
+Face snapshot so checkpoint contents and revision are explicit.
 
 ## 1. Install
 
-Use Python 3.11, 3.12, or 3.13, UV, and the Rust toolchain selected by
-`rust-toolchain.toml`:
+Use Python 3.11, 3.12, or 3.13 and
+[UV](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```bash
-cd pllm
-uv sync
-uv run pllm build
-uv run pllm --version
+uv venv --python 3.13
+source .venv/bin/activate
+uv pip install pllm
+pllm --version
 ```
 
-Maturin builds `pllm._native` during `uv sync`. The current public path does not
-need TenSEAL or `--extra he`. A matching released wheel does not need Rust at
-runtime.
+The published wheel includes `pllm._native`; the current public path does not
+need TenSEAL or a Rust toolchain at runtime.
 
 ## 2. Set local inputs
 
@@ -41,7 +40,7 @@ each process boundary unambiguous.
 ## 3. Start inference
 
 ```bash
-uv run pllm serve "$PLLM_MODEL_SOURCE" \
+pllm serve "$PLLM_MODEL_SOURCE" \
   --weights public \
   --model-id demo-model \
   --api-key "$PLLM_API_KEY" \
@@ -61,7 +60,7 @@ model.
 In a second trusted process with the same checkpoint and shell values:
 
 ```bash
-uv run pllm preparation serve "$PLLM_MODEL_SOURCE" \
+pllm preparation serve "$PLLM_MODEL_SOURCE" \
   --model-id demo-model \
   --api-key "$PLLM_PREPARATION_API_KEY" \
   --inference-url http://127.0.0.1:8000 \
@@ -73,7 +72,7 @@ uv run pllm preparation serve "$PLLM_MODEL_SOURCE" \
 ```
 
 Preparation is public-weight-only. It receives root seeds before chat, computes
-`W*r-s`, pushes corrections to inference's fixed endpoint, waits for durable
+`W*r-s`, pushes corrections to inference's fixed endpoint, waits for acceptance
 acknowledgements, and must erase expanded masks. Self-host it unless another
 operator is trusted to follow that protocol and not collude with inference.
 
@@ -81,13 +80,13 @@ operator is trusted to follow that protocol and not collude with inference.
 
 ```bash
 umask 077
-uv run pllm configure \
+pllm configure \
   --server http://127.0.0.1:8000 \
   --api-key "$PLLM_API_KEY" \
   --preparation-url http://127.0.0.1:8001 \
   --preparation-api-key "$PLLM_PREPARATION_API_KEY" \
   --model demo-model
-uv run pllm chat
+pllm chat
 ```
 
 The chat CLI prepares an inventory before showing the prompt. For each response it
@@ -105,8 +104,6 @@ prompt = "Explain why preparation is offline."
 maximum = 64
 
 with OpenAI() as client:
-    rows = client.prepared_rows_for_response(prompt, maximum)
-    client.preprocess(count=rows)
     response = client.responses.create(
         input=prompt,
         max_output_tokens=maximum,
@@ -114,9 +111,9 @@ with OpenAI() as client:
     print(response.output_text)
 ```
 
-`preprocess()` must finish before `responses.create()`. It may also prepare a
-spare inventory for the default idle-refill policy. Keep the client open to reuse
-unreserved rows.
+The SDK calculates the exact row requirement and prepares missing inventory before
+it opens the online response. It may also prepare a spare under the default
+idle-refill policy. Keep the client open to reuse unreserved rows.
 
 ## Verify the boundary
 

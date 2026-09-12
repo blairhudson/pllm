@@ -1,6 +1,6 @@
 ---
 title: "Python SDK"
-description: "Prepare explicit inventory, then use a Responses-shaped local client."
+description: "Use a Responses-compatible client with automatic offline preparation."
 ---
 
 ## Generate text
@@ -12,8 +12,6 @@ prompt = "Explain the prepared inventory lifecycle."
 maximum = 128
 
 with OpenAI() as client:
-    required = client.prepared_rows_for_response(prompt, maximum)
-    client.preprocess(count=required)
     response = client.responses.create(
         input=prompt,
         max_output_tokens=maximum,
@@ -21,10 +19,10 @@ with OpenAI() as client:
     print(response.output_text)
 ```
 
-`OpenAI()` reads saved settings. `preprocess()` completes before the response
-enters its online phase; there is no online preparation fallback. Keep one client
-open to reuse unreserved inventory. A request-level `model` overrides the saved
-default.
+`OpenAI()` reads saved settings. The SDK sizes and prepares missing inventory
+before the response enters its online phase; preparation never joins online
+execution. Keep one client open to reuse unreserved inventory. A request-level
+`model` overrides the saved default.
 
 ## Stream text
 
@@ -35,9 +33,6 @@ prompt = "Describe the client and inference boundary."
 maximum = 128
 
 with OpenAI() as client:
-    client.preprocess(
-        count=client.prepared_rows_for_response(prompt, maximum)
-    )
     with client.responses.create(
         input=prompt,
         max_output_tokens=maximum,
@@ -58,7 +53,6 @@ It does not make those rows available to another response.
 from pllm import OpenAI
 
 with OpenAI() as client:
-    client.preprocess(count=256)
     first = client.responses.create(input="What does a one-time mask hide?")
     second = client.responses.create(
         input="Why must its reservation burn on failure?",
@@ -69,7 +63,7 @@ with OpenAI() as client:
 
 Conversation state and continuation caches belong to this client process.
 `previous_response_id` is not remote server history and cannot restore state in a
-new client. Ensure prepared capacity covers both responses before starting them.
+new client. Each response transparently ensures its required prepared capacity.
 
 ## Explicit connection
 
@@ -88,9 +82,6 @@ with OpenAI(
     timeout=600,
 ) as client:
     prompt = "Hello"
-    client.preprocess(
-        count=client.prepared_rows_for_response(prompt, 64)
-    )
     print(client.responses.create(input=prompt).output_text)
 ```
 
@@ -112,8 +103,6 @@ async def main() -> None:
     prompt = "Explain compact prefill."
     maximum = 64
     async with AsyncOpenAI() as client:
-        required = await client.prepared_rows_for_response(prompt, maximum)
-        await client.preprocess(count=required)
         response = await client.responses.create(
             input=prompt,
             max_output_tokens=maximum,
@@ -126,3 +115,9 @@ asyncio.run(main())
 The async wrapper delegates current work to threads; it is not a separate native
 async engine. Isolate client state per concurrent conversation and measure memory,
 inventory, and server batching under the intended concurrency.
+
+## Prepare ahead of time
+
+Automatic preparation occurs before online execution, but applications may move
+that latency earlier by calling `prepared_rows_for_response()` and `preprocess()`
+while idle. This is an optional warming control, not a correctness requirement.

@@ -2,7 +2,7 @@
 
 ## Current public-weight claim
 
-PLLM's public path splits each remote linear operation across a customer client,
+PLLM's public path splits each remote linear operation across a client,
 a trusted preparation role, and an inference role. It aims to keep plaintext
 activations from either service viewed alone under an honest-but-curious,
 non-colluding threat model. "Untrusted inference" means inference is not given
@@ -67,7 +67,7 @@ snapshot.
 - Credentials are distinct for client-to-inference, client-to-preparation,
   preparation-to-inference push, and any local gateway.
 
-Self-hosting preparation keeps its trust inside the customer boundary. Running
+Self-hosting preparation keeps its trust inside the client boundary. Running
 both services under one untrusted operator does not satisfy non-collusion.
 
 ## Observable information
@@ -97,7 +97,7 @@ hardening, or production readiness.
 
 ## Operational controls
 
-Keep the plaintext gateway on loopback or a protected customer network. Disable
+Keep the plaintext gateway on loopback or a protected client network. Disable
 payload logging and external prompt tracing. Protect model and config directories,
 and avoid putting credentials in command histories or captured process listings.
 

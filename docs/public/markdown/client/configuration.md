@@ -48,8 +48,9 @@ origins; plain HTTP is accepted only for loopback.
 `PLLM_PREPARED_INVENTORY_ROWS` is the minimum capacity used when creating each
 stage inventory. A particular response may require more: prompt token rows plus
 up to `max_output_tokens - 1` decode rows. `pllm chat` calculates this before each
-response. Direct clients can call `prepared_rows_for_response()` and pass its
-result to `preprocess()`.
+response. Direct clients do the same transparently before opening the online
+session. Applications may call `prepared_rows_for_response()` and `preprocess()`
+earlier when they want to move preparation latency out of the request path.
 
 Unreserved rows remain available for later chats. Starting a response reserves
 its exact requirement; early completion or failure burns only unused rows from

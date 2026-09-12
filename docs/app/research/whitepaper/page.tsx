@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import styles from './whitepaper.module.css';
 
 export const metadata = {
-  title: 'Whitepaper',
-  description: 'A two-page decision brief for PLLM prepared private inference.',
+  title: 'PLLM Whitepaper',
+  description: 'A two-page overview of PLLM prepared private inference.',
+  alternates: { canonical: '/research/whitepaper/' },
 };
 
 export default function Whitepaper() {

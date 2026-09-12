@@ -5,4 +5,9 @@ export const docs = defineDocs({
   docs: { schema: pageSchema, postprocess: { includeProcessedMarkdown: true } },
   meta: { schema: metaSchema },
 });
+export const research = defineDocs({
+  dir: 'content/research',
+  docs: { schema: pageSchema, postprocess: { includeProcessedMarkdown: true } },
+  meta: { schema: metaSchema },
+});
 export default defineConfig();

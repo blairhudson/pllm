@@ -33,14 +33,14 @@ cost in measurements.
 
 ```bash
 uv sync
-uv run pllm build
+pllm build
 ```
 
 `pllm build` inspects the installed extension. Rebuild after changing Rust with:
 
 ```bash
 uv run maturin develop --release
-uv run pllm build
+pllm build
 ```
 
 ```python
@@ -71,7 +71,7 @@ ARM64 NEON use optimized paths; unsupported hosts use portable scalar code.
 ```bash
 uv run python benchmarks/rust_migration.py --cpp-reference --threads 1
 uv run python benchmarks/client_native.py --output results/client.json
-uv run pllm benchmark dashboard
+pllm benchmark dashboard
 ```
 
 Kernel runners verify outputs and separate compilation from calls. Synthetic

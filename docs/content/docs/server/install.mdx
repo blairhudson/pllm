@@ -1,20 +1,19 @@
 ---
 title: "Install the services"
-description: "Build the Rust extension and validate a public checkpoint source."
+description: "Install PLLM services from PyPI and validate a public checkpoint source."
 ---
 
 ## Requirements
 
-Use Python 3.11 through 3.13, UV, and the Rust toolchain in
-`rust-toolchain.toml` for a source build. A matching platform wheel needs no
-compiler on the runtime host.
+Use Python 3.11 through 3.13 and UV. The platform wheel includes the native
+extension and needs no compiler on the runtime host.
 
 ```bash
-cd pllm
-uv sync
-uv run pllm build
-uv run pllm serve --help
-uv run pllm preparation serve --help
+uv venv --python 3.13
+source .venv/bin/activate
+uv pip install pllm
+pllm serve --help
+pllm preparation serve --help
 ```
 
 The current public-weight path does not use SEAL/TenSEAL. Install the `he` extra
@@ -29,7 +28,7 @@ snapshot. A local snapshot keeps revision and startup network behavior explicit:
 export PLLM_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export PLLM_PROVIDER_PUSH_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 
-uv run pllm serve ./models/checkpoint \
+pllm serve ./models/checkpoint \
   --weights public \
   --model-id demo-model \
   --api-key "$PLLM_API_KEY" \
@@ -48,4 +47,4 @@ revision for repeatability and review [model support](/docs/server/models) befor
 assuming a readable tensor layout is a complete executable graph.
 
 Inference is not an ordinary Responses base URL. Applications send plaintext only
-to the direct local client or [customer-side gateway](/docs/client/openai).
+to the direct local client or [client-side gateway](/docs/client/openai).

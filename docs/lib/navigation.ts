@@ -6,22 +6,13 @@ export type NavigationItem = {
 
 export const mainNavigation: readonly NavigationItem[] = [
   { href: '/docs', label: 'Documentation', activePrefix: '/docs' },
-  {
-    href: '/docs/reference/dashboard',
-    label: 'Live dashboard',
-    activePrefix: '/docs/reference/dashboard',
-  },
-  {
-    href: '/docs/deployment/overview',
-    label: 'Deploy',
-    activePrefix: '/docs/deployment',
-  },
+  { href: '/research', label: 'Research', activePrefix: '/research' },
 ];
 
 export const footerNavigation: readonly NavigationItem[] = [
   { href: '/docs/security', label: 'Security' },
   { href: '/docs/reference/compatibility', label: 'Compatibility' },
-  { href: '/research', label: 'Historical research' },
+  { href: '/research', label: 'Research' },
 ];
 
 export const searchSuggestions = ['inventory', 'preparation', 'dashboard'];

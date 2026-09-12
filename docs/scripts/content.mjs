@@ -3,23 +3,29 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 export const siteRoot = fileURLToPath(new URL('../', import.meta.url));
 const standaloneDefinitions = [
- {key:'research',url:'/research/',title:'Research history',description:'PLLM protocol research from the BFV bridge to offline prepared inference.',section:'research',file:'research.html'},
- {key:'whitepaper',url:'/whitepaper/',title:'PLLM whitepaper',description:'A two-page decision brief for prepared private inference.',section:'whitepaper',file:'whitepaper.html'},
+ {key:'research',url:'/research/',title:'PLLM research',description:'The mission, protocol, and evidence for a global market in private AI compute.',section:'research',file:'research.html'},
+ {key:'whitepaper',url:'/research/whitepaper/',title:'PLLM whitepaper',description:'A two-page overview of prepared private inference.',section:'research',file:'whitepaper.html'},
 ];
 export function walk(dir) {
  return fs.readdirSync(dir, {withFileTypes:true}).flatMap(e => e.isDirectory() ? walk(path.join(dir,e.name)) : [path.join(dir,e.name)]);
 }
-export function readPages(root = siteRoot) {
- const base=path.join(root,'content/docs');
+function readCollectionPages(base,urlBase,keyPrefix='') {
  return walk(base).filter(p=>p.endsWith('.mdx')).sort().map(file=>{
   const raw=fs.readFileSync(file,'utf8');
   const match=raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if(!match) throw new Error(`Missing frontmatter: ${file}`);
   const field=name=>{const value=match[1].match(new RegExp(`^${name}: (.+)$`,'m'))?.[1]; if(!value) throw new Error(`Missing ${name}: ${file}`);return JSON.parse(value);};
-  const key=path.relative(base,file).replace(/\\/g,'/').replace(/\.mdx$/,'');
-  const url=key==='index'?'/docs/':`/docs/${key}/`;
+  const localKey=path.relative(base,file).replace(/\\/g,'/').replace(/\.mdx$/,'');
+  const key=keyPrefix+localKey;
+  const url=localKey==='index'?`${urlBase}/`:`${urlBase}/${localKey}/`;
   return {key,url,title:field('title'),description:field('description'),content:match[2],raw,file};
  });
+}
+export function readPages(root = siteRoot) {
+ return [
+  ...readCollectionPages(path.join(root,'content/docs'),'/docs'),
+  ...readCollectionPages(path.join(root,'content/research'),'/research','research/'),
+ ];
 }
 export function readStandalonePages(root = siteRoot) {
  return standaloneDefinitions.map(definition=>{

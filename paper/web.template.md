@@ -3,11 +3,9 @@ title: "$title$"
 description: "$description$"
 ---
 
-**$author$ · $web-date$ · Documentation edition $edition$**
-
-[Download the two column PDF](/downloads/paper.pdf) · [Pandoc Markdown source](/downloads/paper-source.zip) · [Raw evidence](/downloads/evidence.zip)
-
-$web-note$
+<div className="paper-actions">
+  <a className="paper-action paper-action-primary" href="/downloads/paper.pdf">Download PDF <span aria-hidden="true">↗</span></a>
+</div>
 
 ## Abstract
 

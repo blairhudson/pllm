@@ -19,12 +19,13 @@ type Entry = {
 };
 
 function selectPhase(button: HTMLElement) {
-  document.querySelectorAll<HTMLElement>('[data-phase]').forEach((candidate) => {
+  const group = button.closest<HTMLElement>('[data-tab-group]') ?? document;
+  group.querySelectorAll<HTMLElement>('[data-phase]').forEach((candidate) => {
     const selected = candidate === button;
     candidate.setAttribute('aria-selected', String(selected));
     candidate.tabIndex = selected ? 0 : -1;
   });
-  document.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
+  group.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.panel !== button.dataset.phase;
   });
 }
@@ -82,7 +83,8 @@ export function SiteChrome({ children }: { children: ReactNode }) {
         event.target.matches('[data-phase]') &&
         ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)
       ) {
-        const phases = Array.from(document.querySelectorAll<HTMLElement>('[data-phase]'));
+        const group = event.target.closest<HTMLElement>('[data-tab-group]') ?? document;
+        const phases = Array.from(group.querySelectorAll<HTMLElement>('[data-phase]'));
         let next = phases.indexOf(event.target);
         if (event.key === 'Home') next = 0;
         else if (event.key === 'End') next = phases.length - 1;
@@ -245,7 +247,6 @@ export function SiteChrome({ children }: { children: ReactNode }) {
             <a href={withBasePath('/downloads/whitepaper.pdf')}>Whitepaper PDF ↗</a>
             <a href={withBasePath('/llms.txt')}>llms.txt</a>
           </div>
-          <span className="build-tag">ALPHA SOFTWARE · PUBLIC-WEIGHT PATH</span>
         </div>
       </footer>
       <dialog

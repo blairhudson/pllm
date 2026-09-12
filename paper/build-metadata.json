@@ -1,0 +1,44 @@
+{
+  "artifact": "current offline-correlated public-weight inference study",
+  "arxiv_archive_members": [
+    "main.tex",
+    "README.txt",
+    "build-metadata.json",
+    "current-runtime-2026-09-11.json"
+  ],
+  "canonical_source": "paper/manuscript.md",
+  "generated": {
+    "paper/main.pdf": {
+      "sha256": "59710cfd948146e347c4497c0c24433d5c4db5a17d32dc447b2ccfffbf9ebb13"
+    },
+    "paper/main.tex": {
+      "sha256": "b01ddc8b59f22e99775b8b6da88b5fb11f73a4ac029496e3ad8d3a73587bea44"
+    }
+  },
+  "normalized_timestamp_utc": "2026-09-11T00:23:30Z",
+  "source_date_epoch": 1789086210,
+  "source_revision": "277d19f63f60e48fd8b39ec04bb7d9c68c187062",
+  "source_revision_scope": "Git HEAD is the base revision; SHA-256 values identify built working-tree sources",
+  "sources": {
+    "paper/manuscript.md": {
+      "sha256": "d63e794e9c04dab41cccb0007e6560fa0399b48db2424925c2dea4c6c2e775fe"
+    },
+    "paper/paper.lua": {
+      "sha256": "767f9b286be73079fc04b2638068661e107131b2c13b5efd93737499e74cbe06"
+    },
+    "paper/references.bib": {
+      "sha256": "debdf6ce6e01bd186a4baccc63de003d61d5a22ea7764ab9523df30773bd91ac"
+    },
+    "research/evidence/current-runtime-2026-09-11.json": {
+      "sha256": "821edf5612c9616c515e90578ed29023695b581d502cb184c58ec85a6d651d81"
+    },
+    "scripts/build_paper.py": {
+      "sha256": "5bc075eaf85d3c9137a419e47b4816119a21e4bccca59e03f577e6407d2b22bc"
+    }
+  },
+  "toolchain": {
+    "pandoc": "pandoc 3.11",
+    "pdf_engine": "Tectonic 0.17.0",
+    "python": "3.13.15"
+  }
+}

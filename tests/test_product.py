@@ -231,8 +231,8 @@ def test_provider_key_persists(tmp_path: Path) -> None:
 def test_docs_and_manuscript_exist() -> None:
     assert Path("docs/package.json").exists()
     assert Path("docs/content/docs/client/chat.mdx").exists()
-    assert Path("docs/content/docs/research/paper.mdx").exists()
+    assert Path("docs/content/research/paper.mdx").exists()
     manuscript = Path("paper/manuscript.md").read_text(encoding="utf-8")
     assert "abstract: |" in manuscript
-    assert "## References" in manuscript
+    assert "bibliography: paper/references.bib" in manuscript
     assert len(manuscript) > 5000

@@ -1,66 +1,63 @@
+<nav class="wp-download-bar" aria-label="Whitepaper download">
+  <a href="/downloads/whitepaper.pdf" download>Download PDF <span aria-hidden="true">↓</span></a>
+</nav>
 <article class="wp-document" aria-labelledby="whitepaper-title">
   <section class="wp-sheet">
     <header class="wp-masthead">
       <div>
-        <p class="wp-kicker">Private inference / decision brief</p>
-        <h1 id="whitepaper-title">Private LLM inference, prepared before the prompt</h1>
-        <p class="wp-deck">PLLM separates public-model computation across a customer client, trusted preparation service, and inference provider. Fresh one-time inventory moves preparation off the online path without removing its cost or trust assumptions.</p>
-      </div>
-      <div class="wp-meta">
-        <strong>Blair Hudson</strong><br />
-        11 September 2026<br />
-        Revision 1.0<br />
-        Current public-weight design<br />
-        PLLM <code>v0.17.0a1</code>
-        <nav class="wp-actions" aria-label="Whitepaper resources">
-          <a href="/downloads/whitepaper.pdf" download>PDF</a>
-          <a href="/downloads/whitepaper.tex" download>TeX source</a>
-          <a href="/docs/research/paper/">Technical paper</a>
-        </nav>
+        <h1 id="whitepaper-title">Private inference for an open compute world</h1>
+        <p class="wp-deck">Private inference lets organisations use remote AI compute without exposing prompts, context or generated output to the infrastructure provider. PLLM keeps sensitive data on the client while sending privacy-protected inference requests to remote providers, creating a path from concentrated cloud infrastructure to a global market of independent compute.</p>
       </div>
     </header>
 
     <figure class="wp-figure">
-      <svg viewBox="0 0 940 230" role="img" aria-labelledby="architecture-title architecture-desc">
+      <svg viewBox="0 0 940 250" role="img" aria-labelledby="architecture-title architecture-desc">
         <title id="architecture-title">Three-role prepared inference architecture</title>
-        <desc id="architecture-desc">Before chat, the customer client sends root seeds to trusted preparation, which sends correction inventory to inference. During chat, the client sends a one-time ticket and masked activation to inference, receives a masked result, and unmasks it locally. A non-collusion boundary separates preparation from inference.</desc>
+        <desc id="architecture-desc">Before chat, the client sends root seeds to trusted preparation, which sends correction inventory to inference. During chat, the client sends a one-time ticket and masked activation to inference, receives a masked result, and unmasks it locally. A non-collusion boundary separates preparation from inference.</desc>
         <defs>
           <marker id="wp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker>
         </defs>
-        <rect class="wp-svg-box wp-svg-client" x="18" y="69" width="260" height="105" rx="5" />
-        <rect class="wp-svg-box wp-svg-prep" x="340" y="18" width="260" height="105" rx="5" />
-        <rect class="wp-svg-box wp-svg-inference" x="662" y="69" width="260" height="105" rx="5" />
-        <text class="wp-svg-role" x="39" y="95">1 / CUSTOMER CLIENT</text>
-        <text class="wp-svg-detail" x="39" y="120">prompt, tokens, masks, scales, state</text>
-        <text class="wp-svg-detail" x="39" y="141">local nonlinear math and sampling</text>
-        <text class="wp-svg-role" x="361" y="44">2 / TRUSTED PREPARATION</text>
-        <text class="wp-svg-detail" x="361" y="69">root seeds and public model body</text>
-        <text class="wp-svg-equation" x="361" y="95">computes Wr - s</text>
-        <text class="wp-svg-role" x="683" y="95">3 / INFERENCE PROVIDER</text>
-        <text class="wp-svg-detail" x="683" y="120">corrections, tickets, x - r</text>
-        <text class="wp-svg-detail" x="683" y="141">masked transformer projections</text>
-        <path class="wp-svg-flow" d="M 278 91 L 340 76" marker-end="url(#wp-arrow)" />
-        <text class="wp-svg-caption" x="270" y="55">OFFLINE ROOT SEEDS</text>
-        <path class="wp-svg-flow" d="M 600 76 L 662 91" marker-end="url(#wp-arrow)" />
-        <text class="wp-svg-caption" x="600" y="55">Wr - s INVENTORY</text>
-        <path class="wp-svg-flow" d="M 278 152 L 662 152" marker-end="url(#wp-arrow)" />
-        <text class="wp-svg-caption" x="388" y="145">ONLINE TICKET + x - r</text>
-        <path class="wp-svg-flow" d="M 662 184 L 278 184" marker-end="url(#wp-arrow)" />
-        <text class="wp-svg-caption" x="369" y="210">Wx - s; CLIENT ADDS s</text>
-        <line class="wp-svg-boundary" x1="631" y1="8" x2="631" y2="218" />
-        <text class="wp-svg-caption" x="641" y="17">NON-COLLUSION BOUNDARY</text>
+        <rect class="wp-svg-box wp-svg-client" x="10" y="75" width="240" height="110" rx="6" />
+        <rect class="wp-svg-box wp-svg-prep" x="350" y="75" width="240" height="110" rx="6" />
+        <rect class="wp-svg-box wp-svg-inference" x="690" y="75" width="240" height="110" rx="6" />
+        <rect class="wp-svg-accent" x="10" y="75" width="240" height="5" rx="3" />
+        <rect class="wp-svg-accent" x="350" y="75" width="240" height="5" rx="3" />
+        <rect class="wp-svg-accent" x="690" y="75" width="240" height="5" rx="3" />
+        <text class="wp-svg-step" x="30" y="107">01</text><text class="wp-svg-role" x="67" y="107">Client</text>
+        <text class="wp-svg-detail" x="30" y="139">Prompt, masks, state and sampling</text>
+        <text class="wp-svg-detail" x="30" y="163">Local nonlinear computation</text>
+        <text class="wp-svg-step" x="370" y="107">02</text><text class="wp-svg-role" x="407" y="107">Trusted preparation</text>
+        <text class="wp-svg-detail" x="370" y="139">Root seeds and public model body</text>
+        <text class="wp-svg-equation" x="370" y="163">Computes Wr - s before chat</text>
+        <text class="wp-svg-step" x="710" y="107">03</text><text class="wp-svg-role" x="747" y="107">Inference provider</text>
+        <text class="wp-svg-detail" x="710" y="139">Corrections, tickets and x - r</text>
+        <text class="wp-svg-detail" x="710" y="163">Masked transformer projections</text>
+        <line class="wp-svg-boundary" x1="640" y1="40" x2="640" y2="228" />
+        <path class="wp-svg-flow" d="M 250 130 L 350 130" marker-end="url(#wp-arrow)" />
+        <circle class="wp-svg-order" cx="266" cy="109" r="9" /><text class="wp-svg-order-text" x="266" y="109">1</text>
+        <text class="wp-svg-edge-label" x="310" y="112">ROOT SEEDS</text>
+        <path class="wp-svg-flow" d="M 590 130 L 690 130" marker-end="url(#wp-arrow)" />
+        <circle class="wp-svg-order" cx="606" cy="109" r="9" /><text class="wp-svg-order-text" x="606" y="109">2</text>
+        <text class="wp-svg-edge-label" x="648" y="112">Wr - s ROWS</text>
+        <path class="wp-svg-flow" d="M 130 75 L 130 40 L 810 40 L 810 75" marker-end="url(#wp-arrow)" />
+        <circle class="wp-svg-order" cx="350" cy="21" r="9" /><text class="wp-svg-order-text" x="350" y="21">3</text>
+        <text class="wp-svg-lane-detail" x="490" y="24">ONLINE TICKET + x - r</text>
+        <path class="wp-svg-flow" d="M 810 185 L 810 220 L 130 220 L 130 185" marker-end="url(#wp-arrow)" />
+        <circle class="wp-svg-order" cx="340" cy="201" r="9" /><text class="wp-svg-order-text" x="340" y="201">4</text>
+        <text class="wp-svg-lane-detail" x="490" y="204">Wx - s; CLIENT ADDS s LOCALLY</text>
+        <text class="wp-svg-boundary-label" x="652" y="244">SEPARATE OPERATORS</text>
       </svg>
     </figure>
 
     <div class="wp-columns" data-whitepaper-body>
       <section class="wp-block">
         <h2>What PLLM changes</h2>
-        <p>Ordinary hosted inference exposes prompts and generated text to one provider. PLLM instead keeps tokenization, nonlinear operations, attention state, sampling, and decoding in the customer environment. Public transformer-body matrices run remotely as masked integer projections. This is a deployment boundary, not a claim that an unmodified model API becomes private by changing its URL.<sup>[1]</sup></p>
+        <p>Ordinary hosted inference bundles computation with access to prompts and generated text. PLLM instead keeps tokenization, nonlinear operations, attention state, sampling, and decoding in the client environment. Public transformer-body matrices run remotely as masked integer projections. Compute can therefore be selected independently from willingness to disclose client language. This is a protocol boundary, not a URL setting.<sup>[1]</sup></p>
       </section>
 
       <section class="wp-block">
         <h2>Prepared inventory</h2>
-        <p>Before chat, the client commits an inventory to one model, body, stage set, quantization profile, and attempt budget. It sends one domain-separated root seed per stage to preparation. Preparation expands one-time input masks <i>r</i>, output masks <i>s</i>, and tickets, computes <i>Wr - s</i>, then pushes each batch to inference. Inference durably acknowledges every stage and seals the inventory <code>READY</code>.</p>
+        <p>Before chat, the client commits an inventory to one model, body, stage set, quantization profile, and attempt budget. It sends one domain-separated root seed per stage to preparation. Preparation expands one-time input masks <i>r</i>, output masks <i>s</i>, and tickets, computes <i>Wr - s</i>, then pushes each batch to inference. Inference acknowledges accepted stage batches and seals the inventory <code>READY</code>.</p>
         <p class="wp-equation">W(x - r) + (Wr - s) = Wx - s</p>
         <p>Online, inference atomically consumes a ticket and returns the masked result; the client adds <i>s</i>. Prefill rows share a compact matrix envelope, while decode retains one ticket per stage on a persistent connection. Unused reserved rows burn on cancellation or failure. Inventory is memory-only and disappears on restart or idle expiry.<sup>[1]</sup></p>
       </section>
@@ -69,7 +66,7 @@
         <h2>Boundary, not invisibility</h2>
         <p><strong>Protected from inference:</strong> plaintext prompts and outputs, token identities, root seeds, masks, activation scales, local attention and recurrent state, and sampling choices. Preparation sees seeds and bound stage metadata, but not online masked activations. Inference sees corrections and masked activations, but not seeds.</p>
         <p><strong>Still exposed:</strong> both services know the public model, stage names, tensor shapes, quantization profile, scheduling, timing, traffic volume, and approximate sequence lengths. Preparation must follow the protocol, erase expanded masks, and not collude with inference. Two services under one untrusted operator do not meet this assumption; authentication and TLS protect channels but do not prove independence, erasure, or correct model execution.<sup>[2]</sup></p>
-        <p>Fresh uniform masks hide each online integer activation from inference when viewed alone. That claim is narrower than end-to-end confidential computing: it assumes protocol-conforming roles, keeps nonlinear work and state on the client, and does not verify provider execution. A network observer able to join both channels, a preparation service retaining masks, or colluding services can recover activation information. Deployment review must therefore name operators and log-access paths, not merely count endpoints.</p>
+        <p>SHAKE-256 expands each fresh root seed into pseudorandom masks. Under that computational assumption, each masked activation hides its input from inference when viewed alone. The claim assumes protocol-conforming roles, mask non-retention, and non-collusion; Python releases masks after use but verified physical zeroization is not established. Deployment review must therefore name operators and log-access paths, not merely count endpoints.</p>
       </section>
     </div>
     <span class="wp-folio">PLLM / 01 OF 02</span>
@@ -78,76 +75,35 @@
   <section class="wp-sheet">
     <header class="wp-page-heading">
       <div>
-        <p class="wp-kicker">Evidence and adoption gates</p>
-        <h2>Price the whole lifecycle, then decide.</h2>
+        <h2>A world of compute, without exposing client data.</h2>
       </div>
-      <p class="wp-build-note" id="artifact-build">PDF and source archive: <code>python scripts/build_whitepaper.py</code></p>
     </header>
 
     <figure class="wp-figure">
-      <svg viewBox="0 0 940 150" role="img" aria-labelledby="evidence-title evidence-desc">
-        <title id="evidence-title">Evidence ladder</title>
-        <desc id="evidence-desc">Measured historical experiments support narrow claims. Derived capacity models are projections, not throughput. Controlled inventory economics, large-model generation, and production security review remain missing.</desc>
-        <defs>
-          <marker id="wp-arrow-evidence" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker>
-        </defs>
-        <rect class="wp-svg-box wp-svg-measured" x="12" y="20" width="274" height="104" rx="5" />
-        <rect class="wp-svg-box wp-svg-derived" x="333" y="20" width="274" height="104" rx="5" />
-        <rect class="wp-svg-box wp-svg-missing" x="654" y="20" width="274" height="104" rx="5" />
-        <text class="wp-svg-caption" x="32" y="46">MEASURED</text>
-        <text class="wp-svg-detail" x="32" y="72">Historical BFV stages, small-decoder</text>
-        <text class="wp-svg-detail" x="32" y="94">parity, seeded-relay loopback run</text>
-        <text class="wp-svg-caption" x="353" y="46">DERIVED / PROJECTED</text>
-        <text class="wp-svg-detail" x="353" y="72">Model-shape storage, communication,</text>
-        <text class="wp-svg-detail" x="353" y="94">dependency floors; not throughput</text>
-        <text class="wp-svg-caption" x="674" y="46">MISSING</text>
-        <text class="wp-svg-detail" x="674" y="72">Controlled inventory economics, 27B</text>
-        <text class="wp-svg-detail" x="674" y="94">generation, production security audit</text>
-        <path class="wp-svg-flow" d="M 286 72 L 333 72" marker-end="url(#wp-arrow-evidence)" />
-        <path class="wp-svg-flow" d="M 607 72 L 654 72" marker-end="url(#wp-arrow-evidence)" />
+      <svg viewBox="0 0 940 150" role="img" aria-labelledby="market-title market-desc">
+        <title id="market-title">Private inference market flywheel</title>
+        <desc id="market-desc">Protect client language, admit independent compute, route by price and energy, and expand access.</desc>
+        <defs><marker id="wp-arrow-market" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>
+        <rect class="wp-svg-box wp-svg-current" x="8" y="20" width="205" height="104" rx="6" />
+        <rect class="wp-svg-box wp-svg-future" x="247" y="20" width="205" height="104" rx="6" />
+        <rect class="wp-svg-box wp-svg-future" x="486" y="20" width="205" height="104" rx="6" />
+        <rect class="wp-svg-box wp-svg-future" x="725" y="20" width="205" height="104" rx="6" />
+        <text class="wp-svg-stage wp-svg-current-text" x="26" y="49">01  Protect</text><text class="wp-svg-current-detail" x="26" y="76">Keep language and state</text><text class="wp-svg-current-detail" x="26" y="98">at the client edge</text>
+        <text class="wp-svg-stage" x="265" y="49">02  Admit</text><text class="wp-svg-detail" x="265" y="76">Open supply to compatible</text><text class="wp-svg-detail" x="265" y="98">independent capacity</text>
+        <text class="wp-svg-stage" x="504" y="49">03  Route</text><text class="wp-svg-detail" x="504" y="76">Choose price, latency,</text><text class="wp-svg-detail" x="504" y="98">region, energy and availability</text>
+        <text class="wp-svg-stage" x="743" y="49">04  Expand</text><text class="wp-svg-detail" x="743" y="76">Widen access through</text><text class="wp-svg-detail" x="743" y="98">broader compute supply</text>
+        <path class="wp-svg-flow" d="M 213 72 L 247 72" marker-end="url(#wp-arrow-market)" /><path class="wp-svg-flow" d="M 452 72 L 486 72" marker-end="url(#wp-arrow-market)" /><path class="wp-svg-flow" d="M 691 72 L 725 72" marker-end="url(#wp-arrow-market)" />
       </svg>
     </figure>
 
     <div class="wp-columns" data-whitepaper-body>
-      <section class="wp-block">
-        <h2>Economic cost ledger</h2>
-        <p>No repository evidence supports an ROI or savings percentage. A deployment model should count:</p>
-        <ul>
-          <li><strong>Client:</strong> local tokenization, nonlinear math, KV or recurrent state, public boundary matrices, memory, and model-plan transfer.</li>
-          <li><strong>Preparation:</strong> duplicate public-body storage, mask expansion, matrix work, correction egress, secure erasure, and idle capacity.</li>
-          <li><strong>Inference:</strong> body storage, masked projection compute, inventory memory, online ingress and egress, and ticket bookkeeping.</li>
-          <li><strong>Operations:</strong> three credentials, TLS endpoints, telemetry, upgrades, replenishment, failures, and independent control of preparation.</li>
-        </ul>
-        <p>Unit economics therefore depend on prompt shape, generated tokens, stage dimensions, concurrent demand, refill batch, burn rate, bandwidth price, and required operator separation.</p>
-      </section>
-
-      <section class="wp-block">
-        <h2>Potential impact</h2>
-        <p>Offline preparation removes preparation round trips from time-to-token, but does not remove preparation compute or correction traffic. Batching can amortize fixed work while increasing stranded or burned inventory. Compact prefill transport and geometric KV allocation reduce serialization and client-copy pressure; neither proves lower cloud spend. Self-hosting preparation can simplify trust ownership while moving hardware and operations to the customer.</p>
-      </section>
-
-      <section class="wp-block">
-        <h2>Evidence ladder</h2>
-        <p><span class="wp-evidence">MEASURED.</span> The historical lifecycle study measured a 768-by-256 BFV preparation stage at 0.633 seconds for 2,048 correlations versus 3.122 seconds for its matched control, a 4.93x speedup. A trained small decoder produced 96 tokens matching its clear quantized target. A separate 8 September loopback run used Qwen2.5-0.5B, three processes, and the earlier just-in-time seeded relay: 32 tokens in 6.07 seconds. These results do not benchmark current offline inventory.<sup>[3][4]</sup></p>
-        <p><span class="wp-evidence">DERIVED.</span> The same study calculated 48.22 GiB for 2,048 raw Qwen3.5-27B mask sets and a 1.34 token/s ceiling on an aggregate 1 Gbit/s link under stated occupancy assumptions. These are capacity models, not measured 27B generation or present-runtime economics.<sup>[3]</sup></p>
-        <p><span class="wp-evidence">MISSING.</span> Production non-collusion and malicious-provider review; controlled repeated cold/warm preparation, latency, throughput, burn-rate, and dollar-cost studies; full-checkpoint 27B generation; GPU, energy, failure-recovery, and multi-tenant studies.</p>
-      </section>
-
-      <section class="wp-block">
-        <h2>Decision gates</h2>
-        <ol>
-          <li><strong>Trust:</strong> preparation has independent control or sits inside the customer boundary; exposed metadata is acceptable.</li>
-          <li><strong>Correctness:</strong> target checkpoint, context, quantization, and output quality pass workload-specific validation.</li>
-          <li><strong>Economics:</strong> measured cold and warm ledgers beat explicit latency, capacity, and cost ceilings, including burned rows.</li>
-          <li><strong>Operations:</strong> credential separation, TLS, erasure, observability, restart behavior, and incident response survive a pilot.</li>
-        </ol>
-        <p>Proceed only when all four gates have named owners and recorded evidence.</p>
-      </section>
-
-      <section class="wp-block wp-references" id="references">
-        <h2>References</h2>
-        <p>[1] PLLM <code>ARCHITECTURE.md</code>, v0.17.0a1 source distribution, 11 Sep 2026.<br />[2] PLLM <code>SECURITY.md</code> and <code>docs/content/docs/security.mdx</code>, v0.17.0a1 source distribution.<br />[3] PLLM <code>research/evidence/CLAIMS.json</code> and <code>STUDY_REPORT.md</code>, historical evidence snapshot.<br />[4] PLLM <code>research/evidence/qwen-prepared-inference.json</code>, 8 Sep 2026; loopback and pre-inventory.</p>
-      </section>
+      <section class="wp-block"><h2>Unlock untrusted capacity</h2><p>Masked execution separates compute choice from access to client data. Regional clouds, renewable projects, sovereign infrastructure, colocation operators, and independent machines could compete without receiving client language. Participation still requires compatible execution, availability, credentials, and market rules, but not permission to read the workload.</p></section>
+      <section class="wp-block"><h2>Follow available energy</h2><p>Solar generation, grid congestion, and idle capacity vary by place and hour. A scheduler could move masked public-model work toward abundant renewable generation and replenish offline inventory where latency matters less. Privacy makes broader routing plausible; dependent client exchanges, correction placement, distance, and operator separation remain physical constraints. PLLM does not yet measure an energy saving.</p></section>
+      <section class="wp-block"><h2>Price the complete lifecycle</h2><table class="wp-cost-table"><tbody><tr><th scope="row">Client</th><td>Local model work, state, memory and traffic</td></tr><tr><th scope="row">Preparation</th><td>Body storage, matrix work, correction egress and erasure</td></tr><tr><th scope="row">Inference</th><td>Masked compute, inventory, traffic and tickets</td></tr><tr><th scope="row">Market</th><td>Discovery, settlement, verification and operator separation</td></tr></tbody></table><p>Broader supply can create price pressure and widen access. This is a market mechanism, not a measured savings result.</p></section>
+      <section class="wp-block"><h2>No plaintext training feed</h2><p>Inference receives tickets and <i>x-r</i>; Preparation receives seeds and commitments. Neither is sent literal plaintext prompts, token IDs, or decoded output. Under protocol compliance, pseudorandom masks, mask non-retention, and non-collusion, the data plane removes the direct plaintext feed a provider could otherwise retain for training. This is a technical barrier rather than only a policy promise, but not a universal no-learning guarantee: metadata remains visible and collusion defeats the split.<sup>[2]</sup></p></section>
+      <section class="wp-block"><h2>Current implementation evidence</h2><p>Nine warm Qwen2.5-0.5B runs used revision <code>277d19f</code> on an Apple M5, with three repetitions per exact context after one warmup.<sup>[3]</sup></p><table class="wp-evidence-table"><thead><tr><th>Input tokens</th><th>Output</th><th>TTFT</th><th>Client I/O</th></tr></thead><tbody><tr><td>30</td><td>9</td><td>0.978 s</td><td>63.33 MB</td></tr><tr><td>63</td><td>16</td><td>1.374 s</td><td>126.29 MB</td></tr><tr><td>255</td><td>16</td><td>5.158 s</td><td>432.71 MB</td></tr></tbody></table><p>All records completed authoritatively with one retained model/body fingerprint pair, zero online Preparation protocol work, and zero plaintext prompt/token-byte audit counters. These are CPU loopback results, not WAN, GPU, energy, price, or quality results.</p></section>
+      <section class="wp-block"><h2>Deployment gates</h2><p>Preparation must be independently controlled or client-hosted; target-model quality must pass; the full cost ledger must beat explicit ceilings; and credential separation, erasure, restart behavior, and incident response must survive a pilot.</p></section>
+      <section class="wp-block wp-references" id="references"><h2>References</h2><p>[1] PLLM, <a href="https://pllm.run/research/architecture/">Private inference</a>.<br />[2] PLLM, <a href="https://pllm.run/docs/security/">Security boundaries</a>.<br />[3] PLLM, <a href="https://pllm.run/research/reproduce/">Run your own benchmark</a>; <a href="https://pllm.run/downloads/current-runtime-2026-09-11.json">retained study data</a>.</p></section>
     </div>
     <span class="wp-folio">PLLM / 02 OF 02</span>
   </section>

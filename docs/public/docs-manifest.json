@@ -21,7 +21,7 @@
     "key": "client/install",
     "url": "/docs/client/install/",
     "title": "Install the client",
-    "description": "Build the current public client from this source with UV and Maturin."
+    "description": "Install the PLLM client from PyPI with UV."
   },
   {
     "key": "client/lifecycle",
@@ -39,7 +39,7 @@
     "key": "client/python",
     "url": "/docs/client/python/",
     "title": "Python SDK",
-    "description": "Prepare explicit inventory, then use a Responses-shaped local client."
+    "description": "Use a Responses-compatible client with automatic offline preparation."
   },
   {
     "key": "deployment/docker",
@@ -52,12 +52,6 @@
     "url": "/docs/deployment/overview/",
     "title": "Deployment overview",
     "description": "Place three trust roles, route two online transports, and size inventory safely."
-  },
-  {
-    "key": "deployment/site",
-    "url": "/docs/deployment/site/",
-    "title": "Publish the documentation",
-    "description": "Validate and export a static site with no inference endpoint."
   },
   {
     "key": "deployment/systemd",
@@ -114,36 +108,6 @@
     "description": "Diagnose role, inventory, timeout, transport, and checkpoint failures safely."
   },
   {
-    "key": "research/architecture",
-    "url": "/docs/research/architecture/",
-    "title": "How PLLM works",
-    "description": "A local Responses interface around a private matrix protocol."
-  },
-  {
-    "key": "research/benchmarks",
-    "url": "/docs/research/benchmarks/",
-    "title": "Benchmarks",
-    "description": "Read the workload and denominator before reading the speedup."
-  },
-  {
-    "key": "research/paper",
-    "url": "/docs/research/paper/",
-    "title": "Executable BFV Mask Preparation for Public-Weight Language-Model Inference: A Historical PLLM Study",
-    "description": "Historical executable study of BFV-prepared additive masks for public-weight integer linear layers."
-  },
-  {
-    "key": "research/reproduce",
-    "url": "/docs/research/reproduce/",
-    "title": "Reproduce the study",
-    "description": "Keep the experiment environment separate from the serving runtime."
-  },
-  {
-    "key": "research/roadmap",
-    "url": "/docs/research/roadmap/",
-    "title": "Implementation roadmap",
-    "description": "The next work follows measured costs, not a new model architecture."
-  },
-  {
     "key": "security",
     "url": "/docs/security/",
     "title": "Security boundaries",
@@ -153,7 +117,7 @@
     "key": "server/install",
     "url": "/docs/server/install/",
     "title": "Install the services",
-    "description": "Build the Rust extension and validate a public checkpoint source."
+    "description": "Install PLLM services from PyPI and validate a public checkpoint source."
   },
   {
     "key": "server/models",
@@ -178,5 +142,29 @@
     "url": "/docs/server/usage/",
     "title": "Run both services",
     "description": "Serve a public transformer body and preload committed corrections."
+  },
+  {
+    "key": "research/architecture",
+    "url": "/research/architecture/",
+    "title": "Private inference",
+    "description": "How model providers can execute useful inference without seeing plaintext client data."
+  },
+  {
+    "key": "research/market",
+    "url": "/research/market/",
+    "title": "Global compute market",
+    "description": "How private inference can widen access to AI compute without requiring providers to see client data."
+  },
+  {
+    "key": "research/paper",
+    "url": "/research/paper/",
+    "title": "PLLM: Offline-Correlated Private Inference for Public-Weight Language Models",
+    "description": "A three-role private language-model runtime that prepares one-time masked matrix correlations before online inference."
+  },
+  {
+    "key": "research/reproduce",
+    "url": "/research/reproduce/",
+    "title": "Run your own benchmark",
+    "description": "Measure private inference on your hardware and extend PLLM's map of eligible compute."
   }
 ]

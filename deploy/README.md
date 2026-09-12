@@ -11,8 +11,8 @@ and optional dependency availability on every target architecture.
 
 | Service | Trust placement | Online responsibility |
 | --- | --- | --- |
-| `gateway` | Customer boundary | Accepts plaintext, owns client state, calls inference |
-| `preparation` | Customer boundary or separately trusted operator | None; prepares inventory only while client is idle |
+| `gateway` | Client boundary | Accepts plaintext, owns client state, calls inference |
+| `preparation` | Client boundary or separately trusted operator | None; prepares inventory only while client is idle |
 | `provider` | Inference host | Consumes one-time tickets and executes masked public-body stages |
 
 Inference and preparation mount the same public checkpoint. Public client bundles

@@ -3,12 +3,38 @@ title: "Start here"
 description: "Offline prepared inventory, online masked inference, and a local Responses boundary."
 ---
 
-PLLM's current public-weight path has three roles: a customer-controlled client,
+PLLM's current public-weight path has three roles: a client-controlled runtime,
 a trusted preparation service, and an inference provider. Prompt text, token IDs,
 activation scales, attention state, sampling, and decoded output stay in the
 client. Preparation and inference each hold the public transformer body but never
 receive enough information alone to recover an activation under the stated
 non-collusion assumption.
+
+## Why privacy changes the compute market
+
+Today, useful AI compute is usually bundled with trust in the organization that
+owns it. If a provider must receive plaintext prompts and outputs, clients are
+limited to operators they are willing and legally able to trust. PLLM separates
+those decisions: the client keeps language, token identities, model state, and
+sampling local while compatible providers process masked public-model
+projections.
+
+That boundary can support a global market in which independent machines compete
+on price, location, latency, availability, and energy source rather than privileged
+access to client data. A scheduler could route work toward solar-rich daytime
+regions or otherwise stranded capacity as the day moves around the planet. A
+broader supplier base can reduce entry barriers and apply downward pressure to
+token prices, making private AI available to people and organizations that cannot
+accept the data terms of conventional hosted inference.
+
+The present release implements the privacy boundary, not the marketplace. It does
+not yet prove lower prices or energy use. On the documented public path, however,
+Inference receives zero plaintext prompt and token bytes. Under the stated
+masking, non-retention, and non-collusion assumptions, the data plane removes the
+direct plaintext feed providers could otherwise retain for training. Timing,
+traffic shape, public model identity, and approximate sequence length remain
+visible. See [Global compute market](/research/market/) for the market thesis
+and [Security](/docs/security/) for the exact boundary.
 
 ## Current path in one minute
 
@@ -44,7 +70,7 @@ transformer body is remote.
 
 Inference conventionally listens on `8000`, preparation on `8001`, and the local
 gateway on `8080`. Ports are not security controls. Plaintext belongs only at the
-client or local gateway inside the customer boundary.
+client or local gateway inside the client boundary.
 
 ## Claim boundary
 

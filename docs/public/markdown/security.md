@@ -25,7 +25,7 @@ inference's fixed `/v1/he/corrections/ws` endpoint.
 
 Only the provider-push credential can authenticate that WebSocket. Its URL is
 derived from preparation's configured inference origin; clients cannot select a
-callback destination. Preparation waits for bounded durable acknowledgements and
+callback destination. Preparation waits for bounded acceptance acknowledgements and
 must erase expanded masks. Inference reports `READY` only after every stage batch
 is present and the client seals the inventory.
 
@@ -50,8 +50,19 @@ memory-only inventory.
 The claim is honest-but-curious and non-colluding. Preparation must follow the
 protocol, erase masks, and not collude with inference. Inference must execute the
 documented computation. Authentication and commitments do not prove either fact.
-Self-hosting preparation keeps its trust inside the customer boundary; placing it
+Self-hosting preparation keeps its trust inside the client boundary; placing it
 under the inference operator does not satisfy non-collusion.
+
+## Training-data boundary
+
+The public path does not send plaintext prompts, token IDs, decoded output, or
+unmasked activations to either remote role. Under protocol compliance, SHAKE-256
+pseudorandomness, mask non-retention, and non-collusion, the data plane removes the
+direct plaintext feed either provider could otherwise retain for training. This is
+a technical barrier rather than only a contractual promise, but not a universal
+no-learning guarantee: metadata remains visible, collusion defeats the split,
+Python memory release is not verified physical zeroization, and a compromised
+client can still expose content.
 
 Both services observe model IDs, stage names, shapes, timing, scheduling, failure
 patterns, and approximate lengths. Anyone who obtains both seed-side information
@@ -74,7 +85,7 @@ protocol and not stronger defaults.
 
 ## Operational rules
 
-Keep client and local gateway inside the customer boundary. Disable external
+Keep client and local gateway inside the client boundary. Disable external
 prompt tracing and payload logs. Protect config and model paths. Use loopback HTTP
 only for local evaluation; remote inference and preparation require distinct HTTPS
 origins.

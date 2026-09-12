@@ -9,7 +9,7 @@ After [configuring both services](/docs/client/configuration), create a fourth,
 local-only credential:
 
 ```bash
-export PLLM_LOCAL_API_KEY="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export PLLM_LOCAL_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 pllm sidecar \
   --host 127.0.0.1 \
   --port 8080 \
@@ -17,7 +17,7 @@ pllm sidecar \
 ```
 
 The sidecar accepts plaintext and owns the PLLM client, so it belongs inside the
-customer boundary. It prepares at least 256 rows for its configured public model
+client boundary. It prepares at least 256 rows for its configured public model
 before startup completes. With default `auto` transport, compact prefill uses
 stage-batch HTTP requests and one-row decode reuses a persistent
 client-to-inference WebSocket.
@@ -48,10 +48,11 @@ Retries are disabled because an ambiguous stream or connection failure burns the
 first execution's unused reservation. A new Responses request is new work, not a
 replay of one-time stage tickets.
 
-## Refill outside a response
+## Warm inventory in advance
 
-If a later prompt needs more rows than remain READY, call the sidecar's
-authenticated control route while no response is active:
+The response endpoint calculates its exact row requirement and prepares missing
+capacity before opening the online session. To move that preparation latency
+earlier, call the authenticated control route while no response is active:
 
 ```bash
 curl --fail --silent --show-error \
@@ -61,8 +62,8 @@ curl --fail --silent --show-error \
   http://127.0.0.1:8080/v1/preprocess
 ```
 
-The response route fails closed when inventory is insufficient. It never contacts
-preparation after online execution begins.
+This control is optional. The response route never contacts preparation after
+online execution begins.
 
 ## Streaming
 

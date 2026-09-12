@@ -70,7 +70,7 @@ remote stage. Batches default to 64 rows and are configurable with
 inventory, model, body, stage, weight, shape, quantization, ring, modulus, and wire
 width and produces one-time input mask `r`, output mask `s`, and ticket.
 Preparation computes each batch of `W·r-s`, pushes it to inference's fixed endpoint,
-and waits for inference's durable acknowledgement. After every stage is loaded, the
+and waits for inference's acceptance acknowledgement. After every stage is loaded, the
 client asks inference to seal the inventory; only then does inference report `READY`.
 The push WebSocket URL is derived from the validated inference HTTP(S) origin, and
 only the provider push credential authenticates its upgrade.
@@ -93,7 +93,7 @@ inference provider. Self-hosting keeps that trust inside the client boundary.
 The online public path does not use BFV or contact preparation.
 
 Public model bundles also carry the quantized token-lookup and output-head
-matrices. The customer evaluates token lookup locally and applies the output
+matrices. The client evaluates token lookup locally and applies the output
 head only to the final prefill row. This removes vocabulary-sized HE work from
 the online public-weight path. Transformer-body matrices remain provider-owned;
 proprietary bundles never include either boundary matrix.
@@ -108,14 +108,14 @@ its existing orientation.
 
 ## Application boundary
 
-The customer client owns plaintext input, inventory root seeds and masks, private
+The client owns plaintext input, inventory root seeds and masks, private
 activation scales, model state, output decoding and public token-boundary matrices.
 The trusted preparation service and untrusted inference provider both hold the
 public transformer body. Preparation receives batched stage root seeds before
 chat; inference receives the resulting corrections and later the masked integer
 tensors, never the seeds. The client never receives the correction. Client-to-inference,
 client-to-preparation, and preparation-to-inference credentials are distinct.
-The local Responses gateway is inside the customer boundary.
+The local Responses gateway is inside the client boundary.
 An ordinary provider endpoint cannot be made private by changing its URL in an
 unmodified SDK.
 

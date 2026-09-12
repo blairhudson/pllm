@@ -1,0 +1,11 @@
+{
+  "title": "Research",
+  "pages": [
+    "[Research goals](/research/)",
+    "market",
+    "architecture",
+    "[PLLM Whitepaper](/research/whitepaper/)",
+    "[PLLM Research Paper](/research/paper/)",
+    "reproduce"
+  ]
+}

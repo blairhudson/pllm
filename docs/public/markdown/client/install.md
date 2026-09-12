@@ -1,61 +1,41 @@
 # Install the client
 
-Build the current public client from this source with UV and Maturin.
+Install the PLLM client from PyPI with UV.
 
 
 ## Requirements
 
-PLLM supports Python 3.11, 3.12, and 3.13. A source install needs UV and the Rust
-toolchain selected by `rust-toolchain.toml`; a matching platform wheel does not
-need a compiler. The client must run inside the customer boundary because it owns
-plaintext, activation scales, attention state, inventory seeds, and output
-reconstruction.
+PLLM supports Python 3.11, 3.12, and 3.13. Install its platform wheel with UV.
+The SDK must run inside the client boundary because it owns plaintext,
+activation scales, attention state, inventory seeds, and output reconstruction.
 
 The public seeded-inventory path uses ordinary Rust integer arithmetic and does
 not need TenSEAL.
 
-## From this repository
+## Install
 
 ```bash
-cd pllm
-uv sync
-uv run pllm build
-uv run pllm --help
-```
-
-`pllm build` reports whether `pllm._native` is loaded. It does not compile code at
-service startup.
-
-Install a persistent command from the checked source tree:
-
-```bash
-uv tool install .
+uv venv --python 3.13
+source .venv/bin/activate
+uv pip install pllm
 pllm --help
 ```
 
-Or run one isolated invocation:
-
-```bash
-uvx --from . pllm --help
-```
-
-These local-source commands do not assume that a registry project with the same
-name belongs to this repository. Use a registry install only after verifying an
-actual published release and its provenance.
+The wheel includes `pllm._native`; it does not compile code at service startup.
 
 ## Optional integrations
 
 Install the official OpenAI SDK for integration tests or direct adapter use:
 
 ```bash
-uv sync --extra sdk
+uv pip install 'pllm[sdk]'
 ```
 
 Install TenSEAL only for explicitly selected blinded confidential-weight,
 direct-BFV, or historical research paths:
 
 ```bash
-uv sync --extra he
+uv pip install 'pllm[he]'
 ```
 
 The `he` extra does not make the current public path more private and is not part

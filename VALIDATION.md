@@ -15,8 +15,9 @@ security result.
 | `cd docs && npm run check:content` | **30 MDX pages**, 2 standalone pages, **0 errors** |
 | `cd docs && npm test` | **18 passed**, including navigation and internal-link checks |
 | `cd docs && npm run typecheck && npm run build` | **Passed**, 35 static routes |
-| `scripts/build_paper.py` | **7 pages**; extracted arXiv archive compiled |
+| `scripts/build_paper.py` | **3 pages**; extracted arXiv archive compiled |
 | `scripts/build_whitepaper.py --publish` | **2 pages** |
+| Current Qwen2.5-0.5B evidence capture | **9 warm runs** across 30, 63, and 255 input tokens; 3 repetitions per context |
 | `uv build && scripts/check_distributions.py dist` | Wheel and sdist passed |
 | Isolated Python 3.11 wheel dashboard smoke | Completed schema-3 run; all roles sampled; clean single-signal exit |
 | `docker build -f deploy/Dockerfile.site -t pllm-docs .` | Passed; 18 tests, typecheck, and 35-route static export ran inside image build |
@@ -42,11 +43,14 @@ backend, and optional compatibility tests present in this checkout.
   loopback Host/Origin binding, sanitized immutable SQLite history, pagination,
   cold/warm cohorts, monotonic timing, failed streams, and bounded shutdown.
 - Documentation content, required journeys, links, and TypeScript compile cleanly.
+- Nine Apple M5 current-runtime records completed with zero online Preparation
+  protocol operations and zero plaintext prompt/token-byte audit counters.
 
 ## What this does not establish
 
-- No real-checkpoint benchmark was executed for this overhaul.
-- Tiny or mocked tests do not establish model quality or model-scale performance.
+- The retained real-checkpoint study covers one 0.5B model, one CPU host, one
+  loopback topology, and at most 16 output tokens; it does not establish model
+  quality or broader model-scale performance.
 - Loopback tests do not establish wide-area latency, proxy behavior, operator
   isolation, secure erasure, host hardening, or production readiness.
 - Tests do not prove non-collusion or malicious security. The current protocol
@@ -54,8 +58,8 @@ backend, and optional compatibility tests present in this checkout.
   follow the lifecycle.
 - The source tree has OpenAI SDK integration tests, but not an executed Agents SDK
   integration test. Test the pinned Agents SDK used by an application.
-- Historical paper values, synthetic matrix measurements, and projected model
-  throughput are not current end-to-end benchmark results.
+- Historical BFV values, synthetic matrix measurements, and projected model
+  throughput remain separate from the current paper and benchmark record.
 - The site container ran only as a local loopback smoke; no registry push,
   external proxy, CDN, or production Pages deployment was tested.
 
@@ -74,9 +78,10 @@ npm test
 ./node_modules/.bin/tsc --noEmit
 ```
 
-Run the current real-role benchmark separately and record hardware, OS, source
-revision, exact model revision, cache/inventory state, history schema, prompt and
-output lengths, and command flags:
+The retained current study includes hardware, OS, source revision, exact model
+revision, cache/inventory state, history schema, public prompts, output lengths,
+and command flags in `research/evidence/current-runtime-2026-09-11.json`. To add
+a new current real-role record:
 
 ```bash
 uv run pllm benchmark dashboard

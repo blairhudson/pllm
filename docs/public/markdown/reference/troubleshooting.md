@@ -6,7 +6,7 @@ Diagnose role, inventory, timeout, transport, and checkpoint failures safely.
 ## Inference rejects `/v1/responses`
 
 An ordinary SDK sent plaintext to the private inference service. Start
-`pllm sidecar` inside the customer boundary and use
+`pllm sidecar` inside the client boundary and use
 `http://127.0.0.1:8080/v1`. Do not enable a trusted plaintext backend merely to
 make port 8000 accept the request.
 
@@ -50,15 +50,11 @@ does not control this lifetime.
 
 ## Response says inventory is exhausted
 
-Calculate required rows before going online:
-
-```python
-required = client.prepared_rows_for_response(prompt, max_output_tokens)
-client.preprocess(count=required)
-```
-
-Sidecar users call authenticated `POST /v1/preprocess` while idle. There is no
-online preparation fallback. A long prompt can exceed the default 64-row minimum.
+Current direct and sidecar clients calculate the exact row requirement and prepare
+missing capacity before opening the online session. If this error persists, verify
+that both services and the client are from the same release and that Preparation
+can push to Inference. Authenticated `POST /v1/preprocess` remains available for
+advance warming while idle. There is no preparation after online execution starts.
 
 ## Prefill gets 400 or 413
 

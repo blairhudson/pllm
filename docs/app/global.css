@@ -23,3 +23,52 @@
 #nd-page { padding-top:44px; }
 #nd-page article, #nd-page .prose { max-width:78ch; }
 .docs-root .doc-actions { margin-bottom:28px; }
+
+#nd-page .paper-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin: 0 0 1.15rem;
+}
+
+#nd-page .paper-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 42px;
+  padding: .65rem .85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: .84rem;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+}
+
+#nd-page .paper-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: var(--panel);
+}
+
+#nd-page .paper-action-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--ink);
+}
+
+#nd-page .paper-action-primary:hover {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+
+@media (max-width: 560px) {
+  #nd-page .paper-actions {
+    display: grid;
+  }
+}
+
+.research-root #nd-docs-layout > main {
+  grid-area: main;
+  min-width: 0;
+}

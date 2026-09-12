@@ -51,5 +51,5 @@ prompt bytes is not proof that timing and shape metadata are harmless.
 ## Local plaintext
 
 Terminal history, screen capture, process tracing, and application logs can record
-plaintext even when services do not receive it. Run chat inside the customer
+plaintext even when services do not receive it. Run chat inside the client
 boundary and protect `~/.config/pllm/chat-history` as sensitive conversation data.

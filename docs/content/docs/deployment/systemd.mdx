@@ -44,7 +44,7 @@ Preparation environment:
 - `PLLM_PUSH_TIMEOUT` bounds correction send and acknowledgement.
 
 Both roles need the same public checkpoint and model ID. Keep preparation inside
-the customer boundary or at a separately trusted non-colluding operator.
+the client boundary or at a separately trusted non-colluding operator.
 
 ```bash
 sudo chmod 600 /etc/pllm/provider.env /etc/pllm/preparation.env

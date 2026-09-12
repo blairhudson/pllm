@@ -3,12 +3,11 @@
 ## Boundary
 
 Release automation publishes Python artifacts and a static documentation site. It
-does not deploy inference, preparation, or a customer gateway. Do not treat a
+does not deploy inference, preparation, or a client gateway. Do not treat a
 successful package or Pages job as a production-security review.
 
-This source tree does not hardcode an owner, repository URL, custom domain, or
-PyPI account. Inspect `git remote -v` and configure the repository you control
-before enabling publication.
+Releases publish from `blairhudson/pllm`. Confirm `git remote -v` points to that
+repository before preparing a release.
 
 ## Required repository settings
 
@@ -22,10 +21,11 @@ before enabling publication.
 | PyPI environment | `pypi`, with approval and version-tag restrictions |
 | PyPI trusted publisher | Actual owner/repository, `release.yml`, environment `pypi` |
 
-Create or claim the PyPI project only under an account you control. A repository
-configuration does not reserve the `pllm` name. The release workflow uses OIDC;
-do not add a long-lived `PYPI_TOKEN` unless the workflow is deliberately changed
-and reviewed.
+For the first release, create a pending Trusted Publisher at PyPI with these exact
+values: owner `blairhudson`, repository `pllm`, workflow `release.yml`, environment
+`pypi`, and project name `pllm`. Create the matching GitHub `pypi` environment and
+limit deployment to protected `v*` tags. The release workflow uses OIDC; no GitHub
+or PyPI secret is required. Do not add a long-lived `PYPI_TOKEN`.
 
 GitHub Pages receives its base path from `configure-pages`. Repository paths and
 custom domains therefore require no hardcoded account URL. Pages hosts static
@@ -65,13 +65,13 @@ does not compile source with publishing authority in scope.
 
 ## Release a version
 
-Use the release script so Cargo, Python, and citation versions move together:
+Use the single release setup command so Cargo, Python, citation, and lock versions
+move together:
 
 ```bash
-python scripts/release.py set-version 0.17.0a1
-python scripts/lock_dependencies.py
+uv run python scripts/release.py prepare 0.17.0a1
 # Update CHANGELOG.md and VALIDATION.md, review the complete diff, then merge.
-python scripts/release.py check v0.17.0a1 --require-locks
+uv run python scripts/release.py check v0.17.0a1 --require-locks
 git tag -a v0.17.0a1 -m "PLLM 0.17.0a1"
 git push origin v0.17.0a1
 ```
@@ -84,6 +84,12 @@ The release workflow builds platform wheels and an sdist, tests installed wheels
 outside the checkout, creates attestations, publishes the verified distribution,
 and attaches repository and documentation assets with checksums. Pre-release tags
 produce GitHub prereleases. Approval is not a dry run.
+
+After the workflow succeeds, verify the published package independently:
+
+```bash
+uv run --isolated --no-project --with pllm==0.17.0a1 pllm --version
+```
 
 ## Local release checks
 

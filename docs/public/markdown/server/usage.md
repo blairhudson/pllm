@@ -43,7 +43,7 @@ This role is public-weight-only and exposes model commitments plus inventory
 authorization and stage-preparation routes. It has no Responses or online
 inference endpoint. Before chat it receives one root seed and row count per stage,
 expands one-time `r`, `s`, and tickets, computes `W*r-s`, pushes the correction to
-inference's fixed origin, and waits for durable acknowledgement. It must erase
+inference's fixed origin, and waits for acceptance acknowledgement. It must erase
 expanded masks and remain independent of inference.
 
 The preparation listener's environment credential is `PLLM_API_KEY`. Its fixed

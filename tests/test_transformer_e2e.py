@@ -57,17 +57,6 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
             preparation_api_key=preparation.api_key,
             background_inventory_refill=False,
         ) as client:
-            with pytest.raises(HEModelError, match="call client.preprocess"):
-                client.responses.create(
-                    model="tiny-gemma-he",
-                    input=canary,
-                    max_output_tokens=2,
-                )
-            client.preprocess(
-                "tiny-gemma-he",
-                count=2
-                * client.prepared_rows_for_response(canary, 2, model="tiny-gemma-he"),
-            )
             response = client.responses.create(
                 model="tiny-gemma-he",
                 input=canary,
@@ -132,10 +121,9 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             base_url=gateway.base_url,
             preparation_base_url=preparation.base_url,
             preparation_api_key=preparation.api_key,
-            prepared_inventory_rows=64,
+            prepared_inventory_rows=128,
             background_inventory_refill=False,
         ) as client:
-            client.preprocess(model_id, count=256)
             response = client.responses.create(
                 model=model_id,
                 input=prompt,
@@ -166,7 +154,7 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             prepared_attempts = client.privacy_audit.preparation_attempts
             second = client.responses.create(
                 model=model_id,
-                input="second private request",
+                input="second",
                 max_output_tokens=2,
                 temperature=0,
             )
@@ -181,13 +169,14 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
             )
             assert canceled.status_code == 200, canceled.text
-            with pytest.raises(HEModelError, match="call client.preprocess"):
-                client.responses.create(
-                    model=model_id,
-                    input="stale inventory must not trigger preparation",
-                    max_output_tokens=1,
-                )
-            assert preparation_engine.stats()["execute_items"] == prepared_items
+            replacement = client.responses.create(
+                model=model_id,
+                input="stale inventory is replaced before online execution",
+                max_output_tokens=1,
+            )
+            assert replacement.status == "completed"
+            replacement_audit = client.privacy_audit.to_dict()
+            assert preparation_engine.stats()["execute_items"] > prepared_items
         preparation_metrics = httpx.get(
             f"{preparation.base_url}/metrics",
             headers={"Authorization": f"Bearer {preparation.api_key}"},
@@ -198,17 +187,20 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
         ).json()
         assert (
             preparation_metrics["correction_push_attempts"]
-            == second_audit["preparation_attempts"]
+            == replacement_audit["preparation_attempts"]
         )
         assert (
             preparation_metrics["correction_channel_upload_bytes"]
-            == second_audit["correction_push_bytes"]
+            == replacement_audit["correction_push_bytes"]
         )
-        assert preparation_metrics["correction_push_ns"] == second_audit["correction_push_ns"]
+        assert (
+            preparation_metrics["correction_push_ns"]
+            == replacement_audit["correction_push_ns"]
+        )
         assert inference_metrics["correction_channel"]["connections"] == 1
         assert (
             inference_metrics["correction_channel"]["frames"]
-            == second_audit["preparation_attempts"]
+            == replacement_audit["preparation_attempts"]
         )
         for service in (gateway, preparation):
             raw_audit = b"\n".join(payload for _, payload in service.audit)

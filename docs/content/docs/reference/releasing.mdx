@@ -29,18 +29,19 @@ missing; do not fabricate one.
 ## Version and tag
 
 ```bash
-python scripts/release.py set-version 0.17.0a1
-python scripts/lock_dependencies.py
+uv run python scripts/release.py prepare 0.17.0a1
 # Update changelog and validation record, then review and merge.
-python scripts/release.py check v0.17.0a1 --require-locks
+uv run python scripts/release.py check v0.17.0a1 --require-locks
 git tag -a v0.17.0a1 -m "PLLM 0.17.0a1"
 git push origin v0.17.0a1
 ```
 
-Use the intended new version, not the example unchanged. The script keeps Cargo,
-Python, and citation versions aligned. Never move a published tag or replace a
-published distribution; investigate ambiguous failures and release a new version
-when bytes must change.
+Use the intended new version, not the example unchanged. The single preparation
+command keeps Cargo, Python, citation, and dependency locks aligned. Pushing the
+tag runs tested wheel and sdist publication through PyPI Trusted Publishing; no
+repository secret is used. Never move a published tag or replace a published
+distribution; investigate ambiguous failures and release a new version when bytes
+must change.
 
 ## Required local evidence
 

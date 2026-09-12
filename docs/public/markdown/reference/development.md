@@ -25,7 +25,7 @@ dashboard assets under `python/pllm/dashboard`.
 
 ```bash
 uv sync --locked
-uv run pllm build
+pllm build
 ```
 
 Public seeded preparation does not require TenSEAL. Add `--extra he` only for HE

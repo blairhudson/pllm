@@ -38,7 +38,7 @@ architecture.
 
 ## Split trust for remote evaluation
 
-Keep gateway and self-hosted preparation on the customer-controlled host. Point
+Keep gateway and self-hosted preparation on the client-controlled host. Point
 them at inference over TLS. If preparation is operated elsewhere, it must be
 trusted to erase masks and not collude with inference.
 

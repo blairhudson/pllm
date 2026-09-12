@@ -1,139 +1,48 @@
-<div class="rh-shell">
-  <header class="rh-hero">
-    <div>
-      <p class="rh-kicker">Research record / 8-10 September 2026</p>
-      <h1>Protocol history, with its dead ends intact.</h1>
-      <p class="rh-intro">PLLM moved from a BFV preparation study to a three-role public-weight runtime with offline one-time inventory. This record separates historical measurements from code now selected in current runtime paths; a commit or passing test is not promoted into a security, throughput, or savings claim.</p>
+<section class="research-hero" aria-labelledby="research-title">
+  <h1 id="research-title">Unlocking a global market for private AI compute.</h1>
+  <div class="research-copy">
+    <p><strong>Our research aims to make compute globally accessible without making client data globally visible.</strong> Clients should be able to buy useful AI capacity from independent providers while prompts, context, activations, and output remain private.</p>
+    <div class="button-row">
+      <a class="button primary" href="/research/whitepaper/">Read Whitepaper <span>→</span></a>
+      <a class="button secondary" href="/research/market/">Explore the market thesis <span>→</span></a>
     </div>
-    <aside class="rh-hero-aside" aria-label="Research publications">
-      <p>Start with the decision brief. Continue to the technical manuscript for methods, experiment scope, and reproducibility details.</p>
-      <nav class="rh-links">
-        <a href="/whitepaper/">Read the two-page whitepaper</a>
-        <a href="/downloads/whitepaper.pdf" download>Download whitepaper PDF</a>
-        <a href="/docs/research/paper/">Read the technical paper</a>
-        <a href="/downloads/paper.pdf">Download technical paper PDF</a>
-        <a href="/downloads/evidence.zip">Download historical evidence</a>
-      </nav>
-    </aside>
-  </header>
+  </div>
+</section>
 
-  <section aria-labelledby="history-heading">
-    <div class="rh-history-head">
-      <h2 id="history-heading">Chronological research history</h2>
-      <p>Statuses describe PLLM <code>v0.17.0a1</code>. Adopted means selected by the current public-weight path. Research-only means code or evidence remains useful but is not that runtime. Superseded means a later design replaced the operational approach.</p>
-      <div class="rh-legend" aria-label="Status definitions"><span><b>Adopted</b> current path</span><span><b>Conditional</b> gated use</span><span><b>Superseded</b> replaced design</span><span><b>Rejected</b> not pursued</span><span><b>Research-only</b> study or reference</span></div>
-    </div>
+<section class="research-section research-problem" aria-labelledby="problem-title">
+  <div class="section-intro">
+    <h2 id="problem-title">Compute is global. Trust is not.</h2>
+    <p>Cloud inference currently bundles two different products: matrix computation and access to client language. That coupling limits where sensitive workloads can run, concentrates demand among a small set of trusted operators, and leaves otherwise useful capacity outside the market.</p>
+  </div>
+  <div class="problem-grid">
+    <article><h3>Every seller becomes a custodian</h3><p>Plaintext inference requires the infrastructure operator to receive the client's prompt, model state, and generated result.</p></article>
+    <article><h3>Trust narrows the supply side</h3><p>Buyers choose providers partly by who may see their data, not only by price, performance, location, or availability.</p></article>
+    <article><h3>Capacity cannot compete freely</h3><p>Regional infrastructure, sovereign capacity, and independent machines cannot serve many private workloads under the ordinary boundary.</p></article>
+  </div>
+</section>
 
-    <ol class="rh-timeline">
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-08T16:10:47+10:00">08 SEP 2026<br />16:10 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Historical study</span>
-            <h3>BFV coefficient bridge</h3>
-            <p>Initial repository imported a separate lifecycle study whose coefficient-domain bridge performed actual TenSEAL BFV preparation and checked exact recovery. Its 768-to-256 stage measured 0.633 seconds for 2,048 correlations, 4.93 times the matched control. Those Python study timings remain evidence, but public-weight inference no longer selects BFV.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="superseded">Superseded</span>
-            <span class="rh-evidence">COMMIT <code>0d8f47e</code><br /><code>research/lifecycle</code><br /><code>evidence/CLAIMS.json</code></span>
-          </div>
-        </article>
-      </li>
+<section class="research-section research-mechanism" aria-labelledby="mechanism-title">
+  <div class="section-intro">
+    <h2 id="mechanism-title">Separate AI compute from data.</h2>
+    <p>Private inference lets providers run AI workloads without seeing client data. Clients keep prompts and model state private while providers supply the computation.</p>
+  </div>
+  <div class="market-effects">
+    <article><span>01</span><h3>Expand eligible supply</h3><p>Providers can contribute useful compute without receiving plaintext client language.</p></article>
+    <article><span>02</span><h3>Increase buyer choice</h3><p>Capacity can compete on price, latency, location, availability, and service quality.</p></article>
+    <article><span>03</span><h3>Use distributed capacity</h3><p>Protected workloads can reach infrastructure that a plaintext trust boundary excludes.</p></article>
+    <article><span>04</span><h3>Remove the direct data feed</h3><p>The compute seller no longer needs the client's language as an input to its service.</p></article>
+  </div>
+</section>
 
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-09T11:17:55+10:00">09 SEP 2026<br />11:17 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Retained foundation</span>
-            <h3>Just-in-time seeded preparation relay</h3>
-            <p>Public inference switched to domain-separated seeds: the client gave a trusted preparation role the seed and an untrusted inference role the masked activation, while preparation pushed <i>Wr - s</i> over a fixed authenticated channel. Per-stage just-in-time preparation later moved offline, but seeded masks, direct correction relay, distinct credentials, and the non-collusion boundary remain adopted.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="superseded">Superseded</span>
-            <span class="rh-evidence">COMMIT <code>bad8fb8</code><br /><code>preparation_protocol.py</code><br /><code>qwen-prepared-inference.json</code></span>
-          </div>
-        </article>
-      </li>
-
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-09T20:54:45+10:00">09 SEP 2026<br />20:54 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Reference substrate</span>
-            <h3>Shared MPC audit boundary</h3>
-            <p>Additive-share sessions, Beaver-style multiplication, truncation accounting, shared lookup, attention, MLP, and output references tested a larger secure execution region. Source comments preserve the audit result: production still needs OT or VOLE, DPF lookup, private output comparison, and rollback-safe burn state. The current public runtime keeps nonlinear work local and does not claim this reference as malicious-secure MPC.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="research-only">Research-only</span>
-            <span class="rh-evidence">COMMIT <code>6330389</code><br /><code>shared_mpc.py</code><br /><code>shared_lookup.py</code><br /><code>shared_output.py</code></span>
-          </div>
-        </article>
-      </li>
-
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-10">10 SEP 2026<br />DESIGN GATE</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Rejected shortcut</span>
-            <h3>Reuse prepared correction rows</h3>
-            <p>Reusing an input mask would expose the modular difference between two private activations, so greater throughput cannot come from replaying inventory. The design instead reserves each row once and burns unused rows after cancellation, failure, or early completion. Reconsideration requires a different reviewed protocol whose proof permits reuse; caching or implementation tuning cannot relax this boundary.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="rejected">Rejected</span>
-            <span class="rh-evidence"><code>ARCHITECTURE.md</code><br /><code>test_preparation.py</code><br />one-time row invariant</span>
-          </div>
-        </article>
-      </li>
-
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-10T16:50:19+10:00">10 SEP 2026<br />16:50 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Current runtime</span>
-            <h3>Offline prepared inventory</h3>
-            <p>Preparation moved fully before chat. Batched stage roots now generate one-time masks, corrections, and tickets; inference seals only a completely acknowledged inventory as <code>READY</code>. Online requests contact inference alone. Reservations burn on early end or failure, and memory-only inventory expires on restart or idle timeout, making refill and waste explicit costs rather than hidden retries.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="adopted">Adopted</span>
-            <span class="rh-evidence">COMMIT <code>3923390</code><br /><code>ARCHITECTURE.md</code><br /><code>test_preparation.py</code></span>
-          </div>
-        </article>
-      </li>
-
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-10T17:48:34+10:00">10 SEP 2026<br />17:48 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Current runtime</span>
-            <h3>Prepared execution and KV allocation</h3>
-            <p>Follow-up work retained unused inventory across completed chats, refilling only when the next reservation exceeded the remainder. Client KV storage changed from repeated concatenation to geometric capacity growth, grouped-query attention stopped materializing repeated keys and values, and final-token generation skipped an unused decode step. These are adopted code paths, not a measured cloud-cost result.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="adopted">Adopted</span>
-            <span class="rh-evidence">COMMIT <code>0d4a12b</code><br /><code>transformer_client.py</code><br /><code>test_transformer_engine.py</code></span>
-          </div>
-        </article>
-      </li>
-
-      <li class="rh-item">
-        <time class="rh-date" datetime="2026-09-10T21:15:28+10:00">10 SEP 2026<br />21:15 AEST</time>
-        <article class="rh-card">
-          <div>
-            <span class="rh-scope">Current runtime</span>
-            <h3>Compact long-context transport</h3>
-            <p>Prefill now packs a ticket vector and masked row matrix into one bounded stage message, executes one matrix batch, and returns one compact response; decode keeps its single-row form. Server accounting still counts logical rows, validates context and allocation limits, and consumes every ticket. Tests cover long prompts and failure boundaries, while physical wide-area and production-scale measurements remain missing.</p>
-          </div>
-          <div class="rh-card-meta">
-            <span class="rh-status" data-status="adopted">Adopted</span>
-            <span class="rh-evidence">COMMIT <code>68a265f</code><br /><code>stage_protocol.py</code><br /><code>test_transformer_e2e.py</code></span>
-          </div>
-        </article>
-      </li>
-    </ol>
-
-    <aside class="rh-note">
-      <strong>Reading rule</strong>
-      <p>Historical BFV and seeded-relay numbers answer whether specific experiments ran. Current inventory tests answer whether protocol invariants hold in covered fixtures. Local acceptance observations do not substitute for matched repeated cold/warm studies, an independent cryptographic review, or a production non-collusion assessment.</p>
-    </aside>
-  </section>
-</div>
+<section class="research-section research-program" aria-labelledby="program-title">
+  <div class="section-intro">
+    <h2 id="program-title">One mission. Four connected questions.</h2>
+    <p>Start with the market objective, then move through private inference, the PLLM Research Paper, and independent benchmarking.</p>
+  </div>
+  <div class="program-grid">
+    <a href="/research/market/"><span>1</span><h3>Global compute market</h3><p>How does private demand become accessible to a broader, more competitive supply of compute?</p><b>Market thesis →</b></a>
+    <a href="/research/architecture/"><span>2</span><h3>Private inference</h3><p>How can providers execute useful model work without seeing client data?</p><b>Technical approaches →</b></a>
+    <a href="/research/paper/"><span>3</span><h3>PLLM Research Paper</h3><p>What system, security boundary, and implementation details support the demonstrated result?</p><b>Read the paper →</b></a>
+    <a href="/research/reproduce/"><span>4</span><h3>Run your own benchmark</h3><p>How does the current protocol behave on another machine, model, or network boundary?</p><b>Benchmark guide →</b></a>
+  </div>
+</section>

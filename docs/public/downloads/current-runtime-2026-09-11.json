@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "captured_at_utc": "2026-09-11T03:24:12.058832+00:00",
+  "implementation": {
+    "git_revision": "277d19f63f60e48fd8b39ec04bb7d9c68c187062",
+    "git_clean": true,
+    "pllm_version": "0.17.0a1",
+    "dashboard_history_schema": 3
+  },
+  "model": {
+    "id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "cache_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "checkpoint_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "runtime_fingerprint": "842d04512f482362eb6742c132c51d28570ef88caf898502702d2e475a496a30",
+    "client_bundle_sha256": "61ffafff4f180b0a026931146e6b9387c0f7693053d1f60cfb5cc4a6cea4b702",
+    "stage_count": 98,
+    "engine_capability_id": "masked-transformer-w4a4",
+    "configured_protocol": "masked_w8a8",
+    "quantization_note": "The capability ID is a legacy engine label; configured protocol records the measured 8-bit weight and activation settings."
+  },
+  "host": {
+    "os": "macOS 26.5.2 arm64",
+    "cpu": "Apple M5",
+    "physical_cores": 10,
+    "logical_cores": 10,
+    "memory_bytes": 34359738368,
+    "python": "CPython 3.13.15",
+    "rustc": "1.98.0"
+  },
+  "method": {
+    "topology": "loopback client, preparation, and inference processes",
+    "model_source": "full fingerprinted PLLM cache",
+    "max_output_tokens": 16,
+    "warmup_runs": 1,
+    "measured_repetitions_per_context": 3,
+    "measured_runs": 9,
+    "all_measured_runs_warm": true,
+    "timing": {
+      "full": "accepted submission through response.completed",
+      "preparation": "per-run offline inventory preparation",
+      "online": "client-to-inference response interval",
+      "ttft": "online request start through first output delta",
+      "transition": "dashboard telemetry settlement between preparation and online"
+    },
+    "public_workloads": [
+      {
+        "id": "context-30",
+        "prompt": "Hi",
+        "actual_input_tokens": 30,
+        "note": "The Qwen chat envelope contributes 29 tokens, so the requested 16-token target was unattainable."
+      },
+      {
+        "id": "context-63",
+        "prompt": "Repeat one word after reading this public list: " ,
+        "repeat": {"text": "alpha ", "count": 25},
+        "actual_input_tokens": 63
+      },
+      {
+        "id": "context-255",
+        "prompt": "Read this public list and reply briefly: ",
+        "repeat": {"text": "alpha ", "count": 218},
+        "actual_input_tokens": 255
+      }
+    ]
+  },
+  "results": [
+    {
+      "context_tokens": 30,
+      "output_tokens": [9, 9, 9],
+      "full_seconds": [4.523233708, 4.673617917, 4.749525125],
+      "preparation_seconds": [1.510401542, 1.443734917, 1.525162334],
+      "online_seconds": [2.407122, 2.623969417, 2.618486542],
+      "ttft_seconds": [0.935460667, 0.9779125, 0.982112625],
+      "generation_seconds": [1.305207166, 1.47256375, 1.438943334],
+      "tokens_per_second": [6.129295186538993, 5.432701979795442, 5.559635192694809],
+      "client_upload_bytes": [26505778, 26505778, 26505778],
+      "client_download_bytes": [36825298, 36825298, 36825298],
+      "correction_push_bytes": [59800928, 59800928, 59800928],
+      "inventory_rows_per_stage": [64, 64, 64],
+      "median": {
+        "full_seconds": 4.673617917,
+        "preparation_seconds": 1.510401542,
+        "online_seconds": 2.618486542,
+        "ttft_seconds": 0.9779125,
+        "tokens_per_second": 5.559635192694809,
+        "client_io_bytes": 63331076
+      }
+    },
+    {
+      "context_tokens": 63,
+      "output_tokens": [16, 16, 16],
+      "full_seconds": [5.576190667, 5.307660166, 5.346508292],
+      "preparation_seconds": [1.821599666, 1.509718875, 1.495319875],
+      "online_seconds": [3.150144834, 3.19355, 3.249370667],
+      "ttft_seconds": [1.352702875, 1.373881334, 1.379217042],
+      "generation_seconds": [1.793141542, 1.815310166, 1.866316041],
+      "tokens_per_second": [8.365206900103148, 8.263050734218165, 8.037223959111865],
+      "client_upload_bytes": [52780266, 52780266, 52780266],
+      "client_download_bytes": [73513674, 73513674, 73513674],
+      "correction_push_bytes": [72875360, 72875360, 72875360],
+      "inventory_rows_per_stage": [78, 78, 78],
+      "median": {
+        "full_seconds": 5.346508292,
+        "preparation_seconds": 1.509718875,
+        "online_seconds": 3.19355,
+        "ttft_seconds": 1.373881334,
+        "tokens_per_second": 8.263050734218165,
+        "client_io_bytes": 126293940
+      }
+    },
+    {
+      "context_tokens": 255,
+      "output_tokens": [16, 16, 16],
+      "full_seconds": [12.508233083, 13.05876675, 13.619366291],
+      "preparation_seconds": [4.845419333, 5.010286375, 5.222161083],
+      "online_seconds": [7.0566175, 7.44223975, 7.790872333],
+      "ttft_seconds": [4.961196375, 5.15765975, 5.288613708],
+      "generation_seconds": [2.082435708, 2.271218166, 2.486512542],
+      "tokens_per_second": [7.203103530339578, 6.60438535784413, 6.0325454815260695],
+      "client_upload_bytes": [179887338, 179887338, 179887338],
+      "client_download_bytes": [252820170, 252820170, 252820170],
+      "correction_push_bytes": [252182048, 252182048, 252182048],
+      "inventory_rows_per_stage": [270, 270, 270],
+      "median": {
+        "full_seconds": 13.05876675,
+        "preparation_seconds": 5.010286375,
+        "online_seconds": 7.44223975,
+        "ttft_seconds": 5.15765975,
+        "tokens_per_second": 6.60438535784413,
+        "client_io_bytes": 432707508
+      }
+    }
+  ],
+  "invariants": {
+    "all_runs_completed": true,
+    "authoritative_token_usage": true,
+    "preparation_requests_during_online": 0,
+    "preparation_online_protocol_operations": 0,
+    "plaintext_prompt_bytes_sent": 0,
+    "plaintext_token_ids_sent": 0,
+    "prompt_text_absent_from_history": true,
+    "shutdown_signal": "SIGINT",
+    "shutdown_exit_status": 0,
+    "exporter_errors": 0,
+    "orphan_role_processes": 0,
+    "preparation_memory_zeroization_verified": false
+  },
+  "limitations": [
+    "Single Apple M5 loopback host; no physical network, GPU, energy, dollar-cost, concurrency, or wide-area result.",
+    "Three repetitions per context characterize this acceptance run, not population variance.",
+    "Zero literal prompt and token bytes are audited implementation counters, not proof against all side channels.",
+    "The protocol assumes honest-but-curious, non-colluding preparation and inference roles and secure erasure by preparation.",
+    "The current Python preparation runtime releases mask objects after use but does not establish physical memory zeroization.",
+    "The measurement supports current implementation behavior, not lower token prices or improved energy efficiency."
+  ]
+}

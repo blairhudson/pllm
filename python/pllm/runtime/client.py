@@ -1633,8 +1633,8 @@ class HEClientCore:
                         self._cancel_prepared_inventory(spare)
                 if inventory is None or inventory.available < needed:
                     raise HEModelError(
-                        "prepared inventory is unavailable or exhausted; "
-                        "call client.preprocess() before inference"
+                        "prepared inventory became unavailable before reservation; "
+                        "retry the request"
                     )
                 provider = inventory.reserve(needed)
             else:
@@ -1878,6 +1878,23 @@ class HEClientCore:
         return len(ids or [int(state.bundle.config["bos_token_id"])]) + max(
             0, max_output_tokens - 1
         )
+
+    def _ensure_prepared_inventory(
+        self,
+        model_id: str,
+        state: _TransformerCryptoState,
+        required_rows: int,
+    ) -> None:
+        with self._transformer_state_lock:
+            candidates = (state.prepared_inventory, state.prepared_inventory_spare)
+            if any(
+                inventory is not None
+                and inventory.available >= required_rows
+                and self._prepared_inventory_is_live(inventory)
+                for inventory in candidates
+            ):
+                return
+        self.preprocess(model_id, count=required_rows)
 
     def close(self) -> None:
         self._closing = True
@@ -2219,6 +2236,8 @@ class HEClientCore:
                     tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
                 ) + len(candidate.pending_token_ids)
         required_rows = required_input_rows + max(0, max_tokens - 1)
+        if state.privacy_mode == "public":
+            self._ensure_prepared_inventory(model_id, state, required_rows)
         session_value, state, provider = self._open_transformer_session(
             model_id,
             max_output_tokens=max_tokens,

@@ -17,6 +17,25 @@
   font-family: Georgia, 'Times New Roman', serif;
 }
 
+.whitepaperPage :global(.wp-download-bar) {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 1060px;
+  margin: 0 auto 14px;
+}
+
+.whitepaperPage :global(.wp-download-bar a) {
+  padding: 10px 14px;
+  border: 1px solid #4f625f;
+  color: #f4f2ea;
+  font: 700 12px/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+.whitepaperPage :global(.wp-download-bar a:hover) {
+  border-color: #8cb27d;
+  color: #b7d4ac;
+}
+
 .whitepaperPage :global(.wp-sheet) {
   position: relative;
   min-height: 1040px;
@@ -28,29 +47,14 @@
 }
 
 .whitepaperPage :global(.wp-masthead) {
-  display: grid;
-  grid-template-columns: minmax(0, 2.25fr) minmax(190px, .75fr);
-  gap: 48px;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--wp-rule);
 }
 
-.whitepaperPage :global(.wp-kicker),
 .whitepaperPage :global(.wp-label),
-.whitepaperPage :global(.wp-meta),
-.whitepaperPage :global(.wp-actions),
 .whitepaperPage :global(.wp-evidence),
 .whitepaperPage :global(.wp-folio) {
   font-family: ui-sans-serif, system-ui, sans-serif;
-}
-
-.whitepaperPage :global(.wp-kicker) {
-  margin: 0 0 12px;
-  color: var(--wp-green);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .16em;
-  text-transform: uppercase;
 }
 
 .whitepaperPage h1 {
@@ -71,41 +75,6 @@
   line-height: 1.45;
 }
 
-.whitepaperPage :global(.wp-meta) {
-  align-self: end;
-  color: var(--wp-muted);
-  font-size: 12px;
-  line-height: 1.75;
-  text-align: right;
-}
-
-.whitepaperPage :global(.wp-meta strong) {
-  color: var(--wp-ink);
-}
-
-.whitepaperPage :global(.wp-actions) {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 15px;
-}
-
-.whitepaperPage :global(.wp-actions a) {
-  padding: 7px 10px;
-  border: 1px solid var(--wp-rule);
-  color: var(--wp-ink);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.whitepaperPage :global(.wp-actions a:hover) {
-  border-color: var(--wp-green);
-  color: var(--wp-green);
-}
-
 .whitepaperPage :global(.wp-figure) {
   margin: 27px 0 22px;
 }
@@ -122,25 +91,43 @@
   stroke-width: 1.4;
 }
 
-.whitepaperPage :global(.wp-svg-client),
-.whitepaperPage :global(.wp-svg-measured) {
+.whitepaperPage :global(.wp-svg-client) {
   fill: var(--wp-paper-2);
 }
 
-.whitepaperPage :global(.wp-svg-prep),
-.whitepaperPage :global(.wp-svg-derived) {
+.whitepaperPage :global(.wp-svg-prep) {
   fill: var(--wp-warm);
 }
 
 .whitepaperPage :global(.wp-svg-inference),
-.whitepaperPage :global(.wp-svg-missing) {
+.whitepaperPage :global(.wp-svg-future) {
   fill: #faf9f4;
+}
+
+.whitepaperPage :global(.wp-svg-current) {
+  fill: var(--wp-green);
+  stroke: var(--wp-green);
+}
+
+.whitepaperPage :global(.wp-svg-accent) {
+  fill: var(--wp-green);
 }
 
 .whitepaperPage :global(.wp-svg-flow) {
   fill: none;
   stroke: var(--wp-green);
   stroke-width: 2;
+}
+
+.whitepaperPage :global(.wp-svg-order) {
+  fill: var(--wp-ink);
+}
+
+.whitepaperPage :global(.wp-svg-order-text) {
+  fill: #fff;
+  font: 800 9px ui-sans-serif, system-ui, sans-serif;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 .whitepaperPage :global(.wp-svg-boundary) {
@@ -155,15 +142,47 @@
   letter-spacing: .04em;
 }
 
+.whitepaperPage :global(.wp-svg-step) {
+  fill: var(--wp-green);
+  font: 800 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 .whitepaperPage :global(.wp-svg-detail) {
   fill: var(--wp-muted);
   font: 12px ui-sans-serif, system-ui, sans-serif;
 }
 
-.whitepaperPage :global(.wp-svg-caption) {
+.whitepaperPage :global(.wp-svg-edge-label),
+.whitepaperPage :global(.wp-svg-lane),
+.whitepaperPage :global(.wp-svg-boundary-label) {
   fill: var(--wp-green);
-  font: 750 10px ui-sans-serif, system-ui, sans-serif;
+  font: 750 9px ui-sans-serif, system-ui, sans-serif;
   letter-spacing: .07em;
+}
+
+.whitepaperPage :global(.wp-svg-edge-label),
+.whitepaperPage :global(.wp-svg-lane-detail) {
+  text-anchor: middle;
+}
+
+.whitepaperPage :global(.wp-svg-lane-detail) {
+  fill: var(--wp-muted);
+  font: 700 10px ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .04em;
+}
+
+.whitepaperPage :global(.wp-svg-stage) {
+  fill: var(--wp-ink);
+  font: 750 14px ui-sans-serif, system-ui, sans-serif;
+}
+
+.whitepaperPage :global(.wp-svg-current-text),
+.whitepaperPage :global(.wp-svg-current-detail) {
+  fill: var(--wp-paper);
+}
+
+.whitepaperPage :global(.wp-svg-current-detail) {
+  font: 12px ui-sans-serif, system-ui, sans-serif;
 }
 
 .whitepaperPage :global(.wp-svg-equation) {
@@ -231,6 +250,53 @@
   text-align: center;
 }
 
+.whitepaperPage table {
+  width: 100%;
+  margin: 10px 0 12px;
+  border-collapse: collapse;
+  font: 11px/1.35 ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.whitepaperPage th,
+.whitepaperPage td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--wp-rule);
+  text-align: right;
+}
+
+.whitepaperPage thead th {
+  border-top: 2px solid var(--wp-green);
+  border-bottom: 1px solid var(--wp-green);
+  color: var(--wp-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.whitepaperPage tbody tr:last-child > * {
+  border-bottom: 2px solid var(--wp-green);
+}
+
+.whitepaperPage :global(.wp-evidence-table th:first-child),
+.whitepaperPage :global(.wp-evidence-table td:first-child) {
+  text-align: left;
+}
+
+.whitepaperPage :global(.wp-cost-table th) {
+  width: 28%;
+  color: var(--wp-ink);
+  font-weight: 750;
+  text-align: left;
+  vertical-align: top;
+}
+
+.whitepaperPage :global(.wp-cost-table td) {
+  color: var(--wp-muted);
+  text-align: left;
+}
+
 .whitepaperPage sup {
   color: var(--wp-green);
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -290,20 +356,14 @@
     padding: 36px 26px 54px;
   }
 
-  .whitepaperPage :global(.wp-masthead),
   .whitepaperPage :global(.wp-page-heading) {
     display: block;
   }
 
-  .whitepaperPage :global(.wp-meta),
   .whitepaperPage :global(.wp-build-note) {
     max-width: none;
     margin-top: 24px;
     text-align: left;
-  }
-
-  .whitepaperPage :global(.wp-actions) {
-    justify-content: flex-start;
   }
 
   .whitepaperPage :global(.wp-columns) {

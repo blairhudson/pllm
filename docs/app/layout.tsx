@@ -5,6 +5,7 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import { SiteChrome } from '@/components/site-chrome';
 import './global.css';
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pllm.run'),
   title: { default: 'PLLM — Private LLM Inference', template: '%s · PLLM' },
   description: 'Private language model inference. Client and server guides, the protocol, and reproducible research.',
   icons: { icon: withBasePath('/icon.svg') },

@@ -46,14 +46,13 @@ no owner or repository URL is hardcoded.
 ## Content ownership
 
 - `content/home.html` is the current product landing content.
-- `content/docs/` is operational MDX; `content/docs/research/` is historical
-  research and must retain its recorded scope.
+- `content/docs/` is operational MDX; `content/research/` supplies the independent
+  `/research/*` publication tree.
 - `components/site-chrome.tsx` owns shared search, theme, header, and footer UI.
 - `lib/navigation.ts` owns maintained product navigation labels and routes.
 - `public/brand.css` is the shared visual language.
-- `content/research.html`, paper downloads, Markdown exports, search indexes, and
-  `out/` are generated or historical surfaces, not places to hand-edit current
-  runtime claims.
+- `content/research.html` owns the research landing page. Paper downloads,
+  Markdown exports, search indexes, and `out/` are generated surfaces.
 
 Paper and evidence assets have a separate canonical source and build. Regenerate
 them only for an intentional research/release change, not as a side effect of a

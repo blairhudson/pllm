@@ -15,7 +15,7 @@ interface.
 
 The current public-weight path prepares one-time matrix corrections before chat.
 Prompt text, token IDs, activation scales, attention state, sampling, and decoded
-output stay inside the customer-controlled client. Preparation and inference each
+output stay inside the client-controlled environment. Preparation and inference each
 hold the public transformer body, but receive different shares at different times.
 
 ```text
@@ -53,7 +53,7 @@ The public path protects an activation from either service viewed alone only
 under an honest-but-curious, non-colluding model:
 
 - Preparation must follow the protocol, erase expanded masks, and not collude
-  with inference. Self-hosting preparation keeps this trust inside the customer
+  with inference. Self-hosting preparation keeps this trust inside the client
   boundary.
 - Inference is not trusted with plaintext, but it is assumed to execute the
   documented computation. Authentication does not prove correct model execution.
@@ -142,7 +142,7 @@ same registry name.
 
 ## Python client
 
-Prepare enough rows before starting a response:
+The client prepares enough rows before starting a response:
 
 ```python
 from pllm import OpenAI
@@ -151,8 +151,6 @@ prompt = "Explain private inference in plain English."
 maximum = 128
 
 with OpenAI() as client:
-    required = client.prepared_rows_for_response(prompt, maximum)
-    client.preprocess(count=required)
     response = client.responses.create(
         input=prompt,
         max_output_tokens=maximum,
@@ -161,11 +159,11 @@ with OpenAI() as client:
 ```
 
 `AsyncOpenAI` and streaming are also exposed from `pllm`. Keep a client open to
-reuse unreserved rows. A response never performs preparation after entering its
-online phase.
+reuse unreserved rows. The SDK sizes missing inventory before opening the response;
+it never performs preparation after entering the online phase.
 
 For an ordinary OpenAI SDK or Agents SDK application, run the local gateway inside
-the customer boundary:
+the client boundary:
 
 ```bash
 export PLLM_LOCAL_API_KEY="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(32))')"
@@ -173,9 +171,9 @@ uv run pllm sidecar --local-api-key "$PLLM_LOCAL_API_KEY" --port 8080
 ```
 
 Point the application at `http://127.0.0.1:8080/v1`, not the inference provider.
-The sidecar prepares its configured public model at startup. Larger later requests
-may require an authenticated `/v1/preprocess` call while the sidecar is idle. See
-the [OpenAI guide](docs/content/docs/client/openai.mdx).
+The sidecar prepares its configured public model at startup and transparently
+ensures larger later requests before they go online. Authenticated `/v1/preprocess`
+remains available for advance warming. See the [OpenAI guide](docs/content/docs/client/openai.mdx).
 
 ## Live benchmark dashboard
 

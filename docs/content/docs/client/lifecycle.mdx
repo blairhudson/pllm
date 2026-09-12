@@ -25,7 +25,7 @@ configurable with `PLLM_PREPARED_INVENTORY_ROWS`.
 Domain-separated expansion binds each row to the complete inventory and stage
 commitment and derives input mask `r`, output mask `s`, and a random one-time
 ticket. Preparation computes batched `W*r-s`, pushes it one way to inference, and
-waits for durable acknowledgement. After every stage arrives, the client asks
+waits for acceptance acknowledgement. After every stage arrives, the client asks
 inference to seal the inventory. Online use fails closed until status is `READY`.
 
 ## 3. Reserve before online work
