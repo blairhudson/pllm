@@ -41,9 +41,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      sha: ${{ steps.resolve.outputs.sha }}
+      sha: ${{ fromJSON(steps.resolve.outputs.stdout).sha }}
     steps:
       - name: Validate requested release
+        id: request
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_REF: ${{ github.ref }}
@@ -64,26 +65,25 @@ jobs:
             fi
           fi
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
-          echo "SHA=$sha" >> "$GITHUB_ENV"
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          ref: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
-          fetch-depth: 0
-          persist-credentials: false
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Resolve immutable main commit
         id: resolve
+        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
+        with:
+          args: |
+            ci
+            github
+            commit
+            assert-ancestor
+            --repository
+            ${{ github.repository }}
+            --branch
+            main
+            --sha
+            ${{ steps.request.outputs.sha }}
         env:
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SHA"
-          if [[ "$EVENT_NAME" = "workflow_dispatch" ]]; then
-            git fetch --no-tags origin main:refs/remotes/origin/main
-            git merge-base --is-ancestor "$SHA" origin/main
-          fi
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ github.token }}
 
   build:
     if: github.event_name == 'push' || inputs.target == 'non-production'
@@ -111,7 +111,7 @@ jobs:
 
       - name: Deploy and verify non-production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
+        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
         with:
           args: |
             ci
@@ -179,7 +179,7 @@ jobs:
 
       - name: Find verified non-production artifact
         id: source
-        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
+        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
         with:
           args: |
             ci
@@ -212,7 +212,7 @@ jobs:
 
       - name: Deploy and verify production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
+        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
         with:
           args: |
             ci

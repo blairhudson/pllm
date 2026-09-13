@@ -39,7 +39,7 @@
     {
       "path": ".github/action-pins.json",
       "bytes": 703,
-      "sha256": "3142cfefb7a1b2a05f4c22e86298ae6ad32163f125406a3c904b928a0a07fcdc"
+      "sha256": "6789ed00799b4c66d27c2193f42a5ad4c3727ca91351318b023805921c114cd8"
     },
     {
       "path": ".github/dependabot.yml",
@@ -73,13 +73,13 @@
     },
     {
       "path": ".github/workflows/pages.yml",
-      "bytes": 10523,
-      "sha256": "c538381efb14822735452a5f85a10d3d64df5cb932360ed4f4865b6ddbe3e716"
+      "bytes": 10352,
+      "sha256": "28f4d010a4ae14f5a7be7819b25710691b3a3dd12a57b88f1d7f0a4c124e1885"
     },
     {
       "path": ".github/workflows/provision.yml",
       "bytes": 6667,
-      "sha256": "64bad928f74ea5744a87e1d6c23e4063e3c87d21920e6cb2b401ff535e42a7cd"
+      "sha256": "13025777b3bc2576e8818bd7bbf97ce63edd68d801946ef0aa1c40486acc4a76"
     },
     {
       "path": ".github/workflows/release.yml",

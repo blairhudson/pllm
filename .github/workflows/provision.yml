@@ -84,7 +84,7 @@ jobs:
           tofu_version: 1.12.6
 
       - name: Configure temporary encrypted R2 state session
-        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
+        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
         with:
           args: |
             ci
