@@ -1603,8 +1603,8 @@
     },
     {
       "path": "research/evidence/lifecycle-summary.csv",
-      "bytes": 1156,
-      "sha256": "726155fc1c9fb6dda2e84b6aac5887f2f6e0b1fc8efaaf61add03fd130639afb"
+      "bytes": 1149,
+      "sha256": "83b5fd68c38e8582a7971d74d48c97a6800eef8e86c90daf9f0acfb60e006da6"
     },
     {
       "path": "research/evidence/lifecycle.json",
@@ -1938,8 +1938,8 @@
     },
     {
       "path": "research/lifecycle/results/lifecycle-summary.csv",
-      "bytes": 1156,
-      "sha256": "726155fc1c9fb6dda2e84b6aac5887f2f6e0b1fc8efaaf61add03fd130639afb"
+      "bytes": 1149,
+      "sha256": "83b5fd68c38e8582a7971d74d48c97a6800eef8e86c90daf9f0acfb60e006da6"
     },
     {
       "path": "research/lifecycle/results/lifecycle.json",
