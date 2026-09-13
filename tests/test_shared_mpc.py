@@ -217,6 +217,7 @@ def test_static_scale_mlp_truncates_back_to_input_scale() -> None:
 
 
 def test_public_linear_can_use_cached_wrap64_kernel(monkeypatch) -> None:
+    monkeypatch.delenv("PLLM_REQUIRE_RUST", raising=False)
     monkeypatch.setenv("PLLM_KERNEL_BACKEND", "python")
     runtime = PartyRuntime("session", 0, matrix_executor=MaskedGEMM(threads=1))
     values = np.array([[[0, 2**64 - 1, 7], [2**63, 11, 13]]], dtype=np.uint64)

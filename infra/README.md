@@ -31,6 +31,18 @@ Then run the workflow from `main` in this order:
 2. Review the plan, then run `apply` with its exact run ID, digest, and generated
    confirmation string.
 
+Before the first plan, use an authenticated `cf` user profile to create the
+PLLM account's Zero Trust organization and one-time PIN identity provider. This
+one-time setup cannot use a generated account token because Cloudflare does not
+allow account tokens to administer Access organizations or identity providers:
+
+```bash
+CLOUDFLARE_ACCOUNT_ID=... cf zero-trust organizations create \
+  --auth-domain pllm.cloudflareaccess.com --name PLLM --session-duration 24h
+CLOUDFLARE_ACCOUNT_ID=... cf zero-trust identity-providers create \
+  --body '{"name":"One-time PIN","type":"onetimepin","config":{}}'
+```
+
 For local provider initialization and formatting without Cloudflare credentials:
 
 ```bash
@@ -50,9 +62,10 @@ Provisioning settings:
 - Repository secret `PLLM_PRODUCTION_PAGES_API_TOKEN`
 - Repository secret `TOFU_STATE_PASSPHRASE`
 
-The backend token can mint one-hour, prefix-scoped credentials only for the state
+The backend token derives one-hour, prefix-scoped credentials only for the state
 bucket. The infrastructure token has account Pages and Zero Trust permissions,
 plus `Zone Read`, `DNS Write`, and `Zone WAF Edit` only for `pllm.run`. Separate
-Pages-only tokens deploy non-production and production. The account-wide Access
-organization and one-time PIN provider remain owned by the existing platform
-state; this module only reads that provider.
+Pages-only tokens deploy non-production and production. The PLLM account's
+Access organization and one-time PIN provider are bootstrapped through the user
+profile above; this module reads the provider and owns only its PLLM application
+and policy.

@@ -124,6 +124,7 @@ jobs:
           plan_id="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           plan_digest="$(sha256sum "$RUNNER_TEMP/site.tfplan" | cut -d ' ' -f 1)"
           aws s3api put-object --bucket pllm-opentofu-state --key "plans/site/$GITHUB_SHA/$plan_id.tfplan" --body "$RUNNER_TEMP/site.tfplan" --if-none-match '*' >/dev/null
+          printf 'Apply with plan run %s and SHA-256 %s\n' "$plan_id" "$plan_digest"
           printf '## Pages infrastructure plan\n\n- Commit: `%s`\n- Plan run: `%s`\n- SHA-256: `%s`\n- Apply confirmation: `APPLY site @ %s # %s / %s`\n' "$GITHUB_SHA" "$plan_id" "$plan_digest" "$GITHUB_SHA" "$plan_id" "$plan_digest" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download reviewed encrypted plan

@@ -58,8 +58,8 @@
     },
     {
       "path": ".github/workflows/docs-build.yml",
-      "bytes": 2552,
-      "sha256": "c253663f718824fd93c453951bbf37b053ad4553f761e88dabe9251d3cf3d9ae"
+      "bytes": 2560,
+      "sha256": "7a4a3ef5ef67f17cebc6811ecf95eedd4def20af91f590aa1fa95224862309f4"
     },
     {
       "path": ".github/workflows/lockfiles.yml",
@@ -78,8 +78,8 @@
     },
     {
       "path": ".github/workflows/provision.yml",
-      "bytes": 6582,
-      "sha256": "d622155ba0647b6f5adcfee6c23333edb6065ccae68cc43ccb40a34ad0ac8159"
+      "bytes": 6667,
+      "sha256": "dc944d7c4efac2d5554e695f1142b8b843b7e0cef0acd0caa9e68d9b03ef4af9"
     },
     {
       "path": ".github/workflows/release.yml",
@@ -973,8 +973,8 @@
     },
     {
       "path": "infra/README.md",
-      "bytes": 2420,
-      "sha256": "376f2765e18e10a1e22752da7efa84ff7651bc455acc8fce5f2de5706cc0e11d"
+      "bytes": 3069,
+      "sha256": "9a20e107145520e695954d594d1aba2918a9f533fec01fd29dcfeba76a99e5b2"
     },
     {
       "path": "infra/backend.tf",
@@ -2348,8 +2348,8 @@
     },
     {
       "path": "tests/test_shared_mpc.py",
-      "bytes": 15570,
-      "sha256": "916039bcc80eacc9e6e9c03df85c4b23b858e9599f8468a5626adb4c5b390a82"
+      "bytes": 15629,
+      "sha256": "f05f40e333c1a317a7b6d97add94a3643c145094af028e1ab534f57ce8eed714"
     },
     {
       "path": "tests/test_shared_output.py",
