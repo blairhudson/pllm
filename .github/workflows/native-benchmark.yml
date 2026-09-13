@@ -15,17 +15,17 @@ jobs:
       OMP_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
         with:
           version: "0.10.0"
       - run: bash scripts/sync_environment.sh --python 3.13
       - run: uv run --no-sync python benchmarks/rust_migration.py --cpp-reference --samples 15 --threads 1 --output results/one-thread.json --profile results/native.prof
       - run: uv run --no-sync python benchmarks/rust_migration.py --cpp-reference --samples 15 --threads 4 --output results/four-threads.json
       - run: uv run --no-sync python benchmarks/client_native.py --samples 30 --output results/client.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: native-benchmark
           path: results/
