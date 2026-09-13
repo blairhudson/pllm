@@ -58,8 +58,8 @@
     },
     {
       "path": ".github/workflows/docs-build.yml",
-      "bytes": 2560,
-      "sha256": "7a4a3ef5ef67f17cebc6811ecf95eedd4def20af91f590aa1fa95224862309f4"
+      "bytes": 2596,
+      "sha256": "88c13ffa3a9532a1be66894fd74bb7478de62cc06ac7a273b54c49b2be2dc2a4"
     },
     {
       "path": ".github/workflows/lockfiles.yml",
