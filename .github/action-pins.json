@@ -8,6 +8,6 @@
     "DOWNLOAD": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
     "ATTEST": "astral-sh/attest-action@f589a42a7efb6fe400b4f400de60b4bc90390027",
     "TOFU": "opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f",
-    "RESTACK_RUN": "blairhudson/restack/actions/run@a53d49f698a8d8e33942db848fedb9ac89dfd5f5"
+    "RESTACK_RUN": "blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139"
   }
 }

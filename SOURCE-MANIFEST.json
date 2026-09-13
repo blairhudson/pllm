@@ -39,7 +39,7 @@
     {
       "path": ".github/action-pins.json",
       "bytes": 703,
-      "sha256": "f42b173c57ea295a37b796272690fad1435c1abe858a389e2539b2c52468a9cc"
+      "sha256": "3142cfefb7a1b2a05f4c22e86298ae6ad32163f125406a3c904b928a0a07fcdc"
     },
     {
       "path": ".github/dependabot.yml",
@@ -53,13 +53,13 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 6912,
-      "sha256": "22363f89f7d7eecd0470c0be5ab9dad2008ac42706b8c01fb01210af3e65a4be"
+      "bytes": 6948,
+      "sha256": "561f25e6b5bf5e4bef5e6dbd87c38618d4fcb3513e27ae278cf1dfa152b01dc5"
     },
     {
       "path": ".github/workflows/docs-build.yml",
-      "bytes": 2596,
-      "sha256": "88c13ffa3a9532a1be66894fd74bb7478de62cc06ac7a273b54c49b2be2dc2a4"
+      "bytes": 2743,
+      "sha256": "13a05627d7a0945c566ab5c051681d2ac488140e10edb981f3ff305c7a06a7cc"
     },
     {
       "path": ".github/workflows/lockfiles.yml",
@@ -73,13 +73,13 @@
     },
     {
       "path": ".github/workflows/pages.yml",
-      "bytes": 10215,
-      "sha256": "a2ad21b16555a67fff2f696b9805711b6b71e7391c23299f30d1f7322a06d160"
+      "bytes": 10523,
+      "sha256": "c538381efb14822735452a5f85a10d3d64df5cb932360ed4f4865b6ddbe3e716"
     },
     {
       "path": ".github/workflows/provision.yml",
       "bytes": 6667,
-      "sha256": "dc944d7c4efac2d5554e695f1142b8b843b7e0cef0acd0caa9e68d9b03ef4af9"
+      "sha256": "64bad928f74ea5744a87e1d6c23e4063e3c87d21920e6cb2b401ff535e42a7cd"
     },
     {
       "path": ".github/workflows/release.yml",

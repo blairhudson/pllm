@@ -5,16 +5,24 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: production
+        type: choice
+        options:
+          - non-production
+          - production
       sha:
-        description: Exact 40-character main commit already deployed to non.pllm.run
+        description: Exact 40-character main commit to deploy or promote
         required: true
         type: string
       artifact-digest:
         description: Exact SHA-256 artifact digest reported by the non-production run
-        required: true
+        required: false
         type: string
       confirmation:
-        description: Type DEPLOY production @ <sha>
+        description: Type DEPLOY <target> @ <sha>
         required: true
         type: string
 
@@ -39,7 +47,9 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_REF: ${{ github.ref }}
+          CONFIRMATION: ${{ inputs.confirmation }}
           INPUT_SHA: ${{ inputs.sha }}
+          TARGET: ${{ inputs.target }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" = "push" ]]; then
@@ -47,6 +57,11 @@ jobs:
           else
             test "$EVENT_REF" = "refs/heads/main"
             sha="$INPUT_SHA"
+            if [[ "$TARGET" = "non-production" ]]; then
+              test "$CONFIRMATION" = "DEPLOY non-production @ $sha"
+            else
+              test "$TARGET" = "production"
+            fi
           fi
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
           echo "SHA=$sha" >> "$GITHUB_ENV"
@@ -71,11 +86,14 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
   build:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || inputs.target == 'non-production'
+    needs: resolve
     uses: ./.github/workflows/docs-build.yml
+    with:
+      commit-sha: ${{ needs.resolve.outputs.sha }}
 
   non:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || inputs.target == 'non-production'
     needs: [resolve, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -93,7 +111,7 @@ jobs:
 
       - name: Deploy and verify non-production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@a53d49f698a8d8e33942db848fedb9ac89dfd5f5
+        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
         with:
           args: |
             ci
@@ -135,7 +153,7 @@ jobs:
           printf '## Non-production deployed\n\n- Commit: `%s`\n- Artifact digest: `%s`\n- Deployment: %s\n- Access: https://%s\n' "$SHA" "${ARTIFACT_DIGEST#sha256:}" "$DEPLOYMENT_URL" "$NON_DOMAIN" >> "$GITHUB_STEP_SUMMARY"
 
   production:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production'
     needs: resolve
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -161,32 +179,40 @@ jobs:
 
       - name: Find verified non-production artifact
         id: source
+        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
+        with:
+          args: |
+            ci
+            github
+            artifact
+            resolve
+            --repository
+            ${{ github.repository }}
+            --workflow
+            pages.yml
+            --head-sha
+            ${{ needs.resolve.outputs.sha }}
+            --name
+            pllm-site
+            --digest
+            ${{ inputs.artifact-digest }}
+            --retries
+            5
+            --retry-delay-ms
+            2000
         env:
-          EXPECTED_DIGEST: ${{ inputs.artifact-digest }}
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ needs.resolve.outputs.sha }}
-        run: |
-          set -euo pipefail
-          run_id="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/runs" -f head_sha="$SHA" -f event=push -f status=completed -f per_page=100 --jq '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty')"
-          test -n "$run_id"
-          artifact="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '[.artifacts[] | select(.name == "pllm-site" and .expired == false)] | first // empty')"
-          test -n "$artifact"
-          actual_digest="$(jq -r '.digest // empty' <<< "$artifact")"
-          actual_digest="${actual_digest#sha256:}"
-          [[ "$actual_digest" =~ ^[0-9a-f]{64}$ ]]
-          test "$actual_digest" = "$EXPECTED_DIGEST"
-          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: pllm-site
           path: site
           github-token: ${{ github.token }}
-          run-id: ${{ steps.source.outputs.run-id }}
+          run-id: ${{ fromJSON(steps.source.outputs.stdout).runId }}
 
       - name: Deploy and verify production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@a53d49f698a8d8e33942db848fedb9ac89dfd5f5
+        uses: blairhudson/restack/actions/run@e11d7964de45eb55f3c12391a5e0e217acdde139
         with:
           args: |
             ci

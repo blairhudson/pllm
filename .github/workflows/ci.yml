@@ -173,6 +173,7 @@ jobs:
     uses: ./.github/workflows/docs-build.yml
     with:
       base-path: /pllm
+      commit-sha: ${{ github.sha }}
 
   checks:
     name: All checks

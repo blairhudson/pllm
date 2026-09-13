@@ -7,6 +7,10 @@ on:
         type: string
         default: ""
         description: "Static website path; /pllm exercises project Pages links"
+      commit-sha:
+        type: string
+        required: true
+        description: "Exact commit to build"
     outputs:
       artifact-digest:
         description: SHA-256 digest of the immutable site artifact
@@ -28,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          ref: ${{ inputs.commit-sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
