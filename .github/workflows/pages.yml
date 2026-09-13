@@ -93,7 +93,7 @@ jobs:
 
       - name: Deploy and verify non-production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@db53ab5ad03eac345e51055547d26033c1467b35
+        uses: blairhudson/restack/actions/run@a53d49f698a8d8e33942db848fedb9ac89dfd5f5
         with:
           args: |
             ci
@@ -186,7 +186,7 @@ jobs:
 
       - name: Deploy and verify production artifact
         id: deploy
-        uses: blairhudson/restack/actions/run@db53ab5ad03eac345e51055547d26033c1467b35
+        uses: blairhudson/restack/actions/run@a53d49f698a8d8e33942db848fedb9ac89dfd5f5
         with:
           args: |
             ci

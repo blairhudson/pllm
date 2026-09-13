@@ -30,13 +30,13 @@ permissions = [
   "Account Settings Read",
   "Access: Apps and Policies Write",
   "Access: Organizations, Identity Providers, and Groups Read",
-  "Cloudflare Pages Edit",
+  "Pages Write",
 ]
 
 [[opentofu.credentials.policies]]
 scope = "zone"
 zone = "pllm.run"
-permissions = ["DNS Write", "Zone Read", "Zone WAF Edit"]
+permissions = ["DNS Write", "Zone Read", "Zone WAF Write"]
 
 [[opentofu.credentials]]
 name = "pllm-non-pages-deploy"
@@ -44,7 +44,7 @@ secret = "PLLM_NON_PAGES_API_TOKEN"
 
 [[opentofu.credentials.policies]]
 scope = "account"
-permissions = ["Cloudflare Pages Edit"]
+permissions = ["Pages Write"]
 
 [[opentofu.credentials]]
 name = "pllm-production-pages-deploy"
@@ -52,4 +52,4 @@ secret = "PLLM_PRODUCTION_PAGES_API_TOKEN"
 
 [[opentofu.credentials.policies]]
 scope = "account"
-permissions = ["Cloudflare Pages Edit"]
+permissions = ["Pages Write"]

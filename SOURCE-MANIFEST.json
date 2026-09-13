@@ -39,7 +39,7 @@
     {
       "path": ".github/action-pins.json",
       "bytes": 703,
-      "sha256": "bb3709e4c0a92370d51cc50e01a12f73e9bd07db917aa64ded95460146a80d3e"
+      "sha256": "f42b173c57ea295a37b796272690fad1435c1abe858a389e2539b2c52468a9cc"
     },
     {
       "path": ".github/dependabot.yml",
@@ -74,12 +74,12 @@
     {
       "path": ".github/workflows/pages.yml",
       "bytes": 10215,
-      "sha256": "12bf7ff00e61bed904e41be513defb986e47b632b518bcc6440d3919ecdb8ace"
+      "sha256": "a2ad21b16555a67fff2f696b9805711b6b71e7391c23299f30d1f7322a06d160"
     },
     {
       "path": ".github/workflows/provision.yml",
       "bytes": 6582,
-      "sha256": "97b473c9e62d44c10856467e8543c16d2a3f086d8dc585c691706026860e4c9a"
+      "sha256": "d622155ba0647b6f5adcfee6c23333edb6065ccae68cc43ccb40a34ad0ac8159"
     },
     {
       "path": ".github/workflows/release.yml",
@@ -2098,8 +2098,8 @@
     },
     {
       "path": "restack.toml",
-      "bytes": 1275,
-      "sha256": "fac5c5471a74eb052f0515562d24bbf67d4a57b4db7880c581105cf02f75dafc"
+      "bytes": 1246,
+      "sha256": "b8b4f7a479b14ece3c2f83b82278b6cdb7ac4da3281cb2fb029dada6e5a88bdd"
     },
     {
       "path": "rust-toolchain.toml",
