@@ -14,6 +14,7 @@ SOURCE_ROOTS = (
     "deploy",
     "docs",
     "examples",
+    "infra",
     "paper",
     "python",
     "research",
@@ -23,6 +24,7 @@ SOURCE_ROOTS = (
 )
 EXCLUDED_PARTS = {
     ".next",
+    ".terraform",
     ".pytest_cache",
     ".ruff_cache",
     ".source",
@@ -48,7 +50,7 @@ def main() -> None:
             relative = path.relative_to(ROOT)
             if path.is_file() and not EXCLUDED_PARTS.intersection(relative.parts):
                 paths.add(path)
-    for name in ("Cargo.lock", "uv.lock", "rust-toolchain.toml"):
+    for name in ("Cargo.lock", "restack.toml", "uv.lock", "rust-toolchain.toml"):
         paths.add(ROOT / name)
     paths = {
         path

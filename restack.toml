@@ -1,0 +1,55 @@
+version = 1
+
+[project]
+name = "pllm"
+repository = "blairhudson/pllm"
+
+[cloudflare]
+account_id = "6cba14eff88836c2a405be02dfd139e4"
+
+[opentofu.backend]
+provider = "cloudflare"
+bucket = "pllm-opentofu-state"
+
+[opentofu.backend.credential]
+name = "pllm-opentofu-backend"
+secret = "CLOUDFLARE_BACKEND_API_TOKEN"
+
+[opentofu.secrets]
+provider = "github"
+account_id_variable = "CLOUDFLARE_ACCOUNT_ID"
+state_passphrase_secret = "TOFU_STATE_PASSPHRASE"
+
+[[opentofu.credentials]]
+name = "pllm-infrastructure"
+secret = "CLOUDFLARE_INFRA_API_TOKEN"
+
+[[opentofu.credentials.policies]]
+scope = "account"
+permissions = [
+  "Account Settings Read",
+  "Access: Apps and Policies Write",
+  "Access: Organizations, Identity Providers, and Groups Read",
+  "Cloudflare Pages Edit",
+]
+
+[[opentofu.credentials.policies]]
+scope = "zone"
+zone = "pllm.run"
+permissions = ["DNS Write", "Zone Read", "Zone WAF Edit"]
+
+[[opentofu.credentials]]
+name = "pllm-non-pages-deploy"
+secret = "PLLM_NON_PAGES_API_TOKEN"
+
+[[opentofu.credentials.policies]]
+scope = "account"
+permissions = ["Cloudflare Pages Edit"]
+
+[[opentofu.credentials]]
+name = "pllm-production-pages-deploy"
+secret = "PLLM_PRODUCTION_PAGES_API_TOKEN"
+
+[[opentofu.credentials.policies]]
+scope = "account"
+permissions = ["Cloudflare Pages Edit"]

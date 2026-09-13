@@ -1,0 +1,174 @@
+name: Provision Pages infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Create a plan or apply a reviewed plan
+        required: true
+        type: choice
+        options: [plan, apply]
+      confirmation:
+        description: PLAN site or exact APPLY string
+        required: true
+        type: string
+      plan_run_id:
+        description: Plan workflow run ID; required only for apply
+        required: false
+        type: string
+      plan_digest:
+        description: SHA-256 from plan summary; required only for apply
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: provision-pages-infrastructure
+  cancel-in-progress: false
+
+jobs:
+  trusted-ref:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require main workflow definition
+        env:
+          EVENT_REF: ${{ github.ref }}
+        run: test "$EVENT_REF" = refs/heads/main
+
+  provision:
+    needs: trusted-ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_INFRA_API_TOKEN }}
+    steps:
+      - name: Validate confirmation and credentials
+        env:
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          API_TOKEN: ${{ secrets.CLOUDFLARE_INFRA_API_TOKEN }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          OPERATION: ${{ inputs.operation }}
+          PLAN_DIGEST: ${{ inputs.plan_digest }}
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+          STATE_PASSPHRASE: ${{ secrets.TOFU_STATE_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if test "$OPERATION" = plan; then
+            test "$CONFIRMATION" = "PLAN site"
+            test -z "$PLAN_RUN_ID"
+            test -z "$PLAN_DIGEST"
+          else
+            test "$OPERATION" = apply
+            [[ "$PLAN_RUN_ID" =~ ^[0-9]+-[0-9]+$ ]]
+            [[ "$PLAN_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+            test "$CONFIRMATION" = "APPLY site @ $GITHUB_SHA # $PLAN_RUN_ID / $PLAN_DIGEST"
+          fi
+          for value in "$ACCOUNT_ID" "$API_TOKEN" "$STATE_PASSPHRASE"; do test -n "$value"; done
+
+      - name: Checkout main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Verify immutable checkout
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+        with:
+          tofu_version: 1.12.6
+
+      - name: Configure temporary encrypted R2 state session
+        uses: blairhudson/restack/actions/run@db53ab5ad03eac345e51055547d26033c1467b35
+        with:
+          args: |
+            ci
+            cloudflare
+            r2
+            environment
+            --account-id
+            ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+            --bucket
+            pllm-opentofu-state
+            --prefix
+            site/,plans/site/,backups/site/
+            --output
+            ${{ github.env }}
+            --format
+            github-env
+            --ttl-seconds
+            3600
+            --write-mode
+            append
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BACKEND_API_TOKEN }}
+          TOFU_STATE_PASSPHRASE: ${{ secrets.TOFU_STATE_PASSPHRASE }}
+
+      - name: Initialize and validate
+        run: |
+          set -euo pipefail
+          tofu -chdir=infra init -input=false
+          tofu -chdir=infra fmt -check -recursive
+          tofu -chdir=infra validate
+
+      - name: Create encrypted plan
+        if: inputs.operation == 'plan'
+        run: |
+          set -euo pipefail
+          tofu -chdir=infra plan -input=false -out="$RUNNER_TEMP/site.tfplan"
+          plan_id="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          plan_digest="$(sha256sum "$RUNNER_TEMP/site.tfplan" | cut -d ' ' -f 1)"
+          aws s3api put-object --bucket pllm-opentofu-state --key "plans/site/$GITHUB_SHA/$plan_id.tfplan" --body "$RUNNER_TEMP/site.tfplan" --if-none-match '*' >/dev/null
+          printf '## Pages infrastructure plan\n\n- Commit: `%s`\n- Plan run: `%s`\n- SHA-256: `%s`\n- Apply confirmation: `APPLY site @ %s # %s / %s`\n' "$GITHUB_SHA" "$plan_id" "$plan_digest" "$GITHUB_SHA" "$plan_id" "$plan_digest" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download reviewed encrypted plan
+        if: inputs.operation == 'apply'
+        env:
+          PLAN_DIGEST: ${{ inputs.plan_digest }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "s3://pllm-opentofu-state/plans/site/$GITHUB_SHA/${{ inputs.plan_run_id }}.tfplan" "$RUNNER_TEMP/site.tfplan" --no-progress
+          test "$(sha256sum "$RUNNER_TEMP/site.tfplan" | cut -d ' ' -f 1)" = "$PLAN_DIGEST"
+
+      - name: Snapshot previous encrypted state
+        if: inputs.operation == 'apply'
+        run: |
+          set -euo pipefail
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          objects="$(aws s3api list-objects-v2 --bucket pllm-opentofu-state --prefix site/terraform.tfstate --output json)"
+          count="$(jq -r '(.Contents // []) | length' <<< "$objects")"
+          if test "$count" = 1; then
+            aws s3api copy-object --bucket pllm-opentofu-state --copy-source pllm-opentofu-state/site/terraform.tfstate --key "backups/site/$timestamp-before-${GITHUB_SHA}.tfstate" >/dev/null
+          else
+            test "$count" = 0
+          fi
+
+      - name: Apply reviewed plan
+        if: inputs.operation == 'apply'
+        run: tofu -chdir=infra apply -input=false "$RUNNER_TEMP/site.tfplan"
+
+      - name: Snapshot resulting encrypted state
+        if: ${{ always() && inputs.operation == 'apply' }}
+        run: |
+          set -euo pipefail
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          objects="$(aws s3api list-objects-v2 --bucket pllm-opentofu-state --prefix site/terraform.tfstate --output json)"
+          count="$(jq -r '(.Contents // []) | length' <<< "$objects")"
+          if test "$count" = 1; then
+            aws s3api copy-object --bucket pllm-opentofu-state --copy-source pllm-opentofu-state/site/terraform.tfstate --key "backups/site/$timestamp-after-${GITHUB_SHA}.tfstate" >/dev/null
+          else
+            test "$count" = 0
+          fi
+
+      - name: Remove applied plan
+        if: inputs.operation == 'apply'
+        run: aws s3 rm "s3://pllm-opentofu-state/plans/site/$GITHUB_SHA/${{ inputs.plan_run_id }}.tfplan"
+
+      - name: Remove temporary files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/site.tfplan"

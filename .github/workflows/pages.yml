@@ -1,67 +1,251 @@
-name: Deploy GitHub Pages
+name: Deploy Cloudflare Pages
 
 on:
   push:
     branches: [main]
-    paths:
-      - docs/**
-      - paper/**
-      - research/evidence/**
-      - scripts/prepare_docs.py
-      - scripts/build_paper.py
-      - .github/workflows/pages.yml
-      - .github/workflows/docs-build.yml
-      - Makefile
   workflow_dispatch:
+    inputs:
+      sha:
+        description: Exact 40-character main commit already deployed to non.pllm.run
+        required: true
+        type: string
+      artifact-digest:
+        description: Exact SHA-256 artifact digest reported by the non-production run
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY production @ <sha>
+        required: true
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: github-pages
-  cancel-in-progress: false
+env:
+  NON_DOMAIN: non.pllm.run
+  NON_PAGES_PROJECT: pllm-non
+  PRODUCTION_DOMAIN: pllm.run
+  PRODUCTION_PAGES_PROJECT: pllm-production
+  WRANGLER_VERSION: 4.126.0
 
 jobs:
-  settings:
-    if: github.ref == 'refs/heads/main'
+  resolve:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      pages: read
+    timeout-minutes: 5
     outputs:
-      base-path: ${{ steps.pages.outputs.base_path }}
+      sha: ${{ steps.resolve.outputs.sha }}
     steps:
+      - name: Validate requested release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" = "push" ]]; then
+            sha="$GITHUB_SHA"
+          else
+            test "$EVENT_REF" = "refs/heads/main"
+            sha="$INPUT_SHA"
+          fi
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "SHA=$sha" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          ref: ${{ github.event_name == 'push' && github.sha || inputs.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - name: Read Pages configuration
-        id: pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+
+      - name: Resolve immutable main commit
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SHA"
+          if [[ "$EVENT_NAME" = "workflow_dispatch" ]]; then
+            git fetch --no-tags origin main:refs/remotes/origin/main
+            git merge-base --is-ancestor "$SHA" origin/main
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
   build:
-    needs: settings
+    if: github.event_name == 'push'
     uses: ./.github/workflows/docs-build.yml
-    with:
-      base-path: ${{ needs.settings.outputs.base-path }}
 
-  deploy:
-    needs: [settings, build]
+  non:
+    if: github.event_name == 'push'
+    needs: [resolve, build]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
+    timeout-minutes: 15
+    concurrency:
+      group: cloudflare-pages-deployment
+      cancel-in-progress: false
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: non-production
+      url: https://non.pllm.run
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: pllm-site
           path: site
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+
+      - name: Deploy and verify non-production artifact
+        id: deploy
+        uses: blairhudson/restack/actions/run@db53ab5ad03eac345e51055547d26033c1467b35
         with:
+          args: |
+            ci
+            cloudflare
+            pages
+            deploy
+            --directory
+            site
+            --project-name
+            ${{ env.NON_PAGES_PROJECT }}
+            --branch
+            main
+            --environment
+            production
+            --release
+            ${{ needs.resolve.outputs.sha }}
+            --artifact-sha256
+            ${{ needs.build.outputs.artifact-digest }}
+            --wrangler-version
+            ${{ env.WRANGLER_VERSION }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PLLM_NON_PAGES_API_TOKEN }}
+
+      - name: Verify non-production domain and Access
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PLLM_NON_PAGES_API_TOKEN }}
+          ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact-digest }}
+          DEPLOYMENT_URL: ${{ fromJSON(steps.deploy.outputs.stdout).deploymentUrl }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          domain_json="$(curl --fail --retry 8 --retry-all-errors --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$NON_PAGES_PROJECT/domains/$NON_DOMAIN")"
+          jq -e --arg domain "$NON_DOMAIN" '.success == true and .result.name == $domain and .result.status == "active"' <<< "$domain_json" >/dev/null
+          headers="$RUNNER_TEMP/non-headers"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors --silent --show-error --max-redirs 0 --dump-header "$headers" --output /dev/null "https://$NON_DOMAIN/"
+          grep -Eiq '^location: https://[^/]+\.cloudflareaccess\.com/' "$headers"
+          printf '## Non-production deployed\n\n- Commit: `%s`\n- Artifact digest: `%s`\n- Deployment: %s\n- Access: https://%s\n' "$SHA" "${ARTIFACT_DIGEST#sha256:}" "$DEPLOYMENT_URL" "$NON_DOMAIN" >> "$GITHUB_STEP_SUMMARY"
+
+  production:
+    if: github.event_name == 'workflow_dispatch'
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    concurrency:
+      group: cloudflare-pages-deployment
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://pllm.run
+    steps:
+      - name: Confirm exact production promotion
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXPECTED_DIGEST: ${{ inputs.artifact-digest }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRMATION" = "DEPLOY production @ $SHA"
+          [[ "$EXPECTED_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Find verified non-production artifact
+        id: source
+        env:
+          EXPECTED_DIGEST: ${{ inputs.artifact-digest }}
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          run_id="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/runs" -f head_sha="$SHA" -f event=push -f status=completed -f per_page=100 --jq '[.workflow_runs[] | select(.conclusion == "success")] | first | .id // empty')"
+          test -n "$run_id"
+          artifact="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '[.artifacts[] | select(.name == "pllm-site" and .expired == false)] | first // empty')"
+          test -n "$artifact"
+          actual_digest="$(jq -r '.digest // empty' <<< "$artifact")"
+          actual_digest="${actual_digest#sha256:}"
+          [[ "$actual_digest" =~ ^[0-9a-f]{64}$ ]]
+          test "$actual_digest" = "$EXPECTED_DIGEST"
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: pllm-site
           path: site
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run-id }}
+
+      - name: Deploy and verify production artifact
+        id: deploy
+        uses: blairhudson/restack/actions/run@db53ab5ad03eac345e51055547d26033c1467b35
+        with:
+          args: |
+            ci
+            cloudflare
+            pages
+            deploy
+            --directory
+            site
+            --project-name
+            ${{ env.PRODUCTION_PAGES_PROJECT }}
+            --branch
+            main
+            --environment
+            production
+            --release
+            ${{ needs.resolve.outputs.sha }}
+            --artifact-sha256
+            ${{ inputs.artifact-digest }}
+            --wrangler-version
+            ${{ env.WRANGLER_VERSION }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PLLM_PRODUCTION_PAGES_API_TOKEN }}
+
+      - name: Verify production domain
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PLLM_PRODUCTION_PAGES_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          domain_json="$(curl --fail --retry 8 --retry-all-errors --silent --show-error -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PRODUCTION_PAGES_PROJECT/domains/$PRODUCTION_DOMAIN")"
+          jq -e --arg domain "$PRODUCTION_DOMAIN" '.success == true and .result.name == $domain and .result.status == "active"' <<< "$domain_json" >/dev/null
+
+      - name: Verify production routes and assets
+        env:
+          ARTIFACT_DIGEST: ${{ inputs.artifact-digest }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          base="https://$PRODUCTION_DOMAIN"
+          headers="$RUNNER_TEMP/production-headers"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors --silent --show-error --dump-header "$headers" --output /dev/null "$base/"
+          if grep -Eiq '^x-robots-tag:.*noindex' "$headers"; then
+            echo "Production response must not be noindex" >&2
+            exit 1
+          fi
+          for route in / /docs/quickstart/ /research/ /research/whitepaper/; do
+            curl --fail --retry 8 --retry-all-errors --silent --show-error --output /dev/null "$base$route"
+          done
+          for name in paper.pdf whitepaper.pdf; do
+            curl --fail --retry 8 --retry-all-errors --silent --show-error --output "$RUNNER_TEMP/$name" "$base/downloads/$name"
+            grep -a -q '^%PDF-' "$RUNNER_TEMP/$name"
+          done
+          for name in paper-source.zip whitepaper-source.zip evidence.zip; do
+            curl --fail --retry 8 --retry-all-errors --silent --show-error --output "$RUNNER_TEMP/$name" "$base/downloads/$name"
+            unzip -tq "$RUNNER_TEMP/$name"
+          done
+          redirect_headers="$RUNNER_TEMP/redirect-headers"
+          curl --fail --retry 8 --retry-all-errors --silent --show-error --dump-header "$redirect_headers" --output /dev/null "https://www.$PRODUCTION_DOMAIN/docs/quickstart/?promotion=1"
+          grep -Eiq '^HTTP/[^ ]+ 301' "$redirect_headers"
+          grep -Eiq '^location: https://pllm\.run/docs/quickstart/\?promotion=1\r?$' "$redirect_headers"
+          printf '## Production deployed\n\n- Commit: `%s`\n- Artifact digest: `%s`\n- URL: %s\n' "$SHA" "$ARTIFACT_DIGEST" "$base" >> "$GITHUB_STEP_SUMMARY"

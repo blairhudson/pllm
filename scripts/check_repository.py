@@ -14,6 +14,7 @@ def main() -> None:
         "CITATION.cff", "pyproject.toml", "python/pllm/cli.py", "Cargo.toml", "crates/pllm-python/src/lib.rs", "crates/pllm-core/src/kernels.rs",
         "docs/package.json", "docs/next.config.mjs", "paper/manuscript.md", "paper/paper.lua", "scripts/build_paper.py",
         ".github/workflows/ci.yml", ".github/workflows/release.yml", ".github/workflows/pages.yml",
+        "infra/main.tf", "infra/variables.tf", "infra/versions.tf",
     ]
     for name in required:
         if not (ROOT / name).is_file():

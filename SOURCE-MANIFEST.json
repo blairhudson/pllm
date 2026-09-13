@@ -38,8 +38,8 @@
     },
     {
       "path": ".github/action-pins.json",
-      "bytes": 795,
-      "sha256": "ee2c0e07e68dd0df4f165e95d1f2e3ba5211b50ca4edc7555f39dcbdd5047801"
+      "bytes": 703,
+      "sha256": "bb3709e4c0a92370d51cc50e01a12f73e9bd07db917aa64ded95460146a80d3e"
     },
     {
       "path": ".github/dependabot.yml",
@@ -58,8 +58,8 @@
     },
     {
       "path": ".github/workflows/docs-build.yml",
-      "bytes": 2297,
-      "sha256": "64bcff18cdd4e1950072ed6e37f7ccea1596677398eacc30eb87c042b6e72d28"
+      "bytes": 2552,
+      "sha256": "c253663f718824fd93c453951bbf37b053ad4553f761e88dabe9251d3cf3d9ae"
     },
     {
       "path": ".github/workflows/lockfiles.yml",
@@ -73,8 +73,13 @@
     },
     {
       "path": ".github/workflows/pages.yml",
-      "bytes": 1661,
-      "sha256": "706af9577949f9543aef1bbb2e6e4ed00dbaf181787ce38d2e3e09e8b67fb7a8"
+      "bytes": 10215,
+      "sha256": "12bf7ff00e61bed904e41be513defb986e47b632b518bcc6440d3919ecdb8ace"
+    },
+    {
+      "path": ".github/workflows/provision.yml",
+      "bytes": 6582,
+      "sha256": "97b473c9e62d44c10856467e8543c16d2a3f086d8dc585c691706026860e4c9a"
     },
     {
       "path": ".github/workflows/release.yml",
@@ -93,8 +98,8 @@
     },
     {
       "path": ".gitignore",
-      "bytes": 739,
-      "sha256": "81968e4688966e861e36d83d29ade37aaea300d8f518bc5f617c2c20fd96fa9c"
+      "bytes": 822,
+      "sha256": "92b7d3dab7eef06420819a68a122865852fa7720790aa6de27225649a6b5d66b"
     },
     {
       "path": ".python-version",
@@ -163,8 +168,8 @@
     },
     {
       "path": "RELEASING.md",
-      "bytes": 5598,
-      "sha256": "457526670114dc6fd468352cefd15b99bf6ccad19be0736eb35a0e1d749b3066"
+      "bytes": 6652,
+      "sha256": "abd69000290c896d8e51c2770e681d4b6f365e5d4ca9e1acdc1e32a5bfd8ed37"
     },
     {
       "path": "SECURITY.md",
@@ -960,6 +965,41 @@
       "path": "examples/transformer_client.py",
       "bytes": 782,
       "sha256": "8f793e05e6eecba7e4f7f359e793a8c2d1e98320338c4f2d1646ef1b640a1ffc"
+    },
+    {
+      "path": "infra/.terraform.lock.hcl",
+      "bytes": 1344,
+      "sha256": "057db2205412fcf7cc7a6a3f4680c25e25d59cae0fe4ff8b4acc555e21103b57"
+    },
+    {
+      "path": "infra/README.md",
+      "bytes": 2420,
+      "sha256": "376f2765e18e10a1e22752da7efa84ff7651bc455acc8fce5f2de5706cc0e11d"
+    },
+    {
+      "path": "infra/backend.tf",
+      "bytes": 485,
+      "sha256": "60a83ac8abe71af3f9ff3c9f0a6c30b41cdc07cacaf3de9e0edff418fd103f80"
+    },
+    {
+      "path": "infra/main.tf",
+      "bytes": 4791,
+      "sha256": "9c861167b76676b23c4e17ecf44f628c6e53f5acdae003b116d0d447ebc0fb37"
+    },
+    {
+      "path": "infra/outputs.tf",
+      "bytes": 519,
+      "sha256": "3059db6be32eecf678add4e4955455afb79b7a2059d0701e4d141e8cbdf98a8b"
+    },
+    {
+      "path": "infra/variables.tf",
+      "bytes": 289,
+      "sha256": "6f1348d2f3249a4bb69852125e18e0e9ddfc063980c9f188ef2ab85ae2220fb4"
+    },
+    {
+      "path": "infra/versions.tf",
+      "bytes": 192,
+      "sha256": "d0857957cf1ada63e6d4349390f5dc2403faf79ae0386f5bfb08a4b68ce8ec88"
     },
     {
       "path": "paper/IMPLEMENTATION-STATUS.md",
@@ -2057,6 +2097,11 @@
       "sha256": "8bcb89d74674f373186a0b4723c0492eba515f9fe4b672f25d5c24d727e145a6"
     },
     {
+      "path": "restack.toml",
+      "bytes": 1275,
+      "sha256": "fac5c5471a74eb052f0515562d24bbf67d4a57b4db7880c581105cf02f75dafc"
+    },
+    {
       "path": "rust-toolchain.toml",
       "bytes": 86,
       "sha256": "b323b19900e4b811af0a8facce5ec11249ed135ae5a46ff5c0be90067521e11f"
@@ -2083,8 +2128,8 @@
     },
     {
       "path": "scripts/check_repository.py",
-      "bytes": 3280,
-      "sha256": "30db3c8f4ef264ab682d82c4eec1a7d6a4fe09e4ad8f97bc5c021c535305e181"
+      "bytes": 3348,
+      "sha256": "4c1c696b96b117cb1c0870d20e5405f1151b15d3f42c11c8e6f8f87a1d62f03e"
     },
     {
       "path": "scripts/install_docs.sh",
@@ -2108,8 +2153,8 @@
     },
     {
       "path": "scripts/refresh_source_manifest.py",
-      "bytes": 2157,
-      "sha256": "f07d6c35f7f6df46f17ee784fa9b7cc685fad45b5d4f596e88123395aaf878c4"
+      "bytes": 2204,
+      "sha256": "f3a34fcf4a34ff1dab67d90482a595e1218b458c19cf4a283a538685e502473f"
     },
     {
       "path": "scripts/release.py",

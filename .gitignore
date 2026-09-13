@@ -26,6 +26,12 @@ results/
 *.db
 models/
 checkpoints/
+# OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.tfstate.lock.info
 # JavaScript
 node_modules/
 .next/
