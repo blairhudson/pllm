@@ -36,7 +36,12 @@ permissions = [
 [[opentofu.credentials.policies]]
 scope = "zone"
 zone = "pllm.run"
-permissions = ["DNS Write", "Zone Read", "Zone WAF Write"]
+permissions = [
+  "DNS Write",
+  "Dynamic URL Redirects Write",
+  "Zone Transform Rules Write",
+  "Zone Read",
+]
 
 [[opentofu.credentials]]
 name = "pllm-non-pages-deploy"

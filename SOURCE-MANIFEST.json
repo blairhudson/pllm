@@ -973,8 +973,8 @@
     },
     {
       "path": "infra/README.md",
-      "bytes": 3069,
-      "sha256": "9a20e107145520e695954d594d1aba2918a9f533fec01fd29dcfeba76a99e5b2"
+      "bytes": 3113,
+      "sha256": "bd41e56e5eb84c9bdbbfe10f3a2038a1640c93b9d16dfb4579d6d0042e995d24"
     },
     {
       "path": "infra/backend.tf",
@@ -2098,8 +2098,8 @@
     },
     {
       "path": "restack.toml",
-      "bytes": 1246,
-      "sha256": "b8b4f7a479b14ece3c2f83b82278b6cdb7ac4da3281cb2fb029dada6e5a88bdd"
+      "bytes": 1300,
+      "sha256": "9340bd4233c4c0b6a4e737d17aa417a85785334e801a089c7a7d5d2fcee22ce7"
     },
     {
       "path": "rust-toolchain.toml",

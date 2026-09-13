@@ -64,8 +64,8 @@ Provisioning settings:
 
 The backend token derives one-hour, prefix-scoped credentials only for the state
 bucket. The infrastructure token has account Pages and Zero Trust permissions,
-plus `Zone Read`, `DNS Write`, and `Zone WAF Edit` only for `pllm.run`. Separate
-Pages-only tokens deploy non-production and production. The PLLM account's
-Access organization and one-time PIN provider are bootstrapped through the user
-profile above; this module reads the provider and owns only its PLLM application
-and policy.
+plus `Zone Read`, `DNS Write`, `Dynamic URL Redirects Write`, and
+`Zone Transform Rules Write` only for `pllm.run`. Separate Pages-only tokens deploy
+non-production and production. The PLLM account's Access organization and
+one-time PIN provider are bootstrapped through the user profile above; this
+module reads the provider and owns only its PLLM application and policy.
