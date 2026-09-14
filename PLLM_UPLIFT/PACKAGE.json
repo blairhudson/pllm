@@ -1,0 +1,26 @@
+{
+  "schema_version": "pllm.handoff_package.v1",
+  "name": "PLLM complete uplift development handoff",
+  "version": "2026-09-14.1",
+  "preferred_topology": {
+    "client": "minimal work; no model target",
+    "preparation": "offline only; model copy permitted",
+    "inference": "one online evaluator"
+  },
+  "preferred_exclusions": [
+    "HE",
+    "second online inference worker",
+    "plaintext fallback"
+  ],
+  "research_targets": 20,
+  "work_packages": 150,
+  "python_tests_passed": 76,
+  "solver_checks_executed": 10,
+  "public_negative_control_families": 6,
+  "legacy_artifacts_preserved": 10,
+  "native_crates_supplied": 5,
+  "native_compiled": false,
+  "full_models_executed_this_handoff": 0,
+  "top20_implementations_completed_this_handoff": 0,
+  "manifest_authenticity": "content hashes provide integrity checks, not independent authorship attestation"
+}

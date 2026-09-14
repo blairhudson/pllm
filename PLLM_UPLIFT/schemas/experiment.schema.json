@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pllm.experiment.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "profile",
+    "policy",
+    "workload",
+    "implementation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "pllm.experiment.v2"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "enum": [
+        "operator_smoke",
+        "archive_masked_linear",
+        "target_single_evaluator",
+        "compare_two_online_fss",
+        "compare_he"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "online_workers",
+        "preparation_online",
+        "client_model",
+        "he",
+        "experimental",
+        "require_composition_review"
+      ],
+      "properties": {
+        "online_workers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "preparation_online": {
+          "type": "boolean"
+        },
+        "client_model": {
+          "type": "boolean"
+        },
+        "he": {
+          "type": "boolean"
+        },
+        "experimental": {
+          "type": "boolean"
+        },
+        "require_composition_review": {
+          "type": "boolean"
+        }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "public_kernel",
+            "full_model"
+          ]
+        },
+        "model_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numeric_manifest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "generation_cap": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dim": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "lanes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "bits": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "tile": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 1000
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_method",
+        "method_ids"
+      ],
+      "properties": {
+        "native_method": {
+          "enum": [
+            "public_modular_matrix",
+            "not_installed"
+          ]
+        },
+        "method_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^R(0[1-9]|1[0-9]|20)$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "launcher": {
+          "enum": [
+            "inprocess_fixture",
+            "local_processes",
+            "remote_agents"
+          ]
+        },
+        "party_manifest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "disconnect_preparation": {
+          "type": "boolean"
+        },
+        "max_prepared_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

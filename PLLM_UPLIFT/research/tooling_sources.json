@@ -1,0 +1,45 @@
+{
+  "as_of": "2026-09-14",
+  "sources": [
+    {
+      "id": "T01",
+      "title": "Maturin mixed Python/Rust project layout",
+      "url": "https://www.maturin.rs/project_layout.html"
+    },
+    {
+      "id": "T02",
+      "title": "PyO3 0.27.2 parallelism and Python::detach",
+      "url": "https://pyo3.rs/v0.27.2/parallelism.html"
+    },
+    {
+      "id": "T03",
+      "title": "Kani Rust verifier",
+      "url": "https://model-checking.github.io/kani/"
+    },
+    {
+      "id": "T04",
+      "title": "EasyCrypt proof assistant",
+      "url": "https://www.easycrypt.info/"
+    },
+    {
+      "id": "T05",
+      "title": "Z3 C API",
+      "url": "https://z3prover.github.io/api/html/group__capi.html"
+    },
+    {
+      "id": "T06",
+      "title": "Dude, is my code constant time?",
+      "url": "https://eprint.iacr.org/2016/1123"
+    },
+    {
+      "id": "T07",
+      "title": "Qwen2.5-0.5B-Instruct official configuration",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/raw/main/config.json"
+    },
+    {
+      "id": "T08",
+      "title": "Maverick (Carnival attack comparison)",
+      "url": "https://arxiv.org/html/2609.10264v1"
+    }
+  ]
+}

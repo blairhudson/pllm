@@ -1,0 +1,17 @@
+[build-system]
+requires = ["maturin>=1.8,<2"]
+build-backend = "maturin"
+[project]
+name = "pllm-uplift-lab"
+version = "0.1.0"
+description = "Staging contracts and native kernels for the PLLM uplift; not a private LLM server"
+requires-python = ">=3.11"
+dependencies = []
+[project.optional-dependencies]
+test = ["pytest>=8", "jsonschema>=4"]
+[project.scripts]
+pllm-uplift = "pllm_uplift.cli:main"
+[tool.maturin]
+manifest-path = "bindings/Cargo.toml"
+python-source = "python"
+module-name = "pllm_uplift._native"

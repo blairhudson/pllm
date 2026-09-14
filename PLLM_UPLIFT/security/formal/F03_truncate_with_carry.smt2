@@ -1,0 +1,11 @@
+(set-option :timeout 10000)
+
+(set-logic QF_BV)
+(declare-const a (_ BitVec 8))
+(declare-const b (_ BitVec 8))
+(define-fun lo () (_ BitVec 5) (bvadd ((_ zero_extend 1) ((_ extract 3 0) a)) ((_ zero_extend 1) ((_ extract 3 0) b))))
+(define-fun carry () (_ BitVec 4) ((_ zero_extend 3) ((_ extract 4 4) lo)))
+(define-fun actual () (_ BitVec 4) (bvadd (bvadd ((_ extract 7 4) a) ((_ extract 7 4) b)) carry))
+(define-fun wanted () (_ BitVec 4) ((_ extract 7 4) (bvadd a b)))
+(assert (not (= actual wanted)))
+(check-sat)

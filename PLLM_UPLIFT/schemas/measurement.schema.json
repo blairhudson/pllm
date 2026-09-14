@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "origin",
+    "scope",
+    "privacy_cohort",
+    "numeric_cohort",
+    "value",
+    "unit",
+    "unavailable_reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "pllm.measurement.v1"
+    },
+    "origin": {
+      "enum": [
+        "native_executed",
+        "source_reported",
+        "analytic_estimate",
+        "reference_executed",
+        "not_available"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "kernel",
+        "operator",
+        "region",
+        "full_model",
+        "deployment"
+      ]
+    },
+    "privacy_cohort": {
+      "type": "string"
+    },
+    "numeric_cohort": {
+      "type": "string"
+    },
+    "value": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "unit": {
+      "type": "string"
+    },
+    "unavailable_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_record": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

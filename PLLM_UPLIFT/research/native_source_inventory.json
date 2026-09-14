@@ -1,0 +1,73 @@
+{
+  "schema_version": "pllm.native_source_inventory.v1",
+  "compilation_status": "not_run_toolchain_unavailable",
+  "implemented_source_components": [
+    {
+      "id": "kernel.public_ring_matmul.scalar.v0",
+      "crate": "pllm-arithmetic",
+      "scope": "public_synthetic_kernel",
+      "claim": "exact modular i8-weight/u32-lane reference source",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "kernel.public_ring_matmul.tiled.v0",
+      "crate": "pllm-arithmetic",
+      "scope": "public_synthetic_kernel",
+      "claim": "native tiled multi-lane source with matching modular semantics",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "codec.fixed_wire_bits.v0",
+      "crate": "pllm-arithmetic",
+      "scope": "codec",
+      "claim": "exact canonical fixed-width packing and padding checks",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "numeric.crt_pair.v0",
+      "crate": "pllm-arithmetic",
+      "scope": "public_math",
+      "claim": "two-small-prime CRT integer reconstruction, not secure base extension",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "inventory.bind_once.inmemory.v0",
+      "crate": "pllm-inventory",
+      "scope": "in_memory_state",
+      "claim": "bind-before-expose and identical retry contract; not durable or rollback-safe",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "contracts.compatibility.v0",
+      "crate": "pllm-types",
+      "scope": "declared_contracts",
+      "claim": "necessary topology/representation/availability checks; no proof of composition",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "assurance.ideal_finite_view.v0",
+      "crate": "pllm-assurance",
+      "scope": "finite_public_fixture",
+      "claim": "ideal uniform transcript enumeration and negative controls",
+      "cryptographic_protocol": false
+    },
+    {
+      "id": "bench.native_matrix.v0",
+      "crate": "pllm-bench",
+      "scope": "native_benchmark_driver",
+      "claim": "interleaved Rust arithmetic timings after compilation",
+      "cryptographic_protocol": false
+    }
+  ],
+  "not_implemented": [
+    "full_model_adapter",
+    "private_garbling_protocol",
+    "all_twenty_papers",
+    "multi_party_network_launcher",
+    "production_crypto_rng",
+    "durable_inventory",
+    "GPU_backend",
+    "full_model_native_bench",
+    "general_privacy_proof"
+  ]
+}

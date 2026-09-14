@@ -1,0 +1,85 @@
+{
+  "schema_version": "pllm.attack_catalog.v1",
+  "attacks": [
+    {
+      "id": "mask_reuse",
+      "scope": "input-difference disclosure",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "affine_label_reuse",
+      "scope": "offset recovery",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "sparse_point_permute",
+      "scope": "input recovery via domain shift",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "missing_truncation_carry",
+      "scope": "numeric mismatch",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "early_exit_metadata",
+      "scope": "sign disclosure",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "low_rank_projection",
+      "scope": "nullspace information disclosure",
+      "status": "public_fixture_executed"
+    },
+    {
+      "id": "timeout_recycle",
+      "scope": "two semantic inputs under one record",
+      "status": "bounded_solver_counterexample_executed"
+    },
+    {
+      "id": "carnival_projection",
+      "scope": "specific published attacked variant",
+      "status": "source_acquisition_then_reproduce"
+    },
+    {
+      "id": "shifted_fourier_coefficients",
+      "scope": "mask phase recovery",
+      "status": "legacy_report_only"
+    },
+    {
+      "id": "scalar_translator_differences",
+      "scope": "mask cancellation",
+      "status": "legacy_report_only"
+    },
+    {
+      "id": "codec_domain_collision",
+      "scope": "silent wrong decode outside domain",
+      "status": "legacy_report_only"
+    },
+    {
+      "id": "weighted_node_seed",
+      "scope": "secret edge values from evaluator-known mask seeds",
+      "status": "legacy_report_only"
+    },
+    {
+      "id": "clone_rollback",
+      "scope": "freshness after state resurrection",
+      "status": "production_integration_required"
+    },
+    {
+      "id": "side_channel_timing",
+      "scope": "native fixed-vs-random leakage",
+      "status": "production_integration_required"
+    },
+    {
+      "id": "private_expert_routing",
+      "scope": "routing metadata outside leakage contract",
+      "status": "production_integration_required"
+    },
+    {
+      "id": "combined_roles",
+      "scope": "non-collusion boundary demonstration",
+      "status": "production_integration_required"
+    }
+  ]
+}

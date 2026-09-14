@@ -1,0 +1,12 @@
+[package]
+name = "pllm-bench"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pllm-arithmetic = { path = "../pllm-arithmetic" }
+pllm-assurance = { path = "../pllm-assurance" }
+
+[[bin]]
+name = "pllm-native-lab"
+path = "src/main.rs"

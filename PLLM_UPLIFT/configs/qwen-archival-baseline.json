@@ -1,0 +1,34 @@
+{
+  "schema_version": "pllm.experiment.v2",
+  "id": "qwen-archival-baseline",
+  "profile": "archive_masked_linear",
+  "policy": {
+    "online_workers": 1,
+    "preparation_online": false,
+    "client_model": true,
+    "he": false,
+    "experimental": false,
+    "require_composition_review": false
+  },
+  "workload": {
+    "kind": "full_model",
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "numeric_manifest": null,
+    "prompt_tokens": 30,
+    "generation_cap": 16,
+    "repetitions": 3
+  },
+  "implementation": {
+    "native_method": "not_installed",
+    "method_ids": [
+      "R07"
+    ]
+  },
+  "deployment": {
+    "launcher": "local_processes",
+    "party_manifest": "configs/parties-local.json",
+    "disconnect_preparation": true,
+    "max_prepared_bytes": 1073741824
+  }
+}

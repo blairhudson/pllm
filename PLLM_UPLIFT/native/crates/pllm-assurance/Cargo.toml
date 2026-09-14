@@ -1,0 +1,8 @@
+[package]
+name = "pllm-assurance"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pllm-arithmetic = { path = "../pllm-arithmetic" }
+pllm-inventory = { path = "../pllm-inventory" }

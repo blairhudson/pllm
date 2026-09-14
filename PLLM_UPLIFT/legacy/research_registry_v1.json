@@ -1,0 +1,821 @@
+{
+  "schema_version": "pllm.research.registry.v1",
+  "as_of": "2026-09-14",
+  "scope": "Design inventory; source access is not evidence of a reproduced result. Prior experiments are source-reported and were not rerun in this task.",
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits",
+      "url": "https://arxiv.org/html/2302.06361v2",
+      "access": "primary_full_text_accessed",
+      "caveat": "Arithmetic labels, public-weight operations, LabelTensors; CNN scope. Security depends on additional mechanisms, not merely garbling kernels."
+    },
+    {
+      "id": "S02",
+      "title": "ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference",
+      "url": "https://arxiv.org/html/2506.14489v1",
+      "access": "primary_full_text_accessed",
+      "caveat": "RNS scaling and conversion. No claim of a PLLM reproduction."
+    },
+    {
+      "id": "S03",
+      "title": "Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+      "url": "https://eprint.iacr.org/2014/756",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Published Boolean foundation; research hash instantiations are adaptations."
+    },
+    {
+      "id": "S04",
+      "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+      "url": "https://eprint.iacr.org/2024/369",
+      "access": "primary_abstract",
+      "caveat": "logrow: logarithmic ciphertext count does not mean logarithmic total communication; conversions remain."
+    },
+    {
+      "id": "S05",
+      "title": "Duty-Free Bits: Projectivizing Garbling Schemes",
+      "url": "https://eprint.iacr.org/2026/476",
+      "access": "primary_abstract",
+      "caveat": "Specific bit-to-arithmetic conversion, not arbitrary bidirectional casting."
+    },
+    {
+      "id": "S06",
+      "title": "Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware",
+      "url": "https://arxiv.org/abs/1806.03287",
+      "access": "primary_abstract",
+      "caveat": "Linear blinding and local verification precedent; trust/deployment differs from PLLM."
+    },
+    {
+      "id": "S07",
+      "title": "Slalom at the Carnival",
+      "url": "https://cic.iacr.org/p/1/3/40",
+      "access": "primary_full_text_accessed",
+      "caveat": "Outsourced preprocessing; variants require current cryptanalytic review."
+    },
+    {
+      "id": "S08",
+      "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+      "url": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+      "access": "primary_abstract",
+      "caveat": "Secure transformer baseline in another online topology."
+    },
+    {
+      "id": "S09",
+      "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+      "url": "https://arxiv.org/abs/2606.09551",
+      "access": "primary_abstract",
+      "caveat": "FSS helpers and nonlinear compilation; not default single-evaluator topology."
+    },
+    {
+      "id": "S10",
+      "title": "CryptoGen: Secure Transformer Generation with Encrypted KV-Cache Reuse",
+      "url": "https://arxiv.org/abs/2602.08798",
+      "access": "primary_abstract",
+      "caveat": "Encrypted-cache reuse precedent; HE/MPC comparison track."
+    },
+    {
+      "id": "S11",
+      "title": "An Efficient Private GPT Never Autoregressively Decodes",
+      "url": "https://arxiv.org/abs/2505.15252",
+      "access": "primary_abstract",
+      "caveat": "POST; speculative private inference, accounting per accepted token required."
+    },
+    {
+      "id": "S12",
+      "title": "Private and Verifiable Outsourcing of Open-Weight LLM Inference",
+      "url": "https://eprint.iacr.org/2026/1849",
+      "access": "primary_abstract",
+      "caveat": "Two malicious non-colluding servers; only abstract accessed, performance not independently verified."
+    },
+    {
+      "id": "S13",
+      "title": "Maverick",
+      "url": "https://arxiv.org/abs/2609.10264",
+      "access": "primary_abstract",
+      "caveat": "Private verifiable delegation and cryptanalytic comparison; match workload definitions."
+    },
+    {
+      "id": "S14",
+      "title": "MOSAIC",
+      "url": "https://arxiv.org/abs/2607.29221",
+      "access": "primary_abstract",
+      "caveat": "Different model-confidentiality and approximation boundary; separate comparison cohort."
+    },
+    {
+      "id": "S15",
+      "title": "Efficient Pseudorandom Correlation Generators over Z/p^k Z",
+      "url": "https://dl.acm.org/doi/abs/10.1007/978-3-032-01884-7_7",
+      "access": "metadata_only",
+      "caveat": "Ring-PCG lead; no current implementation or reviewed parameter selection in PLLM."
+    },
+    {
+      "id": "S16",
+      "title": "Prime-field PCG using Walsh-Hadamard transforms",
+      "url": "https://eprint.iacr.org/2026/196",
+      "access": "primary_abstract",
+      "caveat": "Do not transfer odd-prime transform identities into power-of-two rings without proof."
+    },
+    {
+      "id": "S17",
+      "title": "Curl",
+      "url": "https://eprint.iacr.org/2024/1127",
+      "access": "primary_abstract",
+      "caveat": "Wavelet nonlinear LUT reference, not implemented by the supplied experiments."
+    },
+    {
+      "id": "S18",
+      "title": "Compact: Approximating Complex Activation Functions for Secure Computation",
+      "url": "https://arxiv.org/abs/2309.04664",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Model/numeric approximation comparison; distinguish approximate graph from protected exactness."
+    },
+    {
+      "id": "S19",
+      "title": "Practical Secure Delegated Linear Algebra with Trapdoored Matrices",
+      "url": "https://arxiv.org/html/2502.13060v3",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "LPN-based structured preprocessing lead with a different operand/interaction boundary."
+    },
+    {
+      "id": "S20",
+      "title": "Maturin project layout",
+      "url": "https://www.maturin.rs/project_layout.html",
+      "access": "official_documentation",
+      "caveat": "Mixed Python/Rust packaging."
+    },
+    {
+      "id": "S21",
+      "title": "PyO3 parallelism",
+      "url": "https://pyo3.rs/main/parallelism",
+      "access": "official_documentation",
+      "caveat": "Native work outside the Python interpreter attachment."
+    },
+    {
+      "id": "S22",
+      "title": "Transformers custom models",
+      "url": "https://huggingface.co/docs/transformers/en/custom_models",
+      "access": "official_documentation",
+      "caveat": "Adapter conventions; PLLM semantic/protected IR remains independent."
+    },
+    {
+      "id": "S23",
+      "title": "Transformers models and custom code",
+      "url": "https://huggingface.co/docs/transformers/en/models",
+      "access": "official_documentation",
+      "caveat": "Explicit trust and pinned source loading."
+    },
+    {
+      "id": "S24",
+      "title": "Safetensors documentation",
+      "url": "https://huggingface.co/docs/safetensors/index",
+      "access": "official_documentation",
+      "caveat": "Safe tensor container does not certify model identity/semantics."
+    },
+    {
+      "id": "S25",
+      "title": "Qwen2.5-0.5B-Instruct official configuration",
+      "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/raw/main/config.json",
+      "access": "official_model_metadata",
+      "caveat": "Current main metadata accessed; archived revision supplied by manuscript must be verified at resolution."
+    },
+    {
+      "id": "S26",
+      "title": "Scikit-learn pipelines and composite estimators",
+      "url": "https://scikit-learn.org/stable/modules/compose.html",
+      "access": "official_documentation",
+      "caveat": "Named components and nested parameter-search UX."
+    },
+    {
+      "id": "S27",
+      "title": "Optuna multi-objective optimization",
+      "url": "https://optuna.readthedocs.io/en/stable/tutorial/20_recipes/002_multi_objective.html",
+      "access": "official_documentation",
+      "caveat": "Optional public-parameter search engine, not the type/security checker."
+    },
+    {
+      "id": "S28",
+      "title": "DeepEval metrics introduction",
+      "url": "https://deepeval.com/docs/metrics-introduction",
+      "access": "official_documentation",
+      "caveat": "Explicit metrics and test cases; remote evaluator is not enabled by default."
+    },
+    {
+      "id": "S29",
+      "title": "OpenTelemetry metrics data model",
+      "url": "https://opentelemetry.io/docs/specs/otel/metrics/data-model/",
+      "access": "official_documentation",
+      "caveat": "Metric export format; private payloads excluded."
+    },
+    {
+      "id": "S30",
+      "title": "OpenAI Responses API reference",
+      "url": "https://developers.openai.com/api/reference/resources/responses/methods/create",
+      "access": "official_documentation",
+      "caveat": "Client-gateway compatibility target, not a claim that every API feature is implemented."
+    },
+    {
+      "id": "S31",
+      "title": "MP-SPDZ",
+      "url": "https://mp-spdz.readthedocs.io/en/latest/",
+      "access": "official_documentation",
+      "caveat": "Multi-protocol systems and benchmarking prior art."
+    },
+    {
+      "id": "S32",
+      "title": "HyCC: Compilation of Hybrid Protocols for Practical Secure Computation",
+      "url": "https://dl.acm.org/doi/10.1145/3243734.3243786",
+      "access": "primary_metadata_and_author_abstract",
+      "caveat": "Hybrid protocol compilation/selection prior art."
+    },
+    {
+      "id": "S33",
+      "title": "CrypTFlow: Secure TensorFlow Inference",
+      "url": "https://www.microsoft.com/en-us/research/publication/cryptflow-secure-tensorflow-inference/",
+      "access": "primary_abstract",
+      "caveat": "Secure ML compiler prior art."
+    },
+    {
+      "id": "S34",
+      "title": "EzPC: Easy Secure Multi-Party Computation",
+      "url": "https://www.microsoft.com/en-us/research/project/ezpc-easy-secure-multi-party-computation/",
+      "access": "official_project",
+      "caveat": "Compiler/framework prior art."
+    },
+    {
+      "id": "S35",
+      "title": "Practical attacks on quasi-abelian syndrome decoding and PCGs",
+      "url": "https://eprint.iacr.org/2025/892",
+      "access": "primary_abstract",
+      "caveat": "Parameter review required; faster broken parameters are never search candidates."
+    },
+    {
+      "id": "S36",
+      "title": "Factored Edge-Valued Binary Decision Diagrams",
+      "url": "https://link.springer.com/article/10.1023/A:1008691605584",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Established function compression; not a security construction."
+    },
+    {
+      "id": "S37",
+      "title": "Oblivious decision program evaluation",
+      "url": "https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/iet-ifs.2012.0032",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Garbled decision-program precedent; custom potentials need independent composition analysis."
+    },
+    {
+      "id": "S38",
+      "title": "FlashAttention-2",
+      "url": "https://arxiv.org/abs/2307.08691",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Delayed-normalization scheduling precedent; fixed-point placement may change semantics."
+    },
+    {
+      "id": "S39",
+      "title": "Root Mean Square Layer Normalization",
+      "url": "https://arxiv.org/abs/1910.07467",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Normalization geometry basis for public range proofs."
+    },
+    {
+      "id": "S40",
+      "title": "Piranha: A GPU Platform for Secure Computation",
+      "url": "https://www.usenix.org/conference/usenixsecurity22/presentation/watson",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "GPU secure-kernel precedent."
+    },
+    {
+      "id": "S41",
+      "title": "Oblivious Ciphertext Compression via Linear Codes",
+      "url": "https://eprint.iacr.org/2026/329",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Syndrome-compression overlap must be checked; cannot assert novel general compression."
+    },
+    {
+      "id": "S42",
+      "title": "Distributed Point Functions and Function Secret Sharing",
+      "url": "https://arxiv.org/abs/2607.27696",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Foundation/review for FSS offset-function and public-basis sharing."
+    },
+    {
+      "id": "S43",
+      "title": "MPCFormer",
+      "url": "https://arxiv.org/abs/2211.01452",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Distillation/model-changing MPC-friendly track, never an exact compiler rewrite."
+    },
+    {
+      "id": "S44",
+      "title": "One-Time Programs",
+      "url": "https://www.microsoft.com/en-us/research/publication/one-time-programs-2/",
+      "access": "primary_link_in_supplied_report",
+      "caveat": "Software erasure promises do not enforce one-use on copied evaluator state."
+    }
+  ],
+  "methods": [
+    {
+      "id": "masked.linear.v1",
+      "source_ids": [
+        "S06",
+        "S07"
+      ],
+      "family": "masked_linear",
+      "implementation_scope": "full_model_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "reported nine-run baseline; not rerun in this design task"
+    },
+    {
+      "id": "masked.verification.mixed_field.experimental.v1",
+      "source_ids": [
+        "S06"
+      ],
+      "family": "masked_linear",
+      "implementation_scope": "algebra_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "client model-dependent check setup and signed-bound assumptions; not full malicious protocol"
+    },
+    {
+      "id": "masked.public_bound_codec.v1",
+      "source_ids": [],
+      "family": "masked_linear",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "exact only with declared public bounds; prototype integration pending"
+    },
+    {
+      "id": "masked.syndrome_codec.experimental.v1",
+      "source_ids": [
+        "S41"
+      ],
+      "family": "masked_linear",
+      "implementation_scope": "operator_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "sparse overflow envelope, undetected out-of-domain collision; no automatic fallback"
+    },
+    {
+      "id": "masked.coded_corrections.experimental.v1",
+      "source_ids": [
+        "S41"
+      ],
+      "family": "masked_linear",
+      "implementation_scope": "operator_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "includes stored encoded corrections; online savings exclude HE preparation"
+    },
+    {
+      "id": "masked.prediction.experimental.v1",
+      "source_ids": [],
+      "family": "masked_linear",
+      "implementation_scope": "operator_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "deliberately correlated synthetic data, not demonstrated real-model correlation"
+    },
+    {
+      "id": "prep.paillier.reference.v1",
+      "source_ids": [],
+      "family": "he_hybrid",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "actual small Paillier experiment; model-free variant obsolete in preferred model-aware setup"
+    },
+    {
+      "id": "shared.public_linear.v1",
+      "source_ids": [
+        "S08"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "region_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "two online model replicas; comparison track only"
+    },
+    {
+      "id": "shared.immutable_kv.experimental.v1",
+      "source_ids": [
+        "S10"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "operator_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "same immutable operand only; new left correlations still consumed"
+    },
+    {
+      "id": "shared.late_normalization.v1",
+      "source_ids": [
+        "S38"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "float identity; fixed-point graph must record moved rounding"
+    },
+    {
+      "id": "shared.spectral.experimental.v1",
+      "source_ids": [
+        "S18",
+        "S42"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "operator_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "private coefficients cannot be exposed to one evaluator; range/rescaling/approximation limits"
+    },
+    {
+      "id": "shared.piecewise_fss.experimental.v1",
+      "source_ids": [
+        "S09",
+        "S42"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "custom shifted-polynomial fusion; not full FuseFSS reproduction"
+    },
+    {
+      "id": "shared.private_sampling.reference.v1",
+      "source_ids": [
+        "S08"
+      ],
+      "family": "two_worker_sharing",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "finite random grid, secure comparisons and embedding scan; not complete model sampling"
+    },
+    {
+      "id": "garbled.public_linear.v1",
+      "source_ids": [
+        "S01"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "region_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "arithmetic labels/CRT; no full transformer"
+    },
+    {
+      "id": "garbled.boolean_half_gates.v1",
+      "source_ids": [
+        "S03"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "Python research hashes are not automatically optimized/audited original artifact"
+    },
+    {
+      "id": "garbled.full_lut.v1",
+      "source_ids": [
+        "S01"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "region_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "large disposable material; bounded hash format not formally reviewed"
+    },
+    {
+      "id": "garbled.weighted_path.experimental.v1",
+      "source_ids": [
+        "S01",
+        "S03",
+        "S36",
+        "S37"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "region_reported",
+      "fidelity": "novel_composition",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "source trade-off only; one-party security/composition unaudited"
+    },
+    {
+      "id": "garbled.redash_scaling.planned.v1",
+      "source_ids": [
+        "S02"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "implement source conversion/scaling before claiming reproduction"
+    },
+    {
+      "id": "garbled.logrow.planned.v1",
+      "source_ids": [
+        "S04"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "abstract/formula comparison only"
+    },
+    {
+      "id": "garbled.duty_free_bits.planned.v1",
+      "source_ids": [
+        "S05"
+      ],
+      "family": "single_evaluator_garbling",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "respect direction and parameter assumptions"
+    },
+    {
+      "id": "compiler.geometric_bounds.experimental.v1",
+      "source_ids": [
+        "S39"
+      ],
+      "family": "protocol_independent_analysis",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "unit-scale synthetic checks; real learned scales/approximation errors need sound inclusion"
+    },
+    {
+      "id": "compiler.weighted_functions.experimental.v1",
+      "source_ids": [
+        "S36"
+      ],
+      "family": "protocol_independent_analysis",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "public graph compression reused; secret garbling instances not reused"
+    },
+    {
+      "id": "kernel.packed_weights.experimental.v1",
+      "source_ids": [
+        "S01",
+        "S40"
+      ],
+      "family": "native_kernel",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "reference CPU layout only; no CUDA throughput claim"
+    },
+    {
+      "id": "kernel.kronecker.experimental.v1",
+      "source_ids": [],
+      "family": "native_kernel",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "exact but slower on tested CPU"
+    },
+    {
+      "id": "kernel.four_russians.experimental.v1",
+      "source_ids": [],
+      "family": "native_kernel",
+      "implementation_scope": "operator_reported",
+      "fidelity": "adapted_method",
+      "validation": "source_reported",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "7–28x slower than tested VNNI implementation; preserve negative evidence"
+    },
+    {
+      "id": "prep.ring_pcg.planned.v1",
+      "source_ids": [
+        "S15",
+        "S35"
+      ],
+      "family": "preparation",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "review exact correlation and current secure parameters; no performance claim"
+    },
+    {
+      "id": "prep.field_pcg.planned.v1",
+      "source_ids": [
+        "S16",
+        "S35"
+      ],
+      "family": "preparation",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "odd-prime domain not power-of-two-ring domain"
+    },
+    {
+      "id": "nonlinear.curl.planned.v1",
+      "source_ids": [
+        "S17"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "wavelet LUT with original privacy/numeric contract"
+    },
+    {
+      "id": "external.sigma.v1",
+      "source_ids": [
+        "S08"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "pinned external artifact recipe to be added"
+    },
+    {
+      "id": "external.fusefss.v1",
+      "source_ids": [
+        "S09"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "do not relabel a helper experiment as whole-system reproduction"
+    },
+    {
+      "id": "external.cryptogen.v1",
+      "source_ids": [
+        "S10"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "HE/cache-aware external baseline, outside preferred profile"
+    },
+    {
+      "id": "external.post.v1",
+      "source_ids": [
+        "S11"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "speculative baseline reports cost per accepted token"
+    },
+    {
+      "id": "external.gkm.v1",
+      "source_ids": [
+        "S12"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "abstract-only source; obtain full paper/artifact before faithful implementation"
+    },
+    {
+      "id": "external.maverick.v1",
+      "source_ids": [
+        "S13"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "next-token/logit throughput not assumed decode TPS"
+    },
+    {
+      "id": "external.mosaic.v1",
+      "source_ids": [
+        "S14"
+      ],
+      "family": "research_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "different model-privacy and approximation objectives"
+    },
+    {
+      "id": "external.hycc.v1",
+      "source_ids": [
+        "S32"
+      ],
+      "family": "compiler_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "mixed-protocol compiler prior art"
+    },
+    {
+      "id": "external.mp_spdz.v1",
+      "source_ids": [
+        "S31"
+      ],
+      "family": "compiler_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "security/topology-matched comparison required"
+    },
+    {
+      "id": "external.cryptflow_ezpc.v1",
+      "source_ids": [
+        "S33",
+        "S34"
+      ],
+      "family": "compiler_comparison",
+      "implementation_scope": "not_implemented",
+      "fidelity": "not_implemented",
+      "validation": "not_run",
+      "integrated_runtime": false,
+      "auto_eligible": false,
+      "notes": "compiler/model semantic coverage differs"
+    }
+  ],
+  "excluded_from_auto": [
+    "weak_or_small_masks",
+    "shared_exposed_fourier_coefficients",
+    "mask_or_label_reuse_for_changed_input",
+    "sparse_point_and_permute",
+    "data_dependent_visible_fallback",
+    "early_exit_weighted_path",
+    "modular_inverse_as_fixed_point_division",
+    "unreviewed_pcg_parameters"
+  ]
+}

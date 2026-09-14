@@ -1,0 +1,61 @@
+{
+  "scope": "Design specimen syntax/data checks only; no proposed API imported or executed.",
+  "python": [
+    {
+      "path": "examples/benchmark.py",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/composition.py",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/private_app.py",
+      "result": "syntax_valid"
+    }
+  ],
+  "yaml": [
+    {
+      "path": "examples/pllm.yaml",
+      "result": "parsed"
+    },
+    {
+      "path": "examples/remote.yaml",
+      "result": "parsed"
+    }
+  ],
+  "shell": [
+    {
+      "path": "examples/benchmark.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/from_python.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/inference.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/local.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/preparation.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/remote_prepare.sh",
+      "result": "syntax_valid"
+    },
+    {
+      "path": "examples/remote_run.sh",
+      "result": "syntax_valid"
+    }
+  ],
+  "field_checks": {
+    "initial_budget": "matched_specification",
+    "cpu_threads": "matched_specification"
+  }
+}

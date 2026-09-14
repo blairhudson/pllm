@@ -1,0 +1,49 @@
+{
+  "schema_version": "pllm.search_spec.v1",
+  "status": "integration_contract",
+  "constraints": [
+    "fixed_privacy_contract",
+    "fixed_numeric_cohort",
+    "full_coverage",
+    "material_budget",
+    "source_and_assurance_eligibility"
+  ],
+  "public_variables": {
+    "kernel_tile": [
+      16,
+      32,
+      64
+    ],
+    "region_fusion": [
+      "off",
+      "exact_only"
+    ],
+    "nonlinear_backend": [
+      "boolean",
+      "flat_lookup",
+      "reviewed_logrow",
+      "experimental_weighted_path"
+    ],
+    "bound_analysis": [
+      "box",
+      "certified_geometry"
+    ],
+    "prefill_rows": [
+      1,
+      8,
+      32
+    ]
+  },
+  "conditional_rules": [
+    "experimental_weighted_path requires experimental opt-in and remains ineligible for reviewed defaults",
+    "CRT widths must be justified by public certificates, never free search variables",
+    "every backend transition must have an installed conversion"
+  ],
+  "objectives": [
+    "online_latency",
+    "all_party_cost",
+    "total_traffic",
+    "peak_memory"
+  ],
+  "final_validation": "held_out_complete_plan_measurement"
+}

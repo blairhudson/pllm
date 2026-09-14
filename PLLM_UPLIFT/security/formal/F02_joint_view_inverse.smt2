@@ -1,0 +1,11 @@
+(set-option :timeout 10000)
+
+(set-logic QF_BV)
+(declare-const w (_ BitVec 8))
+(declare-const x (_ BitVec 8))
+(declare-const u (_ BitVec 8))
+(declare-const c (_ BitVec 8))
+(define-fun r () (_ BitVec 8) (bvsub x u))
+(define-fun s () (_ BitVec 8) (bvsub (bvmul w r) c))
+(assert (or (not (= u (bvsub x r))) (not (= c (bvsub (bvmul w r) s)))))
+(check-sat)

@@ -1,0 +1,12 @@
+[package]
+name = "pllm-uplift-python"
+version = "0.1.0"
+edition = "2021"
+[workspace]
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+[dependencies]
+pyo3 = { version = "=0.27.2", features = ["extension-module"] }
+pllm-bench = { path = "../native/crates/pllm-bench" }
+pllm-assurance = { path = "../native/crates/pllm-assurance" }
