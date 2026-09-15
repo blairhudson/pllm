@@ -27,6 +27,7 @@ env:
 jobs:
   repository:
     name: Repository and lint
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -45,6 +46,7 @@ jobs:
 
   python:
     name: Python ${{ matrix.python }}
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -70,6 +72,7 @@ jobs:
 
   homomorphic:
     name: Real HE
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -93,6 +96,7 @@ jobs:
 
   sdk:
     name: Installed OpenAI SDK
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -116,6 +120,7 @@ jobs:
 
   distributions:
     name: Build and install distributions
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -166,10 +171,12 @@ jobs:
 
   native-wheels:
     name: Native wheels
+    if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/wheels.yml
 
   documentation:
     name: Documentation and paper
+    if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/docs-build.yml
     with:
       base-path: /pllm
@@ -177,7 +184,7 @@ jobs:
 
   checks:
     name: All checks
-    if: always()
+    if: always() && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     needs: [repository, python, homomorphic, sdk, distributions, native-wheels, documentation]
     timeout-minutes: 5

@@ -10,7 +10,7 @@ from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 
 from pllm._cli.app import build_parser
-from pllm.runtime.dashboard import DashboardRuntime, OTelStore, _http_origin
+from pllm.runtime.dashboard import DashboardConfig, DashboardRuntime, OTelStore, _http_origin
 
 
 def _resource_attribute(resource, key: str, value: str) -> None:
@@ -145,6 +145,43 @@ def test_dashboard_defaults_to_real_qwen_and_keeps_tiny_explicit() -> None:
     assert default.tiny is False
     assert default.model_id is None
     assert tiny.tiny is True
+
+
+def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
+    runtime = DashboardRuntime(
+        DashboardConfig(
+            host="127.0.0.1",
+            port=7777,
+            model_path="/tmp/model",
+            model_id="model",
+            default_max_output_tokens=8,
+        ),
+        OTelStore(),
+    )
+    commands = {}
+
+    monkeypatch.setattr(
+        runtime,
+        "_spawn",
+        lambda role, command, _root: commands.__setitem__(role, command),
+    )
+
+    async def healthy(_url, _role) -> None:
+        return None
+
+    async def stop_before_preparation(*_args, **_kwargs) -> None:
+        raise RuntimeError("stop test startup")
+
+    monkeypatch.setattr(runtime, "_wait_for_health", healthy)
+    monkeypatch.setattr(runtime, "_background_call", stop_before_preparation)
+
+    asyncio.run(runtime.start())
+
+    assert commands["inference"][1:4] == ["-m", "pllm.runtime.cli", "inference"]
+    assert commands["preparation"][1:4] == ["-m", "pllm.runtime.cli", "preparation"]
+    assert "--model" in commands["inference"]
+    assert "serve" not in commands["inference"]
+    runtime._temporary.cleanup()
 
 
 def test_dashboard_snapshot_normalizes_unprepared_inventory() -> None:

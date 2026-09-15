@@ -429,6 +429,12 @@
       "representation": "html"
     },
     {
+      "from": "/sdk/build/operators/activation-silu",
+      "to": "/sdk/build/operators/activation-silu/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/sdk/build/operators",
       "to": "/sdk/build/operators/",
       "status": 308,

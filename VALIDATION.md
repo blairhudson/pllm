@@ -84,7 +84,7 @@ and command flags in `research/evidence/current-runtime-2026-09-11.json`. To add
 a new current real-role record:
 
 ```bash
-uv run pllm benchmark dashboard
+uv run pllm dev dashboard
 ```
 
 Use `--tiny --history-db :memory:` only as an ephemeral transport/dashboard smoke

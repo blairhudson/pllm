@@ -6,7 +6,7 @@ Inspect PLLM configuration, components, and research records from the terminal.
 
 Document ID: `pllm.docs.cli`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
 Source hash: `sha256:6da475a0949f55f8cc565ff622cc3755862a03da1b822d70c88dfd4622c65f33`
 
 The PLLM command-line interface inspects the package's public metadata. It does

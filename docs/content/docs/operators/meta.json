@@ -1,4 +1,4 @@
 {
   "title": "Operators",
-  "pages": ["index", "projection-rotary", "stateful-recurrence"]
+  "pages": ["index", "projection-rotary", "activation-silu", "stateful-recurrence"]
 }

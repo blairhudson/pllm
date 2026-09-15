@@ -69,6 +69,7 @@
 /sdk/build/models/qwen3 /sdk/build/models/qwen3/ 308
 /sdk/build/models/qwen35 /sdk/build/models/qwen35/ 308
 /sdk/build/numerics /sdk/build/numerics/ 308
+/sdk/build/operators/activation-silu /sdk/build/operators/activation-silu/ 308
 /sdk/build/operators /sdk/build/operators/ 308
 /sdk/build/operators/projection-rotary /sdk/build/operators/projection-rotary/ 308
 /sdk/build/operators/stateful-recurrence /sdk/build/operators/stateful-recurrence/ 308

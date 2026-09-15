@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328
+Build: sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -43,6 +43,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Qwen3 and mini-coder](https://pllm.run/sdk/build/models/qwen3/) ([Markdown](https://pllm.run/sdk/build/models/qwen3.md)): Dense Qwen3 lowering with explicit head width and Q/K normalization.
 - [Qwen3.5](https://pllm.run/sdk/build/models/qwen35/) ([Markdown](https://pllm.run/sdk/build/models/qwen35.md)): Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B.
 - [Numerics](https://pllm.run/sdk/build/numerics/) ([Markdown](https://pllm.run/sdk/build/numerics.md)): Understand PLLM's integer arithmetic, quantization, rounding, approximation, and overflow checks.
+- [SiLU activation](https://pllm.run/sdk/build/operators/activation-silu/) ([Markdown](https://pllm.run/sdk/build/operators/activation-silu.md)): Compile and evaluate PLLM's bounded experimental Q7 SiLU component.
 - [Operators](https://pllm.run/sdk/build/operators/) ([Markdown](https://pllm.run/sdk/build/operators.md)): Learn how PLLM describes model operations independently of model family and runtime.
 - [Projection and rotary variants](https://pllm.run/sdk/build/operators/projection-rotary/) ([Markdown](https://pllm.run/sdk/build/operators/projection-rotary.md)): Represent fused projections, tensor slices, head widths, and rotary position rules.
 - [Stateful recurrence](https://pllm.run/sdk/build/operators/stateful-recurrence/) ([Markdown](https://pllm.run/sdk/build/operators/stateful-recurrence.md)): Represent convolution and recurrent state in a hybrid decoder plan.

@@ -72,6 +72,7 @@
   <url><loc>https://pllm.run/sdk/build/models/qwen3/</loc></url>
   <url><loc>https://pllm.run/sdk/build/models/qwen35/</loc></url>
   <url><loc>https://pllm.run/sdk/build/numerics/</loc></url>
+  <url><loc>https://pllm.run/sdk/build/operators/activation-silu/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/projection-rotary/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/stateful-recurrence/</loc></url>

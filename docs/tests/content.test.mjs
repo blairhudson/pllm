@@ -293,11 +293,26 @@ test('paper, whitepaper, evidence, and generated CLI help remain downloadable', 
 });
 
 test('static export, local assets, and canonical metadata remain configured', () => {
-  assert.ok(fs.readFileSync(path.join(siteRoot, 'next.config.mjs'), 'utf8').includes("output: 'export'"));
+  const nextConfig = fs.readFileSync(path.join(siteRoot, 'next.config.mjs'), 'utf8');
+  assert.ok(nextConfig.includes("process.env.NODE_ENV !== 'development'"));
+  assert.ok(nextConfig.includes("config.output = 'export'"));
+  assert.ok(nextConfig.includes("allowedDevOrigins: ['127.0.0.1']"));
   assert.ok(!fs.readFileSync(path.join(siteRoot, 'app/layout.tsx'), 'utf8').includes('next/font/google'));
   for (const file of ['app/page.tsx', 'app/research/page.tsx', 'app/research/whitepaper/page.tsx', 'app/research/[...slug]/page.tsx', 'app/_docs-page.tsx']) {
     assert.ok(fs.readFileSync(path.join(siteRoot, file), 'utf8').includes('canonical'), file);
   }
   assert.ok(fs.existsSync(path.join(siteRoot, 'app/(docs)/[...slug]/page.tsx')));
   assert.ok(!fs.existsSync(path.join(siteRoot, 'app/docs')));
+});
+
+test('public source links use the canonical repository owner', () => {
+  const home = fs.readFileSync(path.join(siteRoot, 'content/home.html'), 'utf8');
+  assert.ok(home.includes('https://github.com/blairhudson/pllm'));
+  assert.ok(!home.includes('github.com/probabilistic-alchemy'));
+});
+
+test('canonical trailing-slash routes resolve through the Fumadocs source', async () => {
+  const { getPageByCanonicalHref } = await import('../lib/source.ts');
+  assert.equal(getPageByCanonicalHref('/sdk/configuration/')?.page.url, '/sdk/configuration');
+  assert.equal(getPageByCanonicalHref('/sdk/configuration')?.page.url, '/sdk/configuration');
 });

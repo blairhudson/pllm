@@ -1,21 +1,86 @@
 //! Deterministic lowering from locked context into canonical plans plus a private region program.
 
-use pllm_models::{DecoderPlan, ModelOperator};
+use pllm_models::{DecoderMode, DecoderPlan, ModelOperator};
 use pllm_types::{
-    assurance_result_digest, canonical_bytes, configuration_digest_bytes, execution_plan_digest,
-    logical_plan_digest, plan_lock_bytes, privacy_contract_digest, valid_identity, AssuranceResult,
-    Digest, EvidenceReference, ExecutionPlan, LockedContext, LogicalPlan, NamedDigest, PlanLock,
-    PrivacyContract, ResolvedComponent, RolePlanReference, VersionedArtifact,
-    ASSURANCE_RESULT_SCHEMA_VERSION, EXECUTION_PLAN_SCHEMA_VERSION, LOCKED_CONTEXT_SCHEMA_VERSION,
-    LOGICAL_PLAN_SCHEMA_VERSION, PLAN_LOCK_SCHEMA_VERSION, PRIVACY_CONTRACT_SCHEMA_VERSION,
+    assurance_result_digest, canonical_bytes, canonical_digest, configuration_digest_bytes,
+    digest_bytes, execution_plan_digest, logical_plan_digest, plan_lock_bytes,
+    privacy_contract_digest, valid_identity, AssuranceResult, Digest, EvidenceReference,
+    ExecutionPlan, LockedContext, LogicalPlan, NamedDigest, PlanLock, PrivacyContract,
+    ResolvedComponent, RolePlanReference, VersionedArtifact, ASSURANCE_RESULT_SCHEMA_VERSION,
+    EXECUTION_PLAN_SCHEMA_VERSION, LOCKED_CONTEXT_SCHEMA_VERSION, LOGICAL_PLAN_SCHEMA_VERSION,
+    PLAN_LOCK_SCHEMA_VERSION, PRIVACY_CONTRACT_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
+
+pub use pllm_garble::{prepare_silu_quadratic_q7, SiluQuadraticQ7Material};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::sync::{Mutex, OnceLock};
 
 pub const REGION_PROGRAM_SCHEMA_VERSION: &str = "pllm.region_program.v1";
 pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v1";
 pub const BASELINE_EXPERIMENT_PROFILE: &str = "baseline.masked_linear_cpu";
+pub const SILU_Q7_NUMERIC_GRAPH_ID: &str = "pllm.numeric.silu.quadratic_q7.v1";
+pub const SILU_Q7_PROTECTED_GRAPH_ID: &str = "pllm.protected.arithmetic_garbling.silu_q7.v1";
+pub const SILU_Q7_METHOD_ID: &str = "arithmetic-garbling-silu-q7";
+pub const SILU_Q7_KERNEL_DESCRIPTOR_ID: &str = "pllm-garble-silu-quadratic-q7";
+pub const SILU_Q7_COMPILER_ID: &str = "pllm-compiler";
+pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
+pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
+pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
+const SILU_Q7_BURN_LEDGER_CAPACITY: usize = 65_536;
+const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
+
+pub fn silu_q7_kernel_artifact_digest() -> Digest {
+    canonical_digest(
+        "pllm.artifact.rust-source-set.v1",
+        &[
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/activation.rs"),
+            ),
+            silu_q7_method_artifact_digest(),
+        ],
+    )
+}
+
+pub fn silu_q7_compiler_artifact_digest() -> Digest {
+    digest_bytes("pllm.artifact.rust-source.v1", include_bytes!("lib.rs"))
+}
+
+#[derive(Serialize)]
+pub struct SiluQ7InstalledContract {
+    pub compiler_id: &'static str,
+    pub compiler_version: &'static str,
+    pub compiler_artifact_digest: Digest,
+    pub numeric_graph_id: &'static str,
+    pub protected_graph_id: &'static str,
+    pub method_id: &'static str,
+    pub method_artifact_digest: Digest,
+    pub kernel_id: &'static str,
+    pub kernel_artifact_digest: Digest,
+}
+
+pub fn silu_q7_installed_contract() -> SiluQ7InstalledContract {
+    SiluQ7InstalledContract {
+        compiler_id: SILU_Q7_COMPILER_ID,
+        compiler_version: env!("CARGO_PKG_VERSION"),
+        compiler_artifact_digest: silu_q7_compiler_artifact_digest(),
+        numeric_graph_id: SILU_Q7_NUMERIC_GRAPH_ID,
+        protected_graph_id: SILU_Q7_PROTECTED_GRAPH_ID,
+        method_id: SILU_Q7_METHOD_ID,
+        method_artifact_digest: silu_q7_method_artifact_digest(),
+        kernel_id: SILU_Q7_KERNEL_DESCRIPTOR_ID,
+        kernel_artifact_digest: silu_q7_kernel_artifact_digest(),
+    }
+}
+
+pub fn silu_q7_method_artifact_digest() -> Digest {
+    digest_bytes(
+        "pllm.artifact.rust-source.v1",
+        include_bytes!("../../pllm-garble/src/lib.rs"),
+    )
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -118,6 +183,7 @@ pub enum Representation {
 pub enum NumericType {
     Wrap32,
     SignedFixed16,
+    SignedFixedQ7,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -131,6 +197,7 @@ pub struct TensorType {
 #[serde(rename_all = "snake_case")]
 pub enum Operator {
     Linear,
+    Silu,
     Conversion,
     Unsupported,
 }
@@ -171,6 +238,7 @@ pub struct MethodDescriptor {
 #[serde(rename_all = "snake_case")]
 pub enum KernelImplementation {
     PllmCoreMatrixWrap32,
+    PllmGarbleSiluQuadraticQ7,
     ExplicitRepresentationConversion,
 }
 
@@ -895,10 +963,47 @@ fn implementation_matches(operator: Operator, implementation: KernelImplementati
         (operator, implementation),
         (Operator::Linear, KernelImplementation::PllmCoreMatrixWrap32)
             | (
+                Operator::Silu,
+                KernelImplementation::PllmGarbleSiluQuadraticQ7
+            )
+            | (
                 Operator::Conversion,
                 KernelImplementation::ExplicitRepresentationConversion
             )
     )
+}
+
+fn validate_silu_q7_descriptor(
+    method: &MethodDescriptor,
+    kernel: &KernelDescriptor,
+) -> Option<Diagnostic> {
+    if kernel.implementation != KernelImplementation::PllmGarbleSiluQuadraticQ7 {
+        return None;
+    }
+    let expected_properties = SecurityProperties {
+        online_parties: 1,
+        needs_online_preparation: false,
+        needs_client_weights: false,
+        uses_he: false,
+        experimental: true,
+    };
+    if method.id != SILU_Q7_METHOD_ID
+        || method.version != "1"
+        || method.artifact_digest != silu_q7_method_artifact_digest()
+        || method.properties != expected_properties
+        || method.input_representation != Representation::ArithmeticLabel
+        || method.output_representation != Representation::ArithmeticLabel
+        || kernel.id != SILU_Q7_KERNEL_DESCRIPTOR_ID
+        || kernel.version != "1"
+        || kernel.artifact_digest != silu_q7_kernel_artifact_digest()
+    {
+        return Some(diagnostic(
+            DiagnosticCode::InvalidContract,
+            &method.id,
+            "Q7 SiLU method or kernel descriptor does not match the installed implementation",
+        ));
+    }
+    None
 }
 
 fn validate_tensor(operation: &LogicalOperation, input: &TensorType) -> Result<(), Diagnostic> {
@@ -916,6 +1021,42 @@ fn validate_tensor(operation: &LogicalOperation, input: &TensorType) -> Result<(
                     DiagnosticCode::InvalidTensor,
                     &operation.id,
                     "linear wrap32 requires [batch,input] to [batch,output] with nonzero features",
+                ));
+            }
+        }
+        Operator::Silu => {
+            if input.numeric != NumericType::SignedFixedQ7
+                || operation.output.numeric != NumericType::SignedFixedQ7
+                || input.shape != operation.output.shape
+                || input.shape.is_empty()
+                || input.shape.contains(&0)
+                || operation.input_representation != Representation::ArithmeticLabel
+                || operation.output_representation != Representation::ArithmeticLabel
+            {
+                return Err(diagnostic(
+                    DiagnosticCode::InvalidTensor,
+                    &operation.id,
+                    "SiLU quadratic Q7 requires a nonempty shape-preserving signed_fixed_q7 tensor in arithmetic_label representation",
+                ));
+            }
+            if input
+                .shape
+                .iter()
+                .try_fold(1_u64, |count, dimension| count.checked_mul(*dimension))
+                .and_then(|count| usize::try_from(count).ok())
+                .is_none()
+            {
+                return Err(diagnostic(
+                    DiagnosticCode::InvalidTensor,
+                    &operation.id,
+                    "SiLU tensor element count exceeds the executor address space",
+                ));
+            }
+            if input.shape.iter().product::<u64>() > SILU_Q7_MAX_TENSOR_ELEMENTS as u64 {
+                return Err(diagnostic(
+                    DiagnosticCode::InvalidTensor,
+                    &operation.id,
+                    "the bounded Q7 SiLU slice supports at most 128 elements",
                 ));
             }
         }
@@ -1069,6 +1210,18 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
         *kernel_ids
             .entry((kernel.id.as_str(), kernel.version.as_str()))
             .or_insert(0usize) += 1;
+    }
+    if request
+        .operations
+        .iter()
+        .any(|operation| operation.operator == Operator::Silu)
+        && request.operations.len() != 1
+    {
+        diagnostics.push(diagnostic(
+            DiagnosticCode::NotImplemented,
+            "region",
+            "the Q7 SiLU executor supports only a singleton region",
+        ));
     }
     for (namespace, id, version, count) in operation_ids
         .into_iter()
@@ -1254,6 +1407,36 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
             "final operation does not produce declared region output",
         ));
     }
+    if request
+        .operations
+        .iter()
+        .any(|operation| operation.operator == Operator::Silu)
+    {
+        if request.context.numeric_graph.id != SILU_Q7_NUMERIC_GRAPH_ID {
+            diagnostics.push(diagnostic(
+                DiagnosticCode::InvalidContext,
+                "numeric_graph",
+                "Q7 SiLU requires its exact installed numeric graph identity",
+            ));
+        }
+        if request.context.protected_graph.id != SILU_Q7_PROTECTED_GRAPH_ID {
+            diagnostics.push(diagnostic(
+                DiagnosticCode::InvalidContext,
+                "protected_graph",
+                "Q7 SiLU requires its exact installed protected graph identity",
+            ));
+        }
+        if request.context.compiler.id != SILU_Q7_COMPILER_ID
+            || request.context.compiler.version != env!("CARGO_PKG_VERSION")
+            || request.context.compiler.digest != silu_q7_compiler_artifact_digest()
+        {
+            diagnostics.push(diagnostic(
+                DiagnosticCode::InvalidContext,
+                "compiler",
+                "Q7 SiLU requires the exact installed compiler artifact",
+            ));
+        }
+    }
     if !diagnostics.is_empty() {
         return Err(sorted_diagnostics(diagnostics));
     }
@@ -1304,6 +1487,10 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
                     && implementation_matches(operation.operator, kernel.implementation)
             }) {
                 installed = true;
+                if let Some(error) = validate_silu_q7_descriptor(method, kernel) {
+                    candidate_diagnostics.push(error);
+                    continue;
+                }
                 let key = (
                     method.id.as_str(),
                     method.version.as_str(),
@@ -1682,6 +1869,29 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
         return Err("logical plan digest does not match execution plan and lock".into());
     }
     verify_region(region)?;
+    if region
+        .steps
+        .iter()
+        .any(|step| step.operator == Operator::Silu)
+    {
+        let [step] = region.steps.as_slice() else {
+            return Err("the Q7 SiLU executor supports only a singleton region".into());
+        };
+        if logical.numeric_graph.id != SILU_Q7_NUMERIC_GRAPH_ID
+            || logical.protected_graph.id != SILU_Q7_PROTECTED_GRAPH_ID
+        {
+            return Err("Q7 SiLU plan uses the wrong installed graph identity".into());
+        }
+        if context.compiler.id != SILU_Q7_COMPILER_ID
+            || context.compiler.version != env!("CARGO_PKG_VERSION")
+            || context.compiler.digest != silu_q7_compiler_artifact_digest()
+        {
+            return Err("compiled Q7 SiLU compiler artifact is invalid".into());
+        }
+        if let Some(diagnostic) = validate_silu_q7_descriptor(&step.method, &step.kernel) {
+            return Err(diagnostic.message);
+        }
+    }
     if region.logical_plan_digest != logical_digest {
         return Err("region program references wrong logical plan".into());
     }
@@ -1926,6 +2136,308 @@ pub fn region_program_bytes(program: &RegionProgram) -> Vec<u8> {
 
 pub fn region_program_digest(program: &RegionProgram) -> Digest {
     pllm_types::canonical_digest(REGION_PROGRAM_SCHEMA_VERSION, program)
+}
+
+/// Extract one semantic SiLU operation into the compiler's locked Q7 representation.
+pub fn lower_model_silu_operation(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    operation_id: &str,
+) -> Result<(TensorType, LogicalOperation), String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = match mode {
+        DecoderMode::Prefill => &plan.prefill,
+        DecoderMode::Decode => &plan.decode,
+    };
+    let operation = graph
+        .operations
+        .iter()
+        .find(|operation| operation.id == operation_id)
+        .ok_or_else(|| format!("semantic operation {operation_id} is absent from {mode:?}"))?;
+    if operation.operator != ModelOperator::Silu {
+        return Err(format!(
+            "semantic operation {operation_id} is {:?}, not SiLU",
+            operation.operator
+        ));
+    }
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic SiLU operation {operation_id} must have exactly one input"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!("semantic SiLU operation {operation_id} references missing input {input_id}")
+        })?;
+    if input.output_shape != operation.output_shape {
+        return Err(format!(
+            "semantic SiLU operation {operation_id} input and output shapes differ"
+        ));
+    }
+    let tensor = TensorType {
+        numeric: NumericType::SignedFixedQ7,
+        shape: operation.output_shape.clone(),
+    };
+    Ok((
+        tensor.clone(),
+        LogicalOperation {
+            id: operation.id.clone(),
+            operator: Operator::Silu,
+            output: tensor,
+            input_representation: Representation::ArithmeticLabel,
+            output_representation: Representation::ArithmeticLabel,
+        },
+    ))
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct SiluQ7GateHeader {
+    schema_version: String,
+    compiled_plan_digest: Digest,
+    operation_id: String,
+    numeric_graph_id: String,
+    protected_graph_id: String,
+    gate_digest: Digest,
+}
+
+fn silu_q7_compiled_plan_digest(compiled: &CompiledPlan) -> Digest {
+    canonical_digest("pllm.compiled-plan.silu-q7.v1", compiled)
+}
+
+/// Client-only encodings plus a plan-bound, serializable evaluator gate.
+pub struct BoundSiluQ7Material {
+    material: SiluQuadraticQ7Material,
+    evaluator_payload: Vec<u8>,
+}
+
+impl BoundSiluQ7Material {
+    pub fn evaluator_payload(&self) -> Vec<u8> {
+        self.evaluator_payload.clone()
+    }
+
+    pub fn encode(&self, value: i16) -> Result<Vec<u8>, pllm_garble::GarbleError> {
+        self.material.encode(value)
+    }
+
+    pub fn decode(&self, bytes: &[u8]) -> Result<i16, pllm_garble::GarbleError> {
+        self.material.decode(bytes)
+    }
+}
+
+/// Prepare one gate committed to the exact compiled execution plan and operation.
+pub fn prepare_bound_silu_q7_material(
+    compiled: &CompiledPlan,
+) -> Result<BoundSiluQ7Material, String> {
+    let (_, step) = validate_silu_q7_plan(compiled)?;
+    let plan_digest = silu_q7_compiled_plan_digest(compiled);
+    let material = pllm_garble::prepare_silu_quadratic_q7_with_context(digest_array(&plan_digest)?)
+        .map_err(|error| error.to_string())?;
+    let gate = material.gate_bytes();
+    let header = SiluQ7GateHeader {
+        schema_version: SILU_Q7_GATE_SCHEMA_VERSION.into(),
+        compiled_plan_digest: plan_digest,
+        operation_id: step.operation_id.clone(),
+        numeric_graph_id: SILU_Q7_NUMERIC_GRAPH_ID.into(),
+        protected_graph_id: SILU_Q7_PROTECTED_GRAPH_ID.into(),
+        gate_digest: digest_bytes(SILU_Q7_GATE_SCHEMA_VERSION, &gate),
+    };
+    let encoded_header = canonical_bytes(&header);
+    let header_len = u32::try_from(encoded_header.len())
+        .map_err(|_| "Q7 SiLU gate header exceeds u32".to_owned())?;
+    let mut evaluator_payload = Vec::with_capacity(4 + encoded_header.len() + gate.len());
+    evaluator_payload.extend_from_slice(&header_len.to_le_bytes());
+    evaluator_payload.extend_from_slice(&encoded_header);
+    evaluator_payload.extend_from_slice(&gate);
+    Ok(BoundSiluQ7Material {
+        material,
+        evaluator_payload,
+    })
+}
+
+static SILU_Q7_BURN_LEDGER: OnceLock<Mutex<BTreeSet<[u8; 32]>>> = OnceLock::new();
+
+fn burn_silu_q7_material(material_ids: &BTreeSet<[u8; 32]>) -> Result<(), String> {
+    let mut ledger = SILU_Q7_BURN_LEDGER
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "Q7 SiLU burn ledger is poisoned")?;
+    if material_ids.iter().any(|id| ledger.contains(id)) {
+        return Err("Q7 SiLU evaluator material was already bound".into());
+    }
+    if ledger.len().saturating_add(material_ids.len()) > SILU_Q7_BURN_LEDGER_CAPACITY {
+        return Err("Q7 SiLU burn ledger capacity is exhausted".into());
+    }
+    ledger.extend(material_ids.iter().cloned());
+    Ok(())
+}
+
+/// Plan-bound evaluator state for one transported Q7 SiLU tensor.
+pub struct SiluQ7Evaluator {
+    gates: Vec<pllm_garble::GarbledProjection>,
+    consumed: bool,
+}
+
+impl SiluQ7Evaluator {
+    /// Parse, verify, and burn evaluator-only gate payloads before use.
+    pub fn new(compiled: &CompiledPlan, payloads: &[Vec<u8>]) -> Result<Self, String> {
+        let (elements, step) = validate_silu_q7_plan(compiled)?;
+        if payloads.len() != elements {
+            return Err(format!(
+                "Q7 SiLU expected {elements} gates, got {}",
+                payloads.len()
+            ));
+        }
+        let expected_plan = silu_q7_compiled_plan_digest(compiled);
+        let mut decoded = Vec::with_capacity(elements);
+        let mut material_ids = BTreeSet::new();
+        let mut duplicate = false;
+        for payload in payloads {
+            let (header, gate_bytes) = decode_silu_q7_gate(payload)?;
+            let gate = pllm_garble::GarbledProjection::from_bytes(gate_bytes)
+                .map_err(|error| error.to_string())?;
+            duplicate |= !material_ids.insert(gate.material_id());
+            decoded.push((header, gate));
+        }
+        burn_silu_q7_material(&material_ids)?;
+        if duplicate {
+            return Err("Q7 SiLU evaluator payload contains duplicate material".into());
+        }
+        let mut gates = Vec::with_capacity(elements);
+        for (header, gate) in decoded {
+            if header.compiled_plan_digest != expected_plan
+                || header.operation_id != step.operation_id
+                || header.numeric_graph_id != SILU_Q7_NUMERIC_GRAPH_ID
+                || header.protected_graph_id != SILU_Q7_PROTECTED_GRAPH_ID
+            {
+                return Err("Q7 SiLU gate commitment does not match compiled plan".into());
+            }
+            if gate.context_digest() != digest_array(&expected_plan)? {
+                return Err("Q7 SiLU gate authentication is bound to another plan".into());
+            }
+            if gate.input_moduli() != [pllm_garble::SILU_QUADRATIC_Q7_MODULUS]
+                || gate.output_modulus() != pllm_garble::SILU_QUADRATIC_Q7_MODULUS
+            {
+                return Err("Q7 SiLU gate uses the wrong arithmetic modulus".into());
+            }
+            gates.push(gate);
+        }
+        Ok(Self {
+            gates,
+            consumed: false,
+        })
+    }
+
+    /// Consume every bound gate on the first evaluation attempt, including failure.
+    pub fn evaluate(&mut self, input_labels: &[Vec<u8>]) -> Result<Vec<Vec<u8>>, String> {
+        self.burn()?;
+        if input_labels.len() != self.gates.len() {
+            return Err(format!(
+                "Q7 SiLU expected {} labels, got {}",
+                self.gates.len(),
+                input_labels.len()
+            ));
+        }
+        std::mem::take(&mut self.gates)
+            .into_iter()
+            .zip(input_labels)
+            .map(|(gate, label)| {
+                let label =
+                    pllm_garble::Label::from_bytes(label).map_err(|error| error.to_string())?;
+                gate.evaluate(&[&label])
+                    .map(|output| output.to_bytes())
+                    .map_err(|error| error.to_string())
+            })
+            .collect()
+    }
+
+    /// Burn a rejected request before allocating or parsing its input labels.
+    pub fn burn(&mut self) -> Result<(), String> {
+        if self.consumed {
+            return Err("Q7 SiLU evaluator material was already consumed".into());
+        }
+        self.consumed = true;
+        Ok(())
+    }
+}
+
+fn digest_array(digest: &Digest) -> Result<[u8; 32], String> {
+    let encoded = digest.as_str().as_bytes();
+    if encoded.len() != 64 {
+        return Err("Q7 SiLU plan digest has the wrong width".into());
+    }
+    let mut output = [0_u8; 32];
+    for (index, byte) in output.iter_mut().enumerate() {
+        let offset = index * 2;
+        let pair = std::str::from_utf8(&encoded[offset..offset + 2])
+            .map_err(|_| "Q7 SiLU plan digest is not hexadecimal")?;
+        *byte =
+            u8::from_str_radix(pair, 16).map_err(|_| "Q7 SiLU plan digest is not hexadecimal")?;
+    }
+    Ok(output)
+}
+
+fn decode_silu_q7_gate(payload: &[u8]) -> Result<(SiluQ7GateHeader, &[u8]), String> {
+    if payload.len() > SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
+        return Err("Q7 SiLU evaluator payload exceeds its byte bound".into());
+    }
+    let length_bytes: [u8; 4] = payload
+        .get(..4)
+        .ok_or("Q7 SiLU gate payload is truncated")?
+        .try_into()
+        .map_err(|_| "Q7 SiLU gate payload is truncated")?;
+    let header_len = usize::try_from(u32::from_le_bytes(length_bytes))
+        .map_err(|_| "Q7 SiLU gate header exceeds usize")?;
+    let header_end = 4_usize
+        .checked_add(header_len)
+        .ok_or("Q7 SiLU gate header length overflows")?;
+    let header_bytes = payload
+        .get(4..header_end)
+        .ok_or("Q7 SiLU gate header is truncated")?;
+    let gate = payload
+        .get(header_end..)
+        .filter(|gate| !gate.is_empty())
+        .ok_or("Q7 SiLU gate body is absent")?;
+    let header: SiluQ7GateHeader =
+        serde_json::from_slice(header_bytes).map_err(|_| "Q7 SiLU gate header is invalid")?;
+    if header.schema_version != SILU_Q7_GATE_SCHEMA_VERSION
+        || canonical_bytes(&header) != header_bytes
+        || header.gate_digest != digest_bytes(SILU_Q7_GATE_SCHEMA_VERSION, gate)
+    {
+        return Err("Q7 SiLU gate commitment is invalid".into());
+    }
+    Ok((header, gate))
+}
+
+fn validate_silu_q7_plan(compiled: &CompiledPlan) -> Result<(usize, &RegionStep), String> {
+    compiled.verify()?;
+    let [step] = compiled.region_program.steps.as_slice() else {
+        return Err("Q7 SiLU executor requires exactly one region step".into());
+    };
+    if step.operator != Operator::Silu
+        || step.kernel.implementation != KernelImplementation::PllmGarbleSiluQuadraticQ7
+        || step.input.numeric != NumericType::SignedFixedQ7
+        || step.output.numeric != NumericType::SignedFixedQ7
+        || step.input.shape != step.output.shape
+        || step.input_representation != Representation::ArithmeticLabel
+        || step.output_representation != Representation::ArithmeticLabel
+    {
+        return Err("region program is not single arithmetic-label Q7 SiLU".into());
+    }
+    let elements = step
+        .input
+        .shape
+        .iter()
+        .try_fold(1_u64, |total, dimension| {
+            total
+                .checked_mul(*dimension)
+                .ok_or("Q7 SiLU tensor element count overflows u64")
+        })?;
+    let elements = usize::try_from(elements).map_err(|_| "Q7 SiLU tensor exceeds usize")?;
+    Ok((elements, step))
 }
 
 /// Verify lock and region program before entering `pllm-core`.

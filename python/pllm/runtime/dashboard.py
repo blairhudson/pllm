@@ -564,17 +564,16 @@ class DashboardRuntime:
                 "dash_" + secrets.token_urlsafe(24),
                 "dash_" + secrets.token_urlsafe(24),
             )
-            common = [sys.executable, "-m", "pllm"]
+            common = [sys.executable, "-m", "pllm.runtime.cli"]
             inference = [
                 *common,
-                "serve",
+                "inference",
+                "--model",
                 str(model),
                 "--model-id",
                 self.config.model_id,
-                "--weights",
+                "--privacy-mode",
                 "public",
-                "--activation-protection",
-                "seeded-preparation",
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -591,7 +590,7 @@ class DashboardRuntime:
             preparation = [
                 *common,
                 "preparation",
-                "serve",
+                "--model",
                 str(model),
                 "--model-id",
                 self.config.model_id,

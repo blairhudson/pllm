@@ -6,7 +6,7 @@ A two-page overview of PLLM prepared private inference.
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
 Source hash: `sha256:044280458996ff93941a715d8d9d317143933fae9928b2f7874e0fe23a6d0607`
 
 [Download PDF ↓](/downloads/whitepaper.pdf)

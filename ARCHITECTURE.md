@@ -27,6 +27,9 @@ runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,
 quantization, masking, output subtraction, and operating system random sampling.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
+The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
+signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
+absolute SiLU error bound of `0.02285`.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It depends on `pllm-core` and PyO3. The stable Python ABI is
@@ -52,6 +55,8 @@ operator coverage, protected/private parity, generation quality, benchmark
 evidence and deployment support are separate claims. A complete bounded semantic
 plan does not establish any later claim. In particular, the current compiler
 profile remains incomplete and cannot execute any complete newly listed text plan.
+The compiler can execute a bounded SiLU tensor through experimental one-use
+arithmetic garbling, but this does not activate a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 

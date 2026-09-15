@@ -6,7 +6,7 @@ Combine model, privacy protocol, preparation, runtime, and deployment choices in
 
 Document ID: `pllm.docs.pipeline`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
 Source hash: `sha256:72b22d4f092c06db38a7b4360e2634832cf9961a257398ceea409fea405f9ee7`
 
 A `Pipeline` records what you intend to run. Profiles provide visible defaults,

@@ -10,6 +10,10 @@ export const source = loader({
 });
 export const researchSource = loader({ baseUrl: '/research', source: research.toFumadocsSource() });
 
+export function getPageByCanonicalHref(href: string) {
+  return source.getPageByHref(href.endsWith('/') ? href.slice(0, -1) : href);
+}
+
 const areaOverview: Record<NavigationArea, string> = {
   Learn: '/learn',
   CLI: '/cli',

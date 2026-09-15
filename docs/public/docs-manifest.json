@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328",
+  "buildId": "sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -36,7 +36,7 @@
       "navigationGroupTitle": null,
       "navigationRoot": null,
       "navigationOrder": null,
-      "contentHash": "sha256:dabcf8a2aacfcc2e1912f645ceff604724110e336e3650dd261e39d686976141"
+      "contentHash": "sha256:b19bddaa16e649ca194a73f682ba679a77dfb48dbc101b4d3af44828a1d96b76"
     },
     {
       "id": "pllm.docs.start",
@@ -2366,7 +2366,38 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/numerics/",
       "navigationOrder": 103,
-      "contentHash": "sha256:076940dd74156175d1f68c266cc1fa7829100fcaf8f6f7baf7e0ed7700d824e1"
+      "contentHash": "sha256:1c0c15a2ae67c7c3ad26472f93437882ae566b913103d8b564ab87d428d1813e"
+    },
+    {
+      "id": "pllm.docs.operators.activation-silu",
+      "title": "SiLU activation",
+      "summary": "Compile and evaluate PLLM's bounded experimental Q7 SiLU component.",
+      "sourcePath": "content/docs/operators/activation-silu.mdx",
+      "canonicalUrl": "/sdk/build/operators/activation-silu/",
+      "markdownUrl": "/sdk/build/operators/activation-silu.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/sdk/build/operators/activation-silu"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.operators",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/operators/activation-silu.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "define",
+      "navigationGroupTitle": "Define",
+      "navigationRoot": "/sdk/build/operators/",
+      "navigationOrder": 102,
+      "contentHash": "sha256:111c51c3f1c8c516dfc95a6e21befde130d8d6f300075dff6784de491dbf5210"
     },
     {
       "id": "pllm.docs.operators",
@@ -2384,6 +2415,7 @@
       "markdownAliases": [],
       "parent": "pllm.docs.build",
       "children": [
+        "pllm.docs.operators.activation-silu",
         "pllm.docs.operators.projection-rotary",
         "pllm.docs.operators.stateful-recurrence"
       ],
@@ -2400,7 +2432,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:8286769b6b2a8376346f0593eef03c57a5f26e7d8d3c65b0839bb2de941fd0c6"
+      "contentHash": "sha256:af6242232ae59b1779eb51acf2689f05990348b039e561179eae8105d1cdd038"
     },
     {
       "id": "pllm.docs.operators.projection-rotary",
@@ -2561,7 +2593,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:484c57928397b7fb2aee9bf31cda903b494a4cff1310f3888240c8bf834c1007"
+      "contentHash": "sha256:d5feabb35d2218d2c5ea845ba12a9d49a53d30da7887d8feabfb1b80c5490f7c"
     },
     {
       "id": "pllm.docs.protocols.garbling.half-gates",

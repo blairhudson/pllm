@@ -15,6 +15,12 @@ Tests must cover reference arithmetic, boundary values, overflow rejection, and 
 trusted comparison for each approximation. Token agreement and task quality need
 separate end-to-end evidence.
 
+The first locked nonlinear profile is
+`pllm.numeric.silu.quadratic_q7.v1`: signed Q7 inputs in `[-128, 128]`, scale 128,
+deterministic ties-to-even rounding, and a declared encoded-domain SiLU error bound
+of `0.02285`. The compiler includes the numeric type in the protected plan and
+rejects other numeric representations for this kernel.
+
 ## Python SDK example
 
 ```python

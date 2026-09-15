@@ -6,7 +6,7 @@ Add a model, component, research method, or evidence record without creating a o
 
 Document ID: `pllm.docs.contribute`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
 Source hash: `sha256:5888eb621e2fe9511afacef31f06a049d3c577ebbd65319865ecd5935ea0caf9`
 
 Start with the [component standard](/sdk/contribute/component-standard/). Model

@@ -5,7 +5,7 @@ description: "Mixed-modulus labels and projection gates over bounded arithmetic 
 
 Arithmetic garbling represents values with labels per modulus. Free compatible arithmetic can avoid tables; nonlinear projection reconstructs signed values jointly from a coprime residue bundle and emits output labels. Gate material is shape-bound, strictly serialized, and consumed once.
 
-Reference exhaustive correctness and tamper rejection establish implementation behavior only. Cryptographic review, compiler activation, complete-model coverage, and deployment assurance are not recorded.
+Reference exhaustive correctness, tamper rejection, plan commitments, and one-use process-local burn checks establish implementation behavior only. The compiler can select the exact experimental Q7 SiLU projection profile. Cryptographic review, durable replay protection, complete-model coverage, and deployment assurance are not recorded.
 
 ## Python SDK example
 
@@ -16,4 +16,4 @@ available = [item.component for item in list_components() if "garbl" in item.com
 print(available)
 ```
 
-No arithmetic-garbling component is currently published through the SDK.
+The arithmetic-garbling evaluator remains internal to the native compiled-plan boundary; it is not part of the stable Python runtime facade.

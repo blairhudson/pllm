@@ -178,6 +178,7 @@ name = "pllm-compiler"
 version = "0.1.0-alpha.1"
 dependencies = [
  "pllm-core",
+ "pllm-garble",
  "pllm-models",
  "pllm-types",
  "serde",
@@ -197,6 +198,7 @@ name = "pllm-garble"
 version = "0.1.0-alpha.1"
 dependencies = [
  "getrandom",
+ "pllm-core",
  "sha2",
  "zeroize",
 ]

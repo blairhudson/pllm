@@ -47,7 +47,7 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Affine-label arithmetic exists in archived references; no proof-equivalent native port has been established.
+PLLM now has a clean-room mixed-modulus reference and one bounded single-modulus Q7 SiLU projection slice with exhaustive finite-domain parity, authenticated plan binding, strict gate serialization and bounded process-local one-use enforcement. This adapted component is not a proof-equivalent reproduction of the source and has no cryptographic review.
 
 The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
 

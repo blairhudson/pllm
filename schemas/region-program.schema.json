@@ -18,9 +18,9 @@
   "$defs": {
     "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "representation": {"enum": ["public", "client_plaintext", "masked_ring", "arithmetic_label", "boolean_label", "additive_share", "ciphertext", "attested_plaintext"]},
-    "numeric": {"enum": ["wrap32", "signed_fixed16"]},
-    "operator": {"enum": ["linear", "conversion", "unsupported"]},
-    "implementation": {"enum": ["pllm_core_matrix_wrap32", "explicit_representation_conversion"]},
+    "numeric": {"enum": ["wrap32", "signed_fixed16", "signed_fixed_q7"]},
+    "operator": {"enum": ["linear", "silu", "conversion", "unsupported"]},
+    "implementation": {"enum": ["pllm_core_matrix_wrap32", "pllm_garble_silu_quadratic_q7", "explicit_representation_conversion"]},
     "tensor": {
       "type": "object",
       "additionalProperties": false,

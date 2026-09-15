@@ -10,5 +10,6 @@ publish = false
 
 [dependencies]
 getrandom.workspace = true
+pllm-core.workspace = true
 sha2.workspace = true
 zeroize.workspace = true

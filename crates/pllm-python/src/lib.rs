@@ -5,10 +5,48 @@ use pllm_core::{codec, kernels};
 
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyTuple};
+use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
+use std::sync::Mutex;
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
+}
+
+fn checked_byte_sequence(
+    value: &Bound<'_, PyAny>,
+    expected: usize,
+    maximum_bytes: usize,
+    kind: &str,
+) -> PyResult<Vec<Vec<u8>>> {
+    let sequence = value
+        .cast::<PySequence>()
+        .map_err(|_| PyValueError::new_err(format!("Q7 SiLU {kind}s must be a sequence")))?;
+    let count = sequence.len()?;
+    if count != expected {
+        return Err(PyValueError::new_err(format!(
+            "Q7 SiLU expected {expected} {kind}s, got {count}"
+        )));
+    }
+    for index in 0..count {
+        let item = sequence.get_item(index)?;
+        let bytes = item.cast::<PyBytes>().map_err(|_| {
+            PyValueError::new_err(format!("Q7 SiLU {kind} at index {index} must be bytes"))
+        })?;
+        if bytes.as_bytes().len() > maximum_bytes {
+            return Err(PyValueError::new_err(format!(
+                "Q7 SiLU {kind} exceeds its byte bound"
+            )));
+        }
+    }
+    (0..count)
+        .map(|index| {
+            sequence
+                .get_item(index)?
+                .cast::<PyBytes>()
+                .map(|bytes| bytes.as_bytes().to_vec())
+                .map_err(Into::into)
+        })
+        .collect()
 }
 fn compilation_invalid(diagnostics: Vec<pllm_compiler::Diagnostic>) -> PyErr {
     let json = pllm_compiler::diagnostics_json(&diagnostics);
@@ -79,6 +117,73 @@ struct CompiledPlan {
 }
 
 #[pyclass(frozen, module = "pllm._native")]
+struct GarbledSiluQ7Material {
+    inner: pllm_compiler::BoundSiluQ7Material,
+}
+#[pymethods]
+impl GarbledSiluQ7Material {
+    #[getter]
+    fn gate<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.evaluator_payload())
+    }
+    fn encode<'py>(&self, py: Python<'py>, value: i16) -> PyResult<Bound<'py, PyBytes>> {
+        let label = self
+            .inner
+            .encode(value)
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &label))
+    }
+    fn decode(&self, label: &Bound<'_, PyBytes>) -> PyResult<i16> {
+        self.inner
+            .decode(label.as_bytes())
+            .map_err(|error| invalid(error.to_string()))
+    }
+}
+
+#[pyclass(module = "pllm._native")]
+struct SiluQ7Evaluator {
+    inner: Mutex<pllm_compiler::SiluQ7Evaluator>,
+    elements: usize,
+}
+#[pymethods]
+impl SiluQ7Evaluator {
+    fn evaluate<'py>(
+        &self,
+        py: Python<'py>,
+        labels: &Bound<'py, PyAny>,
+    ) -> PyResult<Vec<Bound<'py, PyBytes>>> {
+        let labels = match checked_byte_sequence(
+            labels,
+            self.elements,
+            pllm_compiler::SILU_Q7_MAX_LABEL_BYTES,
+            "label",
+        ) {
+            Ok(labels) => labels,
+            Err(error) => {
+                self.inner
+                    .lock()
+                    .map_err(|_| PyRuntimeError::new_err("Q7 SiLU evaluator lock was poisoned"))?
+                    .burn()
+                    .map_err(invalid)?;
+                return Err(error);
+            }
+        };
+        let outputs = py
+            .detach(|| {
+                self.inner
+                    .lock()
+                    .map_err(|_| "Q7 SiLU evaluator lock was poisoned".to_string())?
+                    .evaluate(&labels)
+            })
+            .map_err(invalid)?;
+        Ok(outputs
+            .iter()
+            .map(|output| PyBytes::new(py, output))
+            .collect())
+    }
+}
+
+#[pyclass(frozen, module = "pllm._native")]
 struct ResolvedExperimentProfile {
     inner: pllm_compiler::ResolvedExperimentProfile,
 }
@@ -99,6 +204,13 @@ impl ResolvedExperimentProfile {
 }
 #[pymethods]
 impl CompiledPlan {
+    fn prepare_silu_q7_material(&self, py: Python<'_>) -> PyResult<GarbledSiluQ7Material> {
+        let inner = py
+            .detach(|| pllm_compiler::prepare_bound_silu_q7_material(&self.inner))
+            .map_err(invalid)?;
+        Ok(GarbledSiluQ7Material { inner })
+    }
+
     #[getter]
     fn logical_plan<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.inner.logical_json())
@@ -138,6 +250,31 @@ impl CompiledPlan {
     #[getter]
     fn output_shape<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         PyTuple::new(py, &self.inner.region_program.output.shape)
+    }
+    fn prepare_silu_q7_evaluator(&self, gates: &Bound<'_, PyAny>) -> PyResult<SiluQ7Evaluator> {
+        let elements = self
+            .inner
+            .region_program
+            .input
+            .shape
+            .iter()
+            .try_fold(1_usize, |count, dimension| {
+                usize::try_from(*dimension)
+                    .ok()
+                    .and_then(|dimension| count.checked_mul(dimension))
+            })
+            .ok_or_else(|| invalid("Q7 SiLU tensor element count exceeds usize".into()))?;
+        let gates = checked_byte_sequence(
+            gates,
+            elements,
+            pllm_compiler::SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES,
+            "evaluator payload",
+        )?;
+        let inner = pllm_compiler::SiluQ7Evaluator::new(&self.inner, &gates).map_err(invalid)?;
+        Ok(SiluQ7Evaluator {
+            inner: Mutex::new(inner),
+            elements,
+        })
     }
     #[pyo3(signature=(weights,input,threads=1,simd=true))]
     fn execute_wrap32<'py>(
@@ -204,6 +341,13 @@ fn compile_plan(document: &Bound<'_, PyBytes>) -> PyResult<CompiledPlan> {
     Ok(CompiledPlan {
         inner: pllm_compiler::compile_document(document.as_bytes()).map_err(compilation_invalid)?,
     })
+}
+
+#[pyfunction]
+fn silu_q7_contract(py: Python<'_>) -> PyResult<Bound<'_, PyBytes>> {
+    let document = serde_json::to_vec(&pllm_compiler::silu_q7_installed_contract())
+        .map_err(|error| invalid(error.to_string()))?;
+    Ok(PyBytes::new(py, &document))
 }
 
 #[pyfunction]
@@ -501,8 +645,11 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Matrix>()?;
     module.add_class::<CompiledPlan>()?;
     module.add_class::<ResolvedExperimentProfile>()?;
+    module.add_class::<GarbledSiluQ7Material>()?;
+    module.add_class::<SiluQ7Evaluator>()?;
     module.add_class::<Executor>()?;
     module.add_function(wrap_pyfunction!(compile_plan, module)?)?;
+    module.add_function(wrap_pyfunction!(silu_q7_contract, module)?)?;
     module.add_function(wrap_pyfunction!(resolve_experiment, module)?)?;
     module.add_function(wrap_pyfunction!(assurance_report, module)?)?;
     module.add_function(wrap_pyfunction!(assurance_results, module)?)?;

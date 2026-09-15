@@ -18,7 +18,7 @@ export function DocsShell({
 }) {
   const sectionSwitcher = area === undefined
     ? undefined
-    : <DocsSectionSwitcher area={area} sections={getAreaSections(area)} />;
+    : <DocsSectionSwitcher key="section-switcher" area={area} sections={getAreaSections(area)} />;
 
   return (
     <div className={`docs-root${research ? ' research-root' : ''}`}>

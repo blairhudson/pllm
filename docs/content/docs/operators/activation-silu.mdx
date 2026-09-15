@@ -1,0 +1,39 @@
+---
+title: "SiLU activation"
+description: "Compile and evaluate PLLM's bounded experimental Q7 SiLU component."
+---
+
+PLLM implements one executable SiLU profile:
+`pllm.numeric.silu.quadratic_q7.v1`. It encodes `[-1, 1]` at scale 128,
+evaluates `x / 2 + x² / 4`, rounds ties to even, and rejects inputs outside the
+locked domain. Across all 257 encoded inputs, absolute error against SiLU is at
+most `0.02285`. One compiled Q7 SiLU region is capped at 128 elements in this
+initial bounded slice.
+
+The protected implementation uses modulus 257 across the bounded Q7 input and
+output domains. Client wire
+encodings and evaluator gates remain separate. Evaluator material is serialized
+for transport, bound to the compiled plan, consumed once, and burned on an invalid
+evaluation attempt. This is an experimental reference component, not a complete
+Qwen execution profile or a production-security claim.
+
+## Python SDK example
+
+```python
+from pllm import lower_model
+
+plan = lower_model(
+    {"model_type": "qwen2", "num_hidden_layers": 1},
+    max_sequence_tokens=16,
+    max_batch_size=1,
+)
+silu = next(
+    operation for operation in plan.prefill.operations if operation.kind == "silu"
+)
+
+print(silu.operation_id, silu.output.shape)
+```
+
+The semantic plan preserves SiLU as an explicit operator. A separately validated
+compile request can lower a bounded SiLU region to the internal native Q7 evaluator,
+but PLLM does not expose that evaluator through the stable Python runtime facade.

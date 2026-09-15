@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 
 import uvicorn
 
@@ -248,6 +249,14 @@ def preparation_main(argv: list[str] | None = None) -> None:
     _server_main(argv, preparation=True)
 
 
+def main(argv: list[str] | None = None) -> None:
+    arguments = list(argv) if argv is not None else sys.argv[1:]
+    if not arguments or arguments[0] not in {"inference", "preparation"}:
+        raise SystemExit("usage: python -m pllm.runtime.cli {inference,preparation} [options]")
+    role = arguments.pop(0)
+    _server_main(arguments, preparation=role == "preparation")
+
+
 def sidecar_main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Run the local PLLM OpenAI Responses sidecar")
     parser.add_argument("--remote-base-url", default="http://127.0.0.1:8000")
@@ -291,3 +300,7 @@ def sidecar_main(argv: list[str] | None = None) -> None:
         bundle_cache_dir=args.bundle_cache_dir,
     )
     uvicorn.run(app, host=args.host, port=args.port, access_log=False)
+
+
+if __name__ == "__main__":
+    main()

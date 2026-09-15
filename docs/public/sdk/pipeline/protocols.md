@@ -6,7 +6,7 @@ See how PLLM defines parties, messages, privacy assumptions, and failure behavio
 
 Document ID: `pllm.docs.protocols`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
 Source hash: `sha256:e16f915fab73ebc12c737397f438d1e89b0debcd60351e2b3bba109ed04f2811`
 
 A protocol defines its parties, offline and online phases, inputs, outputs,

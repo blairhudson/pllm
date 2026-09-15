@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 pllm-core.workspace = true
+pllm-garble.workspace = true
 pllm-types.workspace = true
 pllm-models.workspace = true
 serde.workspace = true

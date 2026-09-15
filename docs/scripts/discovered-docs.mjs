@@ -44,6 +44,7 @@ export const discoveredDocs = [
   "operate/deployment",
   "operate/index",
   "operate/provider-roles",
+  "operators/activation-silu",
   "operators/index",
   "operators/projection-rotary",
   "operators/stateful-recurrence",

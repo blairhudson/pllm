@@ -6,8 +6,8 @@ Private language model inference. Client and server guides, the protocol, and re
 
 Document ID: `pllm.home`  
 Release: `0.1.0`  
-Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
-Source hash: `sha256:dabcf8a2aacfcc2e1912f645ceff604724110e336e3650dd261e39d686976141`
+Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
+Source hash: `sha256:b19bddaa16e649ca194a73f682ba679a77dfb48dbc101b4d3af44828a1d96b76`
 
 # Keep your data private. Open compute to the world.
 
@@ -112,7 +112,7 @@ Comparisons must use the same model, workload, privacy rules, numeric settings, 
 ## Continue with PLLM.
 
 [Documentation](/)
-[Source](https://github.com/probabilistic-alchemy/pllm)
+[Source](https://github.com/blairhudson/pllm)
 [Technical paper](/research/paper/)
 [Whitepaper](/research/whitepaper/)
 [Benchmarks](/sdk/research/benchmarks/)

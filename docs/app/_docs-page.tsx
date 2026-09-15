@@ -1,6 +1,6 @@
 import { getMDXComponents } from '@/components/mdx';
 import { markdownPathForRoute, withBasePath } from '@/lib/paths.mjs';
-import { source } from '@/lib/source';
+import { getPageByCanonicalHref } from '@/lib/source';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
@@ -11,7 +11,7 @@ function routeFor(slug: string[]) {
 
 export function renderDocsPage(slug: string[]) {
   const canonical = routeFor(slug);
-  const page = source.getPageByHref(canonical)?.page;
+  const page = getPageByCanonicalHref(canonical)?.page;
   if (!page) notFound();
   const MDX = page.data.body;
   return <DocsPage toc={page.data.toc} full={page.data.full}>
@@ -24,7 +24,7 @@ export function renderDocsPage(slug: string[]) {
 
 export function docsMetadata(slug: string[]): Metadata {
   const canonical = routeFor(slug);
-  const page = source.getPageByHref(canonical)?.page;
+  const page = getPageByCanonicalHref(canonical)?.page;
   if (!page) notFound();
   return {
     title: page.data.title,

@@ -238,6 +238,19 @@ impl Garbler {
     where
         F: Fn(&[u16]) -> u16,
     {
+        self.garble_projection_with_context(inputs, output_modulus, [0_u8; 32], operation)
+    }
+
+    pub fn garble_projection_with_context<F>(
+        &mut self,
+        inputs: &[&WireEncoding],
+        output_modulus: Modulus,
+        context_digest: [u8; 32],
+        operation: F,
+    ) -> Result<(GarbledProjection, WireEncoding), GarbleError>
+    where
+        F: Fn(&[u16]) -> u16,
+    {
         if inputs.is_empty() {
             return Err(GarbleError::EmptyProjection);
         }
@@ -249,6 +262,7 @@ impl Garbler {
         })?;
         let output = self.wire(output_modulus)?;
         let gate_id = random_array()?;
+        let row_gate_id = contextual_gate_id(&gate_id, &context_digest);
         let mut rows = empty_rows(row_count);
         let moduli = inputs.iter().map(|input| input.modulus).collect::<Vec<_>>();
         for semantic_index in 0..row_count {
@@ -268,14 +282,15 @@ impl Garbler {
             let label_refs = labels.iter().collect::<Vec<_>>();
             let index = mixed_radix_selectors(&label_refs, &moduli);
             let output_label = output.encode(mapped)?;
-            let body = seal(&gate_id, &label_refs, &output_label);
-            rows[index] = Some(make_row(&gate_id, &label_refs, body));
+            let body = seal(&row_gate_id, &label_refs, &output_label);
+            rows[index] = Some(make_row(&row_gate_id, &label_refs, body));
         }
         Ok((
             GarbledProjection {
                 input_moduli: moduli,
                 output_modulus,
                 gate_id,
+                context_digest,
                 rows: finish_rows(rows)?,
             },
             output,
@@ -360,10 +375,27 @@ pub struct GarbledProjection {
     input_moduli: Vec<Modulus>,
     output_modulus: Modulus,
     gate_id: [u8; 32],
+    context_digest: [u8; 32],
     rows: Vec<CipherRow>,
 }
 
 impl GarbledProjection {
+    pub fn input_moduli(&self) -> Vec<u16> {
+        self.input_moduli.iter().map(|modulus| modulus.0).collect()
+    }
+
+    pub fn output_modulus(&self) -> u16 {
+        self.output_modulus.0
+    }
+
+    pub fn context_digest(&self) -> [u8; 32] {
+        self.context_digest
+    }
+
+    pub fn material_id(&self) -> [u8; 32] {
+        contextual_gate_id(&self.gate_id, &self.context_digest)
+    }
+
     pub fn evaluate(self, inputs: &[&Label]) -> Result<Label, GarbleError> {
         if inputs.len() != self.input_moduli.len() {
             return Err(GarbleError::InvalidLabel);
@@ -373,7 +405,8 @@ impl GarbledProjection {
         }
         let index = mixed_radix_selectors(inputs, &self.input_moduli);
         let row = self.rows.get(index).ok_or(GarbleError::InvalidLabel)?;
-        open(&self.gate_id, inputs, self.output_modulus, row)
+        let gate_id = contextual_gate_id(&self.gate_id, &self.context_digest);
+        open(&gate_id, inputs, self.output_modulus, row)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -384,6 +417,7 @@ impl GarbledProjection {
                 + 2
                 + self.input_moduli.len() * 2
                 + 2
+                + 32
                 + 32
                 + 4
                 + 2
@@ -396,6 +430,7 @@ impl GarbledProjection {
         }
         output.extend_from_slice(&self.output_modulus.0.to_le_bytes());
         output.extend_from_slice(&self.gate_id);
+        output.extend_from_slice(&self.context_digest);
         output.extend_from_slice(&(self.rows.len() as u32).to_le_bytes());
         output.extend_from_slice(&(width as u16).to_le_bytes());
         for row in &self.rows {
@@ -422,6 +457,7 @@ impl GarbledProjection {
         }
         let output_modulus = Modulus::new(cursor.u16()?)?;
         let gate_id = cursor.take::<32>()?;
+        let context_digest = cursor.take::<32>()?;
         let row_count = usize::try_from(cursor.u32()?).map_err(|_| GarbleError::InvalidGate)?;
         let width = usize::from(cursor.u16()?);
         let expected_rows = input_moduli.iter().try_fold(1_usize, |count, modulus| {
@@ -455,6 +491,7 @@ impl GarbledProjection {
             input_moduli,
             output_modulus,
             gate_id,
+            context_digest,
             rows,
         })
     }
@@ -551,6 +588,82 @@ pub fn evaluate_scale(input: &Label, scalar: u16) -> Result<Label, GarbleError> 
     Ok(scale_label(input, scalar))
 }
 
+pub const SILU_QUADRATIC_Q7_MODULUS: u16 = 257;
+
+pub struct SiluQuadraticQ7Material {
+    gate: GarbledProjection,
+    input: WireEncoding,
+    output: WireEncoding,
+}
+
+impl SiluQuadraticQ7Material {
+    pub fn gate_bytes(&self) -> Vec<u8> {
+        self.gate.to_bytes()
+    }
+
+    pub fn encode(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
+        Ok(self.input.encode(q7_residue(value)?)?.to_bytes())
+    }
+
+    pub fn decode(&self, label_bytes: &[u8]) -> Result<i16, GarbleError> {
+        let label = Label::from_bytes(label_bytes)?;
+        Ok(q7_centered(self.output.decode(&label)?))
+    }
+}
+
+pub fn prepare_silu_quadratic_q7() -> Result<SiluQuadraticQ7Material, GarbleError> {
+    prepare_silu_quadratic_q7_with_context([0_u8; 32])
+}
+
+pub fn prepare_silu_quadratic_q7_with_context(
+    context_digest: [u8; 32],
+) -> Result<SiluQuadraticQ7Material, GarbleError> {
+    let modulus = Modulus::new(SILU_QUADRATIC_Q7_MODULUS)?;
+    let mut garbler = Garbler::new();
+    let input = garbler.wire(modulus)?;
+    let (gate, output) =
+        garbler.garble_projection_with_context(&[&input], modulus, context_digest, |residues| {
+            let value = q7_centered(residues[0]);
+            let result = pllm_core::silu_quadratic_q7(value)
+                .expect("every modulus-257 residue maps to the locked Q7 domain");
+            q7_residue(result).expect("locked Q7 SiLU output remains in domain")
+        })?;
+    Ok(SiluQuadraticQ7Material {
+        gate,
+        input,
+        output,
+    })
+}
+
+#[cfg(test)]
+fn evaluate_silu_quadratic_q7(
+    gate_bytes: &[u8],
+    input_label_bytes: &[u8],
+) -> Result<Vec<u8>, GarbleError> {
+    let gate = GarbledProjection::from_bytes(gate_bytes)?;
+    let input = Label::from_bytes(input_label_bytes)?;
+    Ok(gate.evaluate(&[&input])?.to_bytes())
+}
+
+fn q7_residue(value: i16) -> Result<u16, GarbleError> {
+    if !(-128..=128).contains(&value) {
+        return Err(GarbleError::ValueOutsideSiluQ7(value));
+    }
+    Ok(if value < 0 {
+        (i32::from(value) + i32::from(SILU_QUADRATIC_Q7_MODULUS)) as u16
+    } else {
+        value as u16
+    })
+}
+
+fn q7_centered(residue: u16) -> i16 {
+    if residue <= 128 {
+        residue as i16
+    } else {
+        residue as i16 - SILU_QUADRATIC_Q7_MODULUS as i16
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum GarbleError {
     Authentication,
@@ -566,6 +679,7 @@ pub enum GarbleError {
     ProjectionTooLarge,
     Randomness(String),
     UnknownOutputLabel,
+    ValueOutsideSiluQ7(i16),
     ValueOutsideModulus { value: u16, modulus: u16 },
 }
 
@@ -596,6 +710,9 @@ impl fmt::Display for GarbleError {
             }
             Self::UnknownOutputLabel => {
                 formatter.write_str("output label is not in the decoding set")
+            }
+            Self::ValueOutsideSiluQ7(value) => {
+                write!(formatter, "Q7 SiLU value {value} is outside -128..=128")
             }
             Self::ValueOutsideModulus { value, modulus } => {
                 write!(formatter, "value {value} is outside modulus {modulus}")
@@ -680,6 +797,14 @@ fn random_array() -> Result<[u8; 32], GarbleError> {
     let mut output = [0_u8; 32];
     getrandom::fill(&mut output).map_err(|error| GarbleError::Randomness(error.to_string()))?;
     Ok(output)
+}
+
+fn contextual_gate_id(gate_id: &[u8; 32], context_digest: &[u8; 32]) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.agc.contextual-gate.v1\0");
+    hash.update(gate_id);
+    hash.update(context_digest);
+    hash.finalize().into()
 }
 
 fn empty_rows(count: usize) -> Vec<Option<CipherRow>> {
@@ -947,6 +1072,28 @@ mod tests {
     }
 
     #[test]
+    fn changed_gate_context_does_not_authenticate() {
+        let mut garbler = Garbler::new();
+        let input = garbler.wire(Modulus::new(7).unwrap()).unwrap();
+        let (gate, _) = garbler
+            .garble_projection_with_context(
+                &[&input],
+                Modulus::new(5).unwrap(),
+                [7_u8; 32],
+                |values| values[0] % 5,
+            )
+            .unwrap();
+        let label = input.encode(3).unwrap();
+        let mut encoded = gate.to_bytes();
+        encoded[40] ^= 1;
+        let changed = GarbledProjection::from_bytes(&encoded).unwrap();
+        assert_eq!(
+            changed.evaluate(&[&label]),
+            Err(GarbleError::Authentication)
+        );
+    }
+
+    #[test]
     fn rejects_invalid_domains_and_projection_outputs() {
         assert_eq!(Modulus::new(1), Err(GarbleError::InvalidModulus(1)));
         assert_eq!(Modulus::new(258), Err(GarbleError::InvalidModulus(258)));
@@ -1067,5 +1214,36 @@ mod tests {
             GarbledProjection::from_bytes(&encoded[..encoded.len() - 1]),
             Err(GarbleError::InvalidGate)
         ));
+    }
+
+    #[test]
+    fn transported_silu_q7_matches_the_numeric_oracle() {
+        let material = prepare_silu_quadratic_q7().unwrap();
+        let gate = material.gate_bytes();
+        for value in -128..=128 {
+            let input = material.encode(value).unwrap();
+            let output = evaluate_silu_quadratic_q7(&gate, &input).unwrap();
+            assert_eq!(
+                material.decode(&output).unwrap(),
+                pllm_core::silu_quadratic_q7(value).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn silu_q7_rejects_out_of_domain_and_tampered_material() {
+        let material = prepare_silu_quadratic_q7().unwrap();
+        assert_eq!(
+            material.encode(129),
+            Err(GarbleError::ValueOutsideSiluQ7(129))
+        );
+
+        let gate = material.gate_bytes();
+        let mut input = material.encode(0).unwrap();
+        input.push(0);
+        assert_eq!(
+            evaluate_silu_quadratic_q7(&gate, &input),
+            Err(GarbleError::InvalidLabel)
+        );
     }
 }
