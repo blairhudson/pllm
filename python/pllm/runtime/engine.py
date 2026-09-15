@@ -12,7 +12,7 @@ class EngineCapabilities:
     model_sources: tuple[str, ...]
     protocols: tuple[str, ...]
     online_fhe: bool
-    he_preprocessed: bool
+    preprocessed: bool
     continuous_batching: bool
     notes: tuple[str, ...] = ()
 
@@ -22,13 +22,13 @@ class EngineCapabilities:
             "model_sources": list(self.model_sources),
             "protocols": list(self.protocols),
             "online_fhe": self.online_fhe,
-            "he_preprocessed": self.he_preprocessed,
+            "preprocessed": self.preprocessed,
             "continuous_batching": self.continuous_batching,
             "notes": list(self.notes),
         }
 
 
-class HEEngine(Protocol):
+class InferenceEngine(Protocol):
     capabilities: EngineCapabilities
 
     async def load(self, manifest: ModelManifest) -> None: ...
@@ -38,7 +38,7 @@ class HEEngine(Protocol):
     def seeded_profile(self, model_id: str, stage_id: str) -> Any: ...
 
 
-class MaskedTransformerHEEngine(HEEngine, Protocol):
+class MaskedTransformerEngineProtocol(InferenceEngine, Protocol):
     async def stage_metadata(self, model_id: str, stage_id: str) -> Any: ...
     async def create_local_correlations(
         self, model_id: str, stage_id: str, *, rows: int = 1, count: int = 1, seed: int | None = None
@@ -50,18 +50,18 @@ class BackendModelImporter(Protocol):
     """Control-plane contract for vLLM/MLX/Ollama/llama.cpp integration.
 
     Normal OpenAI-compatible HTTP endpoints cannot execute encrypted activations.
-    A strict-HE deployment imports the same source weights into an HEEngine via
+    A private-runtime deployment imports the same source weights into an InferenceEngine via
     this interface; trusted passthrough remains a separate backend mode.
     """
 
     async def inspect(self, source: str) -> ModelManifest: ...
-    async def import_into(self, source: str, engine: HEEngine) -> ModelManifest: ...
+    async def import_into(self, source: str, engine: InferenceEngine) -> ModelManifest: ...
 
 
 class EngineStageExecutor:
-    """Adapt an :class:`HEEngine` stage to the continuous batching scheduler."""
+    """Adapt an :class:`InferenceEngine` stage to the continuous batching scheduler."""
 
-    def __init__(self, engine: HEEngine, model_id: str, stage: StageSpec) -> None:
+    def __init__(self, engine: InferenceEngine, model_id: str, stage: StageSpec) -> None:
         self.engine = engine
         self.model_id = model_id
         self.stage = stage

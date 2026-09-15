@@ -1,0 +1,8 @@
+{
+  "title": "CLI overview",
+  "root": true,
+  "pages": [
+    "index",
+    "../reference/cli"
+  ]
+}

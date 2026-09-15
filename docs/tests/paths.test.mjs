@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeBasePath, withBasePath, prefixHtml } from '../lib/paths.mjs';
+import { markdownPathForRoute, normalizeBasePath, withBasePath, prefixHtml } from '../lib/paths.mjs';
 
 test('root and project Pages paths are normalized', () => {
   assert.equal(normalizeBasePath('/'), '');
@@ -25,5 +25,13 @@ test('external links, anchors and protocol relative links stay unchanged', () =>
   }
 });
 test('trusted HTML links work on GitHub project Pages', () => {
-  assert.equal(prefixHtml('<a href="/docs/">Docs</a><img src="/icon.svg">', '/pllm'), '<a href="/pllm/docs/">Docs</a><img src="/pllm/icon.svg">');
+  assert.equal(prefixHtml('<a href="/">Docs</a><img src="/icon.svg">', '/pllm'), '<a href="/pllm/">Docs</a><img src="/pllm/icon.svg">');
+});
+test('canonical routes map to stable Markdown alternates without index leaves', () => {
+  assert.equal(markdownPathForRoute('/'), '/index.md');
+  assert.equal(markdownPathForRoute('/sdk/components/'), '/sdk/components.md');
+  assert.equal(markdownPathForRoute('/learn/start/installation'), '/learn/start/installation.md');
+  assert.equal(markdownPathForRoute('/research/'), '/research.md');
+  assert.equal(markdownPathForRoute('/sdk/reference/components/'), '/sdk/reference/components.md');
+  assert.equal(markdownPathForRoute('/research/whitepaper'), '/research/whitepaper.md');
 });

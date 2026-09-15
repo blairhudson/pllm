@@ -1,0 +1,10 @@
+---
+title: "Masked linear inference"
+description: "Follow seeded one-time masks through offline correction and online matrix evaluation."
+---
+
+For public matrix `W`, preparation material binds a one-time input mask `r`, output mask `s`, and ticket. Preparation computes `W*r-s` and installs it at inference. Online, the client sends `x-r`; inference combines it with the correction and returns `W*x-s`; the client adds `s`.
+
+This changes timing, not algebra. Reusing a row reveals relations between activations, so each ticket is consumed once. The inference role must never receive the seed, and the preparation role must not retain masks or collude with inference.
+
+Prefill packs a ticket vector and masked matrix per stage. Decode uses one ticket per stage on a persistent connection. See [masked-linear protocol](/sdk/pipeline/protocols/masked-linear/) for the component boundary.

@@ -56,7 +56,7 @@ def start_gateway(*, bfv: bool = False, backends=(), engines=None, privacy_mode:
         api_keys=(api_key,),
         privacy_mode=privacy_mode,
         allow_insecure_local_correlations=True,
-        tenseal_path=os.environ.get("HE_OPENAI_PYDEPS") if bfv else None,
+        tenseal_path=os.environ.get("PLLM_TENSEAL_PATH") if bfv else None,
         backends=tuple(backends),
         max_batch_size=32,
         max_batch_wait_ms=1.5,
@@ -76,7 +76,12 @@ def start_gateway(*, bfv: bool = False, backends=(), engines=None, privacy_mode:
     if not server.started:
         raise RuntimeError("gateway start timeout")
     return RunningGateway(
-        f"http://127.0.0.1:{port}", api_key, server, thread, audit, push_api_key
+        f"http://127.0.0.1:{port}",
+        api_key,
+        server,
+        thread,
+        audit,
+        push_api_key,
     )
 
 

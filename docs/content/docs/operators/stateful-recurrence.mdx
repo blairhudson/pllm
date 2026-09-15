@@ -1,0 +1,26 @@
+---
+title: "Stateful recurrence"
+description: "Represent convolution and recurrent state in a hybrid decoder plan."
+---
+
+Hybrid decoders declare convolution and recurrent state separately from key/value cache state. `causal_convolution` consumes prior convolution state while `convolution_state_update` produces the next bounded state. `gated_delta_rule` consumes normalized Q/K, value, decay, beta, and prior recurrent state; `gated_delta_state_update` records the corresponding state transition.
+
+Separate result and state-transition operations avoid implicit multi-output graph edges. Their shared inputs and attributes bind both records to one semantic update. `rms_norm_gated`, `gated_delta_decay`, and `sigmoid` retain the surrounding gating equations.
+
+Presence in a validated plan is not implementation coverage. Current compiler profiles fail closed on these operators.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("qwen35-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+missing = [row["operator"] for row in plan.coverage().operators if row["level"] == "missing"]
+print(missing)
+```
+
+`qwen35-config.json` is the supported pinned configuration; this reports unsupported operators without executing them.

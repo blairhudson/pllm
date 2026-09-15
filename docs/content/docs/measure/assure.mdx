@@ -1,0 +1,19 @@
+---
+title: "Assure"
+description: "Run a defined assurance check and report exactly what its result supports."
+---
+
+`pllm.assure()` runs implemented native fixtures, including negative controls, and returns `EvidenceReport`. Report production is not universal privacy proof. Each finding retains model or observed view, assumptions, resource bound, implementation/refinement boundary, and exact outcome.
+
+CLI `assure run` is unavailable because scoped assurance command/output contract is incomplete. Python support applies only to fixtures present in current native package. See [privacy semantics](/learn/understand/privacy-assurance/).
+
+## Python SDK example
+
+```python
+from pllm import assure
+
+report = assure()
+print(report.to_dict()["limitations"])
+```
+
+Result covers bundled fixtures only, not a production runtime attack.

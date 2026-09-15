@@ -7,8 +7,9 @@
     "node": ">=22.16.0"
   },
   "scripts": {
-    "dev": "node scripts/generate.mjs && next dev",
-    "build": "node scripts/generate.mjs && next build",
+    "generate": "node scripts/discover-pages.mjs && node scripts/generate.mjs",
+    "dev": "npm run generate && next dev",
+    "build": "npm run generate && next build",
     "postinstall": "fumadocs-mdx",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "check:content": "node scripts/check-content.mjs",

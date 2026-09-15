@@ -13,12 +13,12 @@ def _choose_model(client: OpenAI, requested: str | None) -> str:
     if requested:
         return requested
     models = client.models.list().get("data", [])
-    strict = [item["id"] for item in models if item.get("he", {}).get("privacy_mode") not in {"manifest_only", "trusted_backend"}]
-    if len(strict) == 1:
-        return strict[0]
-    if not strict:
+    private = [item["id"] for item in models if item.get("runtime", {}).get("privacy_mode") not in {"manifest_only", "trusted_backend"}]
+    if len(private) == 1:
+        return private[0]
+    if not private:
         raise RuntimeError("the server has no private models loaded")
-    raise RuntimeError("more than one model is available; select one with --model: " + ", ".join(strict))
+    raise RuntimeError("more than one model is available; select one with --model: " + ", ".join(private))
 
 
 def run_chat(
@@ -46,7 +46,7 @@ def run_chat(
     with OpenAI(base_url=settings.base_url, api_key=settings.api_key, default_model=settings.model,
                 preparation_base_url=settings.preparation_base_url,
                 preparation_api_key=settings.preparation_api_key,
-                he_transport=settings.transport, correlation_mode=settings.correlation_mode,
+                session_transport=settings.transport, correlation_mode=settings.correlation_mode,
                 correlation_prefetch=settings.correlation_prefetch, token_cache_size=settings.token_cache_size,
                 bundle_cache_mode=settings.bundle_cache_mode,
                 bundle_cache_dir=settings.bundle_cache_dir,

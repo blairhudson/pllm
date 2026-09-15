@@ -1,0 +1,25 @@
+---
+title: "Conversions"
+description: "Learn how values move between numeric formats, layouts, and owners."
+---
+
+Conversions connect components that use different formats. Examples include a
+quantized tensor to ring values, arithmetic shares to bits, residues to signed
+integers, a packed matrix to row-major layout, or server shares to client output.
+Each conversion records bounds, rounding, network traffic, ownership, visible
+information, and assurance requirements.
+
+The compiler can insert only a declared conversion that satisfies both component
+interfaces. A matching Python or Rust type cannot silently open a private value or
+allow a lossy cast.
+
+## Python SDK example
+
+```python
+from pllm.components import list_components
+
+conversions = [item for item in list_components() if "conversion" in item.category]
+print(conversions)
+```
+
+An empty result means no built-in conversion component is currently published; it does not authorize an implicit cast.

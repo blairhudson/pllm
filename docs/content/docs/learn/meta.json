@@ -1,0 +1,15 @@
+{
+  "title": "Core concepts",
+  "root": true,
+  "pages": [
+    "index",
+    "privacy-and-threat-models",
+    "parties-and-offline-work",
+    "masked-linear-inference",
+    "arithmetic-and-boolean-garbling",
+    "numeric-semantics-and-model-quality",
+    "reading-research-and-evidence",
+    "../start",
+    "../understand"
+  ]
+}

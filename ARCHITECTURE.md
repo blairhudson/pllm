@@ -33,13 +33,38 @@ as `pllm._native`. It depends on `pllm-core` and PyO3. The stable Python ABI is
 configured from Python 3.11. The application dependency matrix currently limits
 Python to 3.11 through 3.13.
 
+`crates/pllm-models` owns the model-family-neutral semantic decoder IR. Semantic
+operators, layer identity and persistent-state kinds are explicit, so compiler and
+method passes do not parse adapter-specific node names or weight paths. Implemented
+lowering adapters are Qwen2 (`pllm.qwen2.v1`), dense Qwen3 (`pllm.qwen3.v1`),
+the exact Qwen3.5-4B text decoder (`pllm.qwen3_5_text.v1`), the exact
+Phi-4-mini-instruct decoder (`pllm.phi4_mini.v1`), and the exact text decoders in
+the official `google/gemma-4-E2B-it` and `google/gemma-4-E4B-it` outer
+configurations (`pllm.gemma4_e2b_text.v1` and `pllm.gemma4_e4b_text.v1`, model
+family `gemma4_text`). Other Qwen, Gemma, Nemotron, Kimi, GLM and future families
+must lower into the same IR or extend its semantic vocabulary rather than
+introduce family-specific compiler paths.
+Research-method crates transform this IR through generic component contracts and
+record immutable, digest-bound transformation lineage on the resulting plan.
+
+Semantic adapter support, checkpoint import, runtime graph support, compiler
+operator coverage, protected/private parity, generation quality, benchmark
+evidence and deployment support are separate claims. A complete bounded semantic
+plan does not establish any later claim. In particular, the current compiler
+profile remains incomplete and cannot execute any complete newly listed text plan.
+The Python runtime's existing support for selected Gemma text checkpoint layouts
+is a separate runtime axis, not evidence for this semantic adapter or exact target.
+
 ## Python package
 
 `python/pllm` is the only installed namespace. Its public API consists of the
-client classes, configuration, response types, application factories and native
-matrix interface. Public objects are imported on demand. `pllm.runtime` holds
-the model graph, HE preparation, transport, protocol, scheduling and importers.
-Applications should not depend on internal module locations.
+client classes, configuration, response types, semantic model planning,
+application factories and native matrix interface. `pllm.lower_model` accepts
+only model configuration plus workload bounds and returns an immutable
+`ModelPlan`; it does not resolve or load weights, tokenizers, devices or runtime
+state. Public objects are imported on demand. `pllm.runtime` holds the separate
+runtime model graph, HE preparation, transport, protocol, scheduling and
+importers. Applications should not depend on internal module locations.
 
 `python -m pllm` and the installed `pllm` command use the same entry point.
 A source checkout does not shadow an installed wheel through a second package

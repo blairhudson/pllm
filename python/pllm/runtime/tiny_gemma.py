@@ -31,7 +31,7 @@ def create_tiny_gemma4_checkpoint(
     config = {
         "architectures": ["Gemma4ForCausalLM"],
         "model_type": "gemma4_text",
-        "name_or_path": "tiny-gemma4-he",
+        "name_or_path": "tiny-gemma4-pllm",
         "vocab_size": vocab_size,
         "hidden_size": hidden_size,
         "intermediate_size": intermediate_size,
@@ -57,7 +57,7 @@ def create_tiny_gemma4_checkpoint(
             "sliding_attention": {"rope_type": "default", "rope_theta": 10000.0},
             "full_attention": {"rope_type": "default", "rope_theta": 10000.0},
         },
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     (root / "tokenizer_config.json").write_text(json.dumps({
@@ -130,7 +130,7 @@ def create_tiny_llama_checkpoint(
     config = {
         "architectures": ["LlamaForCausalLM"],
         "model_type": "llama",
-        "name_or_path": "tiny-llama-he",
+        "name_or_path": "tiny-llama-pllm",
         "vocab_size": vocab_size,
         "hidden_size": hidden_size,
         "intermediate_size": intermediate_size,
@@ -146,7 +146,7 @@ def create_tiny_llama_checkpoint(
         "eos_token_id": 1,
         "pad_token_id": 1,
         "rope_theta": 10000.0,
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     (root / "tokenizer_config.json").write_text(json.dumps({

@@ -1,0 +1,24 @@
+---
+title: "Protocols"
+description: "See how PLLM defines parties, messages, privacy assumptions, and failure behavior."
+---
+
+A protocol defines its parties, offline and online phases, inputs, outputs,
+messages, authentication, replay behavior, one-time material, visible information,
+trust assumptions, and failure behavior. Model adapters and deployment policy are
+separate concerns.
+
+Current protocols include [masked-linear inference](/sdk/pipeline/protocols/masked-linear/)
+and experimental [garbling components](/sdk/pipeline/protocols/garbling/). Check execution
+support, security review, assurance, and deployment status separately.
+
+## Python SDK example
+
+```python
+from pllm.components import list_components
+
+protocols = [item for item in list_components() if item.category == "pllm/protocol-method"]
+print([item.component for item in protocols])
+```
+
+This lists published protocol descriptors; discovery does not start a protocol.

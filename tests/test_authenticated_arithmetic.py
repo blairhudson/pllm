@@ -216,7 +216,7 @@ def test_gateway_binds_guarded_owner_to_api_principal(tmp_path: Path):
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as http:
             loaded = http.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers=headers,
                 json={
                     "engine": engine.capabilities.name,
@@ -229,7 +229,7 @@ def test_gateway_binds_guarded_owner_to_api_principal(tmp_path: Path):
             sessions = []
             for _ in range(2):
                 response = http.post(
-                    "/v1/he/sessions",
+                    "/v1/runtime/sessions",
                     headers=headers,
                     json={"model": "tiny-owner-binding", "max_output_tokens": 1},
                 )
@@ -241,14 +241,14 @@ def test_gateway_binds_guarded_owner_to_api_principal(tmp_path: Path):
                 "owner_id": "owner-a",
             }
             first = http.post(
-                f"/v1/he/sessions/{sessions[0]}/correlations/proprietary/local-test",
+                f"/v1/runtime/sessions/{sessions[0]}/correlations/proprietary/local-test",
                 headers=headers,
                 json=body,
             )
             assert first.status_code == 200, first.text
             body["owner_id"] = "owner-b"
             second = http.post(
-                f"/v1/he/sessions/{sessions[1]}/correlations/proprietary/local-test",
+                f"/v1/runtime/sessions/{sessions[1]}/correlations/proprietary/local-test",
                 headers=headers,
                 json=body,
             )

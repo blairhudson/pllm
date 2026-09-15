@@ -1,6 +1,0 @@
-[package]
-name = "pllm-inventory"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]

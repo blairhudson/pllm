@@ -1,0 +1,24 @@
+---
+title: "Projection and rotary variants"
+description: "Represent fused projections, tensor slices, head widths, and rotary position rules."
+---
+
+A fused checkpoint tensor remains one `linear` operation followed by semantic `slice` operations. This preserves storage identity without teaching a compiler model-specific tensor names. Query width, KV width, head count, and head width are independent shape facts.
+
+`rotary_embedding` attributes distinguish ordinary RoPE, partial rotary width, multimodal sections, and LongRoPE short/long factors. A compiler must implement the declared variant or report it missing; it cannot silently substitute ordinary full-width RoPE.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+names = {"linear", "rotary_embedding", "slice"}
+print([op for op in plan.prefill["operations"] if op["operator"] in names])
+```
+
+This reads plan records only; support still depends on compiler coverage.

@@ -1,0 +1,8 @@
+{
+  "schema": "pllm.experiment.v1",
+  "name": "invalid-extra",
+  "pipeline": {"profile": "x", "model": {"source": "x"}, "components": {}},
+  "deployment": {"kind": "local", "root": ".pllm/x"},
+  "budget": {"requests": 1, "max_input_tokens": 1, "max_new_tokens": 1},
+  "unknown": true
+}

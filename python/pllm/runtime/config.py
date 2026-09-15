@@ -10,7 +10,7 @@ from .privacy import PrivacyMode, ProprietaryProtocol
 
 @dataclass(frozen=True, slots=True)
 class GatewayConfig:
-    api_keys: tuple[str, ...] = ("he-local",)
+    api_keys: tuple[str, ...] = ("pllm-local",)
     privacy_mode: str = "public"
     proprietary_protocol: str = "guarded"
     backends: tuple[dict[str, Any], ...] = ()
@@ -35,7 +35,7 @@ class GatewayConfig:
     preparation_push_timeout_seconds: float = 10.0
     allow_insecure_local_correlations: bool = False
     tenseal_path: str | None = None
-    reference_model_id: str = "he-bigram-demo"
+    reference_model_id: str = "pllm-bigram-demo"
     reference_phrase: str = "private\n"
     reference_alphabet: str = "private\\n"
 

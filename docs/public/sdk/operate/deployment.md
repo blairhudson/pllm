@@ -1,0 +1,34 @@
+# Deployment
+
+Learn how to assign PLLM roles to authenticated services without changing privacy assumptions.
+
+[View canonical HTML](https://pllm.run/sdk/operate/deployment/)
+
+Document ID: `pllm.docs.deployment`  
+Release: `0.1.0`  
+Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Source hash: `sha256:9978adbd22efe5038960414f19d4aafb6642fb56ded8f2b90e2eb327e8deb97c`
+
+A deployment assigns each protocol role to a process and operator. It records
+endpoints, authentication, separate credentials, provider identity, storage,
+capacity, expiration, observability, shutdown behavior, and trust boundaries.
+
+The client must keep plaintext prompts, masks, private scales, model state, and
+decoding. Client-to-inference, client-to-preparation, and
+preparation-to-inference connections use different credentials. Changing the URL
+of an ordinary model API does not make its unmodified SDK private.
+
+A loopback run checks that the services work together on one machine. It does not
+show that production operators are independent. Deployment assurance must refer
+to the exact plan and environment being evaluated.
+
+## Python SDK example
+
+```python
+from pllm.deployment import Deployment
+
+deployment = Deployment.local(root=".pllm/local")
+print(deployment.to_spec())
+```
+
+This creates configuration only. Generic remote role deployment is not supported.

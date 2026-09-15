@@ -18,4 +18,11 @@ extension-module = ["pyo3/extension-module"]
 
 [dependencies]
 pllm-core.workspace = true
+pllm-compiler.workspace = true
+pllm-types.workspace = true
+pllm-bench.workspace = true
+pllm-assurance.workspace = true
+pllm-models.workspace = true
+pllm-method-mpcache.workspace = true
 pyo3.workspace = true
+serde_json.workspace = true

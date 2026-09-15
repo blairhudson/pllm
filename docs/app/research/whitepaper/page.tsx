@@ -1,4 +1,4 @@
-import { prefixHtml } from '@/lib/paths.mjs';
+import { markdownPathForRoute, prefixHtml } from '@/lib/paths.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import styles from './whitepaper.module.css';
@@ -6,7 +6,10 @@ import styles from './whitepaper.module.css';
 export const metadata = {
   title: 'PLLM Whitepaper',
   description: 'A two-page overview of PLLM prepared private inference.',
-  alternates: { canonical: '/research/whitepaper/' },
+  alternates: {
+    canonical: '/research/whitepaper/',
+    types: { 'text/markdown': markdownPathForRoute('/research/whitepaper/') },
+  },
 };
 
 export default function Whitepaper() {

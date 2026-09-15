@@ -24,7 +24,7 @@ class ByteTokenizer:
     during decoding so streamed partial byte sequences never crash the client.
     """
 
-    name: str = "he-byte-v1"
+    name: str = "pllm-byte-v1"
     vocab_size: int = 258
     bos_token_id: int = 256
     eos_token_id: int = 257
@@ -43,7 +43,7 @@ class AlphabetTokenizer:
     """Small exact tokenizer used by the masked bigram HE integration."""
 
     alphabet: str
-    name: str = "he-alphabet-v1"
+    name: str = "pllm-alphabet-v1"
 
     def __post_init__(self) -> None:
         if len(set(self.alphabet)) != len(self.alphabet):
@@ -144,7 +144,7 @@ class PieceTokenizer:
     """Tiny piece vocabulary for the executable HE reference model."""
 
     pieces: tuple[str, ...]
-    name: str = "he-piece-v1"
+    name: str = "pllm-piece-v1"
 
     @property
     def bos_token_id(self) -> int:

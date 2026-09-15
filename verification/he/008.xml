@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.136" timestamp="2026-09-07T00:27:50.508203+00:00" hostname="localhost"><testcase classname="tests.test_packed_bfv" name="test_packed_bfv_matches_clear" time="0.122" /></testsuite></testsuites>

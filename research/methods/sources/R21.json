@@ -1,0 +1,15 @@
+{
+  "access": "primary_full_text",
+  "artifact_commit": "e15058c7f8f58fcf037c4709211109cb1be7d1e0",
+  "authors": ["Jiawen Zhang", "Xinpeng Yang", "Lipeng He", "Kejia Chen", "Wen-jie Lu", "Yinghao Wang", "Xiaoyang Hou", "Jian Liu", "Kui Ren", "Xiaohu Yang"],
+  "id": "R21",
+  "license_review": "external_reproduction_only",
+  "local_path": "papers/2025-868-paper.pdf",
+  "notes": "Upstream GPL-3.0 code may be run in isolation but is not vendored. The artifact covers transformer forward workloads, not PLLM's complete autoregressive Qwen decoder contract.",
+  "paper_digest": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+  "primary_url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf",
+  "schema_version": "pllm.source_record.v1",
+  "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+  "verified_on": "2026-09-14",
+  "year": 2025
+}

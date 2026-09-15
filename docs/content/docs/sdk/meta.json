@@ -1,0 +1,16 @@
+{
+  "title": "Essentials",
+  "root": true,
+  "pages": [
+    "index",
+    "configuration",
+    "plans",
+    "components",
+    "../build",
+    "../pipeline",
+    "../measure",
+    "../operate",
+    "../reference",
+    "../contribute"
+  ]
+}

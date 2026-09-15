@@ -8,7 +8,7 @@ from typing import Any
 
 import msgpack
 
-MAGIC = b"HER1"
+MAGIC = b"PLR1"
 PREFIX = struct.Struct("!4sIQ")
 DEFAULT_MAX_HEADER = 1 << 20
 DEFAULT_MAX_PAYLOAD = 1 << 31

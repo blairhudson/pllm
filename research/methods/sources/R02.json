@@ -1,0 +1,15 @@
+{
+  "schema_version": "pllm.source_record.v1",
+  "id": "R02",
+  "title": "ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference",
+  "authors": ["Felix Maurer", "Jonas Sander", "Thomas Eisenbarth"],
+  "year": 2025,
+  "primary_url": "https://arxiv.org/html/2506.14489v1",
+  "access": "primary_full_text_html",
+  "verified_on": "2026-09-14",
+  "paper_digest": "9c11e012e7802990a2c35986cb134f67979549ef28bdd890114b3c14f9116a1c",
+  "local_path": "papers/2506.14489v1.pdf",
+  "artifact_commit": "894e2bb7e104c2996933d53f4aa7ca58f2c802be",
+  "license_review": "external_reproduction_only",
+  "notes": "ReDASH is present in UzL-ITS/dash at the locked commit under GPL-3.0. Execute it only as an isolated reproduction artifact; do not vendor, copy, or link its implementation into PLLM."
+}

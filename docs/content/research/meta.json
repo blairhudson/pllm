@@ -2,10 +2,8 @@
   "title": "Research",
   "pages": [
     "[Research goals](/research/)",
-    "market",
-    "architecture",
+    "[Research registry](/research/)",
     "[PLLM Whitepaper](/research/whitepaper/)",
-    "[PLLM Research Paper](/research/paper/)",
-    "reproduce"
+    "[PLLM Research Paper](/research/paper/)"
   ]
 }

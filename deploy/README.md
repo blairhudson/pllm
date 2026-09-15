@@ -55,16 +55,16 @@ transport and lifecycle behavior; it does not demonstrate operator non-collusion
 
 Before `READY`, the client authorizes an inventory and sends root-seed batches to
 preparation. Preparation pushes `W*r-s` one way to inference over
-`/v1/he/corrections/ws` and waits for acknowledgements. During chat, preparation
+`/v1/runtime/corrections/ws` and waits for acknowledgements. During chat, preparation
 is idle and the gateway communicates only with inference. Prefill uses HTTP packed
-stage batches; decode normally uses the persistent `/v1/he/ws/{session_id}`
+stage batches; decode normally uses the persistent `/v1/runtime/ws/{session_id}`
 client-to-inference WebSocket.
 
 Remote deployments need TLS and network policy on both service origins. A reverse
 proxy in front of inference must:
 
 - preserve `Authorization` and binary WebSocket subprotocols;
-- pass `/v1/he/corrections/ws` and `/v1/he/ws/*` upgrades;
+- pass `/v1/runtime/corrections/ws` and `/v1/runtime/ws/*` upgrades;
 - allow compact prefill HTTP bodies and correction frames up to configured bounds;
 - disable request, response, and frame payload logging;
 - avoid buffering large binary preparation and prefill payloads;

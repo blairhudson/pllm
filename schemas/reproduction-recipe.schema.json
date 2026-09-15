@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/reproduction-recipe.schema.json",
+  "title": "PLLM reproduction recipe v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_alias", "kind", "source_acquisition_status", "workflow_status", "primary_url", "dependencies", "target_modules", "original_artifact_command", "pllm_reproduction_command", "publication_workload", "required_evidence", "failure_policy", "gates"],
+  "properties": {
+    "schema_version": {"const": "pllm.reproduction_recipe.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "registry_alias": {"type": "string", "pattern": "^R[0-9]{2}$"},
+    "kind": {"const": "planned_workflow"},
+    "source_acquisition_status": {"enum": ["not_acquired", "acquired"]},
+    "workflow_status": {"enum": ["not_executed", "in_progress", "blocked", "failed", "completed"]},
+    "primary_url": {"type": "string", "format": "uri"},
+    "source_record_id": {"type": "string", "minLength": 1},
+    "upstream_artifact_lock_id": {"type": "string", "minLength": 1},
+    "method_record_id": {"type": "string", "minLength": 1},
+    "dependencies": {"type": "array", "items": {"type": "string", "pattern": "^R[0-9]{2}$"}, "uniqueItems": true},
+    "target_modules": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "source_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paper_sha256", "artifact_commit", "license_review"],
+      "properties": {
+        "paper_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "artifact_commit": {"type": ["string", "null"], "minLength": 1},
+        "license_review": {"enum": ["approved", "external_reproduction_only", "required_before_vendoring", "not_applicable"]}
+      }
+    },
+    "original_artifact_command": {"type": ["string", "null"], "minLength": 1},
+    "pllm_reproduction_command": {"type": ["string", "null"], "minLength": 1},
+    "publication_workload": {"type": ["string", "null"], "minLength": 1},
+    "required_evidence": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "failure_policy": {"type": "string", "minLength": 1},
+    "gates": {"type": "array", "items": {"enum": ["acquire", "specify", "reference", "fidelity", "native", "compose", "assure", "benchmark", "document"]}, "minItems": 1, "uniqueItems": true}
+  }
+}

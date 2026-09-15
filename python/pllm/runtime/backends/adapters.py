@@ -77,8 +77,8 @@ class VLLMAdapter(NativeResponsesAdapter):
         token_ids=True,
         logprobs=True,
         model_loading=True,
-        strict_he=False,
-        notes=("Responses API is native", "strict HE requires a weight/runtime plugin, not the HTTP frontend"),
+        private_runtime=False,
+        notes=("Responses API is native", "private runtime requires a weight/runtime plugin, not the HTTP frontend"),
     )
 
     async def list_models(self) -> list[BackendModel]:
@@ -108,8 +108,8 @@ class OllamaAdapter(NativeResponsesAdapter):
         token_ids=False,
         logprobs=False,
         model_loading=True,
-        strict_he=False,
-        notes=("Responses API is non-stateful", "previous_response_id must be maintained by the HE client"),
+        private_runtime=False,
+        notes=("Responses API is non-stateful", "previous_response_id must be maintained by the runtime client"),
     )
 
     async def list_models(self) -> list[BackendModel]:
@@ -145,7 +145,7 @@ class LlamaCppAdapter(NativeResponsesAdapter):
         token_ids=True,
         logprobs=True,
         model_loading=True,
-        strict_he=False,
+        private_runtime=False,
         notes=("Responses may be implemented through the server's Chat Completions shim",),
     )
 
@@ -176,8 +176,8 @@ class MLXLMAdapter(HTTPBackendAdapter):
         token_ids=False,
         logprobs=False,
         model_loading=True,
-        strict_he=False,
-        notes=("Responses is supplied by the HE gateway translation layer",),
+        private_runtime=False,
+        notes=("Responses is supplied by the runtime gateway translation layer",),
     )
 
     async def list_models(self) -> list[BackendModel]:
@@ -276,6 +276,6 @@ class GenericOpenAIAdapter(VLLMAdapter):
         token_ids=False,
         logprobs=True,
         model_loading=False,
-        strict_he=False,
+        private_runtime=False,
         notes=("capabilities vary by upstream",),
     )

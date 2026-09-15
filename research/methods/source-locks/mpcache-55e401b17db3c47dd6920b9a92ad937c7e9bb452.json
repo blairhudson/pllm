@@ -1,0 +1,16 @@
+{
+  "schema_version": "pllm.upstream_artifact_lock.v1",
+  "id": "pllm.upstream.mpcache.55e401b17db3c47dd6920b9a92ad937c7e9bb452",
+  "source_record_ids": ["pllm.source.mpcache.arxiv-2501.06807v2"],
+  "repository_url": "https://github.com/zwxandy/MPCache",
+  "commit": "55e401b17db3c47dd6920b9a92ad937c7e9bb452",
+  "submodules_lock": null,
+  "dependency_lock": null,
+  "build_recipe": null,
+  "artifact_digest": null,
+  "license_review": "approved",
+  "acquisition_status": "source_acquired",
+  "execution_status": "not_executed",
+  "execution_boundary": "oracle_only",
+  "notes": "Commit and MIT license review are recorded. Submodules, dependencies, build recipe, executable digest, and reproduction remain unchecked. Nothing from this artifact is vendored or used as PLLM implementation source."
+}

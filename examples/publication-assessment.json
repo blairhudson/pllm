@@ -1,0 +1,21 @@
+{
+  "schema_version": "pllm.publication_assessment_request.v1",
+  "claim": {
+    "schema_version": "pllm.claim_record.v1",
+    "id": "pllm.claim.mpcache.semantic-scope.v1",
+    "kind": "scope",
+    "statement": "PLLM's MPCache component is a semantic decoder-plan adaptation of the cited cache-selection structure.",
+    "scope": "Immutable DecoderPlan transformation only.",
+    "limitations": [
+      "This is not a reproduction of MPCache's protected execution or performance results."
+    ],
+    "source_record_ids": [
+      "pllm.source.mpcache.arxiv-2501.06807v2"
+    ],
+    "method_record_ids": [],
+    "plan_lock_digests": [],
+    "publication_class": "documentation"
+  },
+  "plan_lineages": [],
+  "evidence_bundles": []
+}

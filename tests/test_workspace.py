@@ -26,11 +26,30 @@ def test_single_python_namespace_and_maturin_binding():
 
 def test_core_is_independent_of_python():
     workspace = tomllib.loads((ROOT / 'Cargo.toml').read_text())
-    assert workspace['workspace']['default-members'] == ['crates/pllm-core']
+    assert workspace['workspace']['default-members'] == [
+        'crates/pllm-core',
+        'crates/pllm-types',
+        'crates/pllm-compiler',
+        'crates/pllm-bench',
+        'crates/pllm-assurance',
+        'crates/pllm-garble',
+        'crates/pllm-models',
+        'crates/pllm-method-mpcache',
+    ]
     core = tomllib.loads((ROOT / 'crates/pllm-core/Cargo.toml').read_text())
     binding = tomllib.loads((ROOT / 'crates/pllm-python/Cargo.toml').read_text())
     assert 'pyo3' not in core['dependencies']
-    assert set(binding['dependencies']) == {'pllm-core', 'pyo3'}
+    assert set(binding['dependencies']) == {
+        'pllm-core',
+        'pllm-types',
+        'pllm-compiler',
+        'pllm-bench',
+        'pllm-assurance',
+        'pllm-models',
+        'pllm-method-mpcache',
+        'pyo3',
+        'serde_json',
+    }
     assert core['package']['version']['workspace'] is True
     assert binding['package']['version']['workspace'] is True
     assert binding['lib']['name'] == '_native'
@@ -63,11 +82,64 @@ assert 'OpenAI' in dir(pllm)
     subprocess.run([sys.executable, '-c', code], check=True, env=environment, cwd=ROOT)
 
 
+def test_public_facades_are_identical_and_lightweight():
+    environment = dict(os.environ, PYTHONPATH=str(ROOT / 'python'))
+    code = '''
+import sys
+import pllm
+from pllm.config import Experiment
+from pllm.models import DecoderCoverageReport, ModelPlan, lower_model
+from pllm.plan import CompiledPlan
+assert pllm.Experiment is Experiment
+assert pllm.DecoderCoverageReport is DecoderCoverageReport
+assert pllm.ModelPlan is ModelPlan
+assert pllm.lower_model is lower_model
+assert pllm.CompiledPlan is CompiledPlan
+assert 'pllm._native' not in sys.modules
+assert 'pllm.runtime.client' not in sys.modules
+assert 'numpy' not in sys.modules
+'''
+    subprocess.run([sys.executable, '-c', code], check=True, env=environment, cwd=ROOT)
+
+
+def test_root_and_runtime_stubs_match_runtime_exports():
+    root_source = ast.parse((ROOT / 'python/pllm/__init__.py').read_text())
+    exports = next(
+        ast.literal_eval(node.value)
+        for node in root_source.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == '_EXPORTS' for target in node.targets)
+    )
+    root_stub = ast.parse((ROOT / 'python/pllm/__init__.pyi').read_text())
+    stub_exports = {
+        alias.asname or alias.name
+        for node in root_stub.body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert set(exports) | {'__version__'} == stub_exports
+
+    import pllm.runtime as runtime
+    assert set(runtime.__all__) == {
+        'AsyncOpenAI', 'AsyncPLLMTransport', 'ExecutionBudget', 'GatewayConfig', 'OpenAI',
+        'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol', 'create_app',
+        'create_sidecar_app', '__version__',
+    }
+    runtime_stub = ast.parse((ROOT / 'python/pllm/runtime/__init__.pyi').read_text())
+    runtime_stub_exports = {
+        alias.asname or alias.name
+        for node in runtime_stub.body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert set(runtime.__all__) == runtime_stub_exports
+
+
 def test_source_python_module_entrypoint():
     environment = dict(os.environ, PYTHONPATH=str(ROOT / 'python'))
     result = subprocess.run([sys.executable, '-m', 'pllm', '--help'], check=True,
                             env=environment, capture_output=True, text=True)
-    assert 'serve' in result.stdout and 'chat' in result.stdout
+    assert 'config' in result.stdout and 'components' in result.stdout and 'research' in result.stdout
 
 
 def test_native_source_does_not_expose_mutable_matrix_fields():

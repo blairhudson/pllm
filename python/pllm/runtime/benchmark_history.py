@@ -256,6 +256,84 @@ class BenchmarkRun:
             "failure": {"type": self.failure_type} if self.failure_type else None,
         }
 
+    def evidence_report(
+        self,
+        *,
+        privacy_cohort: str,
+        numeric_cohort: str,
+        environment: Mapping[str, Any],
+        plan_lock_digest: str | None = None,
+        origin: str = "imported_archive",
+        evidence_paths: tuple[str, ...] = (),
+    ):
+        """Convert a completed real-role run into Rust-validated evidence."""
+        if self.status != "completed":
+            raise ValueError("failed runs cannot become benchmark evidence")
+        observations: list[dict[str, Any]] = []
+
+        def observe(
+            role: str,
+            phase: str,
+            metric: str,
+            value: float | int | None,
+            unit: str,
+        ) -> None:
+            if value is not None:
+                observations.append(
+                    {
+                        "role": role,
+                        "phase": phase,
+                        "origin": origin,
+                        "metric": metric,
+                        "unit": unit,
+                        "value": value,
+                        "evidence_paths": list(evidence_paths),
+                    }
+                )
+
+        durations = self.to_dict()["durations"]
+        observe("client", "online", "latency", durations["full_seconds"], "seconds")
+        observe("client", "online", "time_to_first_token", durations["ttft_seconds"], "seconds")
+        observe(
+            "client",
+            "online",
+            "generation_latency",
+            durations["generation_seconds"],
+            "seconds",
+        )
+        observe(
+            "client",
+            "online",
+            "throughput",
+            durations["tokens_per_second"],
+            "tokens_per_second",
+        )
+        observe(
+            "preparation",
+            "offline",
+            "latency",
+            durations["preparation_seconds"],
+            "seconds",
+        )
+        observe("inference", "online", "latency", durations["online_seconds"], "seconds")
+        if not observations:
+            raise ValueError("completed run has no measured durations")
+
+        from pllm.evidence import deployment_benchmark
+
+        return deployment_benchmark(
+            {
+                "options": {
+                    "id": self.run_id,
+                    "plan_lock_digest": plan_lock_digest,
+                    "privacy_cohort": privacy_cohort,
+                    "numeric_cohort": numeric_cohort,
+                    "environment": dict(environment),
+                },
+                "observations": observations,
+            }
+        )
+
 
 class BenchmarkHistory:
     def __init__(self, path: str | Path | None = None) -> None:

@@ -35,7 +35,7 @@ def create_tiny_llama_checkpoint(
     config = {
         "architectures": ["Qwen2ForCausalLM"],
         "model_type": "qwen2",
-        "name_or_path": "tiny-qwen2-he",
+        "name_or_path": "tiny-qwen2-pllm",
         "vocab_size": vocab_size,
         "hidden_size": hidden_size,
         "intermediate_size": intermediate_size,
@@ -52,7 +52,7 @@ def create_tiny_llama_checkpoint(
         "eos_token_id": 1,
         "pad_token_id": 1,
         "rope_theta": 10000.0,
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     (root / "tokenizer_config.json").write_text(json.dumps({

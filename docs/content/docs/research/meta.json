@@ -1,0 +1,13 @@
+{
+  "title": "Research guide",
+  "root": true,
+  "pages": [
+    "clean-room",
+    "methods",
+    "compositions",
+    "publications",
+    "../recipes",
+    "papers",
+    "records"
+  ]
+}

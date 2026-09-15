@@ -6,7 +6,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from pllm.runtime import HEAsyncTransport, HETransport, create_sidecar_app
+from pllm.runtime import AsyncPLLMTransport, PLLMTransport, create_sidecar_app
 
 
 def _sse_events(text: str) -> list[dict]:
@@ -19,7 +19,7 @@ def _sse_events(text: str) -> list[dict]:
 
 
 def test_httpx_transport_intercepts_nonstream_response(gateway):
-    transport = HETransport(
+    transport = PLLMTransport(
         gateway_url=gateway.base_url,
         api_key=gateway.api_key,
         correlation_mode="local-test",
@@ -29,29 +29,29 @@ def test_httpx_transport_intercepts_nonstream_response(gateway):
         with httpx.Client(transport=transport, base_url="https://api.openai.invalid") as client:
             response = client.post(
                 "/v1/responses",
-                json={"model": "he-bigram-demo", "input": "secret", "max_output_tokens": 32},
+                json={"model": "pllm-bigram-demo", "input": "secret", "max_output_tokens": 32},
             )
             assert response.status_code == 200
-            assert response.headers["X-HE-Transport"] == "1"
+            assert response.headers["X-PLLM-Transport"] == "1"
             assert response.json()["output"][0]["content"][0]["text"] == "private\n"
     finally:
         transport.close()
 
 
 def test_httpx_transport_synthesizes_sse(gateway):
-    transport = HETransport(
+    transport = PLLMTransport(
         gateway_url=gateway.base_url,
         api_key=gateway.api_key,
         correlation_mode="local-test",
         correlation_prefetch=16,
-        he_transport="websocket",
+        session_transport="websocket",
     )
     try:
         with httpx.Client(transport=transport, base_url="https://api.openai.invalid") as client:
             with client.stream(
                 "POST",
                 "/v1/responses",
-                json={"model": "he-bigram-demo", "input": "secret", "stream": True, "max_output_tokens": 32},
+                json={"model": "pllm-bigram-demo", "input": "secret", "stream": True, "max_output_tokens": 32},
             ) as response:
                 body = "".join(response.iter_text())
         events = _sse_events(body)
@@ -64,7 +64,7 @@ def test_httpx_transport_synthesizes_sse(gateway):
 
 @pytest.mark.asyncio
 async def test_async_transport(gateway):
-    transport = HEAsyncTransport(
+    transport = AsyncPLLMTransport(
         gateway_url=gateway.base_url,
         api_key=gateway.api_key,
         correlation_mode="local-test",
@@ -74,7 +74,7 @@ async def test_async_transport(gateway):
         async with httpx.AsyncClient(transport=transport, base_url="https://api.openai.invalid") as client:
             response = await client.post(
                 "/v1/responses",
-                json={"model": "he-bigram-demo", "input": "secret", "max_output_tokens": 32},
+                json={"model": "pllm-bigram-demo", "input": "secret", "max_output_tokens": 32},
             )
             assert response.json()["status"] == "completed"
     finally:
@@ -93,7 +93,7 @@ def test_local_sidecar_is_openai_http_compatible(gateway):
         response = client.post(
             "/v1/responses",
             headers={"Authorization": "Bearer sidecar-key"},
-            json={"model": "he-bigram-demo", "input": "local secret", "max_output_tokens": 32},
+            json={"model": "pllm-bigram-demo", "input": "local secret", "max_output_tokens": 32},
         )
         assert response.status_code == 200
         assert response.json()["output"][0]["content"][0]["text"] == "private\n"
@@ -101,7 +101,7 @@ def test_local_sidecar_is_openai_http_compatible(gateway):
         streamed = client.post(
             "/v1/responses",
             headers={"Authorization": "Bearer sidecar-key"},
-            json={"model": "he-bigram-demo", "input": "local secret", "max_output_tokens": 32, "stream": True},
+            json={"model": "pllm-bigram-demo", "input": "local secret", "max_output_tokens": 32, "stream": True},
         )
         events = _sse_events(streamed.text)
         assert events[-1]["type"] == "response.completed"
@@ -119,7 +119,7 @@ def test_sidecar_auth(gateway):
 
 
 def test_forwarded_control_plane_uses_gateway_credential(gateway):
-    transport = HETransport(
+    transport = PLLMTransport(
         gateway_url=gateway.base_url,
         api_key=gateway.api_key,
         correlation_mode="local-test",
@@ -129,6 +129,6 @@ def test_forwarded_control_plane_uses_gateway_credential(gateway):
             # The local placeholder auth is deliberately wrong for the gateway.
             response = client.get("/v1/models", headers={"Authorization": "Bearer local-placeholder"})
             assert response.status_code == 200
-            assert any(item["id"] == "he-bigram-demo" for item in response.json()["data"])
+            assert any(item["id"] == "pllm-bigram-demo" for item in response.json()["data"])
     finally:
         transport.close()

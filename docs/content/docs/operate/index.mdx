@@ -1,0 +1,19 @@
+---
+title: "Operate"
+description: "Assign client, preparation, and inference responsibilities without weakening the privacy design."
+---
+
+- [Client boundary](/sdk/operate/client-boundary/) keeps plaintext application data with the user.
+- [Provider roles](/sdk/operate/provider-roles/) separate preparation and inference responsibilities.
+- [Deployment](/sdk/operate/deployment/status/) describes current support and missing orchestration.
+
+## Python SDK example
+
+```python
+from pllm import Deployment
+
+deployment = Deployment.local(root=".pllm/local")
+print(deployment.to_spec())
+```
+
+This records local intent only; it does not start or authenticate services.

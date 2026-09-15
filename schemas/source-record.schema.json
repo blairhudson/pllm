@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/source-record.schema.json",
+  "title": "PLLM source record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "title", "authors", "year", "primary_url", "access", "verified_on", "paper_digest", "local_path", "license_review"],
+  "properties": {
+    "schema_version": {"const": "pllm.source_record.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "authors": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "year": {"type": "integer", "minimum": 1900},
+    "primary_url": {"type": "string", "format": "uri"},
+    "access": {"enum": ["primary_full_text", "primary_full_text_html", "primary_abstract", "primary_author_metadata", "primary_author_search_excerpt", "unavailable"]},
+    "verified_on": {"type": "string", "format": "date"},
+    "paper_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "local_path": {"type": "string", "pattern": "^papers/[^/]+\\.pdf$"},
+    "artifact_commit": {"type": ["string", "null"], "minLength": 1},
+    "license_review": {"enum": ["approved", "external_reproduction_only", "required_before_vendoring", "not_applicable"]},
+    "notes": {"type": "string"}
+  }
+}

@@ -19,3 +19,14 @@ export function prefixHtml(html, prefix = basePath) {
   return html.replace(/\b(href|src)="(\/[^"\n]*)"/g,
     (_match, attribute, href) => `${attribute}="${withBasePath(href, prefix)}"`);
 }
+
+/** Stable Markdown alternate for each canonical public route. */
+export function markdownPathForRoute(route) {
+  const normalized = route === '/' ? '/' : `${route.replace(/\/$/, '')}/`;
+  const page = publicationRegistry.pages.find((candidate) =>
+    candidate.canonicalUrl === normalized || candidate.aliases?.some((alias) =>
+      (alias === '/' ? '/' : `${alias.replace(/\/$/, '')}/`) === normalized));
+  if (!page) throw new Error(`Unregistered public route: ${route}`);
+  return page.markdownUrl;
+}
+import { publicationRegistry } from '../scripts/publication-registry.mjs';

@@ -597,7 +597,7 @@ class ModelByteTokenizer:
     vocab_size: int
     bos_token_id: int
     eos_token_id: int
-    name: str = "he-model-byte-v1"
+    name: str = "pllm-model-byte-v1"
 
     def __post_init__(self) -> None:
         if self.vocab_size < 258:
@@ -1040,7 +1040,7 @@ class MaskedTransformerClientRuntime:
         self.token_cache_lock = token_cache_lock or threading.Lock()
         self.token_cache_hits = 0
         self.token_cache_misses = 0
-        self.token_lookup_batch = max(1, int(self.cfg.get("he_token_lookup_batch", 16)))
+        self.token_lookup_batch = max(1, int(self.cfg.get("token_lookup_batch", 16)))
 
     def reset(self) -> None:
         self.caches = [LayerCache() for _ in range(self.layers)]

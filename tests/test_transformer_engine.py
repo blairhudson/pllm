@@ -750,12 +750,12 @@ def test_streaming_bfloat16_compiler_uses_memmap_and_cache(tmp_path: Path):
         "hidden_act": "silu",
         "rms_norm_eps": 1e-6,
         "tie_word_embeddings": True,
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
         "bos_token_id": 256,
         "eos_token_id": 257,
     }
     (root / "config.json").write_text(json.dumps(config))
-    (root / "he_tokenizer.json").write_text(json.dumps({
+    (root / "pllm_tokenizer.json").write_text(json.dumps({
         "type": "byte", "vocab_size": 512, "bos_token_id": 256, "eos_token_id": 257,
     }))
     g = torch.Generator().manual_seed(99)
@@ -862,12 +862,12 @@ def test_streaming_compiler_serializes_concurrent_cache_writers(tmp_path: Path):
         "hidden_act": "silu",
         "rms_norm_eps": 1e-6,
         "tie_word_embeddings": True,
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
         "bos_token_id": 256,
         "eos_token_id": 257,
     }
     (root / "config.json").write_text(json.dumps(config))
-    (root / "he_tokenizer.json").write_text(json.dumps({
+    (root / "pllm_tokenizer.json").write_text(json.dumps({
         "type": "byte", "vocab_size": 512, "bos_token_id": 256, "eos_token_id": 257,
     }))
     generator = torch.Generator().manual_seed(123)

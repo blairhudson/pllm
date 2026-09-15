@@ -1,0 +1,27 @@
+---
+title: "Assurance"
+description: "Evaluate a specific privacy, integrity, numeric, implementation, or deployment claim."
+---
+
+An assurance record identifies the exact plan, component versions, threat model,
+protected values, visible information, corruption and collusion assumptions,
+numeric policy, environment, procedure, result, and limitations.
+
+Reference tests, formal analysis, cryptographic review, transport hardening,
+deployment inspection, and leakage tests answer different questions. Missing
+assurance is not a failed test, but it is not a pass. Evidence for participants
+that follow the protocol does not establish security against malicious behavior.
+
+A publication claim must cite the relevant records and keep their limitations.
+See [reading research and evidence](/learn/reading-research-and-evidence/).
+
+## Python SDK example
+
+```python
+from pllm import assure
+
+report = assure()
+print(report.schema_version, report.to_dict()["limitations"])
+```
+
+Report scope is bundled assurance fixtures, not universal privacy proof.

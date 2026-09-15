@@ -16,7 +16,7 @@ from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 from urllib.parse import urlparse, urlunparse
 
 import httpx
@@ -26,20 +26,19 @@ from filelock import FileLock
 
 from .secure_random import FieldRandom
 
-from .he_runtime import (
-    BFVCorrelationClient,
+from .bfv_correlations import BFVCorrelationClient, he_worker_threads
+from .masked_runtime import (
     CorrelationPool,
-    HEModelError,
+    ModelError,
     MaskCorrelation,
     MaskedBigramClientModel,
     MaskedBigramClientSession,
     MaskedLinearRequest,
     MaskedLinearResponse,
     centered_mod,
-    he_worker_threads,
 )
 from .protocol import (
-    HEEnvelope,
+    ProtocolEnvelope,
     encode_length_prefixed,
     iter_length_prefixed,
     pack_envelope,
@@ -81,6 +80,9 @@ from .security import derive_session_key
 from .tokenizer import AlphabetTokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
 
+if TYPE_CHECKING:
+    from pllm.configuration import Experiment, ExperimentProfile
+
 T = TypeVar("T")
 
 _BUNDLE_CACHE_MODES = {"read-write", "read-only", "refresh", "off"}
@@ -117,14 +119,14 @@ def _normalized_inference_endpoint(value: str) -> str:
     return f"{scheme}://{host}{path.rstrip('/') or '/'}"
 
 
-class HEAPIError(RuntimeError):
+class ProtocolError(RuntimeError):
     def __init__(self, message: str, status_code: int = 500, body: Any = None) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.body = body
 
 
-class _BundleIntegrityError(HEAPIError):
+class _BundleIntegrityError(ProtocolError):
     pass
 
 
@@ -215,10 +217,10 @@ class _Channel:
 
     def _http(self, payload: bytes) -> bytes:
         response = self.client.post(
-            f"/v1/he/sessions/{self.session_id}/execute",
+            f"/v1/runtime/sessions/{self.session_id}/execute",
             headers={
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/vnd.openai.he+msgpack",
+                "Content-Type": "application/vnd.pllm.runtime+msgpack",
             },
             content=payload,
         )
@@ -231,13 +233,13 @@ class _Channel:
         from websockets.sync.client import connect
 
         parsed = urlparse(self.base_url)
-        path = f"{parsed.path.rstrip('/')}/v1/he/ws/{self.session_id}"
+        path = f"{parsed.path.rstrip('/')}/v1/runtime/ws/{self.session_id}"
         url = urlunparse(
             ("wss" if parsed.scheme == "https" else "ws", parsed.netloc, path, "", "", "")
         )
         self.socket = connect(
             url,
-            subprotocols=["he-responses-v1"],
+            subprotocols=["pllm-runtime-v1"],
             additional_headers={"Authorization": f"Bearer {self.api_key}"},
             open_timeout=30,
             max_size=None,
@@ -247,7 +249,7 @@ class _Channel:
         if self.mode == "http":
             return self._http(payload)
         if self.mode not in {"websocket", "auto"}:
-            raise ValueError(f"unsupported HE transport {self.mode!r}")
+            raise ValueError(f"unsupported runtime transport {self.mode!r}")
         if self.mode == "auto" and self.socket is None:
             try:
                 self._connect()
@@ -335,7 +337,7 @@ class _BFVStageClient:
     def decrypt(self, payload: bytes, *, stage_id: str) -> np.ndarray:
         value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         if int(value.get("v", 0)) != 1 or str(value.get("stage_id")) != stage_id:
-            raise HEModelError("invalid BFV stage correlation response")
+            raise ModelError("invalid BFV stage correlation response")
         outputs = [
             int(self.ts.bfv_vector_from(self.context, item).decrypt()[0]) % self.plain_modulus
             for item in value["ciphertexts"]
@@ -383,7 +385,7 @@ class _BlindedCorrelationProvider:
     def __init__(
         self,
         *,
-        client: "HEClientCore",
+        client: "RuntimeClient",
         session_id: str,
         state: _TransformerCryptoState,
         prefetch: int,
@@ -401,14 +403,14 @@ class _BlindedCorrelationProvider:
             if missing > 0:
                 queue.extend(self._create(stage, max(missing, self.prefetch)))
             if len(queue) < count:
-                raise HEModelError(f"proprietary correlation inventory exhausted for {stage.id}")
+                raise ModelError(f"proprietary correlation inventory exhausted for {stage.id}")
             values = [queue.popleft() for _ in range(count)]
             output: list[BlindedStageCorrelation] = []
             for item in values:
                 if not isinstance(item, BlindedStageCorrelation):
-                    raise HEModelError("mixed correlation protocols in proprietary inventory")
+                    raise ModelError("mixed correlation protocols in proprietary inventory")
                 if item.consumed:
-                    raise HEModelError("proprietary correlation reuse detected")
+                    raise ModelError("proprietary correlation reuse detected")
                 item.consumed = True
                 output.append(item)
             return output
@@ -421,7 +423,7 @@ class _BlindedCorrelationProvider:
         bfv = _BFVStageClient(plain_modulus=modulus, pydeps_path=self.owner.tenseal_path)
         context_id = new_id(f"ctx{modulus}")
         response = self.owner.http.put(
-            f"/v1/he/sessions/{self.session_id}/contexts/{context_id}",
+            f"/v1/runtime/sessions/{self.session_id}/contexts/{context_id}",
             headers={**self.owner.headers, "Content-Type": "application/octet-stream"},
             content=bfv.public_context,
         )
@@ -434,7 +436,7 @@ class _BlindedCorrelationProvider:
     def _create(self, stage: StageMetadata, count: int) -> list[BlindedStageCorrelation]:
         if self.state.mode == "local-test":
             response = self.owner.http.post(
-                f"/v1/he/sessions/{self.session_id}/correlations/proprietary/local-test",
+                f"/v1/runtime/sessions/{self.session_id}/correlations/proprietary/local-test",
                 headers=self.owner.headers,
                 json={
                     "count": count,
@@ -458,7 +460,7 @@ class _BlindedCorrelationProvider:
         upload = encode_length_prefixed(encrypted)
         self.owner.audit.encrypted_correlation_upload_bytes += len(upload)
         response = self.owner.http.post(
-            f"/v1/he/sessions/{self.session_id}/correlations/proprietary/bfv/batch",
+            f"/v1/runtime/sessions/{self.session_id}/correlations/proprietary/bfv/batch",
             headers={
                 **self.owner.headers,
                 "Content-Type": "application/octet-stream",
@@ -472,13 +474,13 @@ class _BlindedCorrelationProvider:
         self.owner.audit.encrypted_correlation_download_bytes += len(response.content)
         payloads = list(iter_length_prefixed(response.content))
         if len(payloads) != count:
-            raise HEModelError("blinded BFV correlation batch returned the wrong item count")
+            raise ModelError("blinded BFV correlation batch returned the wrong item count")
         rows: list[BlindedStageCorrelation] = []
         for mask, payload in zip(masks, payloads, strict=True):
             envelope = msgpack.unpackb(payload, raw=False, strict_map_key=False)
             correlation_id = str(envelope.get("correlation_id", ""))
             if not correlation_id:
-                raise HEModelError("blinded BFV correlation is missing its id")
+                raise ModelError("blinded BFV correlation is missing its id")
             transformed = bfv.decrypt(payload, stage_id=stage.id)
             rows.append(
                 BlindedStageCorrelation(
@@ -517,10 +519,10 @@ class _BlindedRemoteLinear:
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages.get(stage_id)
         if stage is None:
-            raise HEModelError(f"unknown stage {stage_id!r}")
+            raise ModelError(f"unknown stage {stage_id!r}")
         value = np.asarray(activation, dtype=np.float32)
         if value.shape[-1] != stage.in_features:
-            raise HEModelError(
+            raise ModelError(
                 f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
             )
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
@@ -533,7 +535,7 @@ class _BlindedRemoteLinear:
             or (item.ring or "prime") != "prime"
             for item in rows
         ):
-            raise HEModelError("proprietary correlation arithmetic profile mismatch")
+            raise ModelError("proprietary correlation arithmetic profile mismatch")
         masks = np.stack([np.asarray(item.mask).reshape(stage.in_features) for item in rows])
         blinded_transformed = np.stack(
             [np.asarray(item.blinded_transformed_mask).reshape(stage.out_features) for item in rows]
@@ -553,14 +555,14 @@ class _BlindedRemoteLinear:
         packed = request.pack()
         response_payloads = self.exchange(stage_id, [packed])
         if len(response_payloads) != 1:
-            raise HEModelError("blinded stage exchange returned the wrong result count")
+            raise ModelError("blinded stage exchange returned the wrong result count")
         response = BlindedStageResponse.unpack(response_payloads[0])
         if (
             response.stage_id != stage_id
             or response.correlation_ids != request.correlation_ids
             or response.modulus != modulus
         ):
-            raise HEModelError("blinded stage response mismatch")
+            raise ModelError("blinded stage response mismatch")
         combined = (
             response.masked_output.astype(np.uint64) + blinded_transformed.astype(np.uint64)
         ) % modulus
@@ -590,7 +592,7 @@ class _DirectFHERemoteLinear:
         self,
         *,
         stages: dict[str, StageMetadata],
-        owner: "HEClientCore",
+        owner: "RuntimeClient",
         session_id: str,
         state: _TransformerCryptoState,
         exchange: Callable[[str, list[bytes]], list[bytes]],
@@ -610,7 +612,7 @@ class _DirectFHERemoteLinear:
         bfv = _BFVStageClient(plain_modulus=modulus, pydeps_path=self.owner.tenseal_path)
         context_id = new_id(f"ctx{modulus}")
         response = self.owner.http.put(
-            f"/v1/he/sessions/{self.session_id}/contexts/{context_id}",
+            f"/v1/runtime/sessions/{self.session_id}/contexts/{context_id}",
             headers={**self.owner.headers, "Content-Type": "application/octet-stream"},
             content=bfv.public_context,
         )
@@ -623,10 +625,10 @@ class _DirectFHERemoteLinear:
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages.get(stage_id)
         if stage is None:
-            raise HEModelError(f"unknown stage {stage_id!r}")
+            raise ModelError(f"unknown stage {stage_id!r}")
         value = np.asarray(activation, dtype=np.float32)
         if value.shape[-1] != stage.in_features:
-            raise HEModelError(
+            raise ModelError(
                 f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
             )
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
@@ -644,11 +646,11 @@ class _DirectFHERemoteLinear:
         self.owner.audit.direct_fhe_upload_bytes += len(packed)
         result_payloads = self.exchange(stage_id, [packed])
         if len(result_payloads) != 1:
-            raise HEModelError("direct-FHE exchange returned the wrong result count")
+            raise ModelError("direct-FHE exchange returned the wrong result count")
         self.owner.audit.direct_fhe_download_bytes += len(result_payloads[0])
         response = DirectFHEStageResponse.unpack(result_payloads[0])
         if response.stage_id != stage_id or len(response.output_rows) != quantized.rows:
-            raise HEModelError("direct-FHE stage response mismatch")
+            raise ModelError("direct-FHE stage response mismatch")
         integer_rows = np.stack(
             [bfv.decrypt(item, stage_id=stage_id).astype(np.int64) for item in response.output_rows]
         )
@@ -679,7 +681,7 @@ class _CorrelationSource:
     def __init__(
         self,
         *,
-        client: "HEClientCore",
+        client: "RuntimeClient",
         session_id: str,
         state: _ModelCryptoState,
         prefetch: int,
@@ -698,7 +700,7 @@ class _CorrelationSource:
             )
             self.state.context_id = new_id("ctx")
             response = client.http.put(
-                f"/v1/he/sessions/{session_id}/contexts/{self.state.context_id}",
+                f"/v1/runtime/sessions/{session_id}/contexts/{self.state.context_id}",
                 headers={**client.headers, "Content-Type": "application/octet-stream"},
                 content=self.state.bfv.public_context,
             )
@@ -723,7 +725,7 @@ class _CorrelationSource:
     def _replenish_locked(self, count: int) -> None:
         if self.mode == "local-test":
             response = self.owner.http.post(
-                f"/v1/he/sessions/{self.session_id}/correlations/local-test",
+                f"/v1/runtime/sessions/{self.session_id}/correlations/local-test",
                 headers=self.owner.headers,
                 json={"count": count},
             )
@@ -748,7 +750,7 @@ class _CorrelationSource:
             encrypted = self.state.bfv.encrypt_mask(mask)
             self.owner.audit.encrypted_correlation_upload_bytes += len(encrypted)
             response = self.owner.http.post(
-                f"/v1/he/sessions/{self.session_id}/correlations/bfv",
+                f"/v1/runtime/sessions/{self.session_id}/correlations/bfv",
                 headers={**self.owner.headers, "Content-Type": "application/octet-stream"},
                 content=encrypted,
             )
@@ -759,14 +761,14 @@ class _CorrelationSource:
             self.owner.audit.correlation_count += 1
 
 
-class HEClientCore:
+class RuntimeClient:
     def __init__(
         self,
         *,
         base_url: str,
         api_key: str,
         default_model: str | None = None,
-        he_transport: str = "http",
+        session_transport: str = "http",
         correlation_mode: str = "bfv",
         preparation_base_url: str | None = None,
         preparation_api_key: str | None = None,
@@ -780,11 +782,28 @@ class HEClientCore:
         timeout: float = 300.0,
         http_client: httpx.Client | None = None,
         preparation_http_client: httpx.Client | None = None,
+        experiment: Experiment | ExperimentProfile | None = None,
     ) -> None:
+        from pllm.configuration import Experiment, ExperimentProfile
+
+        if experiment is None:
+            self.experiment = None
+        elif isinstance(experiment, ExperimentProfile):
+            self.experiment = experiment
+        elif isinstance(experiment, Experiment):
+            self.experiment = experiment.resolve()
+        else:
+            raise TypeError("experiment must be an Experiment or ExperimentProfile")
+        if (
+            self.experiment is not None
+            and default_model is not None
+            and default_model != self.experiment.model
+        ):
+            raise ValueError("default_model conflicts with Experiment model")
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
-        self.default_model = default_model
-        self.he_transport = he_transport
+        self.default_model = self.experiment.model if self.experiment is not None else default_model
+        self.session_transport = session_transport
         self.correlation_mode = correlation_mode
         self.correlation_prefetch = correlation_prefetch
         if prepared_inventory_rows < 1:
@@ -879,15 +898,15 @@ class HEClientCore:
             if existing is not None and existing.context_id is not None:
                 session_body["context_id"] = existing.context_id
             session_response = self.http.post(
-                "/v1/he/sessions", headers=self.headers, json=session_body
+                "/v1/runtime/sessions", headers=self.headers, json=session_body
             )
             _raise(session_response)
             session_value = session_response.json()
-            he = session_value["manifest"]["he"]
+            runtime = session_value["manifest"]["runtime"]
             model = MaskedBigramClientModel(
                 model_id,
-                AlphabetTokenizer(str(he["alphabet"])),
-                int(he["modulus"]),
+                AlphabetTokenizer(str(runtime["alphabet"])),
+                int(runtime["modulus"]),
             )
             state = existing
             if state is None:
@@ -903,7 +922,7 @@ class HEClientCore:
                 or state.model.modulus != model.modulus
                 or state.mode != self.correlation_mode
             ):
-                raise HEModelError("server model manifest changed during client lifetime")
+                raise ModelError("server model manifest changed during client lifetime")
             source = _CorrelationSource(
                 client=self,
                 session_id=str(session_value["id"]),
@@ -916,7 +935,7 @@ class HEClientCore:
         cached = None if refresh else self._model_manifests.get(model_id)
         if cached is not None:
             return cached
-        response = self.http.get(f"/v1/he/models/{model_id}", headers=self.headers)
+        response = self.http.get(f"/v1/runtime/models/{model_id}", headers=self.headers)
         _raise(response)
         value = response.json()
         self._model_manifests[model_id] = value
@@ -927,19 +946,19 @@ class HEClientCore:
         if not isinstance(descriptor, dict) or set(descriptor) != {
             "schema", "sha256", "size", "etag"
         }:
-            raise HEAPIError("provider model descriptor lacks client bundle fingerprint", 409)
+            raise ProtocolError("provider model descriptor lacks client bundle fingerprint", 409)
         fingerprint = str(descriptor["sha256"])
         if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
-            raise HEAPIError("provider client bundle fingerprint is invalid", 409)
+            raise ProtocolError("provider client bundle fingerprint is invalid", 409)
         if descriptor["etag"] != f'"{fingerprint}"':
-            raise HEAPIError("provider client bundle descriptor is invalid", 409)
+            raise ProtocolError("provider client bundle descriptor is invalid", 409)
         try:
             schema = int(descriptor["schema"])
             size = int(descriptor["size"])
         except (TypeError, ValueError, OverflowError) as exc:
-            raise HEAPIError("provider client bundle descriptor is invalid", 409) from exc
+            raise ProtocolError("provider client bundle descriptor is invalid", 409) from exc
         if schema < 1 or size < 1 or size > _MAX_CLIENT_BUNDLE_BYTES:
-            raise HEAPIError("provider client bundle descriptor is invalid", 409)
+            raise ProtocolError("provider client bundle descriptor is invalid", 409)
         return descriptor
 
     @staticmethod
@@ -1042,7 +1061,7 @@ class HEClientCore:
         size: int,
     ) -> tuple[ClientBundle, bytes]:
         response = self.http.get(
-            f"/v1/he/models/{model_id}/client-bundle",
+            f"/v1/runtime/models/{model_id}/client-bundle",
             headers=self.headers,
         )
         _raise(response)
@@ -1117,7 +1136,7 @@ class HEClientCore:
             )
         except OSError as exc:
             if self._bundle_cache_explicit:
-                raise HEAPIError(f"configured bundle cache is unavailable: {exc}") from exc
+                raise ProtocolError(f"configured bundle cache is unavailable: {exc}") from exc
             return self._download_client_bundle(
                 model_id, fingerprint=fingerprint, schema=schema, size=size
             )[0]
@@ -1175,7 +1194,7 @@ class HEClientCore:
                 return downloaded[0]
         except OSError as exc:
             if self._bundle_cache_explicit:
-                raise HEAPIError(f"configured bundle cache is unavailable: {exc}") from exc
+                raise ProtocolError(f"configured bundle cache is unavailable: {exc}") from exc
             if downloaded is not None:
                 return downloaded[0]
             return self._download_client_bundle(
@@ -1213,8 +1232,19 @@ class HEClientCore:
         ]
 
     def _transformer_state(self, model_id: str) -> _TransformerCryptoState:
+        if self.experiment is not None and model_id != self.experiment.model:
+            raise ValueError("request model conflicts with Experiment model")
         with self._transformer_state_lock:
             descriptor = self._client_bundle_descriptor(model_id)
+            if self.experiment is not None:
+                metadata = descriptor.get("metadata") or {}
+                if (
+                    metadata.get("client_runtime") != "masked_transformer_v1"
+                    or metadata.get("privacy_mode") != "public"
+                ):
+                    raise ProtocolError(
+                        "Experiment requires public masked_transformer_v1 inference", 409
+                    )
             bundle_fingerprint = str(descriptor["sha256"])
             state = self._transformer_states.get(model_id)
             if state is None or state.bundle_fingerprint != bundle_fingerprint:
@@ -1230,9 +1260,12 @@ class HEClientCore:
                 )
                 self._transformer_states[model_id] = state
 
+            if self.experiment is not None and state.privacy_mode != "public":
+                raise ProtocolError("Experiment requires public masked_transformer_v1 inference", 409)
+
             if state.privacy_mode == "public" and not state.preparation_verified:
                 if self.preparation_http is None:
-                    raise HEAPIError("public inference requires a preparation service", 400)
+                    raise ProtocolError("public inference requires a preparation service", 400)
                 inference_response = self.http.get("/v1/models", headers=self.headers)
                 _raise(inference_response)
                 inference_models = [
@@ -1241,8 +1274,8 @@ class HEClientCore:
                     if item.get("id") == model_id
                 ]
                 if len(inference_models) != 1:
-                    raise HEAPIError("inference service does not serve the requested model", 404)
-                inference = inference_models[0].get("he") or {}
+                    raise ProtocolError("inference service does not serve the requested model", 404)
+                inference = inference_models[0].get("runtime") or {}
                 if (
                     inference.get("body_fingerprint")
                     != state.bundle.privacy.get("body_fingerprint")
@@ -1253,7 +1286,7 @@ class HEClientCore:
                     or inference.get("stage_count")
                     != len(state.bundle.manifest.get("stages", []))
                 ):
-                    raise HEAPIError("inference and client model commitments do not match", 409)
+                    raise ProtocolError("inference and client model commitments do not match", 409)
                 model_response = self.preparation_http.get(
                     "/v1/models",
                     headers=self.preparation_headers,
@@ -1265,14 +1298,14 @@ class HEClientCore:
                     if item.get("id") == model_id
                 ]
                 if len(preparation_models) != 1:
-                    raise HEAPIError("preparation service does not serve the requested model", 404)
+                    raise ProtocolError("preparation service does not serve the requested model", 404)
                 preparation = preparation_models[0].get("preparation") or {}
                 remote_stages = self._remote_stages(state)
                 if not remote_stages or any(
                     not stage.weight_digest or stage.seeded_profile is None
                     for stage in remote_stages
                 ):
-                    raise HEAPIError(
+                    raise ProtocolError(
                         "provider bundle lacks stage weight or ring commitments", 409
                     )
                 if (
@@ -1289,8 +1322,10 @@ class HEClientCore:
                     or preparation.get("stage_count")
                     != len(state.bundle.manifest.get("stages", []))
                 ):
-                    raise HEAPIError("preparation and inference model commitments do not match", 409)
+                    raise ProtocolError("preparation and inference model commitments do not match", 409)
                 state.preparation_verified = True
+            if self.experiment is not None and not state.preparation_verified:
+                raise ProtocolError("Experiment requires seeded-inventory preparation", 409)
             return state
 
     def _prepare_inventory_locked(
@@ -1312,10 +1347,10 @@ class HEClientCore:
         rows: int,
     ) -> PreparedInventory:
         if self.preparation_http is None:
-            raise HEAPIError("public inference requires a preparation service", 400)
+            raise ProtocolError("public inference requires a preparation service", 400)
         remote_stages = self._remote_stages(state)
         response = self.http.post(
-            "/v1/he/inventories",
+            "/v1/runtime/inventories",
             headers=self.headers,
             json={
                 "model": model_id,
@@ -1334,11 +1369,11 @@ class HEClientCore:
                 "activation_bits": state.bundle.privacy.get("activation_bits"),
             }
             if any(descriptor.get(name) != item for name, item in expected.items()):
-                raise HEAPIError("inventory authorization commitments do not match", 409)
+                raise ProtocolError("inventory authorization commitments do not match", 409)
             weight_bits = expected["weight_bits"]
             activation_bits = expected["activation_bits"]
             if not isinstance(weight_bits, int) or not isinstance(activation_bits, int):
-                raise HEAPIError("inventory authorization precision is invalid", 409)
+                raise ProtocolError("inventory authorization precision is invalid", 409)
             authorization = SessionAuthorization(
                 session_id=inventory_id,
                 model=model_id,
@@ -1353,7 +1388,7 @@ class HEClientCore:
             if authorization.rows != rows or authorization.stage_ids != tuple(
                 stage.id for stage in remote_stages
             ):
-                raise HEModelError("preparation inventory authorization mismatch")
+                raise ModelError("preparation inventory authorization mismatch")
             authorization_payload = authorization.pack()
             self.audit.session_authorization_upload_bytes += len(authorization_payload)
             authorized = self.preparation_http.post(
@@ -1367,7 +1402,7 @@ class HEClientCore:
             _raise(authorized)
             self.audit.session_authorization_download_bytes += len(authorized.content)
             if SessionAuthorizationAck.unpack(authorized.content).session_id != inventory_id:
-                raise HEModelError("preparation inventory authorization mismatch")
+                raise ModelError("preparation inventory authorization mismatch")
 
             prepared_stages: dict[str, PreparedStageRows] = {}
             for stage in remote_stages:
@@ -1425,7 +1460,7 @@ class HEClientCore:
                     protocol_span.end()
                     raise
                 if ack.attempt_id != request.attempt_id or ack.stage_id != stage.id:
-                    error = HEModelError("preparation inventory acknowledgement mismatch")
+                    error = ModelError("preparation inventory acknowledgement mismatch")
                     protocol_span.record_exception(error)
                     protocol_span.end()
                     raise error
@@ -1449,18 +1484,18 @@ class HEClientCore:
                     output_mask=expand_output_mask(request),
                 )
             sealed = self.http.post(
-                f"/v1/he/inventories/{inventory_id}/ready",
+                f"/v1/runtime/inventories/{inventory_id}/ready",
                 headers=self.headers,
             )
             _raise(sealed)
             if sealed.json().get("status") != "ready":
-                raise HEModelError("inference did not commit prepared inventory")
+                raise ModelError("inference did not commit prepared inventory")
             return PreparedInventory(inventory_id, rows, prepared_stages)
         except BaseException:
             self.audit.preparation_failures += 1
             try:
                 self.http.post(
-                    f"/v1/he/inventories/{inventory_id}/cancel", headers=self.headers
+                    f"/v1/runtime/inventories/{inventory_id}/cancel", headers=self.headers
                 )
             except Exception:
                 pass
@@ -1476,7 +1511,7 @@ class HEClientCore:
     def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
         try:
             self.http.post(
-                f"/v1/he/inventories/{inventory.id}/cancel", headers=self.headers
+                f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers
             )
         except Exception:
             pass
@@ -1492,7 +1527,7 @@ class HEClientCore:
     def _prepared_inventory_is_live(self, inventory: PreparedInventory) -> bool:
         try:
             response = self.http.get(
-                f"/v1/he/inventories/{inventory.id}", headers=self.headers
+                f"/v1/runtime/inventories/{inventory.id}", headers=self.headers
             )
         except httpx.HTTPError:
             raise
@@ -1581,7 +1616,7 @@ class HEClientCore:
     def _begin_online(self) -> None:
         with self._activity_lock:
             if self._preparation_active:
-                raise HEModelError("prepared inventory refill is in progress; retry when ready")
+                raise ModelError("prepared inventory refill is in progress; retry when ready")
             self._online_active += 1
 
     def _end_online(self) -> None:
@@ -1592,7 +1627,7 @@ class HEClientCore:
         with self._activity_lock:
             if self._online_active:
                 self.audit.preparation_requests_during_online += 1
-                raise HEModelError("preparation cannot run while inference is online")
+                raise ModelError("preparation cannot run while inference is online")
             self._preparation_active += 1
 
     def _end_preparation(self) -> None:
@@ -1612,7 +1647,7 @@ class HEClientCore:
         with self._transformer_state_lock:
             if prepared_public:
                 if state.refill_in_progress:
-                    raise HEModelError("prepared inventory refill is in progress; retry when ready")
+                    raise ModelError("prepared inventory refill is in progress; retry when ready")
                 needed = max(1, int(required_rows or max_output_tokens + 1))
                 inventory = state.prepared_inventory
                 if inventory is not None and not self._prepared_inventory_is_live(inventory):
@@ -1632,7 +1667,7 @@ class HEClientCore:
                     else:
                         self._cancel_prepared_inventory(spare)
                 if inventory is None or inventory.available < needed:
-                    raise HEModelError(
+                    raise ModelError(
                         "prepared inventory became unavailable before reservation; "
                         "retry the request"
                     )
@@ -1658,7 +1693,7 @@ class HEClientCore:
                     self._begin_online()
                     online_started = True
                 session_response = self.http.post(
-                    "/v1/he/sessions",
+                    "/v1/runtime/sessions",
                     headers=self.headers,
                     json=session_body,
                 )
@@ -1687,11 +1722,11 @@ class HEClientCore:
                 elif state.privacy_protocol == "direct_bfv_w4a4":
                     provider = None
                 else:
-                    raise HEModelError(
+                    raise ModelError(
                         f"unsupported proprietary protocol {state.privacy_protocol!r}"
                     )
             elif state.privacy_mode != "public":
-                raise HEModelError(f"unsupported server privacy mode {state.privacy_mode!r}")
+                raise ModelError(f"unsupported server privacy mode {state.privacy_mode!r}")
             return session_value, state, provider
 
     def preprocess(
@@ -1717,7 +1752,7 @@ class HEClientCore:
                     raise ValueError("prepared inventories require every remote stage")
                 with self._transformer_state_lock:
                     if state.active_prepared_responses:
-                        raise HEModelError("prepared inventory refill requires an idle model")
+                        raise ModelError("prepared inventory refill requires an idle model")
                     prepared_inventory = state.prepared_inventory
                     if prepared_inventory is not None and not self._prepared_inventory_is_live(
                         prepared_inventory
@@ -1765,7 +1800,7 @@ class HEClientCore:
                             generated += state.prepared_inventory_spare.capacity
                     available = prepared_inventory.available
                 return {
-                    "object": "he.preprocessing_result",
+                    "object": "runtime.preprocessing_result",
                     "model": model_id,
                     "privacy_mode": "public",
                     "protocol": "seeded-inventory/v1",
@@ -1778,13 +1813,13 @@ class HEClientCore:
             session, state, provider = self._open_transformer_session(model_id, max_output_tokens=1)
             if state.privacy_mode == "proprietary" and state.privacy_protocol == "direct_bfv_w4a4":
                 complete = self.http.post(
-                    f"/v1/he/sessions/{session['id']}/complete",
+                    f"/v1/runtime/sessions/{session['id']}/complete",
                     headers=self.headers,
                     json={"usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
                 )
                 _raise(complete)
                 return {
-                    "object": "he.preprocessing_result",
+                    "object": "runtime.preprocessing_result",
                     "model": model_id,
                     "privacy_mode": "proprietary",
                     "protocol": "direct_bfv_w4a4",
@@ -1814,13 +1849,13 @@ class HEClientCore:
                         generated += missing
                     inventory[stage_id] = len(queue)
             complete = self.http.post(
-                f"/v1/he/sessions/{session['id']}/complete",
+                f"/v1/runtime/sessions/{session['id']}/complete",
                 headers=self.headers,
                 json={"usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
             )
             _raise(complete)
             return {
-                "object": "he.preprocessing_result",
+                "object": "runtime.preprocessing_result",
                 "model": model_id,
                 "generated": generated,
                 "available_per_stage": inventory,
@@ -1832,13 +1867,13 @@ class HEClientCore:
         before = len(source.state.pool)
         available = source.replenish(target)
         complete = self.http.post(
-            f"/v1/he/sessions/{session['id']}/complete",
+            f"/v1/runtime/sessions/{session['id']}/complete",
             headers=self.headers,
             json={"usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
         )
         _raise(complete)
         return {
-            "object": "he.preprocessing_result",
+            "object": "runtime.preprocessing_result",
             "model": model_id,
             "generated": available - before,
             "available": available,
@@ -1945,17 +1980,24 @@ class HEClientCore:
             if event.type == "response.completed":
                 final = Response.from_dict(event.response)
         if final is None:
-            raise HEAPIError("response stream ended without response.completed")
+            raise ProtocolError("response stream ended without response.completed")
         return final
 
     def events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
-        model_id = str(body.get("model") or self.default_model or "")
+        requested_model = body.get("model")
+        if self.experiment is not None:
+            model_id = self.experiment.model
+            if requested_model is not None and str(requested_model) != model_id:
+                raise ValueError("request model conflicts with Experiment model")
+            body["model"] = model_id
+        else:
+            model_id = str(body.get("model") or self.default_model or "")
         if not model_id:
             models = self.list_models().get("data", [])
             private = [
                 item.get("id")
                 for item in models
-                if item.get("he", {}).get("privacy_mode")
+                if item.get("runtime", {}).get("privacy_mode")
                 not in {"manifest_only", "trusted_backend"}
             ]
             private = [str(item) for item in private if item]
@@ -1974,9 +2016,11 @@ class HEClientCore:
         previous_history: str | None = None
         if previous_id:
             if str(previous_id) not in self.histories:
-                raise HEAPIError("unknown previous_response_id in client-private cache", 404)
+                raise ProtocolError("unknown previous_response_id in client-private cache", 404)
             previous_history = self.histories[str(previous_id)]
         descriptor = self._model_manifest(model_id, refresh=True)
+        if self.experiment is not None:
+            self._transformer_state(model_id)
         if descriptor.get("metadata", {}).get("client_runtime") in {
             "masked_transformer_v1",
             "direct_fhe_transformer_v1",
@@ -1999,10 +2043,14 @@ class HEClientCore:
         )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
-        he = session_value["manifest"]["he"]
-        channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.he_transport)
+        runtime = session_value["manifest"]["runtime"]
+        channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.session_transport)
         max_tokens = max(
-            1, min(int(body.get("max_output_tokens") or 64), int(he.get("max_output_tokens", 4096)))
+            1,
+            min(
+                int(body.get("max_output_tokens") or 64),
+                int(runtime.get("max_output_tokens", 4096)),
+            ),
         )
         message_id = new_id("msg")
         seq = 0
@@ -2061,7 +2109,7 @@ class HEClientCore:
                 one_hot[current] = 1
                 masked = centered_mod(one_hot + correlation.mask, model.modulus)
                 request = MaskedLinearRequest(model.model_id, correlation.id, masked)
-                envelope = HEEnvelope.create(
+                envelope = ProtocolEnvelope.create(
                     request_id=f"{response_id}:{step}",
                     session_id=session_id,
                     model=model_id,
@@ -2078,10 +2126,10 @@ class HEClientCore:
                 result = unpack_envelope(result_bytes)
                 result.verify(key)
                 if result.kind != "masked.linear.result" or result.sequence != step:
-                    raise HEModelError("mismatched HE result frame")
+                    raise ModelError("mismatched runtime result frame")
                 decoded = MaskedLinearResponse.unpack(result.payload)
                 if decoded.correlation_id != correlation.id:
-                    raise HEModelError("correlation response mismatch")
+                    raise ModelError("correlation response mismatch")
                 logits = centered_mod(
                     decoded.masked_output - correlation.transformed_mask, model.modulus
                 ).astype(np.float64)
@@ -2179,7 +2227,7 @@ class HEClientCore:
             self.cache[response_id] = final
             self.histories[response_id] = rendered + "\nassistant: " + text
             complete = self.http.post(
-                f"/v1/he/sessions/{session_id}/complete",
+                f"/v1/runtime/sessions/{session_id}/complete",
                 headers=self.headers,
                 json={"usage": usage.to_dict()},
             )
@@ -2254,14 +2302,14 @@ class HEClientCore:
                 self._finish_prepared_response(model_id, state, provider)
             try:
                 self.http.post(
-                    f"/v1/he/sessions/{session_id}/cancel",
+                    f"/v1/runtime/sessions/{session_id}/cancel",
                     headers=self.headers,
                 )
             except Exception:
                 pass
 
         try:
-            channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.he_transport)
+            channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.session_transport)
         except BaseException:
             abandon_transformer_session()
             raise
@@ -2280,7 +2328,7 @@ class HEClientCore:
                 if state.privacy_protocol != "direct_bfv_w4a4":
                     self.audit.masked_online_upload_bytes += len(upload)
                 response = self.http.post(
-                    f"/v1/he/sessions/{session_id}/stages/{stage_id}",
+                    f"/v1/runtime/sessions/{session_id}/stages/{stage_id}",
                     headers={**self.headers, "Content-Type": "application/octet-stream"},
                     content=upload,
                 )
@@ -2290,7 +2338,7 @@ class HEClientCore:
                 results = list(iter_length_prefixed(response.content))
                 self.audit.online_steps += compact_rows or len(payloads)
                 return results
-            envelope = HEEnvelope.create(
+            envelope = ProtocolEnvelope.create(
                 request_id=f"{response_id}:{sequence}",
                 session_id=session_id,
                 model=model_id,
@@ -2310,14 +2358,14 @@ class HEClientCore:
             result = unpack_envelope(raw)
             result.verify(key)
             if result.kind != "masked.transformer.stage.result":
-                raise HEModelError("unexpected transformer stage result")
+                raise ModelError("unexpected transformer stage result")
             self.audit.online_steps += 1
             return [result.payload]
 
         if state.privacy_mode == "public":
             if not isinstance(provider, PreparedInventoryLease):
                 abandon_transformer_session()
-                raise HEModelError("public mode requires a prepared inventory lease")
+                raise ModelError("public mode requires a prepared inventory lease")
             remote = PreparedRemoteLinear(
                 model_id=model_id,
                 body_fingerprint=str(state.bundle.privacy["body_fingerprint"]),
@@ -2335,7 +2383,7 @@ class HEClientCore:
             )
         elif state.privacy_protocol in {"blinded_ole_w4a4", "guarded_blinded_w4a4"}:
             if not isinstance(provider, _BlindedCorrelationProvider):
-                raise HEModelError("blinded proprietary mode requires its correlation provider")
+                raise ModelError("blinded proprietary mode requires its correlation provider")
             remote = _BlindedRemoteLinear(
                 stages=state.bundle.stages,
                 correlations=provider,
@@ -2345,7 +2393,7 @@ class HEClientCore:
             )
         else:
             if provider is None:
-                raise HEModelError("public mode requires a correlation provider")
+                raise ModelError("public mode requires a correlation provider")
             remote = RemoteLinear(state.bundle.stages, provider, exchange)
         try:
             runtime = MaskedTransformerClientRuntime(
@@ -2572,7 +2620,7 @@ class HEClientCore:
                     pending_token_ids=pending_token_ids,
                 )
             complete = self.http.post(
-                f"/v1/he/sessions/{session_id}/complete",
+                f"/v1/runtime/sessions/{session_id}/complete",
                 headers=self.headers,
                 json={"usage": usage.to_dict()},
             )
@@ -2607,7 +2655,7 @@ class HEClientCore:
 
 
 class ResponsesResource:
-    def __init__(self, core: HEClientCore) -> None:
+    def __init__(self, core: RuntimeClient) -> None:
         self.core = core
 
     def create(self, **kwargs: Any) -> Response | ResponseStream[ResponseEvent]:
@@ -2621,23 +2669,23 @@ class ResponsesResource:
 
 
 class ModelsResource:
-    def __init__(self, core: HEClientCore) -> None:
+    def __init__(self, core: RuntimeClient) -> None:
         self.core = core
 
     def list(self) -> dict[str, Any]:
         return self.core.list_models()
 
 
-class HEExtensionsResource:
-    """HE control plane and native stage-extension surface.
+class RuntimeResource:
+    """Runtime control plane and native stage-extension surface.
 
-    The methods under ``client.he`` are intentionally outside the OpenAI API
+    The methods under ``client.runtime`` are intentionally outside the OpenAI API
     schema. They let runtime plugins import weights and execute opaque encrypted
     stage frames while ordinary application code continues to use
     ``client.responses.create(...)``.
     """
 
-    def __init__(self, core: HEClientCore) -> None:
+    def __init__(self, core: RuntimeClient) -> None:
         self.core = core
 
     def preprocess(
@@ -2650,25 +2698,25 @@ class HEExtensionsResource:
         return self.core.preprocess(model, correlations, stages=stages)
 
     def capabilities(self) -> dict[str, Any]:
-        response = self.core.http.get("/v1/he/capabilities", headers=self.core.headers)
+        response = self.core.http.get("/v1/runtime/capabilities", headers=self.core.headers)
         _raise(response)
         return response.json()
 
     def engines(self) -> dict[str, Any]:
-        response = self.core.http.get("/v1/he/engines", headers=self.core.headers)
+        response = self.core.http.get("/v1/runtime/engines", headers=self.core.headers)
         _raise(response)
         return response.json()
 
     def inspect_model(self, **source: Any) -> dict[str, Any]:
         response = self.core.http.post(
-            "/v1/he/models/inspect", headers=self.core.headers, json=source
+            "/v1/runtime/models/inspect", headers=self.core.headers, json=source
         )
         _raise(response)
         return response.json()
 
     def load_model(self, *, engine: str, **source: Any) -> dict[str, Any]:
         response = self.core.http.post(
-            "/v1/he/models/load",
+            "/v1/runtime/models/load",
             headers=self.core.headers,
             json={"engine": engine, **source},
         )
@@ -2676,7 +2724,9 @@ class HEExtensionsResource:
         return response.json()
 
     def unload_model(self, model: str) -> dict[str, Any]:
-        response = self.core.http.delete(f"/v1/he/models/{model}", headers=self.core.headers)
+        response = self.core.http.delete(
+            f"/v1/runtime/models/{model}", headers=self.core.headers
+        )
         _raise(response)
         return response.json()
 
@@ -2691,14 +2741,14 @@ class HEExtensionsResource:
         if not payloads:
             raise ValueError("payloads cannot be empty")
         response = self.core.http.post(
-            f"/v1/he/engines/{engine}/models/{model}/stages/{stage}",
+            f"/v1/runtime/engines/{engine}/models/{model}/stages/{stage}",
             headers={**self.core.headers, "Content-Type": "application/octet-stream"},
             content=encode_length_prefixed(payloads),
         )
         _raise(response)
         results = list(iter_length_prefixed(response.content))
         if len(results) != len(payloads):
-            raise HEModelError("HE engine returned the wrong result count")
+            raise ModelError("Runtime engine returned the wrong result count")
         return results
 
     @property
@@ -2714,7 +2764,7 @@ class OpenAI:
         base_url: str | None = None,
         default_model: str | None = None,
         model: str | None = None,
-        he_transport: str | None = None,
+        session_transport: str | None = None,
         correlation_mode: str | None = None,
         preparation_base_url: str | None = None,
         preparation_api_key: str | None = None,
@@ -2728,6 +2778,7 @@ class OpenAI:
         timeout: float | None = None,
         http_client: httpx.Client | None = None,
         preparation_http_client: httpx.Client | None = None,
+        experiment: Experiment | ExperimentProfile | None = None,
     ) -> None:
         from pllm.settings import ClientSettings
 
@@ -2735,7 +2786,7 @@ class OpenAI:
             api_key=api_key,
             base_url=base_url,
             model=default_model or model,
-            transport=he_transport,
+            transport=session_transport,
             correlation_mode=correlation_mode,
             preparation_base_url=preparation_base_url,
             preparation_api_key=preparation_api_key,
@@ -2746,11 +2797,11 @@ class OpenAI:
             bundle_cache_dir=bundle_cache_dir,
             timeout=timeout,
         )
-        self._core = HEClientCore(
+        self._core = RuntimeClient(
             base_url=settings.base_url,
             api_key=settings.api_key,
             default_model=settings.model,
-            he_transport=settings.transport,
+            session_transport=settings.transport,
             correlation_mode=settings.correlation_mode,
             preparation_base_url=settings.preparation_base_url,
             preparation_api_key=settings.preparation_api_key,
@@ -2764,10 +2815,11 @@ class OpenAI:
             timeout=settings.timeout,
             http_client=http_client,
             preparation_http_client=preparation_http_client,
+            experiment=experiment,
         )
         self.responses = ResponsesResource(self._core)
         self.models = ModelsResource(self._core)
-        self.he = HEExtensionsResource(self._core)
+        self.runtime = RuntimeResource(self._core)
 
     @property
     def privacy_audit(self) -> PrivacyAudit:
@@ -2858,8 +2910,8 @@ class AsyncModelsResource:
         return await asyncio.to_thread(self.resource.list)
 
 
-class AsyncHEExtensionsResource:
-    def __init__(self, resource: HEExtensionsResource) -> None:
+class AsyncRuntimeResource:
+    def __init__(self, resource: RuntimeResource) -> None:
         self.resource = resource
 
     async def preprocess(
@@ -2917,7 +2969,7 @@ class AsyncOpenAI:
         self.sync = OpenAI(**kwargs)
         self.responses = AsyncResponsesResource(self.sync.responses)
         self.models = AsyncModelsResource(self.sync.models)
-        self.he = AsyncHEExtensionsResource(self.sync.he)
+        self.runtime = AsyncRuntimeResource(self.sync.runtime)
 
     @property
     def privacy_audit(self) -> PrivacyAudit:
@@ -2983,4 +3035,4 @@ def _raise(response: httpx.Response) -> None:
     except Exception:
         body = response.text
         message = response.text
-    raise HEAPIError(message, response.status_code, body)
+    raise ProtocolError(message, response.status_code, body)

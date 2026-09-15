@@ -1,4 +1,4 @@
-.PHONY: sync test test-core test-native test-reference he lint build paper whitepaper docs check clean
+.PHONY: sync test test-core test-native test-reference reference he lint build paper whitepaper docs check clean
 UV ?= uv
 PAPER_PYTHON ?= 3.13
 
@@ -12,6 +12,8 @@ test-reference:
 	PLLM_KERNEL_BACKEND=python uv run pytest -m "not rust"
 test:
 	uv run pytest -m 'not he'
+reference:
+	uv run python scripts/generate_developer_reference.py --check
 he:
 	uv run --extra he pytest -m he
 lint:
@@ -23,9 +25,10 @@ paper:
 whitepaper:
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/build_whitepaper.py --publish
 docs: paper whitepaper
+	$(UV) run python scripts/generate_developer_reference.py
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/prepare_docs.py
 	cd docs && npm install && npm test && npm run typecheck && npm run build
-check:
+check: reference
 	$(UV) run --no-project --python $(PAPER_PYTHON) python scripts/check_repository.py
 clean:
 	$(MAKE) -C paper clean

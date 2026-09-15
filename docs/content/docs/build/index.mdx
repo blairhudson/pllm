@@ -1,0 +1,18 @@
+---
+title: "Build"
+description: "Define a reproducible PLLM system from configuration, models, components, and research methods."
+---
+
+- [SDK configuration](/sdk/configuration/) records what you intend to build.
+- [Models](/sdk/build/model-adapters/) translate model-family settings into shared operations.
+- [Model plans](/sdk/plans/) separate model structure from compiler and runtime support.
+- [Components](/sdk/components/) select versioned capabilities.
+- [Research methods](/research/recipes/build-method/) record provenance and plan changes.
+
+## Python SDK example
+
+```python
+from pllm.components import list_components
+
+print([component.component for component in list_components()])
+```

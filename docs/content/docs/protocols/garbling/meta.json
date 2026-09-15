@@ -1,0 +1,4 @@
+{
+  "title": "Garbling",
+  "pages": ["index", "arithmetic", "half-gates", "lookup-tables", "weighted-path"]
+}

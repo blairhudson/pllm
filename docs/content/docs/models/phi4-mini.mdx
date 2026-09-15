@@ -1,0 +1,25 @@
+---
+title: "Phi-4 mini"
+description: "Fused-projection and LongRoPE semantic lowering for Phi-4-mini-instruct."
+---
+
+`pllm.phi4_mini.v1` recognizes the `phi3` remote-code configuration used by `microsoft/Phi-4-mini-instruct` revision `cfbefacb99257ffa30c83adab238a50856ac3083`. The raw configuration SHA-256 is `ac65d86061d3d0d704ee2511fd0eb8713ef19eb6eedba17c3080a4165d5b933b`.
+
+The adapter emits fused QKV and gate/up projections as linear operations followed by explicit slices. LongRoPE records original context, short and long factor vectors, scaling ratio, and partial rotary width. The tied output head references the token embedding matrix.
+
+The upstream model name and adapter identity are Phi-4 mini even though the checked configuration discriminator is `phi3`. This page does not claim checkpoint import or runtime execution.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("phi4-mini-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+assert plan.to_dict()["adapter"] == "pllm.phi4_mini.v1"
+```
+
+`phi4-mini-config.json` must be the supported pinned configuration. Lowering does not import or execute its checkpoint.

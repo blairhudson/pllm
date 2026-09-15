@@ -1,7 +1,0 @@
-{
-  "python_files": 111,
-  "python_syntax": "passed",
-  "toml": "passed",
-  "workflows": "passed",
-  "native_compilation": "not executed"
-}

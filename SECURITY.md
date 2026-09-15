@@ -28,7 +28,7 @@ size for every remote stage. Domain-separated expansion produces one-time input
 mask `r`, output mask `s`, and ticket per row.
 
 Preparation computes each `W*r-s` batch and pushes it one way to inference's fixed
-`/v1/he/corrections/ws` endpoint. The WebSocket URL is derived from preparation's
+`/v1/runtime/corrections/ws` endpoint. The WebSocket URL is derived from preparation's
 validated inference HTTP(S) origin; a client cannot supply a callback. Only the
 provider-push credential authenticates the upgrade. Preparation waits for a bounded
 durable acknowledgement, then erases expanded masks. After every stage is loaded,

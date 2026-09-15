@@ -1,0 +1,917 @@
+{
+  "schema_version": "pllm.reproduction_portfolio.v2",
+  "as_of": "2026-09-14",
+  "ranking_basis": "curated reproduction registry; numeric priority preserves the initial uplift ordering and is not a current speed or suitability ranking",
+  "papers": [
+    {
+      "id": "R01",
+      "priority": 1,
+      "slug": "dash",
+      "title": "Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits",
+      "year": 2024,
+      "authors": [
+        "Jonas Sander",
+        "Sebastian Berndt",
+        "Ida Bruhns",
+        "Thomas Eisenbarth"
+      ],
+      "primary_url": "https://arxiv.org/html/2302.06361v2",
+      "source_access": "primary_full_text_html",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "arithmetic_garbling",
+      "source_summary": "Arithmetic garbling and LabelTensors provide the foundation for offline preparation and local encoded public-weight evaluation.",
+      "proposed_implementation": "Implement affine-label arithmetic, constant multiplication with the required algebraic preconditions, projections and tensorized evaluation. Preserve the original circuit functionality before adapting to transformers.",
+      "modules": [
+        "garble.affine_label",
+        "kernel.label_tensor",
+        "gate.projection"
+      ],
+      "depends_on": [
+        "R03",
+        "R04"
+      ],
+      "benchmark_contract": "Original CNN/model workloads first; then matched public linear operators and a fixed-point decoder region. Report label lanes, storage and all setup.",
+      "security_boundary": "Do not inherit malicious security by importing kernels: the paper discusses additional integrity mechanisms and trusted-hardware or cryptographic configurations.",
+      "prior_evidence": "Prior single-server, model-aware and tenx archives contain adaptations, not a reproduced Dash release.",
+      "source_lock": {
+        "paper_sha256": "4f3dfd31cbf853f51b5ae8f93672af294429e3cc5f8cf7fe5181a4546a436e7a",
+        "artifact_commit": "894e2bb7e104c2996933d53f4aa7ca58f2c802be",
+        "license_review": "external_reproduction_only"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R01-dash.md"
+    },
+    {
+      "id": "R02",
+      "priority": 2,
+      "slug": "redash",
+      "title": "ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference",
+      "year": 2025,
+      "authors": [
+        "Felix Maurer",
+        "Jonas Sander",
+        "Thomas Eisenbarth"
+      ],
+      "primary_url": "https://arxiv.org/html/2506.14489v1",
+      "source_access": "primary_full_text_html",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "rescaling",
+      "source_summary": "ReDASH generalizes residue-number-system scaling and uses ScaleQuant+ to reduce encoded-inference overhead.",
+      "proposed_implementation": "Implement signed base extension, the published scaling gadget and its quantization policy as separately versioned components. Expose exact and approximate semantics explicitly.",
+      "modules": [
+        "convert.rns_base_extension",
+        "gate.scale",
+        "numeric.scalequant_plus"
+      ],
+      "depends_on": [
+        "R01",
+        "R03"
+      ],
+      "benchmark_contract": "Exhaustive small CRT domains, signed boundary fixtures, reference CNN comparison and identical decoder-region rescaling.",
+      "security_boundary": "Preserve the specified sign/scaling assumptions. Modular inversion is not ordinary fixed-point division; per-residue ReLU is not global integer ReLU.",
+      "prior_evidence": "Only researched previously; earlier CRT kernels did not implement full ReDASH scaling.",
+      "source_lock": {
+        "paper_sha256": "9c11e012e7802990a2c35986cb134f67979549ef28bdd890114b3c14f9116a1c",
+        "artifact_commit": "894e2bb7e104c2996933d53f4aa7ca58f2c802be",
+        "license_review": "external_reproduction_only"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R02-redash.md"
+    },
+    {
+      "id": "R03",
+      "priority": 3,
+      "slug": "garbling_gadgets",
+      "title": "Garbling Gadgets for Boolean and Arithmetic Circuits",
+      "year": 2016,
+      "authors": [
+        "Marshall Ball",
+        "Tal Malkin",
+        "Mike Rosulek"
+      ],
+      "primary_url": "https://eprint.iacr.org/2016/969",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "primitive",
+      "source_summary": "Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model.",
+      "proposed_implementation": "Create a reviewed arithmetic-label core with modulus-specific offsets, permitted constant operations, projection and mixed-modulus gadgets. Keep offsets opaque.",
+      "modules": [
+        "garble.arithmetic",
+        "gate.mixed_modulus"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Published gadget truth tables and byte formulas, negative constant/modulus cases, exhaustive finite-domain differential tests.",
+      "security_boundary": "Functionality alone does not validate affine-label correlations or an arbitrary hash replacement. Reject unsupported non-unit constants or lower them through justified gadgets.",
+      "prior_evidence": "Affine-label arithmetic exists in archived references; no proof-equivalent native port has been established.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R03-garbling_gadgets.md"
+    },
+    {
+      "id": "R04",
+      "priority": 4,
+      "slug": "half_gates",
+      "title": "Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+      "year": 2015,
+      "authors": [
+        "Samee Zahur",
+        "Mike Rosulek",
+        "David Evans"
+      ],
+      "primary_url": "https://eprint.iacr.org/2014/756",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "primitive",
+      "source_summary": "Half-gates reduce AND-gate communication while remaining compatible with free XOR.",
+      "proposed_implementation": "Implement Boolean label ownership, free XOR and half-gates using a precisely documented reviewed hash instantiation. Batch native cryptographic operations and expose circuit I/O conversions.",
+      "modules": [
+        "garble.boolean",
+        "kernel.half_gates",
+        "kernel.free_xor"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "All input truth assignments, independent original-artifact differential cases, two-ciphertext accounting and native AES/SIMD benchmarks.",
+      "security_boundary": "Free-XOR-compatible correlation assumptions, domain separation and circuit freshness are mandatory. Malicious garbler defenses are a separate construction.",
+      "prior_evidence": "Python SHA-based half-gates in tenx references are adaptations; not a native audited implementation.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R04-half_gates.md"
+    },
+    {
+      "id": "R05",
+      "priority": 5,
+      "slug": "logrow",
+      "title": "Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+      "year": 2024,
+      "authors": [
+        "David Heath",
+        "Vladimir Kolesnikov",
+        "Lucien K. L. Ng"
+      ],
+      "primary_url": "https://eprint.iacr.org/2024/369",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "lookup",
+      "source_summary": "The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term.",
+      "proposed_implementation": "Reproduce the original lookup construction, not its headline complexity. Provide Boolean input/output contracts and explicit arithmetic conversion edges.",
+      "modules": [
+        "gate.logrow",
+        "convert.lookup_io"
+      ],
+      "depends_on": [
+        "R04"
+      ],
+      "benchmark_contract": "Matched 8/12/16-bit tables versus flat, Boolean and weighted-path variants. Include the table-data term and both conversion directions.",
+      "security_boundary": "Do not translate logarithmic ciphertext count into logarithmic total bytes or claim our flat-table improvements beat this unimplemented baseline.",
+      "prior_evidence": "Analytical formulas only in previous work; no original or PLLM logrow execution.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R05-logrow.md"
+    },
+    {
+      "id": "R06",
+      "priority": 6,
+      "slug": "duty_free_bits",
+      "title": "Duty-Free Bits: Projectivizing Garbling Schemes",
+      "year": 2026,
+      "authors": [
+        "Nakul Khambhati",
+        "Anwesh Bhattacharya",
+        "David Heath"
+      ],
+      "primary_url": "https://eprint.iacr.org/2026/476",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator",
+      "family": "conversion",
+      "source_summary": "This work studies projective conversion from Yao-style bit labels into affine encodings and related vector-OLE applications.",
+      "proposed_implementation": "Implement only conversions justified by the acquired full specification. Represent input/output label families, field, security assumptions and direction as types.",
+      "modules": [
+        "convert.bit_to_affine",
+        "prepare.vector_ole"
+      ],
+      "depends_on": [
+        "R03",
+        "R04"
+      ],
+      "benchmark_contract": "Published conversion test vectors and complete Boolean-to-arithmetic regions; compare widths and include the reverse path only if separately implemented.",
+      "security_boundary": "The title does not grant free bidirectional conversion or a safe interface from freely editable masked scalars.",
+      "prior_evidence": "Primary abstract consulted; full construction acquisition and review are blocking tasks.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R06-duty_free_bits.md"
+    },
+    {
+      "id": "R07",
+      "priority": 7,
+      "slug": "slalom",
+      "title": "Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware",
+      "year": 2019,
+      "authors": [
+        "Florian Tramèr",
+        "Dan Boneh"
+      ],
+      "primary_url": "https://arxiv.org/abs/1806.03287",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "client_heavy_baseline",
+      "family": "masked_linear",
+      "source_summary": "Slalom outsources masked linear work and uses local verification within a trusted execution partition.",
+      "proposed_implementation": "Reproduce the original blinding and verification boundary. Register PLLM trusted-client/dealer adaptation separately; port modular kernels and verification state without changing the numerical graph silently.",
+      "modules": [
+        "protocol.masked_linear",
+        "verify.preprocessed_linear"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Original representative layers; archived PLLM partition; same clear integer graph, unmasked remote partition and optimized native model as separate baselines.",
+      "security_boundary": "A trusted client is not a reproduced TEE deployment. Static non-collusion, integrity and later compromise require distinct claims.",
+      "prior_evidence": "Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R07-slalom.md"
+    },
+    {
+      "id": "R08",
+      "priority": 8,
+      "slug": "carnival",
+      "title": "Slalom at the Carnival: Privacy-preserving Inference with Masks from Public Knowledge",
+      "year": 2024,
+      "authors": [
+        "Ida Bruhns",
+        "Sebastian Berndt",
+        "Jonas Sander",
+        "Thomas Eisenbarth"
+      ],
+      "primary_url": "https://cic.iacr.org/p/1/3/40",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "quarantined_comparison",
+      "family": "preparation",
+      "source_summary": "Carnival uses subset-sum-based masks to accelerate preprocessing for linear outsourcing.",
+      "proposed_implementation": "Implement the exact published parameterized variant in an isolated comparison backend. Reproduce the reported Maverick attack before eligibility review.",
+      "modules": [
+        "prepare.subset_sum",
+        "attack.carnival_projection"
+      ],
+      "depends_on": [
+        "R07"
+      ],
+      "benchmark_contract": "Preparation time, traffic, distribution tests and the specific published attack, with the attacked variant and assumptions identified.",
+      "security_boundary": "Maverick reports a privacy flaw for a Carnival instantiation. This is an attack-reproduction target, not an approved default or a blanket rejection of every variant.",
+      "prior_evidence": "Prior discussion identified this attack; no claim that our fresh full-ring masks instantiate Carnival.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R08-carnival.md"
+    },
+    {
+      "id": "R09",
+      "priority": 9,
+      "slug": "hycc",
+      "title": "HyCC: Compilation of Hybrid Protocols for Practical Secure Computation",
+      "year": 2018,
+      "authors": [
+        "Niklas Büscher",
+        "Daniel Demmler",
+        "Stefan Katzenbeisser",
+        "David Kretzmer",
+        "Thomas Schneider"
+      ],
+      "primary_url": "https://doi.org/10.1145/3243734.3243786",
+      "source_access": "primary_author_search_excerpt",
+      "verified_on": "2026-09-14",
+      "track": "compiler",
+      "family": "compiler",
+      "source_summary": "HyCC compiles high-level programs into hybrid secure-computation protocols.",
+      "proposed_implementation": "Reproduce a fixed published hybrid-selection benchmark. Separate its original frontend and backend assumptions from PLLM region planning, protected-state effects and generative workloads.",
+      "modules": [
+        "compiler.region_selection",
+        "compiler.conversion_costs"
+      ],
+      "depends_on": [
+        "R03",
+        "R04"
+      ],
+      "benchmark_contract": "Best uniform backend versus legal regional selection; include conversion, peak memory and preparation rather than only kernel time.",
+      "security_boundary": "A cost optimizer cannot trade away a privacy contract or numeric semantics. Type-correct composition is not an automatic security theorem.",
+      "prior_evidence": "Prior architecture cites HyCC; original artifact not run. Canonical DOI verified via author-source metadata; full text must be locked.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R09-hycc.md"
+    },
+    {
+      "id": "R10",
+      "priority": 10,
+      "slug": "oblivious_decision_programs",
+      "title": "Oblivious decision program evaluation",
+      "year": 2013,
+      "authors": [
+        "Salman Niksefat",
+        "Babak Sadeghiyan",
+        "Payman Mohassel"
+      ],
+      "primary_url": "https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/iet-ifs.2012.0032",
+      "source_access": "primary_full_text_html",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator_adaptation",
+      "family": "branching_program",
+      "source_summary": "Oblivious decision-program protocols evaluate protected decision structures using OT-based reductions.",
+      "proposed_implementation": "Reproduce the original actor roles first. Then separately specify a model-aware garbler/offline-dealer adaptation for encoded nonlinear paths, including all input label delivery.",
+      "modules": [
+        "gate.oblivious_branching_program",
+        "convert.branching_input"
+      ],
+      "depends_on": [
+        "R04"
+      ],
+      "benchmark_contract": "Fixed public depths, original decision-program fixtures, path access observables and arithmetic I/O conversion costs.",
+      "security_boundary": "Role reversal and arithmetic output are adaptations. Fixed path length alone does not prove that node identities or graph topology are hidden.",
+      "prior_evidence": "Weighted transducer archive uses related ideas but is not a reproduction of this protocol.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R10-oblivious_decision_programs.md"
+    },
+    {
+      "id": "R11",
+      "priority": 11,
+      "slug": "fevbdd",
+      "title": "Factored Edge-Valued Binary Decision Diagrams",
+      "year": 1997,
+      "authors": [
+        "Paul Tafertshofer",
+        "Massoud Pedram"
+      ],
+      "primary_url": "https://link.springer.com/article/10.1023/A:1008691605584",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "public_compilation",
+      "family": "function_representation",
+      "source_summary": "Factored edge-valued diagrams share subfunctions through additive and multiplicative edge normalization.",
+      "proposed_implementation": "Port public EVBDD/FEVBDD compilation, canonical residual normalization and variable-order search to Rust. Keep encrypted traversal as a separate experimental method.",
+      "modules": [
+        "compiler.weighted_decision_diagram",
+        "compiler.variable_order"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Exhaustive fixed integer LUT equivalence, graph hashes, node counts and compile-memory measurements; then separately benchmark protected execution.",
+      "security_boundary": "This is function compression, not a privacy protocol. No security claim follows from a smaller public graph.",
+      "prior_evidence": "Prior tenx archive contains exact public diagram experiments and a custom encrypted extension.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R11-fevbdd.md"
+    },
+    {
+      "id": "R12",
+      "priority": 12,
+      "slug": "piranha",
+      "title": "Piranha: A GPU Platform for Secure Computation",
+      "year": 2022,
+      "authors": [
+        "Jean-Luc Watson",
+        "Sameer Wagh",
+        "Raluca Ada Popa"
+      ],
+      "primary_url": "https://www.usenix.org/conference/usenixsecurity22/presentation/watson",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "mpc_comparison",
+      "family": "accelerator",
+      "source_summary": "Piranha separates device, protocol and application layers for GPU-accelerated secret-sharing computation.",
+      "proposed_implementation": "Wrap original GPU kernels through a narrow native interface before selective Rust/CUDA ports. Preserve protocol party counts and numeric domains in comparisons.",
+      "modules": [
+        "kernel.modular_gpu",
+        "runtime.device_buffers"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Integer-kernel parity and matching original protocol workloads; device execution and transfer time, all workers and GPU allocation counted.",
+      "security_boundary": "Kernel reuse does not turn a multi-online-worker protocol into the preferred single-evaluator topology.",
+      "prior_evidence": "Previous CPU limb/packing experiments are not a GPU Piranha reproduction.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R12-piranha.md"
+    },
+    {
+      "id": "R13",
+      "priority": 13,
+      "slug": "sigma",
+      "title": "SIGMA: Secure GPT Inference with Function Secret Sharing",
+      "year": 2024,
+      "authors": [
+        "Kanav Gupta",
+        "Neha Jawalkar",
+        "Ananta Mukherjee",
+        "Nishanth Chandran",
+        "Divya Gupta",
+        "Ashish Panwar",
+        "Rahul Sharma"
+      ],
+      "primary_url": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "two_online_comparison",
+      "family": "fss",
+      "source_summary": "SIGMA provides FSS-based secure transformer operations and GPU-backed inference with preprocessing.",
+      "proposed_implementation": "Reproduce the original FSS helpers and complete reference workload. Register softmax, activation, normalization and truncation independently with exact phase contracts.",
+      "modules": [
+        "protocol.fss",
+        "gate.fss_nonlinear",
+        "prepare.fss"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Original model/token accounting first; sustained autoregressive decode is a separate workload, not inferred from one forward-pass time.",
+      "security_boundary": "Two online parties and the dealer model must remain explicit. No implicit substitution into the one-evaluator default.",
+      "prior_evidence": "Resident-share and spectral archives are different constructions, not SIGMA reproductions.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R13-sigma.md"
+    },
+    {
+      "id": "R14",
+      "priority": 14,
+      "slug": "fusefss",
+      "title": "FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+      "year": 2026,
+      "authors": [
+        "Yuhan Ma",
+        "Yong Li",
+        "Stefan Schmid"
+      ],
+      "primary_url": "https://arxiv.org/abs/2606.09551",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "two_online_comparison",
+      "family": "fss",
+      "source_summary": "FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in FSS-based LLM inference.",
+      "proposed_implementation": "Acquire and pin the full source and artifact; port complete fused helpers with their offline key generation, remaining secure multiplication and rescaling.",
+      "modules": [
+        "gate.fss_fused",
+        "compiler.fss_fusion"
+      ],
+      "depends_on": [
+        "R13"
+      ],
+      "benchmark_contract": "Matched SIGMA functions, bit widths, hardware and token workloads; count every online dependency and fresh key byte.",
+      "security_boundary": "A fused key lookup does not make subsequent private polynomial evaluation free. Public model support does not eliminate the second online role.",
+      "prior_evidence": "Prior reference fused-polynomial experiments are alternative methods, not a FuseFSS implementation.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R14-fusefss.md"
+    },
+    {
+      "id": "R15",
+      "priority": 15,
+      "slug": "ring_pcg",
+      "title": "Efficient Pseudorandom Correlation Generators over Z/p^k Z",
+      "year": 2025,
+      "authors": [
+        "Zhe Li",
+        "Chaoping Xing",
+        "Yizhou Yao",
+        "Chen Yuan"
+      ],
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-032-01884-7_7",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "preparation_comparison",
+      "family": "pcg",
+      "source_summary": "Galois-ring constructions extend pseudorandom correlation generation to integer rings, including multiplication-related correlations.",
+      "proposed_implementation": "Implement reviewed parameter sets and the actual requested correlation schema. Expose seed setup, expansion time, memory and transcript requirements; do not substitute ordinary PRG seeds.",
+      "modules": [
+        "prepare.ring_pcg",
+        "correlation.ole",
+        "correlation.authenticated_triple"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Correct correlation identities, original artifact outputs, communication versus expansion compute, and current attack-aware parameter checks.",
+      "security_boundary": "PCGs do not automatically compress arbitrary garbled tables or spectral coefficients. Small toy parameters are not deployment security parameters.",
+      "prior_evidence": "Earlier Galois-ring checks were algebra only, not a PCG implementation.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R15-ring_pcg.md"
+    },
+    {
+      "id": "R16",
+      "priority": 16,
+      "slug": "trapdoored_matrices",
+      "title": "Practical Secure Delegated Linear Algebra with Trapdoored Matrices",
+      "year": 2025,
+      "authors": [
+        "Mark Braverman",
+        "Stephen Newman"
+      ],
+      "primary_url": "https://arxiv.org/html/2502.13060v3",
+      "source_access": "primary_full_text_html",
+      "verified_on": "2026-09-14",
+      "track": "linear_comparison",
+      "family": "delegation",
+      "source_summary": "This work uses trapdoored pseudorandom matrices for efficient delegated linear algebra under an LPN-based approach.",
+      "proposed_implementation": "Implement the paper-specific matrix/trapdoor generation and delegation protocol before attempting a setup adaptation. State who knows each operand and each trapdoor.",
+      "modules": [
+        "prepare.trapdoored_matrix",
+        "protocol.delegated_linear"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Original linear workloads, malicious-result handling where specified, full client/offline work and public-model-adaptation comparison.",
+      "security_boundary": "Public low-rank masks leak nullspace projections. This construction must not be approximated by an unproven structured mask.",
+      "prior_evidence": "Identified as a lead previously; not executed in the supplied archives.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R16-trapdoored_matrices.md"
+    },
+    {
+      "id": "R17",
+      "priority": 17,
+      "slug": "curl",
+      "title": "Curl: Private LLMs through Wavelet-Encoded Look-Up Tables",
+      "year": 2024,
+      "authors": [
+        "Manuel B. Santos",
+        "Dimitris Mouris",
+        "Mehmet Ugurbil",
+        "Stanislaw Jarecki",
+        "José Reis",
+        "Shubho Sengupta",
+        "Miguel de Vega"
+      ],
+      "primary_url": "https://eprint.iacr.org/2024/1127",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "mpc_comparison",
+      "family": "wavelet_lookup",
+      "source_summary": "Curl uses wavelet-encoded lookup tables for private nonlinear operations and discusses probabilistic truncation security.",
+      "proposed_implementation": "Reproduce original lookup construction, encoding, scale and truncation behavior. Treat a wavelet approximation imported into garbling as a separate numerical/protocol adaptation.",
+      "modules": [
+        "gate.wavelet_lookup",
+        "numeric.wavelet",
+        "gate.probabilistic_truncation"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Log/reciprocal/activation functions at matched numeric accuracy, preprocessing and helper rounds, then original language-model fixtures.",
+      "security_boundary": "A stand-alone truncation argument does not imply universal composability. Sparse transform coefficients do not make private access free.",
+      "prior_evidence": "Prior report cited Curl; no Curl protocol was reproduced.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R17-curl.md"
+    },
+    {
+      "id": "R18",
+      "priority": 18,
+      "slug": "compact",
+      "title": "Compact: Approximating Complex Activation Functions for Secure Computation",
+      "year": 2024,
+      "authors": [
+        "Mazharul Islam",
+        "Sunpreet S. Arora",
+        "Rahul Chatterjee",
+        "Peter Rindal",
+        "Maliheh Shirvanian"
+      ],
+      "primary_url": "https://arxiv.org/abs/2309.04664",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "numeric_transform",
+      "family": "approximation",
+      "source_summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations.",
+      "proposed_implementation": "Implement its fitting objective and published approximation profile separately from protected evaluation. Freeze coefficient/interval hashes and add explicit tail policy.",
+      "modules": [
+        "numeric.piecewise_fit",
+        "compiler.approximation_profile"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Approximation envelopes and full-checkpoint quality, not scalar error alone; protected evaluator includes interval selection and all truncation.",
+      "security_boundary": "Calibration is not a proof of a worst-case range. Model quality and exact agreement with the chosen approximation are distinct.",
+      "prior_evidence": "Our Fourier/boundary-matched fits are distinct hypotheses, not Compact reproductions.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R18-compact.md"
+    },
+    {
+      "id": "R19",
+      "priority": 19,
+      "slug": "open_weight_verifiable",
+      "title": "Private and Verifiable Outsourcing of Open-Weight LLM Inference",
+      "year": 2026,
+      "authors": [
+        "Kanav Gupta",
+        "Jonathan Katz",
+        "Ian Miers"
+      ],
+      "primary_url": "https://eprint.iacr.org/2026/1849",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "two_online_comparison",
+      "family": "frontier_control",
+      "source_summary": "The abstract describes private and verifiable open-weight inference with two malicious, non-colluding servers and model-owner-published information.",
+      "proposed_implementation": "Acquire the complete protocol and original artifact first. Create a faithful isolated adapter with a documented client, model-owner, server and proof boundary.",
+      "modules": [
+        "protocol.open_weight_verified",
+        "verify.model_owner_setup"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Original workload versus true autoregressive decoding, setup/model-owner cost, online server multiplicity and complete verification costs.",
+      "security_boundary": "Abstract claims alone do not specify a reproducible protocol or near-native sustained TPS. This remains source-acquisition-gated.",
+      "prior_evidence": "Only abstract-level comparison exists in the supplied work.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R19-open_weight_verifiable.md"
+    },
+    {
+      "id": "R20",
+      "priority": 20,
+      "slug": "oblivious_compression",
+      "title": "Oblivious Ciphertext Compression via Linear Codes",
+      "year": 2026,
+      "authors": [
+        "Pascal Giorgi",
+        "Bruno Grenet",
+        "Mark Simkin"
+      ],
+      "primary_url": "https://eprint.iacr.org/2026/329",
+      "source_access": "primary_abstract",
+      "verified_on": "2026-09-14",
+      "track": "representation_specific",
+      "family": "compression",
+      "source_summary": "This work develops oblivious ciphertext compression using linear codes and syndrome decoding.",
+      "proposed_implementation": "Reproduce the exact source construction and its decoding-side-information assumptions. Bind codecs to representations and valid domains; compare the PLLM syndrome design as an adaptation.",
+      "modules": [
+        "codec.oblivious_linear_code",
+        "codec.domain_certificate"
+      ],
+      "depends_on": [],
+      "benchmark_contract": "Original correctness domain, payload and encoder/decoder cost; public-bound packing and uncompressed matched controls; explicit out-of-domain collision cases.",
+      "security_boundary": "Lossless compression is conditional on its domain and side information. Successful decode is not proof of correct inference, and adaptive retries can leak.",
+      "prior_evidence": "Network archives contain a custom bounded-overflow codec, not this paper's implementation.",
+      "source_lock": {
+        "paper_sha256": null,
+        "artifact_commit": null,
+        "license_review": "required_before_vendoring"
+      },
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "Rust",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": true,
+      "card": "cards/R20-oblivious_compression.md"
+    },
+    {
+      "id": "R21",
+      "priority": 21,
+      "slug": "nexus",
+      "title": "NEXUS: Secure Transformer Inference Made Non-interactive",
+      "year": 2025,
+      "authors": ["Jiawen Zhang", "Xinpeng Yang", "Lipeng He", "Kejia Chen", "Wen-jie Lu", "Yinghao Wang", "Xiaoyang Hou", "Jian Liu", "Kui Ren", "Xiaohu Yang"],
+      "primary_url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf",
+      "source_access": "primary_full_text",
+      "verified_on": "2026-09-14",
+      "track": "single_evaluator_candidate",
+      "family": "homomorphic_encryption",
+      "source_summary": "NEXUS combines approximate HE with lightweight garbled circuits for non-interactive two-party transformer forward inference.",
+      "proposed_implementation": "Reproduce the exact artifact first, then measure its operator components against the complete PLLM Qwen decoder graph without inferring KV-cache or token-feedback support.",
+      "modules": ["protocol.nexus", "gate.nexus_nonlinear", "kernel.nexus_he"],
+      "depends_on": [],
+      "benchmark_contract": "Original BERT/RoBERTa/ViT forward workloads first; decoder, KV-cache and autoregressive feedback are separate PLLM adaptations.",
+      "security_boundary": "Two-party semi-honest security and one inference evaluator do not establish complete private autoregressive LLM serving.",
+      "prior_evidence": "No PLLM NEXUS reproduction has been executed.",
+      "source_lock": {"paper_sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2", "artifact_commit": "e15058c7f8f58fcf037c4709211109cb1be7d1e0", "license_review": "external_reproduction_only"},
+      "source_acquisition_status": "acquired",
+      "workflow_status": "not_executed",
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "external C++/CUDA artifact then independent Rust integration",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R21-nexus.md"
+    },
+    {
+      "id": "R22",
+      "priority": 22,
+      "slug": "openbumblebee",
+      "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+      "year": 2025,
+      "authors": ["Wen-jie Lu", "Zhicong Huang", "Zhen Gu", "Jingyu Li", "Jian Liu", "Cheng Hong", "Kui Ren", "Tao Wei", "Wenguang Chen"],
+      "primary_url": "https://eprint.iacr.org/2023/1678",
+      "source_access": "primary_full_text",
+      "verified_on": "2026-09-14",
+      "track": "two_online_comparison",
+      "family": "two_party_computation",
+      "source_summary": "BumbleBee implements secure two-party transformer inference with specialized nonlinear protocols and an Apache-2.0 artifact.",
+      "proposed_implementation": "Reproduce the source workload, then isolate normalization, softmax, activation and communication components for comparison with PLLM plans.",
+      "modules": ["protocol.bumblebee", "gate.bumblebee_nonlinear", "runtime.bumblebee"],
+      "depends_on": [],
+      "benchmark_contract": "Original LLaMA-7B/GPT2/BERT workloads and two-party resources; repeated generation without KV cache is not reported as sustained cached decode.",
+      "security_boundary": "Both parties are online and hold additive shares; this cannot enter the one-evaluator profile without changing the trust topology.",
+      "prior_evidence": "No PLLM BumbleBee reproduction has been executed.",
+      "source_lock": {"paper_sha256": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a", "artifact_commit": "47c5560d069543591f3b0176eb530ede28e33fc3", "license_review": "approved"},
+      "source_acquisition_status": "acquired",
+      "workflow_status": "not_executed",
+      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "assurance_status": "not_reviewed",
+      "eligible_default": false,
+      "native_owner": "external C++ artifact then reviewed native adapter",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R22-openbumblebee.md"
+    },
+    {
+      "id": "R23",
+      "priority": 23,
+      "slug": "mpcache",
+      "title": "MPCache: MPC-Friendly KV Cache Eviction for Efficient Private Large Language Model Inference",
+      "year": 2025,
+      "authors": ["Wenxuan Zeng", "Ye Dong", "Jinjin Zhou", "Junming Ma", "Jin Tan", "Runsheng Wang", "Meng Li"],
+      "primary_url": "https://arxiv.org/abs/2501.06807v2",
+      "source_access": "primary_full_text",
+      "verified_on": "2026-09-14",
+      "track": "three_online_comparison",
+      "family": "replicated_secret_sharing",
+      "source_summary": "MPCache evaluates MPC-friendly static and dynamic KV-cache eviction in a three-party SecretFlow/SPU setting; its artifact focuses state selection and operator costs.",
+      "proposed_implementation": "Reproduce cached generation and use its explicit KV state as a comparison oracle for PLLM decoder state without inferring complete protected boundary coverage.",
+      "modules": ["protocol.mpcache", "state.secret_shared_kv", "gate.mpcache_attention"],
+      "depends_on": [],
+      "benchmark_contract": "Original LongChat/LongBench cache-eviction workload, all three parties and setup; operator benchmarks are not reported as complete private inference.",
+      "security_boundary": "Three online semi-honest parties and incomplete protected-boundary evidence are incompatible with the one-evaluator complete-model target.",
+      "prior_evidence": "No MPCache reproduction has been executed. Current PLLM work is a structural DecoderPlan adaptation only.",
+      "source_record_id": "pllm.source.mpcache.arxiv-2501.06807v2",
+      "upstream_artifact_lock_id": "pllm.upstream.mpcache.55e401b17db3c47dd6920b9a92ad937c7e9bb452",
+      "method_record_id": "pllm.method.mpcache-structural-adaptation.v1",
+      "source_acquisition_status": "acquired",
+      "workflow_status": "not_executed",
+      "implementation_status": "structural_pllm_adaptation",
+      "assurance_status": "unchecked",
+      "eligible_default": false,
+      "native_owner": "Rust structural graph transformation; upstream artifact remains an external oracle",
+      "python_role": "configuration and result presentation only",
+      "fulltext_gate": false,
+      "card": "cards/R23-mpcache.md"
+    }
+  ]
+}

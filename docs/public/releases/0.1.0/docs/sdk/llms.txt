@@ -1,0 +1,63 @@
+# PLLM
+
+Release: 0.1.0
+Build: sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328
+
+Private LLM inference documentation. Public weights; provider follows the protocol.
+
+- [Configuration](https://pllm.run/sdk/configuration/) ([Markdown](https://pllm.run/sdk/configuration.md)): Load, inspect, and export a reproducible PLLM experiment configuration.
+- [Model plans](https://pllm.run/sdk/plans/) ([Markdown](https://pllm.run/sdk/plans.md)): Lower a model configuration, add components, and inspect compiler coverage.
+- [Components](https://pllm.run/sdk/components/) ([Markdown](https://pllm.run/sdk/components.md)): Inspect versioned capabilities and apply compatible components to a model plan.
+- [Build](https://pllm.run/sdk/build/) ([Markdown](https://pllm.run/sdk/build.md)): Define a reproducible PLLM system from configuration, models, components, and research methods.
+- [Models](https://pllm.run/sdk/build/model-adapters/) ([Markdown](https://pllm.run/sdk/build/model-adapters.md)): Turn model-family configuration into a shared decoder plan.
+- [Research APIs](https://pllm.run/sdk/research/) ([Markdown](https://pllm.run/sdk/research.md)): Use the Python SDK to benchmark plans, run scoped assurance checks, and produce immutable evidence records.
+- [Benchmark](https://pllm.run/sdk/research/benchmark/) ([Markdown](https://pllm.run/sdk/research/benchmark.md)): Run scoped Python benchmarks and understand what the development dashboard does not measure.
+- [Assure](https://pllm.run/sdk/research/assure/) ([Markdown](https://pllm.run/sdk/research/assure.md)): Run a defined assurance check and report exactly what its result supports.
+- [Operate](https://pllm.run/sdk/operate/) ([Markdown](https://pllm.run/sdk/operate.md)): Assign client, preparation, and inference responsibilities without weakening the privacy design.
+- [Client boundary](https://pllm.run/sdk/operate/client-boundary/) ([Markdown](https://pllm.run/sdk/operate/client-boundary.md)): Understand which data and runtime state must stay with the client.
+- [Provider roles](https://pllm.run/sdk/operate/provider-roles/) ([Markdown](https://pllm.run/sdk/operate/provider-roles.md)): Understand the responsibilities of deployment operators, preparation services, and inference services.
+- [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, required role placement, and missing orchestration.
+- [Reference](https://pllm.run/sdk/reference/) ([Markdown](https://pllm.run/sdk/reference.md)): Look up exact CLI commands, Python APIs, schemas, components, research records, and current support.
+- [Python API inventory](https://pllm.run/sdk/reference/python/pllm/) ([Markdown](https://pllm.run/sdk/reference/python/pllm.md)): Public Python classes, functions, and evidence APIs in the installed package.
+- [Component catalog](https://pllm.run/sdk/reference/components/) ([Markdown](https://pllm.run/sdk/reference/components.md)): Built-in component records with implementation, coverage, and evidence status.
+- [Schema reference](https://pllm.run/sdk/reference/schemas/) ([Markdown](https://pllm.run/sdk/reference/schemas.md)): Versioned schemas for configurations, plans, evidence, assurance, and research records.
+- [Current support](https://pllm.run/sdk/reference/status/) ([Markdown](https://pllm.run/sdk/reference/status.md)): What you can use today, what remains experimental, and what is not yet supported.
+- [Implementation map](https://pllm.run/sdk/contribute/agents/implementation-map/) ([Markdown](https://pllm.run/sdk/contribute/agents/implementation-map.md)): Locate model planning, compiler contracts, native execution, Python APIs, CLI code, schemas, and documentation.
+- [Agents](https://pllm.run/sdk/contribute/agents/) ([Markdown](https://pllm.run/sdk/contribute/agents.md)): Find the code and records used for implementation, research, and reproduction work.
+- [Assurance](https://pllm.run/sdk/research/assurance/) ([Markdown](https://pllm.run/sdk/research/assurance.md)): Evaluate a specific privacy, integrity, numeric, implementation, or deployment claim.
+- [Benchmarks](https://pllm.run/sdk/research/benchmarks/) ([Markdown](https://pllm.run/sdk/research/benchmarks.md)): Measure PLLM systems with reproducible records and compare only equivalent runs.
+- [Compiler](https://pllm.run/sdk/pipeline/compiler/) ([Markdown](https://pllm.run/sdk/pipeline/compiler.md)): Learn how PLLM turns a model plan and component choices into a checked execution plan.
+- [Add a category](https://pllm.run/sdk/contribute/add-a-category/) ([Markdown](https://pllm.run/sdk/contribute/add-a-category.md)): Extend the semantic component graph when an existing category cannot express a real contract.
+- [Component standard](https://pllm.run/sdk/contribute/component-standard/) ([Markdown](https://pllm.run/sdk/contribute/component-standard.md)): Required identity, lifecycle, representation, role, capability, evidence, and limitation fields.
+- [Contribute](https://pllm.run/sdk/contribute/) ([Markdown](https://pllm.run/sdk/contribute.md)): Add a model, component, research method, or evidence record without creating a one-off runtime path.
+- [Native plugin ABI](https://pllm.run/sdk/contribute/native-plugin-abi/) ([Markdown](https://pllm.run/sdk/contribute/native-plugin-abi.md)): Boundary requirements for future independently distributed native capability providers.
+- [Publish a provider](https://pllm.run/sdk/contribute/publish-a-provider/) ([Markdown](https://pllm.run/sdk/contribute/publish-a-provider.md)): Expose a component implementation without importing it during core discovery.
+- [Upstreaming](https://pllm.run/sdk/contribute/upstreaming/) ([Markdown](https://pllm.run/sdk/contribute/upstreaming.md)): Move validated research work into maintained semantic and runtime components.
+- [Conversions](https://pllm.run/sdk/build/conversions/) ([Markdown](https://pllm.run/sdk/build/conversions.md)): Learn how values move between numeric formats, layouts, and owners.
+- [Deployment](https://pllm.run/sdk/operate/deployment/) ([Markdown](https://pllm.run/sdk/operate/deployment.md)): Learn how to assign PLLM roles to authenticated services without changing privacy assumptions.
+- [Kernels](https://pllm.run/sdk/pipeline/kernels/) ([Markdown](https://pllm.run/sdk/pipeline/kernels.md)): Understand PLLM's native integer matrix kernels, memory costs, and CPU requirements.
+- [Gemma 4](https://pllm.run/sdk/build/models/gemma4/) ([Markdown](https://pllm.run/sdk/build/models/gemma4.md)): Variant-parameterized text-decoder lowering for exact Gemma 4 E2B and E4B configurations.
+- [Models](https://pllm.run/sdk/build/models/) ([Markdown](https://pllm.run/sdk/build/models.md)): See which model configurations PLLM can describe and what model support does not yet include.
+- [Phi-4 mini](https://pllm.run/sdk/build/models/phi4-mini/) ([Markdown](https://pllm.run/sdk/build/models/phi4-mini.md)): Fused-projection and LongRoPE semantic lowering for Phi-4-mini-instruct.
+- [Qwen2](https://pllm.run/sdk/build/models/qwen2/) ([Markdown](https://pllm.run/sdk/build/models/qwen2.md)): Dense Qwen2 semantic lowering and its present execution boundary.
+- [Qwen3 and mini-coder](https://pllm.run/sdk/build/models/qwen3/) ([Markdown](https://pllm.run/sdk/build/models/qwen3.md)): Dense Qwen3 lowering with explicit head width and Q/K normalization.
+- [Qwen3.5](https://pllm.run/sdk/build/models/qwen35/) ([Markdown](https://pllm.run/sdk/build/models/qwen35.md)): Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B.
+- [Numerics](https://pllm.run/sdk/build/numerics/) ([Markdown](https://pllm.run/sdk/build/numerics.md)): Understand PLLM's integer arithmetic, quantization, rounding, approximation, and overflow checks.
+- [Operators](https://pllm.run/sdk/build/operators/) ([Markdown](https://pllm.run/sdk/build/operators.md)): Learn how PLLM describes model operations independently of model family and runtime.
+- [Projection and rotary variants](https://pllm.run/sdk/build/operators/projection-rotary/) ([Markdown](https://pllm.run/sdk/build/operators/projection-rotary.md)): Represent fused projections, tensor slices, head widths, and rotary position rules.
+- [Stateful recurrence](https://pllm.run/sdk/build/operators/stateful-recurrence/) ([Markdown](https://pllm.run/sdk/build/operators/stateful-recurrence.md)): Represent convolution and recurrent state in a hybrid decoder plan.
+- [Pipeline](https://pllm.run/sdk/pipeline/) ([Markdown](https://pllm.run/sdk/pipeline.md)): Combine model, privacy protocol, preparation, runtime, and deployment choices in one configuration.
+- [Preparation](https://pllm.run/sdk/pipeline/preparation/) ([Markdown](https://pllm.run/sdk/pipeline/preparation.md)): Prepare one-time masked material before a private inference request starts.
+- [Arithmetic garbling](https://pllm.run/sdk/pipeline/protocols/garbling/arithmetic/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/garbling/arithmetic.md)): Mixed-modulus labels and projection gates over bounded arithmetic values.
+- [Half-gates](https://pllm.run/sdk/pipeline/protocols/garbling/half-gates/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/garbling/half-gates.md)): Boolean AND-gate representation and the obligations surrounding free-XOR circuit execution.
+- [Garbling](https://pllm.run/sdk/pipeline/protocols/garbling/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/garbling.md)): Reference arithmetic and Boolean garbling components with explicit maturity and composition boundaries.
+- [Lookup tables](https://pllm.run/sdk/pipeline/protocols/garbling/lookup-tables/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/garbling/lookup-tables.md)): Bounded function tables with explicit domains, indexing, leakage, and material size.
+- [Weighted path](https://pllm.run/sdk/pipeline/protocols/garbling/weighted-path/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/garbling/weighted-path.md)): Decision-path representations for bounded piecewise or tree-structured secure evaluation.
+- [Protocols](https://pllm.run/sdk/pipeline/protocols/) ([Markdown](https://pllm.run/sdk/pipeline/protocols.md)): See how PLLM defines parties, messages, privacy assumptions, and failure behavior.
+- [Masked linear](https://pllm.run/sdk/pipeline/protocols/masked-linear/) ([Markdown](https://pllm.run/sdk/pipeline/protocols/masked-linear.md)): Prepared public-weight linear inference with seeded one-time masks and committed inventory.
+- [Native reference](https://pllm.run/sdk/reference/native/) ([Markdown](https://pllm.run/sdk/reference/native.md)): Rust crates, the Python binding, data ownership, threading, and ABI support.
+- [Python reference](https://pllm.run/sdk/reference/python/) ([Markdown](https://pllm.run/sdk/reference/python.md)): The installed pllm namespace and its generated public API inventory.
+- [Representations](https://pllm.run/sdk/build/representations/) ([Markdown](https://pllm.run/sdk/build/representations.md)): Understand how PLLM records a value's format, owner, bounds, and encoding.
+- [Runtime](https://pllm.run/sdk/pipeline/runtime/) ([Markdown](https://pllm.run/sdk/pipeline/runtime.md)): Understand which live state a PLLM runtime owns and how it differs from a reproducible plan.
+- [Python SDK](https://pllm.run/sdk/) ([Markdown](https://pllm.run/sdk.md)): Plan models, compose research methods, and use supported PLLM runtimes from Python.
+- [Search](https://pllm.run/sdk/build/search/) ([Markdown](https://pllm.run/sdk/build/search.md)): Compare compatible system designs against explicit resource, quality, and assurance limits.

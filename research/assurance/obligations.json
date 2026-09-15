@@ -1,0 +1,397 @@
+{
+  "schema_version": "pllm.obligations.v1",
+  "obligations": [
+    {
+      "id": "O-R01",
+      "registry_alias": "R01",
+      "claim": "Affine-label view simulation and applicability of the chosen correlation-robust hash; additional integrity mechanisms are separate.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/html/2302.06361v2",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R02",
+      "registry_alias": "R02",
+      "claim": "Proof of the actual conversion and sign/rounding envelope; no local field-inverse shortcut.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/html/2506.14489v1",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R03",
+      "registry_alias": "R03",
+      "claim": "Source garbling game with exact hash assumptions, modulus preconditions and compatible composition.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2016/969",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R04",
+      "registry_alias": "R04",
+      "claim": "Applicable half-gate/free-XOR security game; malformed/corrupted garbler behavior not covered by semi-honest assumptions.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2014/756",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R05",
+      "registry_alias": "R05",
+      "claim": "Lookup privacy and input-binding argument, including arithmetic bridge obligations and observable access behavior.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2024/369",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R06",
+      "registry_alias": "R06",
+      "claim": "Projectivity and correlation assumptions of this particular direction; a custom reverse path has a separate proof.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2026/476",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R07",
+      "registry_alias": "R07",
+      "claim": "Joint-view simulation, trusted component definition, bound-correct reconstruction and independent verification secrets.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/abs/1806.03287",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R08",
+      "registry_alias": "R08",
+      "claim": "Variant-specific cryptanalysis determines eligibility; no empirical mask randomness test substitutes for its security assumption.",
+      "status": "unchecked",
+      "proof_source": "https://cic.iacr.org/p/1/3/40",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R09",
+      "registry_alias": "R09",
+      "claim": "Planner preservation of types/effects and composition preconditions; selected primitives still need their own security proofs.",
+      "status": "unchecked",
+      "proof_source": "https://doi.org/10.1145/3243734.3243786",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R10",
+      "registry_alias": "R10",
+      "claim": "Oblivious decision-program proof in its original role assignment; masked arithmetic outputs require a new composition argument.",
+      "status": "unchecked",
+      "proof_source": "https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/iet-ifs.2012.0032",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R11",
+      "registry_alias": "R11",
+      "claim": "Public deterministic compiler correctness only. No privacy theorem or security level is applicable to diagram compression.",
+      "status": "unchecked",
+      "proof_source": "https://link.springer.com/article/10.1023/A:1008691605584",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R12",
+      "registry_alias": "R12",
+      "claim": "Kernel arithmetic plus original sharing-protocol assumptions; GPU memory/caches and side channels need explicit deployment scope.",
+      "status": "unchecked",
+      "proof_source": "https://www.usenix.org/conference/usenixsecurity22/presentation/watson",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R13",
+      "registry_alias": "R13",
+      "claim": "Dealer/corruption-set proof and specific helper composition, not a single-evaluator claim.",
+      "status": "unchecked",
+      "proof_source": "https://petsymposium.org/popets/2024/popets-2024-0107.php",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R14",
+      "registry_alias": "R14",
+      "claim": "Proof for fused operators and source adversary model; scalar numerical matches do not establish protected evaluation.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/abs/2606.09551",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R15",
+      "registry_alias": "R15",
+      "claim": "Distribution and computational indistinguishability argument for the actual ring/PCG parameters; toy algebra is insufficient.",
+      "status": "unchecked",
+      "proof_source": "https://link.springer.com/chapter/10.1007/978-3-032-01884-7_7",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R16",
+      "registry_alias": "R16",
+      "claim": "LPN/trapdoor assumptions and operand ownership; a new OLE/garbling-setup use requires its own reduction.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/html/2502.13060v3",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R17",
+      "registry_alias": "R17",
+      "claim": "Source stand-alone/composition scope, private access and rounding randomness. Universally composable behavior is not inferred.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2024/1127",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R18",
+      "registry_alias": "R18",
+      "claim": "Numerical fidelity and calibration-data boundary; no privacy conclusion follows from a good approximation fit.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/abs/2309.04664",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R19",
+      "registry_alias": "R19",
+      "claim": "Complete malicious-security/model-owner setup theorem and both server roles; abstract alone is insufficient to implement or inherit it.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2026/1849",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R20",
+      "registry_alias": "R20",
+      "claim": "Correctness/privacy for the original encrypted setting; PLLM ring-side-information compression is a separate adaptation.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2026/329",
+      "source_acquisition_required": true,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "role separation and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R21",
+      "registry_alias": "R21",
+      "claim": "NEXUS semi-honest two-party forward-inference argument in its published role and operator scope; autoregressive decoder coverage is separate.",
+      "status": "unchecked",
+      "proof_source": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "published two-party roles and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R22",
+      "registry_alias": "R22",
+      "claim": "BumbleBee security in its two-online-party additive-sharing topology and published composition; no one-evaluator refinement is established.",
+      "status": "unchecked",
+      "proof_source": "https://eprint.iacr.org/2023/1678",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "both online parties and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    },
+    {
+      "id": "O-R23",
+      "registry_alias": "R23",
+      "method_record_id": "pllm.method.mpcache-structural-adaptation.v1",
+      "claim": "MPCache security in its published three-online-party scope, including protected cache selection and observable state access; PLLM structural adaptation has no established protected-execution refinement.",
+      "status": "unchecked",
+      "proof_source": "https://arxiv.org/abs/2501.06807v2",
+      "source_acquisition_required": false,
+      "implementation_refinement": "not_established",
+      "composition_review": "not_established",
+      "deployment_assumptions": [
+        "three online parties and permitted views",
+        "freshness and supported rollback model",
+        "authenticated configuration",
+        "side-channel scope"
+      ],
+      "benchmark_success_implies_proof": false
+    }
+  ]
+}

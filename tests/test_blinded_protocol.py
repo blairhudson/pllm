@@ -21,7 +21,7 @@ from pllm.runtime.stage_protocol import BlindedStageRequest, BlindedStageRespons
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_engine import TransformerEngineError
 
-PYDEPS = os.environ.get("HE_OPENAI_PYDEPS", "")
+PYDEPS = os.environ.get("PLLM_TENSEAL_PATH", "")
 
 
 def run(value):
@@ -42,7 +42,7 @@ def tiny_model(root: Path) -> Path:
     config = json.loads((path / "config.json").read_text(encoding="utf-8"))
     config.update({"bos_token_id": 2, "eos_token_id": 3, "pad_token_id": 3})
     (path / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    (path / "he_tokenizer.json").write_text(json.dumps({
+    (path / "pllm_tokenizer.json").write_text(json.dumps({
         "type": "alphabet",
         "alphabet": " a",
         "vocab_size": 4,
@@ -190,7 +190,7 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
                 )
             with httpx.Client(base_url=gateway.base_url, timeout=180) as admin:
                 loaded = admin.post(
-                    "/v1/he/models/load",
+                    "/v1/runtime/models/load",
                     headers={"Authorization": f"Bearer {gateway.api_key}"},
                     json={
                         "engine": engine.capabilities.name,

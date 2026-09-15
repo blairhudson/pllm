@@ -58,7 +58,7 @@ class GuardedBlindedTransformerEngine(BlindedTransformerEngine):
         model_sources=("huggingface", "safetensors", "vllm", "mlx-lm"),
         protocols=("guarded-blinded.stage/v1", "bfv-blinded-correlation/v1"),
         online_fhe=False,
-        he_preprocessed=True,
+        preprocessed=True,
         continuous_batching=True,
         notes=(
             "all learned dense matrices remain server-side",

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/publication-assessment-request.schema.json",
+  "title": "PLLM publication assessment request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "claim", "plan_lineages", "evidence_bundles"],
+  "properties": {
+    "schema_version": {"const": "pllm.publication_assessment_request.v1"},
+    "claim": {"$ref": "claim-record.schema.json"},
+    "plan_lineages": {"type": "array", "items": {"$ref": "plan-lineage-record.schema.json"}},
+    "evidence_bundles": {"type": "array", "items": {"$ref": "evidence-bundle.schema.json"}}
+  }
+}

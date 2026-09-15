@@ -7,7 +7,6 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import pllm
-from pllm.cli import _build_parser, _protection_to_legacy
 from pllm.market import CentralMarket, DecentralizedQuoteBook, RouteRequest, generate_provider_offer
 from pllm.provider import load_or_create_signing_key
 from pllm.settings import ClientSettings, config_path
@@ -68,102 +67,6 @@ def test_settings_environment_overrides_file(tmp_path: Path, monkeypatch: pytest
     assert ClientSettings.load().preparation_api_key == "preparation-key"
     assert ClientSettings.load().bundle_cache_mode == "refresh"
     assert ClientSettings.load().bundle_cache_dir == str(tmp_path / "bundle-cache")
-
-
-def test_configure_accepts_bundle_cache_options() -> None:
-    args = _build_parser().parse_args(
-        [
-            "configure",
-            "--bundle-cache-mode",
-            "read-only",
-            "--bundle-cache-dir",
-            "/tmp/pllm-bundles",
-        ]
-    )
-    assert args.bundle_cache_mode == "read-only"
-    assert args.bundle_cache_dir == "/tmp/pllm-bundles"
-
-    sidecar = _build_parser().parse_args(
-        [
-            "sidecar",
-            "--bundle-cache-mode",
-            "refresh",
-            "--bundle-cache-dir",
-            "/tmp/pllm-sidecar-bundles",
-        ]
-    )
-    assert sidecar.bundle_cache_mode == "refresh"
-    assert sidecar.bundle_cache_dir == "/tmp/pllm-sidecar-bundles"
-
-
-def _parse_serve(*extra: str):
-    parser = _build_parser()
-    return parser, parser.parse_args(["serve", "org/model", *extra])
-
-
-def test_chat_accepts_output_token_limit() -> None:
-    args = _build_parser().parse_args([
-        "chat",
-        "--max-output-tokens",
-        "1",
-        "--preparation-url",
-        "https://preparation.example",
-    ])
-    assert args.max_output_tokens == 1
-    assert args.preparation_base_url == "https://preparation.example"
-
-
-def test_preparation_service_has_dedicated_command() -> None:
-    args = _build_parser().parse_args([
-        "preparation",
-        "serve",
-        "org/model",
-        "--api-key",
-        "secret",
-    ])
-    assert args.preparation_command == "serve"
-    assert args.models == ["org/model"]
-
-
-def test_server_delegates_huggingface_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HF_TOKEN", "environment-token")
-    monkeypatch.setenv("HF_HOME", "/tmp/hf-home")
-    _, args = _parse_serve("--weights", "public")
-    assert args.hf_token is None
-    assert args.hf_cache_dir is None
-
-
-def test_server_protection_mapping_is_explicit() -> None:
-    parser, public = _parse_serve("--weights", "public")
-    assert _protection_to_legacy(public, parser) == ("public", "guarded")
-
-    parser, confidential = _parse_serve("--weights", "confidential")
-    assert _protection_to_legacy(confidential, parser) == ("proprietary", "guarded")
-
-    parser, direct = _parse_serve(
-        "--weights",
-        "confidential",
-        "--activation-protection",
-        "encrypted-activations",
-    )
-    assert _protection_to_legacy(direct, parser) == ("proprietary", "direct")
-
-
-def test_server_requires_weight_visibility_declaration() -> None:
-    parser, args = _parse_serve()
-    with pytest.raises(SystemExit):
-        _protection_to_legacy(args, parser)
-
-
-def test_untrusted_client_profile_fails_closed() -> None:
-    parser, args = _parse_serve(
-        "--weights",
-        "confidential",
-        "--client-trust",
-        "untrusted",
-    )
-    with pytest.raises(SystemExit):
-        _protection_to_legacy(args, parser)
 
 
 def test_signed_provider_offer_and_central_settlement() -> None:
@@ -230,7 +133,7 @@ def test_provider_key_persists(tmp_path: Path) -> None:
 
 def test_docs_and_manuscript_exist() -> None:
     assert Path("docs/package.json").exists()
-    assert Path("docs/content/docs/client/chat.mdx").exists()
+    assert Path("docs/content/docs/start/first-private-request.mdx").exists()
     assert Path("docs/content/research/paper.mdx").exists()
     manuscript = Path("paper/manuscript.md").read_text(encoding="utf-8")
     assert "abstract: |" in manuscript

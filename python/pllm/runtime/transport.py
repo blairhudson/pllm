@@ -12,7 +12,7 @@ try:
 except ImportError:  # pragma: no cover
     _httpx = _standard_httpx
 
-from .client import HEAPIError, HEClientCore
+from .client import ProtocolError, RuntimeClient
 from .responses import sse_done, sse_event
 
 
@@ -52,7 +52,7 @@ def _async_stream(http: Any, iterator: AsyncIterator[bytes]) -> Any:
     return Stream()
 
 
-class HETransport(_httpx.BaseTransport):
+class PLLMTransport(_httpx.BaseTransport):
     """Custom transport for the official OpenAI Python client.
 
     The public call remains `client.responses.create(...)`. The transport
@@ -65,10 +65,10 @@ class HETransport(_httpx.BaseTransport):
         self,
         *,
         gateway_url: str,
-        api_key: str = "he-local",
+        api_key: str = "pllm-local",
         preparation_url: str | None = None,
         preparation_api_key: str | None = None,
-        he_transport: str = "http",
+        session_transport: str = "http",
         correlation_mode: str = "bfv",
         correlation_prefetch: int = 4,
         prepared_inventory_rows: int = 64,
@@ -77,12 +77,12 @@ class HETransport(_httpx.BaseTransport):
         bundle_cache_dir: str | None = None,
         tenseal_path: str | None = None,
     ) -> None:
-        self.core = HEClientCore(
+        self.core = RuntimeClient(
             base_url=gateway_url,
             api_key=api_key,
             preparation_base_url=preparation_url,
             preparation_api_key=preparation_api_key,
-            he_transport=he_transport,
+            session_transport=session_transport,
             correlation_mode=correlation_mode,
             correlation_prefetch=correlation_prefetch,
             prepared_inventory_rows=prepared_inventory_rows,
@@ -111,13 +111,13 @@ class HETransport(_httpx.BaseTransport):
                         yield sse_done()
                     return response_httpx.Response(
                         200,
-                        headers={"Content-Type": "text/event-stream", "X-HE-Transport": "1"},
+                        headers={"Content-Type": "text/event-stream", "X-PLLM-Transport": "1"},
                         stream=_sync_stream(response_httpx, chunks()),
                         request=request,
                     )
                 result = self.core.create(body)
                 return response_httpx.Response(
-                    200, json=result.to_dict(), headers={"X-HE-Transport": "1"}, request=request,
+                    200, json=result.to_dict(), headers={"X-PLLM-Transport": "1"}, request=request,
                 )
             if request.method == "GET" and path.startswith("/v1/responses/"):
                 response_id = path.rsplit("/", 1)[-1]
@@ -126,10 +126,10 @@ class HETransport(_httpx.BaseTransport):
                 response_id = path.split("/")[-2]
                 return response_httpx.Response(200, json=self.core.cancel(response_id).to_dict(), request=request)
             return self._forward(request)
-        except HEAPIError as exc:
+        except ProtocolError as exc:
             return response_httpx.Response(
                 exc.status_code,
-                json={"error": {"message": str(exc), "type": "invalid_request_error", "code": "he_error"}},
+                json={"error": {"message": str(exc), "type": "invalid_request_error", "code": "runtime_error"}},
                 request=request,
             )
 
@@ -137,7 +137,7 @@ class HETransport(_httpx.BaseTransport):
         response_httpx = _request_httpx(request)
         headers = {key: value for key, value in request.headers.items() if key.lower() != "authorization"}
         # The public SDK credential is a local placeholder. Control-plane calls
-        # must use the remote gateway credential held by the HE transport.
+        # must use the remote gateway credential held by the runtime transport.
         headers["Authorization"] = f"Bearer {self.core.api_key}"
         response = self.forward.request(
             request.method,
@@ -158,9 +158,9 @@ class HETransport(_httpx.BaseTransport):
         self.forward.close()
 
 
-class HEAsyncTransport(_httpx.AsyncBaseTransport):
+class AsyncPLLMTransport(_httpx.AsyncBaseTransport):
     def __init__(self, **kwargs: Any) -> None:
-        self.sync = HETransport(**kwargs)
+        self.sync = PLLMTransport(**kwargs)
 
     async def handle_async_request(self, request: Any) -> Any:
         response_httpx = _request_httpx(request)
@@ -180,7 +180,7 @@ class HEAsyncTransport(_httpx.AsyncBaseTransport):
                     yield sse_done()
                 return response_httpx.Response(
                     200,
-                    headers={"Content-Type": "text/event-stream", "X-HE-Transport": "1"},
+                    headers={"Content-Type": "text/event-stream", "X-PLLM-Transport": "1"},
                     stream=_async_stream(response_httpx, chunks()),
                     request=request,
                 )

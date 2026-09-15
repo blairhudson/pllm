@@ -1,0 +1,14 @@
+[package]
+name = "pllm-garble"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Reference mixed-modulus arithmetic garbling for PLLM research"
+publish = false
+
+[dependencies]
+getrandom.workspace = true
+sha2.workspace = true
+zeroize.workspace = true

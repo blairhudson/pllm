@@ -75,7 +75,7 @@ def _create_demo_checkpoint(path: Path) -> Path:
         "eos_token_id": 1,
         "pad_token_id": 1,
         "rope_parameters": {"full_attention": {"rope_type": "default", "rope_theta": 10000.0}},
-        "he_test_tokenizer": "byte",
+        "pllm_test_tokenizer": "byte",
     }
     (path / "config.json").write_text(json.dumps(config), encoding="utf-8")
     (path / "tokenizer_config.json").write_text(
@@ -532,9 +532,13 @@ class DashboardRuntime:
         for model in models:
             if not isinstance(model, dict) or model.get("id") != self.config.model_id:
                 continue
-            raw_he = model.get("he")
-            he: dict[str, Any] = raw_he if isinstance(raw_he, dict) else {}
-            value = model.get("fingerprint") or he.get("fingerprint") or he.get("body_fingerprint")
+            raw_runtime = model.get("runtime")
+            runtime: dict[str, Any] = raw_runtime if isinstance(raw_runtime, dict) else {}
+            value = (
+                model.get("fingerprint")
+                or runtime.get("fingerprint")
+                or runtime.get("body_fingerprint")
+            )
             if value is not None:
                 fingerprint = str(value)
                 if (

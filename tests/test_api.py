@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pllm.runtime import GatewayConfig, OpenAI, create_app
-from pllm.runtime.client import HEAPIError, ResponseStream
+from pllm.runtime.client import ProtocolError, ResponseStream
 
 
 class RecordingClient:
@@ -50,19 +50,19 @@ def test_auth_models_and_capabilities(test_client):
     assert test_client.get("/v1/models").status_code == 401
     models = test_client.get("/v1/models", headers=auth()).json()
     assert models["object"] == "list"
-    assert models["data"][0]["id"] == "he-bigram-demo"
-    caps = test_client.get("/v1/he/capabilities", headers=auth()).json()
+    assert models["data"][0]["id"] == "pllm-bigram-demo"
+    caps = test_client.get("/v1/runtime/capabilities", headers=auth()).json()
     assert caps["responses_api"] is True
     assert "http-binary" in caps["client_transports"]
     assert "local-test" in caps["correlation_modes"]
 
 
-def test_plaintext_response_request_is_rejected_for_strict_model(test_client):
+def test_plaintext_response_request_is_rejected_for_private_model(test_client):
     secret = "NEVER-LEAVE-CLIENT"
-    response = test_client.post("/v1/responses", headers=auth(), json={"model": "he-bigram-demo", "input": secret})
+    response = test_client.post("/v1/responses", headers=auth(), json={"model": "pllm-bigram-demo", "input": secret})
     assert response.status_code == 426
-    assert response.headers["upgrade"] == "he-responses/1"
-    assert response.json()["detail"]["error"]["code"] == "he_client_required"
+    assert response.headers["upgrade"] == "pllm-runtime/1"
+    assert response.json()["detail"]["error"]["code"] == "runtime_client_required"
 
 
 def test_drop_in_client_nonstreaming_and_privacy_audit(test_client):
@@ -75,7 +75,7 @@ def test_drop_in_client_nonstreaming_and_privacy_audit(test_client):
         correlation_prefetch=16,
         http_client=recorder,
     )
-    response = client.responses.create(model="he-bigram-demo", input=secret, max_output_tokens=32)
+    response = client.responses.create(model="pllm-bigram-demo", input=secret, max_output_tokens=32)
     assert response.output_text == "private\n"
     audit = client.privacy_audit.to_dict()
     assert audit["plaintext_prompt_bytes_sent"] == 0
@@ -90,7 +90,7 @@ def test_drop_in_client_nonstreaming_and_privacy_audit(test_client):
 
 def test_streaming_lifecycle_retrieve_previous_and_cancel(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", correlation_prefetch=16, http_client=test_client)
-    stream = client.responses.create(model="he-bigram-demo", input="first", stream=True, max_output_tokens=32)
+    stream = client.responses.create(model="pllm-bigram-demo", input="first", stream=True, max_output_tokens=32)
     assert isinstance(stream, ResponseStream)
     events = list(stream)
     assert events[0].type == "response.created"
@@ -99,7 +99,7 @@ def test_streaming_lifecycle_retrieve_previous_and_cancel(test_client):
     assert "".join(deltas) == "private\n"
     response_id = events[-1].response["id"]
     assert client.responses.retrieve(response_id).output_text == "private\n"
-    second = client.responses.create(model="he-bigram-demo", input="second", previous_response_id=response_id)
+    second = client.responses.create(model="pllm-bigram-demo", input="second", previous_response_id=response_id)
     assert second.previous_response_id == response_id
     assert client.responses.cancel(second.id).status == "cancelled"
 
@@ -132,7 +132,7 @@ def test_response_and_session_lifecycle_is_scoped_to_api_principal():
     second = {"Authorization": "Bearer second"}
     with TestClient(app) as client:
         active = client.post(
-            "/v1/he/sessions", headers=first, json={"model": "he-bigram-demo"}
+            "/v1/runtime/sessions", headers=first, json={"model": "pllm-bigram-demo"}
         ).json()
         response_id = active["response_id"]
 
@@ -146,11 +146,11 @@ def test_response_and_session_lifecycle_is_scoped_to_api_principal():
         assert app.state.sessions[active["id"]].canceled is True
 
         completed_session = client.post(
-            "/v1/he/sessions", headers=first, json={"model": "he-bigram-demo"}
+            "/v1/runtime/sessions", headers=first, json={"model": "pllm-bigram-demo"}
         ).json()
         completed_id = completed_session["response_id"]
         complete = client.post(
-            f"/v1/he/sessions/{completed_session['id']}/complete",
+            f"/v1/runtime/sessions/{completed_session['id']}/complete",
             headers=first,
             json={"usage": {}},
         )
@@ -166,28 +166,28 @@ def test_response_and_session_lifecycle_is_scoped_to_api_principal():
 
 def test_unknown_previous_response_is_client_side_error(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", http_client=test_client)
-    with pytest.raises(HEAPIError, match="previous_response_id"):
-        client.responses.create(model="he-bigram-demo", input="x", previous_response_id="resp_missing")
+    with pytest.raises(ProtocolError, match="previous_response_id"):
+        client.responses.create(model="pllm-bigram-demo", input="x", previous_response_id="resp_missing")
 
 
 def test_server_retains_only_redacted_operational_response(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", correlation_prefetch=16, http_client=test_client)
-    response = client.responses.create(model="he-bigram-demo", input="secret")
+    response = client.responses.create(model="pllm-bigram-demo", input="secret")
     # Client retrieval returns its private local cache.
     assert response.output_text == "private\n"
     # Raw remote retrieval contains no plaintext output.
     remote = test_client.get(f"/v1/responses/{response.id}", headers=auth()).json()
-    assert remote["he_redacted"] is True
+    assert remote["runtime_redacted"] is True
     assert remote["output"] == []
 
 
 def test_metrics_track_online_work(test_client):
     client = OpenAI(base_url="http://testserver", api_key="test", correlation_mode="local-test", correlation_prefetch=16, http_client=test_client)
-    client.responses.create(model="he-bigram-demo", input="secret")
+    client.responses.create(model="pllm-bigram-demo", input="secret")
     assert test_client.get("/metrics").status_code == 401
     metrics = test_client.get("/metrics", headers=auth()).json()
     assert metrics["sessions"]["online_steps"] == 9
-    assert metrics["stage_schedulers"]["he-bigram-demo"]["items"] == 9
+    assert metrics["stage_schedulers"]["pllm-bigram-demo"]["items"] == 9
 
 
 def test_prefixed_backend_model_is_unprefixed_upstream_and_public_in_response():

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .transport import HEAsyncTransport, HETransport, _httpx
+from .transport import AsyncPLLMTransport, PLLMTransport, _httpx
 
 
 def create_openai_client(
@@ -11,9 +11,9 @@ def create_openai_client(
     gateway_api_key: str | None = None,
     preparation_url: str | None = None,
     preparation_api_key: str | None = None,
-    api_key: str = "he-local-transport",
-    base_url: str = "https://he.local/v1",
-    he_transport: str | None = None,
+    api_key: str = "pllm-local-transport",
+    base_url: str = "https://pllm.local/v1",
+    session_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
     prepared_inventory_rows: int | None = None,
@@ -23,7 +23,7 @@ def create_openai_client(
     tenseal_path: str | None = None,
     **client_kwargs: Any,
 ):
-    """Create the installed official ``openai.OpenAI`` client over HE.
+    """Create the installed official ``openai.OpenAI`` client over PLLM runtime.
 
     OpenAI Python SDK 3.x uses ``httpx2`` while older releases use ``httpx``.
     :mod:`pllm.runtime.transport` selects whichever transport package is installed,
@@ -31,7 +31,7 @@ def create_openai_client(
     """
     from pllm.settings import ClientSettings
     settings = ClientSettings.load().merged(
-        base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
+        base_url=gateway_url, api_key=gateway_api_key, transport=session_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
         prepared_inventory_rows=prepared_inventory_rows,
         token_cache_size=token_cache_size,
@@ -45,19 +45,19 @@ def create_openai_client(
         settings.preparation_base_url,
         settings.preparation_api_key,
     )
-    he_transport, correlation_mode = settings.transport, settings.correlation_mode
+    session_transport, correlation_mode = settings.transport, settings.correlation_mode
     correlation_prefetch, token_cache_size = settings.correlation_prefetch, settings.token_cache_size
     try:
         from openai import OpenAI as OfficialOpenAI
     except (ImportError, AttributeError) as exc:  # pragma: no cover - optional dependency
         raise RuntimeError("install the official OpenAI Python SDK to use this factory") from exc
 
-    transport = HETransport(
+    transport = PLLMTransport(
         gateway_url=gateway_url,
         api_key=gateway_api_key,
         preparation_url=preparation_url,
         preparation_api_key=preparation_api_key,
-        he_transport=he_transport,
+        session_transport=session_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
         prepared_inventory_rows=settings.prepared_inventory_rows,
@@ -88,9 +88,9 @@ def create_async_openai_client(
     gateway_api_key: str | None = None,
     preparation_url: str | None = None,
     preparation_api_key: str | None = None,
-    api_key: str = "he-local-transport",
-    base_url: str = "https://he.local/v1",
-    he_transport: str | None = None,
+    api_key: str = "pllm-local-transport",
+    base_url: str = "https://pllm.local/v1",
+    session_transport: str | None = None,
     correlation_mode: str | None = None,
     correlation_prefetch: int | None = None,
     prepared_inventory_rows: int | None = None,
@@ -102,7 +102,7 @@ def create_async_openai_client(
 ):
     from pllm.settings import ClientSettings
     settings = ClientSettings.load().merged(
-        base_url=gateway_url, api_key=gateway_api_key, transport=he_transport,
+        base_url=gateway_url, api_key=gateway_api_key, transport=session_transport,
         correlation_mode=correlation_mode, correlation_prefetch=correlation_prefetch,
         prepared_inventory_rows=prepared_inventory_rows,
         token_cache_size=token_cache_size,
@@ -116,19 +116,19 @@ def create_async_openai_client(
         settings.preparation_base_url,
         settings.preparation_api_key,
     )
-    he_transport, correlation_mode = settings.transport, settings.correlation_mode
+    session_transport, correlation_mode = settings.transport, settings.correlation_mode
     correlation_prefetch, token_cache_size = settings.correlation_prefetch, settings.token_cache_size
     try:
         from openai import AsyncOpenAI as OfficialAsyncOpenAI
     except (ImportError, AttributeError) as exc:  # pragma: no cover - optional dependency
         raise RuntimeError("install the official OpenAI Python SDK to use this factory") from exc
 
-    transport = HEAsyncTransport(
+    transport = AsyncPLLMTransport(
         gateway_url=gateway_url,
         api_key=gateway_api_key,
         preparation_url=preparation_url,
         preparation_api_key=preparation_api_key,
-        he_transport=he_transport,
+        session_transport=session_transport,
         correlation_mode=correlation_mode,
         correlation_prefetch=correlation_prefetch,
         prepared_inventory_rows=settings.prepared_inventory_rows,

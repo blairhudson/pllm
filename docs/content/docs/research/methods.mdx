@@ -1,0 +1,17 @@
+---
+title: "Method implementations"
+description: "Understand the difference between a published method and PLLM's independent implementation of it."
+---
+
+The current registered implementation is
+`pllm.method.mpcache-structural-adaptation.v1`, inspired by
+[`pllm.source.mpcache.arxiv-2501.06807v2`](https://arxiv.org/abs/2501.06807v2).
+It changes KV-cache structure in a `DecoderPlan`. It does not reproduce the
+paper's protected three-party runtime.
+
+The generated [method catalog](/research/records/method-catalog/#method-implementations)
+lists versions, provenance, compatible representations and roles, coverage,
+evidence, and limitations. Fidelity, protected execution, assurance, benchmarks,
+and promotion have not been evaluated for the current method.
+
+A method that resembles a paper is not automatically a faithful reproduction.

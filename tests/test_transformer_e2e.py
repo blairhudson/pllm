@@ -10,11 +10,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from conftest import start_gateway, start_preparation
 from pllm.runtime import GatewayConfig, OpenAI, create_app
-from pllm.runtime.client import HEAPIError
+from pllm.runtime.client import ProtocolError
 from pllm.runtime.correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
 )
-from pllm.runtime.he_runtime import HEModelError
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.preparation_protocol import CorrectionPush, PreparationAck, SessionAuthorization
 from pllm.runtime.protocol import encode_length_prefixed
@@ -33,18 +32,18 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
     root = create_tiny_gemma4_checkpoint(tmp_path / "tiny")
     engine = MaskedTransformerEngine(threads=1)
     gateway = start_gateway(engines={engine.capabilities.name: engine})
-    preparation, preparation_engine = prepared_service(root, "tiny-gemma-he", gateway)
+    preparation, preparation_engine = prepared_service(root, "tiny-gemma-pllm", gateway)
     canary = "PRIVATE-CANARY-4b6a8739"
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": engine.capabilities.name,
                     "kind": "huggingface",
                     "path": str(root),
-                    "model_id": "tiny-gemma-he",
+                    "model_id": "tiny-gemma-pllm",
                 },
             )
             assert loaded.status_code == 200, loaded.text
@@ -58,7 +57,7 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
             background_inventory_refill=False,
         ) as client:
             response = client.responses.create(
-                model="tiny-gemma-he",
+                model="tiny-gemma-pllm",
                 input=canary,
                 max_output_tokens=2,
                 temperature=0,
@@ -74,7 +73,7 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
             assert audit["preparation_upload_bytes"] > 0
 
             stream = client.responses.create(
-                model="tiny-gemma-he",
+                model="tiny-gemma-pllm",
                 input="abandoned",
                 max_output_tokens=1,
                 stream=True,
@@ -105,7 +104,7 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": engine.capabilities.name,
@@ -165,7 +164,7 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             assert second_audit["inference_upload_bytes"] > audit["inference_upload_bytes"]
             inventory_id = client.prepared_inventory_status(model_id)["id"]
             canceled = httpx.post(
-                f"{gateway.base_url}/v1/he/inventories/{inventory_id}/cancel",
+                f"{gateway.base_url}/v1/runtime/inventories/{inventory_id}/cancel",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
             )
             assert canceled.status_code == 200, canceled.text
@@ -229,7 +228,7 @@ def test_seeded_preparation_accepts_prefill_larger_than_decode_scheduler_batch(
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": engine.capabilities.name,
@@ -260,7 +259,7 @@ def test_seeded_preparation_accepts_prefill_larger_than_decode_scheduler_batch(
             assert response.status == "completed"
             assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
             retired = httpx.get(
-                f"{gateway.base_url}/v1/he/inventories/{inventory_id}",
+                f"{gateway.base_url}/v1/runtime/inventories/{inventory_id}",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
             )
             assert retired.status_code == 404
@@ -298,14 +297,14 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
     headers = {"Authorization": "Bearer client"}
     with TestClient(app) as client:
         session_response = client.post(
-            "/v1/he/sessions",
+            "/v1/runtime/sessions",
             headers=headers,
             json={"model": model_id, "execution": "seeded-preparation", "max_output_tokens": 1},
         )
         assert session_response.status_code == 200, session_response.text
         session_id = session_response.json()["id"]
         capacity = client.post(
-            "/v1/he/sessions",
+            "/v1/runtime/sessions",
             headers=headers,
             json={"model": model_id, "execution": "seeded-preparation"},
         )
@@ -337,7 +336,7 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         activation = activation_request.pack()
         calls_before = runtime.calls
         response = client.post(
-            f"/v1/he/sessions/{session_id}/stages/{stage.id}",
+            f"/v1/runtime/sessions/{session_id}/stages/{stage.id}",
             headers=headers,
             content=encode_length_prefixed([activation]),
         )
@@ -346,7 +345,7 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         assert runtime.calls == calls_before
 
         oversized = client.post(
-            f"/v1/he/sessions/{session_id}/stages/{stage.id}",
+            f"/v1/runtime/sessions/{session_id}/stages/{stage.id}",
             headers={**headers, "Content-Length": str(268_435_457)},
             content=b"x",
         )
@@ -358,19 +357,19 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         )
         authorization_payload = authorization.pack()
         rejected_authorization = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers=headers,
             content=authorization_payload,
         )
         assert rejected_authorization.status_code == 401
         oversized_authorization = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers={"Authorization": "Bearer push", "Content-Length": "16385"},
             content=b"x",
         )
         assert oversized_authorization.status_code == 413
         mismatched_authorization = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers={"Authorization": "Bearer push"},
             content=SessionAuthorization(
                 session_id=session_id,
@@ -384,14 +383,14 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         )
         assert mismatched_authorization.status_code == 409
         authorized = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers={"Authorization": "Bearer push"},
             content=authorization_payload,
         )
         assert authorized.status_code == 200, authorized.text
 
         with client.websocket_connect(
-            "/v1/he/corrections/ws",
+            "/v1/runtime/corrections/ws",
             headers={"Authorization": "Bearer push"},
             subprotocols=[CORRECTION_CHANNEL_SUBPROTOCOL],
         ) as corrections:
@@ -422,14 +421,14 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
                 corrections.receive_bytes()
             assert replayed_correction.value.code == 4409
         replayed = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers={"Authorization": "Bearer push"},
             content=authorization_payload,
         )
         assert replayed.status_code == 409
         assert "already consumed" in replayed.text
         mismatched_activation = client.post(
-            f"/v1/he/sessions/{session_id}/stages/{stage.id}",
+            f"/v1/runtime/sessions/{session_id}/stages/{stage.id}",
             headers=headers,
             content=encode_length_prefixed(
                 [replace(activation_request, weight_digest="wrong").pack()]
@@ -443,7 +442,7 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         race_activation = replace(activation_request, correlation_id=race_attempt)
         race_correction = replace(correction, attempt_id=race_attempt)
         pushed = client.post(
-            f"/v1/he/sessions/{session_id}/corrections/{race_attempt}",
+            f"/v1/runtime/sessions/{session_id}/corrections/{race_attempt}",
             headers={"Authorization": "Bearer push"},
             content=race_correction.pack(),
         )
@@ -458,20 +457,20 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
 
         engine.execute_stage = execute_then_cancel
         raced = client.post(
-            f"/v1/he/sessions/{session_id}/stages/{stage.id}",
+            f"/v1/runtime/sessions/{session_id}/stages/{stage.id}",
             headers=headers,
             content=encode_length_prefixed([race_activation.pack()]),
         )
         assert raced.status_code == 400
         assert "already terminal" in raced.text
         unknown = client.post(
-            "/v1/he/sessions/unknown/authorize",
+            "/v1/runtime/sessions/unknown/authorize",
             headers={"Authorization": "Bearer push"},
             content=authorization_payload,
         )
         assert unknown.status_code == 409
         oversized_correction = client.post(
-            f"/v1/he/sessions/{session_id}/corrections/{'8' * 32}",
+            f"/v1/runtime/sessions/{session_id}/corrections/{'8' * 32}",
             headers={
                 "Authorization": "Bearer push",
                 "Content-Length": str(268_435_457),
@@ -480,13 +479,13 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         )
         assert oversized_correction.status_code == 413
         completed = client.post(
-            f"/v1/he/sessions/{session_id}/complete",
+            f"/v1/runtime/sessions/{session_id}/complete",
             headers=headers,
             json={"usage": {}},
         )
         assert completed.status_code == 200
         terminal = client.post(
-            f"/v1/he/sessions/{session_id}/authorize",
+            f"/v1/runtime/sessions/{session_id}/authorize",
             headers={"Authorization": "Bearer push"},
             content=authorization_payload,
         )
@@ -496,13 +495,13 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         assert client.get("/metrics", headers=headers).status_code == 200
 
         stale = client.post(
-            "/v1/he/sessions",
+            "/v1/runtime/sessions",
             headers=headers,
             json={"model": model_id, "execution": "seeded-preparation"},
         ).json()
         app.state.sessions[stale["id"]].last_active -= 61
         replacement = client.post(
-            "/v1/he/sessions",
+            "/v1/runtime/sessions",
             headers=headers,
             json={"model": model_id, "execution": "seeded-preparation"},
         )
@@ -522,7 +521,7 @@ def test_preparation_rejects_mismatched_body_weights(tmp_path: Path):
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": engine.capabilities.name,
@@ -533,7 +532,7 @@ def test_preparation_rejects_mismatched_body_weights(tmp_path: Path):
             )
             assert loaded.status_code == 200, loaded.text
             legacy = admin.post(
-                "/v1/he/sessions",
+                "/v1/runtime/sessions",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={"model": "tiny-mismatch"},
             )
@@ -545,7 +544,7 @@ def test_preparation_rejects_mismatched_body_weights(tmp_path: Path):
             preparation_base_url=preparation.base_url,
             preparation_api_key=preparation.api_key,
         ) as client:
-            with pytest.raises(HEAPIError, match="commitments do not match"):
+            with pytest.raises(ProtocolError, match="commitments do not match"):
                 client.responses.create(
                     model="tiny-mismatch",
                     input="mismatched providers",
@@ -574,7 +573,7 @@ def test_client_authorization_failure_burns_inference_session(tmp_path: Path):
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": inference_engine.capabilities.name,
@@ -590,7 +589,7 @@ def test_client_authorization_failure_burns_inference_session(tmp_path: Path):
             preparation_base_url=preparation.base_url,
             preparation_api_key=preparation.api_key,
         ) as client:
-            with pytest.raises(HEAPIError, match="401 Unauthorized"):
+            with pytest.raises(ProtocolError, match="401 Unauthorized"):
                 client.preprocess(model_id, count=64)
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             metrics = admin.get(
@@ -612,17 +611,17 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
     )
     engine = MaskedTransformerEngine(threads=1)
     gateway = start_gateway(engines={engine.capabilities.name: engine})
-    preparation, _ = prepared_service(root, "tiny-continuation-he", gateway)
+    preparation, _ = prepared_service(root, "tiny-continuation-pllm", gateway)
     try:
         with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
             loaded = admin.post(
-                "/v1/he/models/load",
+                "/v1/runtime/models/load",
                 headers={"Authorization": f"Bearer {gateway.api_key}"},
                 json={
                     "engine": engine.capabilities.name,
                     "kind": "huggingface",
                     "path": str(root),
-                    "model_id": "tiny-continuation-he",
+                    "model_id": "tiny-continuation-pllm",
                 },
             )
             assert loaded.status_code == 200, loaded.text
@@ -638,27 +637,27 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
             prepared_inventory_rows=256,
             background_inventory_refill=False,
         ) as client:
-            client.preprocess("tiny-continuation-he", count=256)
+            client.preprocess("tiny-continuation-pllm", count=256)
             first = client.responses.create(
-                model="tiny-continuation-he",
+                model="tiny-continuation-pllm",
                 input="repeat repeat repeat",
                 max_output_tokens=1,
                 temperature=0,
             )
-            before_qkv_rows = engine.models["tiny-continuation-he"].stages[
+            before_qkv_rows = engine.models["tiny-continuation-pllm"].stages[
                 "layers.0.self_attn.qkv_proj"
             ].rows
             # The final emitted token is carried into a future continuation
             # instead of paying for a transformer pass after the response ends.
             assert before_qkv_rows == first.usage.input_tokens
             second = client.responses.create(
-                model="tiny-continuation-he",
+                model="tiny-continuation-pllm",
                 previous_response_id=first.id,
                 input="repeat again",
                 max_output_tokens=1,
                 temperature=0,
             )
-            after_qkv_rows = engine.models["tiny-continuation-he"].stages[
+            after_qkv_rows = engine.models["tiny-continuation-pllm"].stages[
                 "layers.0.self_attn.qkv_proj"
             ].rows
             audit = client.privacy_audit.to_dict()
@@ -666,8 +665,8 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
             assert audit["kv_continuation_hits"] == 1
             assert audit["kv_continuation_misses"] == 0
             assert audit["token_lookup_cache_hits"] == 0
-            assert engine.models["tiny-continuation-he"].stages["token_lookup"].calls == 0
-            assert engine.models["tiny-continuation-he"].stages["lm_head"].calls == 0
+            assert engine.models["tiny-continuation-pllm"].stages["token_lookup"].calls == 0
+            assert engine.models["tiny-continuation-pllm"].stages["lm_head"].calls == 0
             # The continuation executes only the newly appended template suffix,
             # not the full context represented by the public usage count.
             assert after_qkv_rows - before_qkv_rows < second.usage.input_tokens
@@ -691,7 +690,7 @@ def test_official_sdk_factory_forwards_transformer_cache_options(monkeypatch):
         def __init__(self, **kwargs):
             captured["client"] = kwargs
 
-    monkeypatch.setattr(official, "HETransport", FakeTransport)
+    monkeypatch.setattr(official, "PLLMTransport", FakeTransport)
     monkeypatch.setattr(official._httpx, "Client", lambda *, transport: ("http-client", transport))
     monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=FakeOfficialClient))
     result = official.create_openai_client(

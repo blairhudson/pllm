@@ -5,10 +5,14 @@ use pllm_core::{codec, kernels};
 
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::{PyBytes, PyDict, PyTuple};
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
+}
+fn compilation_invalid(diagnostics: Vec<pllm_compiler::Diagnostic>) -> PyErr {
+    let json = pllm_compiler::diagnostics_json(&diagnostics);
+    PyValueError::new_err(String::from_utf8_lossy(&json).into_owned())
 }
 fn bytes_u32(values: &[u32]) -> Vec<u8> {
     let mut output = Vec::with_capacity(std::mem::size_of_val(values));
@@ -67,6 +71,242 @@ impl Matrix {
     fn weight_bytes(&self) -> usize {
         self.inner.weight_bytes()
     }
+}
+
+#[pyclass(frozen, module = "pllm._native")]
+struct CompiledPlan {
+    inner: pllm_compiler::CompiledPlan,
+}
+
+#[pyclass(frozen, module = "pllm._native")]
+struct ResolvedExperimentProfile {
+    inner: pllm_compiler::ResolvedExperimentProfile,
+}
+#[pymethods]
+impl ResolvedExperimentProfile {
+    #[getter]
+    fn canonical_profile<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.inner.canonical_profile())
+    }
+    #[getter]
+    fn configuration_digest(&self) -> String {
+        self.inner.configuration_digest().to_string()
+    }
+    #[getter]
+    fn model(&self) -> &str {
+        self.inner.model()
+    }
+}
+#[pymethods]
+impl CompiledPlan {
+    #[getter]
+    fn logical_plan<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.logical_json())
+    }
+    #[getter]
+    fn execution_plan<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.execution_json())
+    }
+    #[getter]
+    fn plan_lock<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.lock_json())
+    }
+    #[getter]
+    fn region_program<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.region_program_json())
+    }
+    #[getter]
+    fn configuration_digest(&self) -> String {
+        self.inner.logical.configuration_digest.to_string()
+    }
+    #[getter]
+    fn logical_plan_digest(&self) -> String {
+        self.inner.lock.logical_plan_digest.to_string()
+    }
+    #[getter]
+    fn execution_plan_digest(&self) -> String {
+        self.inner.lock.execution_plan_digest.to_string()
+    }
+    #[getter]
+    fn plan_lock_digest(&self) -> String {
+        pllm_types::plan_lock_digest(&self.inner.lock).to_string()
+    }
+    #[getter]
+    fn input_shape<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        PyTuple::new(py, &self.inner.region_program.input.shape)
+    }
+    #[getter]
+    fn output_shape<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        PyTuple::new(py, &self.inner.region_program.output.shape)
+    }
+    #[pyo3(signature=(weights,input,threads=1,simd=true))]
+    fn execute_wrap32<'py>(
+        &self,
+        py: Python<'py>,
+        weights: &Bound<'_, PyBytes>,
+        input: &Bound<'_, PyBytes>,
+        threads: usize,
+        simd: bool,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let input = codec::u32s(input.as_bytes()).map_err(invalid)?;
+        let weights = weights.as_bytes();
+        let output = py
+            .detach(|| pllm_compiler::execute_wrap32(&self.inner, weights, &input, threads, simd))
+            .map_err(invalid)?;
+        Ok(PyBytes::new(py, &bytes_u32(&output)))
+    }
+    #[pyo3(signature=(weights,input,benchmark_id,privacy_cohort,numeric_cohort,environment,warmups=3,repetitions=10,threads=1,simd=true))]
+    #[allow(clippy::too_many_arguments)]
+    fn benchmark_wrap32<'py>(
+        &self,
+        py: Python<'py>,
+        weights: &Bound<'_, PyBytes>,
+        input: &Bound<'_, PyBytes>,
+        benchmark_id: String,
+        privacy_cohort: String,
+        numeric_cohort: String,
+        environment: &Bound<'_, PyBytes>,
+        warmups: u32,
+        repetitions: u32,
+        threads: usize,
+        simd: bool,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let input = codec::u32s(input.as_bytes()).map_err(invalid)?;
+        let weights: Vec<i8> = weights
+            .as_bytes()
+            .iter()
+            .map(|value| *value as i8)
+            .collect();
+        let environment = serde_json::from_slice(environment.as_bytes())
+            .map_err(|error| invalid(format!("invalid benchmark environment JSON: {error}")))?;
+        let options = pllm_bench::BenchmarkOptions {
+            id: benchmark_id,
+            privacy_cohort,
+            numeric_cohort,
+            warmups,
+            repetitions,
+            threads,
+            simd,
+            environment,
+        };
+        let report = py
+            .detach(|| pllm_bench::benchmark_wrap32(&self.inner, &weights, &input, options))
+            .map_err(|error| invalid(error.to_string()))?;
+        let document = report
+            .canonical_json()
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &document))
+    }
+}
+
+#[pyfunction]
+fn compile_plan(document: &Bound<'_, PyBytes>) -> PyResult<CompiledPlan> {
+    Ok(CompiledPlan {
+        inner: pllm_compiler::compile_document(document.as_bytes()).map_err(compilation_invalid)?,
+    })
+}
+
+#[pyfunction]
+fn resolve_experiment(document: &Bound<'_, PyBytes>) -> PyResult<ResolvedExperimentProfile> {
+    Ok(ResolvedExperimentProfile {
+        inner: pllm_compiler::resolve_experiment(document.as_bytes()).map_err(invalid)?,
+    })
+}
+
+#[pyfunction]
+fn assurance_report(py: Python<'_>) -> Bound<'_, PyBytes> {
+    PyBytes::new(py, &pllm_assurance::report_bytes())
+}
+
+#[pyfunction]
+fn assurance_results(py: Python<'_>) -> Bound<'_, PyBytes> {
+    PyBytes::new(
+        py,
+        &pllm_types::canonical_bytes(&pllm_assurance::assurance_results()),
+    )
+}
+
+#[pyfunction]
+fn lower_model<'py>(
+    py: Python<'py>,
+    config: &Bound<'_, PyBytes>,
+    batch: u64,
+    max_input_tokens: u64,
+    max_new_tokens: u64,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let workload = pllm_models::DecoderWorkload {
+        batch,
+        max_input_tokens,
+        max_new_tokens,
+    };
+    let plan = pllm_models::lower_model_json(config.as_bytes(), workload)
+        .map_err(|error| invalid(error.to_string()))?;
+    Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&plan)))
+}
+
+#[pyfunction]
+fn decoder_coverage<'py>(
+    py: Python<'py>,
+    plan: &Bound<'_, PyBytes>,
+    profile: &str,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
+        .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
+    let report = pllm_compiler::decoder_coverage(&plan, profile);
+    Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&report)))
+}
+
+#[pyfunction]
+fn apply_model_component<'py>(
+    py: Python<'py>,
+    plan: &[u8],
+    component: &[u8],
+) -> PyResult<Bound<'py, PyBytes>> {
+    let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan)
+        .map_err(|error| invalid(format!("invalid decoder plan: {error}")))?;
+    let mut component: serde_json::Value = serde_json::from_slice(component)
+        .map_err(|error| invalid(format!("invalid model component: {error}")))?;
+    let name = component
+        .get("component")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| invalid("model component requires component".to_owned()))?;
+    if name != "pllm/kv-cache-eviction" {
+        return Err(invalid(format!("unsupported model component {name:?}")));
+    }
+    let params = component
+        .get_mut("params")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or_else(|| invalid("model component requires object params".to_owned()))?;
+    let implementation = params
+        .remove("implementation")
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .ok_or_else(|| invalid("KV-cache eviction requires implementation".to_owned()))?;
+    if implementation != "pllm/mpcache/v1" {
+        return Err(invalid(format!(
+            "unsupported KV-cache eviction implementation {implementation:?}"
+        )));
+    }
+    let policy: pllm_method_mpcache::MpcachePolicy =
+        serde_json::from_value(serde_json::Value::Object(params.clone()))
+            .map_err(|error| invalid(format!("invalid MPCache policy: {error}")))?;
+    let optimized =
+        pllm_method_mpcache::optimize(&plan, policy).map_err(|error| invalid(error.to_string()))?;
+    Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&optimized)))
+}
+
+#[pyfunction]
+fn deployment_benchmark_report<'py>(
+    py: Python<'py>,
+    document: &Bound<'_, PyBytes>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let request = serde_json::from_slice(document.as_bytes())
+        .map_err(|error| invalid(format!("invalid deployment benchmark JSON: {error}")))?;
+    let report =
+        pllm_bench::deployment_report(request).map_err(|error| invalid(error.to_string()))?;
+    let document = report
+        .canonical_json()
+        .map_err(|error| invalid(error.to_string()))?;
+    Ok(PyBytes::new(py, &document))
 }
 
 #[pyclass(frozen, module = "pllm._native")]
@@ -236,11 +476,7 @@ fn quantize<'py>(
     ))
 }
 #[pyfunction]
-fn uniform_residues<'py>(
-    py: Python<'py>,
-    modulus: u64,
-    count: usize,
-) -> PyResult<Bound<'py, PyBytes>> {
+fn uniform_residues(py: Python<'_>, modulus: u64, count: usize) -> PyResult<Bound<'_, PyBytes>> {
     let values = py
         .detach(|| codec::random_residues(modulus, count))
         .map_err(PyRuntimeError::new_err)?;
@@ -263,7 +499,17 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Matrix>()?;
+    module.add_class::<CompiledPlan>()?;
+    module.add_class::<ResolvedExperimentProfile>()?;
     module.add_class::<Executor>()?;
+    module.add_function(wrap_pyfunction!(compile_plan, module)?)?;
+    module.add_function(wrap_pyfunction!(resolve_experiment, module)?)?;
+    module.add_function(wrap_pyfunction!(assurance_report, module)?)?;
+    module.add_function(wrap_pyfunction!(assurance_results, module)?)?;
+    module.add_function(wrap_pyfunction!(lower_model, module)?)?;
+    module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
+    module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
+    module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;
     module.add_function(wrap_pyfunction!(capabilities, module)?)?;
     module.add_function(wrap_pyfunction!(pack_unsigned, module)?)?;
     module.add_function(wrap_pyfunction!(unpack_unsigned, module)?)?;

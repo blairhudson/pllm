@@ -52,7 +52,7 @@ class BlindedTransformerEngine(MaskedTransformerEngine):
         model_sources=("huggingface", "safetensors", "vllm", "mlx-lm"),
         protocols=("blinded-ole.stage/v1", "bfv-blinded-correlation/v1"),
         online_fhe=False,
-        he_preprocessed=True,
+        preprocessed=True,
         continuous_batching=True,
         notes=(
             "all learned dense matrices remain server-side",
@@ -81,7 +81,7 @@ class BlindedTransformerEngine(MaskedTransformerEngine):
                 "privacy_protocol": "blinded_ole_w4a4",
                 "client_runtime": "blinded_ole_transformer_v1",
                 "online_fhe": False,
-                "he_preprocessed": True,
+                "preprocessed": True,
                 "model_weight_correlations_disclosed": False,
                 "output_blinded_correlations": True,
                 "model_privacy_threat_model": "honest_but_curious_client",
@@ -243,7 +243,7 @@ class BlindedTransformerEngine(MaskedTransformerEngine):
             key = (stage_id, context_id)
             server = model.bfv_servers.get(key)
             if server is None:
-                from .he_runtime import BFVCorrelationServer
+                from .bfv_correlations import BFVCorrelationServer
 
                 server = BFVCorrelationServer(runtime.weight.values, pydeps_path=self.tenseal_path)
                 server.register_context(context_id, public)
@@ -381,7 +381,7 @@ class BlindedTransformerEngine(MaskedTransformerEngine):
             "mode": "proprietary",
             "protocol": "blinded_ole_w4a4",
             "online_fhe": False,
-            "he_preprocessed": True,
+            "preprocessed": True,
             "model_weight_correlations_disclosed": False,
             "output_blinded_correlations": True,
             "client_intermediate_activations": True,

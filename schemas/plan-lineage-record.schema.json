@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/plan-lineage-record.schema.json",
+  "title": "PLLM plan lineage record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "plan_lock_digest", "logical_plan_digest", "execution_plan_digest", "source_record_ids", "method_record_ids", "edges"],
+  "properties": {
+    "schema_version": {"const": "pllm.plan_lineage_record.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "plan_lock_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "logical_plan_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "execution_plan_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "method_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "edges": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relation", "from_id", "to_id"],
+        "properties": {
+          "relation": {"enum": ["implements", "composes", "measured_by", "supports_claim", "supersedes", "retracts"]},
+          "from_id": {"type": "string", "minLength": 1},
+          "to_id": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

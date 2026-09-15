@@ -2,12 +2,12 @@ import os
 
 from pllm import OpenAI
 
-model = os.environ.get("HE_MODEL", "gemma-4-e2b-he")
+model = os.environ.get("PLLM_MODEL", "gemma-4-e2b-pllm")
 with OpenAI(
     base_url=os.environ.get("PLLM_BASE_URL", "http://127.0.0.1:8000"),
-    api_key=os.environ.get("PLLM_API_KEY", "he-local"),
+    api_key=os.environ.get("PLLM_API_KEY", "pllm-local"),
     correlation_mode=os.environ.get("PLLM_CORRELATION_MODE", "bfv"),
-    he_transport="websocket",
+    session_transport="websocket",
     correlation_prefetch=8,
     token_cache_size=4096,
 ) as client:

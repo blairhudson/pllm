@@ -1,0 +1,17 @@
+---
+title: "Metrics"
+description: "Choose clear performance, resource, quality, and privacy measurements for a PLLM experiment."
+---
+
+No single number describes system performance. Report tokens per second, time to
+first token, per-token latency, peak and retained memory, CPU time and use,
+online and offline network traffic, disk use, preparation work, and failures.
+Energy and price require measurements from the stated environment.
+
+Define each metric's scope and denominator. Keep prefill separate from decode,
+client from provider, offline from online, cold from warm, and useful output from
+attempted work. Record model quality and privacy assurance separately from
+performance.
+
+Telemetry must never include prompts, generated text, token IDs, activations,
+seeds, masks, or credentials.

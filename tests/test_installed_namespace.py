@@ -31,3 +31,27 @@ def test_explicit_native_requirement_cannot_fall_back(monkeypatch):
     import pytest
     with pytest.raises(RuntimeError, match='Rust validation'):
         extension()
+
+
+def test_public_domain_facades_share_root_identities():
+    import pllm
+    from pllm.config import ExecutionBudget, Experiment
+    from pllm.models import DecoderCoverageReport, ModelPlan, lower_model
+    from pllm.plan import CompiledPlan
+
+    assert pllm.ExecutionBudget is ExecutionBudget
+    assert pllm.Experiment is Experiment
+    assert pllm.DecoderCoverageReport is DecoderCoverageReport
+    assert pllm.ModelPlan is ModelPlan
+    assert pllm.lower_model is lower_model
+    assert pllm.CompiledPlan is CompiledPlan
+
+
+def test_runtime_facade_is_intentionally_narrow():
+    import pllm.runtime as runtime
+
+    assert set(runtime.__all__) == {
+        'AsyncOpenAI', 'AsyncPLLMTransport', 'ExecutionBudget', 'GatewayConfig', 'OpenAI',
+        'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol', 'create_app',
+        'create_sidecar_app', '__version__',
+    }

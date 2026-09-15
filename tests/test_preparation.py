@@ -12,7 +12,7 @@ import httpx
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from pllm.runtime.client import HEClientCore, OpenAI
+from pllm.runtime.client import OpenAI, RuntimeClient
 from pllm.runtime.config import GatewayConfig
 from pllm.runtime.correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -20,7 +20,7 @@ from pllm.runtime.correction_channel import (
     CorrectionWebSocketClient,
 )
 from pllm.runtime.correction_rendezvous import CorrectionRendezvous, RendezvousError
-from pllm.runtime.he_runtime import HEModelError
+from pllm.runtime.masked_runtime import ModelError
 from pllm.runtime.preparation_protocol import (
     CorrectionPush,
     PreparationAck,
@@ -698,7 +698,7 @@ def test_preparation_session_registry_bounds_owners_attempts_and_idle_lifetime(
 
 
 def test_client_activity_gate_prevents_preparation_and_online_overlap():
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="http://127.0.0.1:18000",
         api_key="client",
         preparation_base_url="http://127.0.0.1:18001",
@@ -706,11 +706,11 @@ def test_client_activity_gate_prevents_preparation_and_online_overlap():
     )
     try:
         core._begin_preparation()
-        with pytest.raises(HEModelError, match="refill is in progress"):
+        with pytest.raises(ModelError, match="refill is in progress"):
             core._begin_online()
         core._end_preparation()
         core._begin_online()
-        with pytest.raises(HEModelError, match="cannot run while inference is online"):
+        with pytest.raises(ModelError, match="cannot run while inference is online"):
             core._begin_preparation()
         core._end_online()
     finally:
@@ -935,13 +935,13 @@ def test_correction_endpoint_accepts_only_push_credential():
     )
     with TestClient(app) as client:
         rejected = client.post(
-            f"/v1/he/inventories/hes/corrections/{ATTEMPT}",
+            f"/v1/runtime/inventories/rts/corrections/{ATTEMPT}",
             headers={"Authorization": "Bearer client-key"},
             content=b"invalid",
         )
         assert rejected.status_code == 401
         authenticated = client.post(
-            f"/v1/he/inventories/hes/corrections/{ATTEMPT}",
+            f"/v1/runtime/inventories/rts/corrections/{ATTEMPT}",
             headers={"Authorization": "Bearer push-key"},
             content=b"invalid",
         )
@@ -986,7 +986,7 @@ def test_correction_websocket_accepts_only_push_credential_and_bounds_frames():
     with TestClient(app) as client:
         with pytest.raises(WebSocketDisconnect) as rejected:
             with client.websocket_connect(
-                "/v1/he/corrections/ws",
+                "/v1/runtime/corrections/ws",
                 headers={"Authorization": "Bearer client-key"},
                 subprotocols=[CORRECTION_CHANNEL_SUBPROTOCOL],
             ):
@@ -994,7 +994,7 @@ def test_correction_websocket_accepts_only_push_credential_and_bounds_frames():
         assert rejected.value.code == 4401
 
         with client.websocket_connect(
-            "/v1/he/corrections/ws",
+            "/v1/runtime/corrections/ws",
             headers={"Authorization": "Bearer push-key"},
             subprotocols=[CORRECTION_CHANNEL_SUBPROTOCOL],
         ) as websocket:
@@ -1053,7 +1053,7 @@ def test_correction_websocket_serializes_sends_and_never_retries_ambiguous_send(
 
         monkeypatch.setattr(channel_module, "connect", fake_connect)
         channel = CorrectionWebSocketClient(
-            "wss://inference.example/v1/he/corrections/ws",
+            "wss://inference.example/v1/runtime/corrections/ws",
             "push-key",
             timeout=1,
             max_payload_bytes=1000,
@@ -1070,7 +1070,7 @@ def test_correction_websocket_serializes_sends_and_never_retries_ambiguous_send(
         await channel.close()
 
         disconnected = CorrectionWebSocketClient(
-            "wss://inference.example/v1/he/corrections/ws",
+            "wss://inference.example/v1/runtime/corrections/ws",
             "push-key",
             timeout=1,
             max_payload_bytes=1000,

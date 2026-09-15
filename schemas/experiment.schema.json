@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/experiment.schema.json",
+  "title": "PLLM experiment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "pipeline", "deployment", "budget"],
+  "properties": {
+    "schema": {"const": "pllm.experiment.v1"},
+    "name": {"type": "string", "minLength": 1},
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "model", "components"],
+      "properties": {
+        "profile": {"type": "string", "minLength": 1},
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source"],
+          "properties": {"source": {"type": "string", "minLength": 1}}
+        },
+        "components": {
+          "type": "object",
+          "propertyNames": {"pattern": "^(?!.*__).+$"},
+          "additionalProperties": {"$ref": "#/$defs/componentRef"}
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "root"],
+      "properties": {
+        "kind": {"const": "local"},
+        "root": {"type": "string", "minLength": 1}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "max_input_tokens", "max_new_tokens"],
+      "properties": {
+        "requests": {"type": "integer", "minimum": 1},
+        "max_input_tokens": {"type": "integer", "minimum": 1},
+        "max_new_tokens": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "$defs": {
+    "jsonValue": {
+      "anyOf": [
+        {"type": ["null", "boolean", "string", "number"]},
+        {"type": "array", "items": {"$ref": "#/$defs/jsonValue"}},
+        {
+          "type": "object",
+          "propertyNames": {"pattern": "^(?!.*__).+$"},
+          "additionalProperties": {"$ref": "#/$defs/jsonValue"}
+        }
+      ]
+    },
+    "componentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "params"],
+      "properties": {
+        "component": {"type": "string", "minLength": 1},
+        "params": {
+          "type": "object",
+          "propertyNames": {"pattern": "^(?!component$)(?!params$)(?!.*__).+$"},
+          "additionalProperties": {"$ref": "#/$defs/jsonValue"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"component": {"const": "pllm/cpu"}}, "required": ["component"]},
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["threads"],
+                "properties": {"threads": {"type": "integer", "minimum": 1}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "component": {
+                "enum": ["pllm/masked-linear", "pllm/model-aware-corrections"]
+              }
+            },
+            "required": ["component"]
+          },
+          "then": {"properties": {"params": {"maxProperties": 0}}}
+        }
+      ]
+    }
+  }
+}

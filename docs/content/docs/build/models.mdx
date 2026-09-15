@@ -1,0 +1,33 @@
+---
+title: "Models"
+description: "Turn model-family configuration into a shared decoder plan."
+---
+
+Current semantic adapters cover dense Qwen2 and Qwen3 configuration contracts plus pinned Qwen3.5-4B, Phi-4-mini-instruct, Gemma 4 E2B, and Gemma 4 E4B text-decoder configurations described by package tests. Lowering reads configuration only. It does not load checkpoints, tokenizers, weights, devices, or runtime state.
+
+## Add an adapter
+
+1. Parse one explicit public model-family configuration and reject unknown variants.
+2. Emit bounded prefill and decode semantics in neutral `DecoderPlan`; do not select protocol, provider, or device.
+3. Preserve operation order, shapes, numeric semantics, state, output selection, and token feedback.
+4. Add adapter fixtures, structural tests, and rejection tests.
+5. Measure compiler operator coverage separately; never call semantic lowering executable support.
+
+See [package structure](https://github.com/blairhudson/pllm/blob/main/design/package-structure.md), [Python API contract](https://github.com/blairhudson/pllm/blob/main/design/python-api.md), and [decoder-plan schema](https://github.com/blairhudson/pllm/blob/main/schemas/decoder-plan.schema.json).
+
+Current generation quality evidence: not recorded. Current deployment maturity for these semantic plans: not recorded.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+print(plan.to_dict()["adapter"])
+```
+
+`model-config.json` is a supported model-family configuration; lowering does not load or execute weights.

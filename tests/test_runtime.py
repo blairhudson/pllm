@@ -6,12 +6,11 @@ import os
 import numpy as np
 import pytest
 
-from pllm.runtime.he_runtime import (
-    BFVCorrelationClient,
-    BFVCorrelationServer,
+from pllm.runtime.bfv_correlations import BFVCorrelationClient, BFVCorrelationServer
+from pllm.runtime.masked_runtime import (
     BigramStageExecutor,
     CorrelationPool,
-    HEModelError,
+    ModelError,
     LocalCorrelationFactory,
     MaskCorrelation,
     MaskedBigramClientSession,
@@ -20,7 +19,7 @@ from pllm.runtime.he_runtime import (
     centered_mod,
 )
 
-PYDEPS = os.environ.get("HE_OPENAI_PYDEPS", "")
+PYDEPS = os.environ.get("PLLM_TENSEAL_PATH", "")
 
 
 def test_local_correlation_exact_bigram_generation():
@@ -44,7 +43,7 @@ def test_correlation_pool_is_single_use():
     row = MaskCorrelation("x", np.array([1]), np.array([2]))
     pool.put(row)
     assert pool.take().id == "x"
-    with pytest.raises(HEModelError):
+    with pytest.raises(ModelError):
         pool.put(row)
 
 
@@ -102,5 +101,5 @@ def test_server_rejects_bfv_context_with_secret_key():
     client = BFVCorrelationClient(dimension=model.tokenizer.vocab_size, plain_modulus=model.modulus, pydeps_path=PYDEPS)
     server = BFVCorrelationServer(model.weight, pydeps_path=PYDEPS)
     private = client.context.serialize(save_public_key=True, save_secret_key=True, save_galois_keys=True, save_relin_keys=False)
-    with pytest.raises(HEModelError, match="secret key"):
+    with pytest.raises(ModelError, match="secret key"):
         server.register_context("bad", private)

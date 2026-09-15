@@ -1,0 +1,25 @@
+---
+title: "Qwen3.5"
+description: "Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B."
+---
+
+`pllm.qwen3_5_text.v1` lowers the text decoder in `Qwen/Qwen3.5-4B` revision `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. The upstream configuration SHA-256 is `ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670`; the checked fixture adds one repository newline and is verified against both representations.
+
+The plan retains the exact 3:1 linear/full layer schedule. Linear layers represent fused input projection, causal convolution state, Q/K L2 normalization, gated-delta decay and update, recurrent matrix state, and gated RMS normalization. Full-attention layers represent doubled query projection, Q/K normalization, partial multimodal rotary sections, KV state, and output gating. MTP configuration remains identity-bound but outside the base decoder graph.
+
+These newly explicit operators currently report missing compiler coverage. Semantic lowering does not claim an executable Qwen3.5 runtime, checkpoint importer, generation quality, or protected recurrent protocol.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("qwen35-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+print(plan.coverage().complete)  # False while required operators are missing.
+```
+
+`qwen35-config.json` must be the supported pinned configuration. The coverage result is not an execution claim.

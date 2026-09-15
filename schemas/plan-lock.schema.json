@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/plan-lock.schema.json",
+  "title": "PLLM plan lock v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "configuration_digest", "logical_plan_digest", "execution_plan_digest", "model_digest", "tokenizer_digest", "numeric_graph_digest", "privacy_contract_digest", "workload_digest", "compiler", "components", "evidence_references"],
+  "properties": {
+    "schema_version": {"const": "pllm.plan_lock.v1"},
+    "configuration_digest": {"$ref": "#/$defs/digest"},
+    "logical_plan_digest": {"$ref": "#/$defs/digest"},
+    "execution_plan_digest": {"$ref": "#/$defs/digest"},
+    "model_digest": {"$ref": "#/$defs/digest"},
+    "tokenizer_digest": {"$ref": "#/$defs/digest"},
+    "numeric_graph_digest": {"$ref": "#/$defs/digest"},
+    "privacy_contract_digest": {"$ref": "#/$defs/digest"},
+    "workload_digest": {"$ref": "#/$defs/digest"},
+    "compiler": {"$ref": "#/$defs/versionedArtifact"},
+    "components": {"type": "array", "items": {"$ref": "#/$defs/versionedArtifact"}, "uniqueItems": true},
+    "evidence_references": {"type": "array", "items": {"$ref": "#/$defs/namedDigest"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "namedDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "versionedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+---
+title: "Implementation map"
+description: "Locate model planning, compiler contracts, native execution, Python APIs, CLI code, schemas, and documentation."
+---
+
+- `crates/pllm-models`: model-neutral semantic decoder IR and family adapters.
+- `crates/pllm-method-mpcache`: generic research transform over semantic plans.
+- `crates/pllm-types`: canonical Rust plan, benchmark, and assurance records.
+- `crates/pllm-compiler`: capability resolution and executable-plan validation.
+- `crates/pllm-core`: bounded matrix arithmetic and native kernels.
+- `crates/pllm-python`: narrow PyO3 binding.
+- `python/pllm`: installed public package, orchestration, and runtime.
+- `schemas`: canonical document boundaries.
+- `docs`: static Fumadocs publication and generated references.
+
+Dependency direction remains Python to PyO3 to Rust core; semantic model code must not depend on Python or web frameworks.
+
+## Python SDK example
+
+```python
+from pllm.research import render_agents_guide
+
+print(render_agents_guide())
+```
+
+The generated guide locates public and implementation surfaces without importing implementation providers.

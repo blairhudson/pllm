@@ -1,0 +1,20 @@
+---
+title: "Research workflows"
+description: "Build, reproduce, compare, and review private-inference research with explicit stop rules."
+---
+
+A recipe records exact sources, method and component versions, model and workload
+limits, environment requirements, steps, expected files, evidence, and failure
+policy. Listing a recipe never runs it.
+
+Recipes support reproducibility without making third-party repositories runtime
+dependencies. PLLM implements methods independently in Python and Rust. Original
+artifacts remain sources and comparison material only.
+
+Run `pllm research recipes list` to inspect current records. Recipe execution is
+not supported because sandboxing, artifact identity, and result records are not
+yet available together.
+
+Use the pages in this section to choose a workflow. Build and reproduction work
+must stop rather than silently substituting an upstream runtime, weakening the
+privacy boundary, or presenting unmatched measurements as comparable evidence.

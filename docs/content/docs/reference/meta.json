@@ -1,11 +1,5 @@
 {
   "title": "Reference",
-  "pages": [
-    "cli",
-    "dashboard",
-    "compatibility",
-    "troubleshooting",
-    "development",
-    "releasing"
-  ]
+  "root": true,
+  "pages": ["index", "python", "native", "schemas", "components", "status"]
 }

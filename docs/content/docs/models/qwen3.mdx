@@ -1,0 +1,23 @@
+---
+title: "Qwen3 and mini-coder"
+description: "Dense Qwen3 lowering with explicit head width and Q/K normalization."
+---
+
+`pllm.qwen3.v1` extends dense lowering with explicit `head_dim`, per-head Q/K RMS normalization, and configuration-controlled attention bias. Attention projection width is `num_attention_heads * head_dim`; it is not assumed equal to hidden width.
+
+The checked fixture is `ricdomolm/mini-coder-4b` revision `c87892d046a62415a349a6b3aa244bb630fb7417`, raw configuration SHA-256 `fdbc9e0615fcb88b2cc37aa2b23fa332b3863068d50092aa6bd1e628fd187c92`. This establishes configuration parsing and semantic-plan validation only.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("qwen3-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+```
+
+`qwen3-config.json` must satisfy the supported dense Qwen3 contract. This does not execute the model.

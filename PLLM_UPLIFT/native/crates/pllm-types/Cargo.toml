@@ -1,6 +1,0 @@
-[package]
-name = "pllm-types"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]

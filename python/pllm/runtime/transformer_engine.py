@@ -18,7 +18,7 @@ import numpy as np
 from filelock import FileLock
 
 from .engine import EngineCapabilities
-from .he_runtime import BFVCorrelationServer
+from .bfv_correlations import BFVCorrelationServer
 from .models import ModelManifest, StageSpec, gemma4_stage_plan, transformer_stage_plan
 from .native_kernels import MaskedGEMM
 from .preparation_protocol import (
@@ -324,7 +324,7 @@ def classify_architecture(
         rope_type = rope.get("rope_type", rope.get("type")) if isinstance(rope, dict) else None
         if rope_type not in (None, "default", "linear"):
             raise TransformerEngineError(
-                f"RoPE scaling {rope_type!r} is not implemented by the local HE client runtime"
+                f"RoPE scaling {rope_type!r} is not implemented by the local runtime client"
             )
     return ArchitectureProfile(
         family="llama-compatible",
@@ -349,7 +349,7 @@ class MaskedTransformerEngine:
         model_sources=("huggingface", "safetensors", "vllm", "mlx-lm"),
         protocols=("masked.stage/v3", "prepared-correction/v2", "bfv-correlation/v1"),
         online_fhe=False,
-        he_preprocessed=True,
+        preprocessed=True,
         continuous_batching=True,
         notes=(
             "all learned dense matrices remain server-side",
@@ -452,8 +452,8 @@ class MaskedTransformerEngine:
         manifest.metadata.update(
             {
                 "client_runtime": "masked_transformer_v1",
-                "he_runtime": "masked_transformer",
-                "he_engine": self.capabilities.name,
+                "runtime": "masked_transformer",
+                "engine": self.capabilities.name,
                 "native_masked_gemm": self.kernel.available,
                 "kernel_backend": self.kernel.backend,
                 "weight_bits": self.weight_bits,
@@ -463,7 +463,7 @@ class MaskedTransformerEngine:
                 "privacy_mode": "public",
                 "privacy_protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
                 "online_fhe": False,
-                "he_preprocessed": True,
+                "preprocessed": True,
                 "model_weight_correlations_disclosed": True,
                 "model_privacy_threat_model": "public_weights",
             }
@@ -487,11 +487,11 @@ class MaskedTransformerEngine:
             self.modulus = max(moduli)
         config.update(
             {
-                "he_model_family": profile.family,
-                "he_block_style": profile.block_style,
-                "he_norm_offset": profile.norm_offset,
-                "he_embedding_multiplier": profile.embedding_multiplier,
-                "he_attention_scaling": profile.attention_scaling,
+                "model_family": profile.family,
+                "block_style": profile.block_style,
+                "norm_offset": profile.norm_offset,
+                "embedding_multiplier": profile.embedding_multiplier,
+                "attention_scaling": profile.attention_scaling,
                 "hidden_activation": config.get("hidden_activation")
                 or config.get("hidden_act")
                 or "silu",
@@ -848,11 +848,11 @@ class MaskedTransformerEngine:
     def _load_tokenizer_descriptor(
         source: Path, manifest: ModelManifest, config: dict[str, Any]
     ) -> dict[str, Any]:
-        custom = source / "he_tokenizer.json"
+        custom = source / "pllm_tokenizer.json"
         if custom.exists():
             value = json.loads(custom.read_text(encoding="utf-8"))
             if not isinstance(value, dict) or "type" not in value:
-                raise TransformerEngineError("invalid he_tokenizer.json")
+                raise TransformerEngineError("invalid pllm_tokenizer.json")
             return value
 
         tokenizer_config: dict[str, Any] = {}
@@ -874,7 +874,7 @@ class MaskedTransformerEngine:
             "eos_token": tokenizer_config.get("eos_token", ""),
             "add_bos_token": bool(tokenizer_config.get("add_bos_token", True)),
         }
-        if config.get("he_test_tokenizer") == "byte":
+        if config.get("pllm_test_tokenizer") == "byte":
             return {"type": "byte", **common}
         sentencepiece = source / "tokenizer.model"
         if sentencepiece.exists():
@@ -883,7 +883,7 @@ class MaskedTransformerEngine:
         if tokenizer_json.exists():
             return {"type": "tokenizer_json", "model": tokenizer_json.read_bytes(), **common}
         raise TransformerEngineError(
-            "strict HE client requires tokenizer.model, tokenizer.json, or he_tokenizer.json"
+            "private runtime client requires tokenizer.model, tokenizer.json, or pllm_tokenizer.json"
         )
 
     async def execute_stage(
@@ -1333,15 +1333,15 @@ class MaskedTransformerEngine:
             for key, value in model.local_tensors.items()
         }
         config = dict(model.config)
-        norm_offset = float(config.get("he_norm_offset", 0.0))
-        block_style = str(config.get("he_block_style", "llama"))
+        norm_offset = float(config.get("norm_offset", 0.0))
+        block_style = str(config.get("block_style", "llama"))
         config.update(
             {
                 "rms_norm_centered": bool(norm_offset),
                 "norm_offset": norm_offset,
-                "embedding_multiplier": float(config.get("he_embedding_multiplier", 1.0)),
+                "embedding_multiplier": float(config.get("embedding_multiplier", 1.0)),
                 "block_style": block_style,
-                "model_family": config.get("he_model_family", "llama-compatible"),
+                "model_family": config.get("model_family", "llama-compatible"),
                 "qk_norm": block_style == "gemma4"
                 or any(
                     key.endswith(("q_norm.weight", "k_norm.weight")) for key in model.local_tensors
@@ -1349,7 +1349,7 @@ class MaskedTransformerEngine:
                 "v_norm": block_style == "gemma4",
                 "prime_modulus": max(runtime.modulus for runtime in model.stages.values()),
                 "plain_moduli": sorted({runtime.modulus for runtime in model.stages.values()}),
-                "attention_scaling": config.get("he_attention_scaling"),
+                "attention_scaling": config.get("attention_scaling"),
             }
         )
         return msgpack.packb(
@@ -1367,7 +1367,7 @@ class MaskedTransformerEngine:
                     "mode": "public",
                     "protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
                     "online_fhe": False,
-                    "he_preprocessed": True,
+                    "preprocessed": True,
                     "model_weight_correlations_disclosed": True,
                     "dense_weights_in_bundle": bool(local_stage_ids),
                     "local_quantized_stages": sorted(local_stage_ids),

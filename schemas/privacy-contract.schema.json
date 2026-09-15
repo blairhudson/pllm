@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/privacy-contract.schema.json",
+  "title": "PLLM privacy contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "online_parties", "allow_online_preparation", "allow_client_weights", "allow_he", "allow_experimental", "required_claims"],
+  "properties": {
+    "schema_version": {"const": "pllm.privacy_contract.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "online_parties": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "allow_online_preparation": {"type": "boolean"},
+    "allow_client_weights": {"type": "boolean"},
+    "allow_he": {"type": "boolean"},
+    "allow_experimental": {"type": "boolean"},
+    "required_claims": {"type": "array", "items": {"$ref": "#/$defs/claimRequirement"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "claimRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "accepted_outcomes", "accepted_implementation_refinements"],
+      "properties": {
+        "claim_id": {"type": "string", "minLength": 1},
+        "accepted_outcomes": {"type": "array", "items": {"enum": ["proved_in_model", "refuted_in_scope", "not_refuted", "inconclusive", "outside_contract", "unchecked"]}, "minItems": 1, "uniqueItems": true},
+        "accepted_implementation_refinements": {"type": "array", "items": {"enum": ["not_established", "tested_differential", "proved_for_locked_code"]}, "minItems": 1, "uniqueItems": true}
+      }
+    }
+  }
+}

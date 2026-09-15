@@ -1,0 +1,151 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import navigation from '../navigation.json' with { type: 'json' };
+import { buildPublicationGraph, siteRoot, walk } from '../scripts/content.mjs';
+import { renderPublicationOutputs } from '../scripts/generate.mjs';
+
+const graph = buildPublicationGraph();
+const outputs = renderPublicationOutputs(graph);
+const manifest = JSON.parse(outputs.get('public/docs-manifest.json'));
+const redirects = JSON.parse(outputs.get('public/redirects.json')).redirects;
+const generatedPath = (relative) => path.join(siteRoot, relative);
+
+test('registry covers every public authored page exactly once', () => {
+  const discovered = [
+    ...walk(path.join(siteRoot, 'content/docs')).filter((file) => file.endsWith('.mdx')),
+    ...walk(path.join(siteRoot, 'content/research')).filter((file) => file.endsWith('.mdx')),
+    ...['content/home.html', 'content/research.html', 'content/whitepaper.html'].map(generatedPath),
+  ].map((file) => path.relative(siteRoot, file).replaceAll(path.sep, '/')).sort();
+  assert.deepEqual(graph.pages.map((page) => page.sourcePath).sort(), discovered);
+});
+
+test('publication identities, canonical routes, and Markdown twins are unique', () => {
+  for (const field of ['id', 'sourcePath', 'canonicalUrl', 'markdownUrl']) assert.equal(new Set(graph.pages.map((page) => page[field])).size, graph.pages.length, field);
+  const aliases = graph.pages.flatMap((page) => page.aliases);
+  const markdownAliases = graph.pages.flatMap((page) => page.markdownAliases);
+  assert.equal(new Set(aliases).size, aliases.length);
+  assert.equal(new Set(markdownAliases).size, markdownAliases.length);
+  const canonical = new Set(graph.pages.map((page) => page.canonicalUrl));
+  const markdown = new Set(graph.pages.map((page) => page.markdownUrl));
+  assert.ok(aliases.every((alias) => !canonical.has(alias)));
+  assert.ok(markdownAliases.every((alias) => !markdown.has(alias)));
+  for (const page of graph.pages) {
+    assert.match(page.id, /^pllm\.[a-z0-9.-]+$/);
+    assert.ok(page.canonicalUrl.endsWith('/'));
+    assert.doesNotMatch(page.canonicalUrl, /\/index(?:\/|$)/);
+    assert.equal(page.markdownUrl, page.canonicalUrl === '/'
+      ? '/index.md'
+      : `${page.canonicalUrl.slice(0, -1)}.md`);
+    assert.deepEqual(page.aliases, page.canonicalUrl === '/' ? [] : [page.canonicalUrl.slice(0, -1)]);
+    assert.deepEqual(page.markdownAliases, []);
+  }
+});
+
+test('manifest is complete, versioned, and hashes exact source', () => {
+  assert.match(manifest.buildId, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(manifest.pages.length, graph.pages.length);
+  for (const record of manifest.pages) {
+    for (const field of ['id', 'title', 'summary', 'sourcePath', 'canonicalUrl', 'markdownUrl', 'kind', 'status', 'release', 'aliases', 'markdownAliases', 'parent', 'children', 'prerequisites', 'related', 'publicModules', 'publicSymbols', 'componentIds', 'sourcePaths', 'testPaths', 'navigationGroup', 'navigationGroupTitle', 'navigationRoot', 'navigationOrder', 'contentHash']) assert.ok(Object.hasOwn(record, field), `${record.id}.${field}`);
+    const digest = createHash('sha256').update(fs.readFileSync(generatedPath(record.sourcePath))).digest('hex');
+    assert.equal(record.contentHash, `sha256:${digest}`);
+  }
+  assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
+  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/cpu', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections']);
+  assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.research').testPaths.includes('../tests/test_research.py'));
+  assert.deepEqual(JSON.parse(outputs.get(`public/releases/${graph.release}/docs-manifest.json`)), manifest);
+});
+
+test('parent-child topology is exact and acyclic', () => {
+  const byId = new Map(graph.pages.map((page) => [page.id, page]));
+  for (const page of graph.pages) {
+    if (page.id === 'pllm.home') assert.equal(page.parent, null);
+    else {
+      assert.ok(byId.has(page.parent), `${page.id}.parent`);
+      assert.ok(byId.get(page.parent).children.includes(page.id), `${page.id}.child`);
+    }
+    const seen = new Set([page.id]);
+    let current = page;
+    while (current.parent) {
+      assert.ok(!seen.has(current.parent), page.id);
+      seen.add(current.parent);
+      current = byId.get(current.parent);
+    }
+  }
+});
+
+test('publication and search records follow canonical navigation groups', () => {
+  const search = JSON.parse(outputs.get('public/search-index.json'));
+  const searchById = new Map(search.map((record) => [record.id, record]));
+  const groupIds = new Set(navigation.publicationGroups.map((group) => group.id));
+  for (const page of graph.pages.filter((candidate) => candidate.canonicalUrl.startsWith('/') && candidate.canonicalUrl !== '/')) {
+    assert.ok(groupIds.has(page.navigationGroup), `${page.id}.navigationGroup`);
+    assert.equal(searchById.get(page.id).section, page.navigationGroup);
+    assert.ok(page.navigationRoot.startsWith('/'));
+    assert.equal(typeof page.navigationOrder, 'number');
+  }
+  for (const group of groupIds) {
+    assert.ok(outputs.has(`public/releases/${graph.release}/docs/groups/${group}/llms.txt`), group);
+  }
+});
+
+test('redirects only normalize canonical HTML trailing slashes', () => {
+  assert.deepEqual(redirects, graph.pages
+    .filter((page) => page.canonicalUrl !== '/')
+    .map((page) => ({
+      from: page.canonicalUrl.slice(0, -1),
+      to: page.canonicalUrl,
+      status: 308,
+      representation: 'html',
+    })));
+});
+
+test('generated surfaces are fresh and managed directories contain no orphans', () => {
+  for (const [relative, expected] of outputs) assert.equal(fs.readFileSync(generatedPath(relative), 'utf8'), expected, relative);
+  const markdownFiles = manifest.pages.map((page) => `public${page.markdownUrl}`);
+  const managed = [...markdownFiles, ...walk(generatedPath('public/releases')).map((file) => path.relative(siteRoot, file).replaceAll(path.sep, '/'))].sort();
+  const expected = [...outputs.keys()].filter((file) => markdownFiles.includes(file) || file.startsWith('public/releases/')).sort();
+  assert.deepEqual(managed, expected);
+});
+
+test('search, root llms, and hierarchical release indexes cover graph', () => {
+  const search = JSON.parse(outputs.get('public/search-index.json'));
+  assert.deepEqual(search.map((record) => record.id), graph.pages.map((page) => page.id));
+  const llms = outputs.get('public/llms.txt');
+  for (const page of graph.pages) {
+    assert.ok(llms.includes(`${graph.canonicalOrigin}${page.canonicalUrl}`), page.id);
+    assert.ok(llms.includes(`${graph.canonicalOrigin}${page.markdownUrl}`), page.id);
+  }
+  const docsSections = new Set(graph.pages
+    .filter((page) => page.id.startsWith('pllm.docs'))
+    .map((page) => page.canonicalUrl.split('/')[1])
+    .filter(Boolean));
+  for (const section of docsSections) assert.ok(outputs.has(`public/releases/${graph.release}/docs/${section}/llms.txt`), section);
+});
+
+test('Markdown twins are readable, complete, and free of MDX or HTML artifacts', () => {
+  for (const page of graph.pages) {
+    const markdown = outputs.get(`public${page.markdownUrl}`);
+    assert.ok(markdown.includes(`[View canonical HTML](${graph.canonicalOrigin}${page.canonicalUrl})`), page.id);
+    assert.ok(markdown.includes(`Document ID: \`${page.id}\``), page.id);
+    assert.ok(markdown.length > page.description.length + 150, page.id);
+    assert.doesNotMatch(markdown, /<(?:div|table|section|article)\b|className=|^import .+ from ['"]/m, page.id);
+  }
+});
+
+test('sitemap, robots, headers, and redirects derive from registry', () => {
+  const locations = [...outputs.get('public/sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  assert.deepEqual(locations, graph.pages.map((page) => `${graph.canonicalOrigin}${page.canonicalUrl}`));
+  assert.equal(new Set(locations).size, graph.pages.length);
+  assert.ok(redirects.every((redirect) => redirect.status === 308));
+  assert.equal(outputs.get('public/_redirects'), `${redirects.map((redirect) => `${redirect.from} ${redirect.to} 308`).join('\n')}\n`);
+  const markdownHeaders = graph.pages.flatMap((page) => [
+    page.markdownUrl,
+    '  Content-Type: text/markdown; charset=utf-8',
+    '  X-Content-Type-Options: nosniff',
+    '',
+  ]).join('\n');
+  assert.equal(outputs.get('public/_headers'), markdownHeaders);
+});

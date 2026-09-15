@@ -1,0 +1,6 @@
+from pllm.configuration import ComponentDescriptor as ComponentDescriptor
+from pllm.configuration import ComponentRef as ComponentRef
+from pllm.configuration import KvCacheEviction as KvCacheEviction
+
+def list_components() -> tuple[ComponentDescriptor, ...]: ...
+def get_component(identity: str) -> ComponentDescriptor: ...

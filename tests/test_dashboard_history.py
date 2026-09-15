@@ -1,6 +1,7 @@
 import sqlite3
 import stat
 import threading
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,7 +11,7 @@ from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
     ExportMetricsServiceRequest,
 )
 
-from pllm.cli import _build_parser
+from pllm._cli.app import build_parser
 from pllm.runtime import dashboard as dashboard_module
 from pllm.runtime.benchmark_history import (
     SCHEMA_VERSION,
@@ -63,6 +64,38 @@ def _record(
             "client": {"cpu_seconds": 0.25, "rss_peak_bytes": 1024},
         },
     )
+
+
+def test_completed_run_exports_rust_validated_role_evidence() -> None:
+    report = _record().evidence_report(
+        privacy_cohort="seeded-preparation",
+        numeric_cohort="mixed-exact-ring",
+        environment={"host": "loopback-fixture"},
+        plan_lock_digest="a" * 64,
+    )
+    document = report.to_dict()
+
+    assert report.schema_version == "pllm.deployment_benchmark_report.v1"
+    assert document["plan_lock_digest"] == "a" * 64
+    measurements = document["measurements"]
+    assert {item["role"] for item in measurements} == {
+        "client",
+        "preparation",
+        "inference",
+    }
+    assert next(item for item in measurements if item["role"] == "preparation")[
+        "phase"
+    ] == "offline"
+
+
+def test_failed_run_cannot_be_benchmark_evidence() -> None:
+    record = replace(_record(), status="failed", failure_type="RuntimeError")
+    with pytest.raises(ValueError, match="failed runs"):
+        record.evidence_report(
+            privacy_cohort="seeded-preparation",
+            numeric_cohort="mixed-exact-ring",
+            environment={"host": "loopback-fixture"},
+        )
 
 
 def test_history_uses_xdg_versioned_immutable_sqlite_and_filters(tmp_path: Path) -> None:
@@ -459,5 +492,5 @@ def test_history_api_is_bounded_filterable_and_run_post_returns_id(
             },
         ).status_code == 200
 
-    args = _build_parser().parse_args(["benchmark", "dashboard", "--history-db", ":memory:"])
+    args = build_parser().parse_args(["dev", "dashboard", "--history-db", ":memory:"])
     assert args.history_db == ":memory:"

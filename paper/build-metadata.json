@@ -9,19 +9,19 @@
   "canonical_source": "paper/manuscript.md",
   "generated": {
     "paper/main.pdf": {
-      "sha256": "59710cfd948146e347c4497c0c24433d5c4db5a17d32dc447b2ccfffbf9ebb13"
+      "sha256": "c444c8c17c32f7f7588062d8c5d4ba46aa0ce73a0330eb72e8ed410c397d4ae5"
     },
     "paper/main.tex": {
-      "sha256": "b01ddc8b59f22e99775b8b6da88b5fb11f73a4ac029496e3ad8d3a73587bea44"
+      "sha256": "240fe71e42785fb82d52d6dd8659659983d0d2c0a2cec3883637cbff6706abe9"
     }
   },
-  "normalized_timestamp_utc": "2026-09-11T00:23:30Z",
-  "source_date_epoch": 1789086210,
-  "source_revision": "277d19f63f60e48fd8b39ec04bb7d9c68c187062",
+  "normalized_timestamp_utc": "2026-09-14T02:04:53Z",
+  "source_date_epoch": 1789351493,
+  "source_revision": "13b7446fe331d8832819e765fdd26c71b3367223",
   "source_revision_scope": "Git HEAD is the base revision; SHA-256 values identify built working-tree sources",
   "sources": {
     "paper/manuscript.md": {
-      "sha256": "d63e794e9c04dab41cccb0007e6560fa0399b48db2424925c2dea4c6c2e775fe"
+      "sha256": "8580453c9ce1e2d0b30d853b9af0d04500b057b93e8e30aa9750003411bec5c8"
     },
     "paper/paper.lua": {
       "sha256": "767f9b286be73079fc04b2638068661e107131b2c13b5efd93737499e74cbe06"

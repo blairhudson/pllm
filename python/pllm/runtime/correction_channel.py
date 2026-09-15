@@ -8,7 +8,7 @@ from .preparation_protocol import PreparationAck, validate_attempt_id
 from .protocol import ProtocolError
 
 
-CORRECTION_CHANNEL_PATH = "/v1/he/corrections/ws"
+CORRECTION_CHANNEL_PATH = "/v1/runtime/corrections/ws"
 CORRECTION_CHANNEL_SUBPROTOCOL = "pllm-correction-v1"
 CORRECTION_CHANNEL_MAX_ACK_BYTES = 1024
 

@@ -16,7 +16,7 @@ class FakeEngine:
         model_sources=("huggingface", "gguf", "mlx-lm"),
         protocols=("opaque-test",),
         online_fhe=True,
-        he_preprocessed=True,
+        preprocessed=True,
         continuous_batching=True,
     )
 
@@ -46,32 +46,32 @@ def test_engine_load_execute_unload_contract(tmp_path: Path):
     app = create_app(GatewayConfig(api_keys=("x",), allow_insecure_local_correlations=True), engines={"fake": engine})
     headers = {"Authorization": "Bearer x"}
     with TestClient(app) as client:
-        engines = client.get("/v1/he/engines", headers=headers).json()
+        engines = client.get("/v1/runtime/engines", headers=headers).json()
         assert engines["data"][0]["id"] == "fake"
-        loaded = client.post("/v1/he/models/load", headers=headers, json={
+        loaded = client.post("/v1/runtime/models/load", headers=headers, json={
             "engine": "fake", "kind": "huggingface", "path": str(tmp_path), "model_id": "org/tiny"
         })
         assert loaded.status_code == 200
         assert loaded.json()["status"] == "ready"
         listed = client.get("/v1/models", headers=headers).json()["data"]
         loaded_model = next(row for row in listed if row["id"] == "org/tiny")
-        assert loaded_model["he"]["privacy_mode"] == "strict_he_engine"
-        assert loaded_model["he"]["engine"] == "fake"
-        assert client.get("/v1/he/models/org/tiny", headers=headers).json()["id"] == "org/tiny"
+        assert loaded_model["runtime"]["privacy_mode"] == "private_engine"
+        assert loaded_model["runtime"]["engine"] == "fake"
+        assert client.get("/v1/runtime/models/org/tiny", headers=headers).json()["id"] == "org/tiny"
         stage = loaded.json()["stages"][0]["id"]
         raw = encode_length_prefixed([b"abc", b"def"])
         result = client.post(
-            f"/v1/he/engines/fake/models/org/tiny/stages/{stage}",
+            f"/v1/runtime/engines/fake/models/org/tiny/stages/{stage}",
             headers={**headers, "Content-Type": "application/octet-stream"},
             content=raw,
         )
         assert result.status_code == 200
         assert list(iter_length_prefixed(result.content)) == [b"cba", b"fed"]
-        assert client.delete("/v1/he/models/org/tiny", headers=headers).json()["status"] == "unloaded"
+        assert client.delete("/v1/runtime/models/org/tiny", headers=headers).json()["status"] == "unloaded"
         assert "org/tiny" not in engine.loaded
 
 
-def test_sdk_he_extension_loads_and_executes_engine_stage(tmp_path: Path):
+def test_sdk_runtime_extension_loads_and_executes_engine_stage(tmp_path: Path):
     from conftest import start_gateway
     from pllm.runtime import OpenAI
 
@@ -85,16 +85,20 @@ def test_sdk_he_extension_loads_and_executes_engine_stage(tmp_path: Path):
     engine = FakeEngine()
     gateway = start_gateway(engines={"fake": engine})
     try:
-        with OpenAI(base_url=gateway.base_url, api_key=gateway.api_key, correlation_mode="local-test") as client:
-            assert client.he.engines()["data"][0]["id"] == "fake"
-            loaded = client.he.load_model(
+        with OpenAI(
+            base_url=gateway.base_url,
+            api_key=gateway.api_key,
+            correlation_mode="local-test",
+        ) as client:
+            assert client.runtime.engines()["data"][0]["id"] == "fake"
+            loaded = client.runtime.load_model(
                 engine="fake", kind="huggingface", path=str(tmp_path), model_id="tiny-sdk"
             )
             stage = loaded["stages"][0]["id"]
-            outputs = client.he.execute_stage(
+            outputs = client.runtime.execute_stage(
                 engine="fake", model="tiny-sdk", stage=stage, payloads=[b"alpha", b"beta"]
             )
             assert outputs == [b"ahpla", b"ateb"]
-            assert client.he.unload_model("tiny-sdk")["status"] == "unloaded"
+            assert client.runtime.unload_model("tiny-sdk")["status"] == "unloaded"
     finally:
         gateway.close()

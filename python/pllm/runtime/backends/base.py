@@ -6,7 +6,7 @@ from typing import Any, Literal, Protocol
 import httpx
 
 
-PrivacyMode = Literal["strict_he", "he_preprocessed", "trusted_backend", "manifest_only"]
+PrivacyMode = Literal["private_runtime", "preprocessed", "trusted_backend", "manifest_only"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +20,7 @@ class BackendCapabilities:
     token_ids: bool
     logprobs: bool
     model_loading: bool
-    strict_he: bool
+    private_runtime: bool
     notes: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -34,7 +34,7 @@ class BackendCapabilities:
             "token_ids": self.token_ids,
             "logprobs": self.logprobs,
             "model_loading": self.model_loading,
-            "strict_he": self.strict_he,
+            "private_runtime": self.private_runtime,
             "notes": list(self.notes),
         }
 
@@ -53,7 +53,7 @@ class BackendModel:
             "object": "model",
             "created": int(self.metadata.get("created", 0)),
             "owned_by": self.owned_by,
-            "he": {
+            "runtime": {
                 "backend": self.backend,
                 "privacy_mode": self.privacy_mode,
                 **{k: v for k, v in self.metadata.items() if k != "created"},

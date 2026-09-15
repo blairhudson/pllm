@@ -40,7 +40,7 @@ async def test_vllm_native_responses_and_models():
         assert models[0].privacy_mode == "trusted_backend"
         assert response["id"] == "resp_vllm"
         assert adapter.capabilities.responses is True
-        assert adapter.capabilities.strict_he is False
+        assert adapter.capabilities.private_runtime is False
     finally:
         await client.aclose()
 

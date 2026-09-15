@@ -1,0 +1,16 @@
+---
+title: "Python reference"
+description: "The installed pllm namespace and its generated public API inventory."
+---
+
+`python/pllm` is the only installed namespace. Public objects are imported on demand so metadata discovery does not load model weights, devices, providers, or runtime state.
+
+See the generated [`pllm` package inventory](/sdk/reference/python/pllm/) for exact modules, symbols, signatures, and native runtime identities.
+
+## Python SDK example
+
+```python
+import pllm
+
+print(pllm.__version__)
+```

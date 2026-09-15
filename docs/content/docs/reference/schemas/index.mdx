@@ -1,0 +1,19 @@
+---
+title: "Schema reference"
+description: "Versioned schemas for configurations, plans, evidence, assurance, and research records."
+---
+
+Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.
+
+Configuration, semantic decoder plans, compile requests, executable plans, component descriptors, benchmark evidence, assurance evidence, research sources, methods, recipes, and publication assessment evolve independently. A schema-valid document can still be unsupported by a selected compiler or runtime profile.
+
+## Python SDK example
+
+```python
+from pllm import ComponentRef
+
+document = ComponentRef("pllm/cpu", {"threads": 4}).to_spec()
+print(document)
+```
+
+Serialization produces public configuration data; schema validity alone does not establish support.

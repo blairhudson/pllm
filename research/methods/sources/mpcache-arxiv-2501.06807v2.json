@@ -1,0 +1,14 @@
+{
+  "access": "primary_full_text",
+  "authors": ["Wenxuan Zeng", "Ye Dong", "Jinjin Zhou", "Junming Ma", "Jin Tan", "Runsheng Wang", "Meng Li"],
+  "id": "pllm.source.mpcache.arxiv-2501.06807v2",
+  "license_review": "required_before_vendoring",
+  "local_path": "papers/2501.06807v2.pdf",
+  "notes": "Publication record only. Upstream MIT source is identified by a separate artifact lock and remains an external oracle.",
+  "paper_digest": "1dd84cd3ab490ca51517891ae3a048900495258a76105a9fd2d6a577be82d9ab",
+  "primary_url": "https://arxiv.org/abs/2501.06807v2",
+  "schema_version": "pllm.source_record.v1",
+  "title": "MPCache: MPC-Friendly KV Cache Eviction for Efficient Private Large Language Model Inference",
+  "verified_on": "2026-09-14",
+  "year": 2025
+}

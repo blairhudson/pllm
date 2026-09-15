@@ -1,0 +1,16 @@
+[package]
+name = "pllm-compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Deterministic plan compiler for private LLM inference"
+publish = false
+
+[dependencies]
+pllm-core.workspace = true
+pllm-types.workspace = true
+pllm-models.workspace = true
+serde.workspace = true
+serde_json.workspace = true

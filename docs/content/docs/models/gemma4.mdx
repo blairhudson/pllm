@@ -1,0 +1,28 @@
+---
+title: "Gemma 4"
+description: "Variant-parameterized text-decoder lowering for exact Gemma 4 E2B and E4B configurations."
+---
+
+The Gemma 4 adapter validates exact outer text-decoder contracts for:
+
+| Adapter | Repository revision | Raw configuration SHA-256 |
+| --- | --- | --- |
+| `pllm.gemma4_e2b_text.v1` | `google/gemma-4-E2B-it@3e22461f65e89153144f8adb70e3b8c2cc9845a7` | `1b28f3d2c3100f6c594754b81107428bd7b822a7f48272ca681dae9d2ec38330` |
+| `pllm.gemma4_e4b_text.v1` | `google/gemma-4-E4B-it@ee0ef6023621cff504d758262d4e04895a5af4a2` | `33b10c02df3c2e8536cf323d29d53262aaa2f4d11dbe19bc729373fbe90295d4` |
+
+Both plans preserve alternating local/global attention, two head widths, Q/K normalization, PLE, shared-KV suffix state, GeLU-tanh branches, branch-output normalization, and final softcap. E2B additionally doubles effective MLP width in its shared suffix. Variant dimensions and layer schedules are data-driven; compiler paths remain model-neutral.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("gemma4-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+print(plan.to_dict()["adapter"])
+```
+
+`gemma4-config.json` must be one of the supported pinned outer configurations. Lowering does not execute weights.

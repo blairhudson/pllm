@@ -4,17 +4,18 @@ author: "Blair Hudson · deployscience labs · blair@deployscience.com"
 date: 11 September 2026
 web-date: September 2026
 edition: "04"
-description: A three-role private language-model runtime that prepares one-time masked matrix correlations before online inference.
+description: A high-performance multi-party inference runtime that prepares one-time masked matrix corrections before online language-model inference.
 subject: private language-model inference, offline correlations, additive masking, systems evaluation
 web-note: Current implementation, protocol boundary, and Qwen2.5-0.5B loopback evaluation.
 abstract: |
-  AI compute is globally distributed, but access remains concentrated because
-  buying hosted inference usually requires giving the provider access to prompts,
-  activations, and outputs. Private inference can separate computation from data
-  access, allowing useful capacity to serve sensitive demand without
-  receiving client language. We investigate offline-correlated masking as a
-  practical foundation for that market and implement it in PLLM for public-weight
-  transformer models. A client creates one-time masks through a trusted
+  PLLM is a high-performance multi-party inference runtime and autonomous research
+  harness for private language-model systems. Its goal is to separate useful AI
+  computation from access to prompts, context, state, and generated output. That
+  separation could let independent, regional, sovereign, and energy-aware compute
+  serve sensitive workloads without requiring one provider to hold the complete
+  exchange. We investigate offline-correlated masking as one practical runtime
+  design and implement it in PLLM for public-weight transformer models. A client
+  creates one-time masks through a trusted
   Preparation service, which pushes $Wr-s$ corrections to an untrusted Inference
   service before a response. Online, the client sends a ticket and $x-r$;
   Inference returns $Wx-s$; and the client reconstructs $Wx$. The runtime binds
@@ -52,15 +53,17 @@ header-includes:
 
 ## Introduction
 
-Useful hosted inference ordinarily requires the model operator to receive client
-language. Contract, access control, and retention policy may constrain later use,
-but the service still obtains plaintext prompts, token identities, activations,
-and generated output. This coupling narrows the set of acceptable providers and
-requires every compute seller to be trusted with client data.
+Hosted inference usually gives one model operator both the computation and the
+user's plaintext prompts, token identities, activations, and generated output.
+Contracts, access controls, and retention policies can limit later use, but they
+do not remove that access. This coupling limits which providers can handle
+sensitive workloads and makes broader compute markets harder to build.
 
-PLLM is a working public-weight inference runtime that separates access to client
-language from linear computation. The client runs tokenization, boundary matrices,
-attention, nonlinear operations, model state, sampling, and decoding. Remote
+PLLM combines a Rust-first multi-party inference runtime with a research harness
+for implementing and comparing private inference methods. The current
+public-weight path separates access to client language from linear computation.
+The client runs tokenization, boundary matrices, attention, nonlinear operations,
+model state, sampling, and decoding. Remote
 services evaluate quantized transformer-body projections over one-time masked
 integer tensors. The current path uses no homomorphic encryption online and sends
 no plaintext prompt or token bytes to either remote role.

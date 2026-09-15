@@ -31,7 +31,27 @@ def main() -> None:
     assert not (ROOT / "python/he_openai").exists()
     assert not (ROOT / "paper/main.tex").exists()
     cargo = tomllib.loads((ROOT / "Cargo.toml").read_text())
-    assert set(cargo["workspace"]["members"]) == {"crates/pllm-core", "crates/pllm-python"}
+    assert set(cargo["workspace"]["members"]) == {
+        "crates/pllm-core",
+        "crates/pllm-types",
+        "crates/pllm-compiler",
+        "crates/pllm-bench",
+        "crates/pllm-assurance",
+        "crates/pllm-garble",
+        "crates/pllm-models",
+        "crates/pllm-method-mpcache",
+        "crates/pllm-python",
+    }
+    assert cargo["workspace"]["default-members"] == [
+        "crates/pllm-core",
+        "crates/pllm-types",
+        "crates/pllm-compiler",
+        "crates/pllm-bench",
+        "crates/pllm-assurance",
+        "crates/pllm-garble",
+        "crates/pllm-models",
+        "crates/pllm-method-mpcache",
+    ]
     core = tomllib.loads((ROOT / "crates/pllm-core/Cargo.toml").read_text())
     assert "pyo3" not in core["dependencies"]
     for base in ("python/pllm", "scripts", "tests", "benchmarks"):

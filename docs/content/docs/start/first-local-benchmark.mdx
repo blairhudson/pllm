@@ -1,0 +1,18 @@
+---
+title: "Run the local development benchmark"
+description: "Run the real PLLM roles on one machine and understand what the result does and does not measure."
+---
+
+Run the real local client, preparation, and inference roles:
+
+```bash
+pllm dev dashboard --model Qwen/Qwen2.5-0.5B-Instruct --no-open
+```
+
+Use `--tiny` only to test transport with generated weights. The dashboard listens
+only on the local machine and stores a sanitized local history. It does not emit
+a canonical benchmark evidence record. A local run does not measure a multi-host
+or wide-area deployment, model quality, energy use, price, adversarial behavior,
+or production non-collusion.
+
+Continue with [benchmarks](/sdk/research/benchmarks/) and [metrics](/research/records/metrics/) before comparing results.

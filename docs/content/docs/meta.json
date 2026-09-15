@@ -1,14 +1,9 @@
 {
-  "title": "Documentation",
+  "title": "PLLM",
   "pages": [
-    "index",
-    "quickstart",
-    "---Run the current public path---",
-    "client",
-    "server",
-    "deployment",
-    "---Trust and evidence---",
-    "security",
-    "reference"
+    "learn",
+    "cli",
+    "sdk",
+    "research"
   ]
 }

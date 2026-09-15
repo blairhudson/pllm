@@ -10,7 +10,7 @@ from conftest import start_gateway
 from pllm.runtime import OpenAI
 
 
-TENSEAL_PATH = os.environ.get("HE_OPENAI_PYDEPS", "")
+TENSEAL_PATH = os.environ.get("PLLM_TENSEAL_PATH", "")
 
 
 def _tenseal_available() -> bool:
@@ -31,10 +31,10 @@ def test_actual_bfv_preprocessing_and_masked_online_inference():
             correlation_mode="bfv",
             correlation_prefetch=1,
             tenseal_path=TENSEAL_PATH,
-            he_transport="websocket",
+            session_transport="websocket",
         ) as client:
             response = client.responses.create(
-                model="he-bigram-demo",
+                model="pllm-bigram-demo",
                 input="BFV_CANARY_MUST_STAY_LOCAL",
                 max_output_tokens=32,
             )

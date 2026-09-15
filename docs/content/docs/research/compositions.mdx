@@ -1,0 +1,19 @@
+---
+title: "Compositions and recipes"
+description: "Learn how PLLM records research recipes and changes to a model plan."
+---
+
+Recipes describe source acquisition, target model operations, required evidence,
+review gates, and failure policy. Inspecting a recipe returns a read-only record;
+it does not run third-party code or a PLLM workflow. See the
+[Research APIs](/sdk/research/) and [CLI](/cli/) documentation for callable
+interfaces.
+
+A composed plan records the method, value formats, conversions, numeric policy,
+parties, threat model, visible information, state lifetime, workload, component
+version, and coverage. Matching shapes and data types are not enough. A change to
+the source, implementation, configuration, plan, workload, or cohort creates new
+plan history.
+
+The generated [recipe catalog](/research/records/method-catalog/#compositions-and-recipes)
+currently marks every workflow as `not_executed`.

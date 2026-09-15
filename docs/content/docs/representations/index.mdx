@@ -1,0 +1,25 @@
+---
+title: "Representations"
+description: "Understand how PLLM records a value's format, owner, bounds, and encoding."
+---
+
+A representation states a value's number domain, shape, memory layout, owner,
+bounds, encoding, and wire format. PLLM uses representations for quantized tensors,
+ring elements, additive shares, masked activations, CRT residues, garbled labels,
+packed prefill matrices, and one-time tickets.
+
+Each component lists the representations it accepts and produces. Two components
+can connect only through a compatible edge or an explicit
+[conversion](/sdk/build/conversions/). Matching tensor shapes are not enough. Wire
+format versions and ownership changes are part of the plan history.
+
+## Python SDK example
+
+```python
+from pllm.protocols.masked_linear import MaskedLinear
+
+record = MaskedLinear.describe().to_dict()
+print(record.get("input_representations", "not recorded"))
+```
+
+Current built-in descriptor does not record representation fields; absence is not compatibility evidence.

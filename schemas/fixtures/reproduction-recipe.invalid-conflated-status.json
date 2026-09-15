@@ -1,0 +1,16 @@
+{
+  "schema_version": "pllm.reproduction_recipe.v1",
+  "registry_alias": "R23",
+  "kind": "planned_workflow",
+  "source_acquisition_status": "acquired",
+  "workflow_status": "source_acquired",
+  "primary_url": "https://arxiv.org/abs/2501.06807v2",
+  "dependencies": [],
+  "target_modules": ["protocol.mpcache"],
+  "original_artifact_command": null,
+  "pllm_reproduction_command": null,
+  "publication_workload": null,
+  "required_evidence": ["fidelity.md"],
+  "failure_policy": "Record unavailable execution; do not infer reproduction.",
+  "gates": ["acquire", "fidelity"]
+}

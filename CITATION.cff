@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Hudson
     given-names: Blair
-version: 0.17.0a1
+version: 0.1.0a1
 license: Apache-2.0
 abstract: >-
   A three-role private language-model runtime using offline seeded preparation,

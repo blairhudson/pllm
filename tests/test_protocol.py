@@ -7,7 +7,7 @@ import pytest
 
 from pllm.runtime.framing import FrameError, decode_frame, encode_frame
 from pllm.runtime.protocol import (
-    HEEnvelope,
+    ProtocolEnvelope,
     ProtocolError,
     ReplayWindow,
     encode_length_prefixed,
@@ -36,7 +36,7 @@ def envelope(**overrides):
         key=KEY,
     )
     values.update(overrides)
-    return HEEnvelope.create(**values)
+    return ProtocolEnvelope.create(**values)
 
 
 def test_envelope_binary_and_json_roundtrip():

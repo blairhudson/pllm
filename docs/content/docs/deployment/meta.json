@@ -1,8 +1,4 @@
 {
   "title": "Deployment",
-  "pages": [
-    "overview",
-    "docker",
-    "systemd"
-  ]
+  "pages": ["index"]
 }

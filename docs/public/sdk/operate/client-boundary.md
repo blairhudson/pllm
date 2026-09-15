@@ -1,0 +1,30 @@
+# Client boundary
+
+Understand which data and runtime state must stay with the client.
+
+[View canonical HTML](https://pllm.run/sdk/operate/client-boundary/)
+
+Document ID: `pllm.docs.operate.client-boundary`  
+Release: `0.1.0`  
+Build: `sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328`  
+Source hash: `sha256:9b1a16df2129dd20d325e518fbc31faa4ef6007abd0a525696e00245917454c6`
+
+`pllm.runtime` exposes clients, transport code, privacy declarations, gateways,
+and application factories. The [Python API inventory](/sdk/reference/python/pllm/)
+lists each public object. Some interfaces predate complete plan-based deployment;
+an importable object is not necessarily supported for production use.
+
+Plaintext requests terminate inside trusted client boundary. Client owns tokenization, state, sampling, and decoded output under methods that claim this placement. Gateway compatibility must be tested against exact application/SDK semantics; API resemblance does not establish full OpenAI compatibility.
+
+No `run`, `chat`, or `serve` lifecycle command is parser-visible. See [status](/sdk/reference/status/).
+
+## Python SDK example
+
+```python
+from pllm import PrivacyMode
+
+mode = PrivacyMode.PUBLIC
+print(mode.description)
+```
+
+This reads a public privacy declaration; it does not create a protected client session.

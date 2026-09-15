@@ -1,0 +1,16 @@
+[package]
+name = "pllm-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Native region benchmark records for PLLM compiled plans"
+publish = false
+
+[dependencies]
+pllm-compiler.workspace = true
+pllm-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

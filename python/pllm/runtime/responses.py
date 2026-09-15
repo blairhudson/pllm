@@ -46,7 +46,7 @@ def normalize_input(value: Any, *, instructions: Any = None) -> list[NormalizedM
     rows: list[NormalizedMessage] = []
     if instructions:
         if not isinstance(instructions, str):
-            raise ResponsesError("HE runtime currently requires string instructions", param="instructions")
+            raise ResponsesError("Private runtime currently requires string instructions", param="instructions")
         rows.append(NormalizedMessage("system", instructions))
     if isinstance(value, str):
         rows.append(NormalizedMessage("user", value))

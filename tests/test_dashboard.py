@@ -9,7 +9,7 @@ from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
 )
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 
-from pllm.cli import _build_parser
+from pllm._cli.app import build_parser
 from pllm.runtime.dashboard import DashboardRuntime, OTelStore, _http_origin
 
 
@@ -138,9 +138,9 @@ def test_dashboard_assets_are_packaged_beside_python_package() -> None:
 
 
 def test_dashboard_defaults_to_real_qwen_and_keeps_tiny_explicit() -> None:
-    parser = _build_parser()
-    default = parser.parse_args(["benchmark", "dashboard"])
-    tiny = parser.parse_args(["benchmark", "dashboard", "--tiny"])
+    parser = build_parser()
+    default = parser.parse_args(["dev", "dashboard"])
+    tiny = parser.parse_args(["dev", "dashboard", "--tiny"])
     assert default.model == "Qwen/Qwen2.5-0.5B-Instruct"
     assert default.tiny is False
     assert default.model_id is None

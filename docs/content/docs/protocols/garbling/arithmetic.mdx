@@ -1,0 +1,19 @@
+---
+title: "Arithmetic garbling"
+description: "Mixed-modulus labels and projection gates over bounded arithmetic values."
+---
+
+Arithmetic garbling represents values with labels per modulus. Free compatible arithmetic can avoid tables; nonlinear projection reconstructs signed values jointly from a coprime residue bundle and emits output labels. Gate material is shape-bound, strictly serialized, and consumed once.
+
+Reference exhaustive correctness and tamper rejection establish implementation behavior only. Cryptographic review, compiler activation, complete-model coverage, and deployment assurance are not recorded.
+
+## Python SDK example
+
+```python
+from pllm.components import list_components
+
+available = [item.component for item in list_components() if "garbl" in item.component]
+print(available)
+```
+
+No arithmetic-garbling component is currently published through the SDK.

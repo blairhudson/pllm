@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/compile-request.schema.json",
+  "title": "PLLM canonical compile request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "configuration", "context", "privacy_contract", "input", "input_representation", "output", "output_representation", "operations", "methods", "kernels", "assurance_results", "candidate_evidence"],
+  "properties": {
+    "schema_version": {"const": "pllm.compile_request.v1"},
+    "configuration": {"$ref": "experiment.schema.json"},
+    "context": {"$ref": "locked-context.schema.json"},
+    "privacy_contract": {"$ref": "privacy-contract.schema.json"},
+    "input": {"$ref": "region-program.schema.json#/$defs/tensor"},
+    "input_representation": {"$ref": "region-program.schema.json#/$defs/representation"},
+    "output": {"$ref": "region-program.schema.json#/$defs/tensor"},
+    "output_representation": {"$ref": "region-program.schema.json#/$defs/representation"},
+    "operations": {"type": "array", "items": {"$ref": "#/$defs/operation"}, "minItems": 1},
+    "methods": {"type": "array", "items": {"$ref": "region-program.schema.json#/$defs/method"}},
+    "kernels": {"type": "array", "items": {"$ref": "region-program.schema.json#/$defs/kernel"}},
+    "assurance_results": {"type": "array", "items": {"$ref": "assurance-result.schema.json"}},
+    "candidate_evidence": {"type": "array", "items": {"$ref": "#/$defs/candidateEvidence"}}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "operator", "output", "input_representation", "output_representation"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "operator": {"$ref": "region-program.schema.json#/$defs/operator"},
+        "output": {"$ref": "region-program.schema.json#/$defs/tensor"},
+        "input_representation": {"$ref": "region-program.schema.json#/$defs/representation"},
+        "output_representation": {"$ref": "region-program.schema.json#/$defs/representation"}
+      }
+    },
+    "candidateEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method_id", "method_version", "method_artifact_digest", "kernel_id", "kernel_version", "kernel_artifact_digest", "assurance_results"],
+      "properties": {
+        "method_id": {"type": "string", "minLength": 1},
+        "method_version": {"type": "string", "minLength": 1},
+        "method_artifact_digest": {"$ref": "#/$defs/digest"},
+        "kernel_id": {"type": "string", "minLength": 1},
+        "kernel_version": {"type": "string", "minLength": 1},
+        "kernel_artifact_digest": {"$ref": "#/$defs/digest"},
+        "assurance_results": {"type": "array", "items": {"$ref": "#/$defs/evidenceReference"}, "uniqueItems": true}
+      }
+    }
+  }
+}

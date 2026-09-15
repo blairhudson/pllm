@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/logical-plan.schema.json",
+  "title": "PLLM logical plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "configuration_digest", "profile", "model", "tokenizer", "semantic_graph", "numeric_graph", "protected_graph", "roles", "privacy_contract", "workload", "required_claim_ids"],
+  "properties": {
+    "schema_version": {"const": "pllm.logical_plan.v1"},
+    "configuration_digest": {"$ref": "#/$defs/digest"},
+    "profile": {"type": "string", "minLength": 1},
+    "model": {"$ref": "#/$defs/lockedRecord"},
+    "tokenizer": {"$ref": "#/$defs/lockedRecord"},
+    "semantic_graph": {"$ref": "#/$defs/lockedRecord"},
+    "numeric_graph": {"$ref": "#/$defs/lockedRecord"},
+    "protected_graph": {"$ref": "#/$defs/lockedRecord"},
+    "roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "privacy_contract": {"$ref": "#/$defs/lockedRecord"},
+    "workload": {"$ref": "#/$defs/lockedRecord"},
+    "required_claim_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "lockedRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

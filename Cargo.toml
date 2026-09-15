@@ -1,10 +1,29 @@
 [workspace]
-members = ["crates/pllm-core", "crates/pllm-python"]
-default-members = ["crates/pllm-core"]
+members = [
+    "crates/pllm-core",
+    "crates/pllm-types",
+    "crates/pllm-compiler",
+    "crates/pllm-bench",
+    "crates/pllm-assurance",
+    "crates/pllm-garble",
+    "crates/pllm-models",
+    "crates/pllm-method-mpcache",
+    "crates/pllm-python",
+]
+default-members = [
+    "crates/pllm-core",
+    "crates/pllm-types",
+    "crates/pllm-compiler",
+    "crates/pllm-bench",
+    "crates/pllm-assurance",
+    "crates/pllm-garble",
+    "crates/pllm-models",
+    "crates/pllm-method-mpcache",
+]
 resolver = "2"
 
 [workspace.package]
-version = "0.17.0-alpha.1"
+version = "0.1.0-alpha.1"
 edition = "2021"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -12,9 +31,20 @@ authors = ["Blair Hudson"]
 
 [workspace.dependencies]
 pllm-core = { path = "crates/pllm-core" }
+pllm-compiler = { path = "crates/pllm-compiler" }
+pllm-types = { path = "crates/pllm-types" }
+pllm-bench = { path = "crates/pllm-bench" }
+pllm-assurance = { path = "crates/pllm-assurance" }
+pllm-garble = { path = "crates/pllm-garble" }
+pllm-models = { path = "crates/pllm-models" }
+pllm-method-mpcache = { path = "crates/pllm-method-mpcache" }
 pyo3 = { version = "=0.26.0", features = ["abi3-py311"] }
 rayon = "=1.11.0"
 getrandom = "=0.3.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+zeroize = "1.8"
 
 [profile.release]
 opt-level = 3

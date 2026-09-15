@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/locked-context.schema.json",
+  "title": "PLLM locked compiler context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile", "model", "tokenizer", "semantic_graph", "numeric_graph", "protected_graph", "roles", "privacy_contract", "workload", "target", "material_requests", "resource_forecast", "compiler", "execution_role", "static_role_plans"],
+  "properties": {
+    "schema_version": {"const": "pllm.locked_context.v1"},
+    "profile": {"type": "string", "minLength": 1},
+    "model": {"$ref": "#/$defs/namedDigest"},
+    "tokenizer": {"$ref": "#/$defs/namedDigest"},
+    "semantic_graph": {"$ref": "#/$defs/namedDigest"},
+    "numeric_graph": {"$ref": "#/$defs/namedDigest"},
+    "protected_graph": {"$ref": "#/$defs/namedDigest"},
+    "roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "privacy_contract": {"$ref": "#/$defs/namedDigest"},
+    "workload": {"$ref": "#/$defs/namedDigest"},
+    "target": {"$ref": "#/$defs/namedDigest"},
+    "material_requests": {"type": "array", "items": {"$ref": "#/$defs/namedDigest"}, "uniqueItems": true},
+    "resource_forecast": {"$ref": "#/$defs/namedDigest"},
+    "compiler": {"$ref": "#/$defs/versionedArtifact"},
+    "execution_role": {"type": "string", "minLength": 1},
+    "static_role_plans": {"type": "array", "items": {"$ref": "#/$defs/rolePlan"}, "uniqueItems": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "namedDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "digest": {"$ref": "#/$defs/digest"}}
+    },
+    "versionedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "rolePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "digest"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

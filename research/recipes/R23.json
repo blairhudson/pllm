@@ -1,0 +1,20 @@
+{
+  "schema_version": "pllm.reproduction_recipe.v1",
+  "id": "pllm.recipe.mpcache-reproduction.v1",
+  "registry_alias": "R23",
+  "kind": "planned_workflow",
+  "source_acquisition_status": "acquired",
+  "workflow_status": "not_executed",
+  "source_record_id": "pllm.source.mpcache.arxiv-2501.06807v2",
+  "upstream_artifact_lock_id": "pllm.upstream.mpcache.55e401b17db3c47dd6920b9a92ad937c7e9bb452",
+  "method_record_id": "pllm.method.mpcache-structural-adaptation.v1",
+  "primary_url": "https://arxiv.org/abs/2501.06807v2",
+  "dependencies": [],
+  "target_modules": ["protocol.mpcache", "state.secret_shared_kv", "gate.mpcache_attention"],
+  "original_artifact_command": null,
+  "pllm_reproduction_command": null,
+  "publication_workload": null,
+  "required_evidence": ["source.lock.json", "fidelity.md", "environment.json", "model_or_fixture.lock.json", "plan.lock.json", "correctness.json", "assurance.json", "raw_samples.jsonl", "all_party_resources.json", "reproduction_report.md"],
+  "failure_policy": "record_missing_build_or_workload; never count plaintext boundary layers as protected",
+  "gates": ["acquire", "specify", "reference", "fidelity", "native", "compose", "assure", "benchmark", "document"]
+}

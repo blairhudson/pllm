@@ -1,0 +1,14 @@
+{
+  "title": "Research workflows",
+  "root": true,
+  "pages": [
+    "index",
+    "[Build a method](/research/recipes/build-method/)",
+    "[Run an experiment](/research/recipes/experiments/)",
+    "[Record a reproduction](/research/recipes/reproductions/)",
+    "[Compare equivalent runs](/research/recipes/compare/)",
+    "[Reproduce a result](/research/recipes/reproduce/)",
+    "[Agent research map](/research/recipes/agent-map/)",
+    "[Agent reproduction checklist](/research/recipes/reproduction-checklist/)"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/evidence-bundle.schema.json",
+  "title": "PLLM evidence bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "created_at", "plan_lock_digest", "claim_ids", "measurements", "assurance_results", "method_record_ids", "source_record_ids", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "pllm.evidence_bundle.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "plan_lock_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "claim_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "measurements": {"type": "array", "items": {"$ref": "measurement.schema.json"}},
+    "assurance_results": {"type": "array", "items": {"$ref": "assurance-result.schema.json"}},
+    "method_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "media_type"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "media_type": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

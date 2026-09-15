@@ -1,0 +1,5 @@
+{
+  "title": "Runtime pipeline",
+  "root": true,
+  "pages": ["index", "../compiler", "../runtime", "../protocols", "../preparation", "../kernels"]
+}

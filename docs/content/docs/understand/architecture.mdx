@@ -1,0 +1,18 @@
+---
+title: "Architecture"
+description: "Understand PLLM's plans, runtime stages, role ownership, and side effects."
+---
+
+```text
+Experiment -> resolved public configuration
+model config -> ModelPlan -> component lineage -> coverage
+compile request -> immutable logical/execution/lock records
+preparation -> role-local one-use material + public readiness receipt
+runtime -> bounded execution
+benchmark/assurance -> cohort-bound evidence
+publication -> scoped claim linked to evidence
+```
+
+Python owns immutable declarations and coarse calls. Rust owns lowering, validation, hot paths, clocks, and assurance where implemented. Constructors perform no downloads, device discovery, provider loads, compilation, preparation, process startup, or network work.
+
+Current runtime modules predate complete lifecycle orchestration. Their importability is not support. See [status](/sdk/reference/status/) and normative [architecture](https://github.com/blairhudson/pllm/blob/main/ARCHITECTURE.md).

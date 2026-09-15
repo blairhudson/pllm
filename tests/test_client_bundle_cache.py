@@ -13,8 +13,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pllm.runtime import GatewayConfig, create_app
-from pllm.runtime.client import HEClientCore
-from pllm.runtime.client import HEAPIError
+from pllm.runtime.client import RuntimeClient
+from pllm.runtime.client import ProtocolError
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -88,9 +88,9 @@ def _core(
     base_url: str = "https://EXAMPLE.test:443/api/",
     api_key: str = "credential-a",
     mode: str = "read-write",
-) -> HEClientCore:
+) -> RuntimeClient:
     http = _mock_client(payload, base_url=base_url, calls=calls)
-    return HEClientCore(
+    return RuntimeClient(
         base_url=base_url,
         api_key=api_key,
         http_client=http,
@@ -199,7 +199,7 @@ def test_bundle_cache_defaults_under_xdg_cache_home(
     calls: dict[str, int] = {}
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     http = _mock_client(payload, base_url="https://example.test", calls=calls)
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=http,
@@ -241,7 +241,7 @@ def test_bundle_cache_lock_prevents_duplicate_concurrent_downloads(tmp_path: Pat
         )
 
     cores = [
-        HEClientCore(
+        RuntimeClient(
             base_url="https://example.test/api",
             api_key="credential",
             http_client=httpx.Client(
@@ -280,7 +280,7 @@ def test_bundle_revision_replaces_stable_record_and_rebuilds_transformer_state(
     def handler(request: httpx.Request) -> httpx.Response:
         payload = revisions[selected]
         fingerprint = hashlib.sha256(payload).hexdigest()
-        if request.method == "POST" and request.url.path.endswith("/v1/he/sessions"):
+        if request.method == "POST" and request.url.path.endswith("/v1/runtime/sessions"):
             calls["session"] = calls.get("session", 0) + 1
             return httpx.Response(200, json={"id": f"session-{calls['session']}"})
         if request.url.path.endswith("/client-bundle"):
@@ -304,7 +304,7 @@ def test_bundle_revision_replaces_stable_record_and_rebuilds_transformer_state(
             },
         )
 
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=httpx.Client(
@@ -341,7 +341,7 @@ def test_unavailable_default_cache_falls_back_but_explicit_cache_fails(
     monkeypatch.setenv("XDG_CACHE_HOME", str(blocked))
 
     calls: dict[str, int] = {}
-    implicit = HEClientCore(
+    implicit = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=_mock_client(payload, base_url="https://example.test", calls=calls),
@@ -354,7 +354,7 @@ def test_unavailable_default_cache_falls_back_but_explicit_cache_fails(
 
     explicit = _core(payload, blocked / "cache", calls)
     try:
-        with pytest.raises(HEAPIError, match="configured bundle cache is unavailable"):
+        with pytest.raises(ProtocolError, match="configured bundle cache is unavailable"):
             explicit._load_client_bundle("cache-model")
     finally:
         explicit.close()
@@ -392,7 +392,7 @@ def test_descriptor_download_race_retries_once(tmp_path: Path):
             },
         )
 
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=httpx.Client(
@@ -435,7 +435,7 @@ def test_network_integrity_failure_does_not_retry_unchanged_revision(tmp_path: P
             },
         )
 
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=httpx.Client(
@@ -444,7 +444,7 @@ def test_network_integrity_failure_does_not_retry_unchanged_revision(tmp_path: P
         bundle_cache_dir=tmp_path / "cache",
     )
     try:
-        with pytest.raises(HEAPIError, match="fingerprint mismatch"):
+        with pytest.raises(ProtocolError, match="fingerprint mismatch"):
             core._load_client_bundle("cache-model")
     finally:
         core.close()
@@ -472,7 +472,7 @@ def test_absurd_descriptor_size_is_rejected_before_download(tmp_path: Path):
             },
         )
 
-    core = HEClientCore(
+    core = RuntimeClient(
         base_url="https://example.test",
         api_key="credential",
         http_client=httpx.Client(
@@ -481,7 +481,7 @@ def test_absurd_descriptor_size_is_rejected_before_download(tmp_path: Path):
         bundle_cache_dir=tmp_path / "cache",
     )
     try:
-        with pytest.raises(HEAPIError, match="descriptor is invalid"):
+        with pytest.raises(ProtocolError, match="descriptor is invalid"):
             core._load_client_bundle("cache-model")
     finally:
         core.close()
@@ -507,7 +507,7 @@ def test_server_exposes_fingerprint_etag_and_memoizes_bundle(tmp_path: Path):
     headers = {"Authorization": "Bearer key"}
     with TestClient(app) as client:
         loaded = client.post(
-            "/v1/he/models/load",
+            "/v1/runtime/models/load",
             headers=headers,
             json={
                 "engine": engine.capabilities.name,
@@ -517,16 +517,16 @@ def test_server_exposes_fingerprint_etag_and_memoizes_bundle(tmp_path: Path):
             },
         )
         assert loaded.status_code == 200
-        descriptor = client.get("/v1/he/models/server-model", headers=headers).json()[
+        descriptor = client.get("/v1/runtime/models/server-model", headers=headers).json()[
             "client_bundle"
         ]
-        response = client.get("/v1/he/models/server-model/client-bundle", headers=headers)
+        response = client.get("/v1/runtime/models/server-model/client-bundle", headers=headers)
         assert response.status_code == 200
         assert response.headers["etag"] == descriptor["etag"]
         assert response.headers["x-pllm-bundle-sha256"] == descriptor["sha256"]
         assert hashlib.sha256(response.content).hexdigest() == descriptor["sha256"]
         unchanged = client.get(
-            "/v1/he/models/server-model/client-bundle",
+            "/v1/runtime/models/server-model/client-bundle",
             headers={**headers, "If-None-Match": descriptor["etag"]},
         )
         assert unchanged.status_code == 304

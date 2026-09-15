@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/upstream-artifact-lock.schema.json",
+  "title": "PLLM upstream artifact lock v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "source_record_ids", "repository_url", "commit", "submodules_lock", "dependency_lock", "build_recipe", "artifact_digest", "license_review", "acquisition_status", "execution_status", "execution_boundary"],
+  "properties": {
+    "schema_version": {"const": "pllm.upstream_artifact_lock.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "repository_url": {"type": "string", "format": "uri"},
+    "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "submodules_lock": {"type": ["object", "null"], "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{40}$"}},
+    "dependency_lock": {"type": ["string", "null"], "minLength": 1},
+    "build_recipe": {"type": ["string", "null"], "minLength": 1},
+    "artifact_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "license_review": {"enum": ["approved", "external_reproduction_only", "required_before_execution"]},
+    "acquisition_status": {"enum": ["not_acquired", "source_acquired"]},
+    "execution_status": {"enum": ["not_executed", "built", "failed", "blocked"]},
+    "execution_boundary": {"const": "oracle_only"},
+    "notes": {"type": "string", "minLength": 1}
+  }
+}

@@ -13,8 +13,8 @@ from typing import Any, Iterable, Iterator
 import msgpack
 
 
-PROTOCOL_VERSION = "he-responses/1"
-BINARY_MEDIA_TYPE = "application/vnd.openai.he+msgpack"
+PROTOCOL_VERSION = "pllm-runtime/1"
+BINARY_MEDIA_TYPE = "application/vnd.pllm.runtime+msgpack"
 JSON_MEDIA_TYPE = "application/json"
 FRAME_HEADER = struct.Struct("!I")
 
@@ -24,7 +24,7 @@ class ProtocolError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class HEEnvelope:
+class ProtocolEnvelope:
     request_id: str
     session_id: str
     model: str
@@ -53,7 +53,7 @@ class HEEnvelope:
     def to_dict(self) -> dict[str, Any]:
         return {**self.unsigned_dict(), "mac": self.mac}
 
-    def sign(self, key: bytes) -> "HEEnvelope":
+    def sign(self, key: bytes) -> "ProtocolEnvelope":
         digest = hmac.new(key, canonical_pack(self.unsigned_dict()), hashlib.sha256).digest()
         return replace(self, mac=digest)
 
@@ -77,7 +77,7 @@ class HEEnvelope:
         payload: bytes,
         metadata: dict[str, Any] | None = None,
         key: bytes,
-    ) -> "HEEnvelope":
+    ) -> "ProtocolEnvelope":
         envelope = cls(
             request_id=request_id,
             session_id=session_id,
@@ -93,14 +93,14 @@ class HEEnvelope:
 
 
 class ReplayWindow:
-    """Bounded nonce/sequence replay guard for one HE session."""
+    """Bounded nonce/sequence replay guard for one runtime session."""
 
     def __init__(self, max_entries: int = 4096) -> None:
         self.max_entries = max_entries
         self._seen: dict[bytes, int] = {}
         self._highest_sequence = -1
 
-    def accept(self, envelope: HEEnvelope) -> None:
+    def accept(self, envelope: ProtocolEnvelope) -> None:
         if envelope.nonce in self._seen:
             raise ProtocolError("replayed nonce")
         # Allow modest reordering for multiplexed requests, but not sequence reuse.
@@ -117,17 +117,17 @@ def canonical_pack(value: Any) -> bytes:
     return msgpack.packb(_sort_mapping(value), use_bin_type=True, strict_types=True)
 
 
-def pack_envelope(envelope: HEEnvelope) -> bytes:
+def pack_envelope(envelope: ProtocolEnvelope) -> bytes:
     return canonical_pack(envelope.to_dict())
 
 
-def unpack_envelope(data: bytes) -> HEEnvelope:
+def unpack_envelope(data: bytes) -> ProtocolEnvelope:
     try:
         value = msgpack.unpackb(data, raw=False, strict_map_key=False)
     except Exception as exc:  # pragma: no cover - precise backend exception is not API surface
         raise ProtocolError("invalid MessagePack envelope") from exc
     if not isinstance(value, dict) or value.get("v") != PROTOCOL_VERSION:
-        raise ProtocolError("unsupported HE protocol")
+        raise ProtocolError("unsupported runtime protocol")
     required = {
         "request_id",
         "session_id",
@@ -143,7 +143,7 @@ def unpack_envelope(data: bytes) -> HEEnvelope:
     missing = required - value.keys()
     if missing:
         raise ProtocolError(f"missing envelope fields: {sorted(missing)}")
-    return HEEnvelope(
+    return ProtocolEnvelope(
         request_id=str(value["request_id"]),
         session_id=str(value["session_id"]),
         model=str(value["model"]),
@@ -157,20 +157,20 @@ def unpack_envelope(data: bytes) -> HEEnvelope:
     )
 
 
-def envelope_to_json(envelope: HEEnvelope) -> bytes:
+def envelope_to_json(envelope: ProtocolEnvelope) -> bytes:
     value = envelope.to_dict()
     for key in ("payload", "nonce", "mac"):
         value[key] = base64.b64encode(value[key]).decode("ascii")
     return json.dumps(value, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
 
-def envelope_from_json(data: bytes) -> HEEnvelope:
+def envelope_from_json(data: bytes) -> ProtocolEnvelope:
     try:
         value = json.loads(data)
         for key in ("payload", "nonce", "mac"):
             value[key] = base64.b64decode(value[key], validate=True)
     except Exception as exc:
-        raise ProtocolError("invalid JSON HE envelope") from exc
+        raise ProtocolError("invalid JSON runtime envelope") from exc
     return unpack_envelope(msgpack.packb(value, use_bin_type=True))
 
 

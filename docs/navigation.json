@@ -1,0 +1,93 @@
+{
+  "main": [
+    {
+      "href": "/learn/",
+      "label": "Learn",
+      "owns": ["/learn"]
+    },
+    {
+      "href": "/cli/",
+      "label": "CLI",
+      "owns": ["/cli"]
+    },
+    {
+      "href": "/sdk/",
+      "label": "SDK",
+      "owns": ["/sdk"]
+    },
+    {
+      "href": "/research/",
+      "label": "Research",
+      "owns": ["/research"]
+    }
+  ],
+  "publicationGroups": [
+    {
+      "id": "get-started",
+      "label": "Get started",
+      "entries": [
+        {"label": "Get started", "href": "/learn/start/", "sidebar": "start"},
+        {"label": "Learn", "href": "/learn/", "sidebar": "learn"},
+        {"label": "CLI", "href": "/cli/", "sidebar": "cli"},
+        {"label": "SDK", "href": "/sdk/", "sidebar": "sdk"},
+        {"label": "Concept guides", "href": "/learn/understand/", "sidebar": "understand", "visible": false}
+      ]
+    },
+    {
+      "id": "define",
+      "label": "Define",
+      "entries": [
+        {"label": "Build with PLLM", "href": "/sdk/build/", "sidebar": "build", "visible": false},
+        {"label": "Models", "href": "/sdk/build/models/", "sidebar": "models"},
+        {"label": "Operators", "href": "/sdk/build/operators/", "sidebar": "operators"},
+        {"label": "Numerics", "href": "/sdk/build/numerics/", "sidebar": "numerics"},
+        {"label": "Representations", "href": "/sdk/build/representations/", "sidebar": "representations"},
+        {"label": "Protocols", "href": "/sdk/pipeline/protocols/", "sidebar": "protocols"},
+        {"label": "Conversions", "href": "/sdk/build/conversions/", "sidebar": "conversions"}
+      ]
+    },
+    {
+      "id": "execute",
+      "label": "Execute",
+      "entries": [
+        {"label": "Preparation", "href": "/sdk/pipeline/preparation/", "sidebar": "preparation"},
+        {"label": "Kernels", "href": "/sdk/pipeline/kernels/", "sidebar": "kernels"},
+        {"label": "Compiler", "href": "/sdk/pipeline/compiler/", "sidebar": "compiler"},
+        {"label": "Pipeline", "href": "/sdk/pipeline/", "sidebar": "pipeline"},
+        {"label": "Runtime", "href": "/sdk/pipeline/runtime/", "sidebar": "runtime"},
+        {"label": "Deployment", "href": "/sdk/operate/deployment/", "sidebar": "deployment"},
+        {"label": "Operations guides", "href": "/sdk/operate/", "sidebar": "operate", "visible": false}
+      ]
+    },
+    {
+      "id": "evaluate",
+      "label": "Evaluate",
+      "entries": [
+        {"label": "Benchmarks", "href": "/sdk/research/benchmarks/", "sidebar": "benchmarks"},
+        {"label": "Metrics", "href": "/research/records/metrics/", "sidebar": "metrics"},
+        {"label": "Search", "href": "/sdk/build/search/", "sidebar": "search"},
+        {"label": "Assurance", "href": "/sdk/research/assurance/", "sidebar": "assurance"},
+        {"label": "Research", "href": "/research/", "sidebar": "research"},
+        {"label": "Evidence and records", "href": "/research/records/", "sidebar": "research/records", "visible": false},
+        {"label": "Recipes", "href": "/research/recipes/", "sidebar": "recipes"},
+        {"label": "Evaluation guides", "href": "/sdk/research/", "sidebar": "measure", "visible": false}
+      ]
+    },
+    {
+      "id": "reference",
+      "label": "Reference",
+      "entries": [
+        {"label": "Reference", "href": "/sdk/reference/", "sidebar": "reference"},
+        {"label": "Contribute", "href": "/sdk/contribute/", "sidebar": "contribute"},
+        {"label": "Agent maps", "href": "/sdk/contribute/agents/", "sidebar": "agents"}
+      ]
+    }
+  ],
+  "guideMappings": [
+    {"prefix": "/sdk/build/", "group": "define", "root": "/sdk/build/"},
+    {"prefix": "/learn/understand/", "group": "get-started", "root": "/learn/"},
+    {"prefix": "/sdk/research/", "group": "evaluate", "root": "/sdk/research/"},
+    {"prefix": "/sdk/operate/", "group": "execute", "root": "/sdk/operate/"},
+    {"prefix": "/research/", "group": "evaluate", "root": "/research/"}
+  ]
+}

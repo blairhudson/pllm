@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/component-descriptor.schema.json",
+  "title": "PLLM component descriptor v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "component", "version", "category", "method", "params_schema", "trust"],
+  "properties": {
+    "schema_version": {"const": "pllm.component_descriptor.v1"},
+    "provider": {"type": "string", "minLength": 1},
+    "component": {"type": "string", "pattern": "^[^/]+/.+$"},
+    "version": {"type": "string", "minLength": 1},
+    "category": {"type": "string", "minLength": 1},
+    "method": {"type": ["string", "null"], "minLength": 1},
+    "params_schema": {"type": "object"},
+    "artifact_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["load_mode", "authorized_roles"],
+      "properties": {
+        "load_mode": {"enum": ["builtin", "in_process", "out_of_process", "metadata_only"]},
+        "authorized_roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/claim-record.schema.json",
+  "title": "PLLM claim record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "kind", "statement", "scope", "limitations", "source_record_ids", "method_record_ids", "plan_lock_digests", "publication_class"],
+  "properties": {
+    "schema_version": {"const": "pllm.claim_record.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["scope", "negative_result", "reproduction", "engineering_improvement", "scientific_contribution"]},
+    "statement": {"type": "string", "minLength": 1},
+    "scope": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "method_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "plan_lock_digests": {"type": "array", "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "uniqueItems": true},
+    "publication_class": {"enum": ["documentation", "negative_result", "reproduction", "engineering", "scientific"]}
+  }
+}

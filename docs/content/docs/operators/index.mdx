@@ -1,0 +1,34 @@
+---
+title: "Operators"
+description: "Learn how PLLM describes model operations independently of model family and runtime."
+---
+
+Operators describe what a model does without depending on model-family names or a
+specific runtime. Plans represent projections, normalization, rotary embeddings,
+attention, recurrent and convolutional state, nonlinear activation, residuals,
+selection, and input or output boundaries with explicit shapes and settings.
+
+A compiler profile lists the operators it can execute. Unknown or unsupported
+operations appear in `PlanCoverage` and stop compilation. PLLM never silently
+replaces them with plaintext or approximate work. Research methods also use these
+shared operators instead of relying on model-specific weight names.
+
+An operator in a model plan shows only that PLLM can describe it. See
+[compiler](/sdk/pipeline/compiler/) for execution support and [numerics](/sdk/build/numerics/)
+for integer and approximation requirements.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+operators = {operation["operator"] for operation in plan.prefill["operations"]}
+print(sorted(operators))
+```
+
+This inspects semantic operators; it does not establish execution coverage.

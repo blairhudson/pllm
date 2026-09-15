@@ -216,20 +216,13 @@ def test_complete_secure_decoder_uses_he_generated_material() -> None:
     assert generator.stats.linear_correlations == 6
 
 
-def test_pllm_secure_cli_runs_complete_preview(monkeypatch, capsys) -> None:
-    from pllm import cli
-
-    monkeypatch.setattr("sys.argv", ["pllm", "secure", "--output", "logits"])
-    cli.main()
-    payload = __import__("json").loads(capsys.readouterr().out)
-    assert payload["exact"] is True
-    assert payload["output_policy"] == "logits"
-    assert payload["online_rounds"] < 20
-
-
 def test_user_facing_source_has_no_retired_brand_or_proof_wording() -> None:
     root = Path(__file__).parents[1]
-    files = [root / "README.md", root / "docs" / "content" / "docs" / "security.mdx", root / "SECURITY.md"]
+    files = [
+        root / "README.md",
+        root / "docs" / "content" / "docs" / "assurance" / "index.mdx",
+        root / "SECURITY.md",
+    ]
     forbidden = ("zero" + " knowledge", "zk" + "ai", "pllm" + "-inference")
     for path in files:
         value = path.read_text(encoding="utf-8").lower()
@@ -245,14 +238,3 @@ def test_public_package_is_named_pllm() -> None:
     text = pyproject.read_text(encoding="utf-8")
     assert 'name = "pllm"' in text
     assert 'dynamic = ["version"]' in text
-
-
-def test_pllm_top_level_parser_does_not_treat_he_as_help(monkeypatch):
-    import sys
-    import pllm.cli as cli
-
-    captured = []
-    monkeypatch.setattr(cli, "_secure_preview", lambda arguments: captured.extend(arguments))
-    monkeypatch.setattr(sys, "argv", ["pllm", "secure", "--he"])
-    cli.main()
-    assert captured == ["--he"]

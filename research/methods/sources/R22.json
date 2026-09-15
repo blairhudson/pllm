@@ -1,0 +1,15 @@
+{
+  "access": "primary_full_text",
+  "artifact_commit": "47c5560d069543591f3b0176eb530ede28e33fc3",
+  "authors": ["Wen-jie Lu", "Zhicong Huang", "Zhen Gu", "Jingyu Li", "Jian Liu", "Cheng Hong", "Kui Ren", "Tao Wei", "Wenguang Chen"],
+  "id": "R22",
+  "license_review": "approved",
+  "local_path": "papers/2023-1678.pdf",
+  "notes": "Apache-2.0 artifact is eligible for reviewed adaptation. Its two online parties and repeated full-prefix generation remain comparison-only for the preferred topology.",
+  "paper_digest": "15583a86593998079d42b8b134dc4f4f5be9ca72a7ced8f31bba05f68893516a",
+  "primary_url": "https://eprint.iacr.org/2023/1678",
+  "schema_version": "pllm.source_record.v1",
+  "title": "BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+  "verified_on": "2026-09-14",
+  "year": 2025
+}

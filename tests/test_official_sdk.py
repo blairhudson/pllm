@@ -49,19 +49,19 @@ def sdk_endpoint(gateway):
 def test_installed_openai_responses(sdk_endpoint):
     from openai import OpenAI
     with OpenAI(base_url=sdk_endpoint, api_key="sdk-local-key", max_retries=0) as client:
-        result = client.responses.create(model="he-bigram-demo", input="synthetic API fixture", max_output_tokens=32)
+        result = client.responses.create(model="pllm-bigram-demo", input="synthetic API fixture", max_output_tokens=32)
         assert result.output_text == "private\n"
         assert result.status == "completed"
 
 def test_installed_openai_stream(sdk_endpoint):
     from openai import OpenAI
     with OpenAI(base_url=sdk_endpoint, api_key="sdk-local-key", max_retries=0) as client:
-        events = list(client.responses.create(model="he-bigram-demo", input="synthetic API fixture", max_output_tokens=32, stream=True))
+        events = list(client.responses.create(model="pllm-bigram-demo", input="synthetic API fixture", max_output_tokens=32, stream=True))
         assert events[-1].type == "response.completed"
         assert "".join(event.delta for event in events if event.type == "response.output_text.delta") == "private\n"
 
 
-def test_installed_openai_he_transport(gateway):
+def test_installed_openai_pllm_transport(gateway):
     from pllm import create_openai_client
 
     with create_openai_client(
@@ -70,7 +70,7 @@ def test_installed_openai_he_transport(gateway):
         correlation_mode="local-test",
     ) as client:
         result = client.responses.create(
-            model="he-bigram-demo", input="synthetic API fixture", max_output_tokens=32,
+            model="pllm-bigram-demo", input="synthetic API fixture", max_output_tokens=32,
         )
         assert result.output_text == "private\n"
 
@@ -79,5 +79,5 @@ def test_installed_openai_he_transport(gateway):
 async def test_installed_async_openai(sdk_endpoint):
     from openai import AsyncOpenAI
     async with AsyncOpenAI(base_url=sdk_endpoint, api_key="sdk-local-key", max_retries=0) as client:
-        result = await client.responses.create(model="he-bigram-demo", input="synthetic API fixture", max_output_tokens=32)
+        result = await client.responses.create(model="pllm-bigram-demo", input="synthetic API fixture", max_output_tokens=32)
         assert result.output_text == "private\n"

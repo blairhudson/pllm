@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/assurance-result.schema.json",
+  "title": "PLLM assurance result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "claim_id", "outcome", "scope", "origin", "implementation_refinement", "assumptions", "evidence_paths", "tool", "tool_version", "code_digest"],
+  "properties": {
+    "schema_version": {"const": "pllm.assurance_result.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "claim_id": {"type": "string", "minLength": 1},
+    "outcome": {"enum": ["proved_in_model", "refuted_in_scope", "not_refuted", "inconclusive", "outside_contract", "unchecked"]},
+    "scope": {"type": "string", "minLength": 1},
+    "origin": {"enum": ["solver_executed", "adversary_executed", "source_reported", "human_review", "not_run"]},
+    "implementation_refinement": {"enum": ["not_established", "tested_differential", "proved_for_locked_code"]},
+    "assumptions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "evidence_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "tool": {"type": ["string", "null"], "minLength": 1},
+    "tool_version": {"type": ["string", "null"], "minLength": 1},
+    "code_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+  }
+}

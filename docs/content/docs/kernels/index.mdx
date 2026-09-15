@@ -1,0 +1,25 @@
+---
+title: "Kernels"
+description: "Understand PLLM's native integer matrix kernels, memory costs, and CPU requirements."
+---
+
+`pllm-core` implements bounded integer matrices, scalar reference code, runtime
+AVX2 and NEON selection, codecs, quantization, masking, subtraction, and operating
+system randomness. It copies validated weights into Rust once and reuses them.
+Python-to-Rust buffer conversions still create copies.
+
+Kernel records list required CPU features, threading, input and output formats,
+supported operations, memory use, and evidence. Moving arithmetic to Rust does
+not remove protocol messages, offline preparation, client state, or conversion
+costs.
+
+## Python SDK example
+
+```python
+from pllm.kernels import Cpu
+
+kernel = Cpu(threads=4)
+print(kernel.to_spec())
+```
+
+This selects public kernel configuration only; it does not execute a model.

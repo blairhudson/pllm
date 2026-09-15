@@ -24,11 +24,11 @@ from .correction_channel import (
     CorrectionChannelError,
 )
 from .correction_rendezvous import CorrectionRendezvous, RendezvousError
-from .engine import HEEngine
+from .engine import InferenceEngine
 from .engine import EngineStageExecutor
 from .hf_hub import resolve_huggingface_source
-from .he_runtime import (
-    BFVCorrelationServer,
+from .bfv_correlations import BFVCorrelationServer
+from .masked_runtime import (
     BigramStageExecutor,
     CorrelationPool,
     LocalCorrelationFactory,
@@ -40,7 +40,7 @@ from .loaders import load_gguf, load_hf_directory, load_mlx_directory, load_olla
 from .models import ModelManifest as ImportedModelManifest
 from .protocol import (
     BINARY_MEDIA_TYPE,
-    HEEnvelope,
+    ProtocolEnvelope,
     ProtocolError,
     ReplayWindow,
     encode_length_prefixed,
@@ -76,7 +76,7 @@ from .types import new_id
 
 
 @dataclass(slots=True)
-class HESession:
+class RuntimeSession:
     id: str
     response_id: str
     model_id: str
@@ -89,7 +89,7 @@ class HESession:
     completed: bool = False
     online_steps: int = 0
     correlation_steps: int = 0
-    execution: str = "he"
+    execution: str = "runtime"
     inventory_id: str | None = None
     inventory_rows: int = 0
     inventory_stages: frozenset[str] = frozenset()
@@ -160,8 +160,8 @@ def create_app(
     config: GatewayConfig | None = None,
     *,
     backend_registry: BackendRegistry | None = None,
-    strict_models: dict[str, MaskedBigramModel] | None = None,
-    engines: dict[str, HEEngine] | None = None,
+    private_models: dict[str, MaskedBigramModel] | None = None,
+    engines: dict[str, InferenceEngine] | None = None,
     audit_hook: Callable[[str, bytes], None] | None = None,
 ) -> FastAPI:
     config = config or GatewayConfig()
@@ -169,9 +169,9 @@ def create_app(
         raise ValueError("client and correction-push credentials must be distinct")
     backend_registry = backend_registry or BackendRegistry.from_config(list(config.backends))
     engines = engines or {}
-    if strict_models is None:
+    if private_models is None:
         alphabet = config.reference_alphabet.replace("\\n", "\n")
-        strict_models = {
+        private_models = {
             config.reference_model_id: MaskedBigramModel(
                 model_id=config.reference_model_id,
                 alphabet=alphabet,
@@ -185,13 +185,13 @@ def create_app(
             max_wait_ms=config.max_batch_wait_ms,
             adaptive_wait=config.adaptive_batching,
         )
-        for model_id, model in strict_models.items()
+        for model_id, model in private_models.items()
     }
     engine_schedulers: dict[tuple[str, str], StageBatchScheduler] = {}
     bfv_servers: dict[str, BFVCorrelationServer] = {}
     context_owners: dict[tuple[str, str], str] = {}
     proprietary_owner_by_principal: dict[tuple[str, str], str] = {}
-    for model_id, model in strict_models.items():
+    for model_id, model in private_models.items():
         try:
             bfv_servers[model_id] = BFVCorrelationServer(
                 model.weight, pydeps_path=config.tenseal_path
@@ -202,9 +202,9 @@ def create_app(
             pass
     local_factories = {
         model_id: LocalCorrelationFactory(model.weight, model.modulus, seed=17)
-        for model_id, model in strict_models.items()
+        for model_id, model in private_models.items()
     }
-    sessions: dict[str, HESession] = {}
+    sessions: dict[str, RuntimeSession] = {}
     inventory_lock = threading.Lock()
     responses = RetainedResponses(config.response_retention_seconds)
     imported: dict[str, ImportedModelManifest] = {}
@@ -227,7 +227,7 @@ def create_app(
         "failures": 0,
     }
 
-    def bind_proprietary_owner(session: HESession, owner_id: str) -> None:
+    def bind_proprietary_owner(session: RuntimeSession, owner_id: str) -> None:
         key = (session.model_id, session.api_key)
         existing = proprietary_owner_by_principal.get(key)
         if existing is None:
@@ -254,7 +254,7 @@ def create_app(
                         "id": "backend-discovery-error",
                         "object": "model",
                         "owned_by": "pllm",
-                        "he": {"error": str(exc), "privacy_mode": "trusted_backend"},
+                        "runtime": {"error": str(exc), "privacy_mode": "trusted_backend"},
                     }
                 ]
         try:
@@ -278,7 +278,7 @@ def create_app(
 
     app = FastAPI(title="Private LLM Inference Gateway", version="0.14.0", lifespan=lifespan)
     app.state.config = config
-    app.state.strict_models = strict_models
+    app.state.private_models = private_models
     app.state.schedulers = schedulers
     app.state.sessions = sessions
     app.state.imported_manifests = imported
@@ -291,14 +291,14 @@ def create_app(
         if audit_hook is not None:
             audit_hook(kind, payload)
 
-    def burn_prepared_reservation(session: HESession) -> None:
+    def burn_prepared_reservation(session: RuntimeSession) -> None:
         if session.inventory_id and session.reserved_attempts:
             rendezvous.burn_reserved(
                 session.inventory_id,
                 frozenset(attempt_id for _, attempt_id in session.reserved_attempts),
             )
 
-    def retire_exhausted_inventory(session: HESession) -> None:
+    def retire_exhausted_inventory(session: RuntimeSession) -> None:
         if session.execution != "seeded-preparation" or not session.inventory_id:
             return
         with inventory_lock:
@@ -378,7 +378,7 @@ def create_app(
         if getter is None:
             raise HTTPException(
                 status_code=501,
-                detail={"error": {"message": "HE engine does not expose a client bundle"}},
+                detail={"error": {"message": "Runtime engine does not expose a client bundle"}},
             )
         payload = getter(model_id)
         try:
@@ -386,7 +386,7 @@ def create_app(
         except (KeyError, TypeError, ValueError, msgpack.UnpackException) as exc:
             raise HTTPException(
                 status_code=500,
-                detail={"error": {"message": "HE engine returned an invalid client bundle"}},
+                detail={"error": {"message": "Runtime engine returned an invalid client bundle"}},
             ) from exc
         fingerprint = hashlib.sha256(payload).hexdigest()
         descriptor = {
@@ -406,9 +406,9 @@ def create_app(
         return {
             "status": "ok",
             "privacy_mode": config.privacy_mode,
-            "strict_he_models": len(strict_models),
+            "private_models": len(private_models),
             "trusted_backends": len(backend_registry.adapters),
-            "he_engines": len(engines),
+            "runtime_engines": len(engines),
             "loaded_engine_models": len(model_engine_routes),
             "sessions": len(sessions),
         }
@@ -416,7 +416,7 @@ def create_app(
     @app.get("/v1/models")
     async def list_models(authorization: str | None = Header(default=None)) -> dict[str, Any]:
         auth_token(authorization)
-        strict = [model.manifest.to_model_object() for model in strict_models.values()]
+        private = [model.manifest.to_model_object() for model in private_models.values()]
         manifests = []
         for manifest in imported.values():
             engine_name = model_engine_routes.get(manifest.id)
@@ -432,9 +432,9 @@ def create_app(
                     "object": "model",
                     "created": int(manifest.created_at),
                     "owned_by": "pllm",
-                    "he": {
+                    "runtime": {
                         "privacy_mode": (
-                            manifest.metadata.get("privacy_mode", "strict_he_engine")
+                            manifest.metadata.get("privacy_mode", "private_engine")
                             if engine_name
                             else "manifest_only"
                         ),
@@ -451,14 +451,14 @@ def create_app(
                     "client_bundle": bundle_descriptor,
                 }
             )
-        return {"object": "list", "data": strict + manifests + backend_models}
+        return {"object": "list", "data": private + manifests + backend_models}
 
-    @app.get("/v1/he/capabilities")
+    @app.get("/v1/runtime/capabilities")
     async def capabilities(authorization: str | None = Header(default=None)) -> dict[str, Any]:
         auth_token(authorization)
         return {
-            "object": "he.capabilities",
-            "protocol": "he-responses/1",
+            "object": "runtime.capabilities",
+            "protocol": "pllm-runtime/1",
             "responses_api": True,
             "client_transports": ["http-binary", "websocket-binary", "local-sidecar"],
             "server_privacy_mode": config.privacy_mode,
@@ -467,7 +467,7 @@ def create_app(
                 if config.privacy_mode == "public"
                 else []
             ),
-            "strict_models": [model.manifest.to_model_object() for model in strict_models.values()],
+            "private_models": [model.manifest.to_model_object() for model in private_models.values()],
             "backend_adapters": {
                 name: adapter.capabilities.to_dict()
                 for name, adapter in backend_registry.adapters.items()
@@ -522,7 +522,7 @@ def create_app(
     ) -> ImportedModelManifest:
         engine = engines.get(engine_name)
         if engine is None:
-            raise ValueError(f"unknown HE engine {engine_name!r}")
+            raise ValueError(f"unknown runtime engine {engine_name!r}")
         if manifest.id in model_engine_routes:
             raise ValueError(f"model {manifest.id!r} is already loaded")
         await engine.load(manifest)
@@ -541,18 +541,18 @@ def create_app(
             )
         return manifest
 
-    @app.get("/v1/he/engines")
+    @app.get("/v1/runtime/engines")
     async def list_engines(authorization: str | None = Header(default=None)) -> dict[str, Any]:
         auth_token(authorization)
         return {
             "object": "list",
             "data": [
-                {"id": name, "object": "he.engine", "capabilities": engine.capabilities.to_dict()}
+                {"id": name, "object": "runtime.engine", "capabilities": engine.capabilities.to_dict()}
                 for name, engine in engines.items()
             ],
         }
 
-    @app.post("/v1/he/models/load")
+    @app.post("/v1/runtime/models/load")
     async def load_model_plugin(
         request: Request, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -566,7 +566,7 @@ def create_app(
             raise HTTPException(status_code=400, detail={"error": {"message": str(exc)}}) from exc
         return {**manifest.to_dict(), "engine": engine_name, "status": "ready"}
 
-    @app.delete("/v1/he/models/{model_id:path}")
+    @app.delete("/v1/runtime/models/{model_id:path}")
     async def unload_model_plugin(
         model_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -575,7 +575,7 @@ def create_app(
         if engine_name is None:
             raise HTTPException(
                 status_code=404,
-                detail={"error": {"message": "Model is not loaded by an HE engine"}},
+                detail={"error": {"message": "Model is not loaded by a runtime engine"}},
             )
         for key, scheduler in list(engine_schedulers.items()):
             if key[0] == model_id:
@@ -584,9 +584,9 @@ def create_app(
         await engines[engine_name].unload(model_id)
         client_bundles.pop((engine_name, model_id), None)
         imported.pop(model_id, None)
-        return {"id": model_id, "object": "he.model", "status": "unloaded", "engine": engine_name}
+        return {"id": model_id, "object": "runtime.model", "status": "unloaded", "engine": engine_name}
 
-    @app.post("/v1/he/engines/{engine_name}/models/{model_id:path}/stages/{stage_id}")
+    @app.post("/v1/runtime/engines/{engine_name}/models/{model_id:path}/stages/{stage_id}")
     async def execute_engine_stage(
         engine_name: str,
         model_id: str,
@@ -613,7 +613,7 @@ def create_app(
                 raise ProtocolError("empty stage batch")
             results = await engine.execute_stage(model_id, stage, payloads)
             if len(results) != len(payloads):
-                raise ProtocolError("HE engine returned the wrong result count")
+                raise ProtocolError("Runtime engine returned the wrong result count")
         except (ProtocolError, ValueError, RuntimeError) as exc:
             raise HTTPException(
                 status_code=400,
@@ -621,7 +621,7 @@ def create_app(
             )
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/he/models/inspect")
+    @app.post("/v1/runtime/models/inspect")
     async def inspect_model(
         request: Request, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -632,7 +632,7 @@ def create_app(
             imported[manifest.id] = manifest
         return manifest.to_dict()
 
-    @app.get("/v1/he/models/{model_id:path}/client-bundle")
+    @app.get("/v1/runtime/models/{model_id:path}/client-bundle")
     async def model_client_bundle(
         model_id: str,
         authorization: str | None = Header(default=None),
@@ -655,13 +655,13 @@ def create_app(
             return FastAPIResponse(status_code=304, headers=headers)
         return FastAPIResponse(payload, media_type="application/msgpack", headers=headers)
 
-    @app.get("/v1/he/models/{model_id:path}")
+    @app.get("/v1/runtime/models/{model_id:path}")
     async def model_manifest(
         model_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
         auth_token(authorization)
-        if model_id in strict_models:
-            return strict_models[model_id].manifest.to_model_object()
+        if model_id in private_models:
+            return private_models[model_id].manifest.to_model_object()
         if model_id in imported:
             engine_name = model_engine_routes[model_id]
             result = imported[model_id].to_dict()
@@ -670,7 +670,7 @@ def create_app(
             return result
         raise HTTPException(status_code=404, detail={"error": {"message": "Unknown model"}})
 
-    @app.post("/v1/he/sessions")
+    @app.post("/v1/runtime/sessions")
     async def create_session(
         request: Request, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -679,7 +679,7 @@ def create_app(
         cleanup_prepared_sessions(reclaim_terminal=True)
         audit("session", json.dumps(body, separators=(",", ":")).encode())
         model_id = str(body.get("model", ""))
-        model = strict_models.get(model_id)
+        model = private_models.get(model_id)
         imported_manifest = imported.get(model_id)
         engine_name = model_engine_routes.get(model_id)
         if model is None and (imported_manifest is None or engine_name is None):
@@ -687,8 +687,8 @@ def create_app(
                 status_code=400,
                 detail={
                     "error": {
-                        "message": "Model has no strict HE runtime",
-                        "code": "he_runtime_required",
+                        "message": "Model has no private runtime",
+                        "code": "runtime_required",
                     }
                 },
             )
@@ -705,7 +705,7 @@ def create_app(
                 status_code=410,
                 detail={
                     "error": {
-                        "message": "Public transformer HE sessions were replaced by seeded preparation",
+                        "message": "Public transformer runtime sessions were replaced by seeded preparation",
                         "code": "seeded_preparation_required",
                     }
                 },
@@ -720,9 +720,9 @@ def create_app(
                     }
                 },
             )
-        session_id = new_id("hes")
-        session = HESession(session_id, new_id("resp"), model_id, api_key)
-        session.execution = str(body.get("execution") or "he")
+        session_id = new_id("rts")
+        session = RuntimeSession(session_id, new_id("resp"), model_id, api_key)
+        session.execution = str(body.get("execution") or "runtime")
         requested_contexts = list(body.get("context_ids") or [])
         if body.get("context_id") is not None:
             requested_contexts.append(body.get("context_id"))
@@ -734,7 +734,7 @@ def create_app(
                     detail={
                         "error": {
                             "message": "Unknown or unauthorized HE context",
-                            "code": "he_context_unavailable",
+                            "code": "runtime_context_unavailable",
                         }
                     },
                 )
@@ -807,14 +807,14 @@ def create_app(
                 "object": "model",
                 "created": int(imported_manifest.created_at),
                 "owned_by": "pllm",
-                "he": {
+                "runtime": {
                     "privacy_mode": imported_manifest.metadata.get(
                         "privacy_mode", config.privacy_mode
                     ),
                     "privacy_protocol": imported_manifest.metadata.get("privacy_protocol"),
                     "online_fhe": bool(imported_manifest.metadata.get("online_fhe", False)),
-                    "he_preprocessed": bool(
-                        imported_manifest.metadata.get("he_preprocessed", False)
+                    "preprocessed": bool(
+                        imported_manifest.metadata.get("preprocessed", False)
                     ),
                     "model_privacy_threat_model": imported_manifest.metadata.get(
                         "model_privacy_threat_model"
@@ -831,11 +831,11 @@ def create_app(
             }
         result = {
             "id": session.id,
-            "object": "he.session",
+            "object": "runtime.session",
             "response_id": session.response_id,
             "model": model_id,
             "manifest": session_manifest,
-            "websocket_path": f"/v1/he/ws/{session.id}",
+            "websocket_path": f"/v1/runtime/ws/{session.id}",
         }
         if expected_authorization is not None:
             result["preparation_authorization"] = {
@@ -847,7 +847,7 @@ def create_app(
             }
         return result
 
-    @app.post("/v1/he/inventories")
+    @app.post("/v1/runtime/inventories")
     async def create_prepared_inventory(
         request: Request, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -912,8 +912,8 @@ def create_app(
                         }
                     },
                 )
-        session_id = new_id("hei")
-        session = HESession(session_id, "", model_id, api_key)
+        session_id = new_id("rti")
+        session = RuntimeSession(session_id, "", model_id, api_key)
         session.execution = "seeded-inventory"
         session.inventory_rows = rows
         session.inventory_stages = frozenset(stage_ids)
@@ -937,7 +937,7 @@ def create_app(
         sessions[session_id] = session
         return {
             "id": session_id,
-            "object": "he.inventory",
+            "object": "runtime.inventory",
             "model": model_id,
             "status": "preparing",
             "rows": rows,
@@ -953,17 +953,17 @@ def create_app(
             },
         }
 
-    def get_session(session_id: str, api_key: str) -> HESession:
+    def get_session(session_id: str, api_key: str) -> RuntimeSession:
         cleanup_prepared_sessions()
         session = sessions.get(session_id)
         if session is None:
             raise HTTPException(
-                status_code=404, detail={"error": {"message": "Unknown HE session"}}
+                status_code=404, detail={"error": {"message": "Unknown runtime session"}}
             )
         if session.api_key != api_key:
             raise HTTPException(
                 status_code=403,
-                detail={"error": {"message": "HE session belongs to another credential"}},
+                detail={"error": {"message": "Runtime session belongs to another credential"}},
             )
         session.last_active = time.monotonic()
         return session
@@ -975,7 +975,7 @@ def create_app(
         return getter(model_id, stage_id)
 
     def validate_prepared_request(
-        session: HESession,
+        session: RuntimeSession,
         stage_id: str,
         request: MaskedStageRequest,
         engine: Any,
@@ -1019,7 +1019,7 @@ def create_app(
             raise ProtocolError("prepared activation ring profile mismatch")
 
     async def run_prepared_requests(
-        session: HESession,
+        session: RuntimeSession,
         stage_id: str,
         engine: Any,
         requests: list[MaskedStageRequest],
@@ -1062,7 +1062,7 @@ def create_app(
         return corrections, results
 
     async def execute_prepared_payloads(
-        session: HESession,
+        session: RuntimeSession,
         stage_id: str,
         engine: Any,
         payloads: list[bytes],
@@ -1121,7 +1121,7 @@ def create_app(
             )
             results = await runner([engine_request.pack()])
             if len(results) != 1:
-                raise ProtocolError("HE engine returned the wrong batch result count")
+                raise ProtocolError("Runtime engine returned the wrong batch result count")
             result = MaskedStageResponse.unpack(results[0])
             correction = np.concatenate(
                 [item.correction for item in corrections], axis=0
@@ -1170,7 +1170,7 @@ def create_app(
         if session.canceled or session.completed:
             raise ProtocolError("session is already terminal")
         if len(results) != len(payloads):
-            raise ProtocolError("HE engine returned the wrong result count")
+            raise ProtocolError("Runtime engine returned the wrong result count")
         combined: list[bytes] = []
         for prepared_request, correction, payload in zip(
             requests, corrections, results, strict=True
@@ -1201,7 +1201,7 @@ def create_app(
             )
         return combined
 
-    def prepared_endpoint_context(session_id: str) -> tuple[HESession, Any, int]:
+    def prepared_endpoint_context(session_id: str) -> tuple[RuntimeSession, Any, int]:
         cleanup_prepared_sessions()
         session = sessions.get(session_id)
         if session is None:
@@ -1276,7 +1276,7 @@ def create_app(
             correction.server_ns,
         ).pack()
 
-    @app.post("/v1/he/inventories/{session_id}/authorize")
+    @app.post("/v1/runtime/inventories/{session_id}/authorize")
     async def authorize_prepared_session(
         session_id: str,
         request: Request,
@@ -1304,7 +1304,7 @@ def create_app(
             media_type=BINARY_MEDIA_TYPE,
         )
 
-    @app.post("/v1/he/inventories/{session_id}/corrections/{attempt_id}")
+    @app.post("/v1/runtime/inventories/{session_id}/corrections/{attempt_id}")
     async def push_prepared_correction(
         session_id: str,
         attempt_id: str,
@@ -1322,7 +1322,7 @@ def create_app(
             ) from exc
         return FastAPIResponse(ack, media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/he/inventories/{session_id}/ready")
+    @app.post("/v1/runtime/inventories/{session_id}/ready")
     async def seal_prepared_inventory(
         session_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -1342,13 +1342,13 @@ def create_app(
             session.last_active = time.monotonic()
         return {
             "id": session.id,
-            "object": "he.inventory",
+            "object": "runtime.inventory",
             "status": "ready",
             "rows": session.inventory_rows,
             "stage_count": len(session.inventory_stages),
         }
 
-    @app.get("/v1/he/inventories/{session_id}")
+    @app.get("/v1/runtime/inventories/{session_id}")
     async def get_prepared_inventory(
         session_id: str,
         request: Request,
@@ -1377,7 +1377,7 @@ def create_app(
             "stage_count": len(session.prepared_stages),
         }
 
-    @app.post("/v1/he/inventories/{session_id}/cancel")
+    @app.post("/v1/runtime/inventories/{session_id}/cancel")
     async def cancel_prepared_inventory(
         session_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
@@ -1389,9 +1389,9 @@ def create_app(
             )
         session.canceled = True
         rendezvous.terminal(session.id)
-        return {"id": session.id, "object": "he.inventory", "status": "cancelled"}
+        return {"id": session.id, "object": "runtime.inventory", "status": "cancelled"}
 
-    @app.websocket("/v1/he/corrections/ws")
+    @app.websocket("/v1/runtime/corrections/ws")
     async def push_prepared_correction_websocket(websocket: WebSocket) -> None:
         token = bearer_token(websocket.headers.get("authorization"))
         expected = config.provider_push_api_key
@@ -1453,7 +1453,7 @@ def create_app(
         except WebSocketDisconnect:
             return
 
-    @app.put("/v1/he/sessions/{session_id}/contexts/{context_id}")
+    @app.put("/v1/runtime/sessions/{session_id}/contexts/{context_id}")
     async def register_context(
         session_id: str,
         context_id: str,
@@ -1476,7 +1476,7 @@ def create_app(
                 detail={
                     "error": {
                         "message": "BFV runtime is not installed",
-                        "code": "he_runtime_unavailable",
+                        "code": "runtime_unavailable",
                     }
                 },
             )
@@ -1484,7 +1484,7 @@ def create_app(
             if engine is not None:
                 register = getattr(engine, "register_bfv_context", None)
                 if register is None:
-                    raise ValueError("HE engine does not support BFV correlations")
+                    raise ValueError("Runtime engine does not support BFV correlations")
                 await asyncio.to_thread(register, session.model_id, context_id, payload)
             else:
                 bfv_servers[session.model_id].register_context(context_id, payload)
@@ -1498,13 +1498,13 @@ def create_app(
         context_owners[(session.model_id, context_id)] = api_key
         return {
             "id": context_id,
-            "object": "he.context",
+            "object": "runtime.context",
             "status": "ready",
             "bytes": len(payload),
             "reusable": True,
         }
 
-    @app.post("/v1/he/sessions/{session_id}/correlations/bfv")
+    @app.post("/v1/runtime/sessions/{session_id}/correlations/bfv")
     async def bfv_correlation(
         session_id: str,
         request: Request,
@@ -1527,7 +1527,7 @@ def create_app(
                 detail={
                     "error": {
                         "message": "BFV runtime is not installed",
-                        "code": "he_runtime_unavailable",
+                        "code": "runtime_unavailable",
                     }
                 },
             )
@@ -1539,7 +1539,7 @@ def create_app(
                     raise ValueError("x-he-stage-id is required for transformer BFV correlations")
                 evaluate = getattr(engine, "evaluate_bfv_correlation", None)
                 if evaluate is None:
-                    raise ValueError("HE engine does not support BFV correlations")
+                    raise ValueError("Runtime engine does not support BFV correlations")
                 result = await asyncio.to_thread(
                     evaluate,
                     session.model_id,
@@ -1556,12 +1556,12 @@ def create_app(
         except Exception as exc:
             raise HTTPException(
                 status_code=400,
-                detail={"error": {"message": str(exc), "code": "he_correlation_failed"}},
+                detail={"error": {"message": str(exc), "code": "runtime_correlation_failed"}},
             )
         session.correlation_steps += 1
         return FastAPIResponse(result, media_type="application/octet-stream")
 
-    @app.post("/v1/he/sessions/{session_id}/correlations/bfv/batch")
+    @app.post("/v1/runtime/sessions/{session_id}/correlations/bfv/batch")
     async def bfv_correlation_batch(
         session_id: str,
         request: Request,
@@ -1591,12 +1591,12 @@ def create_app(
             engine_name = model_engine_routes.get(session.model_id)
             engine = engines.get(engine_name) if engine_name else None
             if engine is None:
-                raise ValueError("transformer BFV batch requires an HE engine")
+                raise ValueError("transformer BFV batch requires a runtime engine")
             evaluate_many = getattr(engine, "evaluate_bfv_correlations", None)
             if evaluate_many is None:
                 evaluate_one = getattr(engine, "evaluate_bfv_correlation", None)
                 if evaluate_one is None:
-                    raise ValueError("HE engine does not support BFV correlations")
+                    raise ValueError("Runtime engine does not support BFV correlations")
                 results = await asyncio.to_thread(
                     lambda: [
                         evaluate_one(session.model_id, x_he_stage_id, context_id, item)
@@ -1631,12 +1631,12 @@ def create_app(
         except (ProtocolError, ValueError) as exc:
             raise HTTPException(
                 status_code=400,
-                detail={"error": {"message": str(exc), "code": "he_correlation_failed"}},
+                detail={"error": {"message": str(exc), "code": "runtime_correlation_failed"}},
             ) from exc
         session.correlation_steps += len(results)
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/he/sessions/{session_id}/correlations/proprietary/bfv/batch")
+    @app.post("/v1/runtime/sessions/{session_id}/correlations/proprietary/bfv/batch")
     async def proprietary_bfv_correlation_batch(
         session_id: str,
         request: Request,
@@ -1672,10 +1672,10 @@ def create_app(
             engine_name = model_engine_routes.get(session.model_id)
             engine = engines.get(engine_name) if engine_name else None
             if engine is None:
-                raise ValueError("proprietary BFV batch requires an HE engine")
+                raise ValueError("proprietary BFV batch requires a runtime engine")
             evaluate_many = getattr(engine, "evaluate_bfv_blinded_correlations", None)
             if evaluate_many is None:
-                raise ValueError("HE engine does not support output-blinded correlations")
+                raise ValueError("Runtime engine does not support output-blinded correlations")
             results = await asyncio.to_thread(
                 evaluate_many,
                 session.model_id,
@@ -1687,12 +1687,12 @@ def create_app(
         except (ProtocolError, ValueError) as exc:
             raise HTTPException(
                 status_code=400,
-                detail={"error": {"message": str(exc), "code": "he_correlation_failed"}},
+                detail={"error": {"message": str(exc), "code": "runtime_correlation_failed"}},
             ) from exc
         session.correlation_steps += len(results)
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/he/sessions/{session_id}/correlations/proprietary/local-test")
+    @app.post("/v1/runtime/sessions/{session_id}/correlations/proprietary/local-test")
     async def proprietary_local_correlations(
         session_id: str,
         request: Request,
@@ -1722,7 +1722,7 @@ def create_app(
         if create is None:
             raise HTTPException(
                 status_code=501,
-                detail={"error": {"message": "HE engine cannot create blinded test correlations"}},
+                detail={"error": {"message": "Runtime engine cannot create blinded test correlations"}},
             )
         rows = await asyncio.to_thread(
             create,
@@ -1741,7 +1741,7 @@ def create_app(
         )
         return FastAPIResponse(payload, media_type="application/msgpack")
 
-    @app.post("/v1/he/sessions/{session_id}/correlations/local-test")
+    @app.post("/v1/runtime/sessions/{session_id}/correlations/local-test")
     async def local_correlations(
         session_id: str,
         request: Request,
@@ -1766,7 +1766,7 @@ def create_app(
             if create is None:
                 raise HTTPException(
                     status_code=501,
-                    detail={"error": {"message": "HE engine cannot create test correlations"}},
+                    detail={"error": {"message": "Runtime engine cannot create test correlations"}},
                 )
             rows = await asyncio.to_thread(
                 create,
@@ -1797,7 +1797,9 @@ def create_app(
         )
         return FastAPIResponse(payload, media_type="application/msgpack")
 
-    async def execute_envelope(session: HESession, envelope: HEEnvelope) -> HEEnvelope:
+    async def execute_envelope(
+        session: RuntimeSession, envelope: ProtocolEnvelope
+    ) -> ProtocolEnvelope:
         envelope.verify(session.key)
         session.replay.accept(envelope)
         logical_rows = 1
@@ -1832,9 +1834,9 @@ def create_app(
                 result = await scheduler.submit(envelope.payload)
             result_kind = "masked.transformer.stage.result"
         else:
-            raise ProtocolError("unsupported HE frame kind")
+            raise ProtocolError("unsupported runtime frame kind")
         session.online_steps += logical_rows
-        return HEEnvelope.create(
+        return ProtocolEnvelope.create(
             request_id=envelope.request_id,
             session_id=session.id,
             model=session.model_id,
@@ -1845,7 +1847,7 @@ def create_app(
             key=session.key,
         )
 
-    @app.post("/v1/he/sessions/{session_id}/execute")
+    @app.post("/v1/runtime/sessions/{session_id}/execute")
     async def execute_http(
         session_id: str,
         request: Request,
@@ -1860,11 +1862,11 @@ def create_app(
             result = await execute_envelope(session, envelope)
         except ProtocolError as exc:
             raise HTTPException(
-                status_code=400, detail={"error": {"message": str(exc), "code": "invalid_he_frame"}}
+                status_code=400, detail={"error": {"message": str(exc), "code": "invalid_runtime_frame"}}
             )
         return FastAPIResponse(pack_envelope(result), media_type=BINARY_MEDIA_TYPE)
 
-    @app.post("/v1/he/sessions/{session_id}/stages/{stage_id}")
+    @app.post("/v1/runtime/sessions/{session_id}/stages/{stage_id}")
     async def execute_session_stage_batch(
         session_id: str,
         stage_id: str,
@@ -1918,7 +1920,7 @@ def create_app(
                     raise ProtocolError("session is already terminal")
                 results = await engine.execute_stage(session.model_id, stage, payloads)
             if len(results) != len(payloads):
-                raise ProtocolError("HE engine returned the wrong result count")
+                raise ProtocolError("Runtime engine returned the wrong result count")
         except (ProtocolError, ValueError, RuntimeError) as exc:
             raise HTTPException(
                 status_code=400,
@@ -1927,7 +1929,7 @@ def create_app(
         session.online_steps += logical_rows
         return FastAPIResponse(encode_length_prefixed(results), media_type=BINARY_MEDIA_TYPE)
 
-    @app.websocket("/v1/he/ws/{session_id}")
+    @app.websocket("/v1/runtime/ws/{session_id}")
     async def execute_websocket(websocket: WebSocket, session_id: str) -> None:
         token = bearer_token(websocket.headers.get("authorization"))
         if token is None or (config.api_keys and token not in config.api_keys):
@@ -1938,7 +1940,7 @@ def create_app(
         except HTTPException:
             await websocket.close(code=4404, reason="unknown session")
             return
-        await websocket.accept(subprotocol="he-responses-v1")
+        await websocket.accept(subprotocol="pllm-runtime-v1")
         try:
             while True:
                 ws_payload = await websocket.receive_bytes()
@@ -1953,8 +1955,8 @@ def create_app(
         except ProtocolError as exc:
             await websocket.close(code=4400, reason=str(exc))
 
-    @app.post("/v1/he/sessions/{session_id}/cancel")
-    async def cancel_he_session(
+    @app.post("/v1/runtime/sessions/{session_id}/cancel")
+    async def cancel_runtime_session(
         session_id: str,
         authorization: str | None = Header(default=None),
     ) -> dict[str, Any]:
@@ -1966,7 +1968,7 @@ def create_app(
         retire_exhausted_inventory(session)
         return {"id": session_id, "status": "cancelled"}
 
-    @app.post("/v1/he/sessions/{session_id}/complete")
+    @app.post("/v1/runtime/sessions/{session_id}/complete")
     async def complete_session(
         session_id: str,
         request: Request,
@@ -1988,7 +1990,7 @@ def create_app(
             "model": session.model_id,
             "output": [],
             "usage": body.get("usage"),
-            "he_redacted": True,
+            "runtime_redacted": True,
         }
         responses.put(value, session.api_key)
         return value
@@ -1998,15 +2000,15 @@ def create_app(
         api_key = auth_token(authorization)
         body = await request.json()
         model_id = str(body.get("model", ""))
-        if model_id in strict_models or model_id in model_engine_routes:
+        if model_id in private_models or model_id in model_engine_routes:
             raise HTTPException(
                 status_code=426,
-                headers={"Upgrade": "he-responses/1"},
+                headers={"Upgrade": "pllm-runtime/1"},
                 detail={
                     "error": {
-                        "message": "Strict-HE model requires pllm.runtime.OpenAI or HETransport; plaintext input was rejected",
+                        "message": "Private-runtime model requires pllm.runtime.OpenAI or PLLMTransport; plaintext input was rejected",
                         "type": "invalid_request_error",
-                        "code": "he_client_required",
+                        "code": "runtime_client_required",
                     }
                 },
             )

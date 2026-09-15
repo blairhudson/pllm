@@ -23,7 +23,7 @@ from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
-PYDEPS = os.environ.get("HE_OPENAI_PYDEPS", "")
+PYDEPS = os.environ.get("PLLM_TENSEAL_PATH", "")
 
 
 def run(value):
@@ -171,7 +171,7 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     config.update({"bos_token_id": 2, "eos_token_id": 3, "pad_token_id": 3})
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    (root / "he_tokenizer.json").write_text(json.dumps({
+    (root / "pllm_tokenizer.json").write_text(json.dumps({
         "type": "alphabet",
         "alphabet": " a",
         "vocab_size": 4,
@@ -201,7 +201,7 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
                 )
             with httpx.Client(base_url=gateway.base_url, timeout=120) as admin:
                 loaded = admin.post(
-                    "/v1/he/models/load",
+                    "/v1/runtime/models/load",
                     headers={"Authorization": f"Bearer {gateway.api_key}"},
                     json={
                         "engine": engine.capabilities.name,
@@ -215,7 +215,7 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
                     "/v1/models", headers={"Authorization": f"Bearer {gateway.api_key}"}
                 ).json()["data"]
                 descriptor = next(row for row in listed if row["id"] == model_id)
-                assert descriptor["he"]["privacy_mode"] == mode
+                assert descriptor["runtime"]["privacy_mode"] == mode
             with OpenAI(
                 api_key=gateway.api_key,
                 base_url=gateway.base_url,

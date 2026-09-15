@@ -3,9 +3,10 @@
 import {
   footerNavigation,
   mainNavigation,
+  navigationItemForPathname,
   searchSuggestions,
 } from '@/lib/navigation';
-import { withBasePath } from '@/lib/paths.mjs';
+import { basePath, withBasePath } from '@/lib/paths.mjs';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -73,6 +74,10 @@ export function SiteChrome({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    function handleSearchRequest() {
+      openSearch();
+    }
+
     function handleKey(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -98,8 +103,12 @@ export function SiteChrome({ children }: { children: ReactNode }) {
       }
     }
 
+    document.addEventListener('pllm:search', handleSearchRequest);
     document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('pllm:search', handleSearchRequest);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
   useEffect(() => {
@@ -160,16 +169,18 @@ export function SiteChrome({ children }: { children: ReactNode }) {
     })
     .sort((left, right) => right.score - left.score)
     .slice(0, 9);
-  const activeNavigation = mainNavigation
-    .filter((item) => pathname === item.href || (item.activePrefix && pathname.startsWith(item.activePrefix)))
-    .sort((left, right) => (right.activePrefix ?? right.href).length - (left.activePrefix ?? left.href).length)[0];
+  const routePath = basePath && pathname.startsWith(`${basePath}/`)
+    ? pathname.slice(basePath.length)
+    : pathname;
+  const activeNavigation = navigationItemForPathname(routePath);
+  const hasFumadocsNavigation = activeNavigation !== undefined;
 
   return (
     <>
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <header className="site-header">
+      <header className={`site-header${hasFumadocsNavigation ? ' content-site-header' : ''}`}>
         <div className="header-inner">
           <Link href="/" className="brand" aria-label="PLLM home">
             <span className="brand-symbol" aria-hidden="true">
@@ -180,9 +191,9 @@ export function SiteChrome({ children }: { children: ReactNode }) {
             pllm
           </Link>
           <span className="brand-tag">
-            PRIVATE LLM
+            PRIVATE INFERENCE
             <br />
-            INFERENCE
+            RUNTIME
           </span>
           <nav className="top-nav" aria-label="Main">
             {mainNavigation.map((item) => (
@@ -212,25 +223,13 @@ export function SiteChrome({ children }: { children: ReactNode }) {
               type="button"
               className="theme-button"
               onClick={toggleTheme}
-              aria-label="Toggle colour theme"
+              aria-label="Toggle color theme"
             >
               ◐
             </button>
           </div>
         </div>
       </header>
-      {pathname.startsWith('/docs') && (
-        <details className="mobile-doc-nav">
-          <summary>Browse documentation</summary>
-          <div className="mobile-doc-links">
-            {pages.map((page) => (
-              <Link key={page.url} href={page.url}>
-                {page.title}
-              </Link>
-            ))}
-          </div>
-        </details>
-      )}
       {children}
       <footer className="site-footer">
         <div className="shell footer-inner">
@@ -273,7 +272,7 @@ export function SiteChrome({ children }: { children: ReactNode }) {
         <div className="search-results" aria-live="polite">
           {failed ? (
             <p className="search-empty">
-              Search index unavailable. <Link href="/docs">Browse documentation instead.</Link>
+              Search index unavailable. <Link href="/learn">Browse Learn instead.</Link>
             </p>
           ) : results.length ? (
             results.map(({ page }) => (

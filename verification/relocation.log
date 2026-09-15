@@ -1,3 +1,0 @@
-0.17.0a1 {'implementation': 'python-reference', 'compiled': False, 'gpu': False}
-
-Scope: Python source relocation, not native wheel installation.

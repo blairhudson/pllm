@@ -1,99 +1,133 @@
-<div class="shell">
- <section class="vision-hero" aria-labelledby="vision-title">
-  <div class="vision-copy">
-   <h1 id="vision-title">Keep your data private.<br/><span>Open compute to the world.</span></h1>
-   <p class="vision-intro">Private inference lets organisations use remote AI compute without exposing prompts, context or generated output to the infrastructure provider. PLLM keeps sensitive data on the client while sending privacy-protected inference requests to remote providers, creating a path from concentrated cloud infrastructure to a global market of independent compute.</p>
-    <div class="button-row"><a class="button primary" href="/docs/">Get started <span>→</span></a><a class="button" href="/research/whitepaper/">Read whitepaper <span>→</span></a></div>
-  </div>
-  <figure class="market-orbit">
-   <svg viewBox="0 0 760 610" role="img" aria-labelledby="market-map-title market-map-desc">
-     <title id="market-map-title">Conceptual market for masked inference across independent compute</title>
-      <desc id="market-map-desc">A conceptual client vault sends masked public-model work to independent compute nodes across a day and night energy cycle while plaintext data remains local.</desc>
-    <defs><radialGradient id="earth-glow" cx="50%" cy="42%" r="58%"><stop offset="0" stop-color="#dff4d9" stop-opacity=".92"/><stop offset=".72" stop-color="#edf1e9" stop-opacity=".32"/><stop offset="1" stop-color="#edf1e9" stop-opacity="0"/></radialGradient><linearGradient id="day-arc" x1="0" x2="1"><stop offset="0" stop-color="#e6b650"/><stop offset=".48" stop-color="#fbdd72"/><stop offset="1" stop-color="#69a75b"/></linearGradient><filter id="soft-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-    <circle class="orbit-glow" cx="390" cy="302" r="248" fill="url(#earth-glow)"/><ellipse class="orbit-ring orbit-ring-a" cx="390" cy="302" rx="282" ry="124"/><ellipse class="orbit-ring orbit-ring-b" cx="390" cy="302" rx="170" ry="260" transform="rotate(64 390 302)"/><path class="dayline" d="M116 345 C190 76 523 35 674 238"/><circle class="sun" cx="164" cy="166" r="19" filter="url(#soft-glow)"/><path class="continent" d="M277 202l57-34 48 17 39-11 48 30-11 31 35 24-18 31-57 5-27 39-45-12-15-49-47-22z"/><path class="continent continent-small" d="M493 340l56-17 39 28-13 41-49 30-44-23z"/>
-    <path class="market-route route-one" d="M161 447 C221 376 256 340 313 315"/><path class="market-route route-two" d="M313 315 C393 214 477 171 582 164"/><path class="market-route route-three" d="M313 315 C426 357 512 390 622 416"/><path class="market-route route-four" d="M313 315 C361 417 391 466 476 502"/>
-    <g class="vault-node"><path d="M104 420h114v88H104z"/><path class="vault-roof" d="M121 420v-22a40 40 0 0180 0v22"/><circle cx="161" cy="459" r="13"/><path d="M161 472v17"/><text x="161" y="532" text-anchor="middle">CLIENT VAULT</text></g>
-    <g class="compute-node node-solar" transform="translate(582 164)"><circle r="26"/><circle class="node-core" r="8"/><text y="45" text-anchor="middle">SOLAR SURPLUS</text></g><g class="compute-node node-open" transform="translate(622 416)"><circle r="26"/><circle class="node-core" r="8"/><text y="45" text-anchor="middle">OPEN CAPACITY</text></g><g class="compute-node node-night" transform="translate(476 502)"><circle r="26"/><circle class="node-core" r="8"/><text y="45" text-anchor="middle">NIGHT GRID</text></g><g class="prep-node" transform="translate(313 315)"><polygon points="0,-31 28,-15 28,17 0,33 -28,17 -28,-15"/><text y="4" text-anchor="middle">MASK</text></g>
-   </svg>
-  </figure>
- </section>
- <section class="metrics-strip" aria-label="Current implementation facts">
-  <div class="metrics-intro"><strong>Measure the complete run.</strong>Preparation time, online latency, traffic, and burned rows are different results.<br/><a href="/docs/reference/dashboard/">Launch the current dashboard →</a></div>
-  <div class="metric"><div class="metric-value">3</div><div class="metric-label">real loopback roles</div><div class="metric-kind">CLIENT · PREP · INFERENCE</div></div>
-  <div class="metric"><div class="metric-value">0</div><div class="metric-label">prep operations online</div><div class="metric-kind">CHECKED BY LIVE COUNTERS</div></div>
-  <div class="metric"><div class="metric-value">16/24/32</div><div class="metric-label">exact ring widths</div><div class="metric-kind">SELECTED PER STAGE</div></div>
- </section>
- <section class="market-thesis">
-   <div class="section-head"><h2>Privacy can turn idle compute into a global utility.</h2><p>When operators do not need access to client language, trust stops being the admission ticket to useful compute. Capacity can compete on price, latency, location, energy source, and availability instead.</p></div>
-  <div class="market-grid">
-   <article><span>01</span><h3>Open the supply side</h3><p>Independent providers could sell compatible projection capacity without receiving plaintext prompts. Participation can depend on protocol and service quality rather than a hyperscale trust brand.</p></article>
-   <article><span>02</span><h3>Follow the sun</h3><p>Masked public-model work could be routed toward regions with abundant renewable generation or otherwise stranded capacity. PLLM does not yet implement that scheduler or prove an energy saving.</p></article>
-    <article><span>03</span><h3>Compete down token cost</h3><p>A broader supplier base can reduce concentration and create price pressure. Actual savings must include preparation, bandwidth, burn rates, client compute, and market operations.</p></article>
-   <article><span>04</span><h3>Remove the direct training feed</h3><p>On the documented path, providers receive zero literal plaintext prompt or token bytes. Under the stated masking and non-collusion assumptions, the data plane removes the direct plaintext feed they could otherwise retain for training.</p></article>
-  </div>
+<div class="home-page-content">
+  <section class="home-hero home-shell" aria-labelledby="home-title">
+    <h1 id="home-title">
+      <span>Keep your data private.</span>
+      <span>Open compute to the world.</span>
+    </h1>
+    <p class="home-intro">PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.</p>
+    <div class="button-row" aria-label="Start with PLLM">
+      <a class="button primary" href="#start-building">Start building <span aria-hidden="true">→</span></a>
+      <a class="button" href="#run-research">Run research <span aria-hidden="true">→</span></a>
+    </div>
+    <a class="home-text-link home-learn-link" href="/learn/">Learn how PLLM works</a>
   </section>
-  <section class="section">
-   <div class="section-head"><h2>One package. Three clear roles.</h2><p>Public inference needs no HE extra. Start both services; the client prepares and seals enough inventory before it opens an online response.</p></div>
-   <div class="cards-two">
-    <div class="path-card" data-tab-group><div class="card-top"><div class="card-icon">⌁ CLIENT</div><h3>Consume private inference without large-scale rewrites.</h3><p>The text interface follows the Responses API, with direct PLLM, OpenAI SDK, and OpenAI Agents SDK integrations. Inventory preparation happens automatically before online execution.</p><div class="card-tabs" role="tablist" aria-label="Client integration"><button role="tab" id="tab-pllm-sdk" aria-controls="panel-pllm-sdk" aria-selected="true" data-phase="pllm-sdk">PLLM SDK</button><button role="tab" id="tab-openai-sdk" aria-controls="panel-openai-sdk" aria-selected="false" data-phase="openai-sdk">OpenAI SDK</button><button role="tab" id="tab-agents-sdk" aria-controls="panel-agents-sdk" aria-selected="false" data-phase="agents-sdk">Agents SDK</button></div></div><div class="terminal code-panel" id="panel-pllm-sdk" role="tabpanel" aria-labelledby="tab-pllm-sdk" data-panel="pllm-sdk"><button class="copy-code" data-copy aria-label="Copy PLLM SDK example">Copy</button><pre><span class="code-blue">from</span> pllm <span class="code-blue">import</span> OpenAI
 
-<span class="code-blue">with</span> OpenAI() <span class="code-blue">as</span> client:
-    response = client.responses.create(
-        input=<span class="code-green">"Explain prepared inference."</span>,
-        max_output_tokens=64,
-    )
-    print(response.output_text)</pre></div><div class="terminal code-panel" id="panel-openai-sdk" role="tabpanel" aria-labelledby="tab-openai-sdk" data-panel="openai-sdk" hidden><button class="copy-code" data-copy aria-label="Copy OpenAI SDK example">Copy</button><pre><span class="code-blue">from</span> openai <span class="code-blue">import</span> OpenAI
-
-client = OpenAI(
-    base_url=<span class="code-green">"http://127.0.0.1:8080/v1"</span>,
-    api_key=PLLM_LOCAL_API_KEY,
-    max_retries=0,
-)
-print(client.responses.create(
-    model=<span class="code-green">"demo-model"</span>, input=prompt
-).output_text)</pre></div><div class="terminal code-panel" id="panel-agents-sdk" role="tabpanel" aria-labelledby="tab-agents-sdk" data-panel="agents-sdk" hidden><button class="copy-code" data-copy aria-label="Copy OpenAI Agents SDK example">Copy</button><pre><span class="code-blue">from</span> agents <span class="code-blue">import</span> Agent, OpenAIResponsesModel, Runner, set_tracing_disabled
-<span class="code-blue">from</span> openai <span class="code-blue">import</span> AsyncOpenAI
-
-set_tracing_disabled(<span class="code-blue">True</span>)
-client = AsyncOpenAI(
-    base_url=<span class="code-green">"http://127.0.0.1:8080/v1"</span>,
-    api_key=PLLM_LOCAL_API_KEY,
-    max_retries=0,
-)
-agent = Agent(name=<span class="code-green">"Private assistant"</span>, model=OpenAIResponsesModel(
-    model=<span class="code-green">"demo-model"</span>, openai_client=client,
-))
-result = <span class="code-blue">await</span> Runner.run(
-    agent, <span class="code-green">"Explain prepared inference."</span>
-)
-print(result.final_output)</pre></div><div class="card-link-row"><a href="/docs/client/python/">PLLM SDK →</a><a href="/docs/client/openai/">OpenAI SDK →</a><a href="/docs/client/agents/">Agents SDK →</a></div></div>
-     <div class="path-card" data-tab-group><div class="card-top"><div class="card-icon">▦ SERVICES</div><h3>Run preparation offline and inference online.</h3><p>Both services load the same public transformer body. Trusted Preparation builds one-time corrections before requests; untrusted Inference stores and consumes them without receiving plaintext.</p><div class="card-tabs" role="tablist" aria-label="Service role"><button role="tab" id="tab-inference-service" aria-controls="panel-inference-service" aria-selected="true" data-phase="inference-service">Online inference</button><button role="tab" id="tab-preparation-service" aria-controls="panel-preparation-service" aria-selected="false" data-phase="preparation-service">Offline preparation</button></div></div><div class="terminal code-panel" id="panel-inference-service" role="tabpanel" aria-labelledby="tab-inference-service" data-panel="inference-service"><button class="copy-code" data-copy aria-label="Copy inference service command">Copy</button><pre><span class="code-muted"># Online service: stores corrections,
-# then serves masked stage requests.</span>
-pllm serve <span class="code-green">"$PLLM_MODEL_SOURCE"</span> \
-  --weights public \
-  --api-key <span class="code-green">"$PLLM_API_KEY"</span> \
-  --provider-push-api-key \
-    <span class="code-green">"$PLLM_PROVIDER_PUSH_API_KEY"</span></pre></div><div class="terminal code-panel" id="panel-preparation-service" role="tabpanel" aria-labelledby="tab-preparation-service" data-panel="preparation-service" hidden><button class="copy-code" data-copy aria-label="Copy preparation service command">Copy</button><pre><span class="code-muted"># Offline service: computes W·r−s and
-# pushes sealed inventory before chat.</span>
-pllm preparation serve \
-  <span class="code-green">"$PLLM_MODEL_SOURCE"</span> \
-  --api-key <span class="code-green">"$PLLM_PREPARATION_API_KEY"</span> \
-  --inference-url http://127.0.0.1:8000 \
-  --push-api-key \
-    <span class="code-green">"$PLLM_PROVIDER_PUSH_API_KEY"</span></pre></div><div class="card-link-row"><a href="/docs/quickstart/">Credentials + setup →</a><a href="/docs/server/usage/">Serve →</a><a href="/docs/deployment/overview/">Deploy →</a></div></div>
-   </div>
+  <section class="home-band home-band-dark">
+    <div class="home-section home-shell" aria-labelledby="why-title">
+      <h2 id="why-title">Separate the compute from the data.</h2>
+      <div class="home-copy">
+        <p>Remote AI usually means one provider gets both the work and the data. PLLM separates them.</p>
+        <p>When providers do not need the full request, more providers can compete on price, location, speed, and energy use. Users get more choice. Less private data is exposed to one company.</p>
+        <p class="home-note">These are goals. Speed, cost, quality, privacy, and energy use must each be measured.</p>
+      </div>
+    </div>
   </section>
-  <section class="section">
-  <div class="section-head"><h2>Offline work stays offline.</h2><p>The SDK fills insufficient inventory before opening an online session. Preparation never enters an active response path.</p></div>
-   <div class="lifecycle-layout" data-tab-group>
-   <div class="lifecycle-tabs" role="tablist" aria-label="Prepared inference lifecycle"><button class="phase-button" role="tab" id="tab-prepare" aria-controls="panel-prepare" aria-selected="true" data-phase="prepare"><span class="phase-number">01</span>Seal READY inventory</button><button class="phase-button" role="tab" id="tab-prefill" aria-controls="panel-prefill" aria-selected="false" data-phase="prefill"><span class="phase-number">02</span>Batch the prompt</button><button class="phase-button" role="tab" id="tab-decode" aria-controls="panel-decode" aria-selected="false" data-phase="decode"><span class="phase-number">03</span>Decode persistently</button></div>
-   <div class="phase-panel" id="panel-prepare" role="tabpanel" aria-labelledby="tab-prepare" data-panel="prepare"><h3>Commit, prepare, acknowledge.</h3><p>The client authorizes an inventory and sends one root seed per remote stage. Preparation expands one-time masks, pushes W·r−s batches to inference, and waits for durable acceptance. Inference reports READY only after every stage is loaded.</p><div class="phase-equation">Client → seed batch → Preparation → W·r−s → Inference<br/>Correction never returns to the client.</div></div>
-   <div class="phase-panel" id="panel-prefill" role="tabpanel" aria-labelledby="tab-prefill" data-panel="prefill" hidden><h3>Reserve once. Pack prompt rows.</h3><p>Token lookup runs locally. Each remote stage receives one compact ticket vector and one packed x−r matrix for all prompt rows. The client applies the local output head only to the final prefill row.</p><div class="phase-equation">ticket[] + (x−r)[] → W·x−s<br/>u16, u24, or u32 is selected per stage.</div></div>
-    <div class="phase-panel" id="panel-decode" role="tabpanel" aria-labelledby="tab-decode" data-panel="decode" hidden><h3>Keep one online connection.</h3><p>Decode reuses a persistent client-to-inference WebSocket. Preparation remains idle. Every stage consumes one ticket; completion, cancellation, or failure burns every unused reserved row. Refill can start only after the response closes and the client is idle.</p><div class="phase-equation">Client + s → center-decode → local state + sampling<br/>No ticket or mask is reused.</div></div>
-  </div>
- </section>
- <section class="research-block">
-   <a href="/research/whitepaper/" class="whitepaper-cover-link" aria-label="Read PLLM Whitepaper"><img src="/whitepaper-cover.png" alt="Front page of PLLM Whitepaper, Private inference for an open compute world" width="816" height="1056"/></a>
-   <div class="research-intro"><h2>Your runs.<br/>Compared honestly.</h2><p><code>pllm benchmark dashboard</code> starts real client, preparation, and inference processes with Qwen2.5-0.5B-Instruct by default. It records sanitized timing, traffic, resources, inventory, and actual context counts for local comparison without retaining prompt or output text.</p><div class="research-links"><a href="/docs/reference/dashboard/">Dashboard guide →</a><a href="/docs/server/performance/">Measure performance →</a><a href="/research/">Research →</a></div></div>
- </section>
+
+  <section class="home-section home-shell" aria-labelledby="roles-title">
+    <h2 id="roles-title">Split the work across clear roles.</h2>
+    <div class="home-copy">
+      <dl class="home-roles">
+        <div>
+          <dt>Client</dt>
+          <dd>Holds plaintext prompts, context, model state, masks, and output.</dd>
+        </div>
+        <div>
+          <dt>Preparation</dt>
+          <dd>Creates one-time protected work before inference.</dd>
+        </div>
+        <div>
+          <dt>Inference</dt>
+          <dd>Runs masked model stages without receiving the seeds.</dd>
+        </div>
+      </dl>
+      <p class="home-note">Neither remote service receives the full request. This depends on both services following the protocol and not colluding.</p>
+      <p><a class="home-text-link" href="/learn/masked-linear-inference/">Learn how private inference works</a></p>
+    </div>
+  </section>
+
+  <section class="home-band home-band-soft" id="start-building">
+    <div class="home-section home-shell" aria-labelledby="build-title">
+      <h2 id="build-title">Start building.</h2>
+      <div class="home-copy" data-tab-group>
+        <p>Install PLLM from PyPI. Run the real client, preparation, and inference roles on one machine, or add the SDK to a Python project.</p>
+        <div class="home-tabs" role="tablist" aria-label="PLLM starter">
+          <button type="button" role="tab" id="tab-start-cli" aria-controls="panel-start-cli" aria-selected="true" data-phase="start-cli">CLI</button>
+          <button type="button" role="tab" id="tab-start-sdk" aria-controls="panel-start-sdk" aria-selected="false" data-phase="start-sdk">Python SDK</button>
+          <button type="button" role="tab" id="tab-start-inspect" aria-controls="panel-start-inspect" aria-selected="false" data-phase="start-inspect">Inspect</button>
+        </div>
+        <div class="home-code" id="panel-start-cli" role="tabpanel" aria-labelledby="tab-start-cli" data-panel="start-cli">
+          <button class="copy-code" type="button" data-copy aria-label="Copy CLI starter">Copy</button>
+          <pre><code>uv tool install pllm
+pllm dev dashboard --tiny --no-open</code></pre>
+        </div>
+        <div class="home-code" id="panel-start-sdk" role="tabpanel" aria-labelledby="tab-start-sdk" data-panel="start-sdk" hidden>
+           <button class="copy-code" type="button" data-copy aria-label="Copy Python SDK starter">Copy</button>
+           <pre><code>uv add pllm
+uv run python - &lt;&lt;'PY'
+from pllm.components import get_component
+
+component = get_component("pllm/masked-linear")
+print(component.component, component.lifecycle_phase)
+PY</code></pre>
+        </div>
+        <div class="home-code" id="panel-start-inspect" role="tabpanel" aria-labelledby="tab-start-inspect" data-panel="start-inspect" hidden>
+          <button class="copy-code" type="button" data-copy aria-label="Copy inspection commands">Copy</button>
+          <pre><code>pllm components list
+pllm research methods list</code></pre>
+        </div>
+        <p class="home-note">The tiny dashboard checks transport with generated weights. It does not measure model quality or production performance.</p>
+        <nav class="home-inline-links" aria-label="Build with PLLM">
+          <a href="/learn/start/installation/">Install PLLM</a>
+          <a href="/sdk/">Use the SDK</a>
+          <a href="/learn/start/first-local-benchmark/">Run a real model</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-band home-band-dark" id="run-research">
+    <div class="home-section home-shell" aria-labelledby="research-title">
+      <h2 id="research-title">Run autonomous research.</h2>
+      <div class="home-copy" data-tab-group>
+        <p>Generate an <code>AGENTS.md</code> for Codex, Claude Code, OpenCode, or another coding agent. The file explains PLLM and tells the agent how to find strong methods, add them as components, test them, and run a fair benchmark.</p>
+        <div class="home-tabs" role="tablist" aria-label="PLLM research starter">
+          <button type="button" role="tab" id="tab-research-guide" aria-controls="panel-research-guide" aria-selected="true" data-phase="research-guide">Agent guide</button>
+          <button type="button" role="tab" id="tab-research-catalog" aria-controls="panel-research-catalog" aria-selected="false" data-phase="research-catalog">Research catalog</button>
+        </div>
+        <div class="home-code" id="panel-research-guide" role="tabpanel" aria-labelledby="tab-research-guide" data-panel="research-guide">
+          <button class="copy-code" type="button" data-copy aria-label="Copy research agent command">Copy</button>
+          <pre><code>pllm research agents --output AGENTS.md</code></pre>
+        </div>
+        <div class="home-code" id="panel-research-catalog" role="tabpanel" aria-labelledby="tab-research-catalog" data-panel="research-catalog" hidden>
+          <button class="copy-code" type="button" data-copy aria-label="Copy research catalog commands">Copy</button>
+          <pre><code>pllm research sources list
+pllm research methods list
+pllm research recipes list</code></pre>
+        </div>
+        <ol class="home-steps">
+          <li>Find the strongest relevant methods.</li>
+          <li>Add them to PLLM.</li>
+          <li>Test correctness, privacy, and model quality.</li>
+          <li>Compare them under the same conditions.</li>
+        </ol>
+        <p class="home-note">Comparisons must use the same model, workload, privacy rules, numeric settings, and hardware. Automation cannot invent claims or publish results without review.</p>
+        <nav class="home-inline-links" aria-label="Research with PLLM">
+          <a href="/research/">Research overview</a>
+          <a href="/research/">Research workflow</a>
+          <a href="/sdk/research/benchmarks/">Benchmarks</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-final home-shell" aria-labelledby="continue-title">
+    <h2 id="continue-title">Continue with PLLM.</h2>
+    <nav class="home-final-links" aria-label="PLLM resources">
+      <a href="/">Documentation</a>
+      <a href="https://github.com/probabilistic-alchemy/pllm">Source</a>
+      <a href="/research/paper/">Technical paper</a>
+      <a href="/research/whitepaper/">Whitepaper</a>
+      <a href="/sdk/research/benchmarks/">Benchmarks</a>
+    </nav>
+  </section>
 </div>

@@ -1,0 +1,869 @@
+use pllm_compiler::{
+    compile, compile_document, diagnostics_json, execute_wrap32, CandidateEvidence, CompileRequest,
+    Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation, LogicalOperation,
+    MethodDescriptor, NumericType, Operator, Representation, SecurityProperties, TensorType,
+    COMPILE_REQUEST_SCHEMA_VERSION,
+};
+use pllm_types::{
+    assurance_result_digest, configuration_digest_bytes, privacy_contract_digest, AssuranceOrigin,
+    AssuranceOutcome, AssuranceResult, ClaimRequirement, Digest, EvidenceReference,
+    ImplementationRefinement, LockedContext, NamedDigest, PrivacyContract, RolePlanReference,
+    VersionedArtifact, ASSURANCE_RESULT_SCHEMA_VERSION, LOCKED_CONTEXT_SCHEMA_VERSION,
+    PRIVACY_CONTRACT_SCHEMA_VERSION,
+};
+use std::collections::BTreeSet;
+
+fn digest(character: char) -> Digest {
+    serde_json::from_str(&format!("\"{}\"", character.to_string().repeat(64))).unwrap()
+}
+
+fn named(id: &str, character: char) -> NamedDigest {
+    NamedDigest {
+        id: id.into(),
+        digest: digest(character),
+    }
+}
+
+fn tensor(batch: u64, width: u64) -> TensorType {
+    TensorType {
+        numeric: NumericType::Wrap32,
+        shape: vec![batch, width],
+    }
+}
+
+fn privacy() -> PrivacyContract {
+    PrivacyContract {
+        schema_version: PRIVACY_CONTRACT_SCHEMA_VERSION.into(),
+        id: "privacy.single-evaluator".into(),
+        online_parties: 1,
+        allow_online_preparation: false,
+        allow_client_weights: false,
+        allow_he: false,
+        allow_experimental: false,
+        required_claims: vec![ClaimRequirement {
+            claim_id: "composition-privacy".into(),
+            accepted_outcomes: BTreeSet::from([AssuranceOutcome::ProvedInModel]),
+            accepted_implementation_refinements: BTreeSet::from([
+                ImplementationRefinement::TestedDifferential,
+                ImplementationRefinement::ProvedForLockedCode,
+            ]),
+        }],
+    }
+}
+
+fn context(privacy: &PrivacyContract) -> LockedContext {
+    LockedContext {
+        schema_version: LOCKED_CONTEXT_SCHEMA_VERSION.into(),
+        profile: "baseline.masked_linear_cpu".into(),
+        model: named("model.fixture", '1'),
+        tokenizer: named("tokenizer.fixture", '2'),
+        semantic_graph: named("semantic.linear", '3'),
+        numeric_graph: named("numeric.wrap32", '4'),
+        protected_graph: named("protected.masked-ring", '5'),
+        roles: vec!["client".into(), "inference".into(), "preparation".into()],
+        privacy_contract: NamedDigest {
+            id: privacy.id.clone(),
+            digest: privacy_contract_digest(privacy),
+        },
+        workload: named("workload.fixture", '6'),
+        target: named("target.cpu", '7'),
+        material_requests: vec![named("material.mask", '8')],
+        resource_forecast: named("resources.fixture", '9'),
+        compiler: VersionedArtifact {
+            id: "pllm/compiler".into(),
+            version: "0.17.0-alpha.1".into(),
+            digest: digest('a'),
+        },
+        execution_role: "inference".into(),
+        static_role_plans: vec![
+            RolePlanReference {
+                role: "client".into(),
+                digest: digest('d'),
+            },
+            RolePlanReference {
+                role: "preparation".into(),
+                digest: digest('e'),
+            },
+        ],
+    }
+}
+
+fn method(id: &str) -> MethodDescriptor {
+    MethodDescriptor {
+        id: id.into(),
+        version: "1".into(),
+        operator: Operator::Linear,
+        input_representation: Representation::MaskedRing,
+        output_representation: Representation::MaskedRing,
+        properties: SecurityProperties {
+            online_parties: 1,
+            needs_online_preparation: false,
+            needs_client_weights: false,
+            uses_he: false,
+            experimental: false,
+        },
+        artifact_digest: digest('b'),
+    }
+}
+
+fn kernel(id: &str, method_id: &str) -> KernelDescriptor {
+    KernelDescriptor {
+        id: id.into(),
+        version: "1".into(),
+        method_id: method_id.into(),
+        method_version: "1".into(),
+        input_numeric: NumericType::Wrap32,
+        output_numeric: NumericType::Wrap32,
+        implementation: KernelImplementation::PllmCoreMatrixWrap32,
+        artifact_digest: digest('c'),
+    }
+}
+
+fn assurance(outcome: AssuranceOutcome, refinement: ImplementationRefinement) -> AssuranceResult {
+    AssuranceResult {
+        schema_version: ASSURANCE_RESULT_SCHEMA_VERSION.into(),
+        id: "assurance.composition".into(),
+        claim_id: "composition-privacy".into(),
+        outcome,
+        scope: "masked-linear@1/core-wrap32@1".into(),
+        origin: AssuranceOrigin::SolverExecuted,
+        implementation_refinement: refinement,
+        assumptions: vec!["declared single-evaluator model".into()],
+        evidence_paths: vec!["research/assurance/composition.json".into()],
+        tool: Some("fixture-checker".into()),
+        tool_version: Some("1".into()),
+        code_digest: None,
+    }
+}
+
+fn evidence_reference(result: &AssuranceResult) -> EvidenceReference {
+    EvidenceReference {
+        id: result.id.clone(),
+        digest: assurance_result_digest(result),
+    }
+}
+
+fn configuration_json() -> Vec<u8> {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../schemas/fixtures/experiment.valid.json"
+    ))
+    .unwrap();
+    pllm_types::canonical_bytes(&fixture)
+}
+
+fn request(batch: u64, input_width: u64, output_width: u64) -> CompileRequest {
+    let privacy_contract = privacy();
+    let input = tensor(batch, input_width);
+    let output = tensor(batch, output_width);
+    let operations = vec![LogicalOperation {
+        id: "linear-0".into(),
+        operator: Operator::Linear,
+        output: output.clone(),
+        input_representation: Representation::MaskedRing,
+        output_representation: Representation::MaskedRing,
+    }];
+    let mut context = context(&privacy_contract);
+    let graphs = pllm_compiler::region_graph_digests(
+        &input,
+        Representation::MaskedRing,
+        &output,
+        Representation::MaskedRing,
+        &operations,
+    );
+    context.semantic_graph.digest = graphs.semantic_graph;
+    context.numeric_graph.digest = graphs.numeric_graph;
+    context.protected_graph.digest = graphs.protected_graph;
+    let result = assurance(
+        AssuranceOutcome::ProvedInModel,
+        ImplementationRefinement::TestedDifferential,
+    );
+    let configuration_json = configuration_json();
+    CompileRequest {
+        configuration_digest: configuration_digest_bytes(&configuration_json),
+        configuration_json,
+        context,
+        privacy_contract,
+        input,
+        input_representation: Representation::MaskedRing,
+        output,
+        output_representation: Representation::MaskedRing,
+        operations,
+        methods: vec![method("masked-linear")],
+        kernels: vec![kernel("core-wrap32", "masked-linear")],
+        assurance_results: vec![result.clone()],
+        candidate_evidence: vec![CandidateEvidence {
+            method_id: "masked-linear".into(),
+            method_version: "1".into(),
+            method_artifact_digest: digest('b'),
+            kernel_id: "core-wrap32".into(),
+            kernel_version: "1".into(),
+            kernel_artifact_digest: digest('c'),
+            assurance_results: vec![evidence_reference(&result)],
+        }],
+    }
+}
+
+fn document_bytes(request: &CompileRequest) -> Vec<u8> {
+    let configuration: serde_json::Value =
+        serde_json::from_slice(&request.configuration_json).unwrap();
+    pllm_types::canonical_bytes(&serde_json::json!({
+        "schema_version": COMPILE_REQUEST_SCHEMA_VERSION,
+        "configuration": configuration,
+        "context": request.context,
+        "privacy_contract": request.privacy_contract,
+        "input": request.input,
+        "input_representation": request.input_representation,
+        "output": request.output,
+        "output_representation": request.output_representation,
+        "operations": request.operations,
+        "methods": request.methods,
+        "kernels": request.kernels,
+        "assurance_results": request.assurance_results,
+        "candidate_evidence": request.candidate_evidence,
+    }))
+}
+
+fn refresh_context(request: &mut CompileRequest) {
+    request.context.privacy_contract = NamedDigest {
+        id: request.privacy_contract.id.clone(),
+        digest: privacy_contract_digest(&request.privacy_contract),
+    };
+}
+
+fn refresh_region_graphs(request: &mut CompileRequest) {
+    let graphs = pllm_compiler::region_graph_digests(
+        &request.input,
+        request.input_representation,
+        &request.output,
+        request.output_representation,
+        &request.operations,
+    );
+    request.context.semantic_graph.digest = graphs.semantic_graph;
+    request.context.numeric_graph.digest = graphs.numeric_graph;
+    request.context.protected_graph.digest = graphs.protected_graph;
+    refresh_context(request);
+}
+
+fn only_code(request: &CompileRequest) -> DiagnosticCode {
+    let diagnostics = compile(request).unwrap_err();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    diagnostics[0].code
+}
+
+fn assert_json_fixture(actual: &[u8], fixture: &str) {
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(actual).unwrap(),
+        serde_json::from_str::<serde_json::Value>(fixture).unwrap()
+    );
+}
+
+#[test]
+fn canonical_compile_document_matches_direct_request() {
+    let request = request(2, 3, 2);
+    let bytes = document_bytes(&request);
+    let direct = compile(&request).unwrap();
+    let document = compile_document(&bytes).unwrap();
+    assert_eq!(document, direct);
+    assert_eq!(
+        bytes,
+        include_bytes!("../../../schemas/fixtures/compile-request.valid.json")
+    );
+}
+
+fn document_error_code(bytes: &[u8]) -> DiagnosticCode {
+    let errors = compile_document(bytes).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    errors[0].code
+}
+
+#[test]
+fn compile_document_rejects_noncanonical_duplicate_unknown_and_wrong_schema() {
+    let canonical = document_bytes(&request(2, 3, 2));
+    let value: serde_json::Value = serde_json::from_slice(&canonical).unwrap();
+    assert_eq!(
+        document_error_code(&serde_json::to_vec_pretty(&value).unwrap()),
+        DiagnosticCode::InvalidDocument
+    );
+
+    let source = String::from_utf8(canonical.clone()).unwrap();
+    let duplicate = source.replacen('{', "{\"schema_version\":\"pllm.compile_request.v1\",", 1);
+    assert_eq!(
+        document_error_code(duplicate.as_bytes()),
+        DiagnosticCode::InvalidDocument
+    );
+
+    let mut unknown = value.clone();
+    unknown["methods"][0]
+        .as_object_mut()
+        .unwrap()
+        .insert("reviewed".into(), serde_json::Value::Bool(true));
+    assert_eq!(
+        document_error_code(&pllm_types::canonical_bytes(&unknown)),
+        DiagnosticCode::InvalidDocument
+    );
+
+    let mut wrong_document = value.clone();
+    wrong_document["schema_version"] = serde_json::json!("pllm.compile_request.v2");
+    assert_eq!(
+        document_error_code(&pllm_types::canonical_bytes(&wrong_document)),
+        DiagnosticCode::InvalidDocument
+    );
+
+    let mut wrong_configuration = value;
+    wrong_configuration["configuration"]["schema"] = serde_json::json!("pllm.experiment.v2");
+    assert_eq!(
+        document_error_code(&pllm_types::canonical_bytes(&wrong_configuration)),
+        DiagnosticCode::InvalidDocument
+    );
+}
+
+#[test]
+fn diagnostic_json_is_sorted_deduplicated_and_stable() {
+    let missing = Diagnostic {
+        code: DiagnosticCode::MissingClaim,
+        subject_id: "z-candidate".into(),
+        message: "missing claim composition-privacy".into(),
+    };
+    let invalid = Diagnostic {
+        code: DiagnosticCode::InvalidId,
+        subject_id: "a-method".into(),
+        message: "method identity is malformed".into(),
+    };
+    assert_eq!(
+        diagnostics_json(&[missing.clone(), invalid, missing]),
+        br#"[{"code":"E_INVALID_ID","message":"method identity is malformed","subject_id":"a-method"},{"code":"E_MISSING_CLAIM","message":"missing claim composition-privacy","subject_id":"z-candidate"}]"#
+    );
+}
+
+#[test]
+fn canonical_manifests_have_exact_boundaries_and_stable_digests() {
+    let fixture_request = request(2, 3, 2);
+    let compiled = compile(&fixture_request).unwrap();
+    assert_json_fixture(
+        &compiled.logical_json(),
+        include_str!("../../../schemas/fixtures/logical-plan.valid.json"),
+    );
+    assert_json_fixture(
+        &compiled.execution_json(),
+        include_str!("../../../schemas/fixtures/execution-plan.valid.json"),
+    );
+    assert_json_fixture(
+        &compiled.lock_json(),
+        include_str!("../../../schemas/fixtures/plan-lock.valid.json"),
+    );
+    assert_json_fixture(
+        &compiled.region_program_json(),
+        include_str!("../../../schemas/fixtures/region-program.valid.json"),
+    );
+    assert_json_fixture(
+        &pllm_types::assurance_result_bytes(&fixture_request.assurance_results[0]),
+        include_str!("../../../schemas/fixtures/assurance-result.valid.json"),
+    );
+    assert_json_fixture(
+        &pllm_types::canonical_bytes(&fixture_request.privacy_contract),
+        include_str!("../../../schemas/fixtures/privacy-contract.valid.json"),
+    );
+    assert_json_fixture(
+        &pllm_types::canonical_bytes(&fixture_request.context),
+        include_str!("../../../schemas/fixtures/locked-context.valid.json"),
+    );
+    assert_eq!(
+        compiled.lock.logical_plan_digest.as_str(),
+        "ccb6dc4466602d04fd5097f4b0a49aa555de876e4e99427eed7816a67b2a6df1"
+    );
+    assert_eq!(
+        compiled.lock.execution_plan_digest.as_str(),
+        "768546d8d9ef3420ba13a02887251e6172e6d608ca1b84ede26248472f28a035"
+    );
+    assert_eq!(
+        pllm_compiler::region_program_digest(&compiled.region_program).as_str(),
+        "6c47cebfb806e983a0a3ff2de88ed5f0ca337cdd3cef7f0efb4bb467e0ae69a3"
+    );
+    assert_eq!(
+        pllm_types::plan_lock_digest(&compiled.lock).as_str(),
+        "61a45e7af9eb10e4825871657c1ee5b2a85959c1ebeeae48c00adfd4168b64ca"
+    );
+    assert_eq!(
+        compiled.logical.configuration_digest.as_str(),
+        "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+    );
+
+    let logical = String::from_utf8(compiled.logical_json()).unwrap();
+    assert!(!logical.contains("method"));
+    assert!(!logical.contains("kernel"));
+    assert!(!logical.contains("evidence_references"));
+    let manifests = String::from_utf8(
+        [
+            compiled.logical_json(),
+            compiled.execution_json(),
+            compiled.lock_json(),
+        ]
+        .concat(),
+    )
+    .unwrap();
+    for conclusion in [
+        "\"outcome\"",
+        "\"origin\"",
+        "\"scope\"",
+        "\"implementation_refinement\"",
+        "\"assumptions\"",
+        "\"evidence_paths\"",
+        "declared single-evaluator model",
+    ] {
+        assert!(!manifests.contains(conclusion), "found {conclusion}");
+    }
+    assert_eq!(
+        compiled
+            .execution
+            .role_plans
+            .iter()
+            .map(|plan| plan.role.as_str())
+            .collect::<Vec<_>>(),
+        ["client", "inference", "preparation"]
+    );
+    assert_eq!(
+        compiled.logical.roles,
+        ["client", "inference", "preparation"]
+    );
+    assert_eq!(
+        compiled.execution.role_plans[1].digest,
+        pllm_compiler::region_program_digest(&compiled.region_program)
+    );
+    assert!(compiled.verify().is_ok());
+}
+
+#[test]
+fn candidate_order_is_irrelevant() {
+    let mut first = request(2, 3, 2);
+    let mut alternate_method = method("z-method");
+    alternate_method.artifact_digest = digest('d');
+    let mut alternate_kernel = kernel("z-kernel", "z-method");
+    alternate_kernel.artifact_digest = digest('e');
+    first.methods.push(alternate_method);
+    first.kernels.push(alternate_kernel);
+    first.candidate_evidence.push(CandidateEvidence {
+        method_id: "z-method".into(),
+        method_version: "1".into(),
+        method_artifact_digest: digest('d'),
+        kernel_id: "z-kernel".into(),
+        kernel_version: "1".into(),
+        kernel_artifact_digest: digest('e'),
+        assurance_results: vec![evidence_reference(&first.assurance_results[0])],
+    });
+    let mut second = first.clone();
+    second.methods.reverse();
+    second.kernels.reverse();
+    second.assurance_results.reverse();
+    second.candidate_evidence.reverse();
+    assert_eq!(compile(&first).unwrap(), compile(&second).unwrap());
+}
+
+#[test]
+fn configuration_identity_is_canonical_plain_sha256() {
+    let canonical = configuration_json();
+    assert_eq!(
+        configuration_digest_bytes(&canonical).as_str(),
+        "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+    );
+
+    let mut noncanonical = request(1, 3, 2);
+    noncanonical.configuration_json =
+        include_bytes!("../../../schemas/fixtures/experiment.valid.json").to_vec();
+    noncanonical.configuration_digest =
+        configuration_digest_bytes(&noncanonical.configuration_json);
+    assert_eq!(only_code(&noncanonical), DiagnosticCode::InvalidContext);
+
+    let mut wrong_digest = request(1, 3, 2);
+    wrong_digest.configuration_digest = digest('f');
+    assert_eq!(only_code(&wrong_digest), DiagnosticCode::InvalidContext);
+
+    let mut wrong_schema = request(1, 3, 2);
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&wrong_schema.configuration_json).unwrap();
+    value["schema"] = "pllm.experiment.v2".into();
+    wrong_schema.configuration_json = pllm_types::canonical_bytes(&value);
+    wrong_schema.configuration_digest =
+        configuration_digest_bytes(&wrong_schema.configuration_json);
+    assert_eq!(only_code(&wrong_schema), DiagnosticCode::InvalidContext);
+}
+
+#[test]
+fn graph_digests_preserve_layer_boundaries() {
+    let base = request(1, 3, 2);
+    let base_graphs = pllm_compiler::region_graph_digests(
+        &base.input,
+        base.input_representation,
+        &base.output,
+        base.output_representation,
+        &base.operations,
+    );
+
+    let mut numeric_input = base.input.clone();
+    numeric_input.numeric = NumericType::SignedFixed16;
+    let mut numeric_output = base.output.clone();
+    numeric_output.numeric = NumericType::SignedFixed16;
+    let mut numeric_operations = base.operations.clone();
+    numeric_operations[0].output.numeric = NumericType::SignedFixed16;
+    let numeric_graphs = pllm_compiler::region_graph_digests(
+        &numeric_input,
+        base.input_representation,
+        &numeric_output,
+        base.output_representation,
+        &numeric_operations,
+    );
+    assert_eq!(base_graphs.semantic_graph, numeric_graphs.semantic_graph);
+    assert_ne!(base_graphs.numeric_graph, numeric_graphs.numeric_graph);
+    assert_ne!(base_graphs.protected_graph, numeric_graphs.protected_graph);
+
+    let mut protected_operations = base.operations.clone();
+    protected_operations[0].input_representation = Representation::ClientPlaintext;
+    let protected_graphs = pllm_compiler::region_graph_digests(
+        &base.input,
+        Representation::ClientPlaintext,
+        &base.output,
+        base.output_representation,
+        &protected_operations,
+    );
+    assert_eq!(base_graphs.semantic_graph, protected_graphs.semantic_graph);
+    assert_eq!(base_graphs.numeric_graph, protected_graphs.numeric_graph);
+    assert_ne!(
+        base_graphs.protected_graph,
+        protected_graphs.protected_graph
+    );
+
+    let mut unsupported_numeric = request(1, 3, 2);
+    unsupported_numeric.input = numeric_input;
+    unsupported_numeric.output = numeric_output;
+    unsupported_numeric.operations = numeric_operations;
+    refresh_region_graphs(&mut unsupported_numeric);
+    assert!(compile(&unsupported_numeric)
+        .unwrap_err()
+        .iter()
+        .any(|diagnostic| diagnostic.code == DiagnosticCode::InvalidTensor));
+}
+
+#[test]
+fn logical_digest_excludes_method_kernel_and_evidence() {
+    let base = compile(&request(1, 3, 2)).unwrap();
+    let base_lock_digest = pllm_types::plan_lock_digest(&base.lock);
+
+    let mut method_changed = request(1, 3, 2);
+    method_changed.methods[0].id = "other-method".into();
+    method_changed.methods[0].artifact_digest = digest('d');
+    method_changed.candidate_evidence[0].method_artifact_digest = digest('d');
+    method_changed.kernels[0].method_id = "other-method".into();
+    method_changed.candidate_evidence[0].method_id = "other-method".into();
+    let changed = compile(&method_changed).unwrap();
+    assert_eq!(
+        base.lock.logical_plan_digest,
+        changed.lock.logical_plan_digest
+    );
+    assert_ne!(
+        base.lock.execution_plan_digest,
+        changed.lock.execution_plan_digest
+    );
+    assert_ne!(
+        base_lock_digest,
+        pllm_types::plan_lock_digest(&changed.lock)
+    );
+
+    let mut kernel_changed = request(1, 3, 2);
+    kernel_changed.kernels[0].id = "other-kernel".into();
+    kernel_changed.kernels[0].artifact_digest = digest('e');
+    kernel_changed.candidate_evidence[0].kernel_artifact_digest = digest('e');
+    kernel_changed.candidate_evidence[0].kernel_id = "other-kernel".into();
+    let changed = compile(&kernel_changed).unwrap();
+    assert_eq!(
+        base.lock.logical_plan_digest,
+        changed.lock.logical_plan_digest
+    );
+    assert_ne!(
+        base.lock.execution_plan_digest,
+        changed.lock.execution_plan_digest
+    );
+
+    let mut evidence_changed = request(1, 3, 2);
+    evidence_changed.assurance_results[0]
+        .assumptions
+        .push("additional assumption".into());
+    evidence_changed.candidate_evidence[0].assurance_results[0] =
+        evidence_reference(&evidence_changed.assurance_results[0]);
+    let changed = compile(&evidence_changed).unwrap();
+    assert_eq!(
+        base.lock.logical_plan_digest,
+        changed.lock.logical_plan_digest
+    );
+    assert_ne!(
+        base.lock.execution_plan_digest,
+        changed.lock.execution_plan_digest
+    );
+    assert_ne!(
+        base_lock_digest,
+        pllm_types::plan_lock_digest(&changed.lock)
+    );
+}
+
+#[test]
+fn rejects_inconsistent_context_and_incomplete_steps() {
+    let mut context = request(1, 3, 2);
+    context.context.semantic_graph.digest = digest('f');
+    assert_eq!(only_code(&context), DiagnosticCode::InvalidContext);
+
+    let mut incomplete_roles = request(1, 3, 2);
+    incomplete_roles.context.static_role_plans.pop();
+    assert_eq!(only_code(&incomplete_roles), DiagnosticCode::InvalidContext);
+
+    let mut privacy_digest = request(1, 3, 2);
+    privacy_digest.privacy_contract.online_parties = 2;
+    assert_eq!(only_code(&privacy_digest), DiagnosticCode::InvalidContract);
+
+    let mut incomplete = request(1, 3, 2);
+    incomplete.output.shape[1] = 3;
+    refresh_region_graphs(&mut incomplete);
+    assert_eq!(only_code(&incomplete), DiagnosticCode::IncompleteStep);
+
+    let mut empty = request(1, 3, 2);
+    empty.operations.clear();
+    refresh_region_graphs(&mut empty);
+    assert_eq!(only_code(&empty), DiagnosticCode::IncompleteStep);
+
+    let mut unsupported = request(1, 3, 2);
+    unsupported.operations[0].operator = Operator::Unsupported;
+    refresh_region_graphs(&mut unsupported);
+    assert_eq!(only_code(&unsupported), DiagnosticCode::UnsupportedOperator);
+
+    let mut malformed = request(1, 3, 2);
+    malformed.operations[0].id.clear();
+    refresh_region_graphs(&mut malformed);
+    assert_eq!(only_code(&malformed), DiagnosticCode::InvalidId);
+
+    let mut representation = request(1, 3, 2);
+    representation.methods[0].input_representation = Representation::ClientPlaintext;
+    assert_eq!(only_code(&representation), DiagnosticCode::Representation);
+}
+
+#[test]
+fn conversion_is_resolved_into_manifest_and_region_program() {
+    let mut value = request(1, 3, 2);
+    value.input_representation = Representation::ClientPlaintext;
+    value.operations.insert(
+        0,
+        LogicalOperation {
+            id: "convert-0".into(),
+            operator: Operator::Conversion,
+            output: tensor(1, 3),
+            input_representation: Representation::ClientPlaintext,
+            output_representation: Representation::MaskedRing,
+        },
+    );
+    let mut conversion_method = method("explicit-mask");
+    conversion_method.operator = Operator::Conversion;
+    conversion_method.input_representation = Representation::ClientPlaintext;
+    conversion_method.artifact_digest = digest('d');
+    value.methods.push(conversion_method);
+    value.kernels.push(KernelDescriptor {
+        id: "mask-kernel".into(),
+        version: "1".into(),
+        method_id: "explicit-mask".into(),
+        method_version: "1".into(),
+        input_numeric: NumericType::Wrap32,
+        output_numeric: NumericType::Wrap32,
+        implementation: KernelImplementation::ExplicitRepresentationConversion,
+        artifact_digest: digest('e'),
+    });
+    value.candidate_evidence.push(CandidateEvidence {
+        method_id: "explicit-mask".into(),
+        method_version: "1".into(),
+        method_artifact_digest: digest('d'),
+        kernel_id: "mask-kernel".into(),
+        kernel_version: "1".into(),
+        kernel_artifact_digest: digest('e'),
+        assurance_results: vec![evidence_reference(&value.assurance_results[0])],
+    });
+    refresh_region_graphs(&mut value);
+
+    let compiled = compile(&value).unwrap();
+    assert_eq!(compiled.region_program.steps.len(), 2);
+    assert_eq!(compiled.execution.components.len(), 4);
+    assert_eq!(compiled.execution.conversions.len(), 1);
+    assert_eq!(compiled.execution.conversions[0].id, "convert-0");
+    assert!(compiled.verify().is_ok());
+}
+
+#[test]
+fn assurance_policy_fails_closed_and_binds_locked_code() {
+    let mut missing = request(1, 3, 2);
+    missing.candidate_evidence[0].assurance_results.clear();
+    assert_eq!(only_code(&missing), DiagnosticCode::MissingClaim);
+
+    let mut refuted = request(1, 3, 2);
+    refuted.assurance_results[0].outcome = AssuranceOutcome::RefutedInScope;
+    refuted.candidate_evidence[0].assurance_results[0] =
+        evidence_reference(&refuted.assurance_results[0]);
+    assert_eq!(only_code(&refuted), DiagnosticCode::UnacceptedOutcome);
+    refuted.privacy_contract.required_claims[0]
+        .accepted_outcomes
+        .insert(AssuranceOutcome::RefutedInScope);
+    refresh_context(&mut refuted);
+    assert!(compile(&refuted).is_ok());
+
+    for artifact in [digest('b'), digest('c')] {
+        let mut proved = request(1, 3, 2);
+        proved.assurance_results[0].implementation_refinement =
+            ImplementationRefinement::ProvedForLockedCode;
+        proved.assurance_results[0].code_digest = Some(artifact);
+        proved.candidate_evidence[0].assurance_results[0] =
+            evidence_reference(&proved.assurance_results[0]);
+        assert!(compile(&proved).is_ok());
+    }
+    let mut wrong_artifact = request(1, 3, 2);
+    wrong_artifact.assurance_results[0].implementation_refinement =
+        ImplementationRefinement::ProvedForLockedCode;
+    wrong_artifact.assurance_results[0].code_digest = Some(digest('f'));
+    wrong_artifact.candidate_evidence[0].assurance_results[0] =
+        evidence_reference(&wrong_artifact.assurance_results[0]);
+    assert_eq!(
+        only_code(&wrong_artifact),
+        DiagnosticCode::UnacceptedRefinement
+    );
+
+    let mut tampered = request(1, 3, 2);
+    tampered.assurance_results[0].scope = "tampered".into();
+    assert_eq!(only_code(&tampered), DiagnosticCode::InvalidAssurance);
+}
+
+#[test]
+fn full_lock_and_region_tampering_is_rejected() {
+    let compiled = compile(&request(1, 3, 2)).unwrap();
+
+    let mut logical = compiled.clone();
+    logical.logical.model.id = "tampered-model".into();
+    assert_eq!(
+        logical.verify().unwrap_err(),
+        "canonical plans differ from locked context sidecar"
+    );
+
+    let mut execution = compiled.clone();
+    execution.execution.target.id = "tampered-target".into();
+    assert_eq!(
+        execution.verify().unwrap_err(),
+        "canonical plans differ from locked context sidecar"
+    );
+
+    let mut region = compiled.clone();
+    region.region_program.steps[0].kernel.id = "tampered-kernel".into();
+    assert_eq!(
+        region.verify().unwrap_err(),
+        "role plans do not cover roles or bind region program digest"
+    );
+
+    let mut lock = compiled;
+    lock.lock.components.clear();
+    assert_eq!(
+        lock.verify().unwrap_err(),
+        "plan lock component artifacts differ from execution plan"
+    );
+}
+
+#[test]
+fn rewritten_plan_hashes_cannot_hide_sidecar_or_region_tampering() {
+    let compiled = compile(&request(1, 3, 2)).unwrap();
+
+    let mut evidence = compiled.clone();
+    evidence.assurance_results[0].outcome = AssuranceOutcome::RefutedInScope;
+    let reference = evidence_reference(&evidence.assurance_results[0]);
+    evidence.candidate_evidence[0].assurance_results[0] = reference.clone();
+    evidence.execution.evidence_references[0] = reference.clone();
+    evidence.lock.evidence_references[0] = reference;
+    evidence.lock.execution_plan_digest = pllm_types::execution_plan_digest(&evidence.execution);
+    assert_eq!(
+        evidence.verify().unwrap_err(),
+        "selected candidate no longer satisfies privacy contract"
+    );
+
+    let mut missing = compiled.clone();
+    missing.assurance_results.clear();
+    assert_eq!(
+        missing.verify().unwrap_err(),
+        "assurance result records do not match execution references"
+    );
+
+    let mut artifact = compiled.clone();
+    artifact.region_program.steps[0].method.artifact_digest = digest('d');
+    artifact.execution.components[1].artifact_digest = digest('d');
+    artifact.lock.components[1].digest = digest('d');
+    artifact.execution.role_plans[1].digest =
+        pllm_compiler::region_program_digest(&artifact.region_program);
+    artifact.lock.execution_plan_digest = pllm_types::execution_plan_digest(&artifact.execution);
+    assert_eq!(
+        artifact.verify().unwrap_err(),
+        "candidate evidence sidecar does not match selected region candidates"
+    );
+
+    let mut contract = compiled.clone();
+    contract.privacy_contract.online_parties = 2;
+    let contract_digest = privacy_contract_digest(&contract.privacy_contract);
+    contract.locked_context.privacy_contract.digest = contract_digest.clone();
+    contract.logical.privacy_contract.digest = contract_digest.clone();
+    contract.lock.privacy_contract_digest = contract_digest;
+    let logical_digest = pllm_types::logical_plan_digest(&contract.logical);
+    contract.execution.logical_plan_digest = logical_digest.clone();
+    contract.region_program.logical_plan_digest = logical_digest.clone();
+    contract.lock.logical_plan_digest = logical_digest;
+    let region_digest = pllm_compiler::region_program_digest(&contract.region_program);
+    contract.execution.role_plans[1].digest = region_digest;
+    contract.lock.execution_plan_digest = pllm_types::execution_plan_digest(&contract.execution);
+    assert_eq!(
+        contract.verify().unwrap_err(),
+        "selected candidate no longer satisfies privacy contract"
+    );
+
+    let mut region = compiled;
+    region.region_program.output.shape[1] = 4;
+    region.region_program.steps[0].output.shape[1] = 4;
+    region.execution.role_plans[1].digest =
+        pllm_compiler::region_program_digest(&region.region_program);
+    region.lock.execution_plan_digest = pllm_types::execution_plan_digest(&region.execution);
+    assert_eq!(
+        region.verify().unwrap_err(),
+        "region intent does not match locked graph digests"
+    );
+}
+
+fn oracle(weights: &[u8], input: &[u32], rows: usize, cols: usize, batch: usize) -> Vec<u32> {
+    (0..batch)
+        .flat_map(|batch_index| {
+            (0..rows).map(move |row| {
+                (0..cols).fold(0u32, |sum, column| {
+                    sum.wrapping_add(
+                        (weights[row * cols + column] as i8 as i32 as u32)
+                            .wrapping_mul(input[batch_index * cols + column]),
+                    )
+                })
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn verified_region_executes_real_pllm_core_matrix() {
+    let (batch, columns, rows) = (3, 17, 5);
+    let weights: Vec<u8> = (0..rows * columns)
+        .map(|index| ((index * 29 + 131) % 256) as u8)
+        .collect();
+    let input: Vec<u32> = (0..batch * columns)
+        .map(|index| (index as u32).wrapping_mul(0x9e37_79b9).wrapping_sub(7))
+        .collect();
+    let compiled = compile(&request(batch as u64, columns as u64, rows as u64)).unwrap();
+    let expected = oracle(&weights, &input, rows, columns, batch);
+    for (threads, simd) in [(1, false), (1, true), (2, true)] {
+        assert_eq!(
+            execute_wrap32(&compiled, &weights, &input, threads, simd).unwrap(),
+            expected
+        );
+    }
+
+    let mut tampered = compiled;
+    tampered.region_program.output.shape[1] += 1;
+    assert!(execute_wrap32(&tampered, &weights, &input, 1, false).is_err());
+}

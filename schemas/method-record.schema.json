@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/method-record.schema.json",
+  "title": "PLLM method record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "version", "registry_aliases", "source_record_ids", "upstream_artifact_lock_ids", "classification", "semantic_scope", "input_representations", "output_representations", "online_roles", "preparation_phase", "native_owner", "implementation_status", "assurance_obligations", "lifecycle_status"],
+  "properties": {
+    "schema_version": {"const": "pllm.method_record.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "registry_aliases": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "upstream_artifact_lock_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "classification": {"enum": ["source_method", "reproduction", "engineering_improvement", "scientific_contribution", "structural_pllm_adaptation"]},
+    "semantic_scope": {"type": "string", "minLength": 1},
+    "input_representations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "output_representations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "online_roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "preparation_phase": {"enum": ["none", "offline", "online"]},
+    "native_owner": {"const": "Rust"},
+    "implementation_status": {"enum": ["planned", "reference_operator", "native_operator", "region", "full_model", "structural_adaptation"]},
+    "assurance_obligations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "lifecycle_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fidelity", "protected_execution", "assurance", "benchmark", "promotion"],
+      "properties": {
+        "fidelity": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]},
+        "protected_execution": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]},
+        "assurance": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]},
+        "benchmark": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]},
+        "promotion": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]}
+      }
+    },
+    "eligible_profiles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/measurement.schema.json",
+  "title": "PLLM measurement v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "origin", "scope", "metric", "privacy_cohort", "numeric_cohort", "value", "unit", "unavailable_reason", "plan_lock_digest", "environment_digest"],
+  "properties": {
+    "schema_version": {"const": "pllm.measurement.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "origin": {"enum": ["native_executed", "imported_archive", "source_reported", "analytic_estimate", "reference_executed", "not_available"]},
+    "scope": {"enum": ["kernel", "operator", "region", "full_model", "deployment"]},
+    "role": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9./_:-]+$"},
+    "phase": {"enum": ["offline", "online"]},
+    "metric": {"type": "string", "minLength": 1},
+    "privacy_cohort": {"type": "string", "minLength": 1},
+    "numeric_cohort": {"type": "string", "minLength": 1},
+    "value": {"type": ["number", "null"]},
+    "unit": {"type": "string"},
+    "unavailable_reason": {"type": ["string", "null"], "minLength": 1},
+    "plan_lock_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "environment_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "source_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "notes": {"type": "string", "minLength": 1},
+    "evidence_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"origin": {"const": "not_available"}}, "required": ["origin"]},
+      "then": {"properties": {"value": {"type": "null"}, "unavailable_reason": {"type": "string", "minLength": 1}}},
+      "else": {"properties": {"value": {"type": "number"}, "unavailable_reason": {"type": "null"}}}
+    }
+  ]
+}

@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 
 from pllm.runtime.client import _BFVStageClient
-from pllm.runtime.he_runtime import BFVCorrelationServer
+from pllm.runtime.bfv_correlations import BFVCorrelationServer
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.tiled_bfv import TiledBFVClient
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine, TransformerEngineError
 
-PYDEPS = os.environ.get("HE_OPENAI_PYDEPS", "")
+PYDEPS = os.environ.get("PLLM_TENSEAL_PATH", "")
 
 
 def run(value):

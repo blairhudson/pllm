@@ -1,0 +1,5 @@
+{
+  "title": "Extend PLLM",
+  "root": true,
+  "pages": ["index", "component-standard", "publish-a-provider", "add-a-category", "native-plugin-abi", "upstreaming", "../agents"]
+}

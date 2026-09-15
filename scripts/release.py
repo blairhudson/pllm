@@ -53,7 +53,7 @@ def checksums(directory: Path) -> None:
 
 def set_version(value: str) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?", value):
-        raise ValueError("Use a version such as 0.17.0a1 or 0.16.0")
+        raise ValueError("Use a version such as 0.1.0a1 or 0.1.0")
     (ROOT / "python/pllm/_version.py").write_text(f'__version__ = "{value}"\n')
     cargo = ROOT / "Cargo.toml"
     cargo_version = re.sub(

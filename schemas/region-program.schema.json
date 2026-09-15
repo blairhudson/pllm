@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/region-program.schema.json",
+  "title": "PLLM compiler region program v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "logical_plan_digest", "execution_role", "input", "input_representation", "output", "output_representation", "steps"],
+  "properties": {
+    "schema_version": {"const": "pllm.region_program.v1"},
+    "logical_plan_digest": {"$ref": "#/$defs/digest"},
+    "execution_role": {"type": "string", "minLength": 1},
+    "input": {"$ref": "#/$defs/tensor"},
+    "input_representation": {"$ref": "#/$defs/representation"},
+    "output": {"$ref": "#/$defs/tensor"},
+    "output_representation": {"$ref": "#/$defs/representation"},
+    "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}, "minItems": 1}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "representation": {"enum": ["public", "client_plaintext", "masked_ring", "arithmetic_label", "boolean_label", "additive_share", "ciphertext", "attested_plaintext"]},
+    "numeric": {"enum": ["wrap32", "signed_fixed16"]},
+    "operator": {"enum": ["linear", "conversion", "unsupported"]},
+    "implementation": {"enum": ["pllm_core_matrix_wrap32", "explicit_representation_conversion"]},
+    "tensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numeric", "shape"],
+      "properties": {
+        "numeric": {"$ref": "#/$defs/numeric"},
+        "shape": {"type": "array", "items": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "properties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["online_parties", "needs_online_preparation", "needs_client_weights", "uses_he", "experimental"],
+      "properties": {
+        "online_parties": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "needs_online_preparation": {"type": "boolean"},
+        "needs_client_weights": {"type": "boolean"},
+        "uses_he": {"type": "boolean"},
+        "experimental": {"type": "boolean"}
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "operator", "input_representation", "output_representation", "properties", "artifact_digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "operator": {"$ref": "#/$defs/operator"},
+        "input_representation": {"$ref": "#/$defs/representation"},
+        "output_representation": {"$ref": "#/$defs/representation"},
+        "properties": {"$ref": "#/$defs/properties"},
+        "artifact_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "kernel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "method_id", "method_version", "input_numeric", "output_numeric", "implementation", "artifact_digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "method_id": {"type": "string", "minLength": 1},
+        "method_version": {"type": "string", "minLength": 1},
+        "input_numeric": {"$ref": "#/$defs/numeric"},
+        "output_numeric": {"$ref": "#/$defs/numeric"},
+        "implementation": {"$ref": "#/$defs/implementation"},
+        "artifact_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "operator", "input", "output", "input_representation", "output_representation", "method", "kernel"],
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 1},
+        "operator": {"$ref": "#/$defs/operator"},
+        "input": {"$ref": "#/$defs/tensor"},
+        "output": {"$ref": "#/$defs/tensor"},
+        "input_representation": {"$ref": "#/$defs/representation"},
+        "output_representation": {"$ref": "#/$defs/representation"},
+        "method": {"$ref": "#/$defs/method"},
+        "kernel": {"$ref": "#/$defs/kernel"}
+      }
+    }
+  }
+}

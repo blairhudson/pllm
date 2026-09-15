@@ -1,0 +1,11 @@
+{
+  "title": "Evidence and records",
+  "root": true,
+  "pages": [
+    "index",
+    "[Source records](/research/sources/)",
+    "[Research evidence](/research/evidence/)",
+    "[Metrics](/research/records/metrics/)",
+    "[Research catalog](/research/records/method-catalog/)"
+  ]
+}

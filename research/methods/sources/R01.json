@@ -1,0 +1,15 @@
+{
+  "schema_version": "pllm.source_record.v1",
+  "id": "R01",
+  "title": "Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits",
+  "authors": ["Jonas Sander", "Sebastian Berndt", "Ida Bruhns", "Thomas Eisenbarth"],
+  "year": 2024,
+  "primary_url": "https://arxiv.org/html/2302.06361v2",
+  "access": "primary_full_text_html",
+  "verified_on": "2026-09-14",
+  "paper_digest": "4f3dfd31cbf853f51b5ae8f93672af294429e3cc5f8cf7fe5181a4546a436e7a",
+  "local_path": "papers/2302.06361v2.pdf",
+  "artifact_commit": "894e2bb7e104c2996933d53f4aa7ca58f2c802be",
+  "license_review": "external_reproduction_only",
+  "notes": "UzL-ITS/dash is GPL-3.0. Execute it only as an isolated reproduction artifact; do not vendor, copy, or link its implementation into PLLM."
+}

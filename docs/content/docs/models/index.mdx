@@ -1,0 +1,42 @@
+---
+title: "Models"
+description: "See which model configurations PLLM can describe and what model support does not yet include."
+---
+
+`pllm.lower_model(config, batch=..., max_input_tokens=..., max_new_tokens=...)`
+turns model configuration and workload limits into a `ModelPlan`. It does not
+download weights or tokenizers, choose a device, or start a runtime.
+
+Each adapter validates a specific architecture and produces the same model-neutral
+plan format. The plan records operators, layers, weight references, persistent
+state, workload limits, and source identity. When a new model needs a new
+operation, PLLM extends the shared vocabulary instead of adding model-specific
+logic to the compiler.
+
+| Adapter | Validated configuration scope | Added semantics |
+| --- | --- | --- |
+| `pllm.qwen2.v1` | dense Qwen2 configuration contract | grouped-query attention, rotary position, gated SiLU MLP, KV state |
+| `pllm.qwen3.v1` | dense Qwen3; pinned mini-coder-4b fixture | explicit head width, Q/K normalization, bias-free attention |
+| `pllm.qwen3_5_text.v1` | pinned Qwen3.5-4B text decoder | hybrid full attention and gated-delta recurrence, convolution and recurrent state |
+| `pllm.phi4_mini.v1` | pinned Phi-4-mini-instruct decoder | fused QKV, fused gate/up, partial LongRoPE |
+| `pllm.gemma4_e2b_text.v1` | pinned Gemma 4 E2B text decoder | hybrid attention, shared KV suffix, double-wide suffix MLP |
+| `pllm.gemma4_e4b_text.v1` | pinned Gemma 4 E4B text decoder | hybrid attention, shared KV suffix, PLE, softcap |
+
+Describing a model is not the same as loading its checkpoint or running it
+privately. Compiler support, output quality, benchmarks, and deployment are also
+separate. Check [current support](/sdk/reference/status/) before choosing a model.
+
+## Python SDK example
+
+```python
+import json
+from pathlib import Path
+
+from pllm import lower_model
+
+config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
+plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+print(plan.to_dict()["adapter"])
+```
+
+`model-config.json` contains a supported Hugging Face configuration. This creates a semantic plan only.

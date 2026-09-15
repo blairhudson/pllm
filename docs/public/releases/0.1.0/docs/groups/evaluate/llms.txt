@@ -1,0 +1,34 @@
+# PLLM
+
+Release: 0.1.0
+Build: sha256:1e873bcc571b7b7717ee66b62aff1ec3e361ead12088e6b707b77e88ee008328
+
+Private LLM inference documentation. Public weights; provider follows the protocol.
+
+- [Research methods and composition](https://pllm.run/research/recipes/build-method/) ([Markdown](https://pllm.run/research/recipes/build-method.md)): Turn a published method into a versioned component and a recorded plan change.
+- [Research APIs](https://pllm.run/sdk/research/) ([Markdown](https://pllm.run/sdk/research.md)): Use the Python SDK to benchmark plans, run scoped assurance checks, and produce immutable evidence records.
+- [Benchmark](https://pllm.run/sdk/research/benchmark/) ([Markdown](https://pllm.run/sdk/research/benchmark.md)): Run scoped Python benchmarks and understand what the development dashboard does not measure.
+- [Compare](https://pllm.run/research/recipes/compare/) ([Markdown](https://pllm.run/research/recipes/compare.md)): Compare runs with matching inputs and report every relevant cost and uncertainty.
+- [Reproduce](https://pllm.run/research/recipes/reproduce/) ([Markdown](https://pllm.run/research/recipes/reproduce.md)): Compare an independent PLLM implementation with the published method it follows.
+- [Assure](https://pllm.run/sdk/research/assure/) ([Markdown](https://pllm.run/sdk/research/assure.md)): Run a defined assurance check and report exactly what its result supports.
+- [Research catalog](https://pllm.run/research/records/method-catalog/) ([Markdown](https://pllm.run/research/records/method-catalog.md)): Generated source, method, and read-only composition recipe inventory from pllm.research.
+- [Source registry](https://pllm.run/research/sources/) ([Markdown](https://pllm.run/research/sources.md)): See how PLLM records original papers, source artifacts, citations, and licenses.
+- [Method implementations](https://pllm.run/research/methods/) ([Markdown](https://pllm.run/research/methods.md)): Understand the difference between a published method and PLLM's independent implementation of it.
+- [Compositions and recipes](https://pllm.run/research/compositions/) ([Markdown](https://pllm.run/research/compositions.md)): Learn how PLLM records research recipes and changes to a model plan.
+- [Research evidence](https://pllm.run/research/evidence/) ([Markdown](https://pllm.run/research/evidence.md)): Understand which evidence supports fidelity, performance, privacy, and deployment claims.
+- [Publications and claims](https://pllm.run/research/publications/) ([Markdown](https://pllm.run/research/publications.md)): Learn which evidence and review a PLLM research claim needs before publication.
+- [Contribute a clean-room reimplementation](https://pllm.run/research/clean-room/) ([Markdown](https://pllm.run/research/clean-room.md)): Add an independent PLLM implementation with clear provenance, tests, evidence, and review.
+- [PLLM research](https://pllm.run/research/) ([Markdown](https://pllm.run/research.md)): The mission, protocol, and evidence for a global market in private AI compute.
+- [PLLM: Offline-Correlated Private Inference for Public-Weight Language Models](https://pllm.run/research/paper/) ([Markdown](https://pllm.run/research/paper.md)): A high-performance multi-party inference runtime that prepares one-time masked matrix corrections before online language-model inference.
+- [Private inference for an open compute world](https://pllm.run/research/whitepaper/) ([Markdown](https://pllm.run/research/whitepaper.md)): A two-page overview of PLLM prepared private inference.
+- [Reproduction checklist](https://pllm.run/research/recipes/reproduction-checklist/) ([Markdown](https://pllm.run/research/recipes/reproduction-checklist.md)): A checklist for obtaining a source, reproducing a method, and producing comparable evidence.
+- [Research map](https://pllm.run/research/recipes/agent-map/) ([Markdown](https://pllm.run/research/recipes/agent-map.md)): Trace a source through clean-room code, plans, evidence, and publication review.
+- [Assurance](https://pllm.run/sdk/research/assurance/) ([Markdown](https://pllm.run/sdk/research/assurance.md)): Evaluate a specific privacy, integrity, numeric, implementation, or deployment claim.
+- [Benchmarks](https://pllm.run/sdk/research/benchmarks/) ([Markdown](https://pllm.run/sdk/research/benchmarks.md)): Measure PLLM systems with reproducible records and compare only equivalent runs.
+- [Metrics](https://pllm.run/research/records/metrics/) ([Markdown](https://pllm.run/research/records/metrics.md)): Choose clear performance, resource, quality, and privacy measurements for a PLLM experiment.
+- [Research workflows](https://pllm.run/research/recipes/) ([Markdown](https://pllm.run/research/recipes.md)): Build, reproduce, compare, and review private-inference research with explicit stop rules.
+- [Experiments](https://pllm.run/research/recipes/experiments/) ([Markdown](https://pllm.run/research/recipes/experiments.md)): Design reproducible experiments with fixed plans, comparable runs, and recorded failures.
+- [Reimplemented papers](https://pllm.run/research/papers/) ([Markdown](https://pllm.run/research/papers.md)): Trace published private-inference methods to their independent PLLM components, evidence, and current limitations.
+- [Evidence and records](https://pllm.run/research/records/) ([Markdown](https://pllm.run/research/records.md)): Keep sources, methods, implementations, plans, evidence, assurance, and claims independently reviewable.
+- [Reproductions](https://pllm.run/research/recipes/reproductions/) ([Markdown](https://pllm.run/research/recipes/reproductions.md)): Reimplement published methods independently in PLLM's Python and Rust stack.
+- [Search](https://pllm.run/sdk/build/search/) ([Markdown](https://pllm.run/sdk/build/search.md)): Compare compatible system designs against explicit resource, quality, and assurance limits.

@@ -18,7 +18,7 @@ DEFAULT_TINY_ALPHABET = " private\n"
 def build_tiny_gemma_checkpoint(
     path: str | Path,
     *,
-    model_id: str = "tiny-gemma-he",
+    model_id: str = "tiny-gemma-pllm",
     alphabet: str = DEFAULT_TINY_ALPHABET,
     hidden_size: int = 16,
     intermediate_size: int = 32,
@@ -39,8 +39,8 @@ def build_tiny_gemma_checkpoint(
         raise ValueError("hidden_size must be at least tokenizer vocabulary size")
     rng = np.random.default_rng(seed)
     config = {
-        "architectures": ["HEGemmaForCausalLM"],
-        "model_type": "he_gemma",
+        "architectures": ["PLLMGemmaForCausalLM"],
+        "model_type": "pllm_gemma",
         "name_or_path": model_id,
         "vocab_size": vocab_size,
         "hidden_size": hidden_size,
@@ -62,7 +62,7 @@ def build_tiny_gemma_checkpoint(
         "final_logit_softcapping": None,
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    (root / "he_tokenizer.json").write_text(
+    (root / "pllm_tokenizer.json").write_text(
         json.dumps({"type": "alphabet", "alphabet": alphabet}, indent=2) + "\n",
         encoding="utf-8",
     )
@@ -155,5 +155,5 @@ class ClearStageCaller:
         return np.asarray(activation, dtype=np.float32) @ matrix.T
 
 
-def tiny_manifest(path: str | Path, *, model_id: str = "tiny-gemma-he") -> ModelManifest:
+def tiny_manifest(path: str | Path, *, model_id: str = "tiny-gemma-pllm") -> ModelManifest:
     return load_hf_directory(path, model_id=model_id)

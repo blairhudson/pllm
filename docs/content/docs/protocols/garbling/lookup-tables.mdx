@@ -1,0 +1,19 @@
+---
+title: "Lookup tables"
+description: "Bounded function tables with explicit domains, indexing, leakage, and material size."
+---
+
+A lookup-table component maps a finite encoded domain to an encoded range. Its contract records signed interpretation, table cardinality, invalid indices, material ownership, one-time use, communication, and whether selection is data-oblivious under the stated threat model.
+
+Tables are useful for nonlinearities only when domain bounds and total storage remain explicit. Approximation and model-quality evidence belong to the numeric policy, not the table name.
+
+## Python SDK example
+
+```python
+from pllm.components import list_components
+
+available = [item.component for item in list_components() if "lookup" in item.component]
+print(available)
+```
+
+No lookup-table component is currently published through the SDK.

@@ -1,0 +1,10 @@
+---
+title: "Privacy and assurance semantics"
+description: "State a specific privacy claim and interpret the evidence that applies to it."
+---
+
+Privacy claim must name protected values, observer, roles, corruption and non-collusion assumptions, leakage, workload, implementation, and evidence. “Private” without adjacent scope and evidence is not a valid implementation claim.
+
+Allowed assurance outcomes are `proved_in_model`, `refuted_in_scope`, `not_refuted`, `inconclusive`, `outside_contract`, and `unchecked`. Successful test or failed attack is at most `not_refuted` for recorded budget unless formal result says otherwise. Missing, unavailable, skipped, and not applicable differ.
+
+Current generated descriptors contain no applicable assurance evidence. Research method lifecycle currently records assurance as `unchecked`. See [assure](/sdk/research/assure/) and [claim taxonomy](/learn/understand/evidence-claims/).

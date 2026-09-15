@@ -358,7 +358,7 @@ def create_preparation_app(
             session_registry.reserve(value, owner)
             reserved = True
             pushed = await push_http.post(
-                f"/v1/he/inventories/{session_id}/authorize",
+                f"/v1/runtime/inventories/{session_id}/authorize",
                 headers={
                     "Authorization": f"Bearer {config.preparation_push_api_key}",
                     "Content-Type": BINARY_MEDIA_TYPE,
@@ -480,7 +480,7 @@ def create_preparation_app(
                 if correction_channel is None:
                     metrics.correction_channel_upload_bytes += len(correction_payload)
                     pushed = await push_http.post(
-                        f"/v1/he/inventories/{value.session_id}/corrections/{value.attempt_id}",
+                        f"/v1/runtime/inventories/{value.session_id}/corrections/{value.attempt_id}",
                         headers={
                             "Authorization": f"Bearer {config.preparation_push_api_key}",
                             "Content-Type": BINARY_MEDIA_TYPE,

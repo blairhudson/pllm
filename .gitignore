@@ -9,6 +9,10 @@ __pycache__/
 coverage.xml
 htmlcov/
 build/
+!docs/content/docs/build/
+!docs/content/docs/build/**
+!docs/public/releases/*/docs/build/
+!docs/public/releases/*/docs/build/**
 dist/
 results/
 !research/evidence/
@@ -25,6 +29,8 @@ results/
 *.sqlite*
 *.db
 models/
+!docs/content/docs/models/
+!docs/content/docs/models/**
 checkpoints/
 # OpenTofu
 .terraform/
@@ -39,6 +45,9 @@ node_modules/
 *.tsbuildinfo
 docs/out/
 # Paper outputs are produced in CI
+papers/
+!docs/content/docs/research/papers/
+!docs/content/docs/research/papers/**
 paper/main.pdf
 paper/*.aux
 paper/*.bbl
