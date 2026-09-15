@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531",
+  "buildId": "sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -133,7 +133,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:a1344371d9b45029feb2f500190aef2232c3adbcfc1f5ff7eb3f2bda1dbc34eb"
+      "contentHash": "sha256:135cea9e0d504760f3928adec4257664f0e0bc31fdfd066f346bed7a7a275ea2"
     },
     {
       "id": "pllm.docs.sdk.configuration",
@@ -164,7 +164,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 3,
-      "contentHash": "sha256:fb66e983414478a59dd0064a2384ca08d8c222c259d007e0a4566db76ab12dc3"
+      "contentHash": "sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8"
     },
     {
       "id": "pllm.docs.sdk.plans",
@@ -195,7 +195,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 3,
-      "contentHash": "sha256:95c5e822106ae2cc6f1c601ceba2ebe2f4af7fb49320fd71aec7784971cec3d3"
+      "contentHash": "sha256:77c0bb7e4708ea66eaf0a632bf7df99881f11c9dc4e09d349978b38befd5d39d"
     },
     {
       "id": "pllm.docs.sdk.components",
@@ -226,7 +226,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 3,
-      "contentHash": "sha256:1b822ba66c418538aef39693fdf4a6f2675af9950fd086a5ba973922160b1760"
+      "contentHash": "sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce"
     },
     {
       "id": "pllm.docs.build",
@@ -265,7 +265,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/",
       "navigationOrder": 100,
-      "contentHash": "sha256:f2b2505d1b1ceaf1097aa4b9ad31719954fc939291c5cb46bb33d370b15ee3a8"
+      "contentHash": "sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860"
     },
     {
       "id": "pllm.docs.build.models",
@@ -296,7 +296,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/",
       "navigationOrder": 100,
-      "contentHash": "sha256:c09abfb83607b1ef12656d707a30afde19ebe6df3a68a06920509811ebbdcb3e"
+      "contentHash": "sha256:1a9602a4ba72d2c6427ebe44a0235709ed924edd3a573ff219e2786d426adc0e"
     },
     {
       "id": "pllm.docs.build.research",
@@ -487,7 +487,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
       "navigationOrder": 4,
-      "contentHash": "sha256:5ee0a8a80fbe30a06f7e505c9faf68bdd25f648569fdf9f1687ce01c776d6a23"
+      "contentHash": "sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa"
     },
     {
       "id": "pllm.docs.measure",
@@ -523,7 +523,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
       "navigationOrder": 307,
-      "contentHash": "sha256:63b44326188d0ac42bf56905b6d40393d344955453f8f8742bcc224306fb2532"
+      "contentHash": "sha256:dd7e5035522877c46fd0b86b7fc5146db157fdfad877e1e26e12de3b67f143fa"
     },
     {
       "id": "pllm.docs.measure.benchmark",
@@ -554,7 +554,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
       "navigationOrder": 307,
-      "contentHash": "sha256:d9e866861ec739e8124d211dfa4c32cdef110cab8fd5df439054c92792200cb6"
+      "contentHash": "sha256:d361426233eb578fec74fd0bcff69e32a3f1a555f63aaae0e76dda8964759916"
     },
     {
       "id": "pllm.docs.measure.compare",
@@ -616,7 +616,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:7b6f258ec3c702830696d8995fd9b12dd7812b30aa77f6e9e063591d446de63d"
+      "contentHash": "sha256:d9fbc27aa2bfdf87004f68582309774a19c516a5295ab704982270f3ad3bb316"
     },
     {
       "id": "pllm.docs.measure.assure",
@@ -647,7 +647,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
       "navigationOrder": 307,
-      "contentHash": "sha256:9af947d02e7699a9242a080ce026e29c78a15a25b8b1af23dda5338c36fc293a"
+      "contentHash": "sha256:026d5431c2c14d5a4f2d88c51e875ff73c403eaaa00f5e9d3872c157da4e79d9"
     },
     {
       "id": "pllm.docs.operate",
@@ -682,7 +682,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:3b50fc5e188402f2f53bc0c77e8ede831dbc5a2be5bada8c311c25f603ed58b9"
+      "contentHash": "sha256:701edae02def99edc0ffdf0514567fe24e04dac6e5d1ef1849c6f07e5b7a863f"
     },
     {
       "id": "pllm.docs.operate.client-boundary",
@@ -713,7 +713,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:9b1a16df2129dd20d325e518fbc31faa4ef6007abd0a525696e00245917454c6"
+      "contentHash": "sha256:67dcd4db2e70529d625c24980f7d08cfa2299ab7f6917bcf6a16d874349fc14e"
     },
     {
       "id": "pllm.docs.operate.provider-roles",
@@ -744,7 +744,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:f5dd91b975c2ba60f9bcb7897df343c7bfc131a5dfed9aaabd871c6ff445159c"
+      "contentHash": "sha256:eee97122d4ad7884373a0a4f0a8136daaa74552e7eab4ead3e707d2ab5cae805"
     },
     {
       "id": "pllm.docs.operate.deployment",
@@ -775,7 +775,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
       "navigationOrder": 205,
-      "contentHash": "sha256:739fe6e092abaa92b71a58687a27c9cf30ab9a09bed61d46bb38bbfd901564a4"
+      "contentHash": "sha256:2e99a4002ebccd03e7bff63f4c8a011f980a6815a236eb6076cf853e47487e69"
     },
     {
       "id": "pllm.docs.reference",
@@ -812,7 +812,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:dd0833496a3391ffae5bffb22c86357a20d6621302e17cadd8d7e76395ffa35d"
+      "contentHash": "sha256:301c71676e2e7029758a8b7a9be75aaf317e6d07f58385b33f131cc76649a274"
     },
     {
       "id": "pllm.docs.reference.cli",
@@ -829,7 +829,13 @@
       ],
       "markdownAliases": [],
       "parent": "pllm.docs.cli",
-      "children": [],
+      "children": [
+        "pllm.docs.reference.cli.config",
+        "pllm.docs.reference.cli.components",
+        "pllm.docs.reference.cli.research",
+        "pllm.docs.reference.cli.benchmark",
+        "pllm.docs.reference.cli.dev"
+      ],
       "prerequisites": [],
       "related": [],
       "publicModules": [],
@@ -847,7 +853,802 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 2,
-      "contentHash": "sha256:8a679fa69eecabedd4b94d9f91d6152295a3e6eec82b00be575b93c760332e21"
+      "contentHash": "sha256:52044d7f716765ac13b97ff489bb38e7bb955f9b1ae4c9459e65d6faa240fa94"
+    },
+    {
+      "id": "pllm.docs.reference.cli.config",
+      "title": "pllm config",
+      "summary": "Exact pllm config help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/config/index.mdx",
+      "canonicalUrl": "/cli/reference/config/",
+      "markdownUrl": "/cli/reference/config.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/config"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.config.show",
+        "pllm.docs.reference.cli.config.export"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/config/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:e3ab232d2c7c77bf7197287f380c1b5e62c4afa5bffb92058dcf2ba0239a0031"
+    },
+    {
+      "id": "pllm.docs.reference.cli.components",
+      "title": "pllm components",
+      "summary": "Exact pllm components help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/components/index.mdx",
+      "canonicalUrl": "/cli/reference/components/",
+      "markdownUrl": "/cli/reference/components.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/components"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.components.list",
+        "pllm.docs.reference.cli.components.show"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/components/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:e6acf4380c600a61a42158ee77b759debc1640fe2a53f00dc535cf12aabc38cc"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research",
+      "title": "pllm research",
+      "summary": "Exact pllm research help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/index.mdx",
+      "canonicalUrl": "/cli/reference/research/",
+      "markdownUrl": "/cli/reference/research.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.research.sources",
+        "pllm.docs.reference.cli.research.methods",
+        "pllm.docs.reference.cli.research.recipes",
+        "pllm.docs.reference.cli.research.assess",
+        "pllm.docs.reference.cli.research.agents"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:a9455d031c72f633f967ef66af09fc4327612b15a8da386fa4f221efa6b9aaaa"
+    },
+    {
+      "id": "pllm.docs.reference.cli.benchmark",
+      "title": "pllm benchmark",
+      "summary": "Exact pllm benchmark help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/benchmark/index.mdx",
+      "canonicalUrl": "/cli/reference/benchmark/",
+      "markdownUrl": "/cli/reference/benchmark.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/benchmark"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.benchmark.run"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/benchmark/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:69e847abbf74ab4d1440574aa893dd675cede337b7a32b3c8595061af4beb5de"
+    },
+    {
+      "id": "pllm.docs.reference.cli.dev",
+      "title": "pllm dev",
+      "summary": "Exact pllm dev help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/dev/index.mdx",
+      "canonicalUrl": "/cli/reference/dev/",
+      "markdownUrl": "/cli/reference/dev.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/dev"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.dev.dashboard"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/dev/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:2b39dfc27a5c3f5401a882f43ac014c98b5441139bb6b50bfc7d7b6f1fe2f2ca"
+    },
+    {
+      "id": "pllm.docs.reference.cli.config.show",
+      "title": "pllm config show",
+      "summary": "Exact pllm config show help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/config/show.mdx",
+      "canonicalUrl": "/cli/reference/config/show/",
+      "markdownUrl": "/cli/reference/config/show.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/config/show"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.config",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/config/show.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:771cfaa411ad8d24d6963bf420a319a51d260753637b2b74edd83ddd316e73e2"
+    },
+    {
+      "id": "pllm.docs.reference.cli.config.export",
+      "title": "pllm config export",
+      "summary": "Exact pllm config export help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/config/export.mdx",
+      "canonicalUrl": "/cli/reference/config/export/",
+      "markdownUrl": "/cli/reference/config/export.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/config/export"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.config",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/config/export.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:b4ebb105af384251d48525471c0f6f91da1f2295b26ce92fbedbad7608ddcf5b"
+    },
+    {
+      "id": "pllm.docs.reference.cli.components.list",
+      "title": "pllm components list",
+      "summary": "Exact pllm components list help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/components/list.mdx",
+      "canonicalUrl": "/cli/reference/components/list/",
+      "markdownUrl": "/cli/reference/components/list.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/components/list"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.components",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/components/list.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:150eee9d05158e8dbed0cc3690954ff3739ec425f5c515fbb66e6b8411c9f273"
+    },
+    {
+      "id": "pllm.docs.reference.cli.components.show",
+      "title": "pllm components show",
+      "summary": "Exact pllm components show help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/components/show.mdx",
+      "canonicalUrl": "/cli/reference/components/show/",
+      "markdownUrl": "/cli/reference/components/show.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/components/show"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.components",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/components/show.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:ad669cde7352e3c96f7bc83c65be5fb15af9018841ed761b3f2873b973fa529c"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.sources",
+      "title": "pllm research sources",
+      "summary": "Exact pllm research sources help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/sources/index.mdx",
+      "canonicalUrl": "/cli/reference/research/sources/",
+      "markdownUrl": "/cli/reference/research/sources.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/sources"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research",
+      "children": [
+        "pllm.docs.reference.cli.research.sources.list",
+        "pllm.docs.reference.cli.research.sources.show"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/sources/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:6dc0a97fe092e9fafc390a57cb490e2ab9617b85be0dc9a4945b08016ad9a4f2"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.methods",
+      "title": "pllm research methods",
+      "summary": "Exact pllm research methods help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/methods/index.mdx",
+      "canonicalUrl": "/cli/reference/research/methods/",
+      "markdownUrl": "/cli/reference/research/methods.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/methods"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research",
+      "children": [
+        "pllm.docs.reference.cli.research.methods.list",
+        "pllm.docs.reference.cli.research.methods.show"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/methods/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:5f709b9eed42d5f7ef4e6a56ef8d2a5c0bb4e91089570537abb784fb1687b7a3"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.recipes",
+      "title": "pllm research recipes",
+      "summary": "Exact pllm research recipes help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/recipes/index.mdx",
+      "canonicalUrl": "/cli/reference/research/recipes/",
+      "markdownUrl": "/cli/reference/research/recipes.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/recipes"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research",
+      "children": [
+        "pllm.docs.reference.cli.research.recipes.list",
+        "pllm.docs.reference.cli.research.recipes.show"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/recipes/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:134216bb2580ac3cc644dadf32f8db0f6618e8fcff3754c7019a55e185c667b9"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.assess",
+      "title": "pllm research assess",
+      "summary": "Exact pllm research assess help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/assess.mdx",
+      "canonicalUrl": "/cli/reference/research/assess/",
+      "markdownUrl": "/cli/reference/research/assess.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/assess"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/assess.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:d43d4ddf40daf45fec74c0f93b223dcc9910b79d7fee9e72b7c401299a0be91c"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.agents",
+      "title": "pllm research agents",
+      "summary": "Exact pllm research agents help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/agents.mdx",
+      "canonicalUrl": "/cli/reference/research/agents/",
+      "markdownUrl": "/cli/reference/research/agents.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/agents"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/agents.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:c1e16c9b64b3380a9d068e14952055ee814c775c802ea1474c5cb2b5efd5a07c"
+    },
+    {
+      "id": "pllm.docs.reference.cli.benchmark.run",
+      "title": "pllm benchmark run",
+      "summary": "Exact pllm benchmark run help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/benchmark/run.mdx",
+      "canonicalUrl": "/cli/reference/benchmark/run/",
+      "markdownUrl": "/cli/reference/benchmark/run.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/benchmark/run"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.benchmark",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/benchmark/run.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:96aa05429900a73f7fe22b8f36606f357b2120f75eb453a6b62944ea3201086b"
+    },
+    {
+      "id": "pllm.docs.reference.cli.dev.dashboard",
+      "title": "pllm dev dashboard",
+      "summary": "Exact pllm dev dashboard help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/dev/dashboard.mdx",
+      "canonicalUrl": "/cli/reference/dev/dashboard/",
+      "markdownUrl": "/cli/reference/dev/dashboard.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/dev/dashboard"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.dev",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/dev/dashboard.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:e4900d6edb2ae174e60f8c790ac2f76c5e736181cff3e7e83968fbdce0a84397"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.sources.list",
+      "title": "pllm research sources list",
+      "summary": "Exact pllm research sources list help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/sources/list.mdx",
+      "canonicalUrl": "/cli/reference/research/sources/list/",
+      "markdownUrl": "/cli/reference/research/sources/list.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/sources/list"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.sources",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/sources/list.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:8980f46d178b3ddb76cd2548de346e5cfe7399fcbea59b942e146bf2514fa99d"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.sources.show",
+      "title": "pllm research sources show",
+      "summary": "Exact pllm research sources show help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/sources/show.mdx",
+      "canonicalUrl": "/cli/reference/research/sources/show/",
+      "markdownUrl": "/cli/reference/research/sources/show.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/sources/show"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.sources",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/sources/show.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:914cc676bfd97f809fda6d275dbca774f8bbc1455fe68cc03d0cb63e5703961c"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.methods.list",
+      "title": "pllm research methods list",
+      "summary": "Exact pllm research methods list help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/methods/list.mdx",
+      "canonicalUrl": "/cli/reference/research/methods/list/",
+      "markdownUrl": "/cli/reference/research/methods/list.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/methods/list"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.methods",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/methods/list.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:83c1cd368c5fe82c745cb3c368da5db1397051d95e2779f0813a17df02947e03"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.methods.show",
+      "title": "pllm research methods show",
+      "summary": "Exact pllm research methods show help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/methods/show.mdx",
+      "canonicalUrl": "/cli/reference/research/methods/show/",
+      "markdownUrl": "/cli/reference/research/methods/show.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/methods/show"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.methods",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/methods/show.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:bfb29bedfd99d35e777a491181bcb9dac0bb94359c0bbf9afa783f397dad282c"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.recipes.list",
+      "title": "pllm research recipes list",
+      "summary": "Exact pllm research recipes list help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/recipes/list.mdx",
+      "canonicalUrl": "/cli/reference/research/recipes/list/",
+      "markdownUrl": "/cli/reference/research/recipes/list.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/recipes/list"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.recipes",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/recipes/list.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:7f405b77a433af55f2e3340ad5b055a31bcc7e617b2906f90888ae9a3f3de67d"
+    },
+    {
+      "id": "pllm.docs.reference.cli.research.recipes.show",
+      "title": "pllm research recipes show",
+      "summary": "Exact pllm research recipes show help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/research/recipes/show.mdx",
+      "canonicalUrl": "/cli/reference/research/recipes/show/",
+      "markdownUrl": "/cli/reference/research/recipes/show.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/research/recipes/show"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.research.recipes",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/research/recipes/show.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:369e08f3d0f47b02aa2ba2be96704219989c7415aa8f1532242cb5d5bc0d3b49"
     },
     {
       "id": "pllm.docs.reference.python.pllm",
@@ -897,7 +1698,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:f102db3bcf07fa5273fae9a42679a6be4d2292a4ef4d77c4619b274df3aa9b1f"
+      "contentHash": "sha256:5e1c27fc6c05a70f5e4fb359d58bfb52be72f8522edca70a9c30c0ad998d80ba"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -941,7 +1742,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:408a49214b7e20f08136e8a17e88176844905359f36ea6f6eb501f3998e4aedb"
+      "contentHash": "sha256:23285692d3951cdb1e784946ffdd0d994a8508020450364a862da482a0e414e1"
     },
     {
       "id": "pllm.docs.reference.research",
@@ -1017,7 +1818,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:f0cf48e2c79c86a92975d95626fd2a28425bc818020e69fcfe0707d7f6293c9e"
+      "contentHash": "sha256:e1cf3d369c6b800eb009362e779c998232e2058bf986b5044f6a25e40cd8d7d7"
     },
     {
       "id": "pllm.docs.reference.status",
@@ -1048,7 +1849,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:9eef5caf407ffd1e59d6ae14877b72e2e3a84dc66974150a620c8142c0799582"
+      "contentHash": "sha256:5fe45104a841c46bde341a57e65c97700467a75183f0fa1447de7d1db54cffc5"
     },
     {
       "id": "pllm.docs.research.sources",
@@ -1079,7 +1880,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:dd0181f496591057ee797b63ba7b95a0d1d81c39b3ef5c181bffe9deeac73e49"
+      "contentHash": "sha256:78e297f9e90d757d17bfd710a4b06b06a7f95d66c4f01ba01fff11a7c53508b9"
     },
     {
       "id": "pllm.docs.research.methods",
@@ -1110,7 +1911,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:5be647c45b001772f2398e2744bcacddec2d3b9c57cf13f4102bb3eb94fdd0e7"
+      "contentHash": "sha256:a264b922a593a3e1837d3391f6491c31b83e142d509a5ee5b13b1aba27897782"
     },
     {
       "id": "pllm.docs.research.compositions",
@@ -1141,7 +1942,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:20270d54411c507f0efa499fac5353e728404cf5820dc96109b7455508e2aabb"
+      "contentHash": "sha256:fdeba24345277f49d2ffc511853562098ad13790a132d2bd3fe63a65d22da36d"
     },
     {
       "id": "pllm.docs.research.evidence",
@@ -1172,7 +1973,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:0c75025889d82d4e3d3606346cef3b27912faef9fedb03a8370fa91b4c864d0d"
+      "contentHash": "sha256:40bd5a42a6d476151a99b2f55d1a9bcf77b7c9ac462851f9c6eb659d838319c4"
     },
     {
       "id": "pllm.docs.research.publications",
@@ -1377,7 +2178,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
       "navigationOrder": 402,
-      "contentHash": "sha256:186d77e7290e98cfd085b9499983345cbda52c3a0387ed15e884f9263c83b4c3"
+      "contentHash": "sha256:ef33a0646ac659357e0b7e180477a382f7d0b3a01fbe4932360fcbe98edd66aa"
     },
     {
       "id": "pllm.docs.agents",
@@ -1410,7 +2211,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
       "navigationOrder": 402,
-      "contentHash": "sha256:5a7174ad5db388a7cda135986225d3b17ab248a5314fb420581a3e14846eab08"
+      "contentHash": "sha256:4b365c6a15cceed903004dabc7751549bc6e8ae796c83fa3e15fdf1295a89194"
     },
     {
       "id": "pllm.docs.agents.reproduction-checklist",
@@ -1503,7 +2304,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/assurance/",
       "navigationOrder": 303,
-      "contentHash": "sha256:0e618f172f701848159a2103a6650e9abe5800ae2d74719f63a6e8a338780732"
+      "contentHash": "sha256:13f22bea16c6bc03779bbf5003402ef7eba8dd47d0b615ef73e086341603f93d"
     },
     {
       "id": "pllm.docs.benchmarks",
@@ -1534,12 +2335,12 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/benchmarks/",
       "navigationOrder": 300,
-      "contentHash": "sha256:369d7f9a2f9f69127d1d4a73a1c6fb0019d8f665ee6d02c3af644c92d2c61913"
+      "contentHash": "sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a"
     },
     {
       "id": "pllm.docs.cli",
       "title": "Command-line interface",
-      "summary": "Inspect PLLM configuration, components, and research records from the terminal.",
+      "summary": "Inspect PLLM records and run local benchmarks from the terminal.",
       "sourcePath": "content/docs/cli/index.mdx",
       "canonicalUrl": "/cli/",
       "markdownUrl": "/cli.md",
@@ -1567,7 +2368,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 2,
-      "contentHash": "sha256:6da475a0949f55f8cc565ff622cc3755862a03da1b822d70c88dfd4622c65f33"
+      "contentHash": "sha256:fe94b4c388998d1cb859ce5669a7d567fc657b6b68362c629f52fac454f53c21"
     },
     {
       "id": "pllm.docs.compiler",
@@ -1598,7 +2399,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/compiler/",
       "navigationOrder": 202,
-      "contentHash": "sha256:ce1397fe7dd5f0980df6541073962ade70e8f3b9f162056a30c766f83b0da39f"
+      "contentHash": "sha256:c0d3ee32135e041d2e3501df584823d60b898062ef00819484113f15f9084ffb"
     },
     {
       "id": "pllm.docs.contribute.add-a-category",
@@ -1629,7 +2430,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:51ac44a9659b02824c90f9cd9975cef347d25b17a8fe2e80072c6d7dcb3cf248"
+      "contentHash": "sha256:a4e76626c0d51636f65b1eec99b365fb8b8c476cfd18990650a678f31fb37dad"
     },
     {
       "id": "pllm.docs.contribute.component-standard",
@@ -1660,7 +2461,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:44c34d2d0271fc8cd1aee38046a29ea349c4af180d8be68b0f3a48040c7f007a"
+      "contentHash": "sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4"
     },
     {
       "id": "pllm.docs.contribute",
@@ -1698,7 +2499,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:5888eb621e2fe9511afacef31f06a049d3c577ebbd65319865ecd5935ea0caf9"
+      "contentHash": "sha256:98ce588d8e9bd4293d8c6169dccf6c7ea5726b616ae0234f34df06b0b8433d9b"
     },
     {
       "id": "pllm.docs.contribute.native-plugin-abi",
@@ -1729,7 +2530,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:933475182fe1479487b1a8bcd85b2535544918912ddca77e5f99789b2d9bb85f"
+      "contentHash": "sha256:18ab487287c0c85bacbb36f1101ad6d418351edc3235b1e2d75f046c387ca673"
     },
     {
       "id": "pllm.docs.contribute.publish-a-provider",
@@ -1760,7 +2561,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:d58223f0fe5e9e5722a33d4717e34cd783e5c0f0293bc7e9d64e914a711dff76"
+      "contentHash": "sha256:28cc67df58ecba3cbf725acd0f36daaffa145628bd30b496c0188c9d22656cca"
     },
     {
       "id": "pllm.docs.contribute.upstreaming",
@@ -1791,7 +2592,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
       "navigationOrder": 401,
-      "contentHash": "sha256:38e74f7c36b8ba0ac3bebe8ba8a758da457404cc3c61066b479ff0e389ef92d7"
+      "contentHash": "sha256:42a06a5f9f97eec9672f7df6e4bb91c6b0f938db5722de5daefde543a4fc8ba9"
     },
     {
       "id": "pllm.docs.conversions",
@@ -1822,7 +2623,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/conversions/",
       "navigationOrder": 106,
-      "contentHash": "sha256:68feff6798b541549206d679ac035745c9dbc1c922a7449a5f203ba94a8b1ec4"
+      "contentHash": "sha256:2173ca48fae6a3abd98f4461c47b8cb46e38b543495c57ceafbe2765297f2f9a"
     },
     {
       "id": "pllm.docs.deployment",
@@ -1855,7 +2656,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
       "navigationOrder": 205,
-      "contentHash": "sha256:9978adbd22efe5038960414f19d4aafb6642fb56ded8f2b90e2eb327e8deb97c"
+      "contentHash": "sha256:f514264025ce4ee91762bca2f05d29a025c59715d418b91de2c3c5fe3703fa5f"
     },
     {
       "id": "pllm.docs.kernels",
@@ -1886,7 +2687,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/kernels/",
       "navigationOrder": 201,
-      "contentHash": "sha256:9f5d2e6a0dae2ffae8b8dcf7614f6844cc317690fdc9c28e37b58e53682cebef"
+      "contentHash": "sha256:32182996dd67509970655fcec9753669b156314e8e1aee10ccb742e796d9a484"
     },
     {
       "id": "pllm.docs.learn.arithmetic-and-boolean-garbling",
@@ -2081,7 +2882,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
       "navigationOrder": 1,
-      "contentHash": "sha256:60b95eca50adb2720520bb4a112b61cd9c7943d0f18d1a1c38e5f93b286c3318"
+      "contentHash": "sha256:b7a2162a110280a1c987c0c1e4621c5e4e3abb5f0a925f24ee1413e6cd4ae3fb"
     },
     {
       "id": "pllm.docs.learn.reading-research-and-evidence",
@@ -2112,7 +2913,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
       "navigationOrder": 1,
-      "contentHash": "sha256:1b9c66b99aaeadf31a297c9c1c47df0f88e766e50bc9d49b7790f8bfc0100d09"
+      "contentHash": "sha256:a770dedfe7ec4916dcab45a771035927a905186a407da23e9f8afd45f744aacd"
     },
     {
       "id": "pllm.docs.metrics",
@@ -2174,7 +2975,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:c2135581b29161856ba02f9a1c77f6aed79bc45a27ef6316ea8415243f96f6ce"
+      "contentHash": "sha256:d809eed88ec2a6edc9fbc7db316f64bdf2be0b8938560123fb75b952afb1d59b"
     },
     {
       "id": "pllm.docs.models",
@@ -2211,7 +3012,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:86bfaa384309603d76613ff05c54d940205c2edb62e7e2c6a21d52e462bfc7dc"
+      "contentHash": "sha256:c58488cb493d34240f862736596c41a4a8a768566a1d46189c75e11cbfb4204e"
     },
     {
       "id": "pllm.docs.models.phi4-mini",
@@ -2242,7 +3043,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:33e0d9c6ef73c8bf2471180923303d49de120668aae8b06f241598953fff77b6"
+      "contentHash": "sha256:609c000ac37d303000ede1113bc5a1df62f30e50836530ba3aec1704cf438d23"
     },
     {
       "id": "pllm.docs.models.qwen2",
@@ -2273,7 +3074,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:dce3287374c8ecc6de58df46b1cda684aa414bccb36ccffdd3d8ed6464b54066"
+      "contentHash": "sha256:b1c1998bca36bbce31e74429cafda255e67506c72e9628160cc84ad109879521"
     },
     {
       "id": "pllm.docs.models.qwen3",
@@ -2304,7 +3105,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:9395f10ed99f29ac0d36b2415114beaa24f3c8461b3c5a1c60eafee710abf270"
+      "contentHash": "sha256:d882f01bf4d87fc7c158c3a5acc2aeea3f04956d19f9693dfc77932510860767"
     },
     {
       "id": "pllm.docs.models.qwen35",
@@ -2335,7 +3136,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
       "navigationOrder": 101,
-      "contentHash": "sha256:2ac69e9d414b9b2a5fe23c6e09330de1598b4c032981ff13966b5517ebbc42e3"
+      "contentHash": "sha256:c67f04c7a1e3cb4b24f299929fd1de3dbcf179bfb6fa5040c7e3d854c344093c"
     },
     {
       "id": "pllm.docs.numerics",
@@ -2366,7 +3167,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/numerics/",
       "navigationOrder": 103,
-      "contentHash": "sha256:1c0c15a2ae67c7c3ad26472f93437882ae566b913103d8b564ab87d428d1813e"
+      "contentHash": "sha256:2e014e5465ccb49dd79b3f2a1515bc952953f5eebeca817dcc5652cd61a42cb5"
     },
     {
       "id": "pllm.docs.operators.activation-silu",
@@ -2397,7 +3198,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:111c51c3f1c8c516dfc95a6e21befde130d8d6f300075dff6784de491dbf5210"
+      "contentHash": "sha256:855118c0fcd1a3808d668d61c7c4055cd1ea51e050b2d201e68996910e5db08f"
     },
     {
       "id": "pllm.docs.operators",
@@ -2432,7 +3233,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:af6242232ae59b1779eb51acf2689f05990348b039e561179eae8105d1cdd038"
+      "contentHash": "sha256:3d87761d2810281ac4ca355c0f20135e88606387dd28a64e116b41075dd9e567"
     },
     {
       "id": "pllm.docs.operators.projection-rotary",
@@ -2463,7 +3264,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:b4a2cc3c78ab145609646ece9bba6c6402c1cd859754b985e3e5a04347edc7f9"
+      "contentHash": "sha256:98f1404a999a6c764780981c84be7b83d9221bae4534d56adc7b18df104bb81e"
     },
     {
       "id": "pllm.docs.operators.stateful-recurrence",
@@ -2494,7 +3295,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:734fc0159b40405c6c69487bceb23655da2299e5992262cebfaec372fc9d7a5e"
+      "contentHash": "sha256:64d8181dacf3d471063ffc1be64deddbb01f023f0afa1bf7161beeeace345da6"
     },
     {
       "id": "pllm.docs.pipeline",
@@ -2531,7 +3332,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/",
       "navigationOrder": 203,
-      "contentHash": "sha256:72b22d4f092c06db38a7b4360e2634832cf9961a257398ceea409fea405f9ee7"
+      "contentHash": "sha256:0aa653548a4251764aa395f5171ec48d98d5aea590cde612107eef0b8a99d83a"
     },
     {
       "id": "pllm.docs.preparation",
@@ -2562,7 +3363,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/preparation/",
       "navigationOrder": 200,
-      "contentHash": "sha256:64ab1c2348710022c2ae1c8d5d7da7d30d50e3420ada65221646745e750deb89"
+      "contentHash": "sha256:5b7483893fd1b386f018e4e615558233140714467317a5a63dbb7c6931e82cc9"
     },
     {
       "id": "pllm.docs.protocols.garbling.arithmetic",
@@ -2593,7 +3394,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:d5feabb35d2218d2c5ea845ba12a9d49a53d30da7887d8feabfb1b80c5490f7c"
+      "contentHash": "sha256:98e36edf694d4ce71dcd3b8e1c983037a2934867080c0780ac96d96b557b5724"
     },
     {
       "id": "pllm.docs.protocols.garbling.half-gates",
@@ -2624,7 +3425,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:4c90b36f508d5031ac8ee3aaf937841a25a2a676da015f8f9e53719e338582da"
+      "contentHash": "sha256:149e42548d78ad08f4d8c22390f3013eb618a1b1af9f8d5165c41aa6e1789f21"
     },
     {
       "id": "pllm.docs.protocols.garbling",
@@ -2660,7 +3461,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:7720307af32555b1bd2f51e2fdc987a5841b768261cf3a4a9d29733d168f4931"
+      "contentHash": "sha256:e15bacdb7ac3166d7522e886b0b3ecf3c9b5c68fc40354f61fc4579da3a80ce2"
     },
     {
       "id": "pllm.docs.protocols.garbling.lookup-tables",
@@ -2691,7 +3492,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:115c124569938979704946f952dbe4c4f1c4de3aa7d22fe0c9aa3710d96d1dc3"
+      "contentHash": "sha256:b4de26e167a6b5b6538882089e360fdb8610b0bf90dc40bf3fd0cae0476354fa"
     },
     {
       "id": "pllm.docs.protocols.garbling.weighted-path",
@@ -2722,7 +3523,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:cf1dc05adb69acfd73fab2a76605345ac6c34c7555c6dd5700f03d7f9dfac5e2"
+      "contentHash": "sha256:0e3a43bbae8b1bba9a47f12fd170c44cbc1e4c5ae3fa6629f501de693122e05c"
     },
     {
       "id": "pllm.docs.protocols",
@@ -2756,7 +3557,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:e16f915fab73ebc12c737397f438d1e89b0debcd60351e2b3bba109ed04f2811"
+      "contentHash": "sha256:bc5ed0e0d4d053194e1dd12b98569bfd7e1a97a4bdad39bb09416ec7ecae5887"
     },
     {
       "id": "pllm.docs.protocols.masked-linear",
@@ -2787,7 +3588,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:795f4e9cd825d2523af9d2a111eaf2ee1ebb540450a2a8404baaf8143238e801"
+      "contentHash": "sha256:ba67dc0c5a378cc0c277b5b680695625d31789ebb82b774a63b8ec0768a50da3"
     },
     {
       "id": "pllm.docs.recipes",
@@ -2826,7 +3627,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:b7887f22b7b4cbcf4772d0e90ee8c050def31abce640e84b3c20e0a8bd75630a"
+      "contentHash": "sha256:8dcdbfb46c9671fe35d041794c5bf655dc22e4cb845b7580d8ff3be9fc192cd2"
     },
     {
       "id": "pllm.docs.reference.native",
@@ -2857,7 +3658,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:c51d239bc943c24e89c50523fef7bd90a3336506a1d9f8d2933dcb8c4a251080"
+      "contentHash": "sha256:9e528d54619b53c606bc73facfc49add51941b67a4e98bf13e995edc666de3cd"
     },
     {
       "id": "pllm.docs.reference.python",
@@ -2890,7 +3691,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:4627c9156db4b74e67b529576447230f74aee4ed9a5a5f293b35252c908fb200"
+      "contentHash": "sha256:783bba56b0a47ef52112173d60c5a36c9520e1f1fc492a16c10a9648fb071011"
     },
     {
       "id": "pllm.docs.representations",
@@ -2921,7 +3722,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/representations/",
       "navigationOrder": 104,
-      "contentHash": "sha256:98063a8c2984e905dcc8a43d7795b69940adc8b9fa5d3433a3746d454067d892"
+      "contentHash": "sha256:d415167b9bc0ead406e2487a40c9c6a37d401e4decf523ad43c4fe7e9981532b"
     },
     {
       "id": "pllm.docs.research.experiments",
@@ -3079,7 +3880,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/runtime/",
       "navigationOrder": 204,
-      "contentHash": "sha256:8d7c5abffcae5b43e0e3396117d712c7074a108770221f7806f10ab8b6a6aa9d"
+      "contentHash": "sha256:1a5bfd2612ed20f64ede88b20d9db4cc96b5af05b62e977a6f87b7ebff31fa19"
     },
     {
       "id": "pllm.docs.sdk",
@@ -3120,7 +3921,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 3,
-      "contentHash": "sha256:0e6d16dcf1a31cb99eebdb984d9542920f6a153c82303db248898e4b2a9a4298"
+      "contentHash": "sha256:984ff5182dbcb8d7871d4881b06b133fa1804f897717ca49e2fad5426700c08a"
     },
     {
       "id": "pllm.docs.search",
@@ -3151,7 +3952,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/build/search/",
       "navigationOrder": 302,
-      "contentHash": "sha256:16d19323f35e25d87e9a212e04445f976e0d8f1381d2b3b97de0b0b3cd3e260b"
+      "contentHash": "sha256:616f28abf575c90674994df850708a0bd878789c19a46851046da13d450d12bd"
     },
     {
       "id": "pllm.docs.start.first-local-benchmark",
@@ -3182,7 +3983,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:45fedca8775a74b50f08153e721f677d3ee5b6138d89cc97b85aff0832e3fa52"
+      "contentHash": "sha256:c277b81019938f48fc33ad027df967873ac7f89044b32d030597da2200c2f1e6"
     }
   ]
 }

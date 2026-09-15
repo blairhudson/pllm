@@ -9,13 +9,5 @@ A new publication claim also needs a stable method ID and evidence that isolates
 the contribution from the baseline. Failed and negative results remain useful
 research records.
 
-## Python SDK example
-
-```python
-from pllm.components import get_component
-
-component = get_component("pllm/kv-cache-eviction")
-print(component.version, component.evidence)
-```
-
-Empty evidence remains `not recorded`; component presence alone is not an upstreaming claim.
+No public Python API performs upstreaming or turns component presence into an evidence claim.
+See [research records](/research/records/) for the reviewable records that precede upstreaming.

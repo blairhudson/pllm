@@ -22,6 +22,15 @@ test('registry covers every public authored page exactly once', () => {
   assert.deepEqual(graph.pages.map((page) => page.sourcePath).sort(), discovered);
 });
 
+test('generated CLI command pages retain source and test provenance', () => {
+  const cliPages = graph.pages.filter((page) => page.sourcePath.startsWith('content/docs/reference/cli/'));
+  assert.ok(cliPages.length > 1);
+  for (const page of cliPages) {
+    assert.deepEqual(page.sourcePaths, [page.sourcePath, '../python/pllm/_cli/app.py']);
+    assert.deepEqual(page.testPaths, ['../tests/test_cli.py', '../tests/test_developer_reference.py']);
+  }
+});
+
 test('publication identities, canonical routes, and Markdown twins are unique', () => {
   for (const field of ['id', 'sourcePath', 'canonicalUrl', 'markdownUrl']) assert.equal(new Set(graph.pages.map((page) => page[field])).size, graph.pages.length, field);
   const aliases = graph.pages.flatMap((page) => page.aliases);

@@ -6,8 +6,8 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 
 Document ID: `pllm.docs.start.first-private-request`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:a1344371d9b45029feb2f500190aef2232c3adbcfc1f5ff7eb3f2bda1dbc34eb`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:135cea9e0d504760f3928adec4257664f0e0bc31fdfd066f346bed7a7a275ea2`
 
 ## Define the experiment
 
@@ -38,7 +38,8 @@ print(experiment.configuration_digest())
 print(experiment.to_spec())
 ```
 
-Creating this object does not start a service or load a model. You can inspect or
+The [SDK configuration model](/sdk/configuration/) keeps this declaration
+inspectable without starting a service or loading a model. You can inspect or
 export an equivalent checked-in JSON or YAML file:
 
 ```bash
@@ -51,8 +52,9 @@ explicitly allow them with `--trust-python`.
 
 ## Lower and compose
 
-`lower_model` accepts public model configuration and workload limits. It does not
-accept a model repository name or load weights:
+The [`lower_model` model-planning path](/sdk/build/models/) accepts public model
+configuration and workload limits. It does not accept a model repository name or
+load weights:
 
 ```python
 import pllm
@@ -80,4 +82,5 @@ status checks.
 
 Inspect read-only metadata with `pllm components list` and
 `pllm research sources list`. See [runtime](/sdk/pipeline/runtime/),
-[pipeline](/sdk/pipeline/), and [current support](/sdk/reference/status/).
+[protocol interfaces](/sdk/pipeline/protocols/), and
+[current support](/sdk/reference/status/).

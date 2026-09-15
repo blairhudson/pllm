@@ -6,7 +6,7 @@ Understand how integer arithmetic affects correctness and model output quality.
 
 Document ID: `pllm.docs.learn.numeric-semantics-and-model-quality`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
 Source hash: `sha256:9f1b3503c3cceb728d1897b5348bd424f0227f147ee7539fd46f0f8c0914eb03`
 
 A model description defines the intended operators. An executable plan must also

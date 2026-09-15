@@ -153,6 +153,138 @@
       "representation": "html"
     },
     {
+      "from": "/cli/reference/config",
+      "to": "/cli/reference/config/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/components",
+      "to": "/cli/reference/components/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research",
+      "to": "/cli/reference/research/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/benchmark",
+      "to": "/cli/reference/benchmark/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/dev",
+      "to": "/cli/reference/dev/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/config/show",
+      "to": "/cli/reference/config/show/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/config/export",
+      "to": "/cli/reference/config/export/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/components/list",
+      "to": "/cli/reference/components/list/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/components/show",
+      "to": "/cli/reference/components/show/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/sources",
+      "to": "/cli/reference/research/sources/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/methods",
+      "to": "/cli/reference/research/methods/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/recipes",
+      "to": "/cli/reference/research/recipes/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/assess",
+      "to": "/cli/reference/research/assess/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/agents",
+      "to": "/cli/reference/research/agents/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/benchmark/run",
+      "to": "/cli/reference/benchmark/run/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/dev/dashboard",
+      "to": "/cli/reference/dev/dashboard/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/sources/list",
+      "to": "/cli/reference/research/sources/list/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/sources/show",
+      "to": "/cli/reference/research/sources/show/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/methods/list",
+      "to": "/cli/reference/research/methods/list/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/methods/show",
+      "to": "/cli/reference/research/methods/show/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/recipes/list",
+      "to": "/cli/reference/research/recipes/list/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/research/recipes/show",
+      "to": "/cli/reference/research/recipes/show/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/sdk/reference/python/pllm",
       "to": "/sdk/reference/python/pllm/",
       "status": 308,

@@ -6,8 +6,8 @@ Understand PLLM's native integer matrix kernels, memory costs, and CPU requireme
 
 Document ID: `pllm.docs.kernels`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:9f5d2e6a0dae2ffae8b8dcf7614f6844cc317690fdc9c28e37b58e53682cebef`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:32182996dd67509970655fcec9753669b156314e8e1aee10ccb742e796d9a484`
 
 `pllm-core` implements bounded integer matrices, scalar reference code, runtime
 AVX2 and NEON selection, codecs, quantization, masking, subtraction, and operating
@@ -22,10 +22,18 @@ costs.
 ## Python SDK example
 
 ```python
-from pllm.kernels import Cpu
+from pllm import ConfigurationError, Cpu
 
 kernel = Cpu(threads=4)
-print(kernel.to_spec())
+assert kernel.to_spec() == {"component": "pllm/cpu", "params": {"threads": 4}}
+try:
+    Cpu(threads=0)
+except ConfigurationError:
+    pass
+else:
+    raise AssertionError("Cpu accepted a non-positive thread count")
 ```
 
-This selects public kernel configuration only; it does not execute a model.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This checks public kernel configuration and its thread bound; it does not execute a model.

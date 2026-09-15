@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import navigation from '../navigation.json' with { type: 'json' };
-import { readPages, readSearchPages, readStandalonePages, validate, siteRoot } from '../scripts/content.mjs';
+import { readPages, readSearchPages, readStandalonePages, validate, siteRoot, walk } from '../scripts/content.mjs';
 
 const pages = readPages();
 const standalone = readStandalonePages();
@@ -14,7 +14,8 @@ test('canonical domain hierarchy and research journeys exist', () => {
   for (const route of [
     '/learn/', '/learn/start/', '/learn/start/installation/', '/learn/start/first-private-request/', '/learn/start/first-local-benchmark/',
     '/learn/understand/', '/learn/understand/architecture/', '/learn/understand/trust-boundary/', '/learn/understand/privacy-assurance/', '/learn/understand/evidence-claims/',
-    '/cli/', '/cli/reference/',
+    '/cli/', '/cli/reference/', '/cli/reference/config/', '/cli/reference/config/show/',
+    '/cli/reference/benchmark/run/', '/cli/reference/research/sources/list/',
     '/sdk/', '/sdk/configuration/', '/sdk/plans/', '/sdk/components/',
     '/sdk/build/', '/sdk/build/model-adapters/', '/sdk/build/models/', '/sdk/build/operators/', '/sdk/build/numerics/', '/sdk/build/representations/', '/sdk/build/conversions/', '/sdk/build/search/',
     '/sdk/pipeline/', '/sdk/pipeline/protocols/', '/sdk/pipeline/protocols/masked-linear/', '/sdk/pipeline/protocols/garbling/', '/sdk/pipeline/protocols/garbling/arithmetic/',
@@ -30,16 +31,27 @@ test('canonical domain hierarchy and research journeys exist', () => {
   ]) assert.ok(byRoute.has(route), route);
 });
 
-test('every SDK page has a syntax-valid Python SDK example', () => {
+test('SDK pages have checked examples or explicit API boundaries', () => {
   const sdkPages = pages.filter((page) => page.canonicalUrl.startsWith('/sdk/'));
   assert.ok(sdkPages.length > 0);
 
   for (const page of sdkPages) {
-    const examples = [...page.content.matchAll(/```python\n([\s\S]*?)```/g)].map((match) => match[1]);
-    assert.ok(examples.length > 0, `${page.canonicalUrl} has no Python example`);
-    assert.ok(
-      examples.some((example) => /(?:from|import)\s+pllm\b/.test(example)),
-      `${page.canonicalUrl} has no PLLM SDK example`,
+    const examples = [...page.content.matchAll(/```python[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]);
+    const hasExample = page.content.includes('## Python SDK example');
+    const hasBoundary = page.content.includes('No public Python API');
+    assert.notEqual(hasExample, hasBoundary, `${page.canonicalUrl} must choose an example or no-API boundary`);
+    if (hasBoundary) {
+      assert.equal(examples.length, 0, `${page.canonicalUrl} no-API page has Python code`);
+      assert.match(page.content, /\]\(\/(?:sdk\/reference\/status|research)\//);
+      continue;
+    }
+    assert.equal(examples.length, 1, `${page.canonicalUrl} must have one Python example`);
+    assert.match(examples[0], /(?:from|import)\s+pllm\b/);
+    assert.match(examples[0], /^assert\s/m, `${page.canonicalUrl} example has no checked result`);
+    assert.match(
+      page.content,
+      /^API: .*\(\/sdk\/reference\/python\/pllm\/#objects-and-signatures\)/m,
+      `${page.canonicalUrl} has no exact Python API link`,
     );
 
     for (const example of examples) {
@@ -49,6 +61,47 @@ test('every SDK page has a syntax-valid Python SDK example', () => {
         { encoding: 'utf8', input: example },
       );
       assert.equal(parsed.status, 0, `${page.canonicalUrl}: ${parsed.stderr}`);
+    }
+  }
+});
+
+test('primary reader journeys cross areas at the decision point', () => {
+  const journeys = new Map([
+    ['start/first-local-benchmark.mdx', [
+      '/cli/reference/benchmark/run/',
+      '/research/evidence/',
+    ]],
+    ['start/first-private-request.mdx', [
+      '/sdk/configuration/',
+      '/sdk/pipeline/protocols/',
+    ]],
+    ['learn/privacy-and-threat-models.mdx', ['/research/evidence/']],
+    ['sdk/configuration.mdx', [
+      '/cli/reference/config/show/',
+      '/cli/reference/config/export/',
+    ]],
+    ['measure/benchmark.mdx', [
+      '/cli/reference/benchmark/run/',
+      '/research/evidence/',
+    ]],
+    ['research/sources.mdx', [
+      '/cli/reference/research/sources/list/',
+      '/cli/reference/research/sources/show/',
+    ]],
+    ['research/methods.mdx', [
+      '/cli/reference/research/methods/show/',
+      '/sdk/plans/',
+    ]],
+    ['research/evidence.mdx', [
+      '/sdk/research/benchmarks/',
+      '/sdk/research/assurance/',
+    ]],
+  ]);
+
+  for (const [source, destinations] of journeys) {
+    const content = fs.readFileSync(path.join(siteRoot, 'content/docs', source), 'utf8');
+    for (const destination of destinations) {
+      assert.ok(content.includes(`](${destination})`), `${source} should link to ${destination}`);
     }
   }
 });
@@ -187,13 +240,12 @@ test('navigation-only content directories are not hidden by repository ignore ru
 
 test('authored copy uses direct technical English and standard status labels', () => {
   const generated = new Set([
-    'content/docs/reference/cli/index.mdx',
     'content/docs/reference/components.mdx',
     'content/docs/reference/research.mdx',
     'content/docs/reference/python/pllm/index.mdx',
   ]);
   for (const page of readSearchPages()) {
-    if (generated.has(page.sourcePath)) continue;
+    if (page.sourcePath.startsWith('content/docs/reference/cli/') || generated.has(page.sourcePath)) continue;
     assert.doesNotMatch(page.content, /\b(?:inert|non-normative|organisations|behaviour|catalogue|authorise|optimise|centre)\b/i, page.canonicalUrl);
   }
   const status = byRoute.get('/sdk/reference/status/').content;
@@ -211,6 +263,37 @@ test('every docs source is publication-discovered without registry duplication',
   for (const file of visit(path.join(siteRoot, 'content/docs'))) {
     const relative = path.relative(siteRoot, file).replaceAll(path.sep, '/');
     assert.ok(sourcePaths.has(relative), relative);
+  }
+});
+
+test('generated CLI pages are publication-discovered and sidebar-reachable', () => {
+  const cliRoot = path.join(siteRoot, 'content/docs/reference/cli');
+  const generated = walk(cliRoot)
+    .filter((file) => file.endsWith('.mdx'))
+    .map((file) => path.relative(siteRoot, file).replaceAll(path.sep, '/'));
+  const published = new Map(readSearchPages().map((page) => [page.sourcePath, page]));
+  const reachable = new Set();
+  const visit = (directory) => {
+    const meta = JSON.parse(fs.readFileSync(path.join(directory, 'meta.json'), 'utf8'));
+    for (const entry of meta.pages) {
+      const childDirectory = path.join(directory, entry);
+      const source = entry === 'index'
+        ? path.join(directory, 'index.mdx')
+        : fs.existsSync(path.join(childDirectory, 'index.mdx'))
+          ? path.join(childDirectory, 'index.mdx')
+          : path.join(directory, `${entry}.mdx`);
+      reachable.add(path.relative(siteRoot, source).replaceAll(path.sep, '/'));
+      if (entry !== 'index' && fs.existsSync(path.join(childDirectory, 'meta.json'))) visit(childDirectory);
+    }
+  };
+  visit(cliRoot);
+
+  assert.deepEqual([...reachable].sort(), generated.sort());
+  for (const sourcePath of generated) {
+    const page = published.get(sourcePath);
+    assert.ok(page, sourcePath);
+    assert.deepEqual(page.sourcePaths, [sourcePath, '../python/pllm/_cli/app.py']);
+    assert.deepEqual(page.testPaths, ['../tests/test_cli.py', '../tests/test_developer_reference.py']);
   }
 });
 
@@ -235,7 +318,13 @@ test('documented commands use only the current CLI and development dashboard', (
 });
 
 test('generated references are marked and authored guides stay separate', () => {
-  for (const name of ['cli/index', 'python/pllm/index', 'components', 'research']) {
+  const generated = [
+    ...walk(path.join(siteRoot, 'content/docs/reference/cli'))
+      .filter((file) => file.endsWith('.mdx'))
+      .map((file) => path.relative(path.join(siteRoot, 'content/docs/reference'), file).replace(/\.mdx$/, '')),
+    'python/pllm/index', 'components', 'research',
+  ];
+  for (const name of generated) {
     const source = fs.readFileSync(path.join(siteRoot, `content/docs/reference/${name}.mdx`), 'utf8');
     assert.ok(source.includes('Generated by `scripts/generate_developer_reference.py`; do not edit.'));
   }

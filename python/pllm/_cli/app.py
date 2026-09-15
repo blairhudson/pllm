@@ -65,8 +65,12 @@ def _command(parent: Any, name: str, **kwargs: Any) -> _Parser:
 
 
 def _target_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("TARGET", help="experiment .json/.yaml or explicit path.py:object/module:object")
-    parser.add_argument("--factory", action="store_true", help="call explicit zero-argument Python factory")
+    parser.add_argument(
+        "TARGET", help="experiment .json/.yaml or explicit path.py:object/module:object"
+    )
+    parser.add_argument(
+        "--factory", action="store_true", help="call explicit zero-argument Python factory"
+    )
     parser.add_argument(
         "--trust-python",
         action="store_true",
@@ -77,7 +81,7 @@ def _target_options(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> _Parser:
     parser = _Parser(
         prog="pllm",
-        description="Inspect PLLM configurations, components, and research metadata",
+        description="Inspect PLLM configuration, run benchmarks, and inspect research metadata",
     )
     _add_globals(parser)
     parser.add_argument("--version", action="version", version=f"pllm {__version__}")
@@ -89,7 +93,9 @@ def build_parser() -> _Parser:
     _target_options(show)
     export = _command(config_commands, "export", help="export strict public JSON or YAML")
     _target_options(export)
-    export.add_argument("--output", required=True, metavar="PATH", help="new output .json/.yaml path")
+    export.add_argument(
+        "--output", required=True, metavar="PATH", help="new output .json/.yaml path"
+    )
     export.add_argument("--force", action="store_true", help="replace an existing output file")
 
     components = _command(commands, "components", help="inspect built-in component descriptors")
@@ -122,6 +128,59 @@ def build_parser() -> _Parser:
     agents.add_argument("--output", required=True, metavar="PATH", help="new Markdown output path")
     agents.add_argument("--force", action="store_true", help="replace an existing output file")
 
+    benchmark = _command(commands, "benchmark", help="run reproducible local benchmarks")
+    benchmark_commands = benchmark.add_subparsers(
+        dest="benchmark_command", metavar="COMMAND", required=True
+    )
+    benchmark_run = _command(
+        benchmark_commands,
+        "run",
+        help="run the real client, preparation, and inference roles on loopback",
+    )
+    benchmark_run.add_argument(
+        "--model",
+        default="Qwen/Qwen2.5-0.5B-Instruct",
+        help="Hugging Face model ID or local checkpoint path",
+    )
+    benchmark_run.add_argument("--model-id", help="stable model identity stored in the report")
+    benchmark_run.add_argument(
+        "--tiny",
+        action="store_true",
+        help="use generated random weights for a transport smoke test",
+    )
+    prompt_source = benchmark_run.add_mutually_exclusive_group()
+    prompt_source.add_argument(
+        "--prompt",
+        default="Explain why neither server can see the prompt.",
+        help="prompt text (visible in shell process listings)",
+    )
+    prompt_source.add_argument("--prompt-file", type=Path, help="read prompt text from this file")
+    benchmark_run.add_argument(
+        "--max-output-tokens",
+        type=int,
+        default=24,
+        help="maximum generated tokens per run (default: 24)",
+    )
+    benchmark_run.add_argument(
+        "--warmups", type=int, default=0, help="warmup runs retained in the report (default: 0)"
+    )
+    benchmark_run.add_argument(
+        "--repetitions", type=int, default=1, help="measured runs (default: 1)"
+    )
+    benchmark_run.add_argument(
+        "--timeout",
+        type=float,
+        default=900.0,
+        help="startup and per-run timeout in seconds (default: 900)",
+    )
+    benchmark_run.add_argument(
+        "--show-dashboard",
+        action="store_true",
+        help="open the local dashboard in a browser (default: hidden)",
+    )
+    benchmark_run.add_argument("--output", type=Path, help="write the sanitized JSON report")
+    benchmark_run.add_argument("--force", action="store_true", help="replace --output if it exists")
+
     dev = _command(commands, "dev", help="development tools")
     dev_commands = dev.add_subparsers(dest="dev_command", metavar="COMMAND", required=True)
     dashboard = _command(
@@ -136,6 +195,7 @@ def build_parser() -> _Parser:
     dashboard.add_argument("--tiny", action="store_true")
     dashboard.add_argument("--max-output-tokens", type=int, default=24)
     dashboard.add_argument("--history-db", metavar="PATH")
+    dashboard.add_argument("--startup-inventory-rows", type=int, help=argparse.SUPPRESS)
     dashboard.add_argument("--no-open", action="store_true")
     return parser
 
@@ -315,7 +375,9 @@ def _research(args: argparse.Namespace, output_format: str, dry_run: bool) -> No
         try:
             payload = Path(args.REQUEST).read_bytes()
         except OSError:
-            raise LocalIOError("RESEARCH_ASSESSMENT_IO", "assessment request is unavailable") from None
+            raise LocalIOError(
+                "RESEARCH_ASSESSMENT_IO", "assessment request is unavailable"
+            ) from None
         try:
             assessment = assess_publication(payload)
         except ResearchMetadataError as exc:
@@ -373,6 +435,112 @@ def _research(args: argparse.Namespace, output_format: str, dry_run: bool) -> No
         )
 
 
+def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+    if not 1 <= args.max_output_tokens <= 512:
+        raise ResolutionError(
+            "BENCHMARK_OUTPUT_LIMIT", "max output tokens must be between 1 and 512"
+        )
+    if not 0 <= args.warmups <= 100:
+        raise ResolutionError("BENCHMARK_WARMUPS", "warmups must be between 0 and 100")
+    if not 1 <= args.repetitions <= 100:
+        raise ResolutionError("BENCHMARK_REPETITIONS", "repetitions must be between 1 and 100")
+    if not 1 <= args.timeout <= 3600:
+        raise ResolutionError("BENCHMARK_TIMEOUT", "timeout must be between 1 and 3600 seconds")
+
+    output = args.output.expanduser() if args.output is not None else None
+    if output is not None and not args.force:
+        try:
+            output_exists = output.exists()
+        except OSError as exc:
+            raise LocalIOError("OUTPUT_WRITE", f"cannot inspect output: {output}") from exc
+        if output_exists:
+            raise LocalIOError(
+                "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}"
+            )
+
+    if args.prompt_file is not None:
+        try:
+            prompt = args.prompt_file.expanduser().read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise LocalIOError("PROMPT_READ", "prompt file is unavailable") from exc
+    else:
+        prompt = args.prompt.strip()
+    if not prompt or len(prompt.encode()) > 16_384:
+        raise ResolutionError("BENCHMARK_PROMPT", "prompt must contain 1 to 16384 bytes")
+
+    configuration = {
+        "model": args.model,
+        "model_id": args.model_id,
+        "tiny": args.tiny,
+        "max_output_tokens": args.max_output_tokens,
+        "warmups": args.warmups,
+        "repetitions": args.repetitions,
+        "timeout_seconds": args.timeout,
+        "show_dashboard": args.show_dashboard,
+        "output": str(output) if output is not None else None,
+    }
+    if dry_run:
+        data = {"configuration": configuration, "dry_run": True}
+        if output_format == "human":
+            print("Would run the client, preparation, and inference roles on loopback")
+        else:
+            emit_machine("benchmark.run", data, output_format)
+        return
+
+    from pllm.runtime.benchmark_cli import LoopbackBenchmarkError, run_loopback_benchmark
+
+    try:
+        report = run_loopback_benchmark(
+            model=args.model,
+            model_id=args.model_id,
+            tiny=args.tiny,
+            prompt=prompt,
+            max_output_tokens=args.max_output_tokens,
+            warmups=args.warmups,
+            repetitions=args.repetitions,
+            timeout_seconds=args.timeout,
+            show_dashboard=args.show_dashboard,
+            progress=(
+                lambda message: (
+                    print(message, file=sys.stderr, flush=True)
+                    if output_format == "human"
+                    else None
+                )
+            ),
+        )
+    except LoopbackBenchmarkError as exc:
+        raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
+
+    if output is not None:
+        mode = "w" if args.force else "x"
+        try:
+            with output.open(mode, encoding="utf-8") as destination:
+                json.dump(report, destination, allow_nan=False, indent=2, sort_keys=True)
+                destination.write("\n")
+        except FileExistsError as exc:
+            raise LocalIOError(
+                "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}"
+            ) from exc
+        except OSError as exc:
+            raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {output}") from exc
+
+    data = {"output": str(output) if output is not None else None, "report": report}
+    if output_format == "human":
+        summary = report["summary"]
+        ttft = summary["median_ttft_seconds"]
+        throughput = summary["median_tokens_per_second"]
+        print(f"{report['configuration']['model_id']}: {summary['completed_runs']} run(s)")
+        if ttft is not None:
+            print(f"Median TTFT: {ttft:.3f}s")
+        if throughput is not None:
+            print(f"Median throughput: {throughput:.2f} token/s")
+        print("Privacy/runtime checks: " + ("passed" if report["checks"]["passed"] else "failed"))
+        if output is not None:
+            print(f"Wrote {output}")
+    else:
+        emit_machine("benchmark.run", data, output_format)
+
+
 def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
     if output_format != "human":
         raise ResolutionError(
@@ -386,6 +554,9 @@ def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
         raise ResolutionError(
             "DASHBOARD_OUTPUT_LIMIT", "max output tokens must be between 1 and 512"
         )
+    startup_inventory_rows = getattr(args, "startup_inventory_rows", None)
+    if startup_inventory_rows is not None and startup_inventory_rows < 1:
+        raise ResolutionError("DASHBOARD_INVENTORY_ROWS", "startup inventory rows must be positive")
     if dry_run:
         print(f"Would start local dashboard on http://{args.host}:{args.port}")
         return
@@ -396,7 +567,9 @@ def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
     except KeyboardInterrupt:
         raise
     except Exception as exc:
-        raise RuntimeFailure("DASHBOARD_FAILED", f"dashboard failed ({type(exc).__name__})") from exc
+        raise RuntimeFailure(
+            "DASHBOARD_FAILED", f"dashboard failed ({type(exc).__name__})"
+        ) from exc
 
 
 def _detect_format(arguments: Sequence[str]) -> str:
@@ -427,6 +600,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             _components(args, output_format, dry_run)
         elif args.command == "research":
             _research(args, output_format, dry_run)
+        elif args.command == "benchmark":
+            _benchmark(args, output_format, dry_run)
         elif args.command == "dev":
             _dev(args, output_format, dry_run)
     except KeyboardInterrupt:

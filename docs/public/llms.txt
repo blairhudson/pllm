@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531
+Build: sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -31,6 +31,28 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, required role placement, and missing orchestration.
 - [Reference](https://pllm.run/sdk/reference/) ([Markdown](https://pllm.run/sdk/reference.md)): Look up exact CLI commands, Python APIs, schemas, components, research records, and current support.
 - [CLI reference](https://pllm.run/cli/reference/) ([Markdown](https://pllm.run/cli/reference.md)): Exact commands, arguments, and help text from the installed PLLM CLI.
+- [pllm config](https://pllm.run/cli/reference/config/) ([Markdown](https://pllm.run/cli/reference/config.md)): Exact pllm config help from the installed PLLM CLI.
+- [pllm components](https://pllm.run/cli/reference/components/) ([Markdown](https://pllm.run/cli/reference/components.md)): Exact pllm components help from the installed PLLM CLI.
+- [pllm research](https://pllm.run/cli/reference/research/) ([Markdown](https://pllm.run/cli/reference/research.md)): Exact pllm research help from the installed PLLM CLI.
+- [pllm benchmark](https://pllm.run/cli/reference/benchmark/) ([Markdown](https://pllm.run/cli/reference/benchmark.md)): Exact pllm benchmark help from the installed PLLM CLI.
+- [pllm dev](https://pllm.run/cli/reference/dev/) ([Markdown](https://pllm.run/cli/reference/dev.md)): Exact pllm dev help from the installed PLLM CLI.
+- [pllm config show](https://pllm.run/cli/reference/config/show/) ([Markdown](https://pllm.run/cli/reference/config/show.md)): Exact pllm config show help from the installed PLLM CLI.
+- [pllm config export](https://pllm.run/cli/reference/config/export/) ([Markdown](https://pllm.run/cli/reference/config/export.md)): Exact pllm config export help from the installed PLLM CLI.
+- [pllm components list](https://pllm.run/cli/reference/components/list/) ([Markdown](https://pllm.run/cli/reference/components/list.md)): Exact pllm components list help from the installed PLLM CLI.
+- [pllm components show](https://pllm.run/cli/reference/components/show/) ([Markdown](https://pllm.run/cli/reference/components/show.md)): Exact pllm components show help from the installed PLLM CLI.
+- [pllm research sources](https://pllm.run/cli/reference/research/sources/) ([Markdown](https://pllm.run/cli/reference/research/sources.md)): Exact pllm research sources help from the installed PLLM CLI.
+- [pllm research methods](https://pllm.run/cli/reference/research/methods/) ([Markdown](https://pllm.run/cli/reference/research/methods.md)): Exact pllm research methods help from the installed PLLM CLI.
+- [pllm research recipes](https://pllm.run/cli/reference/research/recipes/) ([Markdown](https://pllm.run/cli/reference/research/recipes.md)): Exact pllm research recipes help from the installed PLLM CLI.
+- [pllm research assess](https://pllm.run/cli/reference/research/assess/) ([Markdown](https://pllm.run/cli/reference/research/assess.md)): Exact pllm research assess help from the installed PLLM CLI.
+- [pllm research agents](https://pllm.run/cli/reference/research/agents/) ([Markdown](https://pllm.run/cli/reference/research/agents.md)): Exact pllm research agents help from the installed PLLM CLI.
+- [pllm benchmark run](https://pllm.run/cli/reference/benchmark/run/) ([Markdown](https://pllm.run/cli/reference/benchmark/run.md)): Exact pllm benchmark run help from the installed PLLM CLI.
+- [pllm dev dashboard](https://pllm.run/cli/reference/dev/dashboard/) ([Markdown](https://pllm.run/cli/reference/dev/dashboard.md)): Exact pllm dev dashboard help from the installed PLLM CLI.
+- [pllm research sources list](https://pllm.run/cli/reference/research/sources/list/) ([Markdown](https://pllm.run/cli/reference/research/sources/list.md)): Exact pllm research sources list help from the installed PLLM CLI.
+- [pllm research sources show](https://pllm.run/cli/reference/research/sources/show/) ([Markdown](https://pllm.run/cli/reference/research/sources/show.md)): Exact pllm research sources show help from the installed PLLM CLI.
+- [pllm research methods list](https://pllm.run/cli/reference/research/methods/list/) ([Markdown](https://pllm.run/cli/reference/research/methods/list.md)): Exact pllm research methods list help from the installed PLLM CLI.
+- [pllm research methods show](https://pllm.run/cli/reference/research/methods/show/) ([Markdown](https://pllm.run/cli/reference/research/methods/show.md)): Exact pllm research methods show help from the installed PLLM CLI.
+- [pllm research recipes list](https://pllm.run/cli/reference/research/recipes/list/) ([Markdown](https://pllm.run/cli/reference/research/recipes/list.md)): Exact pllm research recipes list help from the installed PLLM CLI.
+- [pllm research recipes show](https://pllm.run/cli/reference/research/recipes/show/) ([Markdown](https://pllm.run/cli/reference/research/recipes/show.md)): Exact pllm research recipes show help from the installed PLLM CLI.
 - [Python API inventory](https://pllm.run/sdk/reference/python/pllm/) ([Markdown](https://pllm.run/sdk/reference/python/pllm.md)): Public Python classes, functions, and evidence APIs in the installed package.
 - [Component catalog](https://pllm.run/sdk/reference/components/) ([Markdown](https://pllm.run/sdk/reference/components.md)): Built-in component records with implementation, coverage, and evidence status.
 - [Research catalog](https://pllm.run/research/records/method-catalog/) ([Markdown](https://pllm.run/research/records/method-catalog.md)): Generated source, method, and read-only composition recipe inventory from pllm.research.
@@ -51,7 +73,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Research map](https://pllm.run/research/recipes/agent-map/) ([Markdown](https://pllm.run/research/recipes/agent-map.md)): Trace a source through clean-room code, plans, evidence, and publication review.
 - [Assurance](https://pllm.run/sdk/research/assurance/) ([Markdown](https://pllm.run/sdk/research/assurance.md)): Evaluate a specific privacy, integrity, numeric, implementation, or deployment claim.
 - [Benchmarks](https://pllm.run/sdk/research/benchmarks/) ([Markdown](https://pllm.run/sdk/research/benchmarks.md)): Measure PLLM systems with reproducible records and compare only equivalent runs.
-- [Command-line interface](https://pllm.run/cli/) ([Markdown](https://pllm.run/cli.md)): Inspect PLLM configuration, components, and research records from the terminal.
+- [Command-line interface](https://pllm.run/cli/) ([Markdown](https://pllm.run/cli.md)): Inspect PLLM records and run local benchmarks from the terminal.
 - [Compiler](https://pllm.run/sdk/pipeline/compiler/) ([Markdown](https://pllm.run/sdk/pipeline/compiler.md)): Learn how PLLM turns a model plan and component choices into a checked execution plan.
 - [Add a category](https://pllm.run/sdk/contribute/add-a-category/) ([Markdown](https://pllm.run/sdk/contribute/add-a-category.md)): Extend the semantic component graph when an existing category cannot express a real contract.
 - [Component standard](https://pllm.run/sdk/contribute/component-standard/) ([Markdown](https://pllm.run/sdk/contribute/component-standard.md)): Required identity, lifecycle, representation, role, capability, evidence, and limitation fields.

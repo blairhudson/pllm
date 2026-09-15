@@ -6,20 +6,22 @@ Inspect versioned capabilities and apply compatible components to a model plan.
 
 Document ID: `pllm.docs.sdk.components`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:1b822ba66c418538aef39693fdf4a6f2675af9950fd086a5ba973922160b1760`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce`
 
 A component identifies one versioned capability and its public parameters. The
 record also states its implementation status, compatible value formats, roles,
 model coverage, evidence, and known limits.
 
-List the built-in records:
+List the built-in records with
+[`pllm components list`](/cli/reference/components/list/):
 
 ```bash
 uv run pllm components list
 ```
 
-Inspect one record as JSON:
+Inspect one record as JSON with
+[`pllm components show`](/cli/reference/components/show/):
 
 ```bash
 uv run pllm --format json components show pllm/kv-cache-eviction
@@ -35,8 +37,12 @@ performance, privacy, or generation quality.
 from pllm.components import get_component
 
 component = get_component("pllm/kv-cache-eviction")
-print(component.lifecycle_phase, component.capabilities)
+assert component.lifecycle_phase == "model-lowering"
+assert "bounded-kv-cache-eviction" in component.capabilities
 ```
 
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
 See the generated [component inventory](/sdk/reference/components/) for current
-versions and status.
+versions and status. Interpret any linked measurements and limitations under the
+[research evidence](/research/evidence/) rules.

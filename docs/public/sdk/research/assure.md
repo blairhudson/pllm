@@ -6,8 +6,8 @@ Run a defined assurance check and report exactly what its result supports.
 
 Document ID: `pllm.docs.measure.assure`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:9af947d02e7699a9242a080ce026e29c78a15a25b8b1af23dda5338c36fc293a`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:026d5431c2c14d5a4f2d88c51e875ff73c403eaaa00f5e9d3872c157da4e79d9`
 
 `pllm.assure()` runs implemented native fixtures, including negative controls, and returns `EvidenceReport`. Report production is not universal privacy proof. Each finding retains model or observed view, assumptions, resource bound, implementation/refinement boundary, and exact outcome.
 
@@ -16,10 +16,15 @@ CLI `assure run` is unavailable because scoped assurance command/output contract
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.to_dict()["limitations"])
+report = pllm.assure()
+document = report.to_dict()
+findings = {finding["id"]: finding for finding in document["findings"]}
+assert findings["missing_truncation_carry"]["outcome"] == "refuted_in_scope"
+assert "production runtime not attacked" in document["limitations"]
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Result covers bundled fixtures only, not a production runtime attack.

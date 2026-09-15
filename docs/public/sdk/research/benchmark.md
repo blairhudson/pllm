@@ -6,31 +6,58 @@ Run scoped Python benchmarks and understand what the development dashboard does 
 
 Document ID: `pllm.docs.measure.benchmark`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:d9e866861ec739e8124d211dfa4c32cdef110cab8fd5df439054c92792200cb6`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:d361426233eb578fec74fd0bcff69e32a3f1a555f63aaae0e76dda8964759916`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.
 
-`pllm.deployment_benchmark(request)` validates supplied observations; it does not prove their origin. No parser-visible `pllm benchmark` command exists.
-
-Developer visualization is available only as:
+`pllm.deployment_benchmark(request)` validates supplied observations; it does not
+prove their origin. The separate
+[`pllm benchmark run`](/cli/reference/benchmark/run/) command exercises the real
+client, preparation, and inference roles on loopback:
 
 ```bash
-pllm dev dashboard --model Qwen/Qwen2.5-0.5B-Instruct --no-open
+pllm benchmark run \
+  --model Qwen/Qwen2.5-0.5B-Instruct \
+  --prompt-file prompt.txt \
+  --output benchmark.json
 ```
 
-The dashboard binds to loopback, starts the current development roles, and stores
-sanitized local history. It is a development tool and does not create a benchmark
-evidence record. Do not cite dashboard results unless you record them separately
-under the required comparison contract.
+This headless command writes a sanitized diagnostic report and shuts down all
+roles. It does not create a canonical benchmark evidence record. Use
+[`pllm dev dashboard`](/cli/reference/dev/dashboard/) only when you want the
+interactive development view. See [research evidence](/research/evidence/) for
+the records and scope required to support a claim.
+
+This SDK example requires a PLLM source checkout because it reads the checked-in
+`schemas/fixtures/compile-request.valid.json` compile request.
 
 ## Python SDK example
 
 ```python
-from inspect import signature
-from pllm import benchmark
+from pathlib import Path
+import pllm
 
-print(signature(benchmark))
+fixture = Path("schemas/fixtures/compile-request.valid.json")
+plan = pllm.compile(fixture.read_text(encoding="utf-8"))
+report = pllm.benchmark(
+    plan,
+    weights=bytes([1, 2, 3, 4, 5, 6]),
+    input=b"".join(value.to_bytes(4, "little") for value in (7, 8, 9, 10, 11, 12)),
+    id="docs-region",
+    privacy_cohort="masked-linear",
+    numeric_cohort="wrap32",
+    environment={"fixture": fixture.name},
+    warmups=1,
+    repetitions=3,
+)
+document = report.to_dict()
+assert document["scope"] == "region"
+assert document["plan_lock_digest"] == plan.plan_lock_digest
+assert len(document["samples"]) == 3
 ```
 
-`benchmark` requires a plan returned by `pllm.compile` plus exact immutable inputs; this inspection does not run a benchmark.
+API: [`pllm.compile`, `pllm.benchmark`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This runs the native compiled region against its scalar oracle. It is separate
+from the loopback diagnostic JSON described above.

@@ -1,0 +1,8 @@
+{
+  "title": "Recipes",
+  "pages": [
+    "index",
+    "list",
+    "show"
+  ]
+}

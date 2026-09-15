@@ -6,19 +6,21 @@ Load, inspect, and export a reproducible PLLM experiment configuration.
 
 Document ID: `pllm.docs.sdk.configuration`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:fb66e983414478a59dd0064a2384ca08d8c222c259d007e0a4566db76ab12dc3`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8`
 
 PLLM configuration objects describe public intent. Creating one does not download
 a model, contact a service, compile a plan, or create private material.
 
-Inspect the included example:
+Inspect the included example with
+[`pllm config show`](/cli/reference/config/show/):
 
 ```bash
 uv run pllm config show examples/pllm.yaml
 ```
 
-Export the normalized configuration as JSON:
+Export the normalized configuration as JSON with
+[`pllm config export`](/cli/reference/config/export/):
 
 ```bash
 uv run pllm config export examples/pllm.yaml --output /tmp/pllm-normalized.json
@@ -37,5 +39,7 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 from pllm import Model
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
-print(model.to_spec())
+assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

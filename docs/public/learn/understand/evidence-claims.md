@@ -6,8 +6,8 @@ Separate a design contract, an implementation, its evidence, and a publication c
 
 Document ID: `pllm.docs.understand.evidence-claims`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:5ee0a8a80fbe30a06f7e505c9faf68bdd25f648569fdf9f1687ce01c776d6a23`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa`
 
 | Axis | Meaning |
 | --- | --- |
@@ -23,3 +23,5 @@ Source hash: `sha256:5ee0a8a80fbe30a06f7e505c9faf68bdd25f648569fdf9f1687ce01c776
 | Reproduction fidelity | Match to locked source/oracle in recorded scope |
 
 Unknown is never zero or pass. Every claim links exact artifact, date/version, cohort, limitations, and applicable assurance.
+Use [research evidence records](/research/evidence/) to inspect those scopes and
+limitations before repeating a claim.

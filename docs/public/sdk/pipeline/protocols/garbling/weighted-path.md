@@ -6,20 +6,13 @@ Decision-path representations for bounded piecewise or tree-structured secure ev
 
 Document ID: `pllm.docs.protocols.garbling.weighted-path`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:cf1dc05adb69acfd73fab2a76605345ac6c34c7555c6dd5700f03d7f9dfac5e2`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:0e3a43bbae8b1bba9a47f12fd170c44cbc1e4c5ae3fa6629f501de693122e05c`
 
 Weighted paths encode a sequence of predicates and selected contributions rather than a dense table. A component must state path topology, hidden and public structure, comparison semantics, branching leakage, numeric bounds, and worst-case work.
 
 This is an extension category, not a shipped support claim. Candidate research enters through source and method records before any compiler profile can select it.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-available = [item.component for item in list_components() if "weighted" in item.component]
-print(available)
-```
-
-No weighted-path component is currently published through the SDK.
+No public Python API currently exposes a weighted-path component. Follow
+[research methods](/research/methods/) before treating this extension category as
+an executable support claim.

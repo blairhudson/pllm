@@ -10,10 +10,12 @@ description: "Assign client, preparation, and inference responsibilities without
 ## Python SDK example
 
 ```python
-from pllm import Deployment
+import pllm
 
-deployment = Deployment.local(root=".pllm/local")
-print(deployment.to_spec())
+deployment = pllm.Deployment.local(root=".pllm/local")
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
 ```
+
+API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This records local intent only; it does not start or authenticate services.

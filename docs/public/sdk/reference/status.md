@@ -6,20 +6,20 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:9eef5caf407ffd1e59d6ae14877b72e2e3a84dc66974150a620c8142c0799582`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:5fe45104a841c46bde341a57e65c97700467a75183f0fa1447de7d1db54cffc5`
 
 Checked 14 September 2026.
 
 The CLI can inspect and export public configuration, list built-in components,
-inspect research records, and start the local development dashboard.
+inspect research records, and run a headless loopback benchmark.
 
 The Python package exposes semantic model planning and narrow native benchmark
 and assurance APIs. These interfaces do not yet provide complete private model
 execution from a `ModelPlan`.
 
 The CLI does not currently manage remote services, private chat, preparation, or
-evidence-producing benchmark runs.
+canonical evidence-producing benchmark runs.
 
 ## Status labels
 
@@ -42,12 +42,13 @@ PLLM uses six labels throughout the documentation:
 | `components list`, `components show` | Available | Reads built-in component metadata only |
 | `research sources/methods/recipes list/show` | Available | Reads records without running research workflows |
 | `dev dashboard` | Experimental | Runs all roles on one machine; does not create benchmark evidence records |
+| `benchmark run` | Experimental | Runs all roles on one machine and writes a sanitized diagnostic report, not a canonical `EvidenceReport` |
 | `init`, `--set` | Not supported | Profile catalog and typed overrides are incomplete |
 | `model lower` | Not supported | The CLI output contract is incomplete |
 | `plan check`, `plan compile`, `plan show` | Not supported | Plan locking, artifacts, and compatibility checks are incomplete |
 | `prepare`, `run`, `chat` | Not supported | The CLI does not manage prepared material |
 | `serve`, `party serve` | Not supported | Role authentication and orchestration are incomplete |
-| `benchmark run/search/compare` | Not supported | The CLI does not create comparable evidence records |
+| `benchmark search`, `benchmark compare` | Not supported | The CLI does not query or compare canonical evidence records |
 | `assure run` | Not supported | The CLI assurance interface is incomplete |
 
 The [CLI reference](/cli/reference/) contains the exact available commands.
@@ -74,10 +75,12 @@ not mean that complete plan-based deployment is supported. See the generated
 ## Python SDK example
 
 ```python
-from pllm.components import list_components
+from pllm.components import get_component
 
-for component in list_components():
-    print(component.component, component.lifecycle_phase)
+component = get_component("pllm/cpu")
+assert component.lifecycle_phase == "compilation"
 ```
 
 Static discovery reports availability, not production maturity or complete private execution.
+
+API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)

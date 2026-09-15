@@ -13,7 +13,9 @@ Configuration, semantic decoder plans, compile requests, executable plans, compo
 from pllm import ComponentRef
 
 document = ComponentRef("pllm/cpu", {"threads": 4}).to_spec()
-print(document)
+assert document == {"component": "pllm/cpu", "params": {"threads": 4}}
 ```
 
 Serialization produces public configuration data; schema validity alone does not establish support.
+
+API: [`pllm.ComponentRef`](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -6,8 +6,8 @@ Plan models, compose research methods, and use supported PLLM runtimes from Pyth
 
 Document ID: `pllm.docs.sdk`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:0e6d16dcf1a31cb99eebdb984d9542920f6a153c82303db248898e4b2a9a4298`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:984ff5182dbcb8d7871d4881b06b133fa1804f897717ca49e2fad5426700c08a`
 
 PLLM ships one Python package backed by Rust. The public API separates model
 planning from live runtime state so you can inspect and reproduce a plan without
@@ -21,22 +21,27 @@ Add the `pllm` package from PyPI to a uv project:
 uv add pllm
 ```
 
-## Plan a model
+## Python SDK example
 
 `pllm.lower_model` accepts model configuration and workload bounds. It returns
 an immutable semantic `ModelPlan`; it does not load a checkpoint or start an
 inference session.
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-print(plan.digest)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+assert plan.prefill["output"] == "token_feedback"
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the model-adapter test fixture.
 
 ## Compose research methods
 

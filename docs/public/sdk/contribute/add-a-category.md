@@ -6,8 +6,8 @@ Extend the semantic component graph when an existing category cannot express a r
 
 Document ID: `pllm.docs.contribute.add-a-category`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:51ac44a9659b02824c90f9cd9975cef347d25b17a8fe2e80072c6d7dcb3cf248`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:a4e76626c0d51636f65b1eec99b365fb8b8c476cfd18990650a678f31fb37dad`
 
 Add a category only when existing operator, representation, protocol, conversion, preparation, kernel, compiler, runtime, deployment, metric, search, or assurance contracts cannot express the new capability without ambiguity.
 
@@ -16,13 +16,5 @@ compatibility, evidence, public API, CLI discovery, generated reference,
 documentation, and migration policy together. Do not name a reusable category
 after one paper or model.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-categories = sorted({component.category for component in list_components()})
-print(categories)
-```
-
-Inspect existing categories before proposing a new contract.
+No public Python API defines or registers a new category. See [current support](/sdk/reference/status/)
+before proposing this contract.

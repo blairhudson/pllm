@@ -20,7 +20,10 @@ Dependency direction remains Python to PyO3 to Rust core; semantic model code mu
 ```python
 from pllm.research import render_agents_guide
 
-print(render_agents_guide())
+guide = render_agents_guide()
+assert "`python/pllm/` is the only installed Python namespace" in guide
 ```
 
 The generated guide locates public and implementation surfaces without importing implementation providers.
+
+API: [`pllm.research.render_agents_guide`](/sdk/reference/python/pllm/#objects-and-signatures)

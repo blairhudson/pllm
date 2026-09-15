@@ -6,20 +6,13 @@ Reference arithmetic and Boolean garbling components with explicit maturity and 
 
 Document ID: `pllm.docs.protocols.garbling`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:7720307af32555b1bd2f51e2fdc987a5841b768261cf3a4a9d29733d168f4931`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:e15bacdb7ac3166d7522e886b0b3ecf3c9b5c68fc40354f61fc4579da3a80ce2`
 
 Garbling is a family of representations and protocols, not one interchangeable backend. PLLM records arithmetic projection gates, Boolean half-gates, lookup tables, and weighted paths separately because their domains, costs, proofs, and conversion obligations differ.
 
 Current clean-room arithmetic work is reference-only and unreviewed. It is excluded from executable compiler profiles until protocol, transport, coverage, and assurance gates pass. See [research reproductions](/research/recipes/reproductions/).
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-garbling = [item.component for item in list_components() if "garbl" in item.component]
-print(garbling)
-```
-
-The empty built-in result represents current unsupported SDK state; it is not an execution fallback.
+No public Python API currently exposes garbling configuration or execution. Follow
+[research reproductions](/research/recipes/reproductions/) for experimental evidence;
+the unsupported SDK state is not an execution fallback.

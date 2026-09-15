@@ -12,14 +12,18 @@ These newly explicit operators currently report missing compiler coverage. Seman
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("qwen35-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
-print(plan.coverage().complete)  # False while required operators are missing.
+fixture = Path("crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
+assert operations["layer.0.linear_attention.gated_delta_rule"]["operator"] == "gated_delta_rule"
+assert operations["layer.3.self_attention.q_rope"]["attributes"]["mrope_section"] == (11, 11, 10)
 ```
 
-`qwen35-config.json` must be the supported pinned configuration. The coverage result is not an execution claim.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the pinned fixture. Inspecting its plan is not an execution claim.

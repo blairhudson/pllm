@@ -6,8 +6,8 @@ Evaluate a specific privacy, integrity, numeric, implementation, or deployment c
 
 Document ID: `pllm.docs.assurance`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:0e618f172f701848159a2103a6650e9abe5800ae2d74719f63a6e8a338780732`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:13f22bea16c6bc03779bbf5003402ef7eba8dd47d0b615ef73e086341603f93d`
 
 An assurance record identifies the exact plan, component versions, threat model,
 protected values, visible information, corruption and collusion assumptions,
@@ -18,16 +18,23 @@ deployment inspection, and leakage tests answer different questions. Missing
 assurance is not a failed test, but it is not a pass. Evidence for participants
 that follow the protocol does not establish security against malicious behavior.
 
-A publication claim must cite the relevant records and keep their limitations.
-See [reading research and evidence](/learn/reading-research-and-evidence/).
+A publication claim must cite the relevant [research evidence](/research/evidence/)
+and keep its limitations. See
+[reading research and evidence](/learn/reading-research-and-evidence/) for the
+conceptual boundary and [publications and claims](/research/publications/) for the
+review requirements.
 
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.schema_version, report.to_dict()["limitations"])
+document = pllm.assure().to_dict()
+findings = {finding["id"]: finding for finding in document["findings"]}
+assert document["ideal_uniform_control"]["outcome"] == "proved_in_model"
+assert findings["affine_label_reuse"]["outcome"] == "refuted_in_scope"
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Report scope is bundled assurance fixtures, not universal privacy proof.

@@ -6,8 +6,8 @@ Prepared public-weight linear inference with seeded one-time masks and committed
 
 Document ID: `pllm.docs.protocols.masked-linear`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:795f4e9cd825d2523af9d2a111eaf2ee1ebb540450a2a8404baaf8143238e801`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:ba67dc0c5a378cc0c277b5b680695625d31789ebb82b774a63b8ec0768a50da3`
 
 The prepared protocol separates client, trusted preparation, and untrusted inference roles. Offline, preparation computes `W*r-s` from domain-separated client seed batches and pushes committed corrections. Online, inference atomically consumes the ticket matching `x-r` and returns `W*x-s` for client reconstruction.
 
@@ -18,10 +18,22 @@ This contract assumes protocol-following non-colluding roles and public body wei
 ## Python SDK example
 
 ```python
-from pllm.protocols.masked_linear import MaskedLinear
+import numpy as np
 
-method = MaskedLinear()
-print(method.to_spec())
+from pllm import AuthenticatedMPC, TrustedPreprocessor
+
+preparation = TrustedPreprocessor(modulus=65537, seed=3)
+runtime = AuthenticatedMPC(preparation)
+x = np.array([[3, -2]], dtype=np.int64)
+weight = np.array([[2, 1]], dtype=np.int64)
+masked_x = runtime.input(x, preparation.input_mask(x.shape))
+correlation = preparation.linear_correlation(weight, x.shape)
+result = runtime.centered(runtime.open(runtime.linear(masked_x, weight, correlation)))
+assert result.tolist() == [[4]]
+assert runtime.stats.linear_rounds == 1
 ```
 
-This creates a configuration reference only; it does not allocate masks or start inference.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This exercises prepared masked linear arithmetic in the single-process reference
+protocol; it does not provide role separation or deployment assurance.

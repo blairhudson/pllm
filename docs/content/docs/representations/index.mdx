@@ -13,13 +13,6 @@ can connect only through a compatible edge or an explicit
 [conversion](/sdk/build/conversions/). Matching tensor shapes are not enough. Wire
 format versions and ownership changes are part of the plan history.
 
-## Python SDK example
-
-```python
-from pllm.protocols.masked_linear import MaskedLinear
-
-record = MaskedLinear.describe().to_dict()
-print(record.get("input_representations", "not recorded"))
-```
-
-Current built-in descriptor does not record representation fields; absence is not compatibility evidence.
+No public Python API currently exposes representation compatibility records. See
+[current Python support](/sdk/reference/status/). Current built-in descriptors do
+not record representation fields; absence is not compatibility evidence.

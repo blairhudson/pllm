@@ -20,19 +20,26 @@ Qwen execution profile or a production-security claim.
 ## Python SDK example
 
 ```python
+from pathlib import Path
+
 from pllm import lower_model
 
-plan = lower_model(
-    {"model_type": "qwen2", "num_hidden_layers": 1},
-    max_sequence_tokens=16,
-    max_batch_size=1,
-)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
 silu = next(
-    operation for operation in plan.prefill.operations if operation.kind == "silu"
+    operation
+    for operation in plan.prefill["operations"]
+    if operation["operator"] == "silu"
 )
-
-print(silu.operation_id, silu.output.shape)
+assert silu["id"] == "layer.0.silu"
+assert silu["output_shape"] == (1, 16, 9728)
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the model-adapter test fixture. `ModelPlan.prefill` and its operation records are
+read-only mappings.
 
 The semantic plan preserves SiLU as an explicit operator. A separately validated
 compile request can lower a bounded SiLU region to the internal native Q7 evaluator,

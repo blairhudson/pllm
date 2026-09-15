@@ -12,16 +12,23 @@ deployment inspection, and leakage tests answer different questions. Missing
 assurance is not a failed test, but it is not a pass. Evidence for participants
 that follow the protocol does not establish security against malicious behavior.
 
-A publication claim must cite the relevant records and keep their limitations.
-See [reading research and evidence](/learn/reading-research-and-evidence/).
+A publication claim must cite the relevant [research evidence](/research/evidence/)
+and keep its limitations. See
+[reading research and evidence](/learn/reading-research-and-evidence/) for the
+conceptual boundary and [publications and claims](/research/publications/) for the
+review requirements.
 
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.schema_version, report.to_dict()["limitations"])
+document = pllm.assure().to_dict()
+findings = {finding["id"]: finding for finding in document["findings"]}
+assert document["ideal_uniform_control"]["outcome"] == "proved_in_model"
+assert findings["affine_label_reuse"]["outcome"] == "refuted_in_scope"
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Report scope is bundled assurance fixtures, not universal privacy proof.

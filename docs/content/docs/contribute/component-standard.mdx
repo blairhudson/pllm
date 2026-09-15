@@ -18,7 +18,11 @@ The canonical contract is [`design/component-standard.md`](https://github.com/bl
 from pllm.components import get_component
 
 descriptor = get_component("pllm/cpu")
-print(descriptor.to_dict())
+record = descriptor.to_dict()
+assert record["component"] == "pllm/cpu"
+assert {"provider", "version", "category", "capabilities"} <= record.keys()
 ```
 
 Built-in descriptors expose the public fields contributors must keep discoverable.
+
+API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)

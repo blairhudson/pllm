@@ -5,13 +5,14 @@ usage: pllm [-h] [--format {human,json,jsonl}] [--quiet] [--no-color]
             [--no-input] [--dry-run] [--version]
             COMMAND ...
 
-Inspect PLLM configurations, components, and research metadata
+Inspect PLLM configuration, run benchmarks, and inspect research metadata
 
 positional arguments:
   COMMAND
     config              inspect or export public configuration
     components          inspect built-in component descriptors
     research            inspect or assess read-only research records
+    benchmark           run reproducible local benchmarks
     dev                 development tools
 
 options:
@@ -79,6 +80,26 @@ positional arguments:
                         research workflows
     agents              write repository-root guidance for research coding
                         agents
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+
+$ pllm benchmark --help
+usage: pllm benchmark [-h] [--format {human,json,jsonl}] [--quiet]
+                      [--no-color] [--no-input] [--dry-run]
+                      COMMAND ...
+
+positional arguments:
+  COMMAND
+    run                 run the real client, preparation, and inference roles
+                        on loopback
 
 options:
   -h, --help            show this help message and exit
@@ -281,6 +302,43 @@ options:
                         startup
   --output PATH         new Markdown output path
   --force               replace an existing output file
+
+$ pllm benchmark run --help
+usage: pllm benchmark run [-h] [--format {human,json,jsonl}] [--quiet]
+                          [--no-color] [--no-input] [--dry-run]
+                          [--model MODEL] [--model-id MODEL_ID] [--tiny]
+                          [--prompt PROMPT | --prompt-file PROMPT_FILE]
+                          [--max-output-tokens MAX_OUTPUT_TOKENS]
+                          [--warmups WARMUPS] [--repetitions REPETITIONS]
+                          [--timeout TIMEOUT] [--show-dashboard]
+                          [--output OUTPUT] [--force]
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+  --model MODEL         Hugging Face model ID or local checkpoint path
+  --model-id MODEL_ID   stable model identity stored in the report
+  --tiny                use generated random weights for a transport smoke
+                        test
+  --prompt PROMPT       prompt text (visible in shell process listings)
+  --prompt-file PROMPT_FILE
+                        read prompt text from this file
+  --max-output-tokens MAX_OUTPUT_TOKENS
+                        maximum generated tokens per run (default: 24)
+  --warmups WARMUPS     warmup runs retained in the report (default: 0)
+  --repetitions REPETITIONS
+                        measured runs (default: 1)
+  --timeout TIMEOUT     startup and per-run timeout in seconds (default: 900)
+  --show-dashboard      open the local dashboard in a browser (default:
+                        hidden)
+  --output OUTPUT       write the sanitized JSON report
+  --force               replace --output if it exists
 
 $ pllm dev dashboard --help
 usage: pllm dev dashboard [-h] [--format {human,json,jsonl}] [--quiet]

@@ -15,22 +15,27 @@ Add the `pllm` package from PyPI to a uv project:
 uv add pllm
 ```
 
-## Plan a model
+## Python SDK example
 
 `pllm.lower_model` accepts model configuration and workload bounds. It returns
 an immutable semantic `ModelPlan`; it does not load a checkpoint or start an
 inference session.
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-print(plan.digest)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+assert plan.prefill["output"] == "token_feedback"
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the model-adapter test fixture.
 
 ## Compose research methods
 

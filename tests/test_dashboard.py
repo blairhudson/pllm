@@ -184,13 +184,13 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
     runtime._temporary.cleanup()
 
 
-def test_dashboard_snapshot_normalizes_unprepared_inventory() -> None:
+def test_dashboard_snapshot_uses_cached_inventory_without_client_io() -> None:
     class Client:
         privacy_audit = None
 
         @staticmethod
         def prepared_inventory_status(_model: str) -> dict[str, object]:
-            return {"status": "unprepared", "capacity": 0, "available": 0}
+            raise AssertionError("snapshot must not perform runtime I/O")
 
     runtime = object.__new__(DashboardRuntime)
     runtime._lock = threading.Lock()
@@ -199,6 +199,7 @@ def test_dashboard_snapshot_normalizes_unprepared_inventory() -> None:
         "first_token_at": None,
         "finished_at": None,
         "tokens": 0,
+        "inventory": {"status": "unprepared", "capacity": 0, "available": 0},
     }
     runtime._processes = {}
     runtime._client = Client()

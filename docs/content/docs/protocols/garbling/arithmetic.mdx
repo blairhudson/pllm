@@ -7,13 +7,6 @@ Arithmetic garbling represents values with labels per modulus. Free compatible a
 
 Reference exhaustive correctness, tamper rejection, plan commitments, and one-use process-local burn checks establish implementation behavior only. The compiler can select the exact experimental Q7 SiLU projection profile. Cryptographic review, durable replay protection, complete-model coverage, and deployment assurance are not recorded.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-available = [item.component for item in list_components() if "garbl" in item.component]
-print(available)
-```
-
-The arithmetic-garbling evaluator remains internal to the native compiled-plan boundary; it is not part of the stable Python runtime facade.
+No public Python API currently exposes the arithmetic-garbling evaluator. See
+[research evidence](/research/evidence/). The evaluator remains internal to the
+native compiled-plan boundary and is not part of the stable Python runtime facade.

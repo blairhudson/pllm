@@ -10,10 +10,15 @@ CLI `assure run` is unavailable because scoped assurance command/output contract
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.to_dict()["limitations"])
+report = pllm.assure()
+document = report.to_dict()
+findings = {finding["id"]: finding for finding in document["findings"]}
+assert findings["missing_truncation_carry"]["outcome"] == "refuted_in_scope"
+assert "production runtime not attacked" in document["limitations"]
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Result covers bundled fixtures only, not a production runtime attack.

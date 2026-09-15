@@ -6,8 +6,8 @@ Understand which data and runtime state must stay with the client.
 
 Document ID: `pllm.docs.operate.client-boundary`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:9b1a16df2129dd20d325e518fbc31faa4ef6007abd0a525696e00245917454c6`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:67dcd4db2e70529d625c24980f7d08cfa2299ab7f6917bcf6a16d874349fc14e`
 
 `pllm.runtime` exposes clients, transport code, privacy declarations, gateways,
 and application factories. The [Python API inventory](/sdk/reference/python/pllm/)
@@ -21,10 +21,13 @@ No `run`, `chat`, or `serve` lifecycle command is parser-visible. See [status](/
 ## Python SDK example
 
 ```python
-from pllm import PrivacyMode
+import pllm
 
-mode = PrivacyMode.PUBLIC
-print(mode.description)
+mode = pllm.PrivacyMode.PUBLIC
+assert mode.value == "public"
+assert mode.protocol == "masked_w4a4"
 ```
+
+API: [`pllm.PrivacyMode`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This reads a public privacy declaration; it does not create a protected client session.

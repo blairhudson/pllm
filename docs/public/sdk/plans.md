@@ -6,24 +6,31 @@ Lower a model configuration, add components, and inspect compiler coverage.
 
 Document ID: `pllm.docs.sdk.plans`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:95c5e822106ae2cc6f1c601ceba2ebe2f4af7fb49320fd71aec7784971cec3d3`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:77c0bb7e4708ea66eaf0a632bf7df99881f11c9dc4e09d349978b38befd5d39d`
 
 `pllm.lower_model(...)` turns a supported model configuration and workload limits
 into a `ModelPlan`. Lowering records model operations and state; it does not load
 weights or make the plan executable.
 
+## Python SDK example
+
 ```python
-import json
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import KvCacheEviction, lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=2048, max_new_tokens=128)
-print(plan.to_dict()["adapter"])
-print(plan.digest)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+base = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+optimized = base.apply(KvCacheEviction())
+assert optimized.digest != base.digest
+assert optimized.to_dict()["transformations"][-1]["component"] == "pllm/kv-cache-eviction"
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the model-adapter test fixture.
 
 Use `plan.apply(component)` to create a new plan with a research or runtime
 component. Use `plan.coverage(profile)` to inspect the operators a compiler profile

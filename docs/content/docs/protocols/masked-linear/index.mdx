@@ -12,10 +12,22 @@ This contract assumes protocol-following non-colluding roles and public body wei
 ## Python SDK example
 
 ```python
-from pllm.protocols.masked_linear import MaskedLinear
+import numpy as np
 
-method = MaskedLinear()
-print(method.to_spec())
+from pllm import AuthenticatedMPC, TrustedPreprocessor
+
+preparation = TrustedPreprocessor(modulus=65537, seed=3)
+runtime = AuthenticatedMPC(preparation)
+x = np.array([[3, -2]], dtype=np.int64)
+weight = np.array([[2, 1]], dtype=np.int64)
+masked_x = runtime.input(x, preparation.input_mask(x.shape))
+correlation = preparation.linear_correlation(weight, x.shape)
+result = runtime.centered(runtime.open(runtime.linear(masked_x, weight, correlation)))
+assert result.tolist() == [[4]]
+assert runtime.stats.linear_rounds == 1
 ```
 
-This creates a configuration reference only; it does not allocate masks or start inference.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This exercises prepared masked linear arithmetic in the single-process reference
+protocol; it does not provide role separation or deployment assurance.

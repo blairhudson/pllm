@@ -6,8 +6,8 @@ Combine model, privacy protocol, preparation, runtime, and deployment choices in
 
 Document ID: `pllm.docs.pipeline`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:72b22d4f092c06db38a7b4360e2634832cf9961a257398ceea409fea405f9ee7`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:0aa653548a4251764aa395f5171ec48d98d5aea590cde612107eef0b8a99d83a`
 
 A `Pipeline` records what you intend to run. Profiles provide visible defaults,
 and component overrides keep their versions. The configuration digest covers
@@ -15,10 +15,12 @@ normalized values, not live connections or provider state.
 
 Creating a pipeline does not run anything. Model lowering, research transforms,
 compilation, deployment, preparation, and session creation are separate steps.
-Each step returns a record or a structured error.
+Each step returns a record or a structured error. The
+[parties and offline work](/learn/parties-and-offline-work/) overview explains why
+preparation and live inference remain distinct.
 
-Run `pllm config show examples/pllm.yaml` to inspect a configuration without
-loading a model or runtime.
+Run [`pllm config show`](/cli/reference/config/show/) to inspect
+`examples/pllm.yaml` without loading a model or runtime.
 
 ## Python SDK example
 
@@ -30,7 +32,11 @@ pipeline = Pipeline.from_profile(
     model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
     components={"linear": MaskedLinear(), "preparation": ModelAwareCorrections(), "kernels": Cpu()},
 )
-print(pipeline.to_spec())
+spec = pipeline.to_spec()
+assert spec["components"]["linear"] == {"component": "pllm/masked-linear", "params": {}}
+assert spec["components"]["kernels"]["params"]["threads"] == 1
 ```
+
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This creates public configuration only; it does not start a runtime.

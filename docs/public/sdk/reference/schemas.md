@@ -6,8 +6,8 @@ Versioned schemas for configurations, plans, evidence, assurance, and research r
 
 Document ID: `pllm.docs.reference.schemas`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:f0cf48e2c79c86a92975d95626fd2a28425bc818020e69fcfe0707d7f6293c9e`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:e1cf3d369c6b800eb009362e779c998232e2058bf986b5044f6a25e40cd8d7d7`
 
 Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.
 
@@ -19,7 +19,9 @@ Configuration, semantic decoder plans, compile requests, executable plans, compo
 from pllm import ComponentRef
 
 document = ComponentRef("pllm/cpu", {"threads": 4}).to_spec()
-print(document)
+assert document == {"component": "pllm/cpu", "params": {"threads": 4}}
 ```
 
 Serialization produces public configuration data; schema validity alone does not establish support.
+
+API: [`pllm.ComponentRef`](/sdk/reference/python/pllm/#objects-and-signatures)

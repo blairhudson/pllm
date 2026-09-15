@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { markdownPathForRoute, normalizeBasePath, withBasePath, prefixHtml } from '../lib/paths.mjs';
+import { canonicalDocsUrl } from '../lib/docs-routes.mjs';
 
 test('root and project Pages paths are normalized', () => {
   assert.equal(normalizeBasePath('/'), '');
@@ -34,4 +35,9 @@ test('canonical routes map to stable Markdown alternates without index leaves', 
   assert.equal(markdownPathForRoute('/research/'), '/research.md');
   assert.equal(markdownPathForRoute('/sdk/reference/components/'), '/sdk/reference/components.md');
   assert.equal(markdownPathForRoute('/research/whitepaper'), '/research/whitepaper.md');
+});
+test('nested CLI reference sources map before generic SDK reference routes', () => {
+  assert.equal(canonicalDocsUrl('content/docs/reference/cli/index.mdx'), '/cli/reference/');
+  assert.equal(canonicalDocsUrl('content/docs/reference/cli/config/index.mdx'), '/cli/reference/config/');
+  assert.equal(canonicalDocsUrl('content/docs/reference/cli/research/sources/list.mdx'), '/cli/reference/research/sources/list/');
 });

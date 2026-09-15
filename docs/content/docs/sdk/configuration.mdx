@@ -6,13 +6,15 @@ description: "Load, inspect, and export a reproducible PLLM experiment configura
 PLLM configuration objects describe public intent. Creating one does not download
 a model, contact a service, compile a plan, or create private material.
 
-Inspect the included example:
+Inspect the included example with
+[`pllm config show`](/cli/reference/config/show/):
 
 ```bash
 uv run pllm config show examples/pllm.yaml
 ```
 
-Export the normalized configuration as JSON:
+Export the normalized configuration as JSON with
+[`pllm config export`](/cli/reference/config/export/):
 
 ```bash
 uv run pllm config export examples/pllm.yaml --output /tmp/pllm-normalized.json
@@ -31,5 +33,7 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 from pllm import Model
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
-print(model.to_spec())
+assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

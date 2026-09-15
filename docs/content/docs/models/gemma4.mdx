@@ -15,14 +15,19 @@ Both plans preserve alternating local/global attention, two head widths, Q/K nor
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("gemma4-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
-print(plan.to_dict()["adapter"])
+fixture = Path("crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
+assert operations["layer.14.gate_proj"]["output_shape"][-1] == 6144
+assert operations["layer.15.gate_proj"]["output_shape"][-1] == 12288
+assert operations["layer.34.attention_scores"]["inputs"][1] == "layer.14.key_append"
 ```
 
-`gemma4-config.json` must be one of the supported pinned outer configurations. Lowering does not execute weights.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the pinned E2B fixture. Lowering does not execute weights.

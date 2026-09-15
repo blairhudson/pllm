@@ -7,13 +7,16 @@ A numeric policy records the number domain, scales, rounding, signed decoding,
 modulus, wire width, coefficient limits, approximation method, and allowed error.
 Its digest is part of the executable plan and related evidence.
 
+Read [numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
+for how these choices affect overflow, token agreement, and model behavior.
+
 The native matrix core validates dimensions and coefficients, selects a scalar or
 SIMD kernel at runtime, and uses bounded integer arithmetic. Native execution does
 not remove quantization error, conversions, protocol messages, or client state.
 
 Tests must cover reference arithmetic, boundary values, overflow rejection, and a
 trusted comparison for each approximation. Token agreement and task quality need
-separate end-to-end evidence.
+separate [end-to-end evidence](/research/evidence/).
 
 The first locked nonlinear profile is
 `pllm.numeric.silu.quadratic_q7.v1`: signed Q7 inputs in `[-128, 128]`, scale 128,
@@ -29,7 +32,10 @@ import numpy as np
 from pllm import AuthenticatedMPC, TrustedPreprocessor
 
 mpc = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=0))
-print(mpc.centered(np.array([0, 32768, 65536], dtype=np.int64)))
+decoded = mpc.centered(np.array([0, 32768, 65536], dtype=np.int64))
+assert decoded.tolist() == [0, 32768, -1]
 ```
+
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This shows center decoding in the reference arithmetic path; it does not establish full-model numeric fidelity.

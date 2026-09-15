@@ -6,12 +6,16 @@ See how PLLM records original papers, source artifacts, citations, and licenses.
 
 Document ID: `pllm.docs.research.sources`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:dd0181f496591057ee797b63ba7b95a0d1d81c39b3ef5c181bffe9deeac73e49`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:78e297f9e90d757d17bfd710a4b06b06a7f95d66c4f01ba01fff11a7c53508b9`
 
 Every research page identifies its original source with a stable record ID and URL.
 The generated [source catalog](/research/records/method-catalog/#sources) shows the current
 records without guessing at missing information.
+
+Use [`pllm research sources list`](/cli/reference/research/sources/list/) to discover
+stable IDs and [`pllm research sources show`](/cli/reference/research/sources/show/)
+to inspect one source record.
 
 An original source is not a PLLM method, component, recipe, implementation, or
 evidence record. Downloading a source does not mean that PLLM built, ran, or

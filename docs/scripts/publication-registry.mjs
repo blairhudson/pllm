@@ -23,6 +23,48 @@ const page = (
   };
 };
 
+const cliCommands = [
+  ['config'],
+  ['components'],
+  ['research'],
+  ['benchmark'],
+  ['dev'],
+  ['config', 'show'],
+  ['config', 'export'],
+  ['components', 'list'],
+  ['components', 'show'],
+  ['research', 'sources'],
+  ['research', 'methods'],
+  ['research', 'recipes'],
+  ['research', 'assess'],
+  ['research', 'agents'],
+  ['benchmark', 'run'],
+  ['dev', 'dashboard'],
+  ['research', 'sources', 'list'],
+  ['research', 'sources', 'show'],
+  ['research', 'methods', 'list'],
+  ['research', 'methods', 'show'],
+  ['research', 'recipes', 'list'],
+  ['research', 'recipes', 'show'],
+];
+const cliParents = new Set(cliCommands.flatMap((words) =>
+  words.slice(1).map((_word, index) => words.slice(0, index + 1).join('/'))));
+const cliProvenance = (sourcePath) => ({
+  sourcePaths: [sourcePath, '../python/pllm/_cli/app.py'],
+  testPaths: ['../tests/test_cli.py', '../tests/test_developer_reference.py'],
+});
+const cliCommandPages = cliCommands.map((words) => {
+  const commandPath = words.join('/');
+  const sourcePath = `content/docs/reference/cli/${commandPath}${cliParents.has(commandPath) ? '/index' : ''}.mdx`;
+  return page(
+    `pllm.docs.reference.cli.${words.join('.')}`,
+    sourcePath,
+    '/',
+    'reference',
+    cliProvenance(sourcePath),
+  );
+});
+
 const declaredPublicationRegistry = {
   schemaVersion: '1.0.0',
   release: '0.1.0',
@@ -60,7 +102,8 @@ const declaredPublicationRegistry = {
     page('pllm.docs.operate.deployment', 'content/docs/operate/deployment.mdx', '/operate/deployment', 'deployment'),
 
     page('pllm.docs.reference', 'content/docs/reference/index.mdx', '/reference', 'reference'),
-    page('pllm.docs.reference.cli', 'content/docs/reference/cli/index.mdx', '/reference/cli', 'reference', { sourcePaths: ['content/docs/reference/cli/index.mdx', '../python/pllm/_cli/app.py'], testPaths: ['../tests/test_cli.py', '../tests/test_developer_reference.py'] }),
+    page('pllm.docs.reference.cli', 'content/docs/reference/cli/index.mdx', '/reference/cli', 'reference', cliProvenance('content/docs/reference/cli/index.mdx')),
+    ...cliCommandPages,
     page('pllm.docs.reference.python.pllm', 'content/docs/reference/python/pllm/index.mdx', '/reference/python/pllm', 'reference', { publicModules: ['pllm', 'pllm.config', 'pllm.models', 'pllm.plan', 'pllm.components', 'pllm.kernels', 'pllm.protocols', 'pllm.protocols.masked_linear', 'pllm.preparation', 'pllm.pipeline', 'pllm.deployment', 'pllm.runtime', 'pllm.research', 'pllm.compiler', 'pllm.evidence'], sourcePaths: ['content/docs/reference/python/pllm/index.mdx', '../python/pllm'], testPaths: ['../tests/test_developer_reference.py'] }),
     page('pllm.docs.reference.components', 'content/docs/reference/components.mdx', '/reference/components', 'reference', { publicModules: ['pllm.components'], publicSymbols: ['list_components', 'get_component'], componentIds: ['pllm/cpu', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections'], sourcePaths: ['content/docs/reference/components.mdx', '../python/pllm/components/__init__.py'], testPaths: ['../tests/test_developer_reference.py'] }),
     page('pllm.docs.reference.research', 'content/docs/reference/research.mdx', '/reference/research', 'reference', { publicModules: ['pllm.research'], publicSymbols: ['list_sources', 'list_methods', 'list_recipes', 'get_source', 'get_method', 'get_recipe'], sourcePaths: ['content/docs/reference/research.mdx', '../research/methods', '../research/recipes'], testPaths: ['../tests/test_research.py', '../tests/test_developer_reference.py'] }),

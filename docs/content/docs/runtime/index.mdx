@@ -19,10 +19,17 @@ lifecycle commands.
 ## Python SDK example
 
 ```python
-from pllm import PrivacyMode
+import numpy as np
 
-mode = PrivacyMode.parse("public")
-print(mode.value, mode.protocol)
+from pllm import AuthenticatedMPC, TrustedPreprocessor
+
+runtime = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=4))
+opened = runtime.open(runtime.public_value(np.array([7, 8], dtype=np.int64)))
+assert opened.tolist() == [7, 8]
+assert runtime.stats.opening_rounds == 1
 ```
 
-Selecting a privacy declaration does not create a session or prove deployment support.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+The opening updates live runtime counters. This in-process arithmetic simulator is
+not a deployed multi-party session.

@@ -29,14 +29,17 @@ separate. Check [current support](/sdk/reference/status/) before choosing a mode
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-print(plan.to_dict()["adapter"])
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operators = {operation["operator"] for operation in plan.prefill["operations"]}
+assert {"rotary_embedding", "silu", "kv_cache_append"} <= operators
 ```
 
-`model-config.json` contains a supported Hugging Face configuration. This creates a semantic plan only.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the checked-in fixture. This creates a semantic plan only.

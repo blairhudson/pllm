@@ -32,7 +32,8 @@ print(experiment.configuration_digest())
 print(experiment.to_spec())
 ```
 
-Creating this object does not start a service or load a model. You can inspect or
+The [SDK configuration model](/sdk/configuration/) keeps this declaration
+inspectable without starting a service or loading a model. You can inspect or
 export an equivalent checked-in JSON or YAML file:
 
 ```bash
@@ -45,8 +46,9 @@ explicitly allow them with `--trust-python`.
 
 ## Lower and compose
 
-`lower_model` accepts public model configuration and workload limits. It does not
-accept a model repository name or load weights:
+The [`lower_model` model-planning path](/sdk/build/models/) accepts public model
+configuration and workload limits. It does not accept a model repository name or
+load weights:
 
 ```python
 import pllm
@@ -74,4 +76,5 @@ status checks.
 
 Inspect read-only metadata with `pllm components list` and
 `pllm research sources list`. See [runtime](/sdk/pipeline/runtime/),
-[pipeline](/sdk/pipeline/), and [current support](/sdk/reference/status/).
+[protocol interfaces](/sdk/pipeline/protocols/), and
+[current support](/sdk/reference/status/).

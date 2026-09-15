@@ -7,13 +7,6 @@ Half-gates reduce encrypted table material for Boolean AND gates under compatibl
 
 PLLM documents this category for composition and research mapping. Presence in the taxonomy does not state that a reviewed native implementation or executable profile exists.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-available = [item.component for item in list_components() if "garbl" in item.component]
-print(available)
-```
-
-No half-gate component is currently published through the SDK.
+No public Python API currently exposes a half-gate component. See
+[research evidence](/research/evidence/) for the evidence boundary; taxonomy alone
+does not provide executable SDK support.

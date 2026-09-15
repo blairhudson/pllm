@@ -6,8 +6,8 @@ Required identity, lifecycle, representation, role, capability, evidence, and li
 
 Document ID: `pllm.docs.contribute.component-standard`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:44c34d2d0271fc8cd1aee38046a29ea349c4af180d8be68b0f3a48040c7f007a`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4`
 
 1. Choose a semantic category and stable authority-owned identity.
 2. Define versioned parameters, lifecycle phase, input and output representations, host requirements, roles, artifacts, and evidence pointers.
@@ -24,7 +24,11 @@ The canonical contract is [`design/component-standard.md`](https://github.com/bl
 from pllm.components import get_component
 
 descriptor = get_component("pllm/cpu")
-print(descriptor.to_dict())
+record = descriptor.to_dict()
+assert record["component"] == "pllm/cpu"
+assert {"provider", "version", "category", "capabilities"} <= record.keys()
 ```
 
 Built-in descriptors expose the public fields contributors must keep discoverable.
+
+API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)

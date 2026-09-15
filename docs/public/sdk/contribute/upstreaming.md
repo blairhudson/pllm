@@ -6,8 +6,8 @@ Move validated research work into maintained semantic and runtime components.
 
 Document ID: `pllm.docs.contribute.upstreaming`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:38e74f7c36b8ba0ac3bebe8ba8a758da457404cc3c61066b479ff0e389ef92d7`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:42a06a5f9f97eec9672f7df6e4bb91c6b0f938db5722de5daefde543a4fc8ba9`
 
 Upstreaming requires locked sources, a clean-room implementation record where applicable, fidelity tests, model-neutral semantics, component identity, compiler coverage, numeric analysis, matched benchmark evidence, scoped assurance, quality evaluation, limitations, and maintenance ownership.
 
@@ -15,13 +15,5 @@ A new publication claim also needs a stable method ID and evidence that isolates
 the contribution from the baseline. Failed and negative results remain useful
 research records.
 
-## Python SDK example
-
-```python
-from pllm.components import get_component
-
-component = get_component("pllm/kv-cache-eviction")
-print(component.version, component.evidence)
-```
-
-Empty evidence remains `not recorded`; component presence alone is not an upstreaming claim.
+No public Python API performs upstreaming or turns component presence into an evidence claim.
+See [research records](/research/records/) for the reviewable records that precede upstreaming.

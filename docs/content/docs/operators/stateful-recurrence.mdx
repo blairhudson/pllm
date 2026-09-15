@@ -12,15 +12,19 @@ Presence in a validated plan is not implementation coverage. Current compiler pr
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("qwen35-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+fixture = Path("crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operators = {operation["operator"] for operation in plan.prefill["operations"]}
 missing = [row["operator"] for row in plan.coverage().operators if row["level"] == "missing"]
-print(missing)
+assert {"causal_convolution", "gated_delta_rule", "gated_delta_state_update"} <= operators
+assert "gated_delta_rule" in missing
 ```
 
-`qwen35-config.json` is the supported pinned configuration; this reports unsupported operators without executing them.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the pinned Qwen3.5 fixture. This reports unsupported operators without executing them.

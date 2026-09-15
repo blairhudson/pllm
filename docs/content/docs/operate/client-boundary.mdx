@@ -15,10 +15,13 @@ No `run`, `chat`, or `serve` lifecycle command is parser-visible. See [status](/
 ## Python SDK example
 
 ```python
-from pllm import PrivacyMode
+import pllm
 
-mode = PrivacyMode.PUBLIC
-print(mode.description)
+mode = pllm.PrivacyMode.PUBLIC
+assert mode.value == "public"
+assert mode.protocol == "masked_w4a4"
 ```
+
+API: [`pllm.PrivacyMode`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This reads a public privacy declaration; it does not create a protected client session.

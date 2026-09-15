@@ -13,9 +13,11 @@ operations appear in `PlanCoverage` and stop compilation. PLLM never silently
 replaces them with plaintext or approximate work. Research methods also use these
 shared operators instead of relying on model-specific weight names.
 
-An operator in a model plan shows only that PLLM can describe it. See
-[compiler](/sdk/pipeline/compiler/) for execution support and [numerics](/sdk/build/numerics/)
-for integer and approximation requirements.
+An operator in a model plan shows only that PLLM can describe it. Read
+[numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
+for why operator coverage alone is insufficient. See
+[compiler](/sdk/pipeline/compiler/) for execution support and
+[numerics](/sdk/build/numerics/) for integer and approximation requirements.
 
 The bounded [SiLU activation](/sdk/build/operators/activation-silu/) is the first
 operator with an experimental plan-bound protected executor. Other listed
@@ -25,15 +27,19 @@ implemented.
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
 operators = {operation["operator"] for operation in plan.prefill["operations"]}
-print(sorted(operators))
+assert {"linear", "rotary_embedding", "silu", "softmax"} <= operators
+assert plan.coverage().complete is False
 ```
 
-This inspects semantic operators; it does not establish execution coverage.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the checked-in fixture. This inspects semantic operators; it does not establish
+execution coverage.

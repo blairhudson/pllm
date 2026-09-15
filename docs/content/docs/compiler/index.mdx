@@ -8,6 +8,9 @@ It checks operator support, value formats, conversions, numeric settings, party
 placement, preparation, native kernels, and assurance requirements. The result is
 an executable plan with a content digest.
 
+[Numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
+explains why compiling every operator still does not establish generation fidelity.
+
 The coverage report names every missing operator, conversion, party role, numeric
 bound, assurance record, or compatible component version. Required gaps stop
 compilation instead of triggering a hidden fallback. All model families use the
@@ -16,17 +19,22 @@ same semantic model format.
 Current research profiles cannot execute a complete listed model plan. A model
 adapter can therefore be available while full private inference remains unsupported.
 
+This example requires a PLLM source checkout and must run from its repository root
+because it reads the checked-in compiler fixture.
+
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import compile
 
-request = json.loads(Path("compile-request.json").read_text(encoding="utf-8"))
+request = Path("schemas/fixtures/compile-request.valid.json").read_text(encoding="utf-8")
 plan = compile(request)
-print(plan.execution_plan_digest)
+assert plan.input_shape == (2, 3)
+assert plan.output_shape == (2, 2)
 ```
+
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Compilation rejects unsupported coverage rather than hiding it behind a fallback. Complete model compilation remains unsupported for current research profiles.

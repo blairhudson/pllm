@@ -11,13 +11,5 @@ Keep identity, implementation, coverage, evidence, quality, privacy, and deploym
 status separate. Do not add compiler branches named after a paper or hidden
 registration that exists only in one runtime.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-for component in list_components():
-    print(component.component, component.category, component.version)
-```
-
-Contributors should preserve this side-effect-free discovery contract.
+No public Python API performs the contribution workflow. See [current support](/sdk/reference/status/)
+before proposing a new public contract.

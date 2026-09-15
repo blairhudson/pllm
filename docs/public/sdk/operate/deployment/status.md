@@ -6,8 +6,8 @@ Understand current deployment support, required role placement, and missing orch
 
 Document ID: `pllm.docs.operate.deployment`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:739fe6e092abaa92b71a58687a27c9cf30ab9a09bed61d46bb38bbfd901564a4`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:2e99a4002ebccd03e7bff63f4c8a011f980a6815a236eb6076cf853e47487e69`
 
 Deployment declarations currently support local public configuration. Runtime contains development application/service factories and loopback integration coverage, but generic remote `Deployment`, plan-locked role orchestration, operator identity provisioning, and production recovery are not established.
 
@@ -18,10 +18,12 @@ Unavailable CLI families: `prepare`, `run`, `chat`, `serve`, and `party serve`. 
 ## Python SDK example
 
 ```python
-from pllm import Deployment
+import pllm
 
-deployment = Deployment.local(root=".pllm/local")
-print(deployment.kind)
+deployment = pllm.Deployment.local(root=".pllm/local")
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
 ```
+
+API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Only local deployment configuration is supported; this does not perform orchestration.

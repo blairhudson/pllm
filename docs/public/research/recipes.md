@@ -6,8 +6,8 @@ Build, reproduce, compare, and review private-inference research with explicit s
 
 Document ID: `pllm.docs.recipes`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:b7887f22b7b4cbcf4772d0e90ee8c050def31abce640e84b3c20e0a8bd75630a`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:8dcdbfb46c9671fe35d041794c5bf655dc22e4cb845b7580d8ff3be9fc192cd2`
 
 A recipe records exact sources, method and component versions, model and workload
 limits, environment requirements, steps, expected files, evidence, and failure
@@ -17,9 +17,9 @@ Recipes support reproducibility without making third-party repositories runtime
 dependencies. PLLM implements methods independently in Python and Rust. Original
 artifacts remain sources and comparison material only.
 
-Run `pllm research recipes list` to inspect current records. Recipe execution is
-not supported because sandboxing, artifact identity, and result records are not
-yet available together.
+Run [`pllm research recipes list`](/cli/reference/research/recipes/list/) to inspect
+current records. Recipe execution is not supported because sandboxing, artifact
+identity, and result records are not yet available together.
 
 Use the pages in this section to choose a workflow. Build and reproduction work
 must stop rather than silently substituting an upstream runtime, weakening the

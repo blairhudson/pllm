@@ -12,7 +12,14 @@ description: "Define a reproducible PLLM system from configuration, models, comp
 ## Python SDK example
 
 ```python
-from pllm.components import list_components
+from pllm import Cpu, Model, Pipeline
 
-print([component.component for component in list_components()])
+pipeline = Pipeline.from_profile(
+    "public-weight-local",
+    model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
+    components={"kernel": Cpu(threads=2)},
+)
+assert pipeline.to_spec()["components"]["kernel"]["params"]["threads"] == 2
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

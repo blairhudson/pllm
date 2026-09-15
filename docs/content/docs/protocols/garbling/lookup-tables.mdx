@@ -7,13 +7,6 @@ A lookup-table component maps a finite encoded domain to an encoded range. Its c
 
 Tables are useful for nonlinearities only when domain bounds and total storage remain explicit. Approximation and model-quality evidence belong to the numeric policy, not the table name.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-available = [item.component for item in list_components() if "lookup" in item.component]
-print(available)
-```
-
-No lookup-table component is currently published through the SDK.
+No public Python API currently exposes a garbled lookup-table component. See
+[research evidence](/research/evidence/) for the evidence boundary; no lookup-table
+component is currently published through the SDK.

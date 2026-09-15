@@ -15,7 +15,10 @@ The stable Python ABI starts at 3.11. No third-party native plugin ABI is curren
 from pllm.kernels import Cpu
 
 descriptor = Cpu.describe()
-print(descriptor.distribution, descriptor.required_host_features)
+assert descriptor.distribution == "pllm"
+assert "cpu" in descriptor.capabilities
 ```
 
 This inspects built-in metadata without loading a third-party plugin.
+
+API: [`pllm.kernels.Cpu`](/sdk/reference/python/pllm/#objects-and-signatures)

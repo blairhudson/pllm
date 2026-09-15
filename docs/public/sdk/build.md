@@ -6,8 +6,8 @@ Define a reproducible PLLM system from configuration, models, components, and re
 
 Document ID: `pllm.docs.build`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:f2b2505d1b1ceaf1097aa4b9ad31719954fc939291c5cb46bb33d370b15ee3a8`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860`
 
 - [SDK configuration](/sdk/configuration/) records what you intend to build.
 - [Models](/sdk/build/model-adapters/) translate model-family settings into shared operations.
@@ -18,7 +18,14 @@ Source hash: `sha256:f2b2505d1b1ceaf1097aa4b9ad31719954fc939291c5cb46bb33d370b15
 ## Python SDK example
 
 ```python
-from pllm.components import list_components
+from pllm import Cpu, Model, Pipeline
 
-print([component.component for component in list_components()])
+pipeline = Pipeline.from_profile(
+    "public-weight-local",
+    model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
+    components={"kernel": Cpu(threads=2)},
+)
+assert pipeline.to_spec()["components"]["kernel"]["params"]["threads"] == 2
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

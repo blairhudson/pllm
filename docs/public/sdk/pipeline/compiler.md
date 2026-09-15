@@ -6,13 +6,16 @@ Learn how PLLM turns a model plan and component choices into a checked execution
 
 Document ID: `pllm.docs.compiler`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:ce1397fe7dd5f0980df6541073962ade70e8f3b9f162056a30c766f83b0da39f`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:c0d3ee32135e041d2e3501df584823d60b898062ef00819484113f15f9084ffb`
 
 Compilation combines a model plan, component choices, workload limits, and policy.
 It checks operator support, value formats, conversions, numeric settings, party
 placement, preparation, native kernels, and assurance requirements. The result is
 an executable plan with a content digest.
+
+[Numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
+explains why compiling every operator still does not establish generation fidelity.
 
 The coverage report names every missing operator, conversion, party role, numeric
 bound, assurance record, or compatible component version. Required gaps stop
@@ -22,17 +25,22 @@ same semantic model format.
 Current research profiles cannot execute a complete listed model plan. A model
 adapter can therefore be available while full private inference remains unsupported.
 
+This example requires a PLLM source checkout and must run from its repository root
+because it reads the checked-in compiler fixture.
+
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import compile
 
-request = json.loads(Path("compile-request.json").read_text(encoding="utf-8"))
+request = Path("schemas/fixtures/compile-request.valid.json").read_text(encoding="utf-8")
 plan = compile(request)
-print(plan.execution_plan_digest)
+assert plan.input_shape == (2, 3)
+assert plan.output_shape == (2, 2)
 ```
+
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Compilation rejects unsupported coverage rather than hiding it behind a fallback. Complete model compilation remains unsupported for current research profiles.

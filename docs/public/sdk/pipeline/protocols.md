@@ -6,25 +6,41 @@ See how PLLM defines parties, messages, privacy assumptions, and failure behavio
 
 Document ID: `pllm.docs.protocols`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:e16f915fab73ebc12c737397f438d1e89b0debcd60351e2b3bba109ed04f2811`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:bc5ed0e0d4d053194e1dd12b98569bfd7e1a97a4bdad39bb09416ec7ecae5887`
 
 A protocol defines its parties, offline and online phases, inputs, outputs,
 messages, authentication, replay behavior, one-time material, visible information,
 trust assumptions, and failure behavior. Model adapters and deployment policy are
 separate concerns.
 
+Start with [privacy and threat models](/learn/privacy-and-threat-models/) before
+using these implementation interfaces to select a protocol.
+
 Current protocols include [masked-linear inference](/sdk/pipeline/protocols/masked-linear/)
 and experimental [garbling components](/sdk/pipeline/protocols/garbling/). Check execution
-support, security review, assurance, and deployment status separately.
+support, security review, assurance, and deployment status separately; apply the
+[research evidence](/research/evidence/) rules to any supporting records.
 
 ## Python SDK example
 
 ```python
-from pllm.components import list_components
+import numpy as np
 
-protocols = [item for item in list_components() if item.category == "pllm/protocol-method"]
-print([item.component for item in protocols])
+from pllm import AuthenticatedMPC, AuthenticationError, TrustedPreprocessor
+
+mpc = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=2))
+value = mpc.public_value(np.array([5], dtype=np.int64))
+try:
+    mpc.open(value.tamper_client(value_delta=1))
+except AuthenticationError:
+    tamper_detected = True
+else:
+    tamper_detected = False
+assert tamper_detected
 ```
 
-This lists published protocol descriptors; discovery does not start a protocol.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This checks authenticated-opening failure behavior in the single-process reference
+protocol; it does not start separate protocol parties.

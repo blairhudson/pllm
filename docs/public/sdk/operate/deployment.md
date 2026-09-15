@@ -6,21 +6,24 @@ Learn how to assign PLLM roles to authenticated services without changing privac
 
 Document ID: `pllm.docs.deployment`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:9978adbd22efe5038960414f19d4aafb6642fb56ded8f2b90e2eb327e8deb97c`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:f514264025ce4ee91762bca2f05d29a025c59715d418b91de2c3c5fe3703fa5f`
 
 A deployment assigns each protocol role to a process and operator. It records
 endpoints, authentication, separate credentials, provider identity, storage,
 capacity, expiration, observability, shutdown behavior, and trust boundaries.
+Review [privacy and threat models](/learn/privacy-and-threat-models/) before
+changing that placement.
 
 The client must keep plaintext prompts, masks, private scales, model state, and
 decoding. Client-to-inference, client-to-preparation, and
 preparation-to-inference connections use different credentials. Changing the URL
 of an ordinary model API does not make its unmodified SDK private.
 
-A loopback run checks that the services work together on one machine. It does not
-show that production operators are independent. Deployment assurance must refer
-to the exact plan and environment being evaluated.
+A loopback [`pllm benchmark run`](/cli/reference/benchmark/run/) checks that the
+services work together on one machine. It does not show that production operators
+are independent. Deployment assurance must refer to the exact plan and environment
+being evaluated.
 
 ## Python SDK example
 
@@ -28,7 +31,9 @@ to the exact plan and environment being evaluated.
 from pllm.deployment import Deployment
 
 deployment = Deployment.local(root=".pllm/local")
-print(deployment.to_spec())
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
 ```
+
+API: [`pllm.deployment.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This creates configuration only. Generic remote role deployment is not supported.

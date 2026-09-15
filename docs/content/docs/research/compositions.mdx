@@ -5,13 +5,15 @@ description: "Learn how PLLM records research recipes and changes to a model pla
 
 Recipes describe source acquisition, target model operations, required evidence,
 review gates, and failure policy. Inspecting a recipe returns a read-only record;
-it does not run third-party code or a PLLM workflow. See the
-[Research APIs](/sdk/research/) and [CLI](/cli/) documentation for callable
-interfaces.
+it does not run third-party code or a PLLM workflow. Use
+[`pllm research recipes list`](/cli/reference/research/recipes/list/) to discover
+records and [`pllm research recipes show`](/cli/reference/research/recipes/show/)
+to inspect one.
 
-A composed plan records the method, value formats, conversions, numeric policy,
+A [composed plan](/sdk/plans/) records the method, value formats, conversions, numeric policy,
 parties, threat model, visible information, state lifetime, workload, component
-version, and coverage. Matching shapes and data types are not enough. A change to
+version from the [component inventory](/sdk/reference/components/), and coverage.
+Matching shapes and data types are not enough. A change to
 the source, implementation, configuration, plan, workload, or cohort creates new
 plan history.
 

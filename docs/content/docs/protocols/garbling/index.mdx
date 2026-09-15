@@ -7,13 +7,6 @@ Garbling is a family of representations and protocols, not one interchangeable b
 
 Current clean-room arithmetic work is reference-only and unreviewed. It is excluded from executable compiler profiles until protocol, transport, coverage, and assurance gates pass. See [research reproductions](/research/recipes/reproductions/).
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-garbling = [item.component for item in list_components() if "garbl" in item.component]
-print(garbling)
-```
-
-The empty built-in result represents current unsupported SDK state; it is not an execution fallback.
+No public Python API currently exposes garbling configuration or execution. Follow
+[research reproductions](/research/recipes/reproductions/) for experimental evidence;
+the unsupported SDK state is not an execution fallback.

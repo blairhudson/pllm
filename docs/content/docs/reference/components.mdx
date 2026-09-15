@@ -13,8 +13,11 @@ Catalog reflects `pllm.components.list_components()` only. Empty descriptor evid
 from pllm.components import get_component
 
 component = get_component("pllm/cpu")
-print(component.to_dict())
+assert component.component == "pllm/cpu"
+assert "cpu" in component.capabilities
 ```
+
+API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 | Identity/version | Lifecycle | Implementation maturity | Provenance | Input/output representation | Roles/topology | Privacy/assurance | Model/operator coverage | Evidence/cohort | Known limitations |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

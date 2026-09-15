@@ -6,8 +6,8 @@ Locate model planning, compiler contracts, native execution, Python APIs, CLI co
 
 Document ID: `pllm.docs.agents.implementation-map`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:186d77e7290e98cfd085b9499983345cbda52c3a0387ed15e884f9263c83b4c3`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:ef33a0646ac659357e0b7e180477a382f7d0b3a01fbe4932360fcbe98edd66aa`
 
 - `crates/pllm-models`: model-neutral semantic decoder IR and family adapters.
 - `crates/pllm-method-mpcache`: generic research transform over semantic plans.
@@ -26,7 +26,10 @@ Dependency direction remains Python to PyO3 to Rust core; semantic model code mu
 ```python
 from pllm.research import render_agents_guide
 
-print(render_agents_guide())
+guide = render_agents_guide()
+assert "`python/pllm/` is the only installed Python namespace" in guide
 ```
 
 The generated guide locates public and implementation surfaces without importing implementation providers.
+
+API: [`pllm.research.render_agents_guide`](/sdk/reference/python/pllm/#objects-and-signatures)

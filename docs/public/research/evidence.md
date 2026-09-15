@@ -6,13 +6,14 @@ Understand which evidence supports fidelity, performance, privacy, and deploymen
 
 Document ID: `pllm.docs.research.evidence`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:0c75025889d82d4e3d3606346cef3b27912faef9fedb03a8370fa91b4c864d0d`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:40bd5a42a6d476151a99b2f55d1a9bcf77b7c9ac462851f9c6eb659d838319c4`
 
 PLLM records source claims, clean-room fidelity, native implementation agreement,
-compiler coverage, runtime support, generation quality, matched benchmarks,
-assurance, and deployment observations separately. Missing evidence is unknown;
-it is not a zero result.
+compiler coverage, runtime support, generation quality,
+[matched benchmarks](/sdk/research/benchmarks/),
+[assurance](/sdk/research/assurance/), and deployment observations separately.
+Missing evidence is unknown; it is not a zero result.
 
 Accepted records live under [`research/evidence/`](https://github.com/blairhudson/pllm/tree/main/research/evidence).
 Each record keeps its environment, workload, software revision, and limitations.

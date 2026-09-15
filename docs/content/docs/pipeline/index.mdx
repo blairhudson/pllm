@@ -9,10 +9,12 @@ normalized values, not live connections or provider state.
 
 Creating a pipeline does not run anything. Model lowering, research transforms,
 compilation, deployment, preparation, and session creation are separate steps.
-Each step returns a record or a structured error.
+Each step returns a record or a structured error. The
+[parties and offline work](/learn/parties-and-offline-work/) overview explains why
+preparation and live inference remain distinct.
 
-Run `pllm config show examples/pllm.yaml` to inspect a configuration without
-loading a model or runtime.
+Run [`pllm config show`](/cli/reference/config/show/) to inspect
+`examples/pllm.yaml` without loading a model or runtime.
 
 ## Python SDK example
 
@@ -24,7 +26,11 @@ pipeline = Pipeline.from_profile(
     model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
     components={"linear": MaskedLinear(), "preparation": ModelAwareCorrections(), "kernels": Cpu()},
 )
-print(pipeline.to_spec())
+spec = pipeline.to_spec()
+assert spec["components"]["linear"] == {"component": "pllm/masked-linear", "params": {}}
+assert spec["components"]["kernels"]["params"]["threads"] == 1
 ```
+
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This creates public configuration only; it does not start a runtime.

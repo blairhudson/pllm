@@ -11,6 +11,7 @@ const EXACT_ROUTES = new Map([
 ]);
 
 const PREFIX_ROUTES = [
+  ['reference/cli', 'cli/reference'],
   ['research/experiments', 'research/recipes/experiments'],
   ['research/reproductions', 'research/recipes/reproductions'],
   ['reference', 'sdk/reference'],

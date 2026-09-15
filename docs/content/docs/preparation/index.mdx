@@ -8,21 +8,30 @@ transferred, confirmed, erased, expired, and invalidated. They also identify who
 owns the material and how much can be stored. Protocol and kernel choices remain
 separate.
 
-For public masked-linear inference, the client sends seed batches to preparation.
-Preparation computes corrections, and inference stores them in a sealed inventory.
-The client refills inventory only while idle. A restart or idle timeout discards
-inventory held in memory.
+The [parties and offline work](/learn/parties-and-offline-work/) overview explains
+the role boundary. For public masked-linear inference, the client sends seed batches
+to preparation. Preparation computes corrections, and inference stores them in a
+sealed inventory. The client refills inventory only while idle. A restart or idle
+timeout discards inventory held in memory.
 
 Prepared material is part of the system cost. Benchmarks must state whether
-preparation and loading are included in cold and warm measurements.
+preparation and loading are included in cold and warm measurements so the resulting
+[research evidence](/research/evidence/) keeps that scope visible.
 
 ## Python SDK example
 
 ```python
-from pllm.preparation import ModelAwareCorrections
+import numpy as np
 
-descriptor = ModelAwareCorrections.describe()
-print(descriptor.lifecycle_phase, descriptor.role_eligibility)
+from pllm import TrustedPreprocessor
+
+preparation = TrustedPreprocessor(modulus=65537, seed=7)
+mask = preparation.input_mask((3,))
+reconstructed = (mask.shared_mask.client.value + mask.shared_mask.server.value) % 65537
+assert np.array_equal(reconstructed, mask.clear_mask_for_client)
 ```
 
-This inspects preparation metadata; it does not create one-time material.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This creates and checks reference one-time material in process. Production use
+requires a reviewed correlation protocol and separate roles.

@@ -7,17 +7,24 @@ description: "Lower a model configuration, add components, and inspect compiler 
 into a `ModelPlan`. Lowering records model operations and state; it does not load
 weights or make the plan executable.
 
+## Python SDK example
+
 ```python
-import json
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import KvCacheEviction, lower_model
 
-config = json.loads(Path("model-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=2048, max_new_tokens=128)
-print(plan.to_dict()["adapter"])
-print(plan.digest)
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+base = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+optimized = base.apply(KvCacheEviction())
+assert optimized.digest != base.digest
+assert optimized.to_dict()["transformations"][-1]["component"] == "pllm/kv-cache-eviction"
 ```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the model-adapter test fixture.
 
 Use `plan.apply(component)` to create a new plan with a research or runtime
 component. Use `plan.coverage(profile)` to inspect the operators a compiler profile

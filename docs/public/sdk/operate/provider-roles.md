@@ -6,8 +6,8 @@ Understand the responsibilities of deployment operators, preparation services, a
 
 Document ID: `pllm.docs.operate.provider-roles`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:f5dd91b975c2ba60f9bcb7897df343c7bfc131a5dfed9aaabd871c6ff445159c`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:eee97122d4ad7884373a0a4f0a8136daaa74552e7eab4ead3e707d2ab5cae805`
 
 Provider supplies static component metadata and implementation artifacts. Operator supplies process placement, authenticated identity, authorization, storage, and operational policy. Preparation creates or installs method-specific material. Inference consumes assigned plan work. A deployment may combine processes, but cannot erase semantic role boundaries or establish non-collusion.
 
@@ -19,7 +19,10 @@ Metadata discovery through `pllm components` never loads providers or native lib
 from pllm.components import get_component
 
 method = get_component("pllm/masked-linear")
-print(method.role_eligibility)
+assert method.lifecycle_phase == "compilation"
+assert method.role_eligibility == ("client", "preparation", "inference")
 ```
+
+API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Role metadata does not establish operator identity, authentication, or non-collusion.

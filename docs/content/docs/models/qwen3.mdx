@@ -10,14 +10,18 @@ The checked fixture is `ricdomolm/mini-coder-4b` revision `c87892d046a62415a349a
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("qwen3-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
+assert operations["layer.0.q_norm"]["operator"] == "rms_norm"
+assert operations["layer.0.rope_q"]["output_shape"][-1] == 128
 ```
 
-`qwen3-config.json` must satisfy the supported dense Qwen3 contract. This does not execute the model.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the pinned mini-coder fixture. This does not execute the model.

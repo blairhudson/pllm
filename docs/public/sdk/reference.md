@@ -6,13 +6,16 @@ Look up exact CLI commands, Python APIs, schemas, components, research records, 
 
 Document ID: `pllm.docs.reference`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:dd0833496a3391ffae5bffb22c86357a20d6621302e17cadd8d7e76395ffa35d`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:301c71676e2e7029758a8b7a9be75aaf317e6d07f58385b33f131cc76649a274`
 
 - [Python API](/sdk/reference/python/pllm/) lists the public package exports.
 - [Native API](/sdk/reference/native/) describes the Rust and PyO3 boundaries.
 - [Schemas](/sdk/reference/schemas/) link to machine-readable contracts.
-- [CLI reference](/cli/reference/) is generated from the real command parser.
+- [CLI reference](/cli/reference/) is generated from the real command parser;
+task pages cover [configuration inspection](/cli/reference/config/show/),
+[component inspection](/cli/reference/components/show/), and
+[loopback benchmarking](/cli/reference/benchmark/run/).
 - [Component catalog](/sdk/reference/components/) lists built-in components.
 - [Research catalog](/research/records/method-catalog/) lists public research records.
 - [Current support](/sdk/reference/status/) separates available, experimental, and unsupported behavior.
@@ -22,7 +25,10 @@ Run `uv run python scripts/generate_developer_reference.py --check` to verify co
 ## Python SDK example
 
 ```python
-from pllm.components import list_components
+import pllm
+from pllm.components import ComponentRef
 
-print([item.component for item in list_components()])
+assert pllm.ComponentRef is ComponentRef
 ```
+
+API: [`pllm.ComponentRef`](/sdk/reference/python/pllm/#objects-and-signatures)

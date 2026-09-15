@@ -6,8 +6,8 @@ Learn what PLLM protects, what each party can see, and which trust assumptions s
 
 Document ID: `pllm.docs.learn.privacy-and-threat-models`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:60b95eca50adb2720520bb4a112b61cd9c7943d0f18d1a1c38e5f93b286c3318`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:b7a2162a110280a1c987c0c1e4621c5e4e3abb5f0a925f24ee1413e6cd4ae3fb`
 
 To evaluate a private inference system, ask six questions:
 
@@ -32,5 +32,5 @@ Authentication and replay controls protect the transport, but they do not protec
 against every malicious participant. Timing, traffic volume, public model identity,
 tensor shapes, and approximate sequence length may remain visible.
 
-Use [assurance records](/sdk/research/assurance/) to evaluate a specific privacy claim.
-Do not infer privacy from the number or names of the services alone.
+Use [research evidence records](/research/evidence/) to evaluate a specific
+privacy claim. Do not infer privacy from the number or names of the services alone.

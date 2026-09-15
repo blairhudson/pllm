@@ -6,8 +6,8 @@ Assign client, preparation, and inference responsibilities without weakening the
 
 Document ID: `pllm.docs.operate`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:3b50fc5e188402f2f53bc0c77e8ede831dbc5a2be5bada8c311c25f603ed58b9`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:701edae02def99edc0ffdf0514567fe24e04dac6e5d1ef1849c6f07e5b7a863f`
 
 - [Client boundary](/sdk/operate/client-boundary/) keeps plaintext application data with the user.
 - [Provider roles](/sdk/operate/provider-roles/) separate preparation and inference responsibilities.
@@ -16,10 +16,12 @@ Source hash: `sha256:3b50fc5e188402f2f53bc0c77e8ede831dbc5a2be5bada8c311c25f603e
 ## Python SDK example
 
 ```python
-from pllm import Deployment
+import pllm
 
-deployment = Deployment.local(root=".pllm/local")
-print(deployment.to_spec())
+deployment = pllm.Deployment.local(root=".pllm/local")
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
 ```
+
+API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This records local intent only; it does not start or authenticate services.

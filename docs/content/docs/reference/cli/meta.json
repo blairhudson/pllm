@@ -1,5 +1,12 @@
 {
   "title": "Command reference",
   "root": true,
-  "pages": ["index"]
+  "pages": [
+    "index",
+    "config",
+    "components",
+    "benchmark",
+    "research",
+    "dev"
+  ]
 }

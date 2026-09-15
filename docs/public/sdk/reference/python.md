@@ -6,8 +6,8 @@ The installed pllm namespace and its generated public API inventory.
 
 Document ID: `pllm.docs.reference.python`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:4627c9156db4b74e67b529576447230f74aee4ed9a5a5f293b35252c908fb200`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:783bba56b0a47ef52112173d60c5a36c9520e1f1fc492a16c10a9648fb071011`
 
 `python/pllm` is the only installed namespace. Public objects are imported on demand so metadata discovery does not load model weights, devices, providers, or runtime state.
 
@@ -17,6 +17,9 @@ See the generated [`pllm` package inventory](/sdk/reference/python/pllm/) for ex
 
 ```python
 import pllm
+from pllm.config import Experiment
 
-print(pllm.__version__)
+assert pllm.Experiment is Experiment
 ```
+
+API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

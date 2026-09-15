@@ -12,14 +12,18 @@ The upstream model name and adapter identity are Phi-4 mini even though the chec
 ## Python SDK example
 
 ```python
-import json
 from pathlib import Path
 
 from pllm import lower_model
 
-config = json.loads(Path("phi4-mini-config.json").read_text(encoding="utf-8"))
-plan = lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-assert plan.to_dict()["adapter"] == "pllm.phi4_mini.v1"
+fixture = Path("crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
+assert operations["layer.0.qkv_linear"]["output_shape"] == (1, 16, 5120)
+assert operations["layer.0.rope_q"]["attributes"]["rope_type"] == "longrope"
 ```
 
-`phi4-mini-config.json` must be the supported pinned configuration. Lowering does not import or execute its checkpoint.
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the pinned fixture. Lowering does not import or execute its checkpoint.

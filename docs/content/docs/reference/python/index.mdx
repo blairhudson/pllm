@@ -11,6 +11,9 @@ See the generated [`pllm` package inventory](/sdk/reference/python/pllm/) for ex
 
 ```python
 import pllm
+from pllm.config import Experiment
 
-print(pllm.__version__)
+assert pllm.Experiment is Experiment
 ```
+
+API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

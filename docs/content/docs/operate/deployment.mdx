@@ -12,10 +12,12 @@ Unavailable CLI families: `prepare`, `run`, `chat`, `serve`, and `party serve`. 
 ## Python SDK example
 
 ```python
-from pllm import Deployment
+import pllm
 
-deployment = Deployment.local(root=".pllm/local")
-print(deployment.kind)
+deployment = pllm.Deployment.local(root=".pllm/local")
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
 ```
+
+API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Only local deployment configuration is supported; this does not perform orchestration.

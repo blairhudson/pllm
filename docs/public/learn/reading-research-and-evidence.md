@@ -6,8 +6,8 @@ Learn how PLLM connects papers, clean-room implementations, measurements, and pu
 
 Document ID: `pllm.docs.learn.reading-research-and-evidence`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:1b9c66b99aaeadf31a297c9c1c47df0f88e766e50bc9d49b7790f8bfc0100d09`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:a770dedfe7ec4916dcab45a771035927a905186a407da23e9f8afd45f744aacd`
 
 PLLM records each step from a paper to a published result. It keeps the original
 source, clean-room method, component version, plan history, benchmark evidence,
@@ -19,4 +19,6 @@ Compare results only when the model, model-body fingerprint, plan, numeric polic
 workload, environment, cold or warm mode, and metric definitions match. Keep
 limitations and failed attempts in the record. Missing evidence is not a pass.
 
-Continue with [research](/research/), [benchmarks](/sdk/research/benchmarks/), and [assurance](/sdk/research/assurance/).
+Continue with [method implementation records](/research/methods/),
+[research evidence boundaries](/research/evidence/), and the
+[reproduction workflow](/research/recipes/reproductions/).

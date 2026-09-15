@@ -6,8 +6,8 @@ Understand which live state a PLLM runtime owns and how it differs from a reprod
 
 Document ID: `pllm.docs.runtime`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:8d7c5abffcae5b43e0e3396117d712c7074a108770221f7806f10ab8b6a6aa9d`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:1a5bfd2612ed20f64ede88b20d9db4cc96b5af05b62e977a6f87b7ebff31fa19`
 
 A runtime session owns changing state such as inventory reservations, connections,
 scheduling, the KV cache, native executors, and cancellation. This state is not
@@ -25,10 +25,17 @@ lifecycle commands.
 ## Python SDK example
 
 ```python
-from pllm import PrivacyMode
+import numpy as np
 
-mode = PrivacyMode.parse("public")
-print(mode.value, mode.protocol)
+from pllm import AuthenticatedMPC, TrustedPreprocessor
+
+runtime = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=4))
+opened = runtime.open(runtime.public_value(np.array([7, 8], dtype=np.int64)))
+assert opened.tolist() == [7, 8]
+assert runtime.stats.opening_rounds == 1
 ```
 
-Selecting a privacy declaration does not create a session or prove deployment support.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+The opening updates live runtime counters. This in-process arithmetic simulator is
+not a deployed multi-party session.

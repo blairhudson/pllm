@@ -26,6 +26,28 @@
   <url><loc>https://pllm.run/sdk/operate/deployment/status/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/</loc></url>
   <url><loc>https://pllm.run/cli/reference/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/config/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/components/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/benchmark/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/dev/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/config/show/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/config/export/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/components/list/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/components/show/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/sources/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/methods/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/recipes/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/assess/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/agents/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/benchmark/run/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/dev/dashboard/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/sources/list/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/sources/show/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/methods/list/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/methods/show/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/recipes/list/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/research/recipes/show/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/python/pllm/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/components/</loc></url>
   <url><loc>https://pllm.run/research/records/method-catalog/</loc></url>

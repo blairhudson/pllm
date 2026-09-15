@@ -6,8 +6,8 @@ Use the Python SDK to benchmark plans, run scoped assurance checks, and produce 
 
 Document ID: `pllm.docs.measure`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:63b44326188d0ac42bf56905b6d40393d344955453f8f8742bcc224306fb2532`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:dd7e5035522877c46fd0b86b7fc5146db157fdfad877e1e26e12de3b67f143fa`
 
 - [Benchmark](/sdk/research/benchmark/) documents `pllm.benchmark(...)` and
 `pllm.deployment_benchmark(...)`.
@@ -17,17 +17,24 @@ its result.
 by the SDK.
 - [Assurance records](/sdk/research/assurance/) explain what an assurance result can and
 cannot support.
+- [`pllm benchmark run`](/cli/reference/benchmark/run/) documents the separate
+real-role loopback diagnostic.
 
-For study design, source reproduction, and comparison rules, use the
-[Research workflows](/research/recipes/) section instead.
+For provenance and implementation boundaries, use
+[method implementations](/research/methods/). For measurement scope and claim
+limits, use [research evidence](/research/evidence/).
 
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.schema_version)
+report = pllm.assure()
+findings = {finding["id"]: finding for finding in report.to_dict()["findings"]}
+assert report.schema_version == "pllm.assurance_report.v1"
+assert findings["mask_reuse"]["outcome"] == "refuted_in_scope"
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This runs only the package's scoped deterministic assurance fixtures.

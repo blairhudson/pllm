@@ -11,17 +11,24 @@ description: "Use the Python SDK to benchmark plans, run scoped assurance checks
   by the SDK.
 - [Assurance records](/sdk/research/assurance/) explain what an assurance result can and
   cannot support.
+- [`pllm benchmark run`](/cli/reference/benchmark/run/) documents the separate
+  real-role loopback diagnostic.
 
-For study design, source reproduction, and comparison rules, use the
-[Research workflows](/research/recipes/) section instead.
+For provenance and implementation boundaries, use
+[method implementations](/research/methods/). For measurement scope and claim
+limits, use [research evidence](/research/evidence/).
 
 ## Python SDK example
 
 ```python
-from pllm import assure
+import pllm
 
-report = assure()
-print(report.schema_version)
+report = pllm.assure()
+findings = {finding["id"]: finding for finding in report.to_dict()["findings"]}
+assert report.schema_version == "pllm.assurance_report.v1"
+assert findings["mask_reuse"]["outcome"] == "refuted_in_scope"
 ```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 This runs only the package's scoped deterministic assurance fixtures.

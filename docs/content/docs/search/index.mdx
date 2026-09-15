@@ -14,13 +14,6 @@ does not declare one plan best for every deployment.
 Finding a candidate is not proof that it works. A selected plan must compile, run
 in its stated environment, and produce matching benchmark and assurance records.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-candidates = [item.to_dict() for item in list_components()]
-print([item["component"] for item in candidates])
-```
-
-This discovers candidate metadata only. No public SDK search executor is currently available.
+No public Python API currently executes plan search or applies resource constraints
+to candidate designs. See [current Python support](/sdk/reference/status/). Static
+component discovery is not a search result.

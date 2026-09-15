@@ -13,13 +13,6 @@ The compiler can insert only a declared conversion that satisfies both component
 interfaces. A matching Python or Rust type cannot silently open a private value or
 allow a lossy cast.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-conversions = [item for item in list_components() if "conversion" in item.category]
-print(conversions)
-```
-
-An empty result means no built-in conversion component is currently published; it does not authorize an implicit cast.
+No public Python API currently exposes conversion planning or execution. See
+[current Python support](/sdk/reference/status/). No built-in conversion component
+is currently published, and that absence does not authorize an implicit cast.

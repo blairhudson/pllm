@@ -6,29 +6,38 @@ Prepare one-time masked material before a private inference request starts.
 
 Document ID: `pllm.docs.preparation`  
 Release: `0.1.0`  
-Build: `sha256:bf56c232413fe9b57bc2befe009368956690afaf0d708914c7620c3b7d5d9531`  
-Source hash: `sha256:64ab1c2348710022c2ae1c8d5d7da7d30d50e3420ada65221646745e750deb89`
+Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Source hash: `sha256:5b7483893fd1b386f018e4e615558233140714467317a5a63dbb7c6931e82cc9`
 
 Preparation components define how one-time material is created, batched, committed,
 transferred, confirmed, erased, expired, and invalidated. They also identify who
 owns the material and how much can be stored. Protocol and kernel choices remain
 separate.
 
-For public masked-linear inference, the client sends seed batches to preparation.
-Preparation computes corrections, and inference stores them in a sealed inventory.
-The client refills inventory only while idle. A restart or idle timeout discards
-inventory held in memory.
+The [parties and offline work](/learn/parties-and-offline-work/) overview explains
+the role boundary. For public masked-linear inference, the client sends seed batches
+to preparation. Preparation computes corrections, and inference stores them in a
+sealed inventory. The client refills inventory only while idle. A restart or idle
+timeout discards inventory held in memory.
 
 Prepared material is part of the system cost. Benchmarks must state whether
-preparation and loading are included in cold and warm measurements.
+preparation and loading are included in cold and warm measurements so the resulting
+[research evidence](/research/evidence/) keeps that scope visible.
 
 ## Python SDK example
 
 ```python
-from pllm.preparation import ModelAwareCorrections
+import numpy as np
 
-descriptor = ModelAwareCorrections.describe()
-print(descriptor.lifecycle_phase, descriptor.role_eligibility)
+from pllm import TrustedPreprocessor
+
+preparation = TrustedPreprocessor(modulus=65537, seed=7)
+mask = preparation.input_mask((3,))
+reconstructed = (mask.shared_mask.client.value + mask.shared_mask.server.value) % 65537
+assert np.array_equal(reconstructed, mask.clear_mask_for_client)
 ```
 
-This inspects preparation metadata; it does not create one-time material.
+API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This creates and checks reference one-time material in process. Production use
+requires a reviewed correlation protocol and separate roles.

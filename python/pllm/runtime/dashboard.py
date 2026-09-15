@@ -146,9 +146,7 @@ class OTelStore:
         self._run_windows: dict[str, dict[str, dict[str, float | None]]] = {}
 
     def _has_metric(self, service: str, name: str) -> bool:
-        return any(
-            metric_name == name for metric_name, _attrs in self._metrics.get(service, {})
-        )
+        return any(metric_name == name for metric_name, _attrs in self._metrics.get(service, {}))
 
     def ingest_metrics(self, payload: bytes) -> None:
         message = ExportMetricsServiceRequest.FromString(payload)
@@ -353,6 +351,7 @@ class DashboardConfig:
     model_id: str
     default_max_output_tokens: int
     history_path: Path | str | None = None
+    startup_inventory_rows: int | None = None
     otel_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
 
 
@@ -421,6 +420,7 @@ class DashboardRuntime:
         self._client: OpenAI | None = None
         self._state: dict[str, Any] = {
             "phase": "starting",
+            "startup_step": "dashboard",
             "model_id": config.model_id,
             "tiny": config.model_path is None,
             "prompt": "Explain why neither server can see the prompt.",
@@ -438,7 +438,9 @@ class DashboardRuntime:
             "configured_max_output_tokens": config.default_max_output_tokens,
             "protocol_start_cursor": 0,
         }
-        self._inventory_rows = 256 if config.model_path is None else 64
+        self._inventory_rows = getattr(config, "startup_inventory_rows", None) or (
+            256 if config.model_path is None else 64
+        )
         self._online_traffic_baseline: dict[str, float] = {}
         self._preparation_cpu_baseline: float | None = None
         self._online_traffic_final: dict[str, float] | None = None
@@ -458,10 +460,13 @@ class DashboardRuntime:
 
     def _services_healthy(self) -> bool:
         processes = getattr(self, "_processes", {})
-        return self._client is not None and (not processes or all(
-            (process := processes.get(role)) is not None and process.poll() is None
-            for role in ("preparation", "inference")
-        ))
+        return self._client is not None and (
+            not processes
+            or all(
+                (process := processes.get(role)) is not None and process.poll() is None
+                for role in ("preparation", "inference")
+            )
+        )
 
     async def _background_call(
         self, callback: Callable[..., Any], *args: Any, **kwargs: Any
@@ -607,8 +612,10 @@ class DashboardRuntime:
             ]
             if self._stopping.is_set():
                 return
+            self._set(startup_step="inference")
             self._spawn("inference", inference, root)
             await self._wait_for_health(inference_url, "inference")
+            self._set(startup_step="preparation")
             self._spawn("preparation", preparation, root)
             await self._wait_for_health(preparation_url, "preparation")
             self._client = OpenAI(
@@ -626,6 +633,7 @@ class DashboardRuntime:
                 raise RuntimeError("dashboard stopped during startup")
             self._set(
                 phase="preparing",
+                startup_step="inventory",
                 endpoints={"preparation": preparation_url, "inference": inference_url},
             )
             await self._background_call(
@@ -633,14 +641,13 @@ class DashboardRuntime:
                 self.config.model_id,
                 count=self._inventory_rows,
             )
-            self._model_fingerprint = await self._background_call(
-                self._discover_model_fingerprint
-            )
+            self._model_fingerprint = await self._background_call(self._discover_model_fingerprint)
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
             self._set(
                 phase="ready",
+                startup_step="ready",
                 inventory=self._client.prepared_inventory_status(self.config.model_id),
             )
         except Exception as exc:
@@ -653,9 +660,7 @@ class DashboardRuntime:
         env = os.environ.copy()
         env.update(
             {
-                "OTEL_EXPORTER_OTLP_ENDPOINT": _http_origin(
-                    self.config.host, self.config.port
-                ),
+                "OTEL_EXPORTER_OTLP_ENDPOINT": _http_origin(self.config.host, self.config.port),
                 "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST": "",
                 "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST": "",
                 "OTEL_METRIC_EXPORT_INTERVAL": "500",
@@ -696,9 +701,7 @@ class DashboardRuntime:
                 await asyncio.sleep(0.2)
         raise TimeoutError(f"{role} did not become healthy")
 
-    def begin(
-        self, prompt: str, max_output_tokens: int, request_id: str | None = None
-    ) -> str:
+    def begin(self, prompt: str, max_output_tokens: int, request_id: str | None = None) -> str:
         started_at_ns = time.time_ns()
         started_monotonic_ns = time.monotonic_ns()
         run_id = request_id or "run_" + secrets.token_hex(16)
@@ -957,9 +960,7 @@ class DashboardRuntime:
                     )
                 ),
             }
-            preparation_cpu_value = telemetry["services"]["pllm-preparation"].get(
-                "cpu_seconds"
-            )
+            preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")
             preparation_cpu = (
                 None if preparation_cpu_value is None else float(preparation_cpu_value)
             )
@@ -1054,9 +1055,7 @@ class DashboardRuntime:
                 first_token_at_ns=capture.first_token_at_ns,
                 last_token_at_ns=capture.last_token_at_ns,
                 finished_at_ns=capture.finished_at_ns,
-                full_seconds=(
-                    capture.finished_monotonic_ns - capture.started_monotonic_ns
-                )
+                full_seconds=(capture.finished_monotonic_ns - capture.started_monotonic_ns)
                 / 1_000_000_000,
                 preparation_seconds=(
                     (
@@ -1069,7 +1068,10 @@ class DashboardRuntime:
                     else None
                 ),
                 transition_seconds=(
-                    (capture.online_started_monotonic_ns - capture.preparation_finished_monotonic_ns)
+                    (
+                        capture.online_started_monotonic_ns
+                        - capture.preparation_finished_monotonic_ns
+                    )
                     / 1_000_000_000
                     if capture.preparation_finished_monotonic_ns is not None
                     and capture.online_started_monotonic_ns is not None
@@ -1156,7 +1158,7 @@ class DashboardRuntime:
         protocol_floor = int(state.get("protocol_start_cursor", 0))
         telemetry = self.store.snapshot(max(protocol_after, protocol_floor))
         if self._client is not None:
-            inventory = dict(self._client.prepared_inventory_status(self.config.model_id))
+            inventory = dict(state.get("inventory", {}))
             inventory["burned"] = int(inventory.get("burned", 0)) + self._inventory_burned_total
             inventory["consumed"] = (
                 int(inventory.get("consumed", 0)) + self._inventory_consumed_total
@@ -1167,9 +1169,7 @@ class DashboardRuntime:
             "inference->client": float(state["privacy"].get("masked_online_download_bytes", 0)),
         }
         preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")
-        preparation_cpu = (
-            None if preparation_cpu_value is None else float(preparation_cpu_value)
-        )
+        preparation_cpu = None if preparation_cpu_value is None else float(preparation_cpu_value)
         state["preparation_online_cpu_seconds"] = (
             self._preparation_online_cpu_final
             if self._preparation_online_cpu_final is not None
@@ -1485,6 +1485,7 @@ def run_dashboard(args: Any) -> None:
         model_id=model_id,
         default_max_output_tokens=args.max_output_tokens,
         history_path=getattr(args, "history_db", None),
+        startup_inventory_rows=getattr(args, "startup_inventory_rows", None),
     )
     dashboard_origin = _http_origin(args.host, args.port)
     os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = dashboard_origin
@@ -1517,9 +1518,7 @@ def run_dashboard(args: Any) -> None:
                 with suppress(Exception):
                     await runtime.stop()
                 with suppress(Exception, asyncio.CancelledError):
-                    await asyncio.wait_for(
-                        runtime._background_call(shutdown_telemetry), timeout=5
-                    )
+                    await asyncio.wait_for(runtime._background_call(shutdown_telemetry), timeout=5)
             finally:
                 super().handle_exit(sig, frame)
 

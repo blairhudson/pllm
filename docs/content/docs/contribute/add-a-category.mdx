@@ -10,13 +10,5 @@ compatibility, evidence, public API, CLI discovery, generated reference,
 documentation, and migration policy together. Do not name a reusable category
 after one paper or model.
 
-## Python SDK example
-
-```python
-from pllm.components import list_components
-
-categories = sorted({component.category for component in list_components()})
-print(categories)
-```
-
-Inspect existing categories before proposing a new contract.
+No public Python API defines or registers a new category. See [current support](/sdk/reference/status/)
+before proposing this contract.
