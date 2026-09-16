@@ -73,8 +73,8 @@
     },
     {
       "path": ".github/workflows/pages.yml",
-      "bytes": 10352,
-      "sha256": "28f4d010a4ae14f5a7be7819b25710691b3a3dd12a57b88f1d7f0a4c124e1885"
+      "bytes": 10414,
+      "sha256": "ba246ef0648d9c300543768a4f1878f1eb9d12a8ca6b5a2fb0016409c73f9216"
     },
     {
       "path": ".github/workflows/provision.yml",

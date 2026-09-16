@@ -259,7 +259,7 @@ jobs:
             echo "Production response must not be noindex" >&2
             exit 1
           fi
-          for route in / /docs/quickstart/ /research/ /research/whitepaper/; do
+          for route in / /cli/private-inference/ /learn/integrations/responses-api/ /research/ /research/whitepaper/; do
             curl --fail --retry 8 --retry-all-errors --silent --show-error --output /dev/null "$base$route"
           done
           for name in paper.pdf whitepaper.pdf; do
@@ -271,7 +271,7 @@ jobs:
             unzip -tq "$RUNNER_TEMP/$name"
           done
           redirect_headers="$RUNNER_TEMP/redirect-headers"
-          curl --fail --retry 8 --retry-all-errors --silent --show-error --dump-header "$redirect_headers" --output /dev/null "https://www.$PRODUCTION_DOMAIN/docs/quickstart/?promotion=1"
+          curl --fail --retry 8 --retry-all-errors --silent --show-error --dump-header "$redirect_headers" --output /dev/null "https://www.$PRODUCTION_DOMAIN/cli/private-inference/?promotion=1"
           grep -Eiq '^HTTP/[^ ]+ 301' "$redirect_headers"
-          grep -Eiq '^location: https://pllm\.run/docs/quickstart/\?promotion=1\r?$' "$redirect_headers"
+          grep -Eiq '^location: https://pllm\.run/cli/private-inference/\?promotion=1[[:space:]]*$' "$redirect_headers"
           printf '## Production deployed\n\n- Commit: `%s`\n- Artifact digest: `%s`\n- URL: %s\n' "$SHA" "$ARTIFACT_DIGEST" "$base" >> "$GITHUB_STEP_SUMMARY"
