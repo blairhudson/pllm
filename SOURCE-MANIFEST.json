@@ -1608,8 +1608,8 @@
     },
     {
       "path": "docs/package.json",
-      "bytes": 1116,
-      "sha256": "dba306c2b8e483ad363c6f971ed4b2849b6e701ed34ac4c0fce43dbc123bf90f"
+      "bytes": 1106,
+      "sha256": "e5db45bb08ed67ba24a61c73e0edce2582302a43dd42397f79950f0932d326d6"
     },
     {
       "path": "docs/postcss.config.mjs",
