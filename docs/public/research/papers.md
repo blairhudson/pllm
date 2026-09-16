@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
-Source hash: `sha256:27f0ceb3778e7f7f950c3edab8b48b0866e66a4f64f3123ce34cd1d42872cd23`
+Build: `sha256:50bdd8d40f8b1f362adbabe08e845d37acfffd39aacc3351d7706456b26c4b1a`  
+Source hash: `sha256:301c5e657a775446a998db3de7c82783ffaa5a70a0a882dd930562744c871ec0`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ Only R23 has a PLLM reimplementation, limited to a structural `DecoderPlan` adap
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations are enumerated with semantic weight provenance, lower to exact wrap32 matrix regions, and execute through the compiler; whole-model scheduling remains unavailable.
 2. Re-measure the current prepared runtime on the current revision.
 3. Review the bounded Q7 SiLU component before expanding compiler coverage.
 

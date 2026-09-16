@@ -71,6 +71,7 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
     coverage = first.coverage()
     assert coverage.complete is False
     levels = {row["operator"]: row["level"] for row in coverage.operators}
+    assert levels["linear"] == "executable_region"
     assert levels["silu"] == "primitive"
     assert levels["rms_norm"] == "missing"
     assert levels["softmax"] == "missing"

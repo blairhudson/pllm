@@ -11,7 +11,7 @@ Only R23 has a PLLM reimplementation, limited to a structural `DecoderPlan` adap
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations are enumerated with semantic weight provenance, lower to exact wrap32 matrix regions, and execute through the compiler; whole-model scheduling remains unavailable.
 2. Re-measure the current prepared runtime on the current revision.
 3. Review the bounded Q7 SiLU component before expanding compiler coverage.
 

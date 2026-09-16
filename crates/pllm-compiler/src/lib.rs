@@ -1,6 +1,6 @@
 //! Deterministic lowering from locked context into canonical plans plus a private region program.
 
-use pllm_models::{DecoderMode, DecoderPlan, ModelOperator};
+use pllm_models::{DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator};
 use pllm_types::{
     assurance_result_digest, canonical_bytes, canonical_digest, configuration_digest_bytes,
     digest_bytes, execution_plan_digest, logical_plan_digest, plan_lock_bytes,
@@ -85,6 +85,7 @@ pub fn silu_q7_method_artifact_digest() -> Digest {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CapabilityLevel {
+    ExecutableRegion,
     Primitive,
     Missing,
 }
@@ -120,6 +121,7 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
+            let executable = operator == ModelOperator::Linear;
             let primitive = matches!(
                 operator,
                 ModelOperator::TokenLookup
@@ -140,13 +142,24 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
             OperatorCoverage {
                 operator,
                 occurrences,
-                level: if primitive {
+                level: if executable {
+                    CapabilityLevel::ExecutableRegion
+                } else if primitive {
                     CapabilityLevel::Primitive
                 } else {
                     CapabilityLevel::Missing
                 },
-                component: primitive.then(|| "pllm/agc-project@0.1.0-alpha.1-reference".to_owned()),
-                blocker: if primitive {
+                component: if executable {
+                    Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
+                } else if primitive {
+                    Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
+                } else {
+                    None
+                },
+                blocker: if executable {
+                    "single semantic linear regions execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
                         .to_owned()
                 } else {
@@ -210,6 +223,18 @@ pub struct LogicalOperation {
     pub output: TensorType,
     pub input_representation: Representation,
     pub output_representation: Representation,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelLinearRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub weight_id: String,
+    pub bias_id: Option<String>,
+    pub input: TensorType,
+    pub operation: LogicalOperation,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -754,7 +779,10 @@ fn valid_named(value: &NamedDigest) -> bool {
     valid_identity(&value.id)
 }
 
-fn validate_configuration_json(bytes: &[u8], declared_digest: &Digest) -> Result<(), String> {
+fn validate_configuration_json(
+    bytes: &[u8],
+    declared_digest: &Digest,
+) -> Result<serde_json::Value, String> {
     let value: serde_json::Value =
         serde_json::from_slice(bytes).map_err(|_| "configuration JSON is invalid")?;
     if canonical_bytes(&value) != bytes {
@@ -766,20 +794,34 @@ fn validate_configuration_json(bytes: &[u8], declared_digest: &Digest) -> Result
     if configuration_digest_bytes(bytes) != *declared_digest {
         return Err("configuration digest does not match canonical Experiment bytes".into());
     }
-    Ok(())
+    Ok(value)
+}
+
+fn configuration_profile(value: &serde_json::Value) -> Option<&str> {
+    value
+        .pointer("/pipeline/profile")
+        .or_else(|| value.get("profile"))
+        .and_then(serde_json::Value::as_str)
 }
 
 fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let context = &request.context;
-    if let Err(message) =
-        validate_configuration_json(&request.configuration_json, &request.configuration_digest)
-    {
-        diagnostics.push(diagnostic(
+    match validate_configuration_json(&request.configuration_json, &request.configuration_digest) {
+        Err(message) => diagnostics.push(diagnostic(
             DiagnosticCode::InvalidContext,
             "configuration",
             message,
-        ));
+        )),
+        Ok(configuration) => {
+            if configuration_profile(&configuration) != Some(context.profile.as_str()) {
+                diagnostics.push(diagnostic(
+                    DiagnosticCode::InvalidContext,
+                    "configuration.profile",
+                    "configuration profile does not match locked context",
+                ));
+            }
+        }
     }
     if context.schema_version != LOCKED_CONTEXT_SCHEMA_VERSION {
         diagnostics.push(diagnostic(
@@ -1801,7 +1843,11 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
     let execution = &compiled.execution;
     let lock = &compiled.lock;
     let region = &compiled.region_program;
-    validate_configuration_json(&compiled.configuration_json, &logical.configuration_digest)?;
+    let configuration =
+        validate_configuration_json(&compiled.configuration_json, &logical.configuration_digest)?;
+    if configuration_profile(&configuration) != Some(logical.profile.as_str()) {
+        return Err("configuration profile does not match canonical plan".into());
+    }
     if logical.schema_version != LOGICAL_PLAN_SCHEMA_VERSION
         || execution.schema_version != EXECUTION_PLAN_SCHEMA_VERSION
         || lock.schema_version != PLAN_LOCK_SCHEMA_VERSION
@@ -2136,6 +2182,128 @@ pub fn region_program_bytes(program: &RegionProgram) -> Vec<u8> {
 
 pub fn region_program_digest(program: &RegionProgram) -> Digest {
     pllm_types::canonical_digest(REGION_PROGRAM_SCHEMA_VERSION, program)
+}
+
+/// Extract one semantic linear operation into the compiler's wrap32 matrix representation.
+pub fn lower_model_linear_operation(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    operation_id: &str,
+) -> Result<(TensorType, LogicalOperation), String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let operation = graph
+        .operations
+        .iter()
+        .find(|operation| operation.id == operation_id)
+        .ok_or_else(|| format!("semantic operation {operation_id} is absent from {mode:?}"))?;
+    let region = lower_model_linear_region(graph, mode, operation)?;
+    Ok((region.input, region.operation))
+}
+
+/// Extract every semantic linear operation with the weight identity needed by execution.
+pub fn lower_model_linear_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelLinearRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::Linear)
+        .map(|operation| lower_model_linear_region(graph, mode, operation))
+        .collect()
+}
+
+fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
+    match mode {
+        DecoderMode::Prefill => &plan.prefill,
+        DecoderMode::Decode => &plan.decode,
+    }
+}
+
+fn lower_model_linear_region(
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelLinearRegion, String> {
+    if operation.operator != ModelOperator::Linear {
+        return Err(format!(
+            "semantic operation {} is {:?}, not linear",
+            operation.id, operation.operator
+        ));
+    }
+    let operation_id = operation.id.as_str();
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic linear operation {operation_id} must have exactly one input"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!("semantic linear operation {operation_id} references missing input {input_id}")
+        })?;
+    if input.output_shape.len() < 2
+        || operation.output_shape.len() != input.output_shape.len()
+        || input.output_shape.contains(&0)
+        || operation.output_shape.contains(&0)
+        || input.output_shape[..input.output_shape.len() - 1]
+            != operation.output_shape[..operation.output_shape.len() - 1]
+    {
+        return Err(format!(
+            "semantic linear operation {operation_id} requires matching nonzero leading dimensions and one feature dimension"
+        ));
+    }
+    let rows = input.output_shape[..input.output_shape.len() - 1]
+        .iter()
+        .try_fold(1_u64, |rows, dimension| {
+            rows.checked_mul(*dimension)
+                .ok_or("semantic linear row count overflows u64")
+        })?;
+    let input_tensor = TensorType {
+        numeric: NumericType::Wrap32,
+        shape: vec![rows, *input.output_shape.last().unwrap()],
+    };
+    let output_tensor = TensorType {
+        numeric: NumericType::Wrap32,
+        shape: vec![rows, *operation.output_shape.last().unwrap()],
+    };
+    let weight_id = operation
+        .attributes
+        .get("weight")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("semantic linear operation {operation_id} has no weight identity"))?
+        .to_owned();
+    let bias_id = match operation.attributes.get("bias") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::String(value)) if !value.is_empty() => Some(value.clone()),
+        _ => {
+            return Err(format!(
+                "semantic linear operation {operation_id} has an invalid bias identity"
+            ))
+        }
+    };
+    Ok(ModelLinearRegion {
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_id: input_id.clone(),
+        weight_id,
+        bias_id,
+        input: input_tensor,
+        operation: LogicalOperation {
+            id: operation.id.clone(),
+            operator: Operator::Linear,
+            output: output_tensor,
+            input_representation: Representation::MaskedRing,
+            output_representation: Representation::MaskedRing,
+        },
+    })
 }
 
 /// Extract one semantic SiLU operation into the compiler's locked Q7 representation.

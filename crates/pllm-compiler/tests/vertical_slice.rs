@@ -1,9 +1,11 @@
 use pllm_compiler::{
-    compile, compile_document, diagnostics_json, execute_wrap32, CandidateEvidence, CompileRequest,
-    Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation, LogicalOperation,
-    MethodDescriptor, NumericType, Operator, Representation, SecurityProperties, TensorType,
-    COMPILE_REQUEST_SCHEMA_VERSION,
+    compile, compile_document, decoder_coverage, diagnostics_json, execute_wrap32,
+    lower_model_linear_operation, lower_model_linear_regions, CandidateEvidence, CapabilityLevel,
+    CompileRequest, Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation,
+    LogicalOperation, MethodDescriptor, NumericType, Operator, Representation, SecurityProperties,
+    TensorType, COMPILE_REQUEST_SCHEMA_VERSION,
 };
+use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
     assurance_result_digest, configuration_digest_bytes, privacy_contract_digest, AssuranceOrigin,
     AssuranceOutcome, AssuranceResult, ClaimRequirement, Digest, EvidenceReference,
@@ -250,6 +252,74 @@ fn only_code(request: &CompileRequest) -> DiagnosticCode {
     diagnostics[0].code
 }
 
+#[test]
+fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
+    let config = br#"{
+        "model_type":"qwen2","hidden_size":8,"intermediate_size":16,
+        "num_hidden_layers":1,"num_attention_heads":2,"num_key_value_heads":1,
+        "vocab_size":32,"max_position_embeddings":32,"hidden_act":"silu",
+        "rms_norm_eps":1e-6,"rope_theta":10000.0,"tie_word_embeddings":true
+    }"#;
+    let plan = lower_model_json(
+        config,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 2,
+            max_new_tokens: 1,
+        },
+    )
+    .unwrap();
+    let linear = plan
+        .prefill
+        .operations
+        .iter()
+        .find(|operation| operation.operator == ModelOperator::Linear)
+        .unwrap();
+    let prefill_regions = lower_model_linear_regions(&plan, DecoderMode::Prefill).unwrap();
+    assert_eq!(prefill_regions.len(), 7);
+    assert!(prefill_regions.iter().all(|region| {
+        region.mode == DecoderMode::Prefill
+            && region.layer == Some(0)
+            && region.weight_id.starts_with("model.layers.0.")
+            && region.weight_id.ends_with(".weight")
+    }));
+    let decode_regions = lower_model_linear_regions(&plan, DecoderMode::Decode).unwrap();
+    assert_eq!(decode_regions.len(), 7);
+    assert!(decode_regions
+        .iter()
+        .all(|region| region.input.shape[0] == 1));
+    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let linear_coverage = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == ModelOperator::Linear)
+        .unwrap();
+    assert_eq!(linear_coverage.occurrences, 14);
+    assert_eq!(linear_coverage.level, CapabilityLevel::ExecutableRegion);
+    assert!(!coverage.complete);
+    let (input, operation) =
+        lower_model_linear_operation(&plan, DecoderMode::Prefill, &linear.id).unwrap();
+    assert_eq!(input.shape, vec![2, 8]);
+    assert_eq!(operation.output.shape, vec![2, 8]);
+    assert_eq!(operation.input_representation, Representation::MaskedRing);
+
+    let mut compile_request = request(2, 8, 8);
+    compile_request.input = input;
+    compile_request.output = operation.output.clone();
+    compile_request.operations = vec![operation];
+    refresh_region_graphs(&mut compile_request);
+    let compiled = compile(&compile_request).unwrap();
+    let output = execute_wrap32(
+        &compiled,
+        &[1; 64],
+        &(1_u32..=16).collect::<Vec<_>>(),
+        1,
+        false,
+    )
+    .unwrap();
+    assert_eq!(output, [vec![36; 8], vec![100; 8]].concat());
+}
+
 fn assert_json_fixture(actual: &[u8], fixture: &str) {
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(actual).unwrap(),
@@ -485,6 +555,23 @@ fn configuration_identity_is_canonical_plain_sha256() {
     wrong_schema.configuration_digest =
         configuration_digest_bytes(&wrong_schema.configuration_json);
     assert_eq!(only_code(&wrong_schema), DiagnosticCode::InvalidContext);
+}
+
+#[test]
+fn configuration_profile_must_match_locked_context() {
+    let mut mismatched = request(1, 2, 2);
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&mismatched.configuration_json).unwrap();
+    configuration["pipeline"]["profile"] = "research.single_evaluator".into();
+    mismatched.configuration_json = pllm_types::canonical_bytes(&configuration);
+    mismatched.configuration_digest = configuration_digest_bytes(&mismatched.configuration_json);
+
+    let diagnostics = compile(&mismatched).unwrap_err();
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == DiagnosticCode::InvalidContext
+            && diagnostic.subject_id == "configuration.profile"
+            && diagnostic.message == "configuration profile does not match locked context"
+    }));
 }
 
 #[test]

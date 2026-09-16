@@ -57,8 +57,10 @@ operator coverage, protected/private parity, generation quality, benchmark
 evidence and deployment support are separate claims. A complete bounded semantic
 plan does not establish any later claim. In particular, the current compiler
 profile remains incomplete and cannot execute any complete newly listed text plan.
-The compiler can execute a bounded SiLU tensor through experimental one-use
-arithmetic garbling, but this does not activate a complete model profile.
+The compiler can execute each semantic decoder linear operation as an exact
+flattened wrap32 matrix region and can execute a bounded SiLU tensor through
+experimental one-use arithmetic garbling. It does not yet schedule these regions
+as a complete decoder or activate a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 

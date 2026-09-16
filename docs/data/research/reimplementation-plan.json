@@ -2,7 +2,7 @@
   "schema_version": "pllm.reimplementation_plan.v1",
   "as_of": "2026-09-16",
   "prerequisites": [
-    "Complete one executable Qwen profile without hidden fallback regions.",
+    "Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations are enumerated with semantic weight provenance, lower to exact wrap32 matrix regions, and execute through the compiler; whole-model scheduling remains unavailable.",
     "Re-measure the current prepared runtime on the current revision.",
     "Review the bounded Q7 SiLU component before expanding compiler coverage."
   ],
