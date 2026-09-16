@@ -567,7 +567,10 @@ test('public source links use the canonical repository owner', () => {
 });
 
 test('canonical trailing-slash routes resolve through the Fumadocs source', async () => {
-  const { getPageByCanonicalHref } = await import('../lib/source.ts');
-  assert.equal(getPageByCanonicalHref('/sdk/configuration/')?.page.url, '/sdk/configuration');
-  assert.equal(getPageByCanonicalHref('/sdk/configuration')?.page.url, '/sdk/configuration');
+  const { fumadocsHref } = await import('../lib/docs-routes.mjs');
+  assert.equal(fumadocsHref('/sdk/configuration/'), '/sdk/configuration');
+  assert.equal(fumadocsHref('/sdk/configuration'), '/sdk/configuration');
+  assert.equal(fumadocsHref('/'), '/');
+  const source = fs.readFileSync(path.join(siteRoot, 'lib/source.ts'), 'utf8');
+  assert.match(source, /source\.getPageByHref\(fumadocsHref\(href\)\)/);
 });

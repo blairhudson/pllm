@@ -58,8 +58,8 @@
     },
     {
       "path": ".github/workflows/docs-build.yml",
-      "bytes": 2743,
-      "sha256": "13a05627d7a0945c566ab5c051681d2ac488140e10edb981f3ff305c7a06a7cc"
+      "bytes": 2770,
+      "sha256": "a4db6241a0eac0ac7107e35679d38065c78ae73a705e0f996f368f173b0eb510"
     },
     {
       "path": ".github/workflows/lockfiles.yml",
@@ -1563,8 +1563,8 @@
     },
     {
       "path": "docs/lib/docs-routes.mjs",
-      "bytes": 2862,
-      "sha256": "3cfd39127974a7ee010dc9cca058df306194b7851645a54012b8327ff319b0a2"
+      "bytes": 2993,
+      "sha256": "e19d43f4e76e0bc32465990943510569770b3525387607185ee3aa627362e561"
     },
     {
       "path": "docs/lib/navigation.ts",
@@ -1578,8 +1578,8 @@
     },
     {
       "path": "docs/lib/source.ts",
-      "bytes": 3593,
-      "sha256": "7896cf221cbbfa9e0743cba62b499fd2174085c9d678f986d55e210f98925277"
+      "bytes": 3580,
+      "sha256": "29b6881f76527b1dd8d6d5024fa76e3e093c7216fd7b7b2ee7fa0db8ae542666"
     },
     {
       "path": "docs/mdx-components.tsx",
@@ -1823,28 +1823,28 @@
     },
     {
       "path": "docs/public/downloads/paper-source.zip",
-      "bytes": 24354,
-      "sha256": "e2196afb55bc3030a46abb3c88fb07db63c137fc276ae11f8ed0b78ae9ef216f"
+      "bytes": 24414,
+      "sha256": "5331603a7d83ac0e98c392cbea0da39eee899d3e985f649f65cc6fac0c1bdaae"
     },
     {
       "path": "docs/public/downloads/paper.pdf",
-      "bytes": 45340,
-      "sha256": "52f6325a5e572c26a236e5a1dfe50afefa056e9681452e15a6e995e04721922b"
+      "bytes": 45447,
+      "sha256": "ac8aeffd6d1a026f40ec81931ea4f92eecb0f69c2d7cd1045b060f86ae02d0dd"
     },
     {
       "path": "docs/public/downloads/whitepaper-source.zip",
-      "bytes": 6933,
-      "sha256": "2c57d75008d54990333ca839a4b3dd923992133192d30e98b1ec2520e0338598"
+      "bytes": 6938,
+      "sha256": "23ba88375392a63e693b27041dcb51150d0e9569b3774e797849a9c12ffd901e"
     },
     {
       "path": "docs/public/downloads/whitepaper.pdf",
-      "bytes": 37472,
-      "sha256": "2987345f842baa612feb8192363a5e6f2f77d819029af9022625c306f7f9143d"
+      "bytes": 37484,
+      "sha256": "7ce2471db3d48ad76299f22ee8fdfbdbf0dd50a20c14515a0d629982f4abd3af"
     },
     {
       "path": "docs/public/downloads/whitepaper.tex",
-      "bytes": 12092,
-      "sha256": "a95f7f25db663c609c100ecf70dd10f75a25cb64b638ec6eb392fdcff6a15d56"
+      "bytes": 12108,
+      "sha256": "cfd563e683aea46378200227c0ef298ae55b04a6be9b5ee91722a784e375574f"
     },
     {
       "path": "docs/public/icon.svg",
@@ -2513,8 +2513,8 @@
     },
     {
       "path": "docs/tests/content.test.mjs",
-      "bytes": 30728,
-      "sha256": "c2c13345bbd26992ac8e4992041eedd6835b014cfc40f3d82a2e553dd658b499"
+      "bytes": 30877,
+      "sha256": "88b6201aa44c0d7bb19bc44030a5cac862f11f7079863435bbd7eb2facf39340"
     },
     {
       "path": "docs/tests/paths.test.mjs",
@@ -2633,13 +2633,13 @@
     },
     {
       "path": "paper/arxiv-source.tar.gz",
-      "bytes": 10819,
-      "sha256": "ee16e6637aeeaa8d1b57ac9dfb9ffb3033e4e689cdad035adde93df295354a32"
+      "bytes": 10820,
+      "sha256": "865767ca20b1726ba67af322a53e09bcd4fdb2fcb7499b8be37bf5b4e6794ef3"
     },
     {
       "path": "paper/build-metadata.json",
       "bytes": 1526,
-      "sha256": "8c0190e82fe5ebcbe70629f33c852ac2fb6ec007a78b9e49c48ad54e21823b2e"
+      "sha256": "68722011906b13d6a77058c3eecfc9443f06c485ccea174c4433d5510dda2172"
     },
     {
       "path": "paper/manuscript.md",
@@ -2663,13 +2663,13 @@
     },
     {
       "path": "paper/whitepaper-source.zip",
-      "bytes": 6933,
-      "sha256": "2c57d75008d54990333ca839a4b3dd923992133192d30e98b1ec2520e0338598"
+      "bytes": 6938,
+      "sha256": "23ba88375392a63e693b27041dcb51150d0e9569b3774e797849a9c12ffd901e"
     },
     {
       "path": "paper/whitepaper.pdf",
-      "bytes": 37472,
-      "sha256": "2987345f842baa612feb8192363a5e6f2f77d819029af9022625c306f7f9143d"
+      "bytes": 37484,
+      "sha256": "7ce2471db3d48ad76299f22ee8fdfbdbf0dd50a20c14515a0d629982f4abd3af"
     },
     {
       "path": "paper/whitepaper.tex",

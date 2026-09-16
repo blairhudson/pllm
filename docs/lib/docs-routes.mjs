@@ -76,3 +76,8 @@ export function markdownUrlForCanonical(canonicalUrl) {
   if (canonicalUrl === '/') return '/index.md';
   return `${canonicalUrl.replace(/\/$/, '')}.md`;
 }
+
+export function fumadocsHref(canonicalUrl) {
+  if (canonicalUrl === '/') return '/';
+  return canonicalUrl.replace(/\/+$/, '');
+}

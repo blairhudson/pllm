@@ -2,7 +2,7 @@ import { docs, research } from 'collections/server';
 import type { Folder, Node, Root } from 'fumadocs-core/page-tree';
 import { loader } from 'fumadocs-core/source';
 import type { NavigationArea } from './navigation';
-import { docsHrefForSlugs } from './docs-routes.mjs';
+import { docsHrefForSlugs, fumadocsHref } from './docs-routes.mjs';
 export const source = loader({
   baseUrl: '',
   source: docs.toFumadocsSource(),
@@ -11,7 +11,7 @@ export const source = loader({
 export const researchSource = loader({ baseUrl: '/research', source: research.toFumadocsSource() });
 
 export function getPageByCanonicalHref(href: string) {
-  return source.getPageByHref(href.endsWith('/') ? href.slice(0, -1) : href);
+  return source.getPageByHref(fumadocsHref(href));
 }
 
 const areaOverview: Record<NavigationArea, string> = {

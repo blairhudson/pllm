@@ -9,15 +9,15 @@
   "canonical_source": "paper/manuscript.md",
   "generated": {
     "paper/main.pdf": {
-      "sha256": "c444c8c17c32f7f7588062d8c5d4ba46aa0ce73a0330eb72e8ed410c397d4ae5"
+      "sha256": "ac8aeffd6d1a026f40ec81931ea4f92eecb0f69c2d7cd1045b060f86ae02d0dd"
     },
     "paper/main.tex": {
-      "sha256": "240fe71e42785fb82d52d6dd8659659983d0d2c0a2cec3883637cbff6706abe9"
+      "sha256": "9d27a7b225d05689cfdc2690fa5c03d163814fdd6e6ebf96762d0cdc91eb3126"
     }
   },
-  "normalized_timestamp_utc": "2026-09-14T02:04:53Z",
-  "source_date_epoch": 1789351493,
-  "source_revision": "13b7446fe331d8832819e765fdd26c71b3367223",
+  "normalized_timestamp_utc": "2026-09-16T04:53:18Z",
+  "source_date_epoch": 1789534398,
+  "source_revision": "e6f050f42e5779d5a6da38a5edda4162e4fa5076",
   "source_revision_scope": "Git HEAD is the base revision; SHA-256 values identify built working-tree sources",
   "sources": {
     "paper/manuscript.md": {

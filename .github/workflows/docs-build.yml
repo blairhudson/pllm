@@ -60,6 +60,7 @@ jobs:
       - name: Validate and build Fumadocs
         working-directory: docs
         run: |
+          npm run generate
           npm run check:content
           npm test
           npm run typecheck
