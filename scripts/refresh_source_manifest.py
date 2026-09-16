@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,14 +47,18 @@ EXCLUDED_FILES = {
 
 def main() -> None:
     old = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text())
-    paths = {ROOT / item["path"] for item in old["files"]}
-    for source_root in SOURCE_ROOTS:
-        for path in (ROOT / source_root).rglob("*"):
-            relative = path.relative_to(ROOT)
-            if path.is_file() and not EXCLUDED_PARTS.intersection(relative.parts):
-                paths.add(path)
-    for name in ("Cargo.lock", "restack.toml", "uv.lock", "rust-toolchain.toml"):
-        paths.add(ROOT / name)
+    listed = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout.decode().split("\0")
+    root_files = {"Cargo.lock", "restack.toml", "uv.lock", "rust-toolchain.toml"}
+    paths = {
+        ROOT / name
+        for name in listed
+        if name and (name.partition("/")[0] in SOURCE_ROOTS or name in root_files)
+    }
     paths = {
         path
         for path in paths
