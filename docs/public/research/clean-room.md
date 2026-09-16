@@ -6,8 +6,8 @@ Add an independent PLLM implementation with clear provenance, tests, evidence, a
 
 Document ID: `pllm.docs.research.clean-room`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:718c6d57b6ace2bfab13252ba2156ffcd0b02dc2fe8cad719747f7910a64db52`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:d4e56f432856ff6a9766a7e2bb8bd1367507e5523cfaa6986de76904a33753b7`
 
 1. Add a source record with a stable ID and URL, exact version or digest, authors, citation, access method, and license review.
 2. When lawful, preserve the original artifact outside the runtime. Never vendor or import it as a PLLM dependency.
@@ -19,4 +19,4 @@ Source hash: `sha256:718c6d57b6ace2bfab13252ba2156ffcd0b02dc2fe8cad719747f7910a6
 8. Run the relevant assurance checks and strongest comparable benchmark. Include limitations and negative results.
 9. Complete the [publication review](/research/publications/) before promoting a claim.
 
-Use canonical [research records](https://github.com/blairhudson/pllm/tree/main/research), [schemas](https://github.com/blairhudson/pllm/tree/main/schemas), [research standard](https://github.com/blairhudson/pllm/blob/main/design/research-standard.md), [component standard](https://github.com/blairhudson/pllm/blob/main/design/component-standard.md), and [documentation standard](https://github.com/blairhudson/pllm/blob/main/design/documentation-standard.md).
+Use canonical [paper records](https://github.com/blairhudson/pllm/tree/main/docs/data/research), [schemas](https://github.com/blairhudson/pllm/tree/main/schemas), the [component standard](https://github.com/blairhudson/pllm/blob/main/design/component-standard.md), and the [documentation standard](https://github.com/blairhudson/pllm/blob/main/design/documentation-standard.md).

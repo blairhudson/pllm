@@ -1,0 +1,35 @@
+---
+title: "R04: Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates"
+description: "Half-gates reduce AND-gate communication while remaining compatible with free XOR. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2015  
+**Authors:** Samee Zahur, Mike Rosulek, David Evans  
+**External source:** [Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates](https://eprint.iacr.org/2014/756)
+
+## Source contribution
+
+Half-gates reduce AND-gate communication while remaining compatible with free XOR.
+
+## PLLM perspective
+
+Implement Boolean label ownership, free XOR and half-gates using a precisely documented reviewed hash instantiation. Batch native cryptographic operations and expose circuit I/O conversions.
+
+Python SHA-based half-gates in tenx references are adaptations; not a native audited implementation.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Free-XOR-compatible correlation assumptions, domain separation and circuit freshness are mandatory. Malicious garbler defenses are a separate construction.
+
+## PLLM modules and documentation
+
+Target module identifiers: `garble.boolean`, `kernel.half_gates`, `kernel.free_xor`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 3, **Arithmetic garbling foundation**. Its source-registry order is 4. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

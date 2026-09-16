@@ -6,15 +6,14 @@ Trace a source through clean-room code, plans, evidence, and publication review.
 
 Document ID: `pllm.docs.agents.research-map`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:05feb35e53c6d196bdd7ecbf16bc6b0e3f981ac75f4e106ea6b070a229edae21`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:12200e4e83b9c4fcc95eb51d4001c69282216cb1b360beffbcd098b5ccac04c4`
 
-- `research/methods/sources.json`: canonical source identities and local paper digests.
-- `research/methods/registry.json`: method identity and lifecycle status.
-- `research/methods/*.md`: method cards and semantic scope.
-- `research/recipes`: read-only descriptions of reproduction and composition workflows.
-- `research/evidence`: retained historical and current evidence records.
-- `python/pllm/research.py`: public static catalog API.
-- `design/research-standard.md`: contribution, reproduction, and publication rules.
+- `docs/data/research/papers.json`: canonical source identities and implementation status.
+- `docs/data/research/notes`: concise source notes and PLLM relevance.
+- `docs/data/research/sources`: retained source and provenance records.
+- `docs/evidence`: retained historical evidence records.
+- `docs/content/docs/research/backlog.mdx`: implementation requirements and acceptance gates.
+- `design/component-standard.md`: capability contracts, composition, benchmarking, and search rules.
 
 Research informs clean-room Python and Rust implementations. Third-party builds are not PLLM runtime dependencies.

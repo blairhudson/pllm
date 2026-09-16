@@ -6,8 +6,8 @@ Inspect PLLM records and run local benchmarks from the terminal.
 
 Document ID: `pllm.docs.cli`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:472e9ea33319126ca22bf8e2305291982f4e9d7e17a19589262cf1ae9cc386cd`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3`
 
 The PLLM command-line interface inspects public metadata, runs bounded local
 benchmarks, and starts the gateway, inference, and preparation service roles.
@@ -32,7 +32,7 @@ gateway, then connect an SDK or raw HTTP client.
 configured inference and preparation services.
 - [Benchmark and diagnose](/cli/benchmarking/) with the headless runner
 or loopback dashboard.
-- [Inspect configuration and research](/cli/inspect-and-research/)
+- [Inspect configuration and components](/cli/inspect-and-research/)
 without starting a model.
 
 Each guide links to exact parser-generated command help under
@@ -44,8 +44,6 @@ Each guide links to exact parser-generated command help under
 - `pllm components` lists built-in component descriptions.
 - `pllm benchmark run` runs the real client, preparation, and inference roles on
 loopback and returns a text-free diagnostic record.
-- `pllm research` lists research sources, methods, and recipes or assesses a
-proposed publication record.
 - `pllm gateway` starts the trusted loopback API gateway and can co-locate both
 provider roles for development.
 - `pllm serve` starts one inference or preparation role from explicit deployment
@@ -79,36 +77,6 @@ pllm components show pllm/cpu --format json
 
 See [`components list`](/cli/reference/components/list/) and
 [`components show`](/cli/reference/components/show/).
-
-## Explore research records
-
-Discover records in machine-readable form, then inspect records by stable ID or
-registry alias:
-
-```bash
-pllm research sources list --format json
-pllm research sources show R01
-pllm research methods show pllm.method.mpcache-structural-adaptation.v1
-pllm research recipes show R01
-```
-
-Discovery references: [`sources list`](/cli/reference/research/sources/list/),
-[`methods list`](/cli/reference/research/methods/list/), and
-[`recipes list`](/cli/reference/research/recipes/list/). Record references:
-[`sources show`](/cli/reference/research/sources/show/),
-[`methods show`](/cli/reference/research/methods/show/), and
-[`recipes show`](/cli/reference/research/recipes/show/).
-
-Assess a publication request without running a workflow, or generate coding-agent
-guidance at repository root:
-
-```bash
-pllm research assess examples/publication-assessment.json --format json
-pllm research agents --output AGENTS.md
-```
-
-See [`research assess`](/cli/reference/research/assess/) and
-[`research agents`](/cli/reference/research/agents/).
 
 ## Run a benchmark
 
@@ -146,5 +114,5 @@ See [`dev dashboard`](/cli/reference/dev/dashboard/).
 serving commands and config boundaries.
 - [SDK configuration](/sdk/configuration/) explains configuration files and
 content identity.
-- [Research methods](/research/methods/) explains the records returned by
-`pllm research`.
+- [Research papers](/research/papers/) and the [research backlog](/research/backlog/)
+document source status and unfinished work.

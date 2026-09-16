@@ -1,0 +1,35 @@
+---
+title: "R12: Piranha: A GPU Platform for Secure Computation"
+description: "Piranha separates device, protocol and application layers for GPU-accelerated secret-sharing computation. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2022  
+**Authors:** Jean-Luc Watson, Sameer Wagh, Raluca Ada Popa  
+**External source:** [Piranha: A GPU Platform for Secure Computation](https://www.usenix.org/conference/usenixsecurity22/presentation/watson)
+
+## Source contribution
+
+Piranha separates device, protocol and application layers for GPU-accelerated secret-sharing computation.
+
+## PLLM perspective
+
+Wrap original GPU kernels through a narrow native interface before selective Rust/CUDA ports. Preserve protocol party counts and numeric domains in comparisons.
+
+Previous CPU limb/packing experiments are not a GPU Piranha reproduction.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Kernel reuse does not turn a multi-online-worker protocol into the preferred single-evaluator topology.
+
+## PLLM modules and documentation
+
+Target module identifiers: `kernel.modular_gpu`, `runtime.device_buffers`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 7, **Preparation, compression, and acceleration**. Its source-registry order is 12. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

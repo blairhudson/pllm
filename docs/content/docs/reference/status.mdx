@@ -8,7 +8,7 @@ Checked 16 September 2026.
 <CapabilityStatus status="Available">
 The CLI can run the trusted local gateway, start inference and preparation roles,
 run a headless loopback benchmark, inspect public configuration and components,
-and assess or inspect research records.
+and report bounded diagnostics.
 </CapabilityStatus>
 
 <CapabilityStatus status="Experimental">
@@ -46,7 +46,6 @@ below open parser-generated command references.
 | --- | --- | --- |
 | [`config`](/cli/reference/config/) | Available | Validates public `Experiment` data; Python targets require explicit trust |
 | [`components`](/cli/reference/components/) | Available | Reads built-in component metadata only |
-| [`research`](/cli/reference/research/) | Available | Reads deterministic research records and assessments without executing methods or publishing claims |
 | [`gateway`](/cli/reference/gateway/) | Available | Trusted loopback client boundary exposing the Responses API and Chat Completions API; `--local` co-locates roles for development only |
 | [`serve inference`](/cli/reference/serve/inference/) | Available | Starts an authenticated computation role; host provisioning, TLS termination, and operator separation remain deployment responsibilities |
 | [`serve preparation`](/cli/reference/serve/preparation/) | Available | Starts the trusted preparation role and pushes offline corrections to inference; it must not collude with inference |

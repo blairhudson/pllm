@@ -17,7 +17,7 @@ test('canonical domain hierarchy and research journeys exist', () => {
     '/learn/integrations/', '/learn/integrations/local-gateway/', '/learn/integrations/responses-api/', '/learn/integrations/chat-completions/',
     '/learn/integrations/openai-python/', '/learn/integrations/openai-agents/', '/learn/integrations/codex/', '/learn/integrations/opencode/',
     '/cli/', '/cli/reference/', '/cli/reference/config/', '/cli/reference/config/show/',
-    '/cli/reference/benchmark/run/', '/cli/reference/research/sources/list/',
+    '/cli/reference/benchmark/run/', '/cli/reference/components/list/',
     '/sdk/', '/sdk/configuration/', '/sdk/plans/', '/sdk/components/',
     '/sdk/build/', '/sdk/build/model-adapters/', '/sdk/build/models/', '/sdk/build/operators/', '/sdk/build/numerics/', '/sdk/build/representations/', '/sdk/build/conversions/', '/sdk/build/search/',
     '/sdk/pipeline/', '/sdk/pipeline/protocols/', '/sdk/pipeline/protocols/masked-linear/', '/sdk/pipeline/protocols/garbling/', '/sdk/pipeline/protocols/garbling/arithmetic/',
@@ -27,10 +27,30 @@ test('canonical domain hierarchy and research journeys exist', () => {
     '/sdk/operate/', '/sdk/operate/client-boundary/', '/sdk/operate/provider-roles/', '/sdk/operate/deployment/', '/sdk/operate/deployment/status/',
     '/sdk/reference/', '/sdk/reference/python/pllm/', '/sdk/reference/native/', '/sdk/reference/schemas/', '/sdk/reference/components/', '/sdk/reference/status/',
     '/sdk/contribute/', '/sdk/contribute/agents/',
-    '/research/', '/research/papers/', '/research/records/', '/research/records/metrics/', '/research/records/method-catalog/',
+    '/research/', '/research/papers/', '/research/records/', '/research/records/metrics/',
     '/research/recipes/', '/research/recipes/build-method/', '/research/recipes/compare/', '/research/recipes/reproduce/', '/research/recipes/experiments/', '/research/recipes/reproductions/', '/research/recipes/agent-map/', '/research/recipes/reproduction-checklist/',
     '/research/sources/', '/research/methods/', '/research/compositions/', '/research/evidence/', '/research/publications/', '/research/clean-room/',
   ]) assert.ok(byRoute.has(route), route);
+});
+
+test('research papers expose one canonical dependency-ordered implementation plan', () => {
+  const dataRoot = path.join(siteRoot, 'data/research');
+  const registry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'papers.json'), 'utf8'));
+  const plan = JSON.parse(fs.readFileSync(path.join(dataRoot, 'reimplementation-plan.json'), 'utf8'));
+  const index = fs.readFileSync(path.join(siteRoot, 'content/docs/research/papers/index.mdx'), 'utf8');
+  const plannedIds = plan.phases.flatMap((phase) => phase.papers);
+
+  assert.equal(plan.schema_version, 'pllm.reimplementation_plan.v1');
+  assert.deepEqual(plan.phases.map((phase) => phase.priority),
+    Array.from({ length: plan.phases.length }, (_, index) => index + 1));
+  assert.deepEqual([...plannedIds].sort(), registry.papers.map((paper) => paper.id).sort());
+  assert.equal(new Set(plannedIds).size, registry.papers.length);
+  assert.match(index, /## Reimplementation plan/);
+  for (const phase of plan.phases) {
+    assert.ok(index.includes(`### ${phase.priority}. ${phase.name}`), phase.name);
+    assert.ok(index.includes(`**Status:** \`${phase.status}\``), phase.name);
+    for (const module of phase.module_homes) assert.ok(index.includes(`\`${module}\``), module);
+  }
 });
 
 test('SDK pages have checked examples or explicit API boundaries', () => {
@@ -92,12 +112,13 @@ test('primary reader journeys cross areas at the decision point', () => {
       '/research/evidence/',
     ]],
     ['research/sources.mdx', [
-      '/cli/reference/research/sources/list/',
-      '/cli/reference/research/sources/show/',
+      '/research/papers/',
+      '/research/backlog/',
     ]],
     ['research/methods.mdx', [
-      '/cli/reference/research/methods/show/',
       '/sdk/plans/',
+      '/sdk/components/',
+      '/sdk/reference/components/',
     ]],
     ['research/evidence.mdx', [
       '/sdk/research/benchmarks/',
@@ -290,7 +311,6 @@ test('navigation-only content directories are not hidden by repository ignore ru
 test('authored copy uses direct technical English and standard status labels', () => {
   const generated = new Set([
     'content/docs/reference/components.mdx',
-    'content/docs/reference/research.mdx',
     'content/docs/reference/python/pllm/index.mdx',
   ]);
   for (const page of readSearchPages()) {
@@ -358,7 +378,7 @@ test('CLI navigation lists tasks directly with command and cross-area links', ()
     ['/cli/private-inference/', ['/cli/reference/gateway/', '/learn/integrations/', '/sdk/operate/client-boundary/']],
     ['/cli/provider-roles/', ['/cli/reference/serve/inference/', '/cli/reference/serve/preparation/', '/sdk/operate/deployment/']],
     ['/cli/benchmarking/', ['/cli/reference/benchmark/run/', '/cli/reference/dev/dashboard/', '/research/records/']],
-    ['/cli/inspect-and-research/', ['/cli/reference/config/', '/cli/reference/components/', '/cli/reference/research/', '/sdk/contribute/agents/']],
+    ['/cli/inspect-and-research/', ['/cli/reference/config/', '/cli/reference/components/', '/research/papers/', '/research/backlog/', '/research/methods/']],
   ]);
   for (const [route, links] of expected) {
     const page = byRoute.get(route);
@@ -378,12 +398,12 @@ test('documented commands use only the current CLI and development dashboard', (
   const sources = readSearchPages().map((page) => page.content).join('\n');
   assert.ok(sources.includes('pllm config show examples/pllm.yaml'));
   assert.ok(sources.includes('pllm components list'));
-  assert.ok(sources.includes('pllm research sources list'));
   assert.ok(sources.includes('pllm dev dashboard'));
   assert.ok(sources.includes('pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct'));
   assert.ok(sources.includes('pllm gateway --config client.toml'));
   assert.ok(sources.includes('pllm serve inference --config inference.json'));
   assert.ok(sources.includes('pllm serve preparation --config preparation.json'));
+  assert.doesNotMatch(sources, /\bpllm research\b/);
   assert.doesNotMatch(sources, /pllm benchmark dashboard/);
   assert.doesNotMatch(sources, /<pre>[^]*?pllm (?:preparation serve|configure|chat|run|model lower|plan (?:check|compile|show)|party serve|benchmark (?:run|search|compare)|assure run|init)\b[^]*?<\/pre>/);
   for (const block of sources.match(/```(?:bash|sh|shell|console|text)?\n[^]*?```/g) ?? []) {
@@ -488,7 +508,7 @@ test('generated references are marked and authored guides stay separate', () => 
     ...walk(path.join(siteRoot, 'content/docs/reference/cli'))
       .filter((file) => file.endsWith('.mdx'))
       .map((file) => path.relative(path.join(siteRoot, 'content/docs/reference'), file).replace(/\.mdx$/, '')),
-    'python/pllm/index', 'components', 'research',
+    'python/pllm/index', 'components',
   ];
   for (const name of generated) {
     const source = fs.readFileSync(path.join(siteRoot, `content/docs/reference/${name}.mdx`), 'utf8');
@@ -498,23 +518,22 @@ test('generated references are marked and authored guides stay separate', () => 
   assert.equal(byRoute.get('/research/clean-room/').title, 'Contribute a clean-room reimplementation');
 });
 
-test('catalog and method pages expose independent status axes', () => {
+test('component catalog exposes independent status axes', () => {
   const components = byRoute.get('/sdk/reference/components/').content;
-  const research = byRoute.get('/research/records/method-catalog/').content;
   for (const heading of ['Identity/version', 'Lifecycle', 'Implementation maturity', 'Provenance', 'Input/output representation', 'Roles/topology', 'Privacy/assurance', 'Model/operator coverage', 'Evidence/cohort', 'Known limitations']) {
     assert.ok(components.toLowerCase().includes(heading.toLowerCase()), heading);
-    assert.ok(research.toLowerCase().includes(heading.toLowerCase()), heading);
   }
   assert.ok(components.includes('not recorded'));
-  assert.ok(research.includes('no applicable evidence'));
+  assert.ok(components.includes('no applicable evidence'));
 });
 
 test('research publication workflow cites source and separates PLLM adaptation', () => {
   const methods = byRoute.get('/research/methods/').content;
   const publications = byRoute.get('/research/publications/').content;
-  assert.ok(methods.includes('pllm.source.mpcache.arxiv-2501.06807v2'));
-  assert.ok(methods.includes('https://arxiv.org/abs/2501.06807v2'));
-  assert.ok(methods.includes('pllm.method.mpcache-structural-adaptation.v1'));
+  assert.ok(methods.includes('crates/pllm-models/src/cache.rs'));
+  assert.ok(methods.includes('pllm/kv-cache-eviction'));
+  assert.ok(methods.includes('structural adaptation'));
+  assert.ok(methods.includes('does not reproduce the paper'));
   for (const phrase of ['comparable evidence', 'assurance', 'explicit limitations', 'distinct method']) assert.ok(publications.includes(phrase), phrase);
   assert.ok(publications.includes('/research/paper/'));
   assert.ok(publications.includes('/research/whitepaper/'));

@@ -1,13 +1,13 @@
-# Inspect configuration and research
+# Inspect configuration and components
 
-Validate public experiment data and inspect built-in component or research records.
+Validate public experiment data and inspect built-in component records.
 
 [View canonical HTML](https://pllm.run/cli/inspect-and-research/)
 
 Document ID: `pllm.docs.cli.inspect-and-research`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:f4133bf92204d7f5b4f16dac4011f42117b90a5ab456dc46a3f5086dd98f2e36`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:9b0a5fbfec8bdc3688b22b3b76c90dd117f05b0ec7089fbcb881152c80fb0ea9`
 
 Inspect or export public experiment configuration:
 
@@ -23,19 +23,10 @@ pllm components list --format json
 pllm components show pllm/cpu --format json
 ```
 
-Inspect research records without executing their workflows:
-
-```bash
-pllm research sources list --format json
-pllm research methods list --format json
-pllm research recipes list --format json
-```
-
 These commands report static or author-supplied records. Presence does not prove
 runtime coverage, evidence quality, security, or publication readiness.
 
-Continue to the generated [configuration](/cli/reference/config/),
-[component](/cli/reference/components/), and
-[research](/cli/reference/research/) references. For autonomous research work,
-read [research agents](/sdk/contribute/agents/) and the
-[publication workflow](/research/publications/).
+Continue to generated [configuration](/cli/reference/config/) and
+[component](/cli/reference/components/) references. For research work, read the
+[paper catalog](/research/papers/), [backlog](/research/backlog/), and
+[method boundaries](/research/methods/).

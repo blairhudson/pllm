@@ -6,8 +6,8 @@ Private language model inference. Client and server guides, the protocol, and re
 
 Document ID: `pllm.home`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:a0e8c95d6a921b8f251b99539132597a9cc94a9c83d61647fbc5f9fb5cd00700`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:8e4a8e12314eff4ae182cecc488c67484e8358825edc7cfdf5b6a03f2ef77285`
 
 # Keep your data private. Open compute to the world.
 
@@ -192,21 +192,7 @@ wire_api = "responses"
 
 ## Run autonomous research.
 
-Generate an `AGENTS.md` for Codex, Claude Code, OpenCode, or another coding agent. The file explains PLLM and tells the agent how to find strong methods, add them as components, test them, and run a fair benchmark.
-
-**Agent guide**
-
-**Research catalog**
-
-```text
-pllm research agents --output AGENTS.md
-```
-
-```text
-pllm research sources list
-pllm research methods list
-pllm research recipes list
-```
+Use the paper catalog, ordered backlog, and public component APIs to find strong methods, add capability-based components, test them, and run fair benchmarks.
 
 - Find the strongest relevant methods.
 
@@ -219,8 +205,9 @@ pllm research recipes list
 Comparisons must use the same model, workload, privacy rules, numeric settings, and hardware. Automation cannot invent claims or publish results without review.
 
 [Research overview](/research/)
-[Research workflow](/research/)
-[Benchmarks](/sdk/research/benchmarks/)
+[Research papers](/research/papers/)
+[Research backlog](/research/backlog/)
+[Method boundaries](/research/methods/)
 
 ## Continue with PLLM.
 

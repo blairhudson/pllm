@@ -47,7 +47,6 @@ SDK_DOC_EXCLUSIONS = (
     Path("measure/compare"),
     Path("measure/reproduce"),
     Path("reference/cli"),
-    Path("reference/research"),
     Path("agents/research-map"),
     Path("agents/reproduction-checklist"),
 )
@@ -143,25 +142,14 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
     assert root == {
         "title": "Command reference",
         "root": True,
-        "pages": ["index", "gateway", "serve", "config", "components", "benchmark", "research", "dev"],
+        "pages": ["index", "gateway", "serve", "config", "components", "benchmark", "dev"],
     }
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "config/meta.json"])["pages"] == [
         "index",
         "show",
         "export",
     ]
-    assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "research/meta.json"])["pages"] == [
-        "index",
-        "sources",
-        "methods",
-        "recipes",
-        "assess",
-        "agents",
-    ]
-    for group in ("sources", "methods", "recipes"):
-        assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / f"research/{group}/meta.json"])[
-            "pages"
-        ] == ["index", "list", "show"]
+    assert not (reference.CLI_REFERENCE_ROOT / "research").exists()
 
 
 def test_sdk_pages_have_executable_examples_or_explicit_api_boundaries() -> None:
@@ -231,6 +219,7 @@ def test_complete_cli_help_has_exact_parser_parity() -> None:
     assert "pllm run" not in generated
     assert "$ pllm serve --help" in generated
     assert "$ pllm benchmark run --help" in generated
+    assert "$ pllm research" not in generated
     assert "$ pllm benchmark search --help" not in generated
     assert "$ pllm benchmark compare --help" not in generated
 
@@ -246,13 +235,9 @@ def test_api_inventory_uses_public_objects_once_and_keeps_alias_identity() -> No
     assert by_name["pllm.ComponentRef"] is by_name["pllm.components.ComponentRef"]
 
 
-def test_component_and_research_catalogs_match_public_apis() -> None:
+def test_component_catalog_matches_public_api_and_research_catalog_is_absent() -> None:
     from pllm.components import list_components
-    from pllm.research import list_methods, list_recipes, list_sources
 
     assert reference.component_catalog() == tuple(item.to_dict() for item in list_components())
-    assert reference.research_catalog() == {
-        "sources": tuple(item.to_dict() for item in list_sources()),
-        "methods": tuple(item.to_dict() for item in list_methods()),
-        "recipes": tuple(item.to_dict() for item in list_recipes()),
-    }
+    assert not hasattr(reference, "research_catalog")
+    assert not (DOCS_ROOT / "reference/research.mdx").exists()

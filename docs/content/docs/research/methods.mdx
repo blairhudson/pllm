@@ -3,17 +3,17 @@ title: "Method implementations"
 description: "Understand the difference between a published method and PLLM's independent implementation of it."
 ---
 
-The current registered implementation is
-`pllm.method.mpcache-structural-adaptation.v1`, inspired by
-[`pllm.source.mpcache.arxiv-2501.06807v2`](https://arxiv.org/abs/2501.06807v2).
-Inspect its record with
-[`pllm research methods show`](/cli/reference/research/methods/show/). It changes
-KV-cache structure in a [`DecoderPlan`](/sdk/plans/). It does not reproduce the
-paper's protected three-party runtime.
+PLLM's MPCache-inspired work lives in
+[`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).
+It is exposed through the `pllm/kv-cache-eviction` capability and Python
+`KvCacheEviction` component. Applying it changes KV-cache structure in a
+[`ModelPlan`](/sdk/plans/); it does not reproduce the paper's protected
+three-party runtime.
 
-The generated [method catalog](/research/records/method-catalog/#method-implementations)
-lists versions, provenance, compatible representations and roles, coverage,
-evidence, and limitations. Fidelity, protected execution, assurance, benchmarks,
-and promotion have not been evaluated for the current method.
+Use the [component guide](/sdk/components/) and generated
+[component inventory](/sdk/reference/components/) for public parameters and
+capabilities. The [MPCache paper page](/research/papers/r23-mpcache/) records
+provenance and limitations. Fidelity, protected execution, assurance, and
+matched benchmarks have not been evaluated for this structural adaptation.
 
 A method that resembles a paper is not automatically a faithful reproduction.

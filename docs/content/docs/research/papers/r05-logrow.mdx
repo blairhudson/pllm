@@ -1,0 +1,35 @@
+---
+title: "R05: Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts"
+description: "The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2024  
+**Authors:** David Heath, Vladimir Kolesnikov, Lucien K. L. Ng  
+**External source:** [Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts](https://eprint.iacr.org/2024/369)
+
+## Source contribution
+
+The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term.
+
+## PLLM perspective
+
+Reproduce the original lookup construction, not its headline complexity. Provide Boolean input/output contracts and explicit arithmetic conversion edges.
+
+Analytical formulas only in previous work; no original or PLLM logrow execution.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Do not translate logarithmic ciphertext count into logarithmic total bytes or claim our flat-table improvements beat this unimplemented baseline.
+
+## PLLM modules and documentation
+
+Target module identifiers: `gate.logrow`, `convert.lookup_io`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: R04.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 4, **Protected conversions and lookup**. Its source-registry order is 5. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

@@ -6,8 +6,8 @@ Turn a published method into a versioned component and a recorded plan change.
 
 Document ID: `pllm.docs.build.research`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:800cdb97ac7ed28eacf26dfa8b731e9673468b1f0eb1e9278512cb9b5ed357f7`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:43933f6c157772344c1058a9a1e8464a94a2588d891748c282a9da61c5849a93`
 
 A new reimplementation follows distinct identities:
 
@@ -19,4 +19,5 @@ source record -> method semantics -> clean-room reference -> fidelity result
 
 Composition records exact source, method, component, implementation, model, numeric graph, roles, privacy contract, workload, and plan identities. Changed inputs create new lineage; evidence never transfers by name similarity.
 
-Read [research workflow](/research/), [research standard](https://github.com/blairhudson/pllm/blob/main/design/research-standard.md), and generated [research catalog](/research/records/method-catalog/).
+Read the [research workflow](/research/), [paper catalog](/research/papers/), and
+[research backlog](/research/backlog/).

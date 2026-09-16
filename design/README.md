@@ -10,14 +10,12 @@ implemented. `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative.
 - [Component standard](component-standard.md): identity, discovery, composition, and native ABI.
 - [Package structure](package-structure.md): repository, distribution, dependency, and artifact boundaries.
 - [Documentation standard](documentation-standard.md): one documentation source and evidence-safe claims.
-- [Research and method standard](research-standard.md): open method lifecycle, provenance, citation,
-  benchmark, publication, and promotion gates.
 - [Roadmap](roadmap.md): ordered delivery and promotion gates.
 
-Canonical machine contracts live in [`../schemas/`](../schemas/). Research records and planned
-reproduction workflows live in [`../research/methods/`](../research/methods/) and
-[`../research/recipes/`](../research/recipes/). Historical measurements remain under
-[`../research/evidence/`](../research/evidence/) and are not implied to be current runs.
+Canonical machine contracts live in [`../schemas/`](../schemas/). Paper records and implementation
+status live in [`../docs/data/research/`](../docs/data/research/), and implementation requirements
+live in the public research backlog. Historical measurements remain under
+[`../docs/evidence/`](../docs/evidence/) and are not implied to be current runs.
 
 ## Authority
 

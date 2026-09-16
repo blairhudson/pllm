@@ -6,22 +6,23 @@ Learn how PLLM records research recipes and changes to a model plan.
 
 Document ID: `pllm.docs.research.compositions`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:fdeba24345277f49d2ffc511853562098ad13790a132d2bd3fe63a65d22da36d`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:aa7404a9b15ad8b26a476f3435638fc049c8b9be619d612c7aeee9a3ccf19171`
 
-Recipes describe source acquisition, target model operations, required evidence,
-review gates, and failure policy. Inspecting a recipe returns a read-only record;
-it does not run third-party code or a PLLM workflow. Use
-[`pllm research recipes list`](/cli/reference/research/recipes/list/) to discover
-records and [`pllm research recipes show`](/cli/reference/research/recipes/show/)
-to inspect one.
+Research workflows describe source acquisition, target model operations,
+required evidence, review gates, and failure policy. They are documentation, not
+executable package records. Start with the [research backlog](/research/backlog/)
+and choose a workflow under [research recipes](/research/recipes/).
 
 A [composed plan](/sdk/plans/) records the method, value formats, conversions, numeric policy,
 parties, threat model, visible information, state lifetime, workload, component
 version from the [component inventory](/sdk/reference/components/), and coverage.
-Matching shapes and data types are not enough. A change to
-the source, implementation, configuration, plan, workload, or cohort creates new
-plan history.
+Matching shapes and data types are not enough. A change to the source,
+implementation, configuration, plan, workload, or cohort creates new plan
+history. Components contribute declared capabilities; they do not establish
+runtime coverage, privacy, fidelity, or benchmark parity by their presence alone.
 
-The generated [recipe catalog](/research/records/method-catalog/#compositions-and-recipes)
-currently marks every workflow as `not_executed`.
+MPCache is one example: `pllm/kv-cache-eviction` structurally adapts a compatible
+plan through code in `crates/pllm-models/src/cache.rs`. It is not a protected
+MPCache runtime. See [method implementations](/research/methods/) and the public
+[component APIs](/sdk/components/).

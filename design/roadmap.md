@@ -13,17 +13,18 @@ Work proceeds through evidence gates. Parallel research starts only after contra
 6. Recover full real-checkpoint client-heavy baseline with exact numeric and workload locks.
 7. Implement complete single-evaluator regions, then decoder state and token feedback. No hidden
    client operations or online Preparation.
-8. Add constrained regional search. Compare only plans with identical numeric, privacy, topology,
-   workload, and resource contracts.
+8. Add constrained component search: compatibility filtering first, exhaustive or grid search for
+   small finite spaces, then seeded random search for larger conditional spaces. Compare only plans
+   with identical numeric, privacy, topology, workload, and resource contracts.
 9. Promote defaults only after complete coverage, applicable assurance review, tested parameters,
    lifecycle controls, quality checks, and full-system resource/performance evidence.
 
-Method cards form an open-ended reproduction registry, not a set of installed implementations.
+The paper catalog forms an open-ended reproduction registry, not a set of installed implementations.
 Each advances independently through source lock/license/citation, clean-room PLLM reference,
 fidelity tests, native implementation, typed composition, scoped assurance, matched multi-objective
 benchmark, and documentation/promotion. Blocked and negative results remain records. New PLLM
 scientific manuscripts require a novel method or composition and a matched Pareto-frontier advance;
 reproduction and engineering improvement remain separately labelled outcomes. Full-text-gated work
-cannot claim reproduction until required sources and original artifacts are acquired. See the
-[research and method standard](research-standard.md) and
-[`../research/methods/registry.json`](../research/methods/registry.json).
+cannot claim reproduction until required sources and original artifacts are acquired. The public
+[reimplementation backlog](../docs/content/docs/research/backlog.mdx) and
+[paper catalog](../docs/data/research/papers.json) record that work.

@@ -113,7 +113,7 @@ function titleForHtml(id, content) {
 
 function descriptionForHtml(id, content) {
   if (id === 'pllm.home') return 'Private language model inference. Client and server guides, the protocol, and reproducible research.';
-  if (id === 'pllm.research') return 'The mission, protocol, and evidence for a global market in private AI compute.';
+  if (id === 'pllm.research') return 'PLLM original research, technical paper, tracked papers, and implementation backlog.';
   throw new Error(`Missing HTML description: ${id}`);
 }
 

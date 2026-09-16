@@ -1,48 +1,36 @@
 <section class="research-hero" aria-labelledby="research-title">
-  <h1 id="research-title">Build private inference methods that can be reproduced and compared.</h1>
+  <h1 id="research-title">Research for high-performance private LLM inference.</h1>
   <div class="research-copy">
-    <p><strong>PLLM is an autonomous research harness for high-performance private LLM inference.</strong> It tracks sources, guides independent Rust and Python implementations, tests fidelity and privacy assumptions, benchmarks matched plans, preserves negative results, and prepares evidence for human review.</p>
+    <p><strong>PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.</strong> We independently reimplement useful methods, compose compatible components, and benchmark complete plans to determine what improves the system.</p>
     <div class="button-row">
-      <a class="button primary" href="/research/whitepaper/">Read Whitepaper <span>→</span></a>
-      <a class="button secondary" href="/research/">Explore the research registry <span>→</span></a>
+      <a class="button primary" href="/research/whitepaper/">Read the whitepaper <span>→</span></a>
+      <a class="button secondary" href="/research/paper/">Read the research paper <span>→</span></a>
+      <a class="button secondary" href="/research/papers/">Explore papers <span>→</span></a>
     </div>
   </div>
 </section>
 
-<section class="research-section research-problem" aria-labelledby="problem-title">
+<section class="research-section research-problem" aria-labelledby="system-title">
   <div class="section-intro">
-    <h2 id="problem-title">Hosted inference combines computation with data access.</h2>
-    <p>An ordinary inference provider receives the language it processes. This boundary limits where sensitive workloads can run, concentrates demand among providers that buyers already trust, and excludes other compute capacity.</p>
+    <h2 id="system-title">A runtime and a research system.</h2>
+    <p>The runtime keeps plaintext, model state, masks, and decoding inside the client boundary while separate services perform prepared masked computation. The research harness turns pinned papers and hypotheses into reusable components, immutable plans, assurance records, and matched benchmark evidence.</p>
   </div>
   <div class="problem-grid">
-    <article><h3>Every seller becomes a custodian</h3><p>Plaintext inference requires the infrastructure operator to receive the client's prompt, model state, and generated result.</p></article>
-    <article><h3>Trust narrows the supply side</h3><p>Buyers choose providers partly by who may see their data, not only by price, performance, location, or availability.</p></article>
-    <article><h3>Capacity cannot compete freely</h3><p>Regional infrastructure, sovereign capacity, and independent machines cannot serve many private workloads under the ordinary boundary.</p></article>
-  </div>
-</section>
-
-<section class="research-section research-mechanism" aria-labelledby="mechanism-title">
-  <div class="section-intro">
-    <h2 id="mechanism-title">Separate computation from plaintext data.</h2>
-    <p>Private inference methods aim to let providers process protected values instead of plaintext client data. The exact protection depends on the selected protocol, implementation, and trust assumptions.</p>
-  </div>
-  <div class="market-effects">
-    <article><span>01</span><h3>Expand eligible supply</h3><p>Providers can contribute useful compute without receiving plaintext client language.</p></article>
-    <article><span>02</span><h3>Increase buyer choice</h3><p>Capacity can compete on price, latency, location, availability, and service quality.</p></article>
-    <article><span>03</span><h3>Use distributed capacity</h3><p>Protected workloads can reach infrastructure that a plaintext trust boundary excludes.</p></article>
-    <article><span>04</span><h3>Limit direct data collection</h3><p>A compatible compute service does not need plaintext client language as its input.</p></article>
+    <article><h3>Reimplement independently</h3><p>Research papers are specification and provenance inputs. Implementations are built in PLLM's Rust and Python stack rather than imported as runtime dependencies.</p></article>
+    <article><h3>Compose by capability</h3><p>Like-for-like cache, numeric, protocol, preparation, kernel, and placement components live together behind stable typed contracts.</p></article>
+    <article><h3>Compare complete plans</h3><p>Correctness and privacy remain hard gates. Latency, throughput, traffic, memory, preparation, quality, energy, and cost remain separate measurements.</p></article>
   </div>
 </section>
 
 <section class="research-section research-program" aria-labelledby="program-title">
   <div class="section-intro">
-    <h2 id="program-title">Follow the work from source to evidence.</h2>
-    <p>The research record keeps provenance, implementation, assurance, benchmark evidence, and publication review separate.</p>
+    <h2 id="program-title">Three research records.</h2>
+    <p>Each record serves a different reader. The whitepaper explains why PLLM exists, the technical paper defines the implemented system and its limits, and the paper catalog tracks the methods that may improve it.</p>
   </div>
   <div class="program-grid">
-    <a href="/research/sources/"><span>1</span><h3>Source registry</h3><p>Which original publications, versions, artifacts, and licenses ground each method?</p><b>Inspect sources →</b></a>
-    <a href="/learn/understand/privacy-assurance/"><span>2</span><h3>Private inference</h3><p>How can providers execute useful model work without seeing client data?</p><b>Trust and assurance →</b></a>
-    <a href="/research/paper/"><span>3</span><h3>PLLM Research Paper</h3><p>What system, security boundary, and implementation details support the demonstrated result?</p><b>Read the paper →</b></a>
-    <a href="/research/clean-room/"><span>4</span><h3>Contribute</h3><p>How does a clean-room reimplementation advance through matched evidence and publication gates?</p><b>Contribution guide →</b></a>
+    <a href="/research/whitepaper/"><span>01</span><h3>PLLM original research</h3><p>A concise, business-friendly whitepaper on private inference, the multi-party boundary, and the autonomous research loop.</p><b>Read the whitepaper →</b></a>
+    <a href="/research/paper/"><span>02</span><h3>PLLM research paper</h3><p>The current protocol, compiler and component architecture, security limits, implementation status, and retained evidence.</p><b>Read the technical paper →</b></a>
+    <a href="/research/papers/"><span>03</span><h3>Papers</h3><p>One PLLM-focused page per tracked source, with its contribution, boundary, status, original source, and implementation links where they exist.</p><b>Explore the catalog →</b></a>
+    <a href="/research/backlog/"><span>04</span><h3>Reimplementation backlog</h3><p>The ordered work needed to turn tracked methods into validated components and comparable plans.</p><b>See what comes next →</b></a>
   </div>
 </section>

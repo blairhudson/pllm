@@ -4,7 +4,7 @@ description: "Locate model planning, compiler contracts, native execution, Pytho
 ---
 
 - `crates/pllm-models`: model-neutral semantic decoder IR and family adapters.
-- `crates/pllm-method-mpcache`: generic research transform over semantic plans.
+- `crates/pllm-models::cache`: model-state and cache-policy transforms over semantic plans.
 - `crates/pllm-types`: canonical Rust plan, benchmark, and assurance records.
 - `crates/pllm-compiler`: capability resolution and executable-plan validation.
 - `crates/pllm-core`: bounded matrix arithmetic and native kernels.
@@ -15,15 +15,6 @@ description: "Locate model planning, compiler contracts, native execution, Pytho
 
 Dependency direction remains Python to PyO3 to Rust core; semantic model code must not depend on Python or web frameworks.
 
-## Python SDK example
-
-```python
-from pllm.research import render_agents_guide
-
-guide = render_agents_guide()
-assert "`python/pllm/` is the only installed Python namespace" in guide
-```
-
-The generated guide locates public and implementation surfaces without importing implementation providers.
-
-API: [`pllm.research.render_agents_guide`](/sdk/reference/python/pllm/#objects-and-signatures)
+No public Python API generates this implementation map. Treat it as orientation,
+then inspect source and the [research backlog](/research/backlog/) before changing
+component boundaries.

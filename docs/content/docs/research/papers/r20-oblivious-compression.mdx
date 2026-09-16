@@ -1,0 +1,35 @@
+---
+title: "R20: Oblivious Ciphertext Compression via Linear Codes"
+description: "This work develops oblivious ciphertext compression using linear codes and syndrome decoding. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2026  
+**Authors:** Pascal Giorgi, Bruno Grenet, Mark Simkin  
+**External source:** [Oblivious Ciphertext Compression via Linear Codes](https://eprint.iacr.org/2026/329)
+
+## Source contribution
+
+This work develops oblivious ciphertext compression using linear codes and syndrome decoding.
+
+## PLLM perspective
+
+Reproduce the exact source construction and its decoding-side-information assumptions. Bind codecs to representations and valid domains; compare the PLLM syndrome design as an adaptation.
+
+Network archives contain a custom bounded-overflow codec, not this paper's implementation.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Lossless compression is conditional on its domain and side information. Successful decode is not proof of correct inference, and adaptive retries can leak.
+
+## PLLM modules and documentation
+
+Target module identifiers: `codec.oblivious_linear_code`, `codec.domain_certificate`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 7, **Preparation, compression, and acceleration**. Its source-registry order is 20. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

@@ -204,16 +204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pllm-method-mpcache"
-version = "0.1.0-alpha.1"
-dependencies = [
- "pllm-models",
- "pllm-types",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "pllm-models"
 version = "0.1.0-alpha.1"
 dependencies = [
@@ -231,7 +221,6 @@ dependencies = [
  "pllm-bench",
  "pllm-compiler",
  "pllm-core",
- "pllm-method-mpcache",
  "pllm-models",
  "pllm-types",
  "pyo3",

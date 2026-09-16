@@ -430,11 +430,11 @@ fn apply_model_component<'py>(
             "unsupported KV-cache eviction implementation {implementation:?}"
         )));
     }
-    let policy: pllm_method_mpcache::MpcachePolicy =
+    let policy: pllm_models::cache::MpcachePolicy =
         serde_json::from_value(serde_json::Value::Object(params.clone()))
             .map_err(|error| invalid(format!("invalid MPCache policy: {error}")))?;
     let optimized =
-        pllm_method_mpcache::optimize(&plan, policy).map_err(|error| invalid(error.to_string()))?;
+        pllm_models::cache::optimize(&plan, policy).map_err(|error| invalid(error.to_string()))?;
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&optimized)))
 }
 

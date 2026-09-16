@@ -1,0 +1,35 @@
+---
+title: "R07: Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware"
+description: "Slalom outsources masked linear work and uses local verification within a trusted execution partition. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2019  
+**Authors:** Florian Tramèr, Dan Boneh  
+**External source:** [Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware](https://arxiv.org/abs/1806.03287)
+
+## Source contribution
+
+Slalom outsources masked linear work and uses local verification within a trusted execution partition.
+
+## PLLM perspective
+
+Reproduce the original blinding and verification boundary. Register PLLM trusted-client/dealer adaptation separately; port modular kernels and verification state without changing the numerical graph silently.
+
+Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: A trusted client is not a reproduced TEE deployment. Static non-collusion, integrity and later compromise require distinct claims.
+
+## PLLM modules and documentation
+
+Target module identifiers: `protocol.masked_linear`, `verify.preprocessed_linear`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 1, **Delegated matrix-vector execution**. Its source-registry order is 7. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

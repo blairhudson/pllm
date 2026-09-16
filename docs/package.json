@@ -7,7 +7,7 @@
     "node": ">=22.16.0"
   },
   "scripts": {
-    "generate": "node scripts/discover-pages.mjs && node scripts/generate.mjs",
+    "generate": "node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
     "dev": "bun run generate && bun --bun next dev",
     "build": "npm run generate && next build",
     "postinstall": "fumadocs-mdx",

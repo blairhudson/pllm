@@ -6,20 +6,17 @@ See how PLLM records original papers, source artifacts, citations, and licenses.
 
 Document ID: `pllm.docs.research.sources`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:78e297f9e90d757d17bfd710a4b06b06a7f95d66c4f01ba01fff11a7c53508b9`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:902608904e08ca42456b95de3796aa60480c40feaaf8984a511c0e22016f21be`
 
-Every research page identifies its original source with a stable record ID and URL.
-The generated [source catalog](/research/records/method-catalog/#sources) shows the current
-records without guessing at missing information.
-
-Use [`pllm research sources list`](/cli/reference/research/sources/list/) to discover
-stable IDs and [`pllm research sources show`](/cli/reference/research/sources/show/)
-to inspect one source record.
+Every [research paper page](/research/papers/) identifies its original source with
+a stable paper ID and external URL. Missing publication, artifact, license, or
+acquisition information remains explicit rather than being guessed.
 
 An original source is not a PLLM method, component, recipe, implementation, or
 evidence record. Downloading a source does not mean that PLLM built, ran, or
 reproduced it. Claims from a source remain attributed to that source and limited
 to its stated workload and assumptions.
 
-Canonical records: [`research/methods/sources/`](https://github.com/blairhudson/pllm/tree/main/research/methods/sources). Approved bibliography: [`research/methods/references.bib`](https://github.com/blairhudson/pllm/blob/main/research/methods/references.bib).
+Use the [research backlog](/research/backlog/) to distinguish tracked sources,
+planned work, reference primitives, and structural adaptations.

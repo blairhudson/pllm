@@ -1,0 +1,35 @@
+---
+title: "R11: Factored Edge-Valued Binary Decision Diagrams"
+description: "Factored edge-valued diagrams share subfunctions through additive and multiplicative edge normalization. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 1997  
+**Authors:** Paul Tafertshofer, Massoud Pedram  
+**External source:** [Factored Edge-Valued Binary Decision Diagrams](https://link.springer.com/article/10.1023/A:1008691605584)
+
+## Source contribution
+
+Factored edge-valued diagrams share subfunctions through additive and multiplicative edge normalization.
+
+## PLLM perspective
+
+Port public EVBDD/FEVBDD compilation, canonical residual normalization and variable-order search to Rust. Keep encrypted traversal as a separate experimental method.
+
+Prior tenx archive contains exact public diagram experiments and a custom encrypted extension.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: This is function compression, not a privacy protocol. No security claim follows from a smaller public graph.
+
+## PLLM modules and documentation
+
+Target module identifiers: `compiler.weighted_decision_diagram`, `compiler.variable_order`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 6, **Decision structures and regional selection**. Its source-registry order is 11. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

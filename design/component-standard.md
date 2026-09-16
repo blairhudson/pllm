@@ -89,6 +89,41 @@ contracts.
 Compatibility reports separate accepted constraints, failures, assumptions, and unresolved proof
 obligations. Passing necessary structural checks is not proof of secure composition.
 
+### Capability families and search
+
+Papers contribute implementations to capability families; they do not create paper-shaped runtime
+architectures. The family taxonomy is intentionally extensible as research creates genuinely new
+contracts. Implementations that can occupy the same typed plan slot live behind the same category
+contract and near one another in the owning semantic module. Examples include cache
+policies, nonlinear protocols, matrix protocols, representation conversions, preparation schemes,
+kernel backends, and placement strategies. Paper and method identities remain attribution and
+evidence metadata, not dispatch keys or top-level module boundaries.
+
+A new family is justified by a distinct semantic role, type boundary, lifecycle, compatibility
+contract, or dependency direction, not merely by a new paper or algorithm name. A family MAY split
+into a dedicated module or crate as its implementations and ownership grow, while preserving its
+typed public contract and plan identity. Category registries and serialized plans therefore version
+new families explicitly rather than treating today's list as exhaustive.
+
+Each candidate declares exact input and output representations, operator coverage, numerical
+semantics, topology, trust assumptions, state and material lifetime, device requirements, public
+parameters, and evidence. The compiler may substitute or compose candidates only when those
+contracts match or an explicit validated conversion connects them. It MUST NOT compare unlike
+party counts, leakage, numeric graphs, model coverage, or workloads as though they were equivalent.
+
+Research search operates on immutable component references and parameters before compilation:
+
+1. Compatibility filtering rejects invalid combinations without execution.
+2. Exhaustive or grid search covers small finite spaces and boundary values.
+3. Seeded random search samples larger conditional spaces reproducibly.
+4. Later adaptive strategies MAY propose candidates from prior measurements, but every proposal
+   still passes the same compiler, assurance, execution, and evidence gates.
+
+Search objectives are multi-dimensional: correctness and privacy constraints are hard gates;
+latency, throughput, traffic, memory, preparation cost, quality, energy, and monetary cost are
+separate measured objectives. A winner is a plan lock and evidence cohort, never an unqualified
+component ranking. Negative and dominated results remain useful records.
+
 ## Native plugin ABI
 
 PLLM Native Plugin ABI 1 is independently versioned and C-compatible:

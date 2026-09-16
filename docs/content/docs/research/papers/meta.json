@@ -1,5 +1,31 @@
 {
-  "title": "Reimplemented papers",
+  "title": "Research papers",
   "root": true,
-  "pages": ["index"]
+  "pages": [
+    "index",
+    "r01-dash",
+    "r02-redash",
+    "r03-garbling-gadgets",
+    "r04-half-gates",
+    "r05-logrow",
+    "r06-duty-free-bits",
+    "r07-slalom",
+    "r08-carnival",
+    "r09-hycc",
+    "r10-oblivious-decision-programs",
+    "r11-fevbdd",
+    "r12-piranha",
+    "r13-sigma",
+    "r14-fusefss",
+    "r15-ring-pcg",
+    "r16-trapdoored-matrices",
+    "r17-curl",
+    "r18-compact",
+    "r19-open-weight-verifiable",
+    "r20-oblivious-compression",
+    "r21-nexus",
+    "r22-openbumblebee",
+    "r23-mpcache",
+    "r24-maverick"
+  ]
 }

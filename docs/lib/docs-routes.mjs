@@ -7,7 +7,6 @@ const EXACT_ROUTES = new Map([
   ['measure/reproduce', 'research/recipes/reproduce'],
   ['operate/deployment', 'sdk/operate/deployment/status'],
   ['reference/cli', 'cli/reference'],
-  ['reference/research', 'research/records/method-catalog'],
 ]);
 
 const PREFIX_ROUTES = [

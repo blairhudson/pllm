@@ -1,0 +1,35 @@
+---
+title: "R14: FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing"
+description: "FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in FSS-based LLM inference. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2026  
+**Authors:** Yuhan Ma, Yong Li, Stefan Schmid  
+**External source:** [FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing](https://arxiv.org/abs/2606.09551)
+
+## Source contribution
+
+FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in FSS-based LLM inference.
+
+## PLLM perspective
+
+Acquire and pin the full source and artifact; port complete fused helpers with their offline key generation, remaining secure multiplication and rescaling.
+
+Prior reference fused-polynomial experiments are alternative methods, not a FuseFSS implementation.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: A fused key lookup does not make subsequent private polynomial evaluation free. Public model support does not eliminate the second online role.
+
+## PLLM modules and documentation
+
+Target module identifiers: `gate.fss_fused`, `compiler.fss_fusion`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: R13.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 8, **Full-system comparison targets**. Its source-registry order is 14. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

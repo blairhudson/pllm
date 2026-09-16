@@ -40,7 +40,7 @@ test('nested CLI reference sources map before generic SDK reference routes', () 
   assert.equal(canonicalDocsUrl('content/docs/reference/cli/index.mdx'), '/cli/reference/');
   assert.equal(canonicalDocsUrl('content/docs/reference/cli/config/index.mdx'), '/cli/reference/config/');
   assert.equal(canonicalDocsUrl('content/docs/cli/private-inference.mdx'), '/cli/private-inference/');
-  assert.equal(canonicalDocsUrl('content/docs/reference/cli/research/sources/list.mdx'), '/cli/reference/research/sources/list/');
+  assert.equal(canonicalDocsUrl('content/docs/reference/cli/components/list.mdx'), '/cli/reference/components/list/');
 });
 
 test('nested Learn integration sources keep canonical public routes', () => {

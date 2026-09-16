@@ -47,8 +47,10 @@ configurations (`pllm.gemma4_e2b_text.v1` and `pllm.gemma4_e4b_text.v1`, model
 family `gemma4_text`). Other Qwen, Gemma, Nemotron, Kimi, GLM and future families
 must lower into the same IR or extend its semantic vocabulary rather than
 introduce family-specific compiler paths.
-Research-method crates transform this IR through generic component contracts and
+Capability modules transform this IR through generic component contracts and
 record immutable, digest-bound transformation lineage on the resulting plan.
+Substitutable implementations are grouped by capability; a new family is added
+only when a method has a genuinely different contract or lifecycle.
 
 Semantic adapter support, checkpoint import, runtime graph support, compiler
 operator coverage, protected/private parity, generation quality, benchmark
@@ -166,7 +168,7 @@ site and is not bundled into the Python wheel. `paper/manuscript.md` and
 `paper/whitepaper.md` are the canonical Pandoc Markdown paper sources. Pandoc
 generates each website article and PDF, using Tectonic locally or pdfLaTeX in CI;
 only shared PDF layout details remain in TeX. Historical measurements are kept
-under `research/evidence` and are not rewritten as native Rust results.
+under `docs/evidence` and are not rewritten as native Rust results.
 
 The loopback benchmark dashboard runs the real client, preparation, and inference
 roles and receives their OTLP metrics and traces directly. Protocol byte counts

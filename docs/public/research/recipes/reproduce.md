@@ -6,8 +6,8 @@ Compare an independent PLLM implementation with the published method it follows.
 
 Document ID: `pllm.docs.measure.reproduce`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:d9fbc27aa2bfdf87004f68582309774a19c516a5295ab704982270f3ad3bb316`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c`
 
 1. Lock source publication, artifact, license, environment, and workload.
 2. Implement reference from publication specification and approved vectors without upstream code.
@@ -17,7 +17,6 @@ Source hash: `sha256:d9fbc27aa2bfdf87004f68582309774a19c516a5295ab704982270f3ad3
 6. [Benchmark](/sdk/research/benchmarks/) against strongest eligible baseline in one matched cohort.
 7. Publish mismatches, unavailable cases, failures, and limitations.
 
-Recipes exposed by `pllm.research` are read-only descriptions with status
-`not_executed`. Inspecting a recipe never runs its commands. See
-[clean-room contributions](/research/clean-room/) and the
-[research catalog](/research/records/method-catalog/).
+Workflow pages are descriptions, not executable package records. Reading one
+never runs its commands. See [clean-room contributions](/research/clean-room/),
+the [paper catalog](/research/papers/), and [research backlog](/research/backlog/).

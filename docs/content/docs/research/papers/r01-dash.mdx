@@ -1,0 +1,37 @@
+---
+title: "R01: Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits"
+description: "Arithmetic garbling and LabelTensors provide the foundation for offline preparation and local encoded public-weight evaluation. PLLM status: reference primitive only."
+---
+
+**Status:** `reference primitive only`  
+**Year:** 2024  
+**Authors:** Jonas Sander, Sebastian Berndt, Ida Bruhns, Thomas Eisenbarth  
+**External source:** [Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits](https://arxiv.org/html/2302.06361v2)
+
+## Source contribution
+
+Arithmetic garbling and LabelTensors provide the foundation for offline preparation and local encoded public-weight evaluation.
+
+## PLLM perspective
+
+Implement affine-label arithmetic, constant multiplication with the required algebraic preconditions, projections and tensorized evaluation. Preserve the original circuit functionality before adapting to transformers.
+
+Prior single-server, model-aware and tenx archives contain adaptations, not a reproduced Dash release.
+
+PLLM has related clean-room reference primitives only. They are not a paper reproduction, reviewed protected runtime, or complete-model result.
+
+The source's boundary remains binding: Do not inherit malicious security by importing kernels: the paper discusses additional integrity mechanisms and trusted-hardware or cryptographic configurations.
+
+## PLLM modules and documentation
+
+Target module identifiers: `garble.affine_label`, `kernel.label_tensor`, `gate.projection`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: R03, R04.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+- [Arithmetic garbling documentation](/sdk/pipeline/protocols/garbling/arithmetic/)
+- [Reference garbling source](https://github.com/blairhudson/pllm/blob/main/crates/pllm-garble/src/lib.rs)
+
+## Backlog
+
+This source is assigned to reimplementation priority 3, **Arithmetic garbling foundation**. Its source-registry order is 1. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

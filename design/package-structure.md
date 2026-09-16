@@ -62,7 +62,6 @@ Public APIs are exported from `pllm` or stable domain facades. Current canonical
 ```text
 pllm                     configuration, ModelPlan, compile, benchmark, assure, client APIs
 pllm.components          component configuration contracts
-pllm.research            immutable source, method, and inert recipe metadata
 pllm.config              configuration facade
 pllm.pipeline            Pipeline and Experiment declarations
 pllm.protocols           protocol component declarations
@@ -84,8 +83,8 @@ into an export of every implementation class.
 
 `pllm.components.list_components()` and `pllm.components.get_component()` are the only built-in
 descriptor discovery APIs. Discovery reads the static descriptor registry and MUST NOT import
-runtime, provider, or native implementation modules. `pllm.research` similarly exposes only frozen
-metadata records and list/get operations; it MUST NOT execute recipes or upstream artifacts.
+runtime, provider, or native implementation modules. Paper metadata and implementation status are
+documentation data, not a Python runtime API.
 
 Configuration is immutable, JSON-safe, and side-effect-free to construct. Model-data scans,
 compilation, protected computation, material allocation, scheduling, clocks, and trace capture use
@@ -100,12 +99,11 @@ Current crates have these canonical responsibilities:
 | --- | --- |
 | `pllm-types` | Lowest-level serializable plan and evidence records |
 | `pllm-core` | Exact integer execution, codecs, and masking primitives |
-| `pllm-models` | Model adapters and complete semantic decoder plans |
+| `pllm-models` | Model adapters, semantic decoder plans, and model-state transformations such as cache policies |
 | `pllm-compiler` | Deterministic validation, analysis, lowering, and plan compilation |
 | `pllm-bench` | Native region timing and canonical measurement records |
 | `pllm-assurance` | Deterministic scoped assurance fixtures and reports |
 | `pllm-garble` | Explicit research implementation of arithmetic garbling |
-| `pllm-method-mpcache` | Clean-room model-graph component implementation |
 | `pllm-python` | Thin PyO3 bindings and conversion to public Python objects |
 
 New crates are justified by ownership, dependency, build, or reuse boundaries, not by mirroring
@@ -138,7 +136,12 @@ More specifically:
 
 Built-ins live in their semantic Python facade and owning Rust crate while satisfying the same
 descriptor and compatibility contracts as external providers. A model-graph transformation belongs
-with model or compiler semantics; its paper recipe and fidelity record belong under `research/`.
+with model or compiler semantics. Like-for-like implementations share a capability-named module;
+paper names appear only on concrete implementations and attribution records. A new paper MUST NOT
+create a top-level crate or Python package merely because its implementation is new.
+The capability taxonomy is not closed: a new semantic role or lifecycle may introduce a sensibly
+named family, and a crowded family may later split into a crate without changing what its typed
+component contract means.
 
 Community providers use a separate distribution and top-level import package, for example:
 
@@ -166,17 +169,11 @@ Normative engineering contracts live in `design/`. User-facing source lives in `
 the documentation standard. Generated search indexes, Markdown mirrors, and static output remain
 under docs-owned build paths and are never imported by runtime code.
 
-`research/methods/` stores source-aware method records; `research/recipes/` stores reproducibility
-workflows; `research/assurance/` stores bounded models and public fixtures; `research/evidence/`
-stores historical records. Algorithm implementations do not live under a paper-named research
-directory merely because a paper motivated them. Source claims, reproduction status, implementation
-coverage, measurements, and assurance findings remain separate records.
-
-Wheels carry a generated readable catalog at `pllm/research/_catalog.json`. Canonical repository
-records and schemas remain source of truth. `scripts/generate_research_catalog.py` deterministically
-regenerates the catalog, and `--check` verifies its generated header, catalog version, canonical
-payload digest, strict validation, and byte-for-byte freshness. Checkout and wheel fallback APIs
-validate and expose identical records.
+`docs/data/research/` stores the source-aware paper catalog, notes, source locks, and bibliography;
+`docs/evidence/` stores retained historical evidence. Public paper pages and the reimplementation
+backlog are generated or authored under `docs/content/`. Algorithm implementations do not live in
+these documentation paths or under paper-named runtime directories. Source claims, reproduction
+status, implementation coverage, measurements, and assurance findings remain separate records.
 
 ## Artifacts, state, and caches
 

@@ -1,5 +1,7 @@
 //! Model configuration validation and model-aware semantic lowering.
 
+pub mod cache;
+
 use pllm_types::{canonical_digest, Digest};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};

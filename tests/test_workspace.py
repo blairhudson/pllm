@@ -34,7 +34,6 @@ def test_core_is_independent_of_python():
         'crates/pllm-assurance',
         'crates/pllm-garble',
         'crates/pllm-models',
-        'crates/pllm-method-mpcache',
     ]
     core = tomllib.loads((ROOT / 'crates/pllm-core/Cargo.toml').read_text())
     binding = tomllib.loads((ROOT / 'crates/pllm-python/Cargo.toml').read_text())
@@ -46,7 +45,6 @@ def test_core_is_independent_of_python():
         'pllm-bench',
         'pllm-assurance',
         'pllm-models',
-        'pllm-method-mpcache',
         'pyo3',
         'serde_json',
     }
@@ -139,7 +137,8 @@ def test_source_python_module_entrypoint():
     environment = dict(os.environ, PYTHONPATH=str(ROOT / 'python'))
     result = subprocess.run([sys.executable, '-m', 'pllm', '--help'], check=True,
                             env=environment, capture_output=True, text=True)
-    assert 'config' in result.stdout and 'components' in result.stdout and 'research' in result.stdout
+    assert 'config' in result.stdout and 'components' in result.stdout
+    assert 'research' not in result.stdout
 
 
 def test_native_source_does_not_expose_mutable_matrix_fields():

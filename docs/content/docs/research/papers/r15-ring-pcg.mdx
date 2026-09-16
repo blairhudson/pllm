@@ -1,0 +1,35 @@
+---
+title: "R15: Efficient Pseudorandom Correlation Generators over Z/p^k Z"
+description: "Galois-ring constructions extend pseudorandom correlation generation to integer rings, including multiplication-related correlations. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2025  
+**Authors:** Zhe Li, Chaoping Xing, Yizhou Yao, Chen Yuan  
+**External source:** [Efficient Pseudorandom Correlation Generators over Z/p^k Z](https://link.springer.com/chapter/10.1007/978-3-032-01884-7_7)
+
+## Source contribution
+
+Galois-ring constructions extend pseudorandom correlation generation to integer rings, including multiplication-related correlations.
+
+## PLLM perspective
+
+Implement reviewed parameter sets and the actual requested correlation schema. Expose seed setup, expansion time, memory and transcript requirements; do not substitute ordinary PRG seeds.
+
+Earlier Galois-ring checks were algebra only, not a PCG implementation.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: PCGs do not automatically compress arbitrary garbled tables or spectral coefficients. Small toy parameters are not deployment security parameters.
+
+## PLLM modules and documentation
+
+Target module identifiers: `prepare.ring_pcg`, `correlation.ole`, `correlation.authenticated_triple`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 7, **Preparation, compression, and acceleration**. Its source-registry order is 15. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

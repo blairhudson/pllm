@@ -110,10 +110,6 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
-/cli/reference/research.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
 /cli/reference/benchmark.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
@@ -135,26 +131,6 @@
   X-Content-Type-Options: nosniff
 
 /cli/reference/components/show.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/sources.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/methods.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/recipes.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/assess.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/agents.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
@@ -182,39 +158,11 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
-/cli/reference/research/sources/list.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/sources/show.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/methods/list.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/methods/show.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/recipes/list.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/cli/reference/research/recipes/show.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
 /sdk/reference/python/pllm.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
 /sdk/reference/components.md
-  Content-Type: text/markdown; charset=utf-8
-  X-Content-Type-Options: nosniff
-
-/research/records/method-catalog.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
@@ -506,11 +454,111 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
+/research/backlog.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
 /research/recipes/experiments.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
 /research/papers.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r01-dash.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r02-redash.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r03-garbling-gadgets.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r04-half-gates.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r05-logrow.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r06-duty-free-bits.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r07-slalom.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r08-carnival.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r09-hycc.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r10-oblivious-decision-programs.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r11-fevbdd.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r12-piranha.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r13-sigma.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r14-fusefss.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r15-ring-pcg.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r16-trapdoored-matrices.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r17-curl.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r18-compact.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r19-open-weight-verifiable.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r20-oblivious-compression.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r21-nexus.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r22-openbumblebee.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r23-mpcache.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/research/papers/r24-maverick.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 

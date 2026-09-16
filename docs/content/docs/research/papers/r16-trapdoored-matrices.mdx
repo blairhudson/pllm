@@ -1,0 +1,35 @@
+---
+title: "R16: Practical Secure Delegated Linear Algebra with Trapdoored Matrices"
+description: "This work uses trapdoored pseudorandom matrices for efficient delegated linear algebra under an LPN-based approach. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2025  
+**Authors:** Mark Braverman, Stephen Newman  
+**External source:** [Practical Secure Delegated Linear Algebra with Trapdoored Matrices](https://arxiv.org/html/2502.13060v3)
+
+## Source contribution
+
+This work uses trapdoored pseudorandom matrices for efficient delegated linear algebra under an LPN-based approach.
+
+## PLLM perspective
+
+Implement the paper-specific matrix/trapdoor generation and delegation protocol before attempting a setup adaptation. State who knows each operand and each trapdoor.
+
+Identified as a lead previously; not executed in the supplied archives.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Public low-rank masks leak nullspace projections. This construction must not be approximated by an unproven structured mask.
+
+## PLLM modules and documentation
+
+Target module identifiers: `prepare.trapdoored_matrix`, `protocol.delegated_linear`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 1, **Delegated matrix-vector execution**. Its source-registry order is 16. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

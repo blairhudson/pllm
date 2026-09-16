@@ -1,66 +1,43 @@
 # PLLM research
 
-The mission, protocol, and evidence for a global market in private AI compute.
+PLLM original research, technical paper, tracked papers, and implementation backlog.
 
 [View canonical HTML](https://pllm.run/research/)
 
 Document ID: `pllm.research`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:a5114b036fab6557de2065aa227526449d4764b77cad960c0621eab75e85c94a`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:3a6c188317f497b69d71c7046e87e765ba05105799dc8eae573a1d9cd34981ec`
 
-# Build private inference methods that can be reproduced and compared.
+# Research for high-performance private LLM inference.
 
-**PLLM is an autonomous research harness for high-performance private LLM inference.**  It tracks sources, guides independent Rust and Python implementations, tests fidelity and privacy assumptions, benchmarks matched plans, preserves negative results, and prepares evidence for human review.
+**PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.**  We independently reimplement useful methods, compose compatible components, and benchmark complete plans to determine what improves the system.
 
-[Read Whitepaper →](/research/whitepaper/)
-[Explore the research registry →](/research/)
+[Read the whitepaper →](/research/whitepaper/)
+[Read the research paper →](/research/paper/)
+[Explore papers →](/research/papers/)
 
-## Hosted inference combines computation with data access.
+## A runtime and a research system.
 
-An ordinary inference provider receives the language it processes. This boundary limits where sensitive workloads can run, concentrates demand among providers that buyers already trust, and excludes other compute capacity.
+The runtime keeps plaintext, model state, masks, and decoding inside the client boundary while separate services perform prepared masked computation. The research harness turns pinned papers and hypotheses into reusable components, immutable plans, assurance records, and matched benchmark evidence.
 
-### Every seller becomes a custodian
+### Reimplement independently
 
-Plaintext inference requires the infrastructure operator to receive the client's prompt, model state, and generated result.
+Research papers are specification and provenance inputs. Implementations are built in PLLM's Rust and Python stack rather than imported as runtime dependencies.
 
-### Trust narrows the supply side
+### Compose by capability
 
-Buyers choose providers partly by who may see their data, not only by price, performance, location, or availability.
+Like-for-like cache, numeric, protocol, preparation, kernel, and placement components live together behind stable typed contracts.
 
-### Capacity cannot compete freely
+### Compare complete plans
 
-Regional infrastructure, sovereign capacity, and independent machines cannot serve many private workloads under the ordinary boundary.
+Correctness and privacy remain hard gates. Latency, throughput, traffic, memory, preparation, quality, energy, and cost remain separate measurements.
 
-## Separate computation from plaintext data.
+## Three research records.
 
-Private inference methods aim to let providers process protected values instead of plaintext client data. The exact protection depends on the selected protocol, implementation, and trust assumptions.
+Each record serves a different reader. The whitepaper explains why PLLM exists, the technical paper defines the implemented system and its limits, and the paper catalog tracks the methods that may improve it.
 
-01
-### Expand eligible supply
-
-Providers can contribute useful compute without receiving plaintext client language.
-
-02
-### Increase buyer choice
-
-Capacity can compete on price, latency, location, availability, and service quality.
-
-03
-### Use distributed capacity
-
-Protected workloads can reach infrastructure that a plaintext trust boundary excludes.
-
-04
-### Limit direct data collection
-
-A compatible compute service does not need plaintext client language as its input.
-
-## Follow the work from source to evidence.
-
-The research record keeps provenance, implementation, assurance, benchmark evidence, and publication review separate.
-
-[1Source registryWhich original publications, versions, artifacts, and licenses ground each method?Inspect sources →](/research/sources/)
-[2Private inferenceHow can providers execute useful model work without seeing client data?Trust and assurance →](/learn/understand/privacy-assurance/)
-[3PLLM Research PaperWhat system, security boundary, and implementation details support the demonstrated result?Read the paper →](/research/paper/)
-[4ContributeHow does a clean-room reimplementation advance through matched evidence and publication gates?Contribution guide →](/research/clean-room/)
+[01PLLM original researchA concise, business-friendly whitepaper on private inference, the multi-party boundary, and the autonomous research loop.Read the whitepaper →](/research/whitepaper/)
+[02PLLM research paperThe current protocol, compiler and component architecture, security limits, implementation status, and retained evidence.Read the technical paper →](/research/paper/)
+[03PapersOne PLLM-focused page per tracked source, with its contribution, boundary, status, original source, and implementation links where they exist.Explore the catalog →](/research/papers/)
+[04Reimplementation backlogThe ordered work needed to turn tracked methods into validated components and comparable plans.See what comes next →](/research/backlog/)

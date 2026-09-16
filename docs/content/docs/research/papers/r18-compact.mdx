@@ -1,0 +1,35 @@
+---
+title: "R18: Compact: Approximating Complex Activation Functions for Secure Computation"
+description: "Compact builds input-density-aware piecewise polynomial approximations for complex activations. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2024  
+**Authors:** Mazharul Islam, Sunpreet S. Arora, Rahul Chatterjee, Peter Rindal, Maliheh Shirvanian  
+**External source:** [Compact: Approximating Complex Activation Functions for Secure Computation](https://arxiv.org/abs/2309.04664)
+
+## Source contribution
+
+Compact builds input-density-aware piecewise polynomial approximations for complex activations.
+
+## PLLM perspective
+
+Implement its fitting objective and published approximation profile separately from protected evaluation. Freeze coefficient/interval hashes and add explicit tail policy.
+
+Our Fourier/boundary-matched fits are distinct hypotheses, not Compact reproductions.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Calibration is not a proof of a worst-case range. Model quality and exact agreement with the chosen approximation are distinct.
+
+## PLLM modules and documentation
+
+Target module identifiers: `numeric.piecewise_fit`, `compiler.approximation_profile`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 2, **Activation approximation**. Its source-registry order is 18. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

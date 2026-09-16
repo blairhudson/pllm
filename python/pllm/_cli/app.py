@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import ipaddress
 import json
 import os
@@ -168,7 +167,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> _Parser:
     parser = _Parser(
         prog="pllm",
-        description="Inspect PLLM configuration, run benchmarks, and inspect research metadata",
+        description="Inspect PLLM configuration, run benchmarks, and operate private inference",
     )
     _add_globals(parser)
     parser.add_argument("--version", action="version", version=f"pllm {__version__}")
@@ -192,28 +191,6 @@ def build_parser() -> _Parser:
     _command(component_commands, "list", help="list built-in component descriptors")
     component_show = _command(component_commands, "show", help="show one component descriptor")
     component_show.add_argument("COMPONENT", help="component identity, for example pllm/cpu")
-
-    research = _command(commands, "research", help="inspect or assess read-only research records")
-    research_kinds = research.add_subparsers(dest="research_kind", metavar="KIND", required=True)
-    for kind in ("sources", "methods", "recipes"):
-        family = _command(research_kinds, kind, help=f"inspect research {kind}")
-        actions = family.add_subparsers(dest="research_action", metavar="COMMAND", required=True)
-        _command(actions, "list", help=f"list research {kind}")
-        item = _command(actions, "show", help=f"show one research {kind[:-1]} record")
-        item.add_argument("ID", help="stable record ID or registry alias")
-    assess = _command(
-        research_kinds,
-        "assess",
-        help="assess a publication request without executing research workflows",
-    )
-    assess.add_argument("REQUEST", help="publication assessment request JSON path")
-    agents = _command(
-        research_kinds,
-        "agents",
-        help="write repository-root guidance for research coding agents",
-    )
-    agents.add_argument("--output", required=True, metavar="PATH", help="new Markdown output path")
-    agents.add_argument("--force", action="store_true", help="replace an existing output file")
 
     gateway = _command(commands, "gateway", help="run the trusted local Responses API gateway")
     gateway.add_argument("--config", help="client TOML file")
@@ -444,121 +421,6 @@ def _components(args: argparse.Namespace, output_format: str, dry_run: bool) -> 
     else:
         emit_machine(
             "components.list",
-            {"count": len(items), "dry_run": dry_run, "items": items},
-            output_format,
-            items=items,
-        )
-
-
-def _research(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
-    from pllm.research import (
-        ResearchMetadataError,
-        ResearchMetadataIOError,
-        assess_publication,
-        get_method,
-        get_recipe,
-        get_source,
-        list_methods,
-        list_recipes,
-        list_sources,
-        render_agents_guide,
-    )
-
-    if args.research_kind == "agents":
-        output = Path(args.output).expanduser()
-        content = render_agents_guide().encode("utf-8")
-        if not args.force:
-            try:
-                output_exists = output.exists()
-            except OSError as exc:
-                raise LocalIOError("OUTPUT_WRITE", f"cannot inspect output: {output}") from exc
-            if output_exists:
-                raise LocalIOError(
-                    "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}"
-                )
-
-        data = {
-            "bytes": len(content),
-            "digest": f"sha256:{hashlib.sha256(content).hexdigest()}",
-            "dry_run": dry_run,
-            "output": str(output),
-            "written": not dry_run,
-        }
-        if not dry_run:
-            mode = "wb" if args.force else "xb"
-            try:
-                with output.open(mode) as stream:
-                    stream.write(content)
-            except FileExistsError as exc:
-                raise LocalIOError(
-                    "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}"
-                ) from exc
-            except OSError as exc:
-                raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {output}") from exc
-        if output_format == "human":
-            print(f"Would write {output}" if dry_run else f"Wrote {output}")
-        else:
-            emit_machine("research.agents", data, output_format)
-        return
-
-    if args.research_kind == "assess":
-        try:
-            payload = Path(args.REQUEST).read_bytes()
-        except OSError:
-            raise LocalIOError(
-                "RESEARCH_ASSESSMENT_IO", "assessment request is unavailable"
-            ) from None
-        try:
-            assessment = assess_publication(payload)
-        except ResearchMetadataError as exc:
-            raise ResolutionError("RESEARCH_ASSESSMENT_INVALID", str(exc)) from exc
-        data = assessment.to_dict()
-        if output_format == "human":
-            print(json.dumps(data, allow_nan=False, ensure_ascii=False, indent=2, sort_keys=True))
-        else:
-            emit_machine(
-                "research.assess",
-                {"assessment": data, "digest": assessment.digest, "dry_run": dry_run},
-                output_format,
-            )
-        return
-
-    listers = {"sources": list_sources, "methods": list_methods, "recipes": list_recipes}
-    getters = {"sources": get_source, "methods": get_method, "recipes": get_recipe}
-    try:
-        records = listers[args.research_kind]()
-    except ResearchMetadataIOError as exc:
-        raise LocalIOError("RESEARCH_METADATA_IO", str(exc)) from exc
-    except ResearchMetadataError as exc:
-        raise ResolutionError("RESEARCH_METADATA_INVALID", str(exc)) from exc
-
-    command = f"research.{args.research_kind}.{args.research_action}"
-    if args.research_action == "show":
-        try:
-            record = getters[args.research_kind](args.ID)
-        except KeyError:
-            raise ResolutionError(
-                "RESEARCH_RECORD_NOT_FOUND",
-                f"unknown research {args.research_kind[:-1]}: {args.ID}",
-            )
-        data = record.to_dict()
-        if output_format == "human":
-            print(json.dumps(data, allow_nan=False, ensure_ascii=False, indent=2, sort_keys=True))
-        else:
-            emit_machine(command, {"dry_run": dry_run, "record": data}, output_format)
-        return
-
-    items = [record.to_dict() for record in records]
-    if output_format == "human":
-        for item in items:
-            identifier = item.get("id", item.get("registry_alias"))
-            detail = item.get(
-                "title", item.get("implementation_status", item.get("workflow_status", ""))
-            )
-            print(f"{identifier}\t{detail}")
-    else:
-        emit_machine(
-            command,
             {"count": len(items), "dry_run": dry_run, "items": items},
             output_format,
             items=items,
@@ -904,8 +766,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             _config(args, output_format, no_input, dry_run)
         elif args.command == "components":
             _components(args, output_format, dry_run)
-        elif args.command == "research":
-            _research(args, output_format, dry_run)
         elif args.command == "gateway":
             _gateway(args, output_format, dry_run)
         elif args.command == "serve":

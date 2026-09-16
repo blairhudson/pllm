@@ -6,20 +6,20 @@ Understand the difference between a published method and PLLM's independent impl
 
 Document ID: `pllm.docs.research.methods`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:a264b922a593a3e1837d3391f6491c31b83e142d509a5ee5b13b1aba27897782`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:ca2c53148211ceefd423aa628568d13bbec20e4084a222ba9988e21e03389c35`
 
-The current registered implementation is
-`pllm.method.mpcache-structural-adaptation.v1`, inspired by
-[`pllm.source.mpcache.arxiv-2501.06807v2`](https://arxiv.org/abs/2501.06807v2).
-Inspect its record with
-[`pllm research methods show`](/cli/reference/research/methods/show/). It changes
-KV-cache structure in a [`DecoderPlan`](/sdk/plans/). It does not reproduce the
-paper's protected three-party runtime.
+PLLM's MPCache-inspired work lives in
+[`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).
+It is exposed through the `pllm/kv-cache-eviction` capability and Python
+`KvCacheEviction` component. Applying it changes KV-cache structure in a
+[`ModelPlan`](/sdk/plans/); it does not reproduce the paper's protected
+three-party runtime.
 
-The generated [method catalog](/research/records/method-catalog/#method-implementations)
-lists versions, provenance, compatible representations and roles, coverage,
-evidence, and limitations. Fidelity, protected execution, assurance, benchmarks,
-and promotion have not been evaluated for the current method.
+Use the [component guide](/sdk/components/) and generated
+[component inventory](/sdk/reference/components/) for public parameters and
+capabilities. The [MPCache paper page](/research/papers/r23-mpcache/) records
+provenance and limitations. Fidelity, protected execution, assurance, and
+matched benchmarks have not been evaluated for this structural adaptation.
 
 A method that resembles a paper is not automatically a faithful reproduction.

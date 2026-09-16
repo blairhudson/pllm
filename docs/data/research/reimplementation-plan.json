@@ -1,0 +1,111 @@
+{
+  "schema_version": "pllm.reimplementation_plan.v1",
+  "as_of": "2026-09-16",
+  "prerequisites": [
+    "Complete one executable Qwen profile without hidden fallback regions.",
+    "Re-measure the current prepared runtime on the current revision.",
+    "Review the bounded Q7 SiLU component before expanding compiler coverage."
+  ],
+  "phases": [
+    {
+      "priority": 1,
+      "name": "Delegated matrix-vector execution",
+      "papers": ["R07", "R24", "R08", "R16"],
+      "purpose": "Establish the exact Slalom baseline, implement Maverick masking and verification, reproduce the Carnival attack, and compare trapdoored-matrix delegation.",
+      "module_homes": [
+        "pllm-core::delegation::{masked_matvec,lpn_mask,batch_verify,trapdoored_matrix}",
+        "pllm-assurance::attacks::carnival_projection"
+      ],
+      "status": "planned"
+    },
+    {
+      "priority": 2,
+      "name": "Activation approximation",
+      "papers": ["R18"],
+      "purpose": "Reproduce Compact fitting and add immutable approximation profiles for SiLU, GeLU, and related bounded activations.",
+      "module_homes": [
+        "pllm-core::activation::piecewise",
+        "pllm-compiler::approximation::{fit,profile}"
+      ],
+      "status": "planned"
+    },
+    {
+      "priority": 3,
+      "name": "Arithmetic garbling foundation",
+      "papers": ["R03", "R04", "R01", "R02"],
+      "purpose": "Complete reviewed arithmetic and Boolean foundations, tensor evaluation, and residue scaling before full decoder-region composition.",
+      "module_homes": [
+        "pllm-garble::{arithmetic,boolean,half_gates,projection,label_tensor,rns_scale}"
+      ],
+      "status": "reference primitives only"
+    },
+    {
+      "priority": 4,
+      "name": "Protected conversions and lookup",
+      "papers": ["R06", "R05"],
+      "purpose": "Add typed Boolean-to-arithmetic conversion and efficient protected lookup only where an accepted complete-model plan requires them.",
+      "module_homes": [
+        "pllm-garble::conversion",
+        "pllm-garble::lookup"
+      ],
+      "status": "planned"
+    },
+    {
+      "priority": 5,
+      "name": "Protected KV-cache policy",
+      "papers": ["R23"],
+      "purpose": "Validate the existing model-neutral transform, then reproduce protected static and dynamic cache selection in an explicitly compatible topology.",
+      "module_homes": [
+        "pllm-models::cache::{policy,full,static_eviction,dynamic_eviction}"
+      ],
+      "status": "structural adaptation only"
+    },
+    {
+      "priority": 6,
+      "name": "Decision structures and regional selection",
+      "papers": ["R11", "R10", "R09"],
+      "purpose": "Represent public functions compactly, add protected traversal where justified, and select legal protocol regions with conversion costs included.",
+      "module_homes": [
+        "pllm-compiler::{decision_diagram,region_selection,conversion_costs}",
+        "pllm-garble::branching"
+      ],
+      "status": "planned"
+    },
+    {
+      "priority": 7,
+      "name": "Preparation, compression, and acceleration",
+      "papers": ["R15", "R20", "R12"],
+      "purpose": "Compare correlation generation, bounded wire compression, and GPU kernels after exact CPU components establish correctness baselines.",
+      "module_homes": [
+        "pllm-core::correlation",
+        "pllm-core::codec::oblivious_linear_code",
+        "pllm-core::kernels::gpu"
+      ],
+      "status": "planned"
+    },
+    {
+      "priority": 8,
+      "name": "Full-system comparison targets",
+      "papers": ["R21", "R22", "R13", "R14", "R17"],
+      "purpose": "Reproduce unlike HE, two-party, FSS, and wavelet systems in isolated adapters without importing their topology or claims into the default profile.",
+      "module_homes": [
+        "protocol capability family",
+        "preparation capability family",
+        "activation capability family",
+        "kernel capability family"
+      ],
+      "status": "tracked"
+    },
+    {
+      "priority": 9,
+      "name": "Source-gated verifiable comparison",
+      "papers": ["R19"],
+      "purpose": "Acquire and lock the complete protocol and artifact before specifying or implementing its open-weight verification boundary.",
+      "module_homes": [
+        "protocol open-weight verification capability",
+        "verification model-owner setup capability"
+      ],
+      "status": "source gated"
+    }
+  ]
+}

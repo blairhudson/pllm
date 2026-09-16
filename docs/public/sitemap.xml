@@ -28,33 +28,20 @@
   <url><loc>https://pllm.run/cli/reference/</loc></url>
   <url><loc>https://pllm.run/cli/reference/config/</loc></url>
   <url><loc>https://pllm.run/cli/reference/components/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/</loc></url>
   <url><loc>https://pllm.run/cli/reference/benchmark/</loc></url>
   <url><loc>https://pllm.run/cli/reference/dev/</loc></url>
   <url><loc>https://pllm.run/cli/reference/config/show/</loc></url>
   <url><loc>https://pllm.run/cli/reference/config/export/</loc></url>
   <url><loc>https://pllm.run/cli/reference/components/list/</loc></url>
   <url><loc>https://pllm.run/cli/reference/components/show/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/sources/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/methods/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/recipes/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/assess/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/agents/</loc></url>
   <url><loc>https://pllm.run/cli/reference/benchmark/run/</loc></url>
   <url><loc>https://pllm.run/cli/reference/gateway/</loc></url>
   <url><loc>https://pllm.run/cli/reference/serve/</loc></url>
   <url><loc>https://pllm.run/cli/reference/serve/inference/</loc></url>
   <url><loc>https://pllm.run/cli/reference/serve/preparation/</loc></url>
   <url><loc>https://pllm.run/cli/reference/dev/dashboard/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/sources/list/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/sources/show/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/methods/list/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/methods/show/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/recipes/list/</loc></url>
-  <url><loc>https://pllm.run/cli/reference/research/recipes/show/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/python/pllm/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/components/</loc></url>
-  <url><loc>https://pllm.run/research/records/method-catalog/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/schemas/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/status/</loc></url>
   <url><loc>https://pllm.run/research/sources/</loc></url>
@@ -127,8 +114,33 @@
   <url><loc>https://pllm.run/sdk/reference/native/</loc></url>
   <url><loc>https://pllm.run/sdk/reference/python/</loc></url>
   <url><loc>https://pllm.run/sdk/build/representations/</loc></url>
+  <url><loc>https://pllm.run/research/backlog/</loc></url>
   <url><loc>https://pllm.run/research/recipes/experiments/</loc></url>
   <url><loc>https://pllm.run/research/papers/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r01-dash/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r02-redash/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r03-garbling-gadgets/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r04-half-gates/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r05-logrow/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r06-duty-free-bits/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r07-slalom/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r08-carnival/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r09-hycc/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r10-oblivious-decision-programs/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r11-fevbdd/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r12-piranha/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r13-sigma/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r14-fusefss/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r15-ring-pcg/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r16-trapdoored-matrices/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r17-curl/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r18-compact/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r19-open-weight-verifiable/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r20-oblivious-compression/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r21-nexus/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r22-openbumblebee/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r23-mpcache/</loc></url>
+  <url><loc>https://pllm.run/research/papers/r24-maverick/</loc></url>
   <url><loc>https://pllm.run/research/records/</loc></url>
   <url><loc>https://pllm.run/research/recipes/reproductions/</loc></url>
   <url><loc>https://pllm.run/sdk/pipeline/runtime/</loc></url>

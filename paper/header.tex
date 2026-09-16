@@ -1,5 +1,23 @@
 \usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{cuted}
+\usepackage{ragged2e}
 \setlength{\columnsep}{0.22in}
 \setlength{\parindent}{0.9em}
+
+\renewenvironment{abstract}{%
+  \begin{strip}
+  \vspace{-1.2em}
+  \begin{center}
+  \begin{minipage}{0.94\textwidth}
+  \centering\textbf{Abstract}\par\smallskip
+  \begin{minipage}{0.96\linewidth}\small\justifying
+  \setlength{\parindent}{0pt}
+}{%
+  \end{minipage}
+  \end{minipage}
+  \end{center}
+  \vspace{-0.8em}
+  \end{strip}
+}

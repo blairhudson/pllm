@@ -165,12 +165,6 @@
       "representation": "html"
     },
     {
-      "from": "/cli/reference/research",
-      "to": "/cli/reference/research/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
       "from": "/cli/reference/benchmark",
       "to": "/cli/reference/benchmark/",
       "status": 308,
@@ -203,36 +197,6 @@
     {
       "from": "/cli/reference/components/show",
       "to": "/cli/reference/components/show/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/sources",
-      "to": "/cli/reference/research/sources/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/methods",
-      "to": "/cli/reference/research/methods/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/recipes",
-      "to": "/cli/reference/research/recipes/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/assess",
-      "to": "/cli/reference/research/assess/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/agents",
-      "to": "/cli/reference/research/agents/",
       "status": 308,
       "representation": "html"
     },
@@ -273,42 +237,6 @@
       "representation": "html"
     },
     {
-      "from": "/cli/reference/research/sources/list",
-      "to": "/cli/reference/research/sources/list/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/sources/show",
-      "to": "/cli/reference/research/sources/show/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/methods/list",
-      "to": "/cli/reference/research/methods/list/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/methods/show",
-      "to": "/cli/reference/research/methods/show/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/recipes/list",
-      "to": "/cli/reference/research/recipes/list/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/cli/reference/research/recipes/show",
-      "to": "/cli/reference/research/recipes/show/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
       "from": "/sdk/reference/python/pllm",
       "to": "/sdk/reference/python/pllm/",
       "status": 308,
@@ -317,12 +245,6 @@
     {
       "from": "/sdk/reference/components",
       "to": "/sdk/reference/components/",
-      "status": 308,
-      "representation": "html"
-    },
-    {
-      "from": "/research/records/method-catalog",
-      "to": "/research/records/method-catalog/",
       "status": 308,
       "representation": "html"
     },
@@ -759,6 +681,12 @@
       "representation": "html"
     },
     {
+      "from": "/research/backlog",
+      "to": "/research/backlog/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/research/recipes/experiments",
       "to": "/research/recipes/experiments/",
       "status": 308,
@@ -767,6 +695,150 @@
     {
       "from": "/research/papers",
       "to": "/research/papers/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r01-dash",
+      "to": "/research/papers/r01-dash/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r02-redash",
+      "to": "/research/papers/r02-redash/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r03-garbling-gadgets",
+      "to": "/research/papers/r03-garbling-gadgets/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r04-half-gates",
+      "to": "/research/papers/r04-half-gates/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r05-logrow",
+      "to": "/research/papers/r05-logrow/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r06-duty-free-bits",
+      "to": "/research/papers/r06-duty-free-bits/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r07-slalom",
+      "to": "/research/papers/r07-slalom/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r08-carnival",
+      "to": "/research/papers/r08-carnival/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r09-hycc",
+      "to": "/research/papers/r09-hycc/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r10-oblivious-decision-programs",
+      "to": "/research/papers/r10-oblivious-decision-programs/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r11-fevbdd",
+      "to": "/research/papers/r11-fevbdd/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r12-piranha",
+      "to": "/research/papers/r12-piranha/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r13-sigma",
+      "to": "/research/papers/r13-sigma/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r14-fusefss",
+      "to": "/research/papers/r14-fusefss/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r15-ring-pcg",
+      "to": "/research/papers/r15-ring-pcg/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r16-trapdoored-matrices",
+      "to": "/research/papers/r16-trapdoored-matrices/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r17-curl",
+      "to": "/research/papers/r17-curl/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r18-compact",
+      "to": "/research/papers/r18-compact/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r19-open-weight-verifiable",
+      "to": "/research/papers/r19-open-weight-verifiable/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r20-oblivious-compression",
+      "to": "/research/papers/r20-oblivious-compression/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r21-nexus",
+      "to": "/research/papers/r21-nexus/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r22-openbumblebee",
+      "to": "/research/papers/r22-openbumblebee/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r23-mpcache",
+      "to": "/research/papers/r23-mpcache/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/research/papers/r24-maverick",
+      "to": "/research/papers/r24-maverick/",
       "status": 308,
       "representation": "html"
     },

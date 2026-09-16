@@ -1,0 +1,35 @@
+---
+title: "R17: Curl: Private LLMs through Wavelet-Encoded Look-Up Tables"
+description: "Curl uses wavelet-encoded lookup tables for private nonlinear operations and discusses probabilistic truncation security. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2024  
+**Authors:** Manuel B. Santos, Dimitris Mouris, Mehmet Ugurbil, Stanislaw Jarecki, José Reis, Shubho Sengupta, Miguel de Vega  
+**External source:** [Curl: Private LLMs through Wavelet-Encoded Look-Up Tables](https://eprint.iacr.org/2024/1127)
+
+## Source contribution
+
+Curl uses wavelet-encoded lookup tables for private nonlinear operations and discusses probabilistic truncation security.
+
+## PLLM perspective
+
+Reproduce original lookup construction, encoding, scale and truncation behavior. Treat a wavelet approximation imported into garbling as a separate numerical/protocol adaptation.
+
+Prior report cited Curl; no Curl protocol was reproduced.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: A stand-alone truncation argument does not imply universal composability. Sparse transform coefficients do not make private access free.
+
+## PLLM modules and documentation
+
+Target module identifiers: `gate.wavelet_lookup`, `numeric.wavelet`, `gate.probabilistic_truncation`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 8, **Full-system comparison targets**. Its source-registry order is 17. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

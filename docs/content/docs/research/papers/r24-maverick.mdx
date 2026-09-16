@@ -1,0 +1,36 @@
+---
+title: "R24: Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation"
+description: "Maverick delegates matrix-vector multiplication with transparent preprocessing, information-theoretic batch verification, and LPN-based pseudorandom input masking while adding virtually no server-side verification overhead. PLLM status: planned."
+---
+
+**Status:** `planned`  
+**Year:** 2026  
+**Authors:** Ben Merbaum, Mohammad Amin Raeisi, Wenhao Wang, Charalampos Papamanthou, Katerina Sotiraki, Fan Zhang  
+**External source:** [Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation](https://arxiv.org/abs/2609.10264v1)
+
+## Source contribution
+
+Maverick delegates matrix-vector multiplication with transparent preprocessing, information-theoretic batch verification, and LPN-based pseudorandom input masking while adding virtually no server-side verification overhead.
+
+## PLLM perspective
+
+The delegated linear operation is close to PLLM's prepared public-weight path, but the protocols and claims are not interchangeable. PLLM currently uses one-time masks and preloaded `W·r-s` corrections under an honest-but-curious, non-colluding preparation/inference assumption. It does not implement Maverick's verification or LPN masking construction.
+
+An independent PLLM reproduction should first specify the paper's exact matrix-vector, masking, and verification interfaces; implement bounded native reference primitives; and compare them with the same Qwen3-4B workload and party/resource accounting. Similar data flow is not evidence of implementation, correctness, privacy, or verifiability.
+
+This work is planned. PLLM does not yet implement Maverick's delegation, LPN masking, or batch verification, and claims no reproduction or matched benchmark.
+
+The source's boundary remains binding: The paper's input-privacy and verifiability claims depend on its exact transparent-preprocessing, LPN, and verification constructions. Similarity to PLLM's prepared matrix path does not transfer those claims to PLLM.
+
+## PLLM modules and documentation
+
+Target module identifiers: `protocol.delegated_matvec`, `gate.batch_verification`, `preparation.lpn_masking`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+- [Masked linear protocol](/sdk/pipeline/protocols/masked-linear/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 1, **Delegated matrix-vector execution**. Its source-registry order is 24. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

@@ -76,8 +76,6 @@ include = [
   { path = "crates/**/README.md", format = "sdist" },
   { path = "python/**/*.py", format = "sdist" },
   { path = "python/**/*.pyi", format = "sdist" },
-  { path = "python/pllm/research/_catalog.json", format = "sdist" },
-  { path = "python/pllm/research/_catalog.json", format = "wheel" },
   { path = "python/pllm/dashboard/**/*", format = "sdist" },
   { path = "Cargo.toml", format = "sdist" },
   { path = "tests/**/*.py", format = "sdist" },

@@ -1,11 +1,11 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb
+Build: sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
-- [Reference](https://pllm.run/sdk/reference/) ([Markdown](https://pllm.run/sdk/reference.md)): Look up exact CLI commands, Python APIs, schemas, components, research records, and current support.
+- [Reference](https://pllm.run/sdk/reference/) ([Markdown](https://pllm.run/sdk/reference.md)): Look up exact CLI commands, Python APIs, schemas, components, and current support.
 - [Python API inventory](https://pllm.run/sdk/reference/python/pllm/) ([Markdown](https://pllm.run/sdk/reference/python/pllm.md)): Public Python classes, functions, and evidence APIs in the installed package.
 - [Component catalog](https://pllm.run/sdk/reference/components/) ([Markdown](https://pllm.run/sdk/reference/components.md)): Built-in component records with implementation, coverage, and evidence status.
 - [Schema reference](https://pllm.run/sdk/reference/schemas/) ([Markdown](https://pllm.run/sdk/reference/schemas.md)): Versioned schemas for configurations, plans, evidence, assurance, and research records.

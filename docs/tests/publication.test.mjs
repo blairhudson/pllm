@@ -63,7 +63,9 @@ test('manifest is complete, versioned, and hashes exact source', () => {
   }
   assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
   assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/cpu', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections']);
-  assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.research').testPaths.includes('../tests/test_research.py'));
+  assert.ok(!manifest.pages.some((record) => record.canonicalUrl.startsWith('/cli/reference/research/')));
+  assert.ok(!manifest.pages.some((record) => record.canonicalUrl === '/research/records/method-catalog/'));
+  assert.ok(!manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));
   assert.deepEqual(JSON.parse(outputs.get(`public/releases/${graph.release}/docs-manifest.json`)), manifest);
 });
 

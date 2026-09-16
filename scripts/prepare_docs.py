@@ -30,7 +30,7 @@ def zip_files(output: Path, root: Path, files: list[Path]) -> None:
 def main() -> None:
     downloads = ROOT / "docs/public/downloads"
     downloads.mkdir(parents=True, exist_ok=True)
-    evidence = ROOT / "research/evidence"
+    evidence = ROOT / "docs/evidence"
     files = [
         p
         for p in evidence.rglob("*")

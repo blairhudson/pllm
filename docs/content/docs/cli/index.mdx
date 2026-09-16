@@ -26,7 +26,7 @@ This installs the `pllm` wheel from PyPI in an isolated tool environment. Use
   configured inference and preparation services.
 - [Benchmark and diagnose](/cli/benchmarking/) with the headless runner
   or loopback dashboard.
-- [Inspect configuration and research](/cli/inspect-and-research/)
+- [Inspect configuration and components](/cli/inspect-and-research/)
   without starting a model.
 
 Each guide links to exact parser-generated command help under
@@ -38,8 +38,6 @@ Each guide links to exact parser-generated command help under
 - `pllm components` lists built-in component descriptions.
 - `pllm benchmark run` runs the real client, preparation, and inference roles on
   loopback and returns a text-free diagnostic record.
-- `pllm research` lists research sources, methods, and recipes or assesses a
-  proposed publication record.
 - `pllm gateway` starts the trusted loopback API gateway and can co-locate both
   provider roles for development.
 - `pllm serve` starts one inference or preparation role from explicit deployment
@@ -73,36 +71,6 @@ pllm components show pllm/cpu --format json
 
 See [`components list`](/cli/reference/components/list/) and
 [`components show`](/cli/reference/components/show/).
-
-## Explore research records
-
-Discover records in machine-readable form, then inspect records by stable ID or
-registry alias:
-
-```bash
-pllm research sources list --format json
-pllm research sources show R01
-pllm research methods show pllm.method.mpcache-structural-adaptation.v1
-pllm research recipes show R01
-```
-
-Discovery references: [`sources list`](/cli/reference/research/sources/list/),
-[`methods list`](/cli/reference/research/methods/list/), and
-[`recipes list`](/cli/reference/research/recipes/list/). Record references:
-[`sources show`](/cli/reference/research/sources/show/),
-[`methods show`](/cli/reference/research/methods/show/), and
-[`recipes show`](/cli/reference/research/recipes/show/).
-
-Assess a publication request without running a workflow, or generate coding-agent
-guidance at repository root:
-
-```bash
-pllm research assess examples/publication-assessment.json --format json
-pllm research agents --output AGENTS.md
-```
-
-See [`research assess`](/cli/reference/research/assess/) and
-[`research agents`](/cli/reference/research/agents/).
 
 ## Run a benchmark
 
@@ -140,5 +108,5 @@ See [`dev dashboard`](/cli/reference/dev/dashboard/).
   serving commands and config boundaries.
 - [SDK configuration](/sdk/configuration/) explains configuration files and
   content identity.
-- [Research methods](/research/methods/) explains the records returned by
-  `pllm research`.
+- [Research papers](/research/papers/) and the [research backlog](/research/backlog/)
+  document source status and unfinished work.

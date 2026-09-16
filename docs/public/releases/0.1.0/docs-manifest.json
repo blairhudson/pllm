@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb",
+  "buildId": "sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -36,7 +36,7 @@
       "navigationGroupTitle": null,
       "navigationRoot": null,
       "navigationOrder": null,
-      "contentHash": "sha256:a0e8c95d6a921b8f251b99539132597a9cc94a9c83d61647fbc5f9fb5cd00700"
+      "contentHash": "sha256:8e4a8e12314eff4ae182cecc488c67484e8358825edc7cfdf5b6a03f2ef77285"
     },
     {
       "id": "pllm.docs.start",
@@ -133,7 +133,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:a8e3d041ab151b74995d11ff9623691de800836318e78fdadd26ac2e6ba9b645"
+      "contentHash": "sha256:0ef7daf4f6dbbf65af60e4ffcbfaa269a11e3c25f7c564b69ec68e38ae0b728a"
     },
     {
       "id": "pllm.docs.sdk.configuration",
@@ -327,7 +327,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:800cdb97ac7ed28eacf26dfa8b731e9673468b1f0eb1e9278512cb9b5ed357f7"
+      "contentHash": "sha256:43933f6c157772344c1058a9a1e8464a94a2588d891748c282a9da61c5849a93"
     },
     {
       "id": "pllm.docs.understand",
@@ -616,7 +616,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:d9fbc27aa2bfdf87004f68582309774a19c516a5295ab704982270f3ad3bb316"
+      "contentHash": "sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c"
     },
     {
       "id": "pllm.docs.measure.assure",
@@ -780,7 +780,7 @@
     {
       "id": "pllm.docs.reference",
       "title": "Reference",
-      "summary": "Look up exact CLI commands, Python APIs, schemas, components, research records, and current support.",
+      "summary": "Look up exact CLI commands, Python APIs, schemas, components, and current support.",
       "sourcePath": "content/docs/reference/index.mdx",
       "canonicalUrl": "/sdk/reference/",
       "markdownUrl": "/sdk/reference.md",
@@ -812,7 +812,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:301c71676e2e7029758a8b7a9be75aaf317e6d07f58385b33f131cc76649a274"
+      "contentHash": "sha256:ad1bcccd732d8bda3c513f4360146223fca6f12ec312a1e21c06aad9650bef89"
     },
     {
       "id": "pllm.docs.reference.cli",
@@ -832,7 +832,6 @@
       "children": [
         "pllm.docs.reference.cli.config",
         "pllm.docs.reference.cli.components",
-        "pllm.docs.reference.cli.research",
         "pllm.docs.reference.cli.benchmark",
         "pllm.docs.reference.cli.dev",
         "pllm.docs.reference.cli.gateway",
@@ -855,7 +854,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:5466bccb9af58fdd733981c12d1dd6ddd5cf64a59c660e497521035a787895da"
+      "contentHash": "sha256:530ebf85d9f771075b42dcd1573180522750d7c1f0e660de67778b259a454b78"
     },
     {
       "id": "pllm.docs.reference.cli.config",
@@ -932,47 +931,6 @@
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
       "contentHash": "sha256:e6acf4380c600a61a42158ee77b759debc1640fe2a53f00dc535cf12aabc38cc"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research",
-      "title": "pllm research",
-      "summary": "Exact pllm research help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/index.mdx",
-      "canonicalUrl": "/cli/reference/research/",
-      "markdownUrl": "/cli/reference/research.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli",
-      "children": [
-        "pllm.docs.reference.cli.research.sources",
-        "pllm.docs.reference.cli.research.methods",
-        "pllm.docs.reference.cli.research.recipes",
-        "pllm.docs.reference.cli.research.assess",
-        "pllm.docs.reference.cli.research.agents"
-      ],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/index.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:a9455d031c72f633f967ef66af09fc4327612b15a8da386fa4f221efa6b9aaaa"
     },
     {
       "id": "pllm.docs.reference.cli.benchmark",
@@ -1189,190 +1147,6 @@
       "contentHash": "sha256:ad669cde7352e3c96f7bc83c65be5fb15af9018841ed761b3f2873b973fa529c"
     },
     {
-      "id": "pllm.docs.reference.cli.research.sources",
-      "title": "pllm research sources",
-      "summary": "Exact pllm research sources help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/sources/index.mdx",
-      "canonicalUrl": "/cli/reference/research/sources/",
-      "markdownUrl": "/cli/reference/research/sources.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/sources"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research",
-      "children": [
-        "pllm.docs.reference.cli.research.sources.list",
-        "pllm.docs.reference.cli.research.sources.show"
-      ],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/sources/index.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:6dc0a97fe092e9fafc390a57cb490e2ab9617b85be0dc9a4945b08016ad9a4f2"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.methods",
-      "title": "pllm research methods",
-      "summary": "Exact pllm research methods help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/methods/index.mdx",
-      "canonicalUrl": "/cli/reference/research/methods/",
-      "markdownUrl": "/cli/reference/research/methods.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/methods"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research",
-      "children": [
-        "pllm.docs.reference.cli.research.methods.list",
-        "pllm.docs.reference.cli.research.methods.show"
-      ],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/methods/index.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:5f709b9eed42d5f7ef4e6a56ef8d2a5c0bb4e91089570537abb784fb1687b7a3"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.recipes",
-      "title": "pllm research recipes",
-      "summary": "Exact pllm research recipes help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/recipes/index.mdx",
-      "canonicalUrl": "/cli/reference/research/recipes/",
-      "markdownUrl": "/cli/reference/research/recipes.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/recipes"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research",
-      "children": [
-        "pllm.docs.reference.cli.research.recipes.list",
-        "pllm.docs.reference.cli.research.recipes.show"
-      ],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/recipes/index.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:134216bb2580ac3cc644dadf32f8db0f6618e8fcff3754c7019a55e185c667b9"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.assess",
-      "title": "pllm research assess",
-      "summary": "Exact pllm research assess help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/assess.mdx",
-      "canonicalUrl": "/cli/reference/research/assess/",
-      "markdownUrl": "/cli/reference/research/assess.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/assess"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/assess.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:d43d4ddf40daf45fec74c0f93b223dcc9910b79d7fee9e72b7c401299a0be91c"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.agents",
-      "title": "pllm research agents",
-      "summary": "Exact pllm research agents help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/agents.mdx",
-      "canonicalUrl": "/cli/reference/research/agents/",
-      "markdownUrl": "/cli/reference/research/agents.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/agents"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/agents.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:c1e16c9b64b3380a9d068e14952055ee814c775c802ea1474c5cb2b5efd5a07c"
-    },
-    {
       "id": "pllm.docs.reference.cli.benchmark.run",
       "title": "pllm benchmark run",
       "summary": "Exact pllm benchmark run help from the installed PLLM CLI.",
@@ -1586,216 +1360,6 @@
       "contentHash": "sha256:e4900d6edb2ae174e60f8c790ac2f76c5e736181cff3e7e83968fbdce0a84397"
     },
     {
-      "id": "pllm.docs.reference.cli.research.sources.list",
-      "title": "pllm research sources list",
-      "summary": "Exact pllm research sources list help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/sources/list.mdx",
-      "canonicalUrl": "/cli/reference/research/sources/list/",
-      "markdownUrl": "/cli/reference/research/sources/list.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/sources/list"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.sources",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/sources/list.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:8980f46d178b3ddb76cd2548de346e5cfe7399fcbea59b942e146bf2514fa99d"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.sources.show",
-      "title": "pllm research sources show",
-      "summary": "Exact pllm research sources show help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/sources/show.mdx",
-      "canonicalUrl": "/cli/reference/research/sources/show/",
-      "markdownUrl": "/cli/reference/research/sources/show.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/sources/show"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.sources",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/sources/show.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:914cc676bfd97f809fda6d275dbca774f8bbc1455fe68cc03d0cb63e5703961c"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.methods.list",
-      "title": "pllm research methods list",
-      "summary": "Exact pllm research methods list help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/methods/list.mdx",
-      "canonicalUrl": "/cli/reference/research/methods/list/",
-      "markdownUrl": "/cli/reference/research/methods/list.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/methods/list"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.methods",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/methods/list.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:83c1cd368c5fe82c745cb3c368da5db1397051d95e2779f0813a17df02947e03"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.methods.show",
-      "title": "pllm research methods show",
-      "summary": "Exact pllm research methods show help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/methods/show.mdx",
-      "canonicalUrl": "/cli/reference/research/methods/show/",
-      "markdownUrl": "/cli/reference/research/methods/show.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/methods/show"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.methods",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/methods/show.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:bfb29bedfd99d35e777a491181bcb9dac0bb94359c0bbf9afa783f397dad282c"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.recipes.list",
-      "title": "pllm research recipes list",
-      "summary": "Exact pllm research recipes list help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/recipes/list.mdx",
-      "canonicalUrl": "/cli/reference/research/recipes/list/",
-      "markdownUrl": "/cli/reference/research/recipes/list.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/recipes/list"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.recipes",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/recipes/list.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:7f405b77a433af55f2e3340ad5b055a31bcc7e617b2906f90888ae9a3f3de67d"
-    },
-    {
-      "id": "pllm.docs.reference.cli.research.recipes.show",
-      "title": "pllm research recipes show",
-      "summary": "Exact pllm research recipes show help from the installed PLLM CLI.",
-      "sourcePath": "content/docs/reference/cli/research/recipes/show.mdx",
-      "canonicalUrl": "/cli/reference/research/recipes/show/",
-      "markdownUrl": "/cli/reference/research/recipes/show.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/cli/reference/research/recipes/show"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.reference.cli.research.recipes",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [],
-      "publicSymbols": [],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/cli/research/recipes/show.mdx",
-        "../python/pllm/_cli/app.py"
-      ],
-      "testPaths": [
-        "../tests/test_cli.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "get-started",
-      "navigationGroupTitle": "Get started",
-      "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:369e08f3d0f47b02aa2ba2be96704219989c7415aa8f1532242cb5d5bc0d3b49"
-    },
-    {
       "id": "pllm.docs.reference.python.pllm",
       "title": "Python API inventory",
       "summary": "Public Python classes, functions, and evidence APIs in the installed package.",
@@ -1826,7 +1390,6 @@
         "pllm.pipeline",
         "pllm.deployment",
         "pllm.runtime",
-        "pllm.research",
         "pllm.compiler",
         "pllm.evidence"
       ],
@@ -1843,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:2b50393fd772216fa16ec31a4c6cf098d4f9e31c35c41339dce81e1d8f847b16"
+      "contentHash": "sha256:9f5ef8796284733ba1c4f9019ed411e6a59ebaff85841803af0658fcb85df32f"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1888,51 +1451,6 @@
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
       "contentHash": "sha256:23285692d3951cdb1e784946ffdd0d994a8508020450364a862da482a0e414e1"
-    },
-    {
-      "id": "pllm.docs.reference.research",
-      "title": "Research catalog",
-      "summary": "Generated source, method, and read-only composition recipe inventory from pllm.research.",
-      "sourcePath": "content/docs/reference/research.mdx",
-      "canonicalUrl": "/research/records/method-catalog/",
-      "markdownUrl": "/research/records/method-catalog.md",
-      "kind": "reference",
-      "status": "published",
-      "release": "0.1.0",
-      "aliases": [
-        "/research/records/method-catalog"
-      ],
-      "markdownAliases": [],
-      "parent": "pllm.docs.research.records",
-      "children": [],
-      "prerequisites": [],
-      "related": [],
-      "publicModules": [
-        "pllm.research"
-      ],
-      "publicSymbols": [
-        "list_sources",
-        "list_methods",
-        "list_recipes",
-        "get_source",
-        "get_method",
-        "get_recipe"
-      ],
-      "componentIds": [],
-      "sourcePaths": [
-        "content/docs/reference/research.mdx",
-        "../research/methods",
-        "../research/recipes"
-      ],
-      "testPaths": [
-        "../tests/test_research.py",
-        "../tests/test_developer_reference.py"
-      ],
-      "navigationGroup": "evaluate",
-      "navigationGroupTitle": "Evaluate",
-      "navigationRoot": "/research/records/",
-      "navigationOrder": 305,
-      "contentHash": "sha256:0c417b4447edd52bf3f48cb5cd117413f9a9cedeb9f3d1dd893ce0434936c985"
     },
     {
       "id": "pllm.docs.reference.schemas",
@@ -1994,7 +1512,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:44befdfec958ea8f10d949ff801516dad84735f218db096f1a7317c20999b53d"
+      "contentHash": "sha256:45fe74207960dd7f928f710ab43f581211422633731e8d20a57722a5f9406b7e"
     },
     {
       "id": "pllm.docs.research.sources",
@@ -2025,7 +1543,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:78e297f9e90d757d17bfd710a4b06b06a7f95d66c4f01ba01fff11a7c53508b9"
+      "contentHash": "sha256:902608904e08ca42456b95de3796aa60480c40feaaf8984a511c0e22016f21be"
     },
     {
       "id": "pllm.docs.research.methods",
@@ -2056,7 +1574,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:a264b922a593a3e1837d3391f6491c31b83e142d509a5ee5b13b1aba27897782"
+      "contentHash": "sha256:ca2c53148211ceefd423aa628568d13bbec20e4084a222ba9988e21e03389c35"
     },
     {
       "id": "pllm.docs.research.compositions",
@@ -2087,7 +1605,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:fdeba24345277f49d2ffc511853562098ad13790a132d2bd3fe63a65d22da36d"
+      "contentHash": "sha256:aa7404a9b15ad8b26a476f3435638fc049c8b9be619d612c7aeee9a3ccf19171"
     },
     {
       "id": "pllm.docs.research.evidence",
@@ -2118,7 +1636,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:40bd5a42a6d476151a99b2f55d1a9bcf77b7c9ac462851f9c6eb659d838319c4"
+      "contentHash": "sha256:1143da9f355941d7d227919abb30be9d25e8915beb18f91a788ae52500e5f2dd"
     },
     {
       "id": "pllm.docs.research.publications",
@@ -2180,12 +1698,12 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:718c6d57b6ace2bfab13252ba2156ffcd0b02dc2fe8cad719747f7910a64db52"
+      "contentHash": "sha256:d4e56f432856ff6a9766a7e2bb8bd1367507e5523cfaa6986de76904a33753b7"
     },
     {
       "id": "pllm.research",
       "title": "PLLM research",
-      "summary": "The mission, protocol, and evidence for a global market in private AI compute.",
+      "summary": "PLLM original research, technical paper, tracked papers, and implementation backlog.",
       "sourcePath": "content/research.html",
       "canonicalUrl": "/research/",
       "markdownUrl": "/research.md",
@@ -2207,6 +1725,7 @@
         "pllm.research.paper",
         "pllm.research.whitepaper",
         "pllm.docs.recipes",
+        "pllm.docs.research.backlog",
         "pllm.docs.research.papers",
         "pllm.docs.research.records"
       ],
@@ -2223,12 +1742,12 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:a5114b036fab6557de2065aa227526449d4764b77cad960c0621eab75e85c94a"
+      "contentHash": "sha256:3a6c188317f497b69d71c7046e87e765ba05105799dc8eae573a1d9cd34981ec"
     },
     {
       "id": "pllm.research.paper",
-      "title": "PLLM: Offline-Correlated Private Inference for Public-Weight Language Models",
-      "summary": "A high-performance multi-party inference runtime that prepares one-time masked matrix corrections before online language-model inference.",
+      "title": "PLLM: Composable Multi-Party Inference and Autonomous Research for Private LLMs",
+      "summary": "Private multi-party LLM inference and evidence-driven research-component composition.",
       "sourcePath": "content/research/paper.mdx",
       "canonicalUrl": "/research/paper/",
       "markdownUrl": "/research/paper.md",
@@ -2254,12 +1773,12 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:3ee48427cf842c352b7e6e0afff647aea7df74e93811bff5a5f1231527a54d59"
+      "contentHash": "sha256:b6cce87ab29f503934753fc9d6b5124f24446ed7a308480fad20abecb99b7f08"
     },
     {
       "id": "pllm.research.whitepaper",
-      "title": "Private inference as infrastructure",
-      "summary": "A two-page overview of PLLM prepared private inference.",
+      "title": "PLLM: Private LLM Inference That Keeps Plaintext with the User",
+      "summary": "A concise guide to PLLM’s private multi-party runtime and autonomous research harness.",
       "sourcePath": "content/research/whitepaper.mdx",
       "canonicalUrl": "/research/whitepaper/",
       "markdownUrl": "/research/whitepaper.md",
@@ -2285,7 +1804,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:b9e187d12f9e5dca960084dc22beab7f488b6759fa8320dc1a19cf0d6e970655",
+      "contentHash": "sha256:868716cebdf0bc6d7c450c1e4b3982fc011f261e79ff9e135569267023828ccc",
       "citationLinks": [
         "/learn/understand/architecture/",
         "/learn/understand/privacy-assurance/"
@@ -2323,7 +1842,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
       "navigationOrder": 402,
-      "contentHash": "sha256:ef33a0646ac659357e0b7e180477a382f7d0b3a01fbe4932360fcbe98edd66aa"
+      "contentHash": "sha256:5da2bf5b4ec123fd8020decc043a08e8b1b0651ca0c9f8f340aaf9f83b70695d"
     },
     {
       "id": "pllm.docs.agents",
@@ -2356,7 +1875,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
       "navigationOrder": 402,
-      "contentHash": "sha256:4b365c6a15cceed903004dabc7751549bc6e8ae796c83fa3e15fdf1295a89194"
+      "contentHash": "sha256:0a2d9d73c5c1d79f973a8a039973d7d1f927e937ed452afee4ef1cc3aaa622c6"
     },
     {
       "id": "pllm.docs.agents.reproduction-checklist",
@@ -2418,7 +1937,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:05feb35e53c6d196bdd7ecbf16bc6b0e3f981ac75f4e106ea6b070a229edae21"
+      "contentHash": "sha256:12200e4e83b9c4fcc95eb51d4001c69282216cb1b360beffbcd098b5ccac04c4"
     },
     {
       "id": "pllm.docs.assurance",
@@ -2548,12 +2067,12 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:472e9ea33319126ca22bf8e2305291982f4e9d7e17a19589262cf1ae9cc386cd"
+      "contentHash": "sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3"
     },
     {
       "id": "pllm.docs.cli.inspect-and-research",
-      "title": "Inspect configuration and research",
-      "summary": "Validate public experiment data and inspect built-in component or research records.",
+      "title": "Inspect configuration and components",
+      "summary": "Validate public experiment data and inspect built-in component records.",
       "sourcePath": "content/docs/cli/inspect-and-research.mdx",
       "canonicalUrl": "/cli/inspect-and-research/",
       "markdownUrl": "/cli/inspect-and-research.md",
@@ -2579,7 +2098,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:f4133bf92204d7f5b4f16dac4011f42117b90a5ab456dc46a3f5086dd98f2e36"
+      "contentHash": "sha256:9b0a5fbfec8bdc3688b22b3b76c90dd117f05b0ec7089fbcb881152c80fb0ea9"
     },
     {
       "id": "pllm.docs.cli.private-inference",
@@ -4157,7 +3676,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:8dcdbfb46c9671fe35d041794c5bf655dc22e4cb845b7580d8ff3be9fc192cd2"
+      "contentHash": "sha256:534dab86e03973791ceafb51bcff973c9d3946dfd9a66f6fd2417ab1b1df78ca"
     },
     {
       "id": "pllm.docs.reference.native",
@@ -4255,6 +3774,37 @@
       "contentHash": "sha256:d415167b9bc0ead406e2487a40c9c6a37d401e4decf523ad43c4fe7e9981532b"
     },
     {
+      "id": "pllm.docs.research.backlog",
+      "title": "Reimplementation backlog",
+      "summary": "What PLLM will reproduce, implement, review, and measure next.",
+      "sourcePath": "content/docs/research/backlog.mdx",
+      "canonicalUrl": "/research/backlog/",
+      "markdownUrl": "/research/backlog.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/backlog"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.research",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/backlog.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:bde5c01580e5685b8ef595caadc27373b99df2d5b2f8ad5ec181f9218bd48d6e"
+    },
+    {
       "id": "pllm.docs.research.experiments",
       "title": "Experiments",
       "summary": "Design reproducible experiments with fixed plans, comparable runs, and recorded failures.",
@@ -4287,8 +3837,8 @@
     },
     {
       "id": "pllm.docs.research.papers",
-      "title": "Reimplemented papers",
-      "summary": "Trace published private-inference methods to their independent PLLM components, evidence, and current limitations.",
+      "title": "Research papers",
+      "summary": "Prioritized paper reimplementation plan, source status, contribution summaries, and PLLM implementation boundaries.",
       "sourcePath": "content/docs/research/papers/index.mdx",
       "canonicalUrl": "/research/papers/",
       "markdownUrl": "/research/papers.md",
@@ -4300,7 +3850,32 @@
       ],
       "markdownAliases": [],
       "parent": "pllm.research",
-      "children": [],
+      "children": [
+        "pllm.docs.research.papers.r01-dash",
+        "pllm.docs.research.papers.r02-redash",
+        "pllm.docs.research.papers.r03-garbling-gadgets",
+        "pllm.docs.research.papers.r04-half-gates",
+        "pllm.docs.research.papers.r05-logrow",
+        "pllm.docs.research.papers.r06-duty-free-bits",
+        "pllm.docs.research.papers.r07-slalom",
+        "pllm.docs.research.papers.r08-carnival",
+        "pllm.docs.research.papers.r09-hycc",
+        "pllm.docs.research.papers.r10-oblivious-decision-programs",
+        "pllm.docs.research.papers.r11-fevbdd",
+        "pllm.docs.research.papers.r12-piranha",
+        "pllm.docs.research.papers.r13-sigma",
+        "pllm.docs.research.papers.r14-fusefss",
+        "pllm.docs.research.papers.r15-ring-pcg",
+        "pllm.docs.research.papers.r16-trapdoored-matrices",
+        "pllm.docs.research.papers.r17-curl",
+        "pllm.docs.research.papers.r18-compact",
+        "pllm.docs.research.papers.r19-open-weight-verifiable",
+        "pllm.docs.research.papers.r20-oblivious-compression",
+        "pllm.docs.research.papers.r21-nexus",
+        "pllm.docs.research.papers.r22-openbumblebee",
+        "pllm.docs.research.papers.r23-mpcache",
+        "pllm.docs.research.papers.r24-maverick"
+      ],
       "prerequisites": [],
       "related": [],
       "publicModules": [],
@@ -4314,7 +3889,751 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:9f2002c5fb871e81d81f18b237ed9b99d6e7b70c25bef456c1abbbaad0613e83"
+      "contentHash": "sha256:27f0ceb3778e7f7f950c3edab8b48b0866e66a4f64f3123ce34cd1d42872cd23"
+    },
+    {
+      "id": "pllm.docs.research.papers.r01-dash",
+      "title": "R01: Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits",
+      "summary": "Arithmetic garbling and LabelTensors provide the foundation for offline preparation and local encoded public-weight evaluation. PLLM status: reference primitive only.",
+      "sourcePath": "content/docs/research/papers/r01-dash.mdx",
+      "canonicalUrl": "/research/papers/r01-dash/",
+      "markdownUrl": "/research/papers/r01-dash.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r01-dash"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r01-dash.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:094756837e207bf9ad8a47adc2252823f3d129e0e49429fcc5cb52cfac13682f"
+    },
+    {
+      "id": "pllm.docs.research.papers.r02-redash",
+      "title": "R02: ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference",
+      "summary": "ReDASH generalizes residue-number-system scaling and uses ScaleQuant+ to reduce encoded-inference overhead. PLLM status: reference primitive only.",
+      "sourcePath": "content/docs/research/papers/r02-redash.mdx",
+      "canonicalUrl": "/research/papers/r02-redash/",
+      "markdownUrl": "/research/papers/r02-redash.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r02-redash"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r02-redash.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:182b96d0bda074110cc07a8387afe5298aefa2f814f55805c9c8d90bbac6a126"
+    },
+    {
+      "id": "pllm.docs.research.papers.r03-garbling-gadgets",
+      "title": "R03: Garbling Gadgets for Boolean and Arithmetic Circuits",
+      "summary": "Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model. PLLM status: reference primitive only.",
+      "sourcePath": "content/docs/research/papers/r03-garbling-gadgets.mdx",
+      "canonicalUrl": "/research/papers/r03-garbling-gadgets/",
+      "markdownUrl": "/research/papers/r03-garbling-gadgets.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r03-garbling-gadgets"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r03-garbling-gadgets.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:211a2b5670d4a4366cb524b30139a72d3dd26f9ceec4bbeb2edc317868383964"
+    },
+    {
+      "id": "pllm.docs.research.papers.r04-half-gates",
+      "title": "R04: Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates",
+      "summary": "Half-gates reduce AND-gate communication while remaining compatible with free XOR. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r04-half-gates.mdx",
+      "canonicalUrl": "/research/papers/r04-half-gates/",
+      "markdownUrl": "/research/papers/r04-half-gates.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r04-half-gates"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r04-half-gates.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:15546819e7215688c0073df341ca664b610036a5eeb469ea5afd811c5fa2553a"
+    },
+    {
+      "id": "pllm.docs.research.papers.r05-logrow",
+      "title": "R05: Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts",
+      "summary": "The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r05-logrow.mdx",
+      "canonicalUrl": "/research/papers/r05-logrow/",
+      "markdownUrl": "/research/papers/r05-logrow.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r05-logrow"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r05-logrow.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:6aee4597b56f85ece9d9ffdea833f271ed2deeffd32cdadde2e1bfd6f28636a5"
+    },
+    {
+      "id": "pllm.docs.research.papers.r06-duty-free-bits",
+      "title": "R06: Duty-Free Bits: Projectivizing Garbling Schemes",
+      "summary": "This work studies projective conversion from Yao-style bit labels into affine encodings and related vector-OLE applications. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r06-duty-free-bits.mdx",
+      "canonicalUrl": "/research/papers/r06-duty-free-bits/",
+      "markdownUrl": "/research/papers/r06-duty-free-bits.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r06-duty-free-bits"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r06-duty-free-bits.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:f3f59c04dad3a67ff0911b11cb18dbc1fac4423fa61189a7f355fcb7bb06b5d2"
+    },
+    {
+      "id": "pllm.docs.research.papers.r07-slalom",
+      "title": "R07: Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware",
+      "summary": "Slalom outsources masked linear work and uses local verification within a trusted execution partition. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r07-slalom.mdx",
+      "canonicalUrl": "/research/papers/r07-slalom/",
+      "markdownUrl": "/research/papers/r07-slalom.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r07-slalom"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r07-slalom.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:4c3202a5af4e553ac3b4ca0a886fa29183693749626860efe827fdb36029fa8b"
+    },
+    {
+      "id": "pllm.docs.research.papers.r08-carnival",
+      "title": "R08: Slalom at the Carnival: Privacy-preserving Inference with Masks from Public Knowledge",
+      "summary": "Carnival uses subset-sum-based masks to accelerate preprocessing for linear outsourcing. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r08-carnival.mdx",
+      "canonicalUrl": "/research/papers/r08-carnival/",
+      "markdownUrl": "/research/papers/r08-carnival.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r08-carnival"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r08-carnival.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:a0b5f99260f021cf9e7b99ade66d380120b8ebbde90176b31eb831f132ad5c9a"
+    },
+    {
+      "id": "pllm.docs.research.papers.r09-hycc",
+      "title": "R09: HyCC: Compilation of Hybrid Protocols for Practical Secure Computation",
+      "summary": "HyCC compiles high-level programs into hybrid secure-computation protocols. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r09-hycc.mdx",
+      "canonicalUrl": "/research/papers/r09-hycc/",
+      "markdownUrl": "/research/papers/r09-hycc.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r09-hycc"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r09-hycc.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:ce6eb2213026e9bb804d8cc94258ad6e3efaed6fda1c146b5030902ecb29d7a5"
+    },
+    {
+      "id": "pllm.docs.research.papers.r10-oblivious-decision-programs",
+      "title": "R10: Oblivious decision program evaluation",
+      "summary": "Oblivious decision-program protocols evaluate protected decision structures using OT-based reductions. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r10-oblivious-decision-programs.mdx",
+      "canonicalUrl": "/research/papers/r10-oblivious-decision-programs/",
+      "markdownUrl": "/research/papers/r10-oblivious-decision-programs.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r10-oblivious-decision-programs"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r10-oblivious-decision-programs.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:c8f15874ea7661b07d87227e68d175b291a61df972c4726d072a10a61b56f695"
+    },
+    {
+      "id": "pllm.docs.research.papers.r11-fevbdd",
+      "title": "R11: Factored Edge-Valued Binary Decision Diagrams",
+      "summary": "Factored edge-valued diagrams share subfunctions through additive and multiplicative edge normalization. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r11-fevbdd.mdx",
+      "canonicalUrl": "/research/papers/r11-fevbdd/",
+      "markdownUrl": "/research/papers/r11-fevbdd.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r11-fevbdd"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r11-fevbdd.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:c16d881a6d1e021a3c70f0196d6dfc3732237cf476e1469dc588d7999b1b3e37"
+    },
+    {
+      "id": "pllm.docs.research.papers.r12-piranha",
+      "title": "R12: Piranha: A GPU Platform for Secure Computation",
+      "summary": "Piranha separates device, protocol and application layers for GPU-accelerated secret-sharing computation. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r12-piranha.mdx",
+      "canonicalUrl": "/research/papers/r12-piranha/",
+      "markdownUrl": "/research/papers/r12-piranha.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r12-piranha"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r12-piranha.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:63e9a1f88baa35c7f8a34293f4a429931392b4018f03a087fce322bf534ba032"
+    },
+    {
+      "id": "pllm.docs.research.papers.r13-sigma",
+      "title": "R13: SIGMA: Secure GPT Inference with Function Secret Sharing",
+      "summary": "SIGMA provides FSS-based secure transformer operations and GPU-backed inference with preprocessing. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r13-sigma.mdx",
+      "canonicalUrl": "/research/papers/r13-sigma/",
+      "markdownUrl": "/research/papers/r13-sigma.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r13-sigma"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r13-sigma.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:bcfa6b18e34a0b00dde0761dbb0168f0e06f65f4edcaa75f9ab9c5b66c061e23"
+    },
+    {
+      "id": "pllm.docs.research.papers.r14-fusefss",
+      "title": "R14: FuseFSS: Efficient Secure LLM Inference with Function Secret Sharing",
+      "summary": "FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in FSS-based LLM inference. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r14-fusefss.mdx",
+      "canonicalUrl": "/research/papers/r14-fusefss/",
+      "markdownUrl": "/research/papers/r14-fusefss.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r14-fusefss"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r14-fusefss.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:5d4e46cf0dac139ffbaf3e9a201e4d1e37a9295b0d6aa5999bd4609ce1e45787"
+    },
+    {
+      "id": "pllm.docs.research.papers.r15-ring-pcg",
+      "title": "R15: Efficient Pseudorandom Correlation Generators over Z/p^k Z",
+      "summary": "Galois-ring constructions extend pseudorandom correlation generation to integer rings, including multiplication-related correlations. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r15-ring-pcg.mdx",
+      "canonicalUrl": "/research/papers/r15-ring-pcg/",
+      "markdownUrl": "/research/papers/r15-ring-pcg.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r15-ring-pcg"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r15-ring-pcg.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:8472506708e9b1edacfff851d559354d7d42d902d3ad2bec9903e267d06bb716"
+    },
+    {
+      "id": "pllm.docs.research.papers.r16-trapdoored-matrices",
+      "title": "R16: Practical Secure Delegated Linear Algebra with Trapdoored Matrices",
+      "summary": "This work uses trapdoored pseudorandom matrices for efficient delegated linear algebra under an LPN-based approach. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r16-trapdoored-matrices.mdx",
+      "canonicalUrl": "/research/papers/r16-trapdoored-matrices/",
+      "markdownUrl": "/research/papers/r16-trapdoored-matrices.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r16-trapdoored-matrices"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r16-trapdoored-matrices.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:2aa71666977f2f88a5281ba53fa03885d6b39cce0b57bd5a0a70c6d0059a7b74"
+    },
+    {
+      "id": "pllm.docs.research.papers.r17-curl",
+      "title": "R17: Curl: Private LLMs through Wavelet-Encoded Look-Up Tables",
+      "summary": "Curl uses wavelet-encoded lookup tables for private nonlinear operations and discusses probabilistic truncation security. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r17-curl.mdx",
+      "canonicalUrl": "/research/papers/r17-curl/",
+      "markdownUrl": "/research/papers/r17-curl.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r17-curl"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r17-curl.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:076c5be16ca060e5de39896474bbee22028578016488705e44225f164f3b5324"
+    },
+    {
+      "id": "pllm.docs.research.papers.r18-compact",
+      "title": "R18: Compact: Approximating Complex Activation Functions for Secure Computation",
+      "summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r18-compact.mdx",
+      "canonicalUrl": "/research/papers/r18-compact/",
+      "markdownUrl": "/research/papers/r18-compact.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r18-compact"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r18-compact.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:9158c72a120ce57d37c7f98e1e693838e9dcdca040e78c29ae3aee7ffd2bff25"
+    },
+    {
+      "id": "pllm.docs.research.papers.r19-open-weight-verifiable",
+      "title": "R19: Private and Verifiable Outsourcing of Open-Weight LLM Inference",
+      "summary": "The abstract describes private and verifiable open-weight inference with two malicious, non-colluding servers and model-owner-published information. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r19-open-weight-verifiable.mdx",
+      "canonicalUrl": "/research/papers/r19-open-weight-verifiable/",
+      "markdownUrl": "/research/papers/r19-open-weight-verifiable.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r19-open-weight-verifiable"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r19-open-weight-verifiable.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:511ac0a84624156b4622f1d97ed7b5aa21c1bee2dc865b7020e6fa67cd78898e"
+    },
+    {
+      "id": "pllm.docs.research.papers.r20-oblivious-compression",
+      "title": "R20: Oblivious Ciphertext Compression via Linear Codes",
+      "summary": "This work develops oblivious ciphertext compression using linear codes and syndrome decoding. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r20-oblivious-compression.mdx",
+      "canonicalUrl": "/research/papers/r20-oblivious-compression/",
+      "markdownUrl": "/research/papers/r20-oblivious-compression.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r20-oblivious-compression"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r20-oblivious-compression.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:a79d2671be4dcccf62dcf11d8b07f73f5fc1968b31e207016ea4ce45761ad7fa"
+    },
+    {
+      "id": "pllm.docs.research.papers.r21-nexus",
+      "title": "R21: NEXUS: Secure Transformer Inference Made Non-interactive",
+      "summary": "NEXUS combines approximate HE with lightweight garbled circuits for non-interactive two-party transformer forward inference. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r21-nexus.mdx",
+      "canonicalUrl": "/research/papers/r21-nexus/",
+      "markdownUrl": "/research/papers/r21-nexus.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r21-nexus"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r21-nexus.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:75b4d048ef9c1281d0d2da1b8eedfa0469bbde032b1465d11e63e9f0f61caca2"
+    },
+    {
+      "id": "pllm.docs.research.papers.r22-openbumblebee",
+      "title": "R22: BumbleBee: Secure Two-party Inference Framework for Large Transformers",
+      "summary": "BumbleBee implements secure two-party transformer inference with specialized nonlinear protocols and an Apache-2.0 artifact. PLLM status: tracked.",
+      "sourcePath": "content/docs/research/papers/r22-openbumblebee.mdx",
+      "canonicalUrl": "/research/papers/r22-openbumblebee/",
+      "markdownUrl": "/research/papers/r22-openbumblebee.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r22-openbumblebee"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r22-openbumblebee.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:8dd19596f2b46bb08c9159882f087b922196aa5da5221ac910aa431d216793f3"
+    },
+    {
+      "id": "pllm.docs.research.papers.r23-mpcache",
+      "title": "R23: MPCache: MPC-Friendly KV Cache Eviction for Efficient Private Large Language Model Inference",
+      "summary": "MPCache evaluates MPC-friendly static and dynamic KV-cache eviction in a three-party SecretFlow/SPU setting; its artifact focuses state selection and operator costs. PLLM status: PLLM reimplementation.",
+      "sourcePath": "content/docs/research/papers/r23-mpcache.mdx",
+      "canonicalUrl": "/research/papers/r23-mpcache/",
+      "markdownUrl": "/research/papers/r23-mpcache.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r23-mpcache"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r23-mpcache.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:82a07794a6271b59d14e810bfedef103c31e14bfbc8c42ed752b15900d02d0f4"
+    },
+    {
+      "id": "pllm.docs.research.papers.r24-maverick",
+      "title": "R24: Maverick: Private and Verifiable LLM Inference Made Practical via Matrix-Vector Multiplication Delegation",
+      "summary": "Maverick delegates matrix-vector multiplication with transparent preprocessing, information-theoretic batch verification, and LPN-based pseudorandom input masking while adding virtually no server-side verification overhead. PLLM status: planned.",
+      "sourcePath": "content/docs/research/papers/r24-maverick.mdx",
+      "canonicalUrl": "/research/papers/r24-maverick/",
+      "markdownUrl": "/research/papers/r24-maverick.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/research/papers/r24-maverick"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.research.papers",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/research/papers/r24-maverick.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/research/",
+      "navigationOrder": 304,
+      "contentHash": "sha256:7258e6ba301518570a97f05c659f6b2aafdb70692d8827c57cef90c1911bb3f4"
     },
     {
       "id": "pllm.docs.research.records",
@@ -4332,7 +4651,6 @@
       "markdownAliases": [],
       "parent": "pllm.research",
       "children": [
-        "pllm.docs.reference.research",
         "pllm.docs.metrics"
       ],
       "prerequisites": [],
@@ -4348,7 +4666,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/records/",
       "navigationOrder": 305,
-      "contentHash": "sha256:5bbe03dbdc586d3dab2df7026e5f65961d2c2402dbd9fc3ce56fef3a9c33de54"
+      "contentHash": "sha256:765e0aea01659953c8acb8f99e705e6e862837995d54fe3d2d3fdde57150bf7e"
     },
     {
       "id": "pllm.docs.research.reproductions",

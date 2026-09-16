@@ -5,13 +5,12 @@ usage: pllm [-h] [--format {human,json,jsonl}] [--quiet] [--no-color]
             [--no-input] [--dry-run] [--version]
             COMMAND ...
 
-Inspect PLLM configuration, run benchmarks, and inspect research metadata
+Inspect PLLM configuration, run benchmarks, and operate private inference
 
 positional arguments:
   COMMAND
     config              inspect or export public configuration
     components          inspect built-in component descriptors
-    research            inspect or assess read-only research records
     gateway             run the trusted local Responses API gateway
     serve               run an inference or preparation role
     benchmark           run reproducible local benchmarks
@@ -57,31 +56,6 @@ positional arguments:
   COMMAND
     list                list built-in component descriptors
     show                show one component descriptor
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research --help
-usage: pllm research [-h] [--format {human,json,jsonl}] [--quiet] [--no-color]
-                     [--no-input] [--dry-run]
-                     KIND ...
-
-positional arguments:
-  KIND
-    sources             inspect research sources
-    methods             inspect research methods
-    recipes             inspect research recipes
-    assess              assess a publication request without executing
-                        research workflows
-    agents              write repository-root guidance for research coding
-                        agents
 
 options:
   -h, --help            show this help message and exit
@@ -286,101 +260,6 @@ options:
   --no-input            fail instead of prompting
   --dry-run             report work without persistent writes or service
                         startup
-
-$ pllm research sources --help
-usage: pllm research sources [-h] [--format {human,json,jsonl}] [--quiet]
-                             [--no-color] [--no-input] [--dry-run]
-                             COMMAND ...
-
-positional arguments:
-  COMMAND
-    list                list research sources
-    show                show one research source record
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research methods --help
-usage: pllm research methods [-h] [--format {human,json,jsonl}] [--quiet]
-                             [--no-color] [--no-input] [--dry-run]
-                             COMMAND ...
-
-positional arguments:
-  COMMAND
-    list                list research methods
-    show                show one research method record
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research recipes --help
-usage: pllm research recipes [-h] [--format {human,json,jsonl}] [--quiet]
-                             [--no-color] [--no-input] [--dry-run]
-                             COMMAND ...
-
-positional arguments:
-  COMMAND
-    list                list research recipes
-    show                show one research recipe record
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research assess --help
-usage: pllm research assess [-h] [--format {human,json,jsonl}] [--quiet]
-                            [--no-color] [--no-input] [--dry-run]
-                            REQUEST
-
-positional arguments:
-  REQUEST               publication assessment request JSON path
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research agents --help
-usage: pllm research agents [-h] [--format {human,json,jsonl}] [--quiet]
-                            [--no-color] [--no-input] [--dry-run]
-                            --output PATH [--force]
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-  --output PATH         new Markdown output path
-  --force               replace an existing output file
 
 $ pllm serve inference --help
 usage: pllm serve inference [-h] [--format {human,json,jsonl}] [--quiet]
@@ -598,99 +477,3 @@ options:
   --max-output-tokens MAX_OUTPUT_TOKENS
   --history-db PATH
   --no-open
-
-$ pllm research sources list --help
-usage: pllm research sources list [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research sources show --help
-usage: pllm research sources show [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-                                  ID
-
-positional arguments:
-  ID                    stable record ID or registry alias
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research methods list --help
-usage: pllm research methods list [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research methods show --help
-usage: pllm research methods show [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-                                  ID
-
-positional arguments:
-  ID                    stable record ID or registry alias
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research recipes list --help
-usage: pllm research recipes list [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup
-
-$ pllm research recipes show --help
-usage: pllm research recipes show [-h] [--format {human,json,jsonl}] [--quiet]
-                                  [--no-color] [--no-input] [--dry-run]
-                                  ID
-
-positional arguments:
-  ID                    stable record ID or registry alias
-
-options:
-  -h, --help            show this help message and exit
-  --format {human,json,jsonl}
-                        result format (default: human)
-  --quiet               suppress non-error diagnostics
-  --no-color            disable colored output
-  --no-input            fail instead of prompting
-  --dry-run             report work without persistent writes or service
-                        startup

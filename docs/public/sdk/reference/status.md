@@ -6,14 +6,14 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
-Source hash: `sha256:44befdfec958ea8f10d949ff801516dad84735f218db096f1a7317c20999b53d`
+Build: `sha256:88685675b040f8400eed3855030abc8a7816f2d3688fae13cf86f2739853697d`  
+Source hash: `sha256:45fe74207960dd7f928f710ab43f581211422633731e8d20a57722a5f9406b7e`
 
 Checked 16 September 2026.
 
 The CLI can run the trusted local gateway, start inference and preparation roles,
 run a headless loopback benchmark, inspect public configuration and components,
-and assess or inspect research records.
+and report bounded diagnostics.
 
 Prepared public-weight inference runs for supported text checkpoint layouts. This
 path assumes protocol-following, non-colluding inference and preparation roles;
@@ -46,7 +46,6 @@ below open parser-generated command references.
 | --- | --- | --- |
 | [`config`](/cli/reference/config/) | Available | Validates public `Experiment` data; Python targets require explicit trust |
 | [`components`](/cli/reference/components/) | Available | Reads built-in component metadata only |
-| [`research`](/cli/reference/research/) | Available | Reads deterministic research records and assessments without executing methods or publishing claims |
 | [`gateway`](/cli/reference/gateway/) | Available | Trusted loopback client boundary exposing the Responses API and Chat Completions API; `--local` co-locates roles for development only |
 | [`serve inference`](/cli/reference/serve/inference/) | Available | Starts an authenticated computation role; host provisioning, TLS termination, and operator separation remain deployment responsibilities |
 | [`serve preparation`](/cli/reference/serve/preparation/) | Available | Starts the trusted preparation role and pushes offline corrections to inference; it must not collude with inference |

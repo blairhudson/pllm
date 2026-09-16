@@ -1,9 +1,10 @@
 {
   "title": "Research",
   "pages": [
-    "[Research goals](/research/)",
-    "[Research registry](/research/)",
-    "[PLLM Whitepaper](/research/whitepaper/)",
-    "[PLLM Research Paper](/research/paper/)"
+    "[Research](/research/)",
+    "[PLLM original research](/research/whitepaper/)",
+    "[PLLM research paper](/research/paper/)",
+    "[Papers](/research/papers/)",
+    "[Reimplementation backlog](/research/backlog/)"
   ]
 }

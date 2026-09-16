@@ -1,0 +1,35 @@
+---
+title: "R13: SIGMA: Secure GPT Inference with Function Secret Sharing"
+description: "SIGMA provides FSS-based secure transformer operations and GPU-backed inference with preprocessing. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2024  
+**Authors:** Kanav Gupta, Neha Jawalkar, Ananta Mukherjee, Nishanth Chandran, Divya Gupta, Ashish Panwar, Rahul Sharma  
+**External source:** [SIGMA: Secure GPT Inference with Function Secret Sharing](https://petsymposium.org/popets/2024/popets-2024-0107.php)
+
+## Source contribution
+
+SIGMA provides FSS-based secure transformer operations and GPU-backed inference with preprocessing.
+
+## PLLM perspective
+
+Reproduce the original FSS helpers and complete reference workload. Register softmax, activation, normalization and truncation independently with exact phase contracts.
+
+Resident-share and spectral archives are different constructions, not SIGMA reproductions.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Two online parties and the dealer model must remain explicit. No implicit substitution into the one-evaluator default.
+
+## PLLM modules and documentation
+
+Target module identifiers: `protocol.fss`, `gate.fss_nonlinear`, `prepare.fss`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: None.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 8, **Full-system comparison targets**. Its source-registry order is 13. Follow current gates and unfinished work in the [research backlog](/research/backlog/).

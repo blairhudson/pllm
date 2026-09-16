@@ -7,7 +7,6 @@ members = [
     "crates/pllm-assurance",
     "crates/pllm-garble",
     "crates/pllm-models",
-    "crates/pllm-method-mpcache",
     "crates/pllm-python",
 ]
 default-members = [
@@ -18,7 +17,6 @@ default-members = [
     "crates/pllm-assurance",
     "crates/pllm-garble",
     "crates/pllm-models",
-    "crates/pllm-method-mpcache",
 ]
 resolver = "2"
 
@@ -37,7 +35,6 @@ pllm-bench = { path = "crates/pllm-bench" }
 pllm-assurance = { path = "crates/pllm-assurance" }
 pllm-garble = { path = "crates/pllm-garble" }
 pllm-models = { path = "crates/pllm-models" }
-pllm-method-mpcache = { path = "crates/pllm-method-mpcache" }
 pyo3 = { version = "=0.26.0", features = ["abi3-py311"] }
 rayon = "=1.11.0"
 getrandom = "=0.3.3"

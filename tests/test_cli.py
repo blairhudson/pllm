@@ -10,7 +10,6 @@ import sys
 import pytest
 
 from pllm._cli.app import build_parser
-from pllm.research import list_methods, list_recipes, list_sources, render_agents_guide
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = ROOT / "python"
@@ -34,14 +33,6 @@ def test_help_version_and_metadata_commands_keep_heavy_modules_unloaded() -> Non
         ["--version"],
         ["config", "show", str(ROOT / "examples/pllm.yaml"), "--format", "json"],
         ["components", "list", "--format", "json"],
-        ["research", "recipes", "list", "--format", "json"],
-        [
-            "research",
-            "assess",
-            str(ROOT / "examples/publication-assessment.json"),
-            "--format",
-            "json",
-        ],
     ]
     for command in commands:
         code = f"""
@@ -201,120 +192,12 @@ def test_machine_envelopes_jsonl_and_stream_separation() -> None:
     assert payload["schema_version"] == "pllm.cli.result.v1"
     assert payload["command"] == "components.show"
 
-    listed = run_cli("research", "sources", "list", "--format", "jsonl")
-    lines = [json.loads(line) for line in listed.stdout.splitlines()]
-    assert listed.stderr == ""
-    assert len(lines) == len(list_sources())
-    assert all(line["schema_version"] == "pllm.cli.result.v1" for line in lines)
-    assert all(set(line["data"]) == {"count", "dry_run", "item"} for line in lines)
-
     failed = run_cli("--format", "json", "components", "show", "missing")
     assert failed.returncode == 3
     assert failed.stdout == ""
     error = json.loads(failed.stderr)
     assert error["schema_version"] == "pllm.cli.error.v1"
     assert error["error"]["exit_code"] == 3
-
-
-def test_research_records_are_immutable_and_do_not_execute_workflows() -> None:
-    sources = list_sources()
-    methods = list_methods()
-    recipes = list_recipes()
-    assert sources and methods and recipes
-    with pytest.raises(TypeError):
-        recipes[0].payload["workflow_status"] = "completed"
-    assert all(record.payload["schema_version"] == "pllm.source_record.v1" for record in sources)
-    assert all(record.payload["schema_version"] == "pllm.method_record.v1" for record in methods)
-    assert all(
-        record.payload["schema_version"] == "pllm.reproduction_recipe.v1" for record in recipes
-    )
-
-
-def test_research_assess_emits_a_pure_machine_readable_decision() -> None:
-    result = run_cli(
-        "research",
-        "assess",
-        "examples/publication-assessment.json",
-        "--format",
-        "json",
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stderr == ""
-    payload = json.loads(result.stdout)
-    assert payload["command"] == "research.assess"
-    assert payload["data"]["assessment"]["decision"] == "ready_for_human_review"
-    assert payload["data"]["assessment"]["claim"]["statement"].startswith("PLLM's MPCache")
-    assert payload["data"]["digest"].startswith("sha256:")
-
-
-def test_research_agents_help_and_generation(tmp_path: Path) -> None:
-    help_result = run_cli("research", "agents", "--help")
-    assert help_result.returncode == 0
-    assert help_result.stderr == ""
-    assert "--output PATH" in help_result.stdout
-    assert "--force" in help_result.stdout
-
-    output = tmp_path / "AGENTS.md"
-    result = run_cli("research", "agents", "--output", str(output))
-    assert result.returncode == 0, result.stderr
-    assert result.stderr == ""
-    assert result.stdout == f"Wrote {output}\n"
-    assert output.read_text(encoding="utf-8") == render_agents_guide()
-    assert list(tmp_path.iterdir()) == [output]
-
-
-def test_research_agents_dry_run_json_and_output_failures(tmp_path: Path) -> None:
-    output = tmp_path / "AGENTS.md"
-    dry = run_cli(
-        "--dry-run", "research", "agents", "--output", str(output), "--format", "json"
-    )
-    assert dry.returncode == 0, dry.stderr
-    assert dry.stderr == ""
-    assert not output.exists()
-    payload = json.loads(dry.stdout)
-    assert payload["command"] == "research.agents"
-    assert payload["data"]["output"] == str(output)
-    assert payload["data"]["written"] is False
-    assert payload["data"]["dry_run"] is True
-    assert payload["data"]["digest"].startswith("sha256:")
-
-    output.write_text("keep me", encoding="utf-8")
-    existing = run_cli("research", "agents", "--output", str(output), "--format", "json")
-    assert existing.returncode == 4
-    assert existing.stdout == ""
-    assert json.loads(existing.stderr)["error"]["code"] == "OUTPUT_EXISTS"
-    assert output.read_text(encoding="utf-8") == "keep me"
-    dry_existing = run_cli("--dry-run", "research", "agents", "--output", str(output))
-    assert dry_existing.returncode == 4
-    assert dry_existing.stdout == ""
-    assert output.read_text(encoding="utf-8") == "keep me"
-
-    missing_parent = run_cli(
-        "research", "agents", "--output", str(tmp_path / "missing" / "AGENTS.md")
-    )
-    assert missing_parent.returncode == 4
-    assert missing_parent.stdout == ""
-    assert "OUTPUT_WRITE" in missing_parent.stderr
-
-    forced = run_cli("research", "agents", "--output", str(output), "--force")
-    assert forced.returncode == 0, forced.stderr
-    assert output.read_text(encoding="utf-8") == render_agents_guide()
-
-
-def test_bundled_research_snapshot_matches_checkout_records(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import pllm.research as research
-
-    source_records = [record.to_dict() for record in list_sources()]
-    method_records = [record.to_dict() for record in list_methods()]
-    recipe_records = [record.to_dict() for record in list_recipes()]
-    research._records.cache_clear()
-    monkeypatch.setattr(research, "_repository_root", lambda: None)
-    assert [record.to_dict() for record in list_sources()] == source_records
-    assert [record.to_dict() for record in list_methods()] == method_records
-    assert [record.to_dict() for record in list_recipes()] == recipe_records
-    research._records.cache_clear()
 
 
 def test_validation_io_usage_and_interrupt_exit_classes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -1,0 +1,35 @@
+---
+title: "R10: Oblivious decision program evaluation"
+description: "Oblivious decision-program protocols evaluate protected decision structures using OT-based reductions. PLLM status: tracked."
+---
+
+**Status:** `tracked`  
+**Year:** 2013  
+**Authors:** Salman Niksefat, Babak Sadeghiyan, Payman Mohassel  
+**External source:** [Oblivious decision program evaluation](https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/iet-ifs.2012.0032)
+
+## Source contribution
+
+Oblivious decision-program protocols evaluate protected decision structures using OT-based reductions.
+
+## PLLM perspective
+
+Reproduce the original actor roles first. Then separately specify a model-aware garbler/offline-dealer adaptation for encoded nonlinear paths, including all input label delivery.
+
+Weighted transducer archive uses related ideas but is not a reproduction of this protocol.
+
+This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
+
+The source's boundary remains binding: Role reversal and arithmetic output are adaptations. Fixed path length alone does not prove that node identities or graph topology are hidden.
+
+## PLLM modules and documentation
+
+Target module identifiers: `gate.oblivious_branching_program`, `convert.branching_input`. These identifiers describe scoped work unless this page explicitly links an implementation source. Dependencies: R04.
+
+- [Research backlog](/research/backlog/)
+- [Reimplementation backlog](/research/backlog/)
+- [Clean-room workflow](/research/clean-room/)
+
+## Backlog
+
+This source is assigned to reimplementation priority 6, **Decision structures and regional selection**. Its source-registry order is 10. Follow current gates and unfinished work in the [research backlog](/research/backlog/).
