@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966
+Build: sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -15,6 +15,14 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Evidence and claim taxonomy](https://pllm.run/learn/understand/evidence-claims/) ([Markdown](https://pllm.run/learn/understand/evidence-claims.md)): Separate a design contract, an implementation, its evidence, and a publication claim.
 - [Arithmetic and Boolean garbling](https://pllm.run/learn/arithmetic-and-boolean-garbling/) ([Markdown](https://pllm.run/learn/arithmetic-and-boolean-garbling.md)): Compare arithmetic and Boolean garbling without treating one primitive as a complete private runtime.
 - [Learn](https://pllm.run/learn/) ([Markdown](https://pllm.run/learn.md)): Understand PLLM's private inference runtime, research harness, trust assumptions, and evidence.
+- [Chat Completions API](https://pllm.run/learn/integrations/chat-completions/) ([Markdown](https://pllm.run/learn/integrations/chat-completions.md)): Connect text and local function-tool clients through PLLM's Chat Completions API adapter.
+- [Codex](https://pllm.run/learn/integrations/codex/) ([Markdown](https://pllm.run/learn/integrations/codex.md)): Configure Codex CLI to use PLLM as a custom Responses API provider.
+- [Integrations](https://pllm.run/learn/integrations/) ([Markdown](https://pllm.run/learn/integrations.md)): Connect OpenAI-compatible SDKs and coding agents to the trusted local PLLM gateway.
+- [Local gateway](https://pllm.run/learn/integrations/local-gateway/) ([Markdown](https://pllm.run/learn/integrations/local-gateway.md)): Start the trusted loopback gateway locally or connect it to separate PLLM services.
+- [OpenAI Agents SDK](https://pllm.run/learn/integrations/openai-agents/) ([Markdown](https://pllm.run/learn/integrations/openai-agents.md)): Run an OpenAI Agents SDK text agent through PLLM's Responses API gateway.
+- [OpenAI Python SDK](https://pllm.run/learn/integrations/openai-python/) ([Markdown](https://pllm.run/learn/integrations/openai-python.md)): Point the official OpenAI Python SDK at the trusted PLLM gateway.
+- [OpenCode](https://pllm.run/learn/integrations/opencode/) ([Markdown](https://pllm.run/learn/integrations/opencode.md)): Configure OpenCode to use PLLM through its Chat Completions API gateway.
+- [Responses API](https://pllm.run/learn/integrations/responses-api/) ([Markdown](https://pllm.run/learn/integrations/responses-api.md)): Use PLLM's Responses API surface and understand its tested conformance scope.
 - [Masked linear inference](https://pllm.run/learn/masked-linear-inference/) ([Markdown](https://pllm.run/learn/masked-linear-inference.md)): Follow seeded one-time masks through offline correction and online matrix evaluation.
 - [Numeric semantics and model quality](https://pllm.run/learn/numeric-semantics-and-model-quality/) ([Markdown](https://pllm.run/learn/numeric-semantics-and-model-quality.md)): Understand how integer arithmetic affects correctness and model output quality.
 - [Parties and offline work](https://pllm.run/learn/parties-and-offline-work/) ([Markdown](https://pllm.run/learn/parties-and-offline-work.md)): Learn what each party does before and during a private inference request.

@@ -6,7 +6,7 @@ Decision-path representations for bounded piecewise or tree-structured secure ev
 
 Document ID: `pllm.docs.protocols.garbling.weighted-path`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
 Source hash: `sha256:0e3a43bbae8b1bba9a47f12fd170c44cbc1e4c5ae3fa6629f501de693122e05c`
 
 Weighted paths encode a sequence of predicates and selected contributions rather than a dense table. A component must state path topology, hidden and public structure, comparison semantics, branching leakage, numeric bounds, and worst-case work.

@@ -38,6 +38,10 @@
 /cli/reference/research/assess /cli/reference/research/assess/ 308
 /cli/reference/research/agents /cli/reference/research/agents/ 308
 /cli/reference/benchmark/run /cli/reference/benchmark/run/ 308
+/cli/reference/gateway /cli/reference/gateway/ 308
+/cli/reference/serve /cli/reference/serve/ 308
+/cli/reference/serve/inference /cli/reference/serve/inference/ 308
+/cli/reference/serve/preparation /cli/reference/serve/preparation/ 308
 /cli/reference/dev/dashboard /cli/reference/dev/dashboard/ 308
 /cli/reference/research/sources/list /cli/reference/research/sources/list/ 308
 /cli/reference/research/sources/show /cli/reference/research/sources/show/ 308
@@ -65,7 +69,11 @@
 /research/recipes/agent-map /research/recipes/agent-map/ 308
 /sdk/research/assurance /sdk/research/assurance/ 308
 /sdk/research/benchmarks /sdk/research/benchmarks/ 308
+/cli/benchmarking /cli/benchmarking/ 308
 /cli /cli/ 308
+/cli/inspect-and-research /cli/inspect-and-research/ 308
+/cli/private-inference /cli/private-inference/ 308
+/cli/provider-roles /cli/provider-roles/ 308
 /sdk/pipeline/compiler /sdk/pipeline/compiler/ 308
 /sdk/contribute/add-a-category /sdk/contribute/add-a-category/ 308
 /sdk/contribute/component-standard /sdk/contribute/component-standard/ 308
@@ -78,6 +86,14 @@
 /sdk/pipeline/kernels /sdk/pipeline/kernels/ 308
 /learn/arithmetic-and-boolean-garbling /learn/arithmetic-and-boolean-garbling/ 308
 /learn /learn/ 308
+/learn/integrations/chat-completions /learn/integrations/chat-completions/ 308
+/learn/integrations/codex /learn/integrations/codex/ 308
+/learn/integrations /learn/integrations/ 308
+/learn/integrations/local-gateway /learn/integrations/local-gateway/ 308
+/learn/integrations/openai-agents /learn/integrations/openai-agents/ 308
+/learn/integrations/openai-python /learn/integrations/openai-python/ 308
+/learn/integrations/opencode /learn/integrations/opencode/ 308
+/learn/integrations/responses-api /learn/integrations/responses-api/ 308
 /learn/masked-linear-inference /learn/masked-linear-inference/ 308
 /learn/numeric-semantics-and-model-quality /learn/numeric-semantics-and-model-quality/ 308
 /learn/parties-and-offline-work /learn/parties-and-offline-work/ 308

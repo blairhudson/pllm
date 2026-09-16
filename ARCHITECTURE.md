@@ -140,12 +140,17 @@ its existing orientation.
 
 The client owns plaintext input, inventory root seeds and masks, private
 activation scales, model state, output decoding and public token-boundary matrices.
+The optional `pllm gateway` process runs inside that client boundary and exposes
+Responses API and Chat Completions API on loopback. Compatible applications send
+ordinary API requests to the gateway; the gateway terminates those requests and
+uses the same private PLLM client path underneath. Inference and preparation
+services are not application-facing OpenAI-compatible endpoints.
 The trusted preparation service and untrusted inference provider both hold the
 public transformer body. Preparation receives batched stage root seeds before
 chat; inference receives the resulting corrections and later the masked integer
 tensors, never the seeds. The client never receives the correction. Client-to-inference,
 client-to-preparation, and preparation-to-inference credentials are distinct.
-The local Responses gateway is inside the client boundary.
+The local Responses API gateway is inside the client boundary.
 An ordinary provider endpoint cannot be made private by changing its URL in an
 unmodified SDK.
 

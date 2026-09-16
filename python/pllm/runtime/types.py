@@ -33,7 +33,7 @@ class Response:
     id: str
     model: str
     output: list[dict[str, Any]]
-    created_at: float = field(default_factory=time.time)
+    created_at: int = field(default_factory=lambda: int(time.time()))
     object: Literal["response"] = "response"
     status: str = "completed"
     error: dict[str, Any] | None = None
@@ -41,6 +41,14 @@ class Response:
     instructions: Any = None
     metadata: dict[str, str] | None = None
     parallel_tool_calls: bool = True
+    frequency_penalty: float = 0.0
+    presence_penalty: float = 0.0
+    top_logprobs: int = 0
+    max_tool_calls: int | None = None
+    reasoning: dict[str, Any] | None = None
+    prompt: dict[str, Any] | None = None
+    safety_identifier: str | None = None
+    prompt_cache_key: str | None = None
     temperature: float | None = None
     top_p: float | None = None
     tools: list[dict[str, Any]] = field(default_factory=list)
@@ -49,10 +57,12 @@ class Response:
     max_output_tokens: int | None = None
     previous_response_id: str | None = None
     background: bool = False
-    completed_at: float | None = None
+    completed_at: int | None = None
     service_tier: str = "default"
-    store: bool = False
-    text: dict[str, Any] = field(default_factory=lambda: {"format": {"type": "text"}})
+    store: bool = True
+    text: dict[str, Any] = field(
+        default_factory=lambda: {"format": {"type": "text"}, "verbosity": "medium"}
+    )
     usage: ResponseUsage | None = None
 
     @property
@@ -79,6 +89,14 @@ class Response:
             "model": self.model,
             "output": self.output,
             "parallel_tool_calls": self.parallel_tool_calls,
+            "frequency_penalty": self.frequency_penalty,
+            "presence_penalty": self.presence_penalty,
+            "top_logprobs": self.top_logprobs,
+            "max_tool_calls": self.max_tool_calls,
+            "reasoning": self.reasoning,
+            "prompt": self.prompt,
+            "safety_identifier": self.safety_identifier,
+            "prompt_cache_key": self.prompt_cache_key,
             "temperature": self.temperature,
             "top_p": self.top_p,
             "tools": self.tools,
@@ -87,7 +105,8 @@ class Response:
             "max_output_tokens": self.max_output_tokens,
             "previous_response_id": self.previous_response_id,
             "background": self.background,
-            "completed_at": self.completed_at or (self.created_at if self.status == "completed" else None),
+            "completed_at": self.completed_at
+            or (self.created_at if self.status == "completed" else None),
             "service_tier": self.service_tier,
             "store": self.store,
             "text": self.text,
@@ -103,15 +122,45 @@ class Response:
                 input_tokens=int(usage_value.get("input_tokens", 0)),
                 output_tokens=int(usage_value.get("output_tokens", 0)),
                 total_tokens=int(usage_value.get("total_tokens", 0)),
-                input_tokens_details=dict(usage_value.get("input_tokens_details") or {"cached_tokens": 0}),
-                output_tokens_details=dict(usage_value.get("output_tokens_details") or {"reasoning_tokens": 0}),
+                input_tokens_details=dict(
+                    usage_value.get("input_tokens_details") or {"cached_tokens": 0}
+                ),
+                output_tokens_details=dict(
+                    usage_value.get("output_tokens_details") or {"reasoning_tokens": 0}
+                ),
             )
         allowed = {
-            "id", "model", "output", "created_at", "object", "status", "error",
-            "incomplete_details", "instructions", "metadata", "parallel_tool_calls",
-            "temperature", "top_p", "tools", "tool_choice", "truncation",
-            "max_output_tokens", "previous_response_id", "background", "completed_at",
-            "service_tier", "store", "text",
+            "id",
+            "model",
+            "output",
+            "created_at",
+            "object",
+            "status",
+            "error",
+            "incomplete_details",
+            "instructions",
+            "metadata",
+            "parallel_tool_calls",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_logprobs",
+            "max_tool_calls",
+            "reasoning",
+            "prompt",
+            "safety_identifier",
+            "prompt_cache_key",
+            "temperature",
+            "top_p",
+            "tools",
+            "tool_choice",
+            "truncation",
+            "max_output_tokens",
+            "previous_response_id",
+            "background",
+            "completed_at",
+            "service_tier",
+            "store",
+            "text",
         }
         kwargs = {key: value[key] for key in allowed if key in value}
         kwargs.setdefault("output", [])
@@ -124,6 +173,7 @@ class Response:
 
     def model_dump_json(self, **_: Any) -> str:
         import json
+
         return json.dumps(self.to_dict(), separators=(",", ":"), ensure_ascii=False)
 
     @classmethod
@@ -148,6 +198,7 @@ class Response:
                 "type": "message",
                 "status": "completed",
                 "role": "assistant",
+                "phase": "final_answer",
                 "content": [
                     {
                         "type": "output_text",
@@ -189,7 +240,9 @@ class ResponseEvent:
         return cls(
             type=str(value.get("type", "message")),
             sequence_number=int(value.get("sequence_number", 0)),
-            data={key: item for key, item in value.items() if key not in {"type", "sequence_number"}},
+            data={
+                key: item for key, item in value.items() if key not in {"type", "sequence_number"}
+            },
         )
 
     def __getattr__(self, name: str) -> Any:
@@ -277,4 +330,5 @@ def response_events(response: Response, deltas: Iterable[str]) -> Iterator[Respo
         {"output_index": 0, "item": output_item},
     )
     seq += 1
-    yield ResponseEvent("response.completed", seq, {"response": response.to_dict()})
+    terminal = "response.incomplete" if response.status == "incomplete" else "response.completed"
+    yield ResponseEvent(terminal, seq, {"response": response.to_dict()})

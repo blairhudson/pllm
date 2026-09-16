@@ -6,7 +6,7 @@ Compare arithmetic and Boolean garbling without treating one primitive as a comp
 
 Document ID: `pllm.docs.learn.arithmetic-and-boolean-garbling`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
 Source hash: `sha256:2f1b7dae3f98797d91052ff1b0a42c16c417ab6b186e55dcfe52dd1f25029f19`
 
 Arithmetic garbling works with modular integer values. Boolean garbling works

@@ -12,6 +12,8 @@ positional arguments:
     config              inspect or export public configuration
     components          inspect built-in component descriptors
     research            inspect or assess read-only research records
+    gateway             run the trusted local Responses API gateway
+    serve               run an inference or preparation role
     benchmark           run reproducible local benchmarks
     dev                 development tools
 
@@ -80,6 +82,83 @@ positional arguments:
                         research workflows
     agents              write repository-root guidance for research coding
                         agents
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+
+$ pllm gateway --help
+usage: pllm gateway [-h] [--format {human,json,jsonl}] [--quiet] [--no-color]
+                    [--no-input] [--dry-run] [--config CONFIG] [--host HOST]
+                    [--port PORT] [--api-key API_KEY]
+                    [--inference-url INFERENCE_URL]
+                    [--inference-key INFERENCE_KEY]
+                    [--preparation-url PREPARATION_URL]
+                    [--preparation-key PREPARATION_KEY] [--model MODEL]
+                    [--model-id MODEL_ID] [--local]
+                    [--transport {auto,http,websocket}]
+                    [--correlation-mode {bfv,local-test}]
+                    [--correlation-prefetch CORRELATION_PREFETCH]
+                    [--prepared-inventory-rows PREPARED_INVENTORY_ROWS]
+                    [--token-cache-size TOKEN_CACHE_SIZE]
+                    [--bundle-cache-mode {read-write,read-only,refresh,off}]
+                    [--bundle-cache-dir BUNDLE_CACHE_DIR]
+                    [--tenseal-path TENSEAL_PATH] [--timeout TIMEOUT]
+                    [--revision REVISION] [--hf-cache-dir HF_CACHE_DIR]
+                    [--local-files-only] [--weight-bits {4,8}]
+                    [--activation-bits {4,8}]
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+  --config CONFIG       client TOML file
+  --host HOST
+  --port PORT
+  --api-key API_KEY
+  --inference-url INFERENCE_URL
+  --inference-key INFERENCE_KEY
+  --preparation-url PREPARATION_URL
+  --preparation-key PREPARATION_KEY
+  --model MODEL
+  --model-id MODEL_ID
+  --local               co-locate both server roles locally
+  --transport {auto,http,websocket}
+                        session transport
+  --correlation-mode {bfv,local-test}
+  --correlation-prefetch CORRELATION_PREFETCH
+  --prepared-inventory-rows PREPARED_INVENTORY_ROWS
+  --token-cache-size TOKEN_CACHE_SIZE
+  --bundle-cache-mode {read-write,read-only,refresh,off}
+  --bundle-cache-dir BUNDLE_CACHE_DIR
+  --tenseal-path TENSEAL_PATH
+  --timeout TIMEOUT
+  --revision REVISION
+  --hf-cache-dir HF_CACHE_DIR
+  --local-files-only
+  --weight-bits {4,8}
+  --activation-bits {4,8}
+
+$ pllm serve --help
+usage: pllm serve [-h] [--format {human,json,jsonl}] [--quiet] [--no-color]
+                  [--no-input] [--dry-run]
+                  ROLE ...
+
+positional arguments:
+  ROLE
+    inference           run the remote private-inference service
+    preparation         run the trusted preparation service
 
 options:
   -h, --help            show this help message and exit
@@ -302,6 +381,161 @@ options:
                         startup
   --output PATH         new Markdown output path
   --force               replace an existing output file
+
+$ pllm serve inference --help
+usage: pllm serve inference [-h] [--format {human,json,jsonl}] [--quiet]
+                            [--no-color] [--no-input] [--dry-run]
+                            [--config CONFIG]
+                            [--privacy-mode {public,proprietary}]
+                            [--protocol {guarded,blinded,secure,direct}]
+                            [--host HOST] [--port PORT]
+                            [--inference-url INFERENCE_URL]
+                            [--push-timeout PUSH_TIMEOUT] [--model MODEL]
+                            [--model-id MODEL_ID]
+                            [--model-kind {huggingface,safetensors,vllm,mlx,mlx-lm}]
+                            [--revision REVISION]
+                            [--hf-cache-dir HF_CACHE_DIR] [--local-files-only]
+                            [--weight-bits {4,8}] [--activation-bits {4,8}]
+                            [--tenseal-path TENSEAL_PATH]
+                            [--max-batch-size MAX_BATCH_SIZE]
+                            [--max-wait-ms MAX_WAIT_MS] [--fixed-batch-wait]
+                            [--allow-insecure-local-correlations]
+                            [--engine-threads ENGINE_THREADS]
+                            [--native-library NATIVE_LIBRARY]
+                            [--compiled-cache-dir COMPILED_CACHE_DIR]
+                            [--streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS]
+                            [--quantization-chunk-rows QUANTIZATION_CHUNK_ROWS]
+                            [--guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST]
+                            [--guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE]
+                            [--guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE]
+                            [--guard-output-dither GUARD_OUTPUT_DITHER]
+                            [--rendezvous-timeout RENDEZVOUS_TIMEOUT]
+                            [--rendezvous-capacity RENDEZVOUS_CAPACITY]
+                            [--rendezvous-max-bytes RENDEZVOUS_MAX_BYTES]
+                            [--prepared-session-capacity PREPARED_SESSION_CAPACITY]
+                            [--prepared-session-idle PREPARED_SESSION_IDLE]
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+  --config CONFIG       JSON GatewayConfig file
+  --privacy-mode, --mode {public,proprietary}
+  --protocol, --proprietary-protocol {guarded,blinded,secure,direct}
+  --host HOST
+  --port PORT
+  --inference-url INFERENCE_URL
+  --push-timeout PUSH_TIMEOUT
+  --model MODEL
+  --model-id MODEL_ID
+  --model-kind {huggingface,safetensors,vllm,mlx,mlx-lm}
+  --revision REVISION
+  --hf-cache-dir HF_CACHE_DIR
+  --local-files-only
+  --weight-bits {4,8}
+  --activation-bits {4,8}
+  --tenseal-path TENSEAL_PATH
+  --max-batch-size MAX_BATCH_SIZE
+  --max-wait-ms MAX_WAIT_MS
+  --fixed-batch-wait
+  --allow-insecure-local-correlations
+  --engine-threads ENGINE_THREADS
+  --native-library NATIVE_LIBRARY
+  --compiled-cache-dir COMPILED_CACHE_DIR
+  --streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS
+  --quantization-chunk-rows QUANTIZATION_CHUNK_ROWS
+  --guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST
+  --guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE
+  --guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE
+  --guard-output-dither GUARD_OUTPUT_DITHER
+  --rendezvous-timeout RENDEZVOUS_TIMEOUT
+  --rendezvous-capacity RENDEZVOUS_CAPACITY
+  --rendezvous-max-bytes RENDEZVOUS_MAX_BYTES
+  --prepared-session-capacity PREPARED_SESSION_CAPACITY
+  --prepared-session-idle PREPARED_SESSION_IDLE
+
+$ pllm serve preparation --help
+usage: pllm serve preparation [-h] [--format {human,json,jsonl}] [--quiet]
+                              [--no-color] [--no-input] [--dry-run]
+                              [--config CONFIG]
+                              [--privacy-mode {public,proprietary}]
+                              [--protocol {guarded,blinded,secure,direct}]
+                              [--host HOST] [--port PORT]
+                              [--inference-url INFERENCE_URL]
+                              [--push-timeout PUSH_TIMEOUT] [--model MODEL]
+                              [--model-id MODEL_ID]
+                              [--model-kind {huggingface,safetensors,vllm,mlx,mlx-lm}]
+                              [--revision REVISION]
+                              [--hf-cache-dir HF_CACHE_DIR]
+                              [--local-files-only] [--weight-bits {4,8}]
+                              [--activation-bits {4,8}]
+                              [--tenseal-path TENSEAL_PATH]
+                              [--max-batch-size MAX_BATCH_SIZE]
+                              [--max-wait-ms MAX_WAIT_MS] [--fixed-batch-wait]
+                              [--allow-insecure-local-correlations]
+                              [--engine-threads ENGINE_THREADS]
+                              [--native-library NATIVE_LIBRARY]
+                              [--compiled-cache-dir COMPILED_CACHE_DIR]
+                              [--streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS]
+                              [--quantization-chunk-rows QUANTIZATION_CHUNK_ROWS]
+                              [--guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST]
+                              [--guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE]
+                              [--guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE]
+                              [--guard-output-dither GUARD_OUTPUT_DITHER]
+                              [--rendezvous-timeout RENDEZVOUS_TIMEOUT]
+                              [--rendezvous-capacity RENDEZVOUS_CAPACITY]
+                              [--rendezvous-max-bytes RENDEZVOUS_MAX_BYTES]
+                              [--prepared-session-capacity PREPARED_SESSION_CAPACITY]
+                              [--prepared-session-idle PREPARED_SESSION_IDLE]
+
+options:
+  -h, --help            show this help message and exit
+  --format {human,json,jsonl}
+                        result format (default: human)
+  --quiet               suppress non-error diagnostics
+  --no-color            disable colored output
+  --no-input            fail instead of prompting
+  --dry-run             report work without persistent writes or service
+                        startup
+  --config CONFIG       JSON GatewayConfig file
+  --privacy-mode, --mode {public,proprietary}
+  --protocol, --proprietary-protocol {guarded,blinded,secure,direct}
+  --host HOST
+  --port PORT
+  --inference-url INFERENCE_URL
+  --push-timeout PUSH_TIMEOUT
+  --model MODEL
+  --model-id MODEL_ID
+  --model-kind {huggingface,safetensors,vllm,mlx,mlx-lm}
+  --revision REVISION
+  --hf-cache-dir HF_CACHE_DIR
+  --local-files-only
+  --weight-bits {4,8}
+  --activation-bits {4,8}
+  --tenseal-path TENSEAL_PATH
+  --max-batch-size MAX_BATCH_SIZE
+  --max-wait-ms MAX_WAIT_MS
+  --fixed-batch-wait
+  --allow-insecure-local-correlations
+  --engine-threads ENGINE_THREADS
+  --native-library NATIVE_LIBRARY
+  --compiled-cache-dir COMPILED_CACHE_DIR
+  --streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS
+  --quantization-chunk-rows QUANTIZATION_CHUNK_ROWS
+  --guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST
+  --guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE
+  --guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE
+  --guard-output-dither GUARD_OUTPUT_DITHER
+  --rendezvous-timeout RENDEZVOUS_TIMEOUT
+  --rendezvous-capacity RENDEZVOUS_CAPACITY
+  --rendezvous-max-bytes RENDEZVOUS_MAX_BYTES
+  --prepared-session-capacity PREPARED_SESSION_CAPACITY
+  --prepared-session-idle PREPARED_SESSION_IDLE
 
 $ pllm benchmark run --help
 usage: pllm benchmark run [-h] [--format {human,json,jsonl}] [--quiet]

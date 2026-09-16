@@ -9,6 +9,7 @@
     "arithmetic-and-boolean-garbling",
     "numeric-semantics-and-model-quality",
     "reading-research-and-evidence",
+    "integrations",
     "../start",
     "../understand"
   ]

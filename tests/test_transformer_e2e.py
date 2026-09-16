@@ -62,7 +62,8 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
                 max_output_tokens=2,
                 temperature=0,
             )
-            assert response.status == "completed"
+            assert response.status == "incomplete"
+            assert response.incomplete_details == {"reason": "max_output_tokens"}
             assert response.usage is not None
             assert response.usage.output_tokens <= 2
             audit = client.privacy_audit.to_dict()
@@ -129,7 +130,8 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
                 max_output_tokens=2,
                 temperature=0,
             )
-            assert response.status == "completed"
+            assert response.status == "incomplete"
+            assert response.incomplete_details == {"reason": "max_output_tokens"}
             assert response.usage is not None
             assert response.usage.output_tokens <= 2
             audit = client.privacy_audit.to_dict()
@@ -157,7 +159,8 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
                 max_output_tokens=2,
                 temperature=0,
             )
-            assert second.status == "completed"
+            assert second.status == "incomplete"
+            assert second.incomplete_details == {"reason": "max_output_tokens"}
             second_audit = client.privacy_audit.to_dict()
             assert preparation_engine.stats()["execute_items"] == prepared_items
             assert second_audit["preparation_attempts"] == prepared_attempts
@@ -173,7 +176,8 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
                 input="stale inventory is replaced before online execution",
                 max_output_tokens=1,
             )
-            assert replacement.status == "completed"
+            assert replacement.status == "incomplete"
+            assert replacement.incomplete_details == {"reason": "max_output_tokens"}
             replacement_audit = client.privacy_audit.to_dict()
             assert preparation_engine.stats()["execute_items"] > prepared_items
         preparation_metrics = httpx.get(
@@ -661,7 +665,8 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
                 "layers.0.self_attn.qkv_proj"
             ].rows
             audit = client.privacy_audit.to_dict()
-            assert second.status == "completed"
+            assert second.status == "incomplete"
+            assert second.incomplete_details == {"reason": "max_output_tokens"}
             assert audit["kv_continuation_hits"] == 1
             assert audit["kv_continuation_misses"] == 0
             assert audit["token_lookup_cache_hits"] == 0

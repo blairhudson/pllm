@@ -6,12 +6,12 @@ Understand the responsibilities of deployment operators, preparation services, a
 
 Document ID: `pllm.docs.operate.provider-roles`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:eee97122d4ad7884373a0a4f0a8136daaa74552e7eab4ead3e707d2ab5cae805`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872`
 
 Provider supplies static component metadata and implementation artifacts. Operator supplies process placement, authenticated identity, authorization, storage, and operational policy. Preparation creates or installs method-specific material. Inference consumes assigned plan work. A deployment may combine processes, but cannot erase semantic role boundaries or establish non-collusion.
 
-Metadata discovery through `pllm components` never loads providers or native libraries. Research discovery never executes recipes. No parser-visible party-service command exists; authenticated role-plan delivery and complete target lifecycle contract remain blockers.
+Metadata discovery through `pllm components` never loads providers or native libraries. Research discovery never executes recipes. `pllm serve inference` and `pllm serve preparation` start the two roles, but authenticated role-plan delivery and a complete target lifecycle contract remain blockers. See the [serving guide](/learn/integrations/local-gateway/).
 
 ## Python SDK example
 

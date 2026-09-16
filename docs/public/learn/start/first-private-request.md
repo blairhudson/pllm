@@ -6,8 +6,8 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 
 Document ID: `pllm.docs.start.first-private-request`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:135cea9e0d504760f3928adec4257664f0e0bc31fdfd066f346bed7a7a275ea2`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:a8e3d041ab151b74995d11ff9623691de800836318e78fdadd26ac2e6ba9b645`
 
 ## Define the experiment
 
@@ -83,4 +83,5 @@ status checks.
 Inspect read-only metadata with `pllm components list` and
 `pllm research sources list`. See [runtime](/sdk/pipeline/runtime/),
 [protocol interfaces](/sdk/pipeline/protocols/), and
-[current support](/sdk/reference/status/).
+[current support](/sdk/reference/status/). To send an executable request from a
+compatible client, continue to the [integration guides](/learn/integrations/).

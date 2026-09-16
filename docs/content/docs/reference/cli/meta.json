@@ -3,6 +3,8 @@
   "root": true,
   "pages": [
     "index",
+    "gateway",
+    "serve",
     "config",
     "components",
     "benchmark",

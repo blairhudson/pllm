@@ -41,6 +41,10 @@
   <url><loc>https://pllm.run/cli/reference/research/assess/</loc></url>
   <url><loc>https://pllm.run/cli/reference/research/agents/</loc></url>
   <url><loc>https://pllm.run/cli/reference/benchmark/run/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/gateway/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/serve/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/serve/inference/</loc></url>
+  <url><loc>https://pllm.run/cli/reference/serve/preparation/</loc></url>
   <url><loc>https://pllm.run/cli/reference/dev/dashboard/</loc></url>
   <url><loc>https://pllm.run/cli/reference/research/sources/list/</loc></url>
   <url><loc>https://pllm.run/cli/reference/research/sources/show/</loc></url>
@@ -68,7 +72,11 @@
   <url><loc>https://pllm.run/research/recipes/agent-map/</loc></url>
   <url><loc>https://pllm.run/sdk/research/assurance/</loc></url>
   <url><loc>https://pllm.run/sdk/research/benchmarks/</loc></url>
+  <url><loc>https://pllm.run/cli/benchmarking/</loc></url>
   <url><loc>https://pllm.run/cli/</loc></url>
+  <url><loc>https://pllm.run/cli/inspect-and-research/</loc></url>
+  <url><loc>https://pllm.run/cli/private-inference/</loc></url>
+  <url><loc>https://pllm.run/cli/provider-roles/</loc></url>
   <url><loc>https://pllm.run/sdk/pipeline/compiler/</loc></url>
   <url><loc>https://pllm.run/sdk/contribute/add-a-category/</loc></url>
   <url><loc>https://pllm.run/sdk/contribute/component-standard/</loc></url>
@@ -81,6 +89,14 @@
   <url><loc>https://pllm.run/sdk/pipeline/kernels/</loc></url>
   <url><loc>https://pllm.run/learn/arithmetic-and-boolean-garbling/</loc></url>
   <url><loc>https://pllm.run/learn/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/chat-completions/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/codex/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/local-gateway/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/openai-agents/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/openai-python/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/opencode/</loc></url>
+  <url><loc>https://pllm.run/learn/integrations/responses-api/</loc></url>
   <url><loc>https://pllm.run/learn/masked-linear-inference/</loc></url>
   <url><loc>https://pllm.run/learn/numeric-semantics-and-model-quality/</loc></url>
   <url><loc>https://pllm.run/learn/parties-and-offline-work/</loc></url>

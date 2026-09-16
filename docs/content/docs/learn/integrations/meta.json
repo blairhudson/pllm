@@ -1,0 +1,14 @@
+{
+  "title": "Integrations",
+  "root": true,
+  "pages": [
+    "index",
+    "local-gateway",
+    "responses-api",
+    "chat-completions",
+    "openai-python",
+    "openai-agents",
+    "codex",
+    "opencode"
+  ]
+}

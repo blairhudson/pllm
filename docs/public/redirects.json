@@ -243,6 +243,30 @@
       "representation": "html"
     },
     {
+      "from": "/cli/reference/gateway",
+      "to": "/cli/reference/gateway/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/serve",
+      "to": "/cli/reference/serve/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/serve/inference",
+      "to": "/cli/reference/serve/inference/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/reference/serve/preparation",
+      "to": "/cli/reference/serve/preparation/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/cli/reference/dev/dashboard",
       "to": "/cli/reference/dev/dashboard/",
       "status": 308,
@@ -405,8 +429,32 @@
       "representation": "html"
     },
     {
+      "from": "/cli/benchmarking",
+      "to": "/cli/benchmarking/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/cli",
       "to": "/cli/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/inspect-and-research",
+      "to": "/cli/inspect-and-research/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/private-inference",
+      "to": "/cli/private-inference/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/cli/provider-roles",
+      "to": "/cli/provider-roles/",
       "status": 308,
       "representation": "html"
     },
@@ -479,6 +527,54 @@
     {
       "from": "/learn",
       "to": "/learn/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/chat-completions",
+      "to": "/learn/integrations/chat-completions/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/codex",
+      "to": "/learn/integrations/codex/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations",
+      "to": "/learn/integrations/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/local-gateway",
+      "to": "/learn/integrations/local-gateway/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/openai-agents",
+      "to": "/learn/integrations/openai-agents/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/openai-python",
+      "to": "/learn/integrations/openai-python/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/opencode",
+      "to": "/learn/integrations/opencode/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/learn/integrations/responses-api",
+      "to": "/learn/integrations/responses-api/",
       "status": 308,
       "representation": "html"
     },

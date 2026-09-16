@@ -6,8 +6,8 @@ Understand PLLM's private inference runtime, research harness, trust assumptions
 
 Document ID: `pllm.docs.learn`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:f59b0b6e8881f9d65138fa6ad2617f0cd38a28564c394dd40b324d02a5a45758`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:acc4f065b47dc1a39090ff541e2e4fceef219c3f7fd071539604a7139b5fb3a5`
 
 PLLM is a Rust-first, Python-friendly runtime and research harness for private
 large language model inference across multiple parties. Its goal is to let a
@@ -40,4 +40,5 @@ performance, or deployment requirements:
 
 These pages explain the concepts. The [reference](/sdk/reference/) section lists
 exact APIs and schemas. [Current support](/sdk/reference/status/) reports which
-combinations are available.
+combinations are available. [Integrations](/learn/integrations/) shows how the
+trusted local gateway serves OpenAI-compatible SDKs and coding agents.

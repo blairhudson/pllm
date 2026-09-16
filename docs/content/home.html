@@ -49,39 +49,151 @@
     <div class="home-section home-shell" aria-labelledby="build-title">
       <h2 id="build-title">Start building.</h2>
       <div class="home-copy" data-tab-group>
-        <p>Install PLLM from PyPI. Run the real client, preparation, and inference roles on one machine, or add the SDK to a Python project.</p>
+        <p>Install PLLM from PyPI, then run the trusted client-side gateway. It gives your apps one local OpenAI-compatible endpoint while PLLM handles the private protocol on the client.</p>
         <div class="home-tabs" role="tablist" aria-label="PLLM starter">
-          <button type="button" role="tab" id="tab-start-cli" aria-controls="panel-start-cli" aria-selected="true" data-phase="start-cli">CLI</button>
-          <button type="button" role="tab" id="tab-start-sdk" aria-controls="panel-start-sdk" aria-selected="false" data-phase="start-sdk">Python SDK</button>
-          <button type="button" role="tab" id="tab-start-inspect" aria-controls="panel-start-inspect" aria-selected="false" data-phase="start-inspect">Inspect</button>
+          <button type="button" role="tab" id="tab-start-local" aria-controls="panel-start-local" aria-selected="true" data-phase="start-local">Local gateway</button>
+          <button type="button" role="tab" id="tab-start-client" aria-controls="panel-start-client" aria-selected="false" data-phase="start-client">Client config</button>
+          <button type="button" role="tab" id="tab-start-services" aria-controls="panel-start-services" aria-selected="false" data-phase="start-services">Operate services</button>
         </div>
-        <div class="home-code" id="panel-start-cli" role="tabpanel" aria-labelledby="tab-start-cli" data-panel="start-cli">
-          <button class="copy-code" type="button" data-copy aria-label="Copy CLI starter">Copy</button>
-          <pre><code>uv tool install pllm
-pllm dev dashboard --tiny --no-open</code></pre>
+        <div class="home-code" id="panel-start-local" role="tabpanel" aria-labelledby="tab-start-local" data-panel="start-local">
+          <button class="copy-code" type="button" data-copy aria-label="Copy local gateway command">Copy</button>
+          <pre><code>pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct</code></pre>
         </div>
-        <div class="home-code" id="panel-start-sdk" role="tabpanel" aria-labelledby="tab-start-sdk" data-panel="start-sdk" hidden>
-           <button class="copy-code" type="button" data-copy aria-label="Copy Python SDK starter">Copy</button>
-           <pre><code>uv add pllm
-uv run python - &lt;&lt;'PY'
-from pllm.components import get_component
-
-component = get_component("pllm/masked-linear")
-print(component.component, component.lifecycle_phase)
-PY</code></pre>
+        <div class="home-code" id="panel-start-client" role="tabpanel" aria-labelledby="tab-start-client" data-panel="start-client" hidden>
+          <button class="copy-code" type="button" data-copy aria-label="Copy configured gateway command">Copy</button>
+          <pre><code>pllm gateway --config client.toml</code></pre>
         </div>
-        <div class="home-code" id="panel-start-inspect" role="tabpanel" aria-labelledby="tab-start-inspect" data-panel="start-inspect" hidden>
-          <button class="copy-code" type="button" data-copy aria-label="Copy inspection commands">Copy</button>
-          <pre><code>pllm components list
-pllm research methods list</code></pre>
+        <div class="home-code" id="panel-start-services" role="tabpanel" aria-labelledby="tab-start-services" data-panel="start-services" hidden>
+          <button class="copy-code" type="button" data-copy aria-label="Copy service commands">Copy</button>
+          <pre><code>pllm serve inference --config inference.json
+pllm serve preparation --config preparation.json</code></pre>
         </div>
-        <p class="home-note">The tiny dashboard checks transport with generated weights. It does not measure model quality or production performance.</p>
+        <p class="home-note">Use client config to connect the gateway to separately operated services. Local mode co-locates the roles for development; co-location does not provide role separation or non-collusion.</p>
         <nav class="home-inline-links" aria-label="Build with PLLM">
           <a href="/learn/start/installation/">Install PLLM</a>
-          <a href="/sdk/">Use the SDK</a>
-          <a href="/learn/start/first-local-benchmark/">Run a real model</a>
+          <a href="/learn/start/first-private-request/">Send a private request</a>
+          <a href="/learn/understand/trust-boundary/">Review the trust boundary</a>
         </nav>
       </div>
+    </div>
+  </section>
+
+  <section class="home-section home-shell home-consume-section" aria-labelledby="consume-title">
+    <h2 id="consume-title">Use your tools.</h2>
+    <div class="home-copy" data-tab-group>
+      <p>Use PLLM's native client directly, or point a compatible client at the trusted local gateway. Gateway consumers receive one endpoint and one local key, never preparation or inference service details.</p>
+      <div class="home-tabs home-consume-tabs" role="tablist" aria-label="Ways to use the PLLM gateway">
+        <button type="button" role="tab" id="tab-consume-pllm" aria-controls="panel-consume-pllm" aria-selected="true" data-phase="consume-pllm">PLLM SDK</button>
+        <button type="button" role="tab" id="tab-consume-responses" aria-controls="panel-consume-responses" aria-selected="false" data-phase="consume-responses">Responses API</button>
+        <button type="button" role="tab" id="tab-consume-chat" aria-controls="panel-consume-chat" aria-selected="false" data-phase="consume-chat">Chat Completions API</button>
+        <button type="button" role="tab" id="tab-consume-openai" aria-controls="panel-consume-openai" aria-selected="false" data-phase="consume-openai">OpenAI SDK</button>
+        <button type="button" role="tab" id="tab-consume-agents" aria-controls="panel-consume-agents" aria-selected="false" data-phase="consume-agents">Agents SDK</button>
+        <button type="button" role="tab" id="tab-consume-codex" aria-controls="panel-consume-codex" aria-selected="false" data-phase="consume-codex">Codex</button>
+        <button type="button" role="tab" id="tab-consume-opencode" aria-controls="panel-consume-opencode" aria-selected="false" data-phase="consume-opencode">OpenCode</button>
+      </div>
+      <div class="home-code" id="panel-consume-pllm" role="tabpanel" aria-labelledby="tab-consume-pllm" data-panel="consume-pllm">
+        <button class="copy-code" type="button" data-copy aria-label="Copy PLLM SDK example">Copy</button>
+        <pre><code>from pllm import OpenAI
+
+client = OpenAI()
+response = client.responses.create(
+    model="Qwen/Qwen2.5-0.5B-Instruct",
+    input="Hello from PLLM",
+)
+print(response.output_text)</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-responses" role="tabpanel" aria-labelledby="tab-consume-responses" data-panel="consume-responses" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy Responses API request">Copy</button>
+        <pre><code>curl http://127.0.0.1:8080/v1/responses \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","input":"Hello from PLLM"}'</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-chat" role="tabpanel" aria-labelledby="tab-consume-chat" data-panel="consume-chat" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy Chat Completions API request">Copy</button>
+        <pre><code>curl http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","messages":[{"role":"user","content":"Hello from PLLM"}]}'</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-openai" role="tabpanel" aria-labelledby="tab-consume-openai" data-panel="consume-openai" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy OpenAI SDK example">Copy</button>
+        <pre><code>from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="local",
+)
+response = client.responses.create(
+    model="Qwen/Qwen2.5-0.5B-Instruct",
+    input="Hello from PLLM",
+)
+print(response.output_text)</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-agents" role="tabpanel" aria-labelledby="tab-consume-agents" data-panel="consume-agents" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy Agents SDK example">Copy</button>
+        <pre><code>from agents import Agent, Runner
+from agents.models.openai_responses import OpenAIResponsesModel
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="local",
+)
+agent = Agent(
+    name="PLLM",
+    model=OpenAIResponsesModel(
+        model="Qwen/Qwen2.5-0.5B-Instruct",
+        openai_client=client,
+    ),
+)
+result = await Runner.run(agent, "Hello from PLLM")
+print(result.final_output)</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-codex" role="tabpanel" aria-labelledby="tab-consume-codex" data-panel="consume-codex" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy Codex configuration">Copy</button>
+        <pre><code>model = "Qwen/Qwen2.5-0.5B-Instruct"
+model_provider = "pllm"
+web_search = "disabled"
+
+[model_providers.pllm]
+name = "PLLM"
+base_url = "http://127.0.0.1:8080/v1"
+env_key = "PLLM_GATEWAY_API_KEY" # Set to local.
+wire_api = "responses"</code></pre>
+      </div>
+      <div class="home-code" id="panel-consume-opencode" role="tabpanel" aria-labelledby="tab-consume-opencode" data-panel="consume-opencode" hidden>
+        <button class="copy-code" type="button" data-copy aria-label="Copy OpenCode configuration">Copy</button>
+        <pre><code>{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "pllm/Qwen/Qwen2.5-0.5B-Instruct",
+  "enabled_providers": ["pllm"],
+  "provider": {
+    "pllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "PLLM (Chat Completions API)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "Qwen/Qwen2.5-0.5B-Instruct": {
+          "name": "Qwen 2.5 0.5B Instruct"
+        }
+      }
+    }
+  }
+}</code></pre>
+      </div>
+      <nav class="home-inline-links home-integration-links" aria-label="PLLM integration guides">
+        <a href="/sdk/operate/client-boundary/">PLLM SDK guide</a>
+        <a href="/learn/integrations/responses-api/">Responses API guide</a>
+        <a href="/learn/integrations/chat-completions/">Chat Completions API guide</a>
+        <a href="/learn/integrations/openai-python/">OpenAI SDK guide</a>
+        <a href="/learn/integrations/openai-agents/">Agents SDK guide</a>
+        <a href="/learn/integrations/codex/">Codex guide</a>
+        <a href="/learn/integrations/opencode/">OpenCode guide</a>
+      </nav>
     </div>
   </section>
 

@@ -6,8 +6,8 @@ Understand which data and runtime state must stay with the client.
 
 Document ID: `pllm.docs.operate.client-boundary`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:67dcd4db2e70529d625c24980f7d08cfa2299ab7f6917bcf6a16d874349fc14e`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5`
 
 `pllm.runtime` exposes clients, transport code, privacy declarations, gateways,
 and application factories. The [Python API inventory](/sdk/reference/python/pllm/)
@@ -16,7 +16,10 @@ an importable object is not necessarily supported for production use.
 
 Plaintext requests terminate inside trusted client boundary. Client owns tokenization, state, sampling, and decoded output under methods that claim this placement. Gateway compatibility must be tested against exact application/SDK semantics; API resemblance does not establish full OpenAI compatibility.
 
-No `run`, `chat`, or `serve` lifecycle command is parser-visible. See [status](/sdk/reference/status/).
+The [local gateway](/learn/integrations/local-gateway/) binds to loopback and is
+client-controlled. Provider roles do not receive plaintext prompts, tool
+schemas, arguments, or results. See [status](/sdk/reference/status/) for runtime
+limits.
 
 ## Python SDK example
 

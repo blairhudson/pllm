@@ -30,7 +30,9 @@ def test_response_stream_lifecycle_and_sequence():
 
 
 def test_event_attribute_access():
-    event = ResponseEvent.from_dict({"type": "response.output_text.delta", "sequence_number": 2, "delta": "x"})
+    event = ResponseEvent.from_dict(
+        {"type": "response.output_text.delta", "sequence_number": 2, "delta": "x"}
+    )
     assert event.delta == "x"
     with pytest.raises(AttributeError):
         _ = event.missing
@@ -44,6 +46,16 @@ def test_normalize_responses_input():
     assert prompt_text(rows) == "system: be precise\nuser: secret"
 
 
-def test_normalize_rejects_media_for_text_runtime():
+def test_normalize_marks_media_for_text_runtime():
     with pytest.raises(ResponsesError, match="input_image"):
         normalize_input([{"role": "user", "content": [{"type": "input_image", "image_url": "x"}]}])
+
+
+def test_normalize_input_accepts_compaction_state() -> None:
+    rows = normalize_input(
+        [
+            {"type": "compaction", "id": "cmp_1", "encrypted_content": "opaque"},
+            {"role": "user", "content": "continue"},
+        ]
+    )
+    assert [(row.role, row.text) for row in rows] == [("user", "continue")]

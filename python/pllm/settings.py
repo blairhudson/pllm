@@ -30,12 +30,21 @@ class ClientSettings:
     timeout: float = 300.0
 
     @classmethod
-    def load(cls) -> "ClientSettings":
+    def load(cls, path: Path | None = None) -> "ClientSettings":
         values: dict[str, object] = {}
-        path = config_path()
-        if path.exists():
-            raw = tomllib.loads(path.read_text(encoding="utf-8"))
-            values.update(raw.get("client", {}))
+        source = path or config_path()
+        if path is not None and not source.is_file():
+            raise FileNotFoundError(source)
+        if source.exists():
+            raw = tomllib.loads(source.read_text(encoding="utf-8"))
+            client = raw.get("client", {})
+            if not isinstance(client, dict):
+                raise ValueError("[client] must be a TOML table")
+            known = {item.name for item in fields(cls)}
+            unknown = sorted(set(client) - known)
+            if unknown:
+                raise ValueError(f"Unknown client configuration field: {unknown[0]}")
+            values.update(client)
         env = {
             "base_url": os.getenv("PLLM_BASE_URL"),
             "api_key": os.getenv("PLLM_API_KEY"),

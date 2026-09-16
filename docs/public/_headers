@@ -162,6 +162,22 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
+/cli/reference/gateway.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/reference/serve.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/reference/serve/inference.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/reference/serve/preparation.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
 /cli/reference/dev/dashboard.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
@@ -270,7 +286,23 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
+/cli/benchmarking.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
 /cli.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/inspect-and-research.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/private-inference.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/cli/provider-roles.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
@@ -319,6 +351,38 @@
   X-Content-Type-Options: nosniff
 
 /learn.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/chat-completions.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/codex.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/local-gateway.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/openai-agents.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/openai-python.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/opencode.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/learn/integrations/responses-api.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 

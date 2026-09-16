@@ -10,7 +10,10 @@ an importable object is not necessarily supported for production use.
 
 Plaintext requests terminate inside trusted client boundary. Client owns tokenization, state, sampling, and decoded output under methods that claim this placement. Gateway compatibility must be tested against exact application/SDK semantics; API resemblance does not establish full OpenAI compatibility.
 
-No `run`, `chat`, or `serve` lifecycle command is parser-visible. See [status](/sdk/reference/status/).
+The [local gateway](/learn/integrations/local-gateway/) binds to loopback and is
+client-controlled. Provider roles do not receive plaintext prompts, tool
+schemas, arguments, or results. See [status](/sdk/reference/status/) for runtime
+limits.
 
 ## Python SDK example
 

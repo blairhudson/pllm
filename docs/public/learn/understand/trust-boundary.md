@@ -6,11 +6,13 @@ Understand what the client, preparation service, inference service, and operator
 
 Document ID: `pllm.docs.understand.trust-boundary`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:2149462a616b1532c066c03b11559a4d4e13c79271afc32a217d5715a026bb67`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:fef1568144f0f8f9a318f91dd19b04b81e8baf86b003617ab8f5d5754c7fdcac`
 
 Client owns plaintext prompts, token identities, decoded output, and authorization decisions. Preparation and inference are distinct roles in protected methods that require them; co-location tests protocol wiring but does not prove non-collusion. Provider describes component implementation. Operator controls deployed process, credentials, storage, and policy. These names are not interchangeable.
 
 Endpoints and identity strings are selectors, not authentication proof. Placement cannot change protocol, numeric policy, leakage, corruption assumptions, or output policy. Timing, traffic shape, public model identity, shapes, and approximate sequence length may remain visible depending on selected contract.
 
-No current generic party-service CLI exposes this target topology. See [provider roles](/sdk/operate/provider-roles/).
+The public CLI can start each role, but command availability does not establish
+operator independence. See [provider roles](/sdk/operate/provider-roles/) and
+the [local gateway](/learn/integrations/local-gateway/).

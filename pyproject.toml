@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "cryptography>=44,<47", "fastapi>=0.115,<1", "filelock>=3.19,<4",
   "huggingface-hub>=0.34,<2", "httpx>=0.28,<1", "jinja2>=3.1,<4",
-  "msgpack>=1.0,<2", "ml-dtypes>=0.5,<1", "numpy>=1.26,<3",
+  "jsonschema>=4.25,<5", "msgpack>=1.0,<2", "ml-dtypes>=0.5,<1", "numpy>=1.26,<3",
   "opentelemetry-api>=1.36,<2", "opentelemetry-exporter-otlp-proto-http>=1.36,<2",
   "opentelemetry-instrumentation-fastapi>=0.57b0,<1",
   "opentelemetry-instrumentation-httpx>=0.57b0,<1",
@@ -46,9 +46,15 @@ pllm = "pllm.cli:main"
 
 [dependency-groups]
 dev = [
-  "pytest>=8,<10", "pytest-asyncio>=0.24,<2", "pytest-cov>=6,<8",
-  "ruff>=0.12,<1", "build>=1.2,<2", "maturin>=1.9,<2", "twine>=6,<7",
+  "pytest>=8,<10",
+  "pytest-asyncio>=0.24,<2",
+  "pytest-cov>=6,<8",
+  "ruff>=0.12,<1",
+  "build>=1.2,<2",
+  "maturin>=1.9,<2",
+  "twine>=6,<7",
   "torch>=2.7,<3",
+  "openai-agents>=0.7,<1",
 ]
 
 [tool.uv]

@@ -223,6 +223,15 @@
   background: color-mix(in srgb, var(--home-bg) 46%, transparent);
 }
 
+.page :global(.home-consume-tabs) {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.page :global(.home-consume-tabs button) {
+  flex: 0 0 auto;
+}
+
 .page :global(.home-band-dark .home-tabs) {
   background: color-mix(in srgb, var(--home-dark) 90%, white);
 }
@@ -283,6 +292,11 @@
   flex-wrap: wrap;
   gap: 12px 26px;
   margin-top: 28px;
+}
+
+.page :global(.home-integration-links) {
+  padding-top: 2px;
+  border-top: 1px solid var(--home-rule);
 }
 
 .page :global(.home-steps) {

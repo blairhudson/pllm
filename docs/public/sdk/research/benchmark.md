@@ -6,7 +6,7 @@ Run scoped Python benchmarks and understand what the development dashboard does 
 
 Document ID: `pllm.docs.measure.benchmark`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
 Source hash: `sha256:d361426233eb578fec74fd0bcff69e32a3f1a555f63aaae0e76dda8964759916`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.

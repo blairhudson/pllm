@@ -14,6 +14,8 @@ test('canonical domain hierarchy and research journeys exist', () => {
   for (const route of [
     '/learn/', '/learn/start/', '/learn/start/installation/', '/learn/start/first-private-request/', '/learn/start/first-local-benchmark/',
     '/learn/understand/', '/learn/understand/architecture/', '/learn/understand/trust-boundary/', '/learn/understand/privacy-assurance/', '/learn/understand/evidence-claims/',
+    '/learn/integrations/', '/learn/integrations/local-gateway/', '/learn/integrations/responses-api/', '/learn/integrations/chat-completions/',
+    '/learn/integrations/openai-python/', '/learn/integrations/openai-agents/', '/learn/integrations/codex/', '/learn/integrations/opencode/',
     '/cli/', '/cli/reference/', '/cli/reference/config/', '/cli/reference/config/show/',
     '/cli/reference/benchmark/run/', '/cli/reference/research/sources/list/',
     '/sdk/', '/sdk/configuration/', '/sdk/plans/', '/sdk/components/',
@@ -74,7 +76,12 @@ test('primary reader journeys cross areas at the decision point', () => {
     ['start/first-private-request.mdx', [
       '/sdk/configuration/',
       '/sdk/pipeline/protocols/',
+      '/learn/integrations/',
     ]],
+    ['start/index.mdx', ['/learn/integrations/']],
+    ['cli/index.mdx', ['/learn/integrations/local-gateway/']],
+    ['sdk/index.mdx', ['/learn/integrations/openai-python/']],
+    ['operate/deployment.mdx', ['/learn/integrations/local-gateway/']],
     ['learn/privacy-and-threat-models.mdx', ['/research/evidence/']],
     ['sdk/configuration.mdx', [
       '/cli/reference/config/show/',
@@ -106,11 +113,53 @@ test('primary reader journeys cross areas at the decision point', () => {
   }
 });
 
-test('homepage SDK tab demonstrates a public Python component API', () => {
+test('homepage leads with the trusted gateway and separates operated services', () => {
   const home = fs.readFileSync(path.join(siteRoot, 'content/home.html'), 'utf8');
-  assert.match(home, /data-panel="start-sdk"/);
-  assert.match(home, /from pllm\.components import get_component/);
-  assert.match(home, /get_component\("pllm\/masked-linear"\)/);
+  assert.match(home, /aria-selected="true" data-phase="start-local"/);
+  assert.match(home, /pllm gateway --local --model Qwen\/Qwen2\.5-0\.5B-Instruct/);
+  assert.match(home, /pllm gateway --config client\.toml/);
+  assert.match(home, /pllm serve inference --config inference\.json/);
+  assert.match(home, /pllm serve preparation --config preparation\.json/);
+  assert.match(home, /co-location does not provide role separation or non-collusion/);
+});
+
+test('homepage consumption modes separate the native client from the trusted gateway', () => {
+  const home = fs.readFileSync(path.join(siteRoot, 'content/home.html'), 'utf8');
+  const start = home.indexOf('id="consume-title"');
+  const end = home.indexOf('id="run-research"');
+  const consumption = home.slice(start, end);
+  assert.ok(start > home.indexOf('id="start-building"'));
+  assert.ok(end > start);
+  assert.match(home, /id="start-building"[^]*?<\/section>\s*<section class="home-section home-shell home-consume-section"/);
+
+  const modes = [
+    ['pllm', '/sdk/operate/client-boundary/'],
+    ['responses', '/learn/integrations/responses-api/'],
+    ['chat', '/learn/integrations/chat-completions/'],
+    ['openai', '/learn/integrations/openai-python/'],
+    ['agents', '/learn/integrations/openai-agents/'],
+    ['codex', '/learn/integrations/codex/'],
+    ['opencode', '/learn/integrations/opencode/'],
+  ];
+  for (const [panel, guide] of modes) {
+    const tab = `consume-${panel}`;
+    assert.match(consumption, new RegExp(`role="tab" id="tab-${tab}" aria-controls="panel-${tab}"`));
+    assert.match(consumption, new RegExp(`id="panel-${tab}" role="tabpanel" aria-labelledby="tab-${tab}"`));
+    const snippet = consumption.match(new RegExp(`<div class="home-code" id="panel-${tab}"[^>]*data-panel="${tab}"[^>]*>([^]*?)</div>`))?.[1];
+    assert.ok(snippet, tab);
+    if (panel !== 'pllm') assert.match(snippet, /http:\/\/127\.0\.0\.1:8080\/v1/);
+    if (panel !== 'pllm') assert.match(snippet, /local/);
+    assert.match(consumption, new RegExp(`href="${guide}"`));
+  }
+
+  assert.doesNotMatch(consumption, /preparation_(?:url|base_url|api_key)|inference_(?:url|base_url|api_key)/);
+  assert.match(consumption, /from pllm import OpenAI/);
+  assert.match(consumption, /wire_api = "responses"/);
+  assert.match(consumption, /web_search = "disabled"/);
+  assert.match(consumption, /env_key = "PLLM_GATEWAY_API_KEY" # Set to local\./);
+  assert.match(consumption, /"npm": "@ai-sdk\/openai-compatible"/);
+  assert.match(consumption, /"enabled_providers": \["pllm"\]/);
+  assert.match(consumption, /PLLM \(Chat Completions API\)/);
 });
 
 test('nested Fumadocs navigation has real overviews and declared children', () => {
@@ -162,7 +211,7 @@ test('each top-level journey owns an isolated Fumadocs sidebar', () => {
   assert.deepEqual(research.pages.slice(-3), ['../recipes', 'papers', 'records']);
 
   for (const branch of [
-    'start', 'understand', 'reference/cli', 'build', 'pipeline', 'measure',
+    'start', 'understand', 'learn/integrations', 'reference/cli', 'build', 'pipeline', 'measure',
     'operate', 'reference', 'contribute', 'recipes', 'research/papers',
     'research/records',
   ]) {
@@ -297,6 +346,27 @@ test('generated CLI pages are publication-discovered and sidebar-reachable', () 
   }
 });
 
+test('CLI navigation lists tasks directly with command and cross-area links', () => {
+  const cliMeta = JSON.parse(
+    fs.readFileSync(path.join(siteRoot, 'content/docs/cli/meta.json'), 'utf8'),
+  );
+  for (const page of ['private-inference', 'provider-roles', 'benchmarking', 'inspect-and-research']) {
+    assert.ok(cliMeta.pages.indexOf(page) < cliMeta.pages.indexOf('../reference/cli'));
+  }
+
+  const expected = new Map([
+    ['/cli/private-inference/', ['/cli/reference/gateway/', '/learn/integrations/', '/sdk/operate/client-boundary/']],
+    ['/cli/provider-roles/', ['/cli/reference/serve/inference/', '/cli/reference/serve/preparation/', '/sdk/operate/deployment/']],
+    ['/cli/benchmarking/', ['/cli/reference/benchmark/run/', '/cli/reference/dev/dashboard/', '/research/records/']],
+    ['/cli/inspect-and-research/', ['/cli/reference/config/', '/cli/reference/components/', '/cli/reference/research/', '/sdk/contribute/agents/']],
+  ]);
+  for (const [route, links] of expected) {
+    const page = byRoute.get(route);
+    assert.ok(page, route);
+    for (const href of links) assert.ok(page.content.includes(`](${href})`), `${route} -> ${href}`);
+  }
+});
+
 test('all local links and fragments resolve', () => assert.deepEqual(validate().errors, []));
 
 test('standalone publication pages remain in content graph', () => {
@@ -310,11 +380,107 @@ test('documented commands use only the current CLI and development dashboard', (
   assert.ok(sources.includes('pllm components list'));
   assert.ok(sources.includes('pllm research sources list'));
   assert.ok(sources.includes('pllm dev dashboard'));
+  assert.ok(sources.includes('pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct'));
+  assert.ok(sources.includes('pllm gateway --config client.toml'));
+  assert.ok(sources.includes('pllm serve inference --config inference.json'));
+  assert.ok(sources.includes('pllm serve preparation --config preparation.json'));
   assert.doesNotMatch(sources, /pllm benchmark dashboard/);
-  assert.doesNotMatch(sources, /<pre>[^]*?pllm (?:serve|preparation serve|configure|chat|run|model lower|plan (?:check|compile|show)|party serve|benchmark (?:run|search|compare)|assure run|init)\b[^]*?<\/pre>/);
+  assert.doesNotMatch(sources, /<pre>[^]*?pllm (?:preparation serve|configure|chat|run|model lower|plan (?:check|compile|show)|party serve|benchmark (?:run|search|compare)|assure run|init)\b[^]*?<\/pre>/);
   for (const block of sources.match(/```(?:bash|sh|shell|console|text)?\n[^]*?```/g) ?? []) {
-    assert.doesNotMatch(block, /^pllm (?:serve|preparation serve|configure|chat|run|model lower|plan (?:check|compile|show)|party serve|benchmark (?:run|search|compare)|assure run|init)\b/m);
+    assert.doesNotMatch(block, /^pllm (?:preparation serve|configure|chat|run|model lower|plan (?:check|compile|show)|party serve|benchmark (?:run|search|compare)|assure run|init)\b/m);
   }
+});
+
+test('serving and consumer guides preserve tested integration boundaries', () => {
+  const integrationRoutes = [
+    '/learn/integrations/',
+    '/learn/integrations/local-gateway/',
+    '/learn/integrations/responses-api/',
+    '/learn/integrations/chat-completions/',
+    '/learn/integrations/openai-python/',
+    '/learn/integrations/openai-agents/',
+    '/learn/integrations/codex/',
+    '/learn/integrations/opencode/',
+  ];
+  for (const route of integrationRoutes) assert.ok(byRoute.has(route), route);
+
+  const overview = byRoute.get('/learn/integrations/').content;
+  for (const route of ['/v1/responses', '/v1/responses/compact', '/v1/chat/completions', '/v1/models']) {
+    assert.ok(overview.includes(route), route);
+  }
+  for (const value of ['plaintext prompts', 'tool schemas', 'tool arguments', 'tool results']) {
+    assert.ok(overview.includes(value), value);
+  }
+  assert.ok(overview.includes('does not establish operator separation or\nnon-collusion'));
+
+  const local = byRoute.get('/learn/integrations/local-gateway/').content;
+  const lifecycle = [
+    'pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct',
+    'pllm gateway --config client.toml',
+    'pllm serve inference --config inference.json',
+    'pllm serve preparation --config preparation.json',
+  ];
+  for (const command of lifecycle) assert.ok(local.includes(command), command);
+  assert.match(local, /binds to `127\.0\.0\.1:8080`/);
+  assert.match(local, /minimal `inference\.json`/);
+  for (const block of local.match(/```json\n([^]*?)```/g) ?? []) {
+    assert.doesNotThrow(() => JSON.parse(block.replace(/^```json\n|```$/g, '')));
+  }
+
+  const conformance = byRoute.get('/learn/integrations/responses-api/').content;
+  assert.ok(conformance.includes('2026-04-24'));
+  assert.ok(conformance.includes('[OpenResponses](https://www.openresponses.org/)'));
+  assert.ok(conformance.includes('92c12d96d7b61d6d15e2214daa5e9c6000ab6e1c'));
+  assert.ok(conformance.includes('does not prove\nsupport for every Responses API field, hosted tool, transport, or model modality'));
+
+  const codex = byRoute.get('/learn/integrations/codex/').content;
+  assert.ok(codex.includes('wire_api = "responses"'));
+  assert.ok(codex.includes('web_search = "disabled"'));
+  assert.ok(codex.includes('provider-built-in web\nsearch is unsupported'));
+
+  const opencode = byRoute.get('/learn/integrations/opencode/').content;
+  assert.ok(opencode.includes('"enabled_providers": ["pllm"]'));
+  assert.ok(opencode.includes('"npm": "@ai-sdk/openai-compatible"'));
+  assert.ok(opencode.includes('custom-tool declarations map to local function tools'));
+  assert.ok(opencode.includes('has not established acceptance of every external tool binary'));
+  const opencodeConfig = opencode.match(/```json\n([^]*?)```/)?.[1];
+  assert.ok(opencodeConfig);
+  assert.doesNotThrow(() => JSON.parse(opencodeConfig));
+
+  for (const route of ['/learn/integrations/openai-python/', '/learn/integrations/openai-agents/']) {
+    const content = byRoute.get(route).content;
+    const examples = [...content.matchAll(/```python\n([^]*?)```/g)].map((match) => match[1]);
+    assert.equal(examples.length, 1, route);
+    const parsed = spawnSync(
+      'python3',
+      ['-c', 'import ast, sys; ast.parse(sys.stdin.read())'],
+      { encoding: 'utf8', input: examples[0] },
+    );
+    assert.equal(parsed.status, 0, `${route}: ${parsed.stderr}`);
+    assert.match(content, /passes? (?:a )?repository (?:integration )?tests?/);
+  }
+});
+
+test('documented PLLM lifecycle commands parse', () => {
+  const commands = [
+    'pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct',
+    'pllm gateway --config client.toml',
+    'pllm serve inference --config inference.json',
+    'pllm serve preparation --config preparation.json',
+  ];
+  const program = [
+    'import shlex',
+    'from pllm._cli.app import build_parser',
+    `commands = ${JSON.stringify(commands)}`,
+    'for command in commands:',
+    '    build_parser().parse_args(shlex.split(command)[1:])',
+  ].join('\n');
+  const result = spawnSync('python3', ['-c', program], {
+    cwd: path.join(siteRoot, '..'),
+    encoding: 'utf8',
+    env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
+  });
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test('generated references are marked and authored guides stay separate', () => {

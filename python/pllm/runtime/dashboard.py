@@ -879,7 +879,7 @@ class DashboardRuntime:
                 for event in cast(Iterable[Any], stream):
                     event_type = event.get("type") if isinstance(event, dict) else event.type
                     now_ns = time.time_ns()
-                    if event_type == "response.completed":
+                    if event_type in {"response.completed", "response.incomplete"}:
                         saw_completed = True
                         authoritative_usage = self._completed_usage(event)
                         completed_at_ns = now_ns
@@ -905,7 +905,7 @@ class DashboardRuntime:
                         )
                         self._state["last_token_at"] = now_ns / 1_000_000_000
             if not saw_completed:
-                raise _IncompleteResponseError("response stream ended before response.completed")
+                raise _IncompleteResponseError("response stream ended before a terminal response")
         except Exception as exc:
             finished_at_ns = time.time_ns()
             if capture is None:

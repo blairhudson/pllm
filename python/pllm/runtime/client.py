@@ -75,7 +75,8 @@ from .transformer_client import (
     PreparedRemoteLinear,
     TransformerClientError,
 )
-from .responses import normalize_input, prompt_text
+from .responses import ResponsesError, normalize_input, prompt_text
+from .tools import ParsedModelOutput, parse_model_output, tool_policy
 from .security import derive_session_key
 from .tokenizer import AlphabetTokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
@@ -87,6 +88,41 @@ T = TypeVar("T")
 
 _BUNDLE_CACHE_MODES = {"read-write", "read-only", "refresh", "off"}
 _MAX_CLIENT_BUNDLE_BYTES = 8 * 1024 * 1024 * 1024
+
+
+def _response_contract_fields(body: dict[str, Any], *, max_output_tokens: int) -> dict[str, Any]:
+    text = body.get("text")
+    if not isinstance(text, dict):
+        text = {"format": {"type": "text"}, "verbosity": "medium"}
+    return {
+        "instructions": body.get("instructions"),
+        "metadata": body.get("metadata"),
+        "parallel_tool_calls": bool(body.get("parallel_tool_calls", True)),
+        "frequency_penalty": float(body.get("frequency_penalty") or 0.0),
+        "presence_penalty": float(body.get("presence_penalty") or 0.0),
+        "top_logprobs": int(body.get("top_logprobs") or 0),
+        "max_tool_calls": body.get("max_tool_calls"),
+        "reasoning": body.get("reasoning"),
+        "safety_identifier": body.get("safety_identifier"),
+        "prompt_cache_key": body.get("prompt_cache_key"),
+        "temperature": body.get("temperature", 1.0),
+        "top_p": body.get("top_p", 1.0),
+        "max_output_tokens": max_output_tokens,
+        "tools": tuple(body.get("tools") or ()),
+        "tool_choice": body.get("tool_choice", "auto"),
+        "truncation": str(body.get("truncation", "disabled")),
+        "previous_response_id": body.get("previous_response_id"),
+        "prompt": None,
+        "background": bool(body.get("background", False)),
+        "service_tier": str(body.get("service_tier", "default")),
+        "store": bool(body.get("store", True)),
+        "text": dict(text),
+    }
+
+
+def _sampling_temperature(body: dict[str, Any]) -> float:
+    value = body.get("temperature")
+    return 0.8 if value is None else float(value)
 
 
 def _default_bundle_cache_dir() -> Path:
@@ -813,16 +849,28 @@ class RuntimeClient:
         self._closing = False
         self.token_cache_size = max(0, int(token_cache_size))
         if bundle_cache_mode not in _BUNDLE_CACHE_MODES:
-            raise ValueError(
-                "bundle_cache_mode must be read-write, read-only, refresh, or off"
-            )
+            raise ValueError("bundle_cache_mode must be read-write, read-only, refresh, or off")
         self.bundle_cache_mode = bundle_cache_mode
         self._bundle_cache_explicit = bundle_cache_dir is not None
-        self.bundle_cache_dir = Path(bundle_cache_dir).expanduser() if bundle_cache_dir else (
-            _default_bundle_cache_dir()
+        self.bundle_cache_dir = (
+            Path(bundle_cache_dir).expanduser()
+            if bundle_cache_dir
+            else (_default_bundle_cache_dir())
         )
         self._bundle_endpoint = _normalized_inference_endpoint(self.base_url)
         self.tenseal_path = tenseal_path
+        inference_url = httpx.URL(self.base_url)
+        if (
+            http_client is None
+            and inference_url.scheme != "https"
+            and inference_url.host
+            not in {
+                "127.0.0.1",
+                "localhost",
+                "::1",
+            }
+        ):
+            raise ValueError("base_url must use HTTPS outside loopback")
         self._owns_http = http_client is None
         self.http = http_client or httpx.Client(base_url=self.base_url, timeout=timeout)
         self.headers = {"Authorization": f"Bearer {api_key}"}
@@ -859,15 +907,21 @@ class RuntimeClient:
                     "::1",
                 }:
                     raise ValueError(f"{name} must use HTTPS outside loopback")
-        self.preparation_headers = {
-            "Authorization": f"Bearer {preparation_api_key}"
-        }
+        self.preparation_headers = {"Authorization": f"Bearer {preparation_api_key}"}
         self._provider_executor = ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="pllm-provider"
         )
         self.cache: dict[str, Response] = {}
         self.histories: dict[str, str] = {}
-        self.message_histories: dict[str, list[dict[str, str]]] = {}
+        self.message_histories: dict[str, list[dict[str, Any]]] = {}
+        self._response_cache_limit = max(
+            1, min(int(os.getenv("PLLM_RESPONSE_CACHE_SIZE", "128")), 1024)
+        )
+        self._response_cache_order: deque[str] = deque()
+        self._response_cache_lock = threading.Lock()
+        self._pending_response_store: dict[str, bool] = {}
+        self._ephemeral_response_ids: set[str] = set()
+        self._ephemeral_response_order: deque[str] = deque()
         self.audit = PrivacyAudit()
         self._crypto_states: dict[str, _ModelCryptoState] = {}
         self._crypto_state_lock = threading.Lock()
@@ -944,7 +998,10 @@ class RuntimeClient:
     def _client_bundle_descriptor(self, model_id: str) -> dict[str, Any]:
         descriptor = self._model_manifest(model_id, refresh=True).get("client_bundle")
         if not isinstance(descriptor, dict) or set(descriptor) != {
-            "schema", "sha256", "size", "etag"
+            "schema",
+            "sha256",
+            "size",
+            "etag",
         }:
             raise ProtocolError("provider model descriptor lacks client bundle fingerprint", 409)
         fingerprint = str(descriptor["sha256"])
@@ -1248,9 +1305,7 @@ class RuntimeClient:
             bundle_fingerprint = str(descriptor["sha256"])
             state = self._transformer_states.get(model_id)
             if state is None or state.bundle_fingerprint != bundle_fingerprint:
-                bundle, bundle_fingerprint = self._load_client_bundle_record(
-                    model_id, descriptor
-                )
+                bundle, bundle_fingerprint = self._load_client_bundle_record(model_id, descriptor)
                 state = _TransformerCryptoState(
                     bundle=bundle,
                     bundle_fingerprint=bundle_fingerprint,
@@ -1261,7 +1316,9 @@ class RuntimeClient:
                 self._transformer_states[model_id] = state
 
             if self.experiment is not None and state.privacy_mode != "public":
-                raise ProtocolError("Experiment requires public masked_transformer_v1 inference", 409)
+                raise ProtocolError(
+                    "Experiment requires public masked_transformer_v1 inference", 409
+                )
 
             if state.privacy_mode == "public" and not state.preparation_verified:
                 if self.preparation_http is None:
@@ -1281,10 +1338,8 @@ class RuntimeClient:
                     != state.bundle.privacy.get("body_fingerprint")
                     or inference.get("stage_commitment")
                     != state.bundle.privacy.get("stage_commitment")
-                    or inference.get("architecture")
-                    != state.bundle.manifest.get("architecture")
-                    or inference.get("stage_count")
-                    != len(state.bundle.manifest.get("stages", []))
+                    or inference.get("architecture") != state.bundle.manifest.get("architecture")
+                    or inference.get("stage_count") != len(state.bundle.manifest.get("stages", []))
                 ):
                     raise ProtocolError("inference and client model commitments do not match", 409)
                 model_response = self.preparation_http.get(
@@ -1298,7 +1353,9 @@ class RuntimeClient:
                     if item.get("id") == model_id
                 ]
                 if len(preparation_models) != 1:
-                    raise ProtocolError("preparation service does not serve the requested model", 404)
+                    raise ProtocolError(
+                        "preparation service does not serve the requested model", 404
+                    )
                 preparation = preparation_models[0].get("preparation") or {}
                 remote_stages = self._remote_stages(state)
                 if not remote_stages or any(
@@ -1314,15 +1371,16 @@ class RuntimeClient:
                     != state.bundle.privacy.get("body_fingerprint")
                     or preparation.get("stage_commitment")
                     != state.bundle.privacy.get("stage_commitment")
-                    or preparation.get("weight_bits")
-                    != state.bundle.privacy.get("weight_bits")
+                    or preparation.get("weight_bits") != state.bundle.privacy.get("weight_bits")
                     or preparation.get("activation_bits")
                     != state.bundle.privacy.get("activation_bits")
                     or preparation.get("architecture") != state.bundle.manifest.get("architecture")
                     or preparation.get("stage_count")
                     != len(state.bundle.manifest.get("stages", []))
                 ):
-                    raise ProtocolError("preparation and inference model commitments do not match", 409)
+                    raise ProtocolError(
+                        "preparation and inference model commitments do not match", 409
+                    )
                 state.preparation_verified = True
             if self.experiment is not None and not state.preparation_verified:
                 raise ProtocolError("Experiment requires seeded-inventory preparation", 409)
@@ -1468,15 +1526,11 @@ class RuntimeClient:
                 self.audit.preparation_server_ns += ack.server_ns
                 self.audit.correction_push_ns += ack.push_ns
                 record_protocol_bytes("client", "preparation", len(payload), stage.id)
-                record_protocol_bytes(
-                    "preparation", "client", len(prepared.content), stage.id
-                )
+                record_protocol_bytes("preparation", "client", len(prepared.content), stage.id)
                 protocol_span.set_attribute(
                     "pllm.preparation_inference.bytes", ack.correction_bytes
                 )
-                protocol_span.set_attribute(
-                    "pllm.preparation_client.bytes", len(prepared.content)
-                )
+                protocol_span.set_attribute("pllm.preparation_client.bytes", len(prepared.content))
                 protocol_span.end()
                 prepared_stages[stage.id] = PreparedStageRows(
                     request=request,
@@ -1510,9 +1564,7 @@ class RuntimeClient:
 
     def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
         try:
-            self.http.post(
-                f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers
-            )
+            self.http.post(f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers)
         except Exception:
             pass
         if self.preparation_http is not None:
@@ -1536,8 +1588,7 @@ class RuntimeClient:
         _raise(response)
         value = response.json()
         return (
-            value.get("status") == "ready"
-            and int(value.get("next_row", -1)) == inventory.claimed
+            value.get("status") == "ready" and int(value.get("next_row", -1)) == inventory.claimed
         )
 
     def _install_prepared_inventory_locked(
@@ -1722,9 +1773,7 @@ class RuntimeClient:
                 elif state.privacy_protocol == "direct_bfv_w4a4":
                     provider = None
                 else:
-                    raise ModelError(
-                        f"unsupported proprietary protocol {state.privacy_protocol!r}"
-                    )
+                    raise ModelError(f"unsupported proprietary protocol {state.privacy_protocol!r}")
             elif state.privacy_mode != "public":
                 raise ModelError(f"unsupported server privacy mode {state.privacy_mode!r}")
             return session_value, state, provider
@@ -1806,9 +1855,7 @@ class RuntimeClient:
                     "protocol": "seeded-inventory/v1",
                     "status": "ready",
                     "generated": generated,
-                    "available_per_stage": {
-                        stage_id: available for stage_id in expected
-                    },
+                    "available_per_stage": {stage_id: available for stage_id in expected},
                 }
             session, state, provider = self._open_transformer_session(model_id, max_output_tokens=1)
             if state.privacy_mode == "proprietary" and state.privacy_protocol == "direct_bfv_w4a4":
@@ -1958,15 +2005,65 @@ class RuntimeClient:
         return response.json()
 
     def retrieve(self, response_id: str) -> Response:
+        if response_id in self._ephemeral_response_ids:
+            raise KeyError(response_id)
         if response_id in self.cache:
-            return self.cache[response_id]
+            response = self.cache[response_id]
+            if not response.store:
+                raise KeyError(response_id)
+            return response
+        if self._pending_response_store.get(response_id) is not True:
+            raise KeyError(response_id)
         response = self.http.get(f"/v1/responses/{response_id}", headers=self.headers)
         _raise(response)
-        return Response.from_dict(response.json())
+        value = Response.from_dict(response.json())
+        self.cache[response_id] = value
+        self._pending_response_store.pop(response_id, None)
+        return value
+
+    def continuation_response(self, response_id: str) -> Response:
+        if response_id not in self.cache:
+            raise KeyError(response_id)
+        return self.cache[response_id]
+
+    def evict_response(self, response_id: str) -> None:
+        self.cache.pop(response_id, None)
+        self.histories.pop(response_id, None)
+        self.message_histories.pop(response_id, None)
+        with self._response_cache_lock:
+            try:
+                self._response_cache_order.remove(response_id)
+            except ValueError:
+                pass
+        with self._transformer_conversation_lock:
+            self._transformer_conversations.pop(response_id, None)
+
+    def _remember_response(self, response_id: str) -> None:
+        response = self.cache.get(response_id)
+        self._pending_response_store.pop(response_id, None)
+        if response is None or response.store:
+            return
+        evicted: list[str] = []
+        with self._response_cache_lock:
+            self._response_cache_order.append(response_id)
+            while len(self._response_cache_order) > self._response_cache_limit:
+                evicted.append(self._response_cache_order.popleft())
+        for stale_id in evicted:
+            self.evict_response(stale_id)
+
+    def _track_response(self, response_id: str, store: bool) -> None:
+        if store:
+            self._pending_response_store[response_id] = True
+            return
+        self._ephemeral_response_ids.add(response_id)
+        self._ephemeral_response_order.append(response_id)
+        while len(self._ephemeral_response_order) > self._response_cache_limit * 8:
+            self._ephemeral_response_ids.discard(self._ephemeral_response_order.popleft())
 
     def cancel(self, response_id: str) -> Response:
         response = self.http.post(f"/v1/responses/{response_id}/cancel", headers=self.headers)
         _raise(response)
+        self._pending_response_store.pop(response_id, None)
         if response_id in self.cache:
             self.cache[response_id].status = "cancelled"
             return self.cache[response_id]
@@ -1977,10 +2074,10 @@ class RuntimeClient:
             return ResponseStream(self.events(body))
         final: Response | None = None
         for event in self.events(body):
-            if event.type == "response.completed":
+            if event.type in {"response.completed", "response.incomplete"}:
                 final = Response.from_dict(event.response)
         if final is None:
-            raise ProtocolError("response stream ended without response.completed")
+            raise ProtocolError("response stream ended without a terminal response")
         return final
 
     def events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
@@ -2009,9 +2106,15 @@ class RuntimeClient:
                 raise ValueError(
                     "model is required when the server exposes more than one private model"
                 )
-            body["model"] = model_id
-        messages = normalize_input(body.get("input", ""), instructions=body.get("instructions"))
-        rendered = prompt_text(messages)
+        body = {**body, "model": model_id}
+        from .http_gateway import validate_response_body
+
+        body = validate_response_body(body)
+        messages = normalize_input(body.get("input", ""))
+        rendered = prompt_text(
+            normalize_input(body.get("input", ""), instructions=body.get("instructions"))
+        )
+        stored_rendered = prompt_text(messages)
         previous_id = body.get("previous_response_id")
         previous_history: str | None = None
         if previous_id:
@@ -2019,6 +2122,7 @@ class RuntimeClient:
                 raise ProtocolError("unknown previous_response_id in client-private cache", 404)
             previous_history = self.histories[str(previous_id)]
         descriptor = self._model_manifest(model_id, refresh=True)
+        policy = tool_policy(body)
         if self.experiment is not None:
             self._transformer_state(model_id)
         if descriptor.get("metadata", {}).get("client_runtime") in {
@@ -2034,8 +2138,13 @@ class RuntimeClient:
                 previous_history=previous_history,
             )
             return
+        if policy.enabled:
+            raise ResponsesError(
+                "tools are unsupported by this model runtime", code="unsupported_feature"
+            )
         if previous_history is not None:
             rendered = previous_history + "\n" + rendered
+            stored_rendered = previous_history + "\n" + stored_rendered
         # rendered remains local; only usage counts and opaque masked vectors cross the wire.
         session_value, model, correlations = self._open_private_session(
             model_id,
@@ -2043,8 +2152,11 @@ class RuntimeClient:
         )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
+        self._track_response(response_id, bool(body.get("store", True)))
         runtime = session_value["manifest"]["runtime"]
-        channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.session_transport)
+        channel = _Channel(
+            self.http, self.base_url, self.api_key, session_id, self.session_transport
+        )
         max_tokens = max(
             1,
             min(
@@ -2054,15 +2166,13 @@ class RuntimeClient:
         )
         message_id = new_id("msg")
         seq = 0
-        created = {
-            "id": response_id,
-            "object": "response",
-            "created_at": time.time(),
-            "status": "in_progress",
-            "model": model_id,
-            "output": [],
-            "usage": None,
-        }
+        created = Response(
+            id=response_id,
+            model=model_id,
+            output=[],
+            status="in_progress",
+            **_response_contract_fields(body, max_output_tokens=max_tokens),
+        ).to_dict()
         output_ids: list[int] = []
         output_chunks: list[str] = []
         key = derive_session_key(self.api_key, session_id)
@@ -2086,6 +2196,7 @@ class RuntimeClient:
                         "type": "message",
                         "status": "in_progress",
                         "role": "assistant",
+                        "phase": "final_answer",
                         "content": [],
                     },
                 }
@@ -2103,6 +2214,7 @@ class RuntimeClient:
             )
             seq += 1
 
+            hit_token_limit = True
             for step in range(max_tokens):
                 correlation = correlations.take()
                 one_hot = np.zeros(model.tokenizer.vocab_size, dtype=np.int64)
@@ -2133,7 +2245,7 @@ class RuntimeClient:
                 logits = centered_mod(
                     decoded.masked_output - correlation.transformed_mask, model.modulus
                 ).astype(np.float64)
-                temperature = float(body.get("temperature") or 0.0)
+                temperature = _sampling_temperature(body)
                 if temperature <= 0:
                     current = int(np.argmax(logits))
                 else:
@@ -2146,6 +2258,7 @@ class RuntimeClient:
                     )
                 self.audit.online_steps += 1
                 if current == model.tokenizer.eos_token_id:
+                    hit_token_limit = False
                     break
                 output_ids.append(current)
                 delta = model.tokenizer.decode([current])
@@ -2165,11 +2278,13 @@ class RuntimeClient:
 
             text = "".join(output_chunks)
             content = {"type": "output_text", "text": text, "annotations": [], "logprobs": []}
+            response_status = "incomplete" if hit_token_limit else "completed"
             item = {
                 "id": message_id,
                 "type": "message",
-                "status": "completed",
+                "status": response_status,
                 "role": "assistant",
+                "phase": "final_answer",
                 "content": [content],
             }
             yield ResponseEvent.from_dict(
@@ -2210,22 +2325,14 @@ class RuntimeClient:
                 id=response_id,
                 model=model_id,
                 output=[item],
-                status="completed",
-                instructions=body.get("instructions"),
-                metadata=body.get("metadata"),
-                parallel_tool_calls=bool(body.get("parallel_tool_calls", True)),
-                temperature=body.get("temperature"),
-                top_p=body.get("top_p"),
-                tools=list(body.get("tools") or []),
-                tool_choice=body.get("tool_choice", "auto"),
-                truncation=body.get("truncation", "disabled"),
-                max_output_tokens=max_tokens,
-                previous_response_id=body.get("previous_response_id"),
-                store=bool(body.get("store", False)),
+                status=response_status,
+                incomplete_details={"reason": "max_output_tokens"} if hit_token_limit else None,
                 usage=usage,
+                **_response_contract_fields(body, max_output_tokens=max_tokens),
             )
             self.cache[response_id] = final
-            self.histories[response_id] = rendered + "\nassistant: " + text
+            self.histories[response_id] = stored_rendered + "\nassistant: " + text
+            self._remember_response(response_id)
             complete = self.http.post(
                 f"/v1/runtime/sessions/{session_id}/complete",
                 headers=self.headers,
@@ -2233,7 +2340,11 @@ class RuntimeClient:
             )
             _raise(complete)
             yield ResponseEvent.from_dict(
-                {"type": "response.completed", "sequence_number": seq, "response": final.to_dict()}
+                {
+                    "type": f"response.{response_status}",
+                    "sequence_number": seq,
+                    "response": final.to_dict(),
+                }
             )
         finally:
             channel.close()
@@ -2255,18 +2366,27 @@ class RuntimeClient:
                 int(descriptor.get("context_length", 4096)),
             ),
         )
-        temperature = float(body.get("temperature") or 0.0)
+        temperature = _sampling_temperature(body)
         raw_top_p = body.get("top_p")
         top_p = None if raw_top_p is None else float(raw_top_p)
-        current_messages = normalize_input(
+        prompt_messages = normalize_input(
             body.get("input", ""), instructions=body.get("instructions")
         )
         previous_id = body.get("previous_response_id")
-        structured: list[dict[str, str]] = []
+        policy = tool_policy(body)
+        structured: list[dict[str, Any]] = []
         if previous_id:
             structured.extend(self.message_histories.get(str(previous_id), []))
-        structured.extend({"role": row.role, "content": row.text} for row in current_messages)
-        rendered = state.bundle.render_prompt(structured, add_generation_prompt=True)
+        render_messages = [*structured, *(row.to_prompt_dict() for row in prompt_messages)]
+        structured.extend(row.to_prompt_dict() for row in messages)
+        policy_instruction = policy.prompt_instruction()
+        if policy_instruction:
+            render_messages.insert(0, {"role": "system", "content": policy_instruction})
+        rendered = state.bundle.render_prompt(
+            render_messages,
+            add_generation_prompt=True,
+            tools=policy.prompt_tools() if policy.enabled else None,
+        )
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         tokenizer = state.bundle.tokenizer()
         input_ids = tokenizer.encode(rendered, add_bos=add_bos)
@@ -2293,6 +2413,7 @@ class RuntimeClient:
         )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
+        self._track_response(response_id, bool(body.get("store", True)))
         channel: _Channel | None = None
 
         def abandon_transformer_session() -> None:
@@ -2309,7 +2430,9 @@ class RuntimeClient:
                 pass
 
         try:
-            channel = _Channel(self.http, self.base_url, self.api_key, session_id, self.session_transport)
+            channel = _Channel(
+                self.http, self.base_url, self.api_key, session_id, self.session_transport
+            )
         except BaseException:
             abandon_transformer_session()
             raise
@@ -2320,9 +2443,7 @@ class RuntimeClient:
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
             self.audit.inference_stage_calls += 1
-            compact_rows = (
-                prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
-            )
+            compact_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
             if len(payloads) > 1 or compact_rows is not None:
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
@@ -2413,15 +2534,13 @@ class RuntimeClient:
         previous_text = ""
         session_completed = False
 
-        created = {
-            "id": response_id,
-            "object": "response",
-            "created_at": time.time(),
-            "status": "in_progress",
-            "model": model_id,
-            "output": [],
-            "usage": None,
-        }
+        created = Response(
+            id=response_id,
+            model=model_id,
+            output=[],
+            status="in_progress",
+            **_response_contract_fields(body, max_output_tokens=max_tokens),
+        ).to_dict()
         try:
             yield ResponseEvent.from_dict(
                 {"type": "response.created", "sequence_number": event_sequence, "response": created}
@@ -2435,32 +2554,39 @@ class RuntimeClient:
                 }
             )
             event_sequence += 1
-            yield ResponseEvent.from_dict(
-                {
-                    "type": "response.output_item.added",
-                    "sequence_number": event_sequence,
-                    "output_index": 0,
-                    "item": {
-                        "id": message_id,
-                        "type": "message",
-                        "status": "in_progress",
-                        "role": "assistant",
-                        "content": [],
-                    },
-                }
-            )
-            event_sequence += 1
-            yield ResponseEvent.from_dict(
-                {
-                    "type": "response.content_part.added",
-                    "sequence_number": event_sequence,
-                    "item_id": message_id,
-                    "output_index": 0,
-                    "content_index": 0,
-                    "part": {"type": "output_text", "text": "", "annotations": [], "logprobs": []},
-                }
-            )
-            event_sequence += 1
+            if not policy.enabled:
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.output_item.added",
+                        "sequence_number": event_sequence,
+                        "output_index": 0,
+                        "item": {
+                            "id": message_id,
+                            "type": "message",
+                            "status": "in_progress",
+                            "role": "assistant",
+                            "phase": "final_answer",
+                            "content": [],
+                        },
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.content_part.added",
+                        "sequence_number": event_sequence,
+                        "item_id": message_id,
+                        "output_index": 0,
+                        "content_index": 0,
+                        "part": {
+                            "type": "output_text",
+                            "text": "",
+                            "annotations": [],
+                            "logprobs": [],
+                        },
+                    }
+                )
+                event_sequence += 1
 
             continuation_used = False
             prior: _TransformerConversationState | None = None
@@ -2505,9 +2631,11 @@ class RuntimeClient:
             else:
                 input_ids, logits, caches = runtime.prepare_ids(full_input_ids)
             pending_token_ids: list[int] = []
+            hit_token_limit = True
             for step in range(max_tokens):
                 token = runtime.sample(logits, temperature=temperature, top_p=top_p)
                 if token == int(runtime.cfg["eos_token_id"]):
+                    hit_token_limit = False
                     break
                 output_ids.append(token)
                 text_so_far = runtime.tokenizer.decode(output_ids)
@@ -2518,18 +2646,19 @@ class RuntimeClient:
                 )
                 previous_text = text_so_far
                 output_chunks.append(delta)
-                yield ResponseEvent.from_dict(
-                    {
-                        "type": "response.output_text.delta",
-                        "sequence_number": event_sequence,
-                        "item_id": message_id,
-                        "output_index": 0,
-                        "content_index": 0,
-                        "delta": delta,
-                        "logprobs": [],
-                    }
-                )
-                event_sequence += 1
+                if not policy.enabled:
+                    yield ResponseEvent.from_dict(
+                        {
+                            "type": "response.output_text.delta",
+                            "sequence_number": event_sequence,
+                            "item_id": message_id,
+                            "output_index": 0,
+                            "content_index": 0,
+                            "delta": delta,
+                            "logprobs": [],
+                        }
+                    )
+                    event_sequence += 1
                 if step + 1 >= max_tokens:
                     pending_token_ids = [token]
                     break
@@ -2543,82 +2672,190 @@ class RuntimeClient:
                 else:
                     self.audit.kv_continuation_misses += 1
 
-            text = "".join(output_chunks)
-            content = {"type": "output_text", "text": text, "annotations": [], "logprobs": []}
-            item = {
-                "id": message_id,
-                "type": "message",
-                "status": "completed",
-                "role": "assistant",
-                "content": [content],
-            }
-            yield ResponseEvent.from_dict(
-                {
-                    "type": "response.output_text.done",
-                    "sequence_number": event_sequence,
-                    "item_id": message_id,
-                    "output_index": 0,
-                    "content_index": 0,
+            response_status = "incomplete" if hit_token_limit else "completed"
+            raw_text = "".join(output_chunks)
+            try:
+                parsed = parse_model_output(raw_text, policy)
+            except ResponsesError:
+                if not hit_token_limit:
+                    raise
+                parsed = ParsedModelOutput("", ())
+            output_items: list[dict[str, Any]] = []
+            output_index = 0
+            if parsed.text or not parsed.calls:
+                text = parsed.text
+                content = {
+                    "type": "output_text",
                     "text": text,
+                    "annotations": [],
                     "logprobs": [],
                 }
-            )
-            event_sequence += 1
-            yield ResponseEvent.from_dict(
-                {
-                    "type": "response.content_part.done",
-                    "sequence_number": event_sequence,
-                    "item_id": message_id,
-                    "output_index": 0,
-                    "content_index": 0,
-                    "part": content,
+                item = {
+                    "id": message_id,
+                    "type": "message",
+                    "status": response_status,
+                    "role": "assistant",
+                    "phase": "final_answer",
+                    "content": [content],
                 }
-            )
-            event_sequence += 1
-            yield ResponseEvent.from_dict(
-                {
-                    "type": "response.output_item.done",
-                    "sequence_number": event_sequence,
-                    "output_index": 0,
-                    "item": item,
+                if policy.enabled:
+                    yield ResponseEvent.from_dict(
+                        {
+                            "type": "response.output_item.added",
+                            "sequence_number": event_sequence,
+                            "output_index": output_index,
+                            "item": {**item, "status": "in_progress", "content": []},
+                        }
+                    )
+                    event_sequence += 1
+                    yield ResponseEvent.from_dict(
+                        {
+                            "type": "response.content_part.added",
+                            "sequence_number": event_sequence,
+                            "item_id": message_id,
+                            "output_index": output_index,
+                            "content_index": 0,
+                            "part": {**content, "text": ""},
+                        }
+                    )
+                    event_sequence += 1
+                    if text:
+                        yield ResponseEvent.from_dict(
+                            {
+                                "type": "response.output_text.delta",
+                                "sequence_number": event_sequence,
+                                "item_id": message_id,
+                                "output_index": output_index,
+                                "content_index": 0,
+                                "delta": text,
+                                "logprobs": [],
+                            }
+                        )
+                        event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.output_text.done",
+                        "sequence_number": event_sequence,
+                        "item_id": message_id,
+                        "output_index": output_index,
+                        "content_index": 0,
+                        "text": text,
+                        "logprobs": [],
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.content_part.done",
+                        "sequence_number": event_sequence,
+                        "item_id": message_id,
+                        "output_index": output_index,
+                        "content_index": 0,
+                        "part": content,
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.output_item.done",
+                        "sequence_number": event_sequence,
+                        "output_index": output_index,
+                        "item": item,
+                    }
+                )
+                event_sequence += 1
+                output_items.append(item)
+                output_index += 1
+
+            history_calls: list[dict[str, Any]] = []
+            for call in parsed.calls:
+                item_id = new_id("fc")
+                call_id = new_id("call")
+                item = {
+                    "id": item_id,
+                    "type": "function_call",
+                    "status": "completed",
+                    "call_id": call_id,
+                    "name": call.name,
+                    "arguments": call.arguments,
                 }
-            )
-            event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.output_item.added",
+                        "sequence_number": event_sequence,
+                        "output_index": output_index,
+                        "item": {**item, "status": "in_progress", "arguments": ""},
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.function_call_arguments.delta",
+                        "sequence_number": event_sequence,
+                        "item_id": item_id,
+                        "output_index": output_index,
+                        "delta": call.arguments,
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.function_call_arguments.done",
+                        "sequence_number": event_sequence,
+                        "item_id": item_id,
+                        "output_index": output_index,
+                        "arguments": call.arguments,
+                    }
+                )
+                event_sequence += 1
+                yield ResponseEvent.from_dict(
+                    {
+                        "type": "response.output_item.done",
+                        "sequence_number": event_sequence,
+                        "output_index": output_index,
+                        "item": item,
+                    }
+                )
+                event_sequence += 1
+                output_items.append(item)
+                history_calls.append(
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {
+                            "name": call.name,
+                            "arguments": json.loads(call.arguments),
+                        },
+                    }
+                )
+                output_index += 1
             usage = ResponseUsage(len(input_ids), len(output_ids), len(input_ids) + len(output_ids))
             final = Response(
                 id=response_id,
                 model=model_id,
-                output=[item],
-                status="completed",
-                instructions=body.get("instructions"),
-                metadata=body.get("metadata"),
-                parallel_tool_calls=bool(body.get("parallel_tool_calls", True)),
-                temperature=body.get("temperature"),
-                top_p=body.get("top_p"),
-                tools=list(body.get("tools") or []),
-                tool_choice=body.get("tool_choice", "auto"),
-                truncation=body.get("truncation", "disabled"),
-                max_output_tokens=max_tokens,
-                previous_response_id=body.get("previous_response_id"),
-                store=bool(body.get("store", False)),
+                output=output_items,
+                status=response_status,
+                incomplete_details={"reason": "max_output_tokens"} if hit_token_limit else None,
                 usage=usage,
+                **_response_contract_fields(body, max_output_tokens=max_tokens),
             )
             self.cache[response_id] = final
-            self.histories[response_id] = rendered + text
-            self.message_histories[response_id] = [
-                *structured,
-                {"role": "assistant", "content": text},
-            ]
+            self.histories[response_id] = rendered + raw_text
+            assistant_history: dict[str, Any] = {"role": "assistant", "content": parsed.text}
+            if history_calls:
+                assistant_history["tool_calls"] = history_calls
+            self.message_histories[response_id] = [*structured, assistant_history]
             with self._transformer_conversation_lock:
                 self._transformer_conversations[response_id] = _TransformerConversationState(
                     model_id=model_id,
                     bundle_fingerprint=state.bundle_fingerprint,
                     token_ids=[*input_ids, *output_ids],
-                    rendered_context=rendered + text,
+                    rendered_context=rendered + raw_text,
                     snapshot=runtime.snapshot(),
                     next_logits=np.asarray(logits, dtype=np.float32).copy(),
                     pending_token_ids=pending_token_ids,
                 )
+            self._remember_response(response_id)
             complete = self.http.post(
                 f"/v1/runtime/sessions/{session_id}/complete",
                 headers=self.headers,
@@ -2628,7 +2865,7 @@ class RuntimeClient:
             session_completed = True
             yield ResponseEvent.from_dict(
                 {
-                    "type": "response.completed",
+                    "type": f"response.{response_status}",
                     "sequence_number": event_sequence,
                     "response": final.to_dict(),
                 }
@@ -2646,9 +2883,7 @@ class RuntimeClient:
                 self._finish_prepared_response(model_id, state, remote.inventory)
                 if not session_completed:
                     try:
-                        self.http.post(
-                            f"/v1/responses/{response_id}/cancel", headers=self.headers
-                        )
+                        self.http.post(f"/v1/responses/{response_id}/cancel", headers=self.headers)
                     except Exception:
                         pass
             channel.close()
@@ -2724,9 +2959,7 @@ class RuntimeResource:
         return response.json()
 
     def unload_model(self, model: str) -> dict[str, Any]:
-        response = self.core.http.delete(
-            f"/v1/runtime/models/{model}", headers=self.core.headers
-        )
+        response = self.core.http.delete(f"/v1/runtime/models/{model}", headers=self.core.headers)
         _raise(response)
         return response.json()
 

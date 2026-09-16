@@ -39,5 +39,13 @@ test('canonical routes map to stable Markdown alternates without index leaves', 
 test('nested CLI reference sources map before generic SDK reference routes', () => {
   assert.equal(canonicalDocsUrl('content/docs/reference/cli/index.mdx'), '/cli/reference/');
   assert.equal(canonicalDocsUrl('content/docs/reference/cli/config/index.mdx'), '/cli/reference/config/');
+  assert.equal(canonicalDocsUrl('content/docs/cli/private-inference.mdx'), '/cli/private-inference/');
   assert.equal(canonicalDocsUrl('content/docs/reference/cli/research/sources/list.mdx'), '/cli/reference/research/sources/list/');
+});
+
+test('nested Learn integration sources keep canonical public routes', () => {
+  assert.equal(canonicalDocsUrl('content/docs/learn/integrations/index.mdx'), '/learn/integrations/');
+  assert.equal(canonicalDocsUrl('content/docs/learn/integrations/responses-api.mdx'), '/learn/integrations/responses-api/');
+  assert.equal(canonicalDocsUrl('content/docs/learn/integrations/openai-agents.mdx'), '/learn/integrations/openai-agents/');
+  assert.equal(canonicalDocsUrl('content/docs/learn/integrations/opencode.mdx'), '/learn/integrations/opencode/');
 });

@@ -7,4 +7,6 @@ Client owns plaintext prompts, token identities, decoded output, and authorizati
 
 Endpoints and identity strings are selectors, not authentication proof. Placement cannot change protocol, numeric policy, leakage, corruption assumptions, or output policy. Timing, traffic shape, public model identity, shapes, and approximate sequence length may remain visible depending on selected contract.
 
-No current generic party-service CLI exposes this target topology. See [provider roles](/sdk/operate/provider-roles/).
+The public CLI can start each role, but command availability does not establish
+operator independence. See [provider roles](/sdk/operate/provider-roles/) and
+the [local gateway](/learn/integrations/local-gateway/).

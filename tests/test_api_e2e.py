@@ -7,6 +7,7 @@ import pytest
 
 from pllm.runtime import OpenAI
 from pllm.runtime.client import ProtocolError
+from pllm.runtime.responses import ResponsesError
 
 
 def test_direct_sdk_nonstream_http(gateway):
@@ -31,6 +32,47 @@ def test_direct_sdk_nonstream_http(gateway):
         assert client.privacy_audit.online_steps == len("private\n") + 1
 
 
+def test_legacy_runtime_rejects_tools_instead_of_emitting_text(gateway):
+    with OpenAI(
+        base_url=gateway.base_url,
+        api_key=gateway.api_key,
+        correlation_mode="local-test",
+        correlation_prefetch=16,
+    ) as client:
+        with pytest.raises(ResponsesError, match="tools are unsupported"):
+            client.responses.create(
+                model="pllm-bigram-demo",
+                input="call lookup",
+                tools=[
+                    {
+                        "type": "function",
+                        "name": "lookup",
+                        "description": "Look up a value",
+                        "parameters": {"type": "object", "properties": {}},
+                        "strict": False,
+                    }
+                ],
+                tool_choice="required",
+                max_output_tokens=8,
+            )
+
+
+def test_direct_sdk_rejects_unsupported_response_controls(gateway):
+    with OpenAI(
+        base_url=gateway.base_url,
+        api_key=gateway.api_key,
+        correlation_mode="local-test",
+        correlation_prefetch=16,
+    ) as client:
+        with pytest.raises(ValueError, match="presence_penalty"):
+            client.responses.create(
+                model="pllm-bigram-demo",
+                input="hello",
+                max_output_tokens=1,
+                presence_penalty=1,
+            )
+
+
 def test_direct_sdk_stream_websocket(gateway):
     with OpenAI(
         base_url=gateway.base_url,
@@ -48,7 +90,10 @@ def test_direct_sdk_stream_websocket(gateway):
         events = list(stream)
         assert events[0].type == "response.created"
         assert events[-1].type == "response.completed"
-        assert "".join(event.delta for event in events if event.type == "response.output_text.delta") == "private\n"
+        assert (
+            "".join(event.delta for event in events if event.type == "response.output_text.delta")
+            == "private\n"
+        )
         assert [event.sequence_number for event in events] == list(range(len(events)))
 
 
@@ -60,7 +105,9 @@ def test_previous_response_id_is_client_private(gateway):
         correlation_mode="local-test",
         correlation_prefetch=16,
     ) as client:
-        first = client.responses.create(model="pllm-bigram-demo", input=canary, max_output_tokens=32)
+        first = client.responses.create(
+            model="pllm-bigram-demo", input=canary, max_output_tokens=32
+        )
         second = client.responses.create(
             model="pllm-bigram-demo",
             input="follow up",
@@ -95,7 +142,9 @@ def test_retrieve_and_cancel(gateway):
         correlation_mode="local-test",
         correlation_prefetch=16,
     ) as client:
-        response = client.responses.create(model="pllm-bigram-demo", input="x", max_output_tokens=32)
+        response = client.responses.create(
+            model="pllm-bigram-demo", input="x", max_output_tokens=32
+        )
         retrieved = client.responses.retrieve(response.id)
         assert retrieved.output_text == "private\n"
         cancelled = client.responses.cancel(response.id)
@@ -163,6 +212,7 @@ def test_server_audit_contains_no_prompt_or_output(gateway):
     session_payload = next(payload for kind, payload in gateway.audit if kind == "session")
     session_json = json.loads(session_payload)
     assert set(session_json) == {"model", "max_output_tokens"}
+
 
 @pytest.mark.asyncio
 async def test_async_client_exposes_models_and_runtime_extensions(gateway):

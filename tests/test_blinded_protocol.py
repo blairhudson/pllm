@@ -221,7 +221,7 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
                     max_output_tokens=1,
                     temperature=0,
                 )
-                assert response.status == "completed"
+                assert response.status == "incomplete"
                 assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
                 assert client.privacy_audit.plaintext_token_ids_sent == 0
                 if mode == "public":

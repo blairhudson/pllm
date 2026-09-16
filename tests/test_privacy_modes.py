@@ -237,7 +237,7 @@ def test_both_modes_complete_openai_responses_without_remote_plaintext(tmp_path:
                     max_output_tokens=1,
                     temperature=0,
                 )
-                assert response.status == "completed"
+                assert response.status == "incomplete"
                 audit = client.privacy_audit.to_dict()
                 assert audit["plaintext_prompt_bytes_sent"] == 0
                 assert audit["plaintext_token_ids_sent"] == 0

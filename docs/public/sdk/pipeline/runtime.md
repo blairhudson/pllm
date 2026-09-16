@@ -6,8 +6,8 @@ Understand which live state a PLLM runtime owns and how it differs from a reprod
 
 Document ID: `pllm.docs.runtime`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:1a5bfd2612ed20f64ede88b20d9db4cc96b5af05b62e977a6f87b7ebff31fa19`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a`
 
 A runtime session owns changing state such as inventory reservations, connections,
 scheduling, the KV cache, native executors, and cancellation. This state is not
@@ -19,8 +19,9 @@ protocols. Runtime graph support and checkpoint loading remain separate from
 model planning.
 
 Before execution, the runtime rechecks plan identity, component support, weights,
-and required assurance records. The CLI does not yet provide generic runtime
-lifecycle commands.
+and required assurance records. The CLI provides explicit gateway, inference,
+and preparation lifecycle commands; it does not provide generic plan-locked
+orchestration. See [local gateway](/learn/integrations/local-gateway/).
 
 ## Python SDK example
 

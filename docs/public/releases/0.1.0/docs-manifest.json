@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966",
+  "buildId": "sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -36,7 +36,7 @@
       "navigationGroupTitle": null,
       "navigationRoot": null,
       "navigationOrder": null,
-      "contentHash": "sha256:b19bddaa16e649ca194a73f682ba679a77dfb48dbc101b4d3af44828a1d96b76"
+      "contentHash": "sha256:a0e8c95d6a921b8f251b99539132597a9cc94a9c83d61647fbc5f9fb5cd00700"
     },
     {
       "id": "pllm.docs.start",
@@ -71,7 +71,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:4e0e240713691f8d0e7e10d0088ba4135eb2d569b1ccb846a2a977c245aaca98"
+      "contentHash": "sha256:db6bff62bf12c5a9077a2acd49221129fdf9098bfc5f614ddd3980ef60cfe5f3"
     },
     {
       "id": "pllm.docs.start.installation",
@@ -133,7 +133,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:135cea9e0d504760f3928adec4257664f0e0bc31fdfd066f346bed7a7a275ea2"
+      "contentHash": "sha256:a8e3d041ab151b74995d11ff9623691de800836318e78fdadd26ac2e6ba9b645"
     },
     {
       "id": "pllm.docs.sdk.configuration",
@@ -163,7 +163,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 3,
+      "navigationOrder": 4,
       "contentHash": "sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8"
     },
     {
@@ -194,7 +194,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 3,
+      "navigationOrder": 4,
       "contentHash": "sha256:77c0bb7e4708ea66eaf0a632bf7df99881f11c9dc4e09d349978b38befd5d39d"
     },
     {
@@ -225,7 +225,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 3,
+      "navigationOrder": 4,
       "contentHash": "sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce"
     },
     {
@@ -362,7 +362,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 4,
+      "navigationOrder": 5,
       "contentHash": "sha256:65cda19398436e043102451e5ab7e08cb91af740af9478a2920e1629c42e2416"
     },
     {
@@ -393,7 +393,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 4,
+      "navigationOrder": 5,
       "contentHash": "sha256:7fb0e3fb1eb830d498b29238555a6fa4ebffdb042e9c0f1e154f746cb0a73133"
     },
     {
@@ -424,8 +424,8 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 4,
-      "contentHash": "sha256:2149462a616b1532c066c03b11559a4d4e13c79271afc32a217d5715a026bb67"
+      "navigationOrder": 5,
+      "contentHash": "sha256:fef1568144f0f8f9a318f91dd19b04b81e8baf86b003617ab8f5d5754c7fdcac"
     },
     {
       "id": "pllm.docs.understand.privacy-assurance",
@@ -455,7 +455,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 4,
+      "navigationOrder": 5,
       "contentHash": "sha256:f4ba911c9dd49cb8fd9ebb3ad589b9f2cbd0703c283f8bbb103adb4f64a90a00"
     },
     {
@@ -486,7 +486,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 4,
+      "navigationOrder": 5,
       "contentHash": "sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa"
     },
     {
@@ -682,7 +682,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:701edae02def99edc0ffdf0514567fe24e04dac6e5d1ef1849c6f07e5b7a863f"
+      "contentHash": "sha256:6c6ea2aa33ae622e505697268d99b11df4ecd03aa7e728e52b180f260ac7d2be"
     },
     {
       "id": "pllm.docs.operate.client-boundary",
@@ -713,7 +713,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:67dcd4db2e70529d625c24980f7d08cfa2299ab7f6917bcf6a16d874349fc14e"
+      "contentHash": "sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5"
     },
     {
       "id": "pllm.docs.operate.provider-roles",
@@ -744,7 +744,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
       "navigationOrder": 206,
-      "contentHash": "sha256:eee97122d4ad7884373a0a4f0a8136daaa74552e7eab4ead3e707d2ab5cae805"
+      "contentHash": "sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872"
     },
     {
       "id": "pllm.docs.operate.deployment",
@@ -775,7 +775,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
       "navigationOrder": 205,
-      "contentHash": "sha256:2e99a4002ebccd03e7bff63f4c8a011f980a6815a236eb6076cf853e47487e69"
+      "contentHash": "sha256:320cf49735cbf4d8396953563062d172799336adc709cb3c3ad376b56da4aab9"
     },
     {
       "id": "pllm.docs.reference",
@@ -834,7 +834,9 @@
         "pllm.docs.reference.cli.components",
         "pllm.docs.reference.cli.research",
         "pllm.docs.reference.cli.benchmark",
-        "pllm.docs.reference.cli.dev"
+        "pllm.docs.reference.cli.dev",
+        "pllm.docs.reference.cli.gateway",
+        "pllm.docs.reference.cli.serve"
       ],
       "prerequisites": [],
       "related": [],
@@ -852,8 +854,8 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:52044d7f716765ac13b97ff489bb38e7bb955f9b1ae4c9459e65d6faa240fa94"
+      "navigationOrder": 3,
+      "contentHash": "sha256:5466bccb9af58fdd733981c12d1dd6ddd5cf64a59c660e497521035a787895da"
     },
     {
       "id": "pllm.docs.reference.cli.config",
@@ -890,7 +892,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:e3ab232d2c7c77bf7197287f380c1b5e62c4afa5bffb92058dcf2ba0239a0031"
     },
     {
@@ -928,7 +930,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:e6acf4380c600a61a42158ee77b759debc1640fe2a53f00dc535cf12aabc38cc"
     },
     {
@@ -969,7 +971,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:a9455d031c72f633f967ef66af09fc4327612b15a8da386fa4f221efa6b9aaaa"
     },
     {
@@ -1006,7 +1008,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:69e847abbf74ab4d1440574aa893dd675cede337b7a32b3c8595061af4beb5de"
     },
     {
@@ -1043,7 +1045,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:2b39dfc27a5c3f5401a882f43ac014c98b5441139bb6b50bfc7d7b6f1fe2f2ca"
     },
     {
@@ -1078,7 +1080,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:771cfaa411ad8d24d6963bf420a319a51d260753637b2b74edd83ddd316e73e2"
     },
     {
@@ -1113,7 +1115,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:b4ebb105af384251d48525471c0f6f91da1f2295b26ce92fbedbad7608ddcf5b"
     },
     {
@@ -1148,7 +1150,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:150eee9d05158e8dbed0cc3690954ff3739ec425f5c515fbb66e6b8411c9f273"
     },
     {
@@ -1183,7 +1185,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:ad669cde7352e3c96f7bc83c65be5fb15af9018841ed761b3f2873b973fa529c"
     },
     {
@@ -1221,7 +1223,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:6dc0a97fe092e9fafc390a57cb490e2ab9617b85be0dc9a4945b08016ad9a4f2"
     },
     {
@@ -1259,7 +1261,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:5f709b9eed42d5f7ef4e6a56ef8d2a5c0bb4e91089570537abb784fb1687b7a3"
     },
     {
@@ -1297,7 +1299,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:134216bb2580ac3cc644dadf32f8db0f6618e8fcff3754c7019a55e185c667b9"
     },
     {
@@ -1332,7 +1334,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:d43d4ddf40daf45fec74c0f93b223dcc9910b79d7fee9e72b7c401299a0be91c"
     },
     {
@@ -1367,7 +1369,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:c1e16c9b64b3380a9d068e14952055ee814c775c802ea1474c5cb2b5efd5a07c"
     },
     {
@@ -1402,8 +1404,151 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:96aa05429900a73f7fe22b8f36606f357b2120f75eb453a6b62944ea3201086b"
+    },
+    {
+      "id": "pllm.docs.reference.cli.gateway",
+      "title": "pllm gateway",
+      "summary": "Exact pllm gateway help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/gateway.mdx",
+      "canonicalUrl": "/cli/reference/gateway/",
+      "markdownUrl": "/cli/reference/gateway.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/gateway"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/gateway.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:c689bb9829a41f105876f3730c8a76f9e90a293175e6cdef1ec892262f069364"
+    },
+    {
+      "id": "pllm.docs.reference.cli.serve",
+      "title": "pllm serve",
+      "summary": "Exact pllm serve help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/serve/index.mdx",
+      "canonicalUrl": "/cli/reference/serve/",
+      "markdownUrl": "/cli/reference/serve.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/serve"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli",
+      "children": [
+        "pllm.docs.reference.cli.serve.inference",
+        "pllm.docs.reference.cli.serve.preparation"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/serve/index.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:090690592c1f339a12f56fa2ca5f842dbfd42efc08a26830127e1fa3284e43d2"
+    },
+    {
+      "id": "pllm.docs.reference.cli.serve.inference",
+      "title": "pllm serve inference",
+      "summary": "Exact pllm serve inference help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/serve/inference.mdx",
+      "canonicalUrl": "/cli/reference/serve/inference/",
+      "markdownUrl": "/cli/reference/serve/inference.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/serve/inference"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.serve",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/serve/inference.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:33d864382913fb7174e54135b1748cf043fc2ac05d8eb24f59e44b368bd20790"
+    },
+    {
+      "id": "pllm.docs.reference.cli.serve.preparation",
+      "title": "pllm serve preparation",
+      "summary": "Exact pllm serve preparation help from the installed PLLM CLI.",
+      "sourcePath": "content/docs/reference/cli/serve/preparation.mdx",
+      "canonicalUrl": "/cli/reference/serve/preparation/",
+      "markdownUrl": "/cli/reference/serve/preparation.md",
+      "kind": "reference",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/reference/serve/preparation"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.reference.cli.serve",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/reference/cli/serve/preparation.mdx",
+        "../python/pllm/_cli/app.py"
+      ],
+      "testPaths": [
+        "../tests/test_cli.py",
+        "../tests/test_developer_reference.py"
+      ],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:bdc2b0145cac1b03a546ae69227773eac58210531d746f5d02ce720492f1b76c"
     },
     {
       "id": "pllm.docs.reference.cli.dev.dashboard",
@@ -1437,7 +1582,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:e4900d6edb2ae174e60f8c790ac2f76c5e736181cff3e7e83968fbdce0a84397"
     },
     {
@@ -1472,7 +1617,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:8980f46d178b3ddb76cd2548de346e5cfe7399fcbea59b942e146bf2514fa99d"
     },
     {
@@ -1507,7 +1652,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:914cc676bfd97f809fda6d275dbca774f8bbc1455fe68cc03d0cb63e5703961c"
     },
     {
@@ -1542,7 +1687,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:83c1cd368c5fe82c745cb3c368da5db1397051d95e2779f0813a17df02947e03"
     },
     {
@@ -1577,7 +1722,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:bfb29bedfd99d35e777a491181bcb9dac0bb94359c0bbf9afa783f397dad282c"
     },
     {
@@ -1612,7 +1757,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:7f405b77a433af55f2e3340ad5b055a31bcc7e617b2906f90888ae9a3f3de67d"
     },
     {
@@ -1647,7 +1792,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
+      "navigationOrder": 3,
       "contentHash": "sha256:369e08f3d0f47b02aa2ba2be96704219989c7415aa8f1532242cb5d5bc0d3b49"
     },
     {
@@ -1698,7 +1843,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:5e1c27fc6c05a70f5e4fb359d58bfb52be72f8522edca70a9c30c0ad998d80ba"
+      "contentHash": "sha256:2b50393fd772216fa16ec31a4c6cf098d4f9e31c35c41339dce81e1d8f847b16"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1849,7 +1994,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:5fe45104a841c46bde341a57e65c97700467a75183f0fa1447de7d1db54cffc5"
+      "contentHash": "sha256:44befdfec958ea8f10d949ff801516dad84735f218db096f1a7317c20999b53d"
     },
     {
       "id": "pllm.docs.research.sources",
@@ -2338,6 +2483,37 @@
       "contentHash": "sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a"
     },
     {
+      "id": "pllm.docs.cli.benchmarking",
+      "title": "Benchmark and inspect runs",
+      "summary": "Run the headless transport benchmark or open the diagnostic dashboard.",
+      "sourcePath": "content/docs/cli/benchmarking.mdx",
+      "canonicalUrl": "/cli/benchmarking/",
+      "markdownUrl": "/cli/benchmarking.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/benchmarking"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.cli",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/cli/benchmarking.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:30078dca8a0fc8994d2a45c1d93b5fa1e12415c8e45e020cb62cf4caa480df6c"
+    },
+    {
       "id": "pllm.docs.cli",
       "title": "Command-line interface",
       "summary": "Inspect PLLM records and run local benchmarks from the terminal.",
@@ -2353,7 +2529,11 @@
       "markdownAliases": [],
       "parent": "pllm.home",
       "children": [
-        "pllm.docs.reference.cli"
+        "pllm.docs.reference.cli",
+        "pllm.docs.cli.benchmarking",
+        "pllm.docs.cli.inspect-and-research",
+        "pllm.docs.cli.private-inference",
+        "pllm.docs.cli.provider-roles"
       ],
       "prerequisites": [],
       "related": [],
@@ -2367,8 +2547,101 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:fe94b4c388998d1cb859ce5669a7d567fc657b6b68362c629f52fac454f53c21"
+      "navigationOrder": 3,
+      "contentHash": "sha256:472e9ea33319126ca22bf8e2305291982f4e9d7e17a19589262cf1ae9cc386cd"
+    },
+    {
+      "id": "pllm.docs.cli.inspect-and-research",
+      "title": "Inspect configuration and research",
+      "summary": "Validate public experiment data and inspect built-in component or research records.",
+      "sourcePath": "content/docs/cli/inspect-and-research.mdx",
+      "canonicalUrl": "/cli/inspect-and-research/",
+      "markdownUrl": "/cli/inspect-and-research.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/inspect-and-research"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.cli",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/cli/inspect-and-research.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:f4133bf92204d7f5b4f16dac4011f42117b90a5ab456dc46a3f5086dd98f2e36"
+    },
+    {
+      "id": "pllm.docs.cli.private-inference",
+      "title": "Run private inference",
+      "summary": "Run the trusted gateway locally or connect it to independently operated PLLM roles.",
+      "sourcePath": "content/docs/cli/private-inference.mdx",
+      "canonicalUrl": "/cli/private-inference/",
+      "markdownUrl": "/cli/private-inference.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/private-inference"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.cli",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/cli/private-inference.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:d38d48f9661d3c10599c881dc798f22ea20e556f218f95aca3730f87056c0517"
+    },
+    {
+      "id": "pllm.docs.cli.provider-roles",
+      "title": "Operate provider roles",
+      "summary": "Start authenticated inference and preparation services without exposing application APIs.",
+      "sourcePath": "content/docs/cli/provider-roles.mdx",
+      "canonicalUrl": "/cli/provider-roles/",
+      "markdownUrl": "/cli/provider-roles.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/cli/provider-roles"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.cli",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/cli/provider-roles.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/cli/",
+      "navigationOrder": 3,
+      "contentHash": "sha256:bfbd013d5e76b35ca98c7b602570ab9e55b90650e78453cd3c2c44e40e6be155"
     },
     {
       "id": "pllm.docs.compiler",
@@ -2656,7 +2929,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
       "navigationOrder": 205,
-      "contentHash": "sha256:f514264025ce4ee91762bca2f05d29a025c59715d418b91de2c3c5fe3703fa5f"
+      "contentHash": "sha256:ed02e65f51ae641c76f4e46fb24192ab873ab2807c994325afb77df69915a1e4"
     },
     {
       "id": "pllm.docs.kernels",
@@ -2739,6 +3012,7 @@
         "pllm.docs.start",
         "pllm.docs.understand",
         "pllm.docs.learn.arithmetic-and-boolean-garbling",
+        "pllm.docs.learn.integrations",
         "pllm.docs.learn.masked-linear-inference",
         "pllm.docs.learn.numeric-semantics-and-model-quality",
         "pllm.docs.learn.parties-and-offline-work",
@@ -2758,7 +3032,263 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
       "navigationOrder": 1,
-      "contentHash": "sha256:f59b0b6e8881f9d65138fa6ad2617f0cd38a28564c394dd40b324d02a5a45758"
+      "contentHash": "sha256:acc4f065b47dc1a39090ff541e2e4fceef219c3f7fd071539604a7139b5fb3a5"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.chat-completions",
+      "title": "Chat Completions API",
+      "summary": "Connect text and local function-tool clients through PLLM's Chat Completions API adapter.",
+      "sourcePath": "content/docs/learn/integrations/chat-completions.mdx",
+      "canonicalUrl": "/learn/integrations/chat-completions/",
+      "markdownUrl": "/learn/integrations/chat-completions.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/chat-completions"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/chat-completions.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:3e9f8e2b306538cd423838c727dbd741ccc2d9b0da5fe9ab4b623f998b99a570"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.codex",
+      "title": "Codex",
+      "summary": "Configure Codex CLI to use PLLM as a custom Responses API provider.",
+      "sourcePath": "content/docs/learn/integrations/codex.mdx",
+      "canonicalUrl": "/learn/integrations/codex/",
+      "markdownUrl": "/learn/integrations/codex.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/codex"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/codex.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:d7daaed526a26cefacfbcfd5219a1d21a5e6ccadaa4aa4727ffb420da5b1c49f"
+    },
+    {
+      "id": "pllm.docs.learn.integrations",
+      "title": "Integrations",
+      "summary": "Connect OpenAI-compatible SDKs and coding agents to the trusted local PLLM gateway.",
+      "sourcePath": "content/docs/learn/integrations/index.mdx",
+      "canonicalUrl": "/learn/integrations/",
+      "markdownUrl": "/learn/integrations.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn",
+      "children": [
+        "pllm.docs.learn.integrations.chat-completions",
+        "pllm.docs.learn.integrations.codex",
+        "pllm.docs.learn.integrations.local-gateway",
+        "pllm.docs.learn.integrations.openai-agents",
+        "pllm.docs.learn.integrations.openai-python",
+        "pllm.docs.learn.integrations.opencode",
+        "pllm.docs.learn.integrations.responses-api"
+      ],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/index.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:67e583054b763f0a58823eb8151468ce268b4953749f688088b29ffb181e0277"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.local-gateway",
+      "title": "Local gateway",
+      "summary": "Start the trusted loopback gateway locally or connect it to separate PLLM services.",
+      "sourcePath": "content/docs/learn/integrations/local-gateway.mdx",
+      "canonicalUrl": "/learn/integrations/local-gateway/",
+      "markdownUrl": "/learn/integrations/local-gateway.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/local-gateway"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/local-gateway.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:e1ad2b7ef4325d09f45085a5da35d4145b45f48b5a631c5ebd14b45218339e07"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.openai-agents",
+      "title": "OpenAI Agents SDK",
+      "summary": "Run an OpenAI Agents SDK text agent through PLLM's Responses API gateway.",
+      "sourcePath": "content/docs/learn/integrations/openai-agents.mdx",
+      "canonicalUrl": "/learn/integrations/openai-agents/",
+      "markdownUrl": "/learn/integrations/openai-agents.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/openai-agents"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/openai-agents.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:d9ffadd9be6ca996d8195ab59a362ec8f32b0d4121a5d0b31da39e93bf6f8919"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.openai-python",
+      "title": "OpenAI Python SDK",
+      "summary": "Point the official OpenAI Python SDK at the trusted PLLM gateway.",
+      "sourcePath": "content/docs/learn/integrations/openai-python.mdx",
+      "canonicalUrl": "/learn/integrations/openai-python/",
+      "markdownUrl": "/learn/integrations/openai-python.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/openai-python"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/openai-python.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:97dc3e67264a940b248ea2a3005ea77da1dbff2ed9fb9dad3a2aa96adfca8ef9"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.opencode",
+      "title": "OpenCode",
+      "summary": "Configure OpenCode to use PLLM through its Chat Completions API gateway.",
+      "sourcePath": "content/docs/learn/integrations/opencode.mdx",
+      "canonicalUrl": "/learn/integrations/opencode/",
+      "markdownUrl": "/learn/integrations/opencode.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/opencode"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/opencode.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:fb55e1f8607bb63db0b9973fd416541d07445c1a83613672187f815d4b74985f"
+    },
+    {
+      "id": "pllm.docs.learn.integrations.responses-api",
+      "title": "Responses API",
+      "summary": "Use PLLM's Responses API surface and understand its tested conformance scope.",
+      "sourcePath": "content/docs/learn/integrations/responses-api.mdx",
+      "canonicalUrl": "/learn/integrations/responses-api/",
+      "markdownUrl": "/learn/integrations/responses-api.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/learn/integrations/responses-api"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.learn.integrations",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/learn/integrations/responses-api.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "get-started",
+      "navigationGroupTitle": "Get started",
+      "navigationRoot": "/learn/integrations/",
+      "navigationOrder": 2,
+      "contentHash": "sha256:b5c26a66a5b12c51c0db6694ebd66c0925fbb95c68b8048928cf4745a1775861"
     },
     {
       "id": "pllm.docs.learn.masked-linear-inference",
@@ -3880,7 +4410,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/runtime/",
       "navigationOrder": 204,
-      "contentHash": "sha256:1a5bfd2612ed20f64ede88b20d9db4cc96b5af05b62e977a6f87b7ebff31fa19"
+      "contentHash": "sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a"
     },
     {
       "id": "pllm.docs.sdk",
@@ -3920,8 +4450,8 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:984ff5182dbcb8d7871d4881b06b133fa1804f897717ca49e2fad5426700c08a"
+      "navigationOrder": 4,
+      "contentHash": "sha256:606373a08d7caf7bf31c9e8e64913fe55cb0c817ce7a035b9acf459cd2af28cd"
     },
     {
       "id": "pllm.docs.search",

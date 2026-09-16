@@ -405,6 +405,7 @@ def create_app(
         cleanup_prepared_sessions(reclaim_terminal=True)
         return {
             "status": "ok",
+            "role": "inference",
             "privacy_mode": config.privacy_mode,
             "private_models": len(private_models),
             "trusted_backends": len(backend_registry.adapters),
@@ -2041,7 +2042,7 @@ def create_app(
             async def generate():
                 async for raw_event in adapter.stream_response(upstream_body):
                     event = publicize(raw_event)
-                    if event.get("type") == "response.completed" and isinstance(
+                    if event.get("type") in {"response.completed", "response.incomplete"} and isinstance(
                         event.get("response"), dict
                     ):
                         responses.put(event["response"], api_key)

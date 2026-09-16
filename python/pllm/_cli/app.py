@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -78,6 +80,91 @@ def _target_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_server_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", help="JSON GatewayConfig file")
+    parser.add_argument(
+        "--privacy-mode",
+        "--mode",
+        dest="privacy_mode",
+        choices=("public", "proprietary"),
+        default=None,
+    )
+    parser.add_argument(
+        "--protocol",
+        "--proprietary-protocol",
+        dest="proprietary_protocol",
+        choices=("guarded", "blinded", "secure", "direct"),
+        default=None,
+    )
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--api-key", help=argparse.SUPPRESS)
+    parser.add_argument("--provider-push-api-key", help=argparse.SUPPRESS)
+    parser.add_argument("--inference-url")
+    parser.add_argument("--push-api-key", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--push-timeout",
+        type=float,
+        default=None,
+    )
+    parser.add_argument("--model", action="append", default=[])
+    parser.add_argument("--model-id", action="append", default=[])
+    parser.add_argument(
+        "--model-kind",
+        choices=("huggingface", "safetensors", "vllm", "mlx", "mlx-lm"),
+        default=None,
+    )
+    parser.add_argument("--revision")
+    parser.add_argument("--hf-token", help=argparse.SUPPRESS)
+    parser.add_argument("--hf-cache-dir")
+    parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument("--weight-bits", type=int, choices=(4, 8))
+    parser.add_argument("--activation-bits", type=int, choices=(4, 8))
+    parser.add_argument("--tenseal-path")
+    parser.add_argument("--max-batch-size", type=int)
+    parser.add_argument("--max-wait-ms", type=float)
+    parser.add_argument("--fixed-batch-wait", action="store_true")
+    parser.add_argument("--allow-insecure-local-correlations", action="store_true")
+    parser.add_argument(
+        "--engine-threads",
+        type=int,
+        default=None,
+    )
+    parser.add_argument("--native-library")
+    parser.add_argument("--compiled-cache-dir")
+    parser.add_argument("--streaming-threshold-elements", type=int)
+    parser.add_argument("--quantization-chunk-rows", type=int)
+    parser.add_argument("--guard-max-rows-per-request", type=int)
+    parser.add_argument("--guard-max-rows-per-stage", type=int)
+    parser.add_argument("--guard-max-requests-per-minute", type=int)
+    parser.add_argument("--guard-output-dither", type=int)
+    parser.add_argument(
+        "--rendezvous-timeout",
+        type=float,
+        default=None,
+    )
+    parser.add_argument(
+        "--rendezvous-capacity",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--rendezvous-max-bytes",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--prepared-session-capacity",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--prepared-session-idle",
+        type=float,
+        default=None,
+    )
+
+
 def build_parser() -> _Parser:
     parser = _Parser(
         prog="pllm",
@@ -127,6 +214,49 @@ def build_parser() -> _Parser:
     )
     agents.add_argument("--output", required=True, metavar="PATH", help="new Markdown output path")
     agents.add_argument("--force", action="store_true", help="replace an existing output file")
+
+    gateway = _command(commands, "gateway", help="run the trusted local Responses API gateway")
+    gateway.add_argument("--config", help="client TOML file")
+    gateway.add_argument("--host", default="127.0.0.1")
+    gateway.add_argument("--port", type=int, default=8080)
+    gateway.add_argument("--api-key", default=os.getenv("PLLM_GATEWAY_API_KEY", "local"))
+    gateway.add_argument("--inference-url")
+    gateway.add_argument("--inference-key", default=os.getenv("PLLM_INFERENCE_API_KEY"))
+    gateway.add_argument("--preparation-url")
+    gateway.add_argument("--preparation-key", default=os.getenv("PLLM_PREPARATION_API_KEY"))
+    gateway.add_argument("--model")
+    gateway.add_argument("--model-id")
+    gateway.add_argument("--local", action="store_true", help="co-locate both server roles locally")
+    gateway.add_argument("--tiny", action="store_true", help=argparse.SUPPRESS)
+    gateway.add_argument(
+        "--transport", choices=("auto", "http", "websocket"), help="session transport"
+    )
+    gateway.add_argument("--correlation-mode", choices=("bfv", "local-test"))
+    gateway.add_argument("--correlation-prefetch", type=int)
+    gateway.add_argument("--prepared-inventory-rows", type=int)
+    gateway.add_argument("--token-cache-size", type=int)
+    gateway.add_argument(
+        "--bundle-cache-mode", choices=("read-write", "read-only", "refresh", "off")
+    )
+    gateway.add_argument("--bundle-cache-dir")
+    gateway.add_argument("--tenseal-path", default=os.getenv("PLLM_PYDEPS"))
+    gateway.add_argument("--timeout", type=float)
+    gateway.add_argument("--revision", default=os.getenv("PLLM_HF_REVISION"))
+    gateway.add_argument("--hf-cache-dir", default=os.getenv("HF_HUB_CACHE"))
+    gateway.add_argument("--local-files-only", action="store_true")
+    gateway.add_argument("--weight-bits", type=int, choices=(4, 8), default=8)
+    gateway.add_argument("--activation-bits", type=int, choices=(4, 8), default=8)
+
+    serve = _command(commands, "serve", help="run an inference or preparation role")
+    serve_commands = serve.add_subparsers(dest="serve_role", metavar="ROLE", required=True)
+    inference = _command(
+        serve_commands, "inference", help="run the remote private-inference service"
+    )
+    _add_server_options(inference)
+    preparation = _command(
+        serve_commands, "preparation", help="run the trusted preparation service"
+    )
+    _add_server_options(preparation)
 
     benchmark = _command(commands, "benchmark", help="run reproducible local benchmarks")
     benchmark_commands = benchmark.add_subparsers(
@@ -572,6 +702,182 @@ def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
         ) from exc
 
 
+def _is_loopback(host: str) -> bool:
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def _service_url(host: str, port: int) -> str:
+    rendered_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    return f"http://{rendered_host}:{port}"
+
+
+def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+    if not _is_loopback(args.host):
+        raise ResolutionError("GATEWAY_HOST", "gateway bind must use a loopback address")
+    if not 1 <= args.port <= 65_535:
+        raise ResolutionError("GATEWAY_PORT", "gateway port must be between 1 and 65535")
+    if args.local and not (args.model or args.tiny):
+        raise ResolutionError("GATEWAY_LOCAL_MODEL", "--local requires --model MODEL")
+    if args.tiny and not args.local:
+        raise ResolutionError("GATEWAY_TINY", "--tiny requires --local")
+
+    url = _service_url(args.host, args.port)
+    if output_format == "human" and args.local and not getattr(args, "quiet", False):
+        print(
+            "Trust limitation: --local co-locates preparation and inference; "
+            "it does not provide role separation or non-collusion.",
+            file=sys.stderr,
+            flush=True,
+        )
+    if dry_run:
+        model = args.model_id or args.model
+        transport = args.transport
+        bundle_cache_mode = args.bundle_cache_mode
+        if not args.local:
+            from pllm.settings import ClientSettings
+
+            try:
+                settings = ClientSettings.load(Path(args.config) if args.config else None)
+            except (OSError, TypeError, ValueError) as exc:
+                raise LocalIOError(
+                    "GATEWAY_CONFIG_READ", f"Cannot read client config: {exc}"
+                ) from exc
+            model = model or settings.model
+            transport = transport or settings.transport
+            bundle_cache_mode = bundle_cache_mode or settings.bundle_cache_mode
+        data = {
+            "bundle_cache_mode": bundle_cache_mode,
+            "config": args.config,
+            "dry_run": True,
+            "local": args.local,
+            "model": model,
+            "transport": transport,
+            "url": url,
+        }
+        if output_format == "human":
+            if not getattr(args, "quiet", False):
+                action = "local inference, preparation, and gateway" if args.local else "gateway"
+                print(f"Would start {action} on {url}")
+        else:
+            emit_machine("gateway", data, output_format)
+        return
+
+    if output_format == "human" and not getattr(args, "quiet", False):
+        print(f"Gateway URL: {url}", flush=True)
+    try:
+        from pllm.runtime.cli import RuntimeCLIError, run_local_gateway, run_sidecar
+    except Exception as exc:
+        raise RuntimeFailure("GATEWAY_FAILED", f"gateway failed ({type(exc).__name__})") from exc
+
+    try:
+        if args.local:
+            run_local_gateway(args)
+        else:
+            run_sidecar(args)
+    except KeyboardInterrupt:
+        raise
+    except RuntimeCLIError as exc:
+        raise ResolutionError("GATEWAY_CONFIGURATION", str(exc)) from exc
+    except Exception as exc:
+        raise RuntimeFailure("GATEWAY_FAILED", f"gateway failed ({type(exc).__name__})") from exc
+
+
+def _serve(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+    args.host = args.host or os.getenv("PLLM_HOST", "127.0.0.1")
+    args.port = args.port if args.port is not None else _env_int("PLLM_PORT", 8000)
+    preview: dict[str, Any] = {}
+    if args.config:
+        try:
+            value = json.loads(Path(args.config).expanduser().read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise LocalIOError(
+                "SERVE_CONFIG_READ", f"Cannot read role configuration: {exc}"
+            ) from exc
+        if not isinstance(value, dict):
+            raise UsageError("Role configuration must be a JSON object")
+        try:
+            from pllm.runtime.config import GatewayConfig
+
+            preview = GatewayConfig.from_dict(value).to_dict()
+        except ValueError as exc:
+            raise ResolutionError("SERVE_CONFIGURATION", str(exc)) from exc
+    if not 1 <= args.port <= 65_535:
+        raise ResolutionError("SERVE_PORT", "service port must be between 1 and 65535")
+    if args.model_id and len(args.model_id) != len(args.model):
+        raise ResolutionError("SERVE_MODEL_ID", "--model-id must be supplied once per --model")
+    role = args.serve_role
+    effective_mode = (
+        args.privacy_mode or os.getenv("PLLM_PRIVACY_MODE") or preview.get("privacy_mode", "public")
+    )
+    if role == "preparation" and effective_mode != "public":
+        raise ResolutionError(
+            "SERVE_CONFIGURATION", "the preparation service supports public-weight models only"
+        )
+    if effective_mode == "secure" or str(effective_mode).startswith("shared"):
+        raise ResolutionError(
+            "SERVE_CONFIGURATION", "production shared-transformer routing is disabled"
+        )
+    if dry_run:
+        data = {
+            "config": args.config,
+            "dry_run": True,
+            "host": args.host,
+            "models": args.model_id
+            or args.model
+            or [
+                str(item.get("model_id") or item.get("path") or item.get("name"))
+                for item in preview.get("engine_models", [])
+                if isinstance(item, dict)
+                and (item.get("model_id") or item.get("path") or item.get("name"))
+            ],
+            "port": args.port,
+            "privacy_mode": effective_mode,
+            "protocol": args.proprietary_protocol
+            or os.getenv("PLLM_PROPRIETARY_PROTOCOL")
+            or preview.get("proprietary_protocol", "guarded"),
+            "role": role,
+        }
+        if output_format == "human":
+            if not getattr(args, "quiet", False):
+                print(f"Would start {role} service on {_service_url(args.host, args.port)}")
+        else:
+            emit_machine(f"serve.{role}", data, output_format)
+        return
+
+    try:
+        from pllm.runtime.cli import RuntimeCLIError, run_server
+    except Exception as exc:
+        raise RuntimeFailure(
+            "SERVE_FAILED", f"{role} service failed ({type(exc).__name__})"
+        ) from exc
+
+    try:
+        run_server(args, preparation=role == "preparation")
+    except KeyboardInterrupt:
+        raise
+    except RuntimeCLIError as exc:
+        raise ResolutionError("SERVE_CONFIGURATION", str(exc)) from exc
+    except Exception as exc:
+        raise RuntimeFailure(
+            "SERVE_FAILED", f"{role} service failed ({type(exc).__name__})"
+        ) from exc
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise UsageError(f"{name} must be an integer") from exc
+
+
 def _detect_format(arguments: Sequence[str]) -> str:
     selected = "human"
     for index, argument in enumerate(arguments):
@@ -600,6 +906,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             _components(args, output_format, dry_run)
         elif args.command == "research":
             _research(args, output_format, dry_run)
+        elif args.command == "gateway":
+            _gateway(args, output_format, dry_run)
+        elif args.command == "serve":
+            _serve(args, output_format, dry_run)
         elif args.command == "benchmark":
             _benchmark(args, output_format, dry_run)
         elif args.command == "dev":

@@ -6,8 +6,8 @@ Private language model inference. Client and server guides, the protocol, and re
 
 Document ID: `pllm.home`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:b19bddaa16e649ca194a73f682ba679a77dfb48dbc101b4d3af44828a1d96b76`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:a0e8c95d6a921b8f251b99539132597a9cc94a9c83d61647fbc5f9fb5cd00700`
 
 # Keep your data private. Open compute to the world.
 
@@ -43,39 +43,152 @@ Neither remote service receives the full request. This depends on both services 
 
 ## Start building.
 
-Install PLLM from PyPI. Run the real client, preparation, and inference roles on one machine, or add the SDK to a Python project.
+Install PLLM from PyPI, then run the trusted client-side gateway. It gives your apps one local OpenAI-compatible endpoint while PLLM handles the private protocol on the client.
 
-**CLI**
+**Local gateway**
 
-**Python SDK**
+**Client config**
 
-**Inspect**
+**Operate services**
 
 ```text
-uv tool install pllm
-pllm dev dashboard --tiny --no-open
+pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct
 ```
 
 ```text
-uv add pllm
-uv run python - <<'PY'
-from pllm.components import get_component
-
-component = get_component("pllm/masked-linear")
-print(component.component, component.lifecycle_phase)
-PY
+pllm gateway --config client.toml
 ```
 
 ```text
-pllm components list
-pllm research methods list
+pllm serve inference --config inference.json
+pllm serve preparation --config preparation.json
 ```
 
-The tiny dashboard checks transport with generated weights. It does not measure model quality or production performance.
+Use client config to connect the gateway to separately operated services. Local mode co-locates the roles for development; co-location does not provide role separation or non-collusion.
 
 [Install PLLM](/learn/start/installation/)
-[Use the SDK](/sdk/)
-[Run a real model](/learn/start/first-local-benchmark/)
+[Send a private request](/learn/start/first-private-request/)
+[Review the trust boundary](/learn/understand/trust-boundary/)
+
+## Use your tools.
+
+Use PLLM's native client directly, or point a compatible client at the trusted local gateway. Gateway consumers receive one endpoint and one local key, never preparation or inference service details.
+
+**PLLM SDK**
+
+**Responses API**
+
+**Chat Completions API**
+
+**OpenAI SDK**
+
+**Agents SDK**
+
+**Codex**
+
+**OpenCode**
+
+```text
+from pllm import OpenAI
+
+client = OpenAI()
+response = client.responses.create(
+    model="Qwen/Qwen2.5-0.5B-Instruct",
+    input="Hello from PLLM",
+)
+print(response.output_text)
+```
+
+```text
+curl http://127.0.0.1:8080/v1/responses \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","input":"Hello from PLLM"}'
+```
+
+```text
+curl http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","messages":[{"role":"user","content":"Hello from PLLM"}]}'
+```
+
+```text
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="local",
+)
+response = client.responses.create(
+    model="Qwen/Qwen2.5-0.5B-Instruct",
+    input="Hello from PLLM",
+)
+print(response.output_text)
+```
+
+```text
+from agents import Agent, Runner
+from agents.models.openai_responses import OpenAIResponsesModel
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="local",
+)
+agent = Agent(
+    name="PLLM",
+    model=OpenAIResponsesModel(
+        model="Qwen/Qwen2.5-0.5B-Instruct",
+        openai_client=client,
+    ),
+)
+result = await Runner.run(agent, "Hello from PLLM")
+print(result.final_output)
+```
+
+```text
+model = "Qwen/Qwen2.5-0.5B-Instruct"
+model_provider = "pllm"
+web_search = "disabled"
+
+[model_providers.pllm]
+name = "PLLM"
+base_url = "http://127.0.0.1:8080/v1"
+env_key = "PLLM_GATEWAY_API_KEY" # Set to local.
+wire_api = "responses"
+```
+
+```text
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "pllm/Qwen/Qwen2.5-0.5B-Instruct",
+  "enabled_providers": ["pllm"],
+  "provider": {
+    "pllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "PLLM (Chat Completions API)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "Qwen/Qwen2.5-0.5B-Instruct": {
+          "name": "Qwen 2.5 0.5B Instruct"
+        }
+      }
+    }
+  }
+}
+```
+
+[PLLM SDK guide](/sdk/operate/client-boundary/)
+[Responses API guide](/learn/integrations/responses-api/)
+[Chat Completions API guide](/learn/integrations/chat-completions/)
+[OpenAI SDK guide](/learn/integrations/openai-python/)
+[Agents SDK guide](/learn/integrations/openai-agents/)
+[Codex guide](/learn/integrations/codex/)
+[OpenCode guide](/learn/integrations/opencode/)
 
 ## Run autonomous research.
 

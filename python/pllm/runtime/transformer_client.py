@@ -86,10 +86,7 @@ class PreparedInventoryLease:
             begin = self.start + offset
             end = begin + count
             self._offsets[stage_id] = offset + count
-        attempts = [
-            derive_online_attempt_id(stage.request, row)
-            for row in range(begin, end)
-        ]
+        attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, end)]
         return stage.input_mask[begin:end], stage.output_mask[begin:end], attempts
 
 
@@ -499,20 +496,24 @@ class ClientBundle:
             raise TransformerClientError(f"missing client tensor {suffix!r}")
         raise TransformerClientError(f"ambiguous client tensor suffix {suffix!r}")
 
-    def render_prompt(self, messages: list[Any], *, add_generation_prompt: bool = True) -> str:
-        rows = [
-            {
-                "role": str(
-                    getattr(item, "role", item.get("role") if isinstance(item, dict) else "user")
-                ),
-                "content": str(
-                    getattr(
-                        item, "text", item.get("content", "") if isinstance(item, dict) else item
-                    )
-                ),
-            }
-            for item in messages
-        ]
+    def render_prompt(
+        self,
+        messages: list[Any],
+        *,
+        add_generation_prompt: bool = True,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> str:
+        rows: list[dict[str, Any]] = []
+        for item in messages:
+            if hasattr(item, "to_prompt_dict"):
+                row = dict(item.to_prompt_dict())
+            elif isinstance(item, dict):
+                row = dict(item)
+            else:
+                row = {"role": "user", "content": str(item)}
+            row["role"] = "system" if row.get("role") == "developer" else str(row.get("role"))
+            row["content"] = str(row.get("content", ""))
+            rows.append(row)
         template = self.tokenizer_descriptor.get("chat_template") or self.manifest.get(
             "chat_template"
         )
@@ -537,7 +538,7 @@ class ClientBundle:
                     add_generation_prompt=bool(add_generation_prompt),
                     bos_token=self.tokenizer_descriptor.get("bos_token", ""),
                     eos_token=self.tokenizer_descriptor.get("eos_token", ""),
-                    tools=None,
+                    tools=tools,
                 )
             )
         except BaseException:
@@ -840,9 +841,10 @@ class PreparedRemoteLinear:
         profile = stage.seeded_profile
         if profile is None:
             raise TransformerClientError("stage lacks a seeded ring profile")
-        clear = quantized.values.reshape(quantized.rows, stage.in_features).astype(
-            np.int64, copy=False
-        ) % profile.modulus
+        clear = (
+            quantized.values.reshape(quantized.rows, stage.in_features).astype(np.int64, copy=False)
+            % profile.modulus
+        )
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         complement = (clear - mask.astype(np.int64)) % profile.modulus
         batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
@@ -901,8 +903,7 @@ class PreparedRemoteLinear:
                 if (
                     batch_result.batch_id != batch_id
                     or batch_result.wire_bits != profile.wire_bits
-                    or batch_result.masked_output.shape
-                    != (quantized.rows, stage.out_features)
+                    or batch_result.masked_output.shape != (quantized.rows, stage.out_features)
                 ):
                     raise TransformerClientError(
                         "service returned a mismatched prepared batch result"
@@ -921,9 +922,7 @@ class PreparedRemoteLinear:
             "pllm.inference_client.bytes", sum(map(len, inference_payloads))
         )
         protocol_span.end()
-        combined = (
-            masked_output.astype(np.int64) + output_mask.astype(np.int64)
-        ) % profile.modulus
+        combined = (masked_output.astype(np.int64) + output_mask.astype(np.int64)) % profile.modulus
         if profile.ring == "u16":
             accumulators = combined.astype(np.uint16).view(np.int16).astype(np.int64)
         elif profile.ring == "u24":

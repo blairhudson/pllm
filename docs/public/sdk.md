@@ -6,8 +6,8 @@ Plan models, compose research methods, and use supported PLLM runtimes from Pyth
 
 Document ID: `pllm.docs.sdk`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:984ff5182dbcb8d7871d4881b06b133fa1804f897717ca49e2fad5426700c08a`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:606373a08d7caf7bf31c9e8e64913fe55cb0c817ce7a035b9acf459cd2af28cd`
 
 PLLM ships one Python package backed by Rust. The public API separates model
 planning from live runtime state so you can inspect and reproduce a plan without
@@ -61,5 +61,7 @@ model. Check [current support](/sdk/reference/status/) before choosing a path.
 objects.
 - [Get started](/learn/start/) covers installation and the first inspection
 workflow.
+- [OpenAI Python SDK](/learn/integrations/openai-python/) connects the official
+client to the trusted local gateway.
 - [Runtime](/sdk/pipeline/runtime/) explains live state and execution boundaries.
 - [Models](/sdk/build/models/) separates semantic planning from executable support.

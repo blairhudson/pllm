@@ -6,8 +6,8 @@ Learn how to assign PLLM roles to authenticated services without changing privac
 
 Document ID: `pllm.docs.deployment`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:f514264025ce4ee91762bca2f05d29a025c59715d418b91de2c3c5fe3703fa5f`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:ed02e65f51ae641c76f4e46fb24192ab873ab2807c994325afb77df69915a1e4`
 
 A deployment assigns each protocol role to a process and operator. It records
 endpoints, authentication, separate credentials, provider identity, storage,
@@ -23,7 +23,8 @@ of an ordinary model API does not make its unmodified SDK private.
 A loopback [`pllm benchmark run`](/cli/reference/benchmark/run/) checks that the
 services work together on one machine. It does not show that production operators
 are independent. Deployment assurance must refer to the exact plan and environment
-being evaluated.
+being evaluated. The [serving integration guide](/learn/integrations/local-gateway/)
+lists the current gateway and provider-role lifecycle commands.
 
 ## Python SDK example
 

@@ -6,7 +6,7 @@ The mission, protocol, and evidence for a global market in private AI compute.
 
 Document ID: `pllm.research`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
 Source hash: `sha256:a5114b036fab6557de2065aa227526449d4764b77cad960c0621eab75e85c94a`
 
 # Build private inference methods that can be reproduced and compared.

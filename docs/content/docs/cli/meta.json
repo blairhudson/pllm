@@ -1,8 +1,12 @@
 {
-  "title": "CLI overview",
+  "title": "CLI",
   "root": true,
   "pages": [
     "index",
+    "private-inference",
+    "provider-roles",
+    "benchmarking",
+    "inspect-and-research",
     "../reference/cli"
   ]
 }

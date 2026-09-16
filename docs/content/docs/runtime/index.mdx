@@ -13,8 +13,9 @@ protocols. Runtime graph support and checkpoint loading remain separate from
 model planning.
 
 Before execution, the runtime rechecks plan identity, component support, weights,
-and required assurance records. The CLI does not yet provide generic runtime
-lifecycle commands.
+and required assurance records. The CLI provides explicit gateway, inference,
+and preparation lifecycle commands; it does not provide generic plan-locked
+orchestration. See [local gateway](/learn/integrations/local-gateway/).
 
 ## Python SDK example
 

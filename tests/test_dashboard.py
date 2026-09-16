@@ -302,7 +302,7 @@ def test_incomplete_dashboard_stream_is_not_reported_as_success() -> None:
     runtime._run_chat("prompt", 1)
 
     assert runtime._state["phase"] == "error"
-    assert "response.completed" in runtime._state["error"]
+    assert "terminal response" in runtime._state["error"]
 
 
 def test_dashboard_stop_does_not_wait_forever_for_client_close() -> None:

@@ -6,7 +6,7 @@ Trace a source through clean-room code, plans, evidence, and publication review.
 
 Document ID: `pllm.docs.agents.research-map`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
 Source hash: `sha256:05feb35e53c6d196bdd7ecbf16bc6b0e3f981ac75f4e106ea6b070a229edae21`
 
 - `research/methods/sources.json`: canonical source identities and local paper digests.

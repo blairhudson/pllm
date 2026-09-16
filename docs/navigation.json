@@ -28,6 +28,7 @@
       "entries": [
         {"label": "Get started", "href": "/learn/start/", "sidebar": "start"},
         {"label": "Learn", "href": "/learn/", "sidebar": "learn"},
+        {"label": "Integrations", "href": "/learn/integrations/", "sidebar": "learn/integrations"},
         {"label": "CLI", "href": "/cli/", "sidebar": "cli"},
         {"label": "SDK", "href": "/sdk/", "sidebar": "sdk"},
         {"label": "Concept guides", "href": "/learn/understand/", "sidebar": "understand", "visible": false}

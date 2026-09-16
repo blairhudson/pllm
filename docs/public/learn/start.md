@@ -6,12 +6,13 @@ Install PLLM, inspect a private inference plan, and run the local development be
 
 Document ID: `pllm.docs.start`  
 Release: `0.1.0`  
-Build: `sha256:65f4ad316621284cc28b60b1a825a6d9c6d1f108cbb5032aee0983de1e5c4966`  
-Source hash: `sha256:4e0e240713691f8d0e7e10d0088ba4135eb2d569b1ccb846a2a977c245aaca98`
+Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Source hash: `sha256:db6bff62bf12c5a9077a2acd49221129fdf9098bfc5f614ddd3980ef60cfe5f3`
 
 1. [Install PLLM](/learn/start/installation/) with a supported Python version.
 2. [Inspect a private inference plan](/learn/start/first-private-request/) without starting a service or downloading model weights.
 3. [Run the local development benchmark](/learn/start/first-local-benchmark/) through the client, preparation, and inference roles on one machine.
+4. [Connect an SDK or coding agent](/learn/integrations/) through the trusted loopback gateway.
 
 The CLI currently inspects metadata. Its `dev dashboard` command is a developer
 tool, not a production interface. The Python package also exposes planning,

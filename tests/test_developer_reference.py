@@ -140,7 +140,7 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
     assert root == {
         "title": "Command reference",
         "root": True,
-        "pages": ["index", "config", "components", "benchmark", "research", "dev"],
+        "pages": ["index", "gateway", "serve", "config", "components", "benchmark", "research", "dev"],
     }
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "config/meta.json"])["pages"] == [
         "index",
@@ -226,7 +226,7 @@ def test_complete_cli_help_has_exact_parser_parity() -> None:
     for command, help_text in reference.cli_help_sections():
         assert f"$ {command} --help\n{help_text}" in generated
     assert "pllm run" not in generated
-    assert "pllm serve" not in generated
+    assert "$ pllm serve --help" in generated
     assert "$ pllm benchmark run --help" in generated
     assert "$ pllm benchmark search --help" not in generated
     assert "$ pllm benchmark compare --help" not in generated
