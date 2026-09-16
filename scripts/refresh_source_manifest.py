@@ -45,6 +45,42 @@ EXCLUDED_FILES = {
 }
 
 
+def git_blob_contents(paths: list[Path]) -> dict[Path, bytes]:
+    names = [path.relative_to(ROOT).as_posix() for path in paths]
+    hashed = subprocess.run(
+        ["git", "hash-object", "-w", "--filters", "--stdin-paths"],
+        cwd=ROOT,
+        check=True,
+        input=("\n".join(names) + "\n").encode(),
+        stdout=subprocess.PIPE,
+    ).stdout.decode().splitlines()
+    if len(hashed) != len(paths):
+        raise RuntimeError("git did not hash every source file")
+
+    process = subprocess.Popen(
+        ["git", "cat-file", "--batch"],
+        cwd=ROOT,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    process.stdin.write(("\n".join(hashed) + "\n").encode())
+    process.stdin.close()
+    contents: dict[Path, bytes] = {}
+    for path, expected in zip(paths, hashed, strict=True):
+        header = process.stdout.readline().decode().strip().split()
+        if len(header) != 3 or header[:2] != [expected, "blob"]:
+            raise RuntimeError(f"invalid git object for {path.relative_to(ROOT)}")
+        data = process.stdout.read(int(header[2]))
+        if process.stdout.read(1) != b"\n":
+            raise RuntimeError(f"invalid git object boundary for {path.relative_to(ROOT)}")
+        contents[path] = data
+    if process.wait() != 0:
+        raise RuntimeError("git cat-file failed")
+    return contents
+
+
 def main() -> None:
     old = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text())
     listed = subprocess.run(
@@ -68,11 +104,13 @@ def main() -> None:
         and path.suffix not in {".pyc", ".so"}
     }
 
+    ordered_paths = sorted(paths, key=lambda item: item.relative_to(ROOT).as_posix())
+    contents = git_blob_contents(ordered_paths)
     files = []
     checksums = []
-    for path in sorted(paths, key=lambda item: item.relative_to(ROOT).as_posix()):
+    for path in ordered_paths:
         relative = path.relative_to(ROOT).as_posix()
-        data = path.read_bytes()
+        data = contents[path]
         digest = hashlib.sha256(data).hexdigest()
         files.append({"path": relative, "bytes": len(data), "sha256": digest})
         checksums.append(f"{digest}  {relative}")

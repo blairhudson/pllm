@@ -3318,8 +3318,8 @@
     },
     {
       "path": "research/evidence/lifecycle-summary.csv",
-      "bytes": 1156,
-      "sha256": "726155fc1c9fb6dda2e84b6aac5887f2f6e0b1fc8efaaf61add03fd130639afb"
+      "bytes": 1149,
+      "sha256": "83b5fd68c38e8582a7971d74d48c97a6800eef8e86c90daf9f0acfb60e006da6"
     },
     {
       "path": "research/evidence/lifecycle.json",
@@ -3653,8 +3653,8 @@
     },
     {
       "path": "research/lifecycle/results/lifecycle-summary.csv",
-      "bytes": 1156,
-      "sha256": "726155fc1c9fb6dda2e84b6aac5887f2f6e0b1fc8efaaf61add03fd130639afb"
+      "bytes": 1149,
+      "sha256": "83b5fd68c38e8582a7971d74d48c97a6800eef8e86c90daf9f0acfb60e006da6"
     },
     {
       "path": "research/lifecycle/results/lifecycle.json",
@@ -4318,8 +4318,8 @@
     },
     {
       "path": "scripts/check_repository.py",
-      "bytes": 3901,
-      "sha256": "a6647318b7277c2f3031f0b1cee2d0da6fc548b63d78c191294ba4d512ebe34b"
+      "bytes": 4098,
+      "sha256": "96f80a46a5646a8538835029722c0ea1d08c0161d4e3ee8c1fae2e7f7674e33a"
     },
     {
       "path": "scripts/generate_developer_reference.py",
@@ -4353,8 +4353,8 @@
     },
     {
       "path": "scripts/refresh_source_manifest.py",
-      "bytes": 2274,
-      "sha256": "754f016a5b657ef8343b2775978f7576d86a8bf2276363e78bf103a4158142f6"
+      "bytes": 3784,
+      "sha256": "7e5dc76b8c97225bc433484a562b2176df40c9b00711b8c36a533373d6eddffc"
     },
     {
       "path": "scripts/release.py",

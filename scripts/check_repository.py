@@ -6,6 +6,9 @@ import json
 import re
 import tomllib
 from pathlib import Path
+
+from refresh_source_manifest import git_blob_contents
+
 ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
@@ -65,10 +68,12 @@ def main() -> None:
                 assert re.fullmatch(r"[^@]+@[0-9a-f]{40}", action), (path, action)
     manifest = json.loads((ROOT / "SOURCE-MANIFEST.json").read_text())
     checksum_rows = []
-    for item in manifest["files"]:
-        relative = Path(item["path"])
+    entries = [(item, Path(item["path"])) for item in manifest["files"]]
+    for _, relative in entries:
         assert not relative.is_absolute() and ".." not in relative.parts, relative
-        data = (ROOT / relative).read_bytes()
+    contents = git_blob_contents([ROOT / relative for _, relative in entries])
+    for item, relative in entries:
+        data = contents[ROOT / relative]
         digest = hashlib.sha256(data).hexdigest()
         assert len(data) == item["bytes"], relative
         assert digest == item["sha256"], relative
