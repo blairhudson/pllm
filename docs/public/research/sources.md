@@ -6,7 +6,7 @@ See how PLLM records original papers, source artifacts, citations, and licenses.
 
 Document ID: `pllm.docs.research.sources`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:78e297f9e90d757d17bfd710a4b06b06a7f95d66c4f01ba01fff11a7c53508b9`
 
 Every research page identifies its original source with a stable record ID and URL.

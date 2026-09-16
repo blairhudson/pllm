@@ -22,7 +22,7 @@ Treat source discovery, implementation, evidence, and publication as separate st
 - `research/methods/` contains source records, source locks, method records, cards, and citations. `research/recipes/` contains inert planned workflows, not executable research.
 - `research/reference/<method-id>/` is the location for clean-room test references when needed. Production code must not import it.
 - `research/assurance/` contains models and fixtures. `research/evidence/` contains accepted or historical scoped evidence; failed and negative results remain recorded.
-- `schemas/` owns machine-record contracts, `tests/` owns Python composition and conformance tests, and `benchmarks/` contains focused benchmark drivers and controls.
+- `schemas/` owns machine-record contracts, and `tests/` owns Python composition and conformance tests.
 
 ## Find, Add, Test, Compare
 
@@ -47,7 +47,6 @@ cargo test -p pllm-core
 cargo clippy --workspace --all-targets -- -D clippy::correctness
 uv run ruff check python/pllm scripts tests
 uv run pytest
-uv run python scripts/check_repository.py
 uv build
 uv run python scripts/check_distributions.py dist
 ```

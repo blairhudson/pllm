@@ -5,6 +5,7 @@ date: 11 September 2026
 web-date: September 2026
 edition: "04"
 description: A high-performance multi-party inference runtime that prepares one-time masked matrix corrections before online language-model inference.
+pdf: paper.pdf
 subject: private language-model inference, offline correlations, additive masking, systems evaluation
 web-note: Current implementation, protocol boundary, and Qwen2.5-0.5B loopback evaluation.
 abstract: |
@@ -36,19 +37,6 @@ papersize: letter
 geometry: [margin=0.68in, columnsep=0.24in]
 colorlinks: false
 indent: true
-header-includes:
-  - |
-    \ifPDFTeX
-      \usepackage[T1]{fontenc}
-      \usepackage{newtxtext,newtxmath}
-    \else
-      \usepackage{newtxtext}
-    \fi
-    \usepackage{microtype,booktabs,tabularx,tikz,enumitem}
-    \usetikzlibrary{arrows.meta,positioning}
-    \setlist{nosep,leftmargin=*}
-    \setlength{\emergencystretch}{1.5em}
-    \setlength{\parskip}{1.5pt}
 ---
 
 ## Introduction
@@ -197,50 +185,26 @@ and transition overhead. The shortest workload stopped after nine output tokens;
 the other workloads produced 16, so generation throughput is not compared between
 rows.
 
-```{=latex}
-\begin{table}[t]
-\centering\small
-\caption{Current loopback latency; three runs per row.}
-\begin{tabular}{rrrrr}
-\toprule
-Input & Out. & TTFT (range), s & Online, s & Full, s \\
-\midrule
-30 & 9 & 0.978 (0.935--0.982) & 2.618 & 4.674 \\
-63 & 16 & 1.374 (1.353--1.379) & 3.194 & 5.347 \\
-255 & 16 & 5.158 (4.961--5.289) & 7.442 & 13.059 \\
-\bottomrule
-\end{tabular}
-\end{table}
-```
+| Input | Output | TTFT (range), s | Online, s | Full, s |
+|---:|---:|---:|---:|---:|
+| 30 | 9 | 0.978 (0.935--0.982) | 2.618 | 4.674 |
+| 63 | 16 | 1.374 (1.353--1.379) | 3.194 | 5.347 |
+| 255 | 16 | 5.158 (4.961--5.289) | 7.442 | 13.059 |
 
-```{=html}
-<table><caption>Current offline-inventory loopback latency; three runs per row.</caption><thead><tr><th>Input</th><th>Output</th><th>TTFT, s</th><th>Online, s</th><th>Full, s</th></tr></thead><tbody><tr><td>30</td><td>9</td><td>0.978 (0.935--0.982)</td><td>2.618</td><td>4.674</td></tr><tr><td>63</td><td>16</td><td>1.374 (1.353--1.379)</td><td>3.194</td><td>5.347</td></tr><tr><td>255</td><td>16</td><td>5.158 (4.961--5.289)</td><td>7.442</td><td>13.059</td></tr></tbody></table>
-```
+: Current loopback latency; three runs per row.
 
 **Traffic and preparation.** Client traffic grows with activation rows and stage
 width. Correction bytes move from Preparation to Inference before online timing.
 The stage-row count is total matrix work across all 96 remote stages. The retained
 aggregate does not claim a per-run burn count.
 
-```{=latex}
-\begin{table}[t]
-\centering\small
-\caption{Lifecycle traffic and offline preparation.}
-\begin{tabular}{rrrr}
-\toprule
-Input & Client I/O & Correction push & Stage rows \\
-\midrule
-30 & 63.33 MB & 59.80 MB & 6,144 \\
-63 & 126.29 MB & 72.88 MB & 7,488 \\
-255 & 432.71 MB & 252.18 MB & 25,920 \\
-\bottomrule
-\end{tabular}
-\end{table}
-```
+| Input | Client I/O | Correction push | Stage rows |
+|---:|---:|---:|---:|
+| 30 | 63.33 MB | 59.80 MB | 6,144 |
+| 63 | 126.29 MB | 72.88 MB | 7,488 |
+| 255 | 432.71 MB | 252.18 MB | 25,920 |
 
-```{=html}
-<table><caption>Lifecycle traffic and offline preparation.</caption><thead><tr><th>Input</th><th>Client I/O</th><th>Correction push</th><th>Stage rows</th></tr></thead><tbody><tr><td>30</td><td>63.33 MB</td><td>59.80 MB</td><td>6,144</td></tr><tr><td>63</td><td>126.29 MB</td><td>72.88 MB</td><td>7,488</td></tr><tr><td>255</td><td>432.71 MB</td><td>252.18 MB</td><td>25,920</td></tr></tbody></table>
-```
+: Lifecycle traffic and offline preparation.
 
 All nine records shared the retained model and body fingerprints, recorded zero
 online Preparation requests and operations, and recorded zero plaintext prompt and

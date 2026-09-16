@@ -114,7 +114,6 @@ function titleForHtml(id, content) {
 function descriptionForHtml(id, content) {
   if (id === 'pllm.home') return 'Private language model inference. Client and server guides, the protocol, and reproducible research.';
   if (id === 'pllm.research') return 'The mission, protocol, and evidence for a global market in private AI compute.';
-  if (id === 'pllm.research.whitepaper') return 'A two-page overview of PLLM prepared private inference.';
   throw new Error(`Missing HTML description: ${id}`);
 }
 
@@ -257,8 +256,8 @@ export function plainHtml(value) {
 }
 
 export function whitepaperWordCount(root = siteRoot) {
-  const source = fs.readFileSync(path.join(root, 'content', 'whitepaper.html'), 'utf8');
-  return plainHtml(source).match(/[A-Za-z0-9]+(?:[.'-][A-Za-z0-9]+)*/g)?.length ?? 0;
+  const source = fs.readFileSync(path.join(root, 'content', 'research', 'whitepaper.mdx'), 'utf8');
+  return plain(source).match(/[A-Za-z0-9]+(?:[.'-][A-Za-z0-9]+)*/g)?.length ?? 0;
 }
 
 function localTarget(href) {

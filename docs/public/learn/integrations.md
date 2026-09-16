@@ -6,7 +6,7 @@ Connect OpenAI-compatible SDKs and coding agents to the trusted local PLLM gatew
 
 Document ID: `pllm.docs.learn.integrations`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:67e583054b763f0a58823eb8151468ce268b4953749f688088b29ffb181e0277`
 
 PLLM puts a client-controlled gateway between an application and the preparation

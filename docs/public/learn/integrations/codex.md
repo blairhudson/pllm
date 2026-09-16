@@ -6,7 +6,7 @@ Configure Codex CLI to use PLLM as a custom Responses API provider.
 
 Document ID: `pllm.docs.learn.integrations.codex`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:d7daaed526a26cefacfbcfd5219a1d21a5e6ccadaa4aa4727ffb420da5b1c49f`
 
 Add this provider to user-level `~/.codex/config.toml`:

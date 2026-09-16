@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#0b171b"/><path d="M19 47V18h14c10 0 16 6 16 14s-6 14-16 14h-4V35h4c3 0 5-1 5-4s-2-4-5-4h-4v20z" fill="#c1f68d"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120">
+  <defs>
+    <mask id="left-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="180" height="120">
+      <rect width="180" height="120" fill="white"/>
+      <circle cx="120" cy="60" r="60" fill="black"/>
+    </mask>
+
+    <mask id="right-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="180" height="120">
+      <rect width="180" height="120" fill="white"/>
+      <circle cx="60" cy="60" r="60" fill="black"/>
+    </mask>
+  </defs>
+
+  <circle cx="60" cy="60" r="60" fill="#F4F6F1" mask="url(#left-cut)"/>
+  <circle cx="120" cy="60" r="60" fill="#B8FF7A" mask="url(#right-cut)"/>
+</svg>

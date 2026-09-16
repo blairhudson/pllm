@@ -18,7 +18,7 @@ test('downloads and search use the project path once', () => {
   assert.equal(withBasePath('/search-index.json', '/pllm'), '/pllm/search-index.json');
   assert.equal(withBasePath('/pllm/llms.txt', '/pllm'), '/pllm/llms.txt');
   assert.equal(withBasePath('/research/whitepaper/', '/pllm'), '/pllm/research/whitepaper/');
-  assert.equal(withBasePath('/downloads/whitepaper.tex', '/pllm'), '/pllm/downloads/whitepaper.tex');
+  assert.equal(withBasePath('/downloads/whitepaper-source.zip', '/pllm'), '/pllm/downloads/whitepaper-source.zip');
 });
 test('external links, anchors and protocol relative links stay unchanged', () => {
   for (const href of ['https://example.com', '//cdn.example.com/a', '#start', 'mailto:hello@example.com']) {

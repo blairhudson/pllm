@@ -205,8 +205,7 @@ bun test
 bun run build
 ```
 
-See [VALIDATION.md](VALIDATION.md) for the checks that have been run and
-[RELEASING.md](RELEASING.md) for release instructions.
+See [RELEASING.md](RELEASING.md) for release instructions.
 
 ## Repository boundaries
 

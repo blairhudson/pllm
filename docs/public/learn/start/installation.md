@@ -6,7 +6,7 @@ Install the Python package and verify the CLI without loading a model or contact
 
 Document ID: `pllm.docs.start.installation`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:bc8da7896bdfc0868f416717d585fe986e9f8042271812477bb16b6684f1fef5`
 
 PLLM supports Python 3.11 through 3.13. Install the command from

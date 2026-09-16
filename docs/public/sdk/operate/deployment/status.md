@@ -6,7 +6,7 @@ Understand current deployment support, required role placement, and missing orch
 
 Document ID: `pllm.docs.operate.deployment`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:320cf49735cbf4d8396953563062d172799336adc709cb3c3ad376b56da4aab9`
 
 Deployment declarations currently support local public configuration. Public CLI commands start the trusted gateway and separate inference and preparation roles, but generic remote `Deployment`, plan-locked role orchestration, operator identity provisioning, and production recovery are not established.

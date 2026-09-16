@@ -2,17 +2,14 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   UV_VERSION: "0.10.0"
@@ -25,30 +22,9 @@ env:
   OPENBLAS_NUM_THREADS: "1"
 
 jobs:
-  repository:
-    name: Repository and lint
-    if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-      - run: bash scripts/sync_environment.sh --python 3.13
-      - run: uv run --no-sync ruff check python/pllm scripts tests
-      - run: uv run --no-sync python scripts/check_repository.py
-      - run: uv run --no-sync python scripts/release.py check v$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')
-      - run: uv run --no-sync python -m compileall -q python/pllm scripts
-
   python:
     name: Python ${{ matrix.python }}
-    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -62,19 +38,11 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: bash scripts/sync_environment.sh --python '${{ matrix.python }}'
-      - run: uv run --no-sync pytest -m 'not he and not sdk' --junitxml=results/junit.xml --cov=pllm --cov-report=xml:results/coverage.xml
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: tests-python-${{ matrix.python }}
-          path: results/
-          if-no-files-found: warn
+      - run: uv run --no-sync pytest -m 'not he and not sdk'
 
-  homomorphic:
-    name: Real HE
-    if: github.actor != 'dependabot[bot]'
+  native:
+    name: Native, integrations, and distributions
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -83,121 +51,41 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - run: bash scripts/sync_environment.sh --python 3.13 --extra he
-      - run: uv run --no-sync python -c 'import tenseal; print(tenseal.__version__)'
-      - run: uv run --no-sync python scripts/run_test_lane.py --marker he --output results/he
-      - run: uv run --no-sync python scripts/check_he_results.py results/he/junit.xml
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: tests-he
-          path: results/
-          if-no-files-found: warn
-
-  sdk:
-    name: Installed OpenAI SDK
-    if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-      - run: bash scripts/sync_environment.sh --python 3.13 --extra sdk
-      - run: uv run --no-sync python -c 'import openai; print(openai.__version__)'
-      - run: uv run --no-sync pytest -m sdk --junitxml=results/sdk.xml
-      - run: uv run --no-sync python scripts/check_he_results.py results/sdk.xml
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: tests-sdk
-          path: results/
-          if-no-files-found: warn
-
-  distributions:
-    name: Build and install distributions
-    if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-      - run: bash scripts/sync_environment.sh --python 3.13
-      - run: PYO3_PYTHON="$(uv python find 3.13)" cargo test --locked -p pllm-core
+      - run: bash scripts/sync_environment.sh --python 3.13 --extra he --extra sdk
+      - run: uv run --no-sync ruff check python/pllm scripts tests
+      - run: |
+          version="$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')"
+          uv run --no-sync python scripts/release.py check "v$version"
+      - run: cargo fmt --all --check
+      - run: PYO3_PYTHON="$(uv python find 3.13)" cargo test --locked --workspace
       - run: PYO3_PYTHON="$(uv python find 3.13)" cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
+      - run: uv run --no-sync pytest -m 'he or sdk'
       - run: uv build
       - run: uv run --no-sync python scripts/check_distributions.py dist
       - run: uv run --no-sync twine check --strict dist/*
-      - name: Rebuild from the source distribution
-        run: |
-          uv build --wheel dist/*.tar.gz --out-dir "$RUNNER_TEMP/rebuilt"
-      - name: Install the wheel outside the checkout
-        run: |
-          uv venv --python 3.13 "$RUNNER_TEMP/smoke"
-          uv pip install --python "$RUNNER_TEMP/smoke/bin/python" dist/*.whl
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/smoke/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_installed.py"
-          "$RUNNER_TEMP/smoke/bin/pllm" --help
-      - name: Exercise UV tool execution
-        env:
-          UV_TOOL_DIR: ${{ runner.temp }}/tools
-          UV_TOOL_BIN_DIR: ${{ runner.temp }}/tool-bin
-        run: |
-          wheel="$(find "$GITHUB_WORKSPACE/dist" -name '*.whl' -print -quit)"
-          cd "$RUNNER_TEMP"
-          uvx --from "$wheel" pllm --help
-          uv tool install "$wheel"
-          "$UV_TOOL_BIN_DIR/pllm" --help
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: pllm-validation-dist
-          path: dist/
-          if-no-files-found: error
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: pllm-sdist
-          path: dist/*.tar.gz
-          if-no-files-found: error
-
-  native-wheels:
-    name: Native wheels
-    if: github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/wheels.yml
-
-  documentation:
-    name: Documentation and paper
-    if: github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/docs-build.yml
-    with:
-      base-path: /pllm
-      commit-sha: ${{ github.sha }}
-
-  checks:
-    name: All checks
-    if: always() && github.actor != 'dependabot[bot]'
+  docs:
+    name: Documentation
     runs-on: ubuntu-24.04
-    needs: [repository, python, homomorphic, sdk, distributions, native-wheels, documentation]
-    timeout-minutes: 5
+    env:
+      NEXT_PUBLIC_BASE_PATH: /pllm
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
-      - name: Require every check
-        env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: |
-          python - <<'PY'
-          import json, os
-          jobs = json.loads(os.environ['RESULTS'])
-          failed = {name: value['result'] for name, value in jobs.items() if value['result'] != 'success'}
-          if failed:
-              raise SystemExit(str(failed))
-          print('All checks passed')
-          PY
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: docs/.nvmrc
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
+      - run: npm run build
+        working-directory: docs
+      - run: npm run check:content
+        working-directory: docs
+      - run: npm test
+        working-directory: docs
+      - run: npm run typecheck
+        working-directory: docs

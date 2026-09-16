@@ -6,7 +6,7 @@ Start authenticated inference and preparation services without exposing applicat
 
 Document ID: `pllm.docs.cli.provider-roles`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:bfbd013d5e76b35ca98c7b602570ab9e55b90650e78453cd3c2c44e40e6be155`
 
 Provider operators run separate computation roles:

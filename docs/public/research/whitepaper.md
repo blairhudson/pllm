@@ -1,4 +1,4 @@
-# Private inference for an open compute world
+# Private inference as infrastructure
 
 A two-page overview of PLLM prepared private inference.
 
@@ -6,85 +6,91 @@ A two-page overview of PLLM prepared private inference.
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
-Source hash: `sha256:044280458996ff93941a715d8d9d317143933fae9928b2f7874e0fe23a6d0607`
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
+Source hash: `sha256:b9e187d12f9e5dca960084dc22beab7f488b6759fa8320dc1a19cf0d6e970655`
 
-[Download PDF ↓](/downloads/whitepaper.pdf)
+[Download PDF ↗](/downloads/whitepaper.pdf)
 
-# Private inference for an open compute world
+PLLM turns a language-model request into a structured computation that can be split across separately operated services. Its current implementation targets public-weight transformer inference with an offline Preparation service, an online Inference service, and a client that retains plaintext, model state, and output decoding.
 
-Private inference can let organizations use remote AI compute without exposing prompts, context, or generated output to the infrastructure provider. PLLM keeps sensitive data on the client and sends protected inference requests to remote services. This design could support a broader market of independent compute providers without requiring users to trust one provider with all of their data.
+The project is open source, implemented as a Python package with a Rust native core, and designed to make protocol boundaries inspectable rather than hidden behind a conventional model endpoint.
 
-> Diagram: Three-role prepared inference architecture. Before chat, the client sends root seeds to trusted preparation, which sends correction inventory to inference. During chat, the client sends a one-time ticket and masked activation to inference, receives a masked result, and unmasks it locally. A non-collusion boundary separates preparation from inference.
+## The problem
 
-## What PLLM changes
+Ordinary hosted inference asks users to trust a single provider with prompts, activations, and generation state. Encryption in transit protects the network path, but the server still receives the request in plaintext.
 
-Ordinary hosted inference bundles computation with access to prompts and generated text. PLLM instead keeps tokenization, nonlinear operations, attention state, sampling, and decoding in the client environment. Public transformer-body matrices run remotely as masked integer projections. Compute can therefore be selected independently from willingness to disclose client language. This is a protocol boundary, not a URL setting.[1]
+Private inference changes that trust boundary. The client must remain the only place where the request and model state are assembled, while remote providers perform useful model work on protected values.
 
-## Prepared inventory
+PLLM focuses on the systems consequences of that requirement:
 
-Before chat, the client commits an inventory to one model, body, stage set, quantization profile, and attempt budget. It sends one domain-separated root seed per stage to preparation. Preparation expands one-time input masks *r*, output masks *s*, and tickets, computes *Wr - s*, then pushes each batch to inference. Inference acknowledges accepted stage batches and seals the inventory `READY`.
+- model execution must be decomposed into explicit semantic and numeric operations;
+- protocol roles need distinct identities, credentials, and state;
+- offline work must be bound to the exact model and online computation;
+- one-time material must be consumed or burned on every terminal path; and
+- measurements must distinguish implemented paths from research proposals.
 
-W(x - r) + (Wr - s) = Wx - s
+## Current architecture
 
-Online, inference atomically consumes a ticket and returns the masked result; the client adds *s*. Prefill rows share a compact matrix envelope, while decode retains one ticket per stage on a persistent connection. Unused reserved rows burn on cancellation or failure. Inventory is memory-only and disappears on restart or idle expiry.[1]
+The current public-weight protocol has three roles.
 
-## Boundary, not invisibility
+| Client | Preparation | Inference |
+|----|----|----|
+| Owns prompts, tokenization, nonlinear state, masks, scales, and decoding | Holds the public transformer body and computes offline masked corrections | Holds the same public body and evaluates masked online tensors |
+| Sends fresh root seeds before a request | Expands each seed into one-use masks and uploads `W r - s` | Stores corrections in a sealed inventory |
+| Sends only tickets and `x - r` online | Is idle while tokens are generated | Returns `W x - s`; the client adds `s` |
 
-**Protected from inference:**  plaintext prompts and outputs, token identities, root seeds, masks, activation scales, local attention and recurrent state, and sampling choices. Preparation sees seeds and bound stage metadata, but not online masked activations. Inference sees corrections and masked activations, but not seeds.
+For a public matrix `W`, client activation `x`, input mask `r`, and output mask `s`, Preparation computes `W r - s` before chat. During online execution, Inference receives `x-r` and returns `W(x-r)+(Wr-s)=Wx-s`. The client adds `s` and center-decodes the result.
 
-**Still exposed:**  both services know the public model, stage names, tensor shapes, quantization profile, scheduling, timing, traffic volume, and approximate sequence lengths. Preparation must follow the protocol, erase expanded masks, and not collude with inference. Two services under one untrusted operator do not meet this assumption; authentication and TLS protect channels but do not prove independence, erasure, or correct model execution.[2]
+This moves heavy mask-correlated matrix work out of the token loop. The online path contacts only Inference. Preparation never receives the online activation, and Inference never receives the preparation seed.
 
-SHAKE-256 expands each fresh root seed into pseudorandom masks. Under that computational assumption, each masked activation hides its input from inference when viewed alone. The claim assumes protocol-conforming roles, mask non-retention, and non-collusion; Python releases masks after use but verified physical zeroization is not established. Deployment review must therefore name operators and log-access paths, not merely count endpoints.
+The client evaluates token lookup and the output head locally for public bundles. Transformer-body matrices stay remote. Prefill batches rows by stage; decode uses persistent authenticated WebSockets. Native Rust kernels select bounded 16-, 24-, or 32-bit rings from exact output bounds.
 
-PLLM / 01 OF 02
+## Security boundary
 
-## A world of compute, without exposing client data.
+The current protocol assumes that Preparation and Inference follow the computation and do not collude. Preparation must erase expanded masks. Inference must enforce one-use inventory consumption. A single operator controlling both services can recombine protocol information and defeat the intended separation.
 
-> Diagram: Private inference market flywheel. Protect client language, admit independent compute, route by price and energy, and expand access.
+This is not an actively malicious security claim. The simulator, authenticated transports, and replay controls test implementation behavior; they do not prove security against arbitrary deviation. Self-hosting Preparation keeps its trust inside the client boundary, but it does not create independent operators.
 
-## Use more sources of compute
+PLLM also contains shared-transformer and garbling research components. They remain experimental. The preferred complete execution profile stays blocked until its operator coverage, truncation, quality, and security requirements are met.
 
-Masked execution separates the choice of compute from access to client data. Regional clouds, renewable projects, sovereign infrastructure, colocation operators, and independent machines could compete without receiving client language. Participation still requires compatible execution, availability, credentials, and market rules, but not permission to read the workload.
+## What is implemented
 
-## Follow available energy
+The repository currently provides:
 
-Solar generation, grid congestion, and idle capacity vary by place and hour. A scheduler could move masked public-model work toward abundant renewable generation and replenish offline inventory where latency matters less. Privacy makes broader routing plausible; dependent client exchanges, correction placement, distance, and operator separation remain physical constraints. PLLM does not yet measure an energy saving.
+- semantic lowering for supported Qwen, Gemma, and Phi-family configurations;
+- immutable plan and research-component APIs;
+- native bounded matrix kernels and scalar reference paths;
+- one-use prepared correction inventories;
+- loopback benchmark and telemetry tooling;
+- a local Responses API and Chat Completions API gateway; and
+- reproducible paper, evidence, and documentation builds.
 
-## Price the complete lifecycle
+These are separate support axes. Lowering a complete semantic plan does not imply that the compiler can execute it. A transport benchmark does not establish output quality. A loopback deployment does not establish provider independence.
 
-| Client | Local model work, state, memory and traffic |
-| --- | --- |
-| Preparation | Body storage, matrix work, correction egress and erasure |
-| Inference | Masked compute, inventory, traffic and tickets |
-| Market | Discovery, settlement, verification and operator separation |
+## Evidence
 
-Broader supply can create price pressure and widen access. This is a market mechanism, not a measured savings result.
+The retained current-runtime study contains nine warm Qwen2.5-0.5B-Instruct runs on one CPU loopback host. It records exact workload dimensions, protocol byte counts, preparation state, latency distributions, and zero plaintext prompt or token telemetry bytes.
 
-## Remove direct access to plaintext
+The cohort demonstrates repeatable execution of the implemented three-role transport. It does not establish WAN or GPU performance, energy use, operating price, concurrency, model quality, malicious security, or production non-collusion.
 
-Inference receives tickets and *x-r*; Preparation receives seeds and commitments. Neither service receives plaintext prompts, token IDs, or decoded output. If both services follow the protocol, do not retain masks, and do not collude, neither has the direct plaintext stream that one provider could otherwise keep for training. This is not a universal guarantee against learning: metadata remains visible, and collusion defeats the split.[2]
+Every public claim should therefore remain bound to an immutable model body, protocol profile, source revision, workload, and evidence record.
 
-## Current implementation evidence
+## Why the compiler matters
 
-Nine warm Qwen2.5-0.5B runs used revision `277d19f` on an Apple M5, with three repetitions per exact context after one warmup.[3]
+Privacy methods are not interchangeable wrappers around a model. Each method changes supported operators, numeric representation, communication, persistent state, and trust assumptions.
 
-| Input tokens | Output | TTFT | Client I/O |
-| --- | --- | --- | --- |
-| 30 | 9 | 0.978 s | 63.33 MB |
-| 63 | 16 | 1.374 s | 126.29 MB |
-| 255 | 16 | 5.158 s | 432.71 MB |
+PLLM lowers model-specific configurations into a neutral decoder IR. Research transformations operate on semantic components rather than parsing adapter-specific names. Compilation then resolves numeric, protected, and placement graphs into an immutable plan. Unsupported coverage fails closed instead of silently moving private regions to plaintext execution.
 
-All records completed authoritatively with one retained model/body fingerprint pair, zero online Preparation protocol work, and zero plaintext prompt/token-byte audit counters. These are CPU loopback results, not WAN, GPU, energy, price, or quality results.
+This separation lets researchers compare methods against the same model semantics and makes missing coverage visible before deployment.
 
-## Deployment gates
+## Direction
 
-Preparation must be independently controlled or client-hosted; target-model quality must pass; the full cost ledger must beat explicit ceilings; and credential separation, erasure, restart behavior, and incident response must survive a pilot.
+PLLM’s near-term objective is a complete, reproducible Qwen execution profile with explicit privacy and quality bounds. Longer-term work includes exact secure truncation, protected nonlinear execution, shared KV state, compact token selection, multi-host evaluation, and deployment evidence.
 
-## References
+The project does not assume that one protocol will dominate every layer. Its architecture is built for composition: model adapters describe meaning, components describe transformations, compilers enforce coverage, and evidence records what actually ran.
 
-[1] PLLM, [Private inference](https://pllm.run/understand/architecture/).
-[2] PLLM, [Security boundaries](https://pllm.run/understand/privacy-assurance/).
-[3] PLLM, [Run your own benchmark](https://pllm.run/measure/reproduce/); [retained study data](https://pllm.run/downloads/current-runtime-2026-09-11.json).
+## Reproduce and inspect
 
-PLLM / 02 OF 02
+The source repository contains the runtime, compiler, paper sources, benchmark records, and documentation. Start with the [architecture](/learn/understand/architecture/), [privacy boundaries](/learn/understand/privacy-assurance/), and [reproduction guide](/research/recipes/reproduce/).
+
+Download the [technical paper](/downloads/paper.pdf), [current evidence record](/downloads/current-runtime-2026-09-11.json), or source archives from the research site.

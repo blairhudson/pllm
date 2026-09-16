@@ -8,7 +8,7 @@ Qwen3.5-27B stage dimensions, and runs separate client/server processes for a
 small trained decoder fixture.
 
 Paper source is `../../paper/manuscript.md`; built PDF is
-`../../paper/main.pdf`. Raw records are in `results/` and retained copies are in
+`../../paper/paper.pdf`. Raw records are in `results/` and retained copies are in
 `../evidence/`. Large-stage dimensions come from saved public configuration
 analysis. No Qwen checkpoint was loaded or evaluated.
 

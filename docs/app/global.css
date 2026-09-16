@@ -30,6 +30,13 @@
 #nd-page article, #nd-page .prose { max-width:78ch; }
 .docs-root .doc-actions { margin-bottom:28px; }
 
+.brand-icon {
+  display: block;
+  width: 30px;
+  height: 20px;
+  flex: none;
+}
+
 .docs-section-switcher {
   display: grid;
   gap: .85rem;
@@ -139,11 +146,21 @@
 }
 
 .docs-mobile-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
   color: var(--text);
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: -.04em;
   text-decoration: none;
+}
+
+.docs-mobile-brand img {
+  display: block;
+  width: 24px;
+  height: 16px;
+  flex: none;
 }
 
 .docs-area-switcher {

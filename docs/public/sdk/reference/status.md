@@ -6,7 +6,7 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:44befdfec958ea8f10d949ff801516dad84735f218db096f1a7317c20999b53d`
 
 Checked 16 September 2026.

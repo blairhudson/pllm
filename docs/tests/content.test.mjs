@@ -370,8 +370,8 @@ test('CLI navigation lists tasks directly with command and cross-area links', ()
 test('all local links and fragments resolve', () => assert.deepEqual(validate().errors, []));
 
 test('standalone publication pages remain in content graph', () => {
-  assert.deepEqual(standalone.map((page) => page.canonicalUrl), ['/', '/research/', '/research/whitepaper/']);
-  assert.deepEqual(readSearchPages().filter((page) => page.sourcePath.endsWith('.html')).map((page) => page.id), ['pllm.home', 'pllm.research', 'pllm.research.whitepaper']);
+  assert.deepEqual(standalone.map((page) => page.canonicalUrl), ['/', '/research/']);
+  assert.deepEqual(readSearchPages().filter((page) => page.sourcePath.endsWith('.html')).map((page) => page.id), ['pllm.home', 'pllm.research']);
 });
 
 test('documented commands use only the current CLI and development dashboard', () => {
@@ -542,7 +542,7 @@ test('public copy uses standard technical English and fixed support labels', () 
 });
 
 test('paper, whitepaper, evidence, and generated CLI help remain downloadable', () => {
-  for (const file of ['paper.pdf', 'paper-source.zip', 'whitepaper.pdf', 'whitepaper.tex', 'current-runtime-2026-09-11.json', 'evidence.zip', 'cli-help.txt']) {
+  for (const file of ['paper.pdf', 'paper-source.zip', 'whitepaper.pdf', 'whitepaper-source.zip', 'current-runtime-2026-09-11.json', 'evidence.zip', 'cli-help.txt']) {
     assert.ok(fs.statSync(path.join(siteRoot, 'public/downloads', file)).size > 0, file);
   }
 });
@@ -553,7 +553,7 @@ test('static export, local assets, and canonical metadata remain configured', ()
   assert.ok(nextConfig.includes("config.output = 'export'"));
   assert.ok(nextConfig.includes("allowedDevOrigins: ['127.0.0.1']"));
   assert.ok(!fs.readFileSync(path.join(siteRoot, 'app/layout.tsx'), 'utf8').includes('next/font/google'));
-  for (const file of ['app/page.tsx', 'app/research/page.tsx', 'app/research/whitepaper/page.tsx', 'app/research/[...slug]/page.tsx', 'app/_docs-page.tsx']) {
+  for (const file of ['app/page.tsx', 'app/research/page.tsx', 'app/research/[...slug]/page.tsx', 'app/_docs-page.tsx']) {
     assert.ok(fs.readFileSync(path.join(siteRoot, file), 'utf8').includes('canonical'), file);
   }
   assert.ok(fs.existsSync(path.join(siteRoot, 'app/(docs)/[...slug]/page.tsx')));

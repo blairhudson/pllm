@@ -10,5 +10,5 @@ keep measurements and scoped assurance outcomes separate from claims.
 Research provenance uses separate source-record, upstream-artifact-lock, method-record, and
 reproduction-recipe schemas. Recipe source acquisition and workflow execution are independent.
 
-Run `python3 research/validate.py` for dependency-free repository integrity and experiment-fixture
-checks. Production YAML parity is covered by `tests/test_configuration.py`.
+Run `python3 research/validate.py` for dependency-free schema and experiment-fixture checks.
+Production YAML parity is covered by `tests/test_configuration.py`.

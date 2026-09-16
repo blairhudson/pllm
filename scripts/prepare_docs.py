@@ -1,7 +1,6 @@
-"""Copy the built paper and create source/evidence downloads for the static site."""
+"""Create evidence downloads for the static site."""
 
 from __future__ import annotations
-import argparse
 import hashlib
 import shutil
 import zipfile
@@ -29,32 +28,8 @@ def zip_files(output: Path, root: Path, files: list[Path]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--paper", type=Path, default=ROOT / "paper/main.pdf")
-    args = parser.parse_args()
-    if not args.paper.is_file():
-        parser.error("Build the paper first with make paper (or pass --paper PATH)")
     downloads = ROOT / "docs/public/downloads"
     downloads.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(args.paper, downloads / "paper.pdf")
-    files = [
-        ROOT / "LICENSE",
-        *(
-            ROOT / "paper" / name
-            for name in (
-                "IMPLEMENTATION-STATUS.md",
-                "Makefile",
-                "README.md",
-                "manuscript.md",
-                "paper.lua",
-                "references.bib",
-                "web.template.md",
-            )
-        ),
-        ROOT / "scripts/build_paper.py",
-        ROOT / "research/evidence/current-runtime-2026-09-11.json",
-    ]
-    zip_files(downloads / "paper-source.zip", ROOT, files)
     evidence = ROOT / "research/evidence"
     files = [
         p
@@ -68,7 +43,7 @@ def main() -> None:
         downloads / "current-runtime-2026-09-11.json",
     )
     (ROOT / "docs/public/.nojekyll").touch()
-    print(f"Prepared {len(files)} evidence files and manuscript downloads")
+    print(f"Prepared {len(files)} evidence files")
 
 
 if __name__ == "__main__":

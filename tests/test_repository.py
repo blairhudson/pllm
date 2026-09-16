@@ -48,7 +48,9 @@ def test_build_version_is_single_source():
     assert citation["version"] == release_module().version()
 
 def test_all_workflows_parse_and_external_actions_are_pinned():
-    for path in (ROOT / ".github/workflows").glob("*.yml"):
+    workflows = list((ROOT / ".github/workflows").glob("*.yml"))
+    assert {path.name for path in workflows} == {"ci.yml", "pages.yml", "release.yml"}
+    for path in workflows:
         content = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
         assert "on" in content and "jobs" in content
         assert "pull_request_target" not in content["on"]
@@ -60,8 +62,18 @@ def test_release_jobs_separate_build_and_credentials():
     workflow = yaml.load((ROOT / ".github/workflows/release.yml").read_text(), Loader=yaml.BaseLoader)
     assert workflow["jobs"]["pypi"]["permissions"] == {"id-token": "write"}
     assert workflow["jobs"]["pypi"]["environment"]["name"] == "pypi"
-    assert "verify" in workflow["jobs"]["pypi"]["needs"]
+    assert set(workflow["jobs"]["pypi"]["needs"]) == {"sdist", "wheels"}
     assert "PYPI_TOKEN" not in (ROOT / ".github/workflows/release.yml").read_text()
+
+def test_pages_deployment_targets_are_separate():
+    path = ROOT / ".github/workflows/pages.yml"
+    workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
+    assert workflow["on"]["push"]["branches"] == ["main"]
+    assert "workflow_dispatch" in workflow["on"]
+    text = path.read_text()
+    assert "pllm-non" in text and "PLLM_NON_PAGES_API_TOKEN" in text
+    assert "pllm-production" in text and "PLLM_PRODUCTION_PAGES_API_TOKEN" in text
+    assert "blairhudson/restack/actions/run@" in text
 
 def test_docs_are_fumadocs_not_retired_mkdocs():
     project = json.loads((ROOT / "docs/package.json").read_text())

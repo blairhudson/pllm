@@ -6,7 +6,7 @@ Understand what the client, preparation service, inference service, and operator
 
 Document ID: `pllm.docs.understand.trust-boundary`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:fef1568144f0f8f9a318f91dd19b04b81e8baf86b003617ab8f5d5754c7fdcac`
 
 Client owns plaintext prompts, token identities, decoded output, and authorization decisions. Preparation and inference are distinct roles in protected methods that require them; co-location tests protocol wiring but does not prove non-collusion. Provider describes component implementation. Operator controls deployed process, credentials, storage, and policy. These names are not interchangeable.

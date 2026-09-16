@@ -24,7 +24,6 @@ docs/                             Rendered user/developer documentation source a
 research/                         Sources, methods, recipes, assurance models, and evidence
 examples/                         Tested examples; never normative by themselves
 tests/                            Python, integration, packaging, and contract tests
-benchmarks/                       Benchmark drivers and public fixtures, not result claims
 scripts/                          Repository, release, docs, and validation tooling
 deploy/, infra/                   Deployment templates and infrastructure policy
 verification/                    Implementation verification assets when present
@@ -214,15 +213,10 @@ scrubbed evidence. Installed defaults follow platform directories: configuration
 
 Copying a directory, restoring a snapshot, or finding a cache entry MUST NOT authorize reuse of
 consumed material. Public and secret role slices are delivered separately. Secret state, prompts,
-outputs, credentials, and private model material MUST NOT enter benchmark exports, source manifests,
+outputs, credentials, and private model material MUST NOT enter benchmark exports, release archives,
 crash reports, or telemetry by default.
 
-## Source manifests and releases
-
-`SOURCE-MANIFEST.json` and `SHA256SUMS.txt` inventory committed source, not mutable runtime data.
-Generation MUST be deterministic, use repository-relative normalized paths, exclude generated
-binaries/caches/secrets, and fail when a required source disappears unexpectedly. New canonical
-roots, including `design/` and `schemas/`, MUST be covered.
+## Releases
 
 Release rules:
 

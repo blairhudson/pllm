@@ -1,50 +1,29 @@
-# Current offline-inventory study
+# PLLM papers
 
-`manuscript.md` is the canonical source for the current public-weight inference
-paper. The measured runtime evidence is retained in
-`../research/evidence/current-runtime-2026-09-11.json`; citations are maintained
-in `references.bib`.
+`manuscript.md` and `whitepaper.md` are the canonical sources. Pandoc produces
+the PDFs and website MDX from those files; `header.tex` contains the small amount
+of shared LaTeX needed by the two-column PDF layout.
 
 ## Build
 
-From the repository root:
+Install Pandoc, `pdfinfo`, and either Tectonic or pdfLaTeX, then run from the
+repository root:
 
 ```bash
-uv run --no-project --python 3.13 python scripts/build_paper.py pdf
+uv run --no-project --python 3.13 python scripts/build_papers.py
 ```
 
-The `pdf` target emits all submission-facing files together:
+Pass `paper` or `whitepaper` to build one document. Pass `--pdf-only` when
+building an extracted source archive without the documentation tree.
 
-- `paper/main.tex`: standalone Pandoc-generated LaTeX; do not edit directly.
-- `paper/main.pdf`: compiled from that exact `main.tex`, with a four-page limit.
-- `paper/build-metadata.json`: source hashes, Git revision, normalized timestamp,
-  and tool versions.
-- `paper/arxiv-source.tar.gz`: deterministic submission archive with a
-  self-contained root `main.tex`, build note, and metadata. The build extracts
-  the archive and compiles that copy as its final portability check.
-
-The website article remains a separate generated target:
-
-```bash
-uv run --no-project --python 3.13 python scripts/build_paper.py web
-```
-
-With no target, the script builds both paper artifacts and website article.
-Install Pandoc and either Tectonic or pdfLaTeX. Set `SOURCE_DATE_EPOCH` to an
-integer Unix timestamp for a caller-selected normalized build time; otherwise
-the script uses the current Git commit time.
+The build enforces US Letter output and page limits of four pages for the
+technical paper and two pages for the whitepaper. It writes PDFs under `paper/`,
+copies downloadable PDFs and deterministic source archives to
+`docs/public/downloads/`, and renders the website pages under
+`docs/content/research/`.
 
 ## Scope boundary
 
-The paper reports the implemented three-role offline-inventory path and one
-retained Qwen2.5-0.5B CPU loopback study. It does not report WAN, GPU, energy,
-price, concurrency, malicious-provider, or output-quality results. Historical
-BFV artifacts remain under `../research/lifecycle` and are not evidence for the
-paper's current-runtime measurements.
-
-## Submission metadata
-
-The manuscript lists Blair Hudson as draft author. Before submission, choose the
-final author list/order, affiliations and ORCIDs, primary/cross-list arXiv
-categories, arXiv distribution license, and whether to reserve or later add a
-DOI. Build tooling does not guess these fields.
+The technical paper reports the implemented three-role offline-inventory path
+and the retained Qwen2.5-0.5B CPU loopback study. It does not report WAN, GPU,
+energy, price, concurrency, malicious-provider, or output-quality results.

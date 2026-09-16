@@ -124,7 +124,7 @@ const declaredPublicationRegistry = {
     page('pllm.research', 'content/research.html', '/research', 'research-landing'),
     page('pllm.research.paper', 'content/research/paper.mdx', '/research/paper', 'research-paper'),
     {
-      ...page('pllm.research.whitepaper', 'content/whitepaper.html', '/research/whitepaper', 'whitepaper'),
+      ...page('pllm.research.whitepaper', 'content/research/whitepaper.mdx', '/research/whitepaper', 'whitepaper'),
       citationLinks: ['/learn/understand/architecture/', '/learn/understand/privacy-assurance/'],
       evidenceLinks: ['/downloads/current-runtime-2026-09-11.json'],
     },

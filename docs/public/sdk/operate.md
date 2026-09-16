@@ -6,7 +6,7 @@ Assign client, preparation, and inference responsibilities without weakening the
 
 Document ID: `pllm.docs.operate`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:6c6ea2aa33ae622e505697268d99b11df4ecd03aa7e728e52b180f260ac7d2be`
 
 - [Client boundary](/sdk/operate/client-boundary/) keeps plaintext application data with the user.

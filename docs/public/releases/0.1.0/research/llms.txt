@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2
+Build: sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -17,7 +17,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Contribute a clean-room reimplementation](https://pllm.run/research/clean-room/) ([Markdown](https://pllm.run/research/clean-room.md)): Add an independent PLLM implementation with clear provenance, tests, evidence, and review.
 - [PLLM research](https://pllm.run/research/) ([Markdown](https://pllm.run/research.md)): The mission, protocol, and evidence for a global market in private AI compute.
 - [PLLM: Offline-Correlated Private Inference for Public-Weight Language Models](https://pllm.run/research/paper/) ([Markdown](https://pllm.run/research/paper.md)): A high-performance multi-party inference runtime that prepares one-time masked matrix corrections before online language-model inference.
-- [Private inference for an open compute world](https://pllm.run/research/whitepaper/) ([Markdown](https://pllm.run/research/whitepaper.md)): A two-page overview of PLLM prepared private inference.
+- [Private inference as infrastructure](https://pllm.run/research/whitepaper/) ([Markdown](https://pllm.run/research/whitepaper.md)): A two-page overview of PLLM prepared private inference.
 - [Reproduction checklist](https://pllm.run/research/recipes/reproduction-checklist/) ([Markdown](https://pllm.run/research/recipes/reproduction-checklist.md)): A checklist for obtaining a source, reproducing a method, and producing comparable evidence.
 - [Research map](https://pllm.run/research/recipes/agent-map/) ([Markdown](https://pllm.run/research/recipes/agent-map.md)): Trace a source through clean-room code, plans, evidence, and publication review.
 - [Metrics](https://pllm.run/research/records/metrics/) ([Markdown](https://pllm.run/research/records/metrics.md)): Choose clear performance, resource, quality, and privacy measurements for a PLLM experiment.

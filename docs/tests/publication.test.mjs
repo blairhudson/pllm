@@ -17,7 +17,7 @@ test('registry covers every public authored page exactly once', () => {
   const discovered = [
     ...walk(path.join(siteRoot, 'content/docs')).filter((file) => file.endsWith('.mdx')),
     ...walk(path.join(siteRoot, 'content/research')).filter((file) => file.endsWith('.mdx')),
-    ...['content/home.html', 'content/research.html', 'content/whitepaper.html'].map(generatedPath),
+    ...['content/home.html', 'content/research.html'].map(generatedPath),
   ].map((file) => path.relative(siteRoot, file).replaceAll(path.sep, '/')).sort();
   assert.deepEqual(graph.pages.map((page) => page.sourcePath).sort(), discovered);
 });

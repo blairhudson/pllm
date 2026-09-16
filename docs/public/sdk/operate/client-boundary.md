@@ -6,7 +6,7 @@ Understand which data and runtime state must stay with the client.
 
 Document ID: `pllm.docs.operate.client-boundary`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5`
 
 `pllm.runtime` exposes clients, transport code, privacy declarations, gateways,

@@ -14,11 +14,11 @@ repository before preparing a release.
 | Setting | Expected policy |
 | --- | --- |
 | Default branch | `main` |
-| Branch protection | Require review and the configured aggregate check; prohibit force pushes |
+| Branch protection | Require review and the CI jobs; prohibit force pushes |
 | Vulnerability reporting | Enable private vulnerability reporting |
-| Cloudflare Pages | Direct Upload projects provisioned by `infra/` |
-| Non-production environment | `non-production`, no approval; deploys `main` to `non.pllm.run` |
-| Production environment | `production`, required reviewers and only protected `main` |
+| Cloudflare Pages | Direct Upload projects `pllm-non` and `pllm-production` |
+| Non-production environment | `non-production`; receives every `main` push |
+| Production environment | `production`, restricted to manual dispatches from `main` |
 | PyPI environment | `pypi`, with approval and version-tag restrictions |
 | PyPI trusted publisher | Actual owner/repository, `release.yml`, environment `pypi` |
 
@@ -28,22 +28,13 @@ values: owner `blairhudson`, repository `pllm`, workflow `release.yml`, environm
 limit deployment to protected `v*` tags. The release workflow uses OIDC; no GitHub
 or PyPI secret is required. Do not add a long-lived `PYPI_TOKEN`.
 
-Cloudflare Pages hosts static documentation only. A successful `main` build
-deploys and verifies `non.pllm.run`. Production is a manual exact-SHA promotion
-of that run's immutable `pllm-site` artifact; enter the SHA, artifact digest,
-and `DEPLOY production @ <sha>` confirmation reported by the non-production
-job. Promotion must occur before the source GitHub artifact expires.
-
-Repository variable `CLOUDFLARE_ACCOUNT_ID` and repository or matching
-environment secrets `PLLM_NON_PAGES_API_TOKEN` and
-`PLLM_PRODUCTION_PAGES_API_TOKEN` are required.
-Cloudflare tokens need Pages deployment/read access for their project. The
-commit-pinned Restack Action includes its CLI bundle and needs no package token.
-Credentials are exposed only to their consuming steps. The manual
-`provision.yml` workflow owns exact-plan infrastructure changes as described in
-`infra/README.md`; local Restack bootstrap provisions its
-`CLOUDFLARE_BACKEND_API_TOKEN`, `CLOUDFLARE_INFRA_API_TOKEN`, and
-`TOFU_STATE_PASSPHRASE` secrets.
+Cloudflare Pages hosts static documentation only. Every `main` push builds the
+site and deploys it to `pllm-non` at `non.pllm.run`. A manual dispatch from
+`main` builds and deploys production to `pllm-production` at `pllm.run`. Set
+repository variable `CLOUDFLARE_ACCOUNT_ID` and environment secrets
+`PLLM_NON_PAGES_API_TOKEN` and `PLLM_PRODUCTION_PAGES_API_TOKEN`; each token
+needs Pages write access to its project. The pinned Restack Action performs the
+deployment. Infrastructure provisioning remains separate from deployment.
 
 ## Locked dependencies
 
@@ -64,15 +55,9 @@ hand-edit resolved checksums to make a release pass.
 
 | Workflow | Trigger | Scope |
 | --- | --- | --- |
-| `ci.yml` | Pull request, push, manual, release call | Python matrix, native arithmetic, HE and SDK lanes, distributions, docs, paper |
-| `docs-build.yml` | Reusable workflow | Paper assets plus Fumadocs content, tests, typecheck, and static build |
-| `pages.yml` | Every `main` push, manual | Non-production deploy or exact-artifact production promotion |
-| `provision.yml` | Manual | Encrypted exact-plan Pages infrastructure changes |
-| `release.yml` | Version tag | Tag/lock validation, CI, PyPI publication, GitHub release |
-| `wheels.yml` | Reusable or manual | Native wheel build and installed-wheel tests on configured targets |
-| `native-benchmark.yml` | Kernel changes or manual | Rust, retained C++ control, and NumPy benchmark records |
-| `lockfiles.yml` | Manual | Lockfile generation for review |
-| `research.yml` | Manual | Historical lifecycle study, outside normal PR runtime |
+| `ci.yml` | Pull request or manual | Python 3.11-3.13, Rust, integrations, distributions, and docs |
+| `pages.yml` | `main` push or manual | Deploy non-production automatically or production manually |
+| `release.yml` | Version tag | Build native wheels and sdist, then publish to PyPI |
 
 External actions are commit-pinned. Pull requests have no publication credentials.
 The credentialed publication job receives artifacts already built and tested; it
@@ -85,7 +70,7 @@ move together:
 
 ```bash
 uv run python scripts/release.py prepare 0.17.0a1
-# Update CHANGELOG.md and VALIDATION.md, review the complete diff, then merge.
+# Review the complete diff, then merge.
 uv run python scripts/release.py check v0.17.0a1 --require-locks
 git tag -a v0.17.0a1 -m "PLLM 0.17.0a1"
 git push origin v0.17.0a1
@@ -95,10 +80,9 @@ Replace the example version with the intended new version. Do not recreate or
 move a published tag. If publication is ambiguous, inspect PyPI and the workflow
 before retrying; use a new version when published files must change.
 
-The release workflow builds platform wheels and an sdist, tests installed wheels
-outside the checkout, creates attestations, publishes the verified distribution,
-and attaches repository and documentation assets with checksums. Pre-release tags
-produce GitHub prereleases. Approval is not a dry run.
+The release workflow builds platform wheels and an sdist, smoke-tests every wheel
+outside the checkout, validates the artifacts, and publishes them through PyPI
+Trusted Publishing. Approval is not a dry run.
 
 After the workflow succeeds, verify the published package independently:
 
@@ -129,13 +113,13 @@ NEXT_PUBLIC_BASE_PATH=/pllm npm run build
 
 Run paper generation only when its canonical source or release asset changed; do
 not regenerate historical outputs as a side effect of an operational docs edit.
-Record commands actually executed in `VALIDATION.md`. Configured workflows and old
-logs are not current evidence.
+Use revision-bound CI results and retained research records as execution evidence;
+configured workflows and old logs are not current evidence.
 
 ## Native artifact requirements
 
-Publication uses only wheel artifacts produced by the wheel workflow plus the
-validated sdist. Linux wheels target the configured manylinux policy through Zig;
+Publication uses only artifacts produced by `release.yml`. Linux wheels target
+the configured manylinux policy through Zig;
 other platforms use their native Rust linkers. Never retag a wheel to claim a
 different ABI or libc policy.
 

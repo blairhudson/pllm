@@ -1,7 +1,7 @@
 'use client';
 
 import { mainNavigation, navigationItemForPathname } from '@/lib/navigation';
-import { basePath } from '@/lib/paths.mjs';
+import { basePath, withBasePath } from '@/lib/paths.mjs';
 import { Menu, Search, SunMoon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -30,6 +30,12 @@ export function DocsMobileHeader({ showMenu = true }: { showMenu?: boolean }) {
   return (
     <header id="nd-subnav" className="docs-mobile-header">
       <Link href="/" className="docs-mobile-brand" aria-label="PLLM home">
+        <img
+          src={withBasePath('/icon.svg')}
+          alt=""
+          width="24"
+          height="16"
+        />
         pllm
       </Link>
       <details className="docs-area-switcher">

@@ -183,11 +183,13 @@ export function SiteChrome({ children }: { children: ReactNode }) {
       <header className={`site-header${hasFumadocsNavigation ? ' content-site-header' : ''}`}>
         <div className="header-inner">
           <Link href="/" className="brand" aria-label="PLLM home">
-            <span className="brand-symbol" aria-hidden="true">
-              {Array.from({ length: 9 }, (_, index) => (
-                <i key={index} />
-              ))}
-            </span>
+            <img
+              className="brand-icon"
+              src={withBasePath('/icon.svg')}
+              alt=""
+              width="30"
+              height="20"
+            />
             pllm
           </Link>
           <span className="brand-tag">
@@ -234,6 +236,13 @@ export function SiteChrome({ children }: { children: ReactNode }) {
       <footer className="site-footer">
         <div className="shell footer-inner">
           <Link className="brand" href="/">
+            <img
+              className="brand-icon"
+              src={withBasePath('/icon.svg')}
+              alt=""
+              width="30"
+              height="20"
+            />
             pllm
           </Link>
           <div className="footer-nav">

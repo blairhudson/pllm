@@ -68,7 +68,7 @@ def set_version(value: str) -> None:
 def prepare(value: str) -> None:
     set_version(value)
     subprocess.run([sys.executable, str(ROOT / "scripts/lock_dependencies.py")], cwd=ROOT, check=True)
-    print("Prepared version and dependency locks. Update CHANGELOG.md and VALIDATION.md, then review and commit.")
+    print("Prepared version and dependency locks. Review the complete diff, then commit.")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -96,7 +96,7 @@ def main() -> None:
             set_version(args.version)
         except ValueError as error:
             parser.error(str(error))
-        print("Updated version. Regenerate dependency locks, update CHANGELOG.md, and commit before tagging.")
+        print("Updated version. Regenerate dependency locks and commit before tagging.")
     else:
         try:
             prepare(args.version)

@@ -1,61 +1,61 @@
 # Contributing
 
-## Set up
+## Install the checkout
 
-Use the toolchain in `rust-toolchain.toml`, UV and Python 3.11 through 3.13.
-
-```bash
-uv sync --extra he --extra sdk
-uv run pllm build
-```
-
-Rust sources are in `crates`; all Python code is in `python/pllm`. Do not add a
-second import namespace at the root. Add public exports deliberately rather than
-using wildcard imports. Protocol changes must preserve private activation scales
-and one use correlation consumption.
-
-## Check a change
+Install [UV](https://docs.astral.sh/uv/) and the Rust toolchain selected by
+`rust-toolchain.toml`, then run this from the repository root:
 
 ```bash
-cargo test -p pllm-core
-cargo clippy --workspace --all-targets -- -D clippy::correctness
-uv run ruff check python/pllm scripts tests
-uv run pytest
-uv run python scripts/check_repository.py
-uv build
-uv run python scripts/check_distributions.py dist
+uv tool install --force .
+pllm --version
 ```
 
-Use `cargo fmt --all` for Rust changes. For Python changes use the existing
-project conventions and keep functions typed where practical. The core tests
-must not acquire a Python dependency. Native changes require scalar comparisons,
-edge cases, overflow checks and tests against the installed wheel.
+This builds the native extension and installs the current checkout as the
+`pllm` command. Run the install command again after changing Python or Rust
+source that you want to test through the installed CLI.
 
-## Documentation
+Rust sources live in `crates/`; Python sources live in `python/pllm/`. Do not
+add another Python package at the repository root.
+
+## Run the documentation site
+
+From the repository root:
 
 ```bash
 cd docs
 npm install
-npm run check:content
-npm test
-npm run typecheck
-npm run build
+bun run dev
 ```
 
-The Fumadocs site is exported as static files. Test repository base paths as well
-as the root path. Edit `paper/manuscript.md`; `make paper` generates both the PDF
-and web article through Pandoc.
+The development site runs at <http://localhost:3000>. Edit documentation under
+`docs/content/`. Edit paper sources under `paper/`, then regenerate them with:
 
-## Evidence
+```bash
+uv run --no-project --python 3.13 python scripts/build_papers.py
+```
 
-Record the backend, hardware, shapes, repetitions and exact comparison in every
-benchmark. Distinguish preparation, online execution, full request time, and
-aggregate throughput. A passing reference test is not native validation. A
-synthetic matrix does not establish checkpoint language quality.
+## Check changes
 
-## Releases
+Run checks relevant to your change before opening a pull request:
 
-Only a maintainer should tag a release. Follow `RELEASING.md`, review dependency
-lock changes, and let the workflow publish the tested artifacts. Do not attach
-locally created API keys, model credentials, inventory databases or private
-checkpoints to issues or pull requests.
+```bash
+cargo test --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+uv run ruff check python/pllm scripts tests
+uv run pytest
+```
+
+For documentation changes:
+
+```bash
+cd docs
+bun run check:content
+bun test
+bun run typecheck
+bun run build
+```
+
+Do not include credentials, private data, model checkpoints, or generated local
+state in a pull request. Follow [SECURITY.md](SECURITY.md) for vulnerabilities
+and [RELEASING.md](RELEASING.md) for releases.

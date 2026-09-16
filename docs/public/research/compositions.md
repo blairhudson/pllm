@@ -6,7 +6,7 @@ Learn how PLLM records research recipes and changes to a model plan.
 
 Document ID: `pllm.docs.research.compositions`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:fdeba24345277f49d2ffc511853562098ad13790a132d2bd3fe63a65d22da36d`
 
 Recipes describe source acquisition, target model operations, required evidence,

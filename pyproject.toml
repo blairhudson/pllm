@@ -9,7 +9,7 @@ description = "Private language model inference with a local Responses API and r
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
+license-files = ["LICENSE"]
 authors = [{name = "Blair Hudson"}]
 keywords = ["private inference", "homomorphic encryption", "language models", "Responses API"]
 classifiers = [
@@ -81,7 +81,6 @@ include = [
   { path = "python/pllm/dashboard/**/*", format = "sdist" },
   { path = "Cargo.toml", format = "sdist" },
   { path = "tests/**/*.py", format = "sdist" },
-  { path = "benchmarks/**/*", format = "sdist" },
   { path = "scripts/**/*", format = "sdist" },
   { path = "Cargo.lock", format = "sdist" },
   { path = "rust-toolchain.toml", format = "sdist" },

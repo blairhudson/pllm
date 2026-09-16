@@ -6,7 +6,7 @@ Required identity, lifecycle, representation, role, capability, evidence, and li
 
 Document ID: `pllm.docs.contribute.component-standard`  
 Release: `0.1.0`  
-Build: `sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2`  
+Build: `sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb`  
 Source hash: `sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4`
 
 1. Choose a semantic category and stable authority-owned identity.

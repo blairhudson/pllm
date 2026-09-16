@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:4a93c61285a110010f1bafefa367e198ed52465071615e2d4d9a91a45f2d82e2",
+  "buildId": "sha256:dab1bcb88380ca9a4c2b79e3de085391f482bb97d841a9f0741979579c87dbfb",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -2254,13 +2254,13 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:454edfd87384bc5d885c667c27eb7f7312df970a1fa778e5acb3fd54d8bb7f5d"
+      "contentHash": "sha256:3ee48427cf842c352b7e6e0afff647aea7df74e93811bff5a5f1231527a54d59"
     },
     {
       "id": "pllm.research.whitepaper",
-      "title": "Private inference for an open compute world",
+      "title": "Private inference as infrastructure",
       "summary": "A two-page overview of PLLM prepared private inference.",
-      "sourcePath": "content/whitepaper.html",
+      "sourcePath": "content/research/whitepaper.mdx",
       "canonicalUrl": "/research/whitepaper/",
       "markdownUrl": "/research/whitepaper.md",
       "kind": "whitepaper",
@@ -2278,14 +2278,14 @@
       "publicSymbols": [],
       "componentIds": [],
       "sourcePaths": [
-        "content/whitepaper.html"
+        "content/research/whitepaper.mdx"
       ],
       "testPaths": [],
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:044280458996ff93941a715d8d9d317143933fae9928b2f7874e0fe23a6d0607",
+      "contentHash": "sha256:b9e187d12f9e5dca960084dc22beab7f488b6759fa8320dc1a19cf0d6e970655",
       "citationLinks": [
         "/learn/understand/architecture/",
         "/learn/understand/privacy-assurance/"
