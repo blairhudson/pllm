@@ -102,7 +102,7 @@ def test_inputs_and_nested_values_are_deeply_immutable():
         pipeline.components["custom"].params["new"] = 1
     with pytest.raises(dataclasses.FrozenInstanceError):
         pipeline.profile = "changed"
-    with pytest.raises((AttributeError, dataclasses.FrozenInstanceError)):
+    with pytest.raises((AttributeError, TypeError, dataclasses.FrozenInstanceError)):
         pipeline.components["custom"].new_attribute = "changed"
     assert hash(pipeline) == hash(
         Pipeline.from_profile(

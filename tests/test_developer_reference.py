@@ -76,7 +76,10 @@ def test_generated_developer_reference_is_fresh_and_deterministic() -> None:
     first = reference.render_outputs()
     second = reference.render_outputs()
     assert first == second
-    assert all(path.read_text(encoding="utf-8") == content for path, content in first.items())
+    # argparse help and Enum signatures differ across supported Python releases;
+    # Python 3.13 is the canonical documentation generator used by Pages.
+    if sys.version_info[:2] == (3, 13):
+        assert all(path.read_text(encoding="utf-8") == content for path, content in first.items())
     assert all(
         path.suffix == ".json" or reference.GENERATED_NOTICE in content
         for path, content in first.items()

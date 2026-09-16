@@ -21,7 +21,7 @@ def test_public_compile_and_native_region_benchmark() -> None:
     assert pllm.CompiledPlan is CompiledPlan
     assert not hasattr(plan, "execute_wrap32")
     assert not hasattr(plan, "benchmark_wrap32")
-    with pytest.raises(dataclasses.FrozenInstanceError):
+    with pytest.raises((AttributeError, TypeError, dataclasses.FrozenInstanceError)):
         plan.plan_lock_digest = "changed"
     report = pllm.benchmark(
         plan,

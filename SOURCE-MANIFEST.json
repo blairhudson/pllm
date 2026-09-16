@@ -4638,8 +4638,8 @@
     },
     {
       "path": "tests/test_configuration.py",
-      "bytes": 10278,
-      "sha256": "5ff57b8be05c206d57dddedb386470e8ce6d879bf50b395e801a24a7cedd5af4"
+      "bytes": 10289,
+      "sha256": "4ee33dea6eed8c33ceb5eec7b6c2761f5576c8f1cb75d5250ffab893b85d14d9"
     },
     {
       "path": "tests/test_correlation_ledger.py",
@@ -4663,8 +4663,8 @@
     },
     {
       "path": "tests/test_developer_reference.py",
-      "bytes": 9718,
-      "sha256": "90e4332e17f000236d7804ef5872f0a1da67fb1194b047a6d103e7493c8542a1"
+      "bytes": 9917,
+      "sha256": "290e95bce5ec64c4c1f426473720d23e6abddbfb950d1b90b111946b8cb49ca4"
     },
     {
       "path": "tests/test_engine_plugin.py",
@@ -4673,8 +4673,8 @@
     },
     {
       "path": "tests/test_evidence.py",
-      "bytes": 5196,
-      "sha256": "a3d624f06c84d60b1b84458b73b7bb18050593d9e5a30ba97a464afe6b0364ce"
+      "bytes": 5225,
+      "sha256": "554e736ed3e7b6a448e646382560fbdd2ba25bd1403b1d0d9c7e309fecf6a95b"
     },
     {
       "path": "tests/test_experiment_integration.py",
