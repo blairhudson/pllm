@@ -6,8 +6,8 @@ Private multi-party LLM inference and evidence-driven research-component composi
 
 Document ID: `pllm.research.paper`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
-Source hash: `sha256:850d64d5229a16aa0797859cefccf62815becf8049231e9b238973d2dcc28778`
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Source hash: `sha256:48725bac450295c5bb66486ffbd2c602fb53c6167986947ac20b32c5ea804a02`
 
 [Download PDF ↗](/downloads/paper.pdf)
 
@@ -85,7 +85,7 @@ The autonomous harness is intended to turn pinned sources and hypotheses into va
 
 Garbling support is narrower still. The compiler can bind and evaluate a one-use arithmetic-garbling payload for at most 128 elements of signed Q7 SiLU input over `[-1,1]`. It computes the fixed quadratic approximation `q(x)=x/2+x^2/4` with deterministic ties-to-even rounding; the implementation’s exhaustive encoded-domain test bounds absolute error against SiLU by 0.02285. Payloads are digest-bound, strictly decoded, and burned through a bounded process-local ledger.
 
-A separate scalar reference region jointly garbles SiLU and two-input Q7 multiplication. The SiLU output remains an encoded label and enters a compact mixed-modulus arithmetic program directly; it is never decoded and re-encoded between operators. Following the projection and CRT gadgets of ([Ball et al. 2017](#ref-ball2017garbling)), prime-residue multiplication, CRT conversion, and exact ties-to-even rescaling reduce the measured evaluator payload from 3,183,176 to 649,160 bytes per scalar. Both inputs are provenance-bound to exact dense-Qwen linear-to-Q7 edges. Tensor execution remains deliberately unavailable.
+A separate scalar reference region jointly garbles SiLU and two-input Q7 multiplication. The SiLU output remains an encoded label and enters a compact mixed-modulus arithmetic program directly; it is never decoded and re-encoded between operators. Following the projection and CRT gadgets of ([Ball et al. 2017](#ref-ball2017garbling)), prime-residue multiplication, CRT conversion, and exact ties-to-even rescaling and canonical fixed-bit row transport reduce the measured evaluator payload from 3,183,176 to 245,209 bytes per scalar. Both inputs are provenance-bound to exact dense-Qwen linear-to-Q7 edges. Tensor execution remains deliberately unavailable.
 
 This component is an experimental primitive, disabled from complete deployment profiles. It is not full-model garbling, does not cover the other missing operators at tensor scale, and has no cryptographic review or production-security claim. It also does not replace the additive-masking protocol used by the prepared runtime.
 

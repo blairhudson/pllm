@@ -78,7 +78,7 @@ fn composed_gate_executes_without_exposing_the_silu_value() {
         .remove(0);
     let material = prepare_bound_gated_multiply_q7_material(&plan, &region).unwrap();
     let payload = material.evaluator_payload();
-    assert_eq!(payload.len(), 649_160);
+    assert_eq!(payload.len(), 245_209);
     assert!(payload.len() <= GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES);
     let mut evaluator = GatedMultiplyQ7Evaluator::new(&region, &payload).unwrap();
     let output = evaluator

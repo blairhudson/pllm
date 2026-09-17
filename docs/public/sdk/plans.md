@@ -6,7 +6,7 @@ Lower a model configuration, add components, and inspect compiler coverage.
 
 Document ID: `pllm.docs.sdk.plans`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:77c0bb7e4708ea66eaf0a632bf7df99881f11c9dc4e09d349978b38befd5d39d`
 
 `pllm.lower_model(...)` turns a supported model configuration and workload limits

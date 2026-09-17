@@ -6,7 +6,7 @@ Use the Python SDK to benchmark plans, run scoped assurance checks, and produce 
 
 Document ID: `pllm.docs.measure`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:dd7e5035522877c46fd0b86b7fc5146db157fdfad877e1e26e12de3b67f143fa`
 
 - [Benchmark](/sdk/research/benchmark/) documents `pllm.benchmark(...)` and

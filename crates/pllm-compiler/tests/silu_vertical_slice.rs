@@ -293,11 +293,7 @@ fn evaluator_payload_is_plan_bound_and_duplicate_binding_is_burned() {
     let compiled = compile(&request(vec![1], true)).unwrap();
     let material = pllm_compiler::prepare_bound_silu_q7_material(&compiled).unwrap();
     let payload = material.evaluator_payload();
-    assert!(
-        (12_000..=16_384).contains(&payload.len()),
-        "unexpected payload size: {}",
-        payload.len()
-    );
+    assert_eq!(payload.len(), 9_710);
 
     let mut other_request = request(vec![1], true);
     other_request.operations[0].id = "layer.1.mlp.silu".into();

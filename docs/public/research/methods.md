@@ -6,7 +6,7 @@ Understand the difference between a published method and PLLM's independent impl
 
 Document ID: `pllm.docs.research.methods`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:ca2c53148211ceefd423aa628568d13bbec20e4084a222ba9988e21e03389c35`
 
 PLLM's MPCache-inspired work lives in

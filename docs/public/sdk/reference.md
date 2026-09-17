@@ -6,7 +6,7 @@ Look up exact CLI commands, Python APIs, schemas, components, and current suppor
 
 Document ID: `pllm.docs.reference`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:ad1bcccd732d8bda3c513f4360146223fca6f12ec312a1e21c06aad9650bef89`
 
 - [Python API](/sdk/reference/python/pllm/) lists the public package exports.

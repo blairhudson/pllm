@@ -6,7 +6,7 @@ Reimplement published methods independently in PLLM's Python and Rust stack.
 
 Document ID: `pllm.docs.research.reproductions`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:7167607cf89aed85798c795e8985fc237397ba706f82a11639f8840fbf7de08e`
 
 PLLM reproductions begin with public papers and locked source records. Contributors

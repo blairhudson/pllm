@@ -337,7 +337,7 @@ def test_gated_q7_multiply_crosses_opaque_native_boundary_and_burns_material():
     assert region.multiply_operation_id == "layer.0.gated_multiply"
     assert len(region.digest) == 64
     material = region.prepare_material()
-    assert len(material.evaluator_payload) == 649_160
+    assert len(material.evaluator_payload) == 245_209
     evaluator = region.prepare_evaluator(material.evaluator_payload)
     with pytest.raises(ValueError, match="already bound"):
         region.prepare_evaluator(material.evaluator_payload)

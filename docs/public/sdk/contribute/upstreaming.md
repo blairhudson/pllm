@@ -6,7 +6,7 @@ Move validated research work into maintained semantic and runtime components.
 
 Document ID: `pllm.docs.contribute.upstreaming`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:42a06a5f9f97eec9672f7df6e4bb91c6b0f938db5722de5daefde543a4fc8ba9`
 
 Upstreaming requires locked sources, a clean-room implementation record where applicable, fidelity tests, model-neutral semantics, component identity, compiler coverage, numeric analysis, matched benchmark evidence, scoped assurance, quality evaluation, limitations, and maintenance ownership.

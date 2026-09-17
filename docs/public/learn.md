@@ -6,7 +6,7 @@ Understand PLLM's private inference runtime, research harness, trust assumptions
 
 Document ID: `pllm.docs.learn`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:acc4f065b47dc1a39090ff541e2e4fceef219c3f7fd071539604a7139b5fb3a5`
 
 PLLM is a Rust-first, Python-friendly runtime and research harness for private

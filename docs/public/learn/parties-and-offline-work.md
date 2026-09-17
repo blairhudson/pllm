@@ -6,7 +6,7 @@ Learn what each party does before and during a private inference request.
 
 Document ID: `pllm.docs.learn.parties-and-offline-work`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:53abc51659043bf19e250a922629dbc0049f9196a8f95d35f217ea8fe996ce92`
 
 The **client** holds plaintext and authorizes each request. The **preparation

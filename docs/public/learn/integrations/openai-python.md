@@ -6,7 +6,7 @@ Point the official OpenAI Python SDK at the trusted PLLM gateway.
 
 Document ID: `pllm.docs.learn.integrations.openai-python`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:97dc3e67264a940b248ea2a3005ea77da1dbff2ed9fb9dad3a2aa96adfca8ef9`
 
 Start the [local gateway](/learn/integrations/local-gateway/), then give the

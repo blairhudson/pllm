@@ -221,9 +221,10 @@ multiplication. The SiLU output remains an encoded label and enters a compact
 mixed-modulus arithmetic program directly; it is never decoded and re-encoded
 between operators. Following the projection and CRT gadgets of
 [@ball2017garbling], prime-residue multiplication, CRT conversion, and exact
-ties-to-even rescaling reduce the measured evaluator payload from 3,183,176 to
-649,160 bytes per scalar. Both inputs are provenance-bound to exact dense-Qwen
-linear-to-Q7 edges. Tensor execution remains deliberately unavailable.
+ties-to-even rescaling and canonical fixed-bit row transport reduce the measured
+evaluator payload from 3,183,176 to 245,209 bytes per scalar. Both inputs are
+provenance-bound to exact dense-Qwen linear-to-Q7 edges. Tensor execution remains
+deliberately unavailable.
 
 This component is an experimental primitive, disabled from complete deployment
 profiles. It is not full-model garbling, does not cover the other missing

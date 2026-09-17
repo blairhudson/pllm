@@ -6,7 +6,7 @@ Inspect PLLM records and run local benchmarks from the terminal.
 
 Document ID: `pllm.docs.cli`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3`
 
 The PLLM command-line interface inspects public metadata, runs bounded local

@@ -12,7 +12,7 @@ const TAG_BYTES: usize = 16;
 const MAX_PROJECTION_ROWS: usize = 1_000_000;
 const MAX_PROGRAM_INPUTS: usize = 8;
 const MAX_PROGRAM_INSTRUCTIONS: usize = 128;
-const GATE_MAGIC: &[u8; 8] = b"PLLMAGC1";
+const GATE_MAGIC: &[u8; 8] = b"PLLMAGC2";
 const PROGRAM_MAGIC: &[u8; 8] = b"PLLMAGP1";
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -445,7 +445,9 @@ impl GarbledProjection {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let width = self.output_modulus.label_width();
-        let row_bytes = width * 2 + TAG_BYTES;
+        let packed_body_bytes = packed_residue_bytes(width, self.output_modulus)
+            .expect("validated label dimensions fit in memory");
+        let row_bytes = packed_body_bytes + TAG_BYTES;
         let mut output = Vec::with_capacity(
             GATE_MAGIC.len()
                 + 2
@@ -468,9 +470,7 @@ impl GarbledProjection {
         output.extend_from_slice(&(self.rows.len() as u32).to_le_bytes());
         output.extend_from_slice(&(width as u16).to_le_bytes());
         for row in &self.rows {
-            for component in &row.body {
-                output.extend_from_slice(&component.to_le_bytes());
-            }
+            output.extend_from_slice(&pack_residues(&row.body, self.output_modulus));
             output.extend_from_slice(&row.tag);
         }
         output
@@ -503,16 +503,10 @@ impl GarbledProjection {
         if row_count != expected_rows || width != output_modulus.label_width() {
             return Err(GarbleError::InvalidGate);
         }
+        let packed_body_bytes = packed_residue_bytes(width, output_modulus)?;
         let mut rows = Vec::with_capacity(row_count);
         for _ in 0..row_count {
-            let mut body = Vec::with_capacity(width);
-            for _ in 0..width {
-                let component = cursor.u16()?;
-                if component >= output_modulus.0 {
-                    return Err(GarbleError::InvalidGate);
-                }
-                body.push(component);
-            }
+            let body = unpack_residues(cursor.slice(packed_body_bytes)?, width, output_modulus)?;
             rows.push(CipherRow {
                 body,
                 tag: cursor.take::<TAG_BYTES>()?,
@@ -1456,6 +1450,66 @@ fn check_label(label: &Label, modulus: Modulus) -> Result<(), GarbleError> {
     Ok(())
 }
 
+fn component_bits(modulus: Modulus) -> usize {
+    usize::try_from(u16::BITS - (modulus.0 - 1).leading_zeros()).expect("u16 bit width fits usize")
+}
+
+fn packed_residue_bytes(count: usize, modulus: Modulus) -> Result<usize, GarbleError> {
+    count
+        .checked_mul(component_bits(modulus))
+        .and_then(|bits| bits.checked_add(7))
+        .map(|bits| bits / 8)
+        .ok_or(GarbleError::InvalidGate)
+}
+
+fn pack_residues(residues: &[u16], modulus: Modulus) -> Vec<u8> {
+    let bits = component_bits(modulus);
+    let mut packed = vec![
+        0_u8;
+        packed_residue_bytes(residues.len(), modulus)
+            .expect("validated label dimensions fit in memory")
+    ];
+    for (index, residue) in residues.iter().copied().enumerate() {
+        debug_assert!(residue < modulus.0);
+        let start = index * bits;
+        for bit in 0..bits {
+            if residue & (1 << bit) != 0 {
+                let position = start + bit;
+                packed[position / 8] |= 1 << (position % 8);
+            }
+        }
+    }
+    packed
+}
+
+fn unpack_residues(packed: &[u8], count: usize, modulus: Modulus) -> Result<Vec<u16>, GarbleError> {
+    if packed.len() != packed_residue_bytes(count, modulus)? {
+        return Err(GarbleError::InvalidGate);
+    }
+    let bits = component_bits(modulus);
+    let used_bits = count.checked_mul(bits).ok_or(GarbleError::InvalidGate)?;
+    if let Some(last) = packed.last().copied() {
+        let remainder = used_bits % 8;
+        if remainder != 0 && last & !((1_u8 << remainder) - 1) != 0 {
+            return Err(GarbleError::InvalidGate);
+        }
+    }
+    let mut residues = Vec::with_capacity(count);
+    for index in 0..count {
+        let start = index * bits;
+        let mut residue = 0_u16;
+        for bit in 0..bits {
+            let position = start + bit;
+            residue |= u16::from((packed[position / 8] >> (position % 8)) & 1) << bit;
+        }
+        if residue >= modulus.0 {
+            return Err(GarbleError::InvalidGate);
+        }
+        residues.push(residue);
+    }
+    Ok(residues)
+}
+
 fn add_labels(left: &Label, right: &Label) -> Label {
     debug_assert_eq!(left.modulus, right.modulus);
     let modulus = u32::from(left.modulus.0);
@@ -1975,6 +2029,32 @@ mod tests {
         ));
         assert!(matches!(
             GarbledProjection::from_bytes(&encoded[..encoded.len() - 1]),
+            Err(GarbleError::InvalidGate)
+        ));
+    }
+
+    #[test]
+    fn packed_projection_rows_reject_noncanonical_values() {
+        let mut garbler = Garbler::new();
+        let input = garbler.wire(Modulus::new(2).unwrap()).unwrap();
+        let (gate, _) = garbler
+            .garble_projection(&[&input], Modulus::new(3).unwrap(), |values| values[0])
+            .unwrap();
+        let encoded = gate.to_bytes();
+        let first_row_body = 8 + 2 + 2 + 2 + 32 + 32 + 4 + 2;
+        assert_eq!(encoded.len(), first_row_body + 2 * (21 + TAG_BYTES));
+
+        let mut invalid_residue = encoded.clone();
+        invalid_residue[first_row_body] |= 0b11;
+        assert!(matches!(
+            GarbledProjection::from_bytes(&invalid_residue),
+            Err(GarbleError::InvalidGate)
+        ));
+
+        let mut nonzero_padding = encoded;
+        nonzero_padding[first_row_body + 20] |= 0x80;
+        assert!(matches!(
+            GarbledProjection::from_bytes(&nonzero_padding),
             Err(GarbleError::InvalidGate)
         ));
     }

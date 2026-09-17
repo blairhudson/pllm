@@ -6,7 +6,7 @@ Learn how to assign PLLM roles to authenticated services without changing privac
 
 Document ID: `pllm.docs.deployment`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:ed02e65f51ae641c76f4e46fb24192ab873ab2807c994325afb77df69915a1e4`
 
 A deployment assigns each protocol role to a process and operator. It records

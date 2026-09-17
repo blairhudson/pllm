@@ -6,7 +6,7 @@ Learn how PLLM connects papers, clean-room implementations, measurements, and pu
 
 Document ID: `pllm.docs.learn.reading-research-and-evidence`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:a770dedfe7ec4916dcab45a771035927a905186a407da23e9f8afd45f744aacd`
 
 PLLM records each step from a paper to a published result. It keeps the original

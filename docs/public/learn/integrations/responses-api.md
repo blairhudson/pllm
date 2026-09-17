@@ -6,7 +6,7 @@ Use PLLM's Responses API surface and understand its tested conformance scope.
 
 Document ID: `pllm.docs.learn.integrations.responses-api`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:b5c26a66a5b12c51c0db6694ebd66c0925fbb95c68b8048928cf4745a1775861`
 
 Send Responses API requests to `http://127.0.0.1:8080/v1/responses` with a bearer

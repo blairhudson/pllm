@@ -6,7 +6,7 @@ Run an OpenAI Agents SDK text agent through PLLM's Responses API gateway.
 
 Document ID: `pllm.docs.learn.integrations.openai-agents`  
 Release: `0.1.0`  
-Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
 Source hash: `sha256:d9ffadd9be6ca996d8195ab59a362ec8f32b0d4121a5d0b31da39e93bf6f8919`
 
 Use the Agents SDK Responses API adapter with an `AsyncOpenAI` client that targets
