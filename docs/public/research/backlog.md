@@ -6,7 +6,7 @@ What PLLM will reproduce, implement, review, and measure next.
 
 Document ID: `pllm.docs.research.backlog`  
 Release: `0.1.0`  
-Build: `sha256:5305ca7ad557c9bb6bc08f507fdb6c80bb709c09979323514d5730cb3edd75f9`  
+Build: `sha256:a56b03bbcab50da4d618a10a27d57d6fe15bc392dc06b104c6c4a924b7db4025`  
 Source hash: `sha256:bde5c01580e5685b8ef595caadc27373b99df2d5b2f8ad5ec181f9218bd48d6e`
 
 PLLM tracks papers because they may improve a concrete protocol, compiler pass,

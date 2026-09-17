@@ -29,7 +29,7 @@ pub const SILU_Q7_COMPILER_ID: &str = "pllm-compiler";
 pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
-pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v1";
+pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v2";
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
 const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
@@ -345,6 +345,9 @@ pub enum FixedPointRangePolicy {
 pub struct Q14ToQ7RescaleRegion {
     pub schema_version: String,
     pub operation_id: String,
+    pub source_operation_id: String,
+    pub target_operation_id: String,
+    pub target_input_index: u32,
     pub numeric_profile: String,
     pub input: TensorType,
     pub output: TensorType,
@@ -2585,11 +2588,13 @@ pub fn execute_model_last_token(
 
 /// Define the exact centered-wrap32 Q14 to bounded signed-Q7 conversion contract.
 pub fn define_q14_to_q7_rescale_region(
-    operation_id: &str,
+    source_operation_id: &str,
+    target_operation_id: &str,
+    target_input_index: u32,
     shape: Vec<u64>,
 ) -> Result<Q14ToQ7RescaleRegion, String> {
-    if !valid_identity(operation_id) {
-        return Err("Q14-to-Q7 operation ID is invalid".into());
+    if !valid_identity(source_operation_id) || !valid_identity(target_operation_id) {
+        return Err("Q14-to-Q7 source or target operation ID is invalid".into());
     }
     if shape.is_empty() || shape.contains(&0) {
         return Err("Q14-to-Q7 conversion requires a non-empty tensor shape".into());
@@ -2597,7 +2602,14 @@ pub fn define_q14_to_q7_rescale_region(
     tensor_elements(&shape)?;
     Ok(Q14ToQ7RescaleRegion {
         schema_version: Q14_TO_Q7_REGION_SCHEMA_VERSION.into(),
-        operation_id: operation_id.into(),
+        operation_id: q14_to_q7_rescale_operation_id(
+            source_operation_id,
+            target_operation_id,
+            target_input_index,
+        ),
+        source_operation_id: source_operation_id.into(),
+        target_operation_id: target_operation_id.into(),
+        target_input_index,
         numeric_profile: pllm_core::fixed_point::Q14_TO_Q7_PROFILE.into(),
         input: TensorType {
             numeric: NumericType::Wrap32,
@@ -2613,6 +2625,81 @@ pub fn define_q14_to_q7_rescale_region(
         rounding: FixedPointRounding::TiesToEven,
         range_policy: FixedPointRangePolicy::RejectOutsideUnitInterval,
     })
+}
+
+/// Lower the Q14-to-Q7 edges required by dense gated MLPs.
+pub fn lower_model_q14_to_q7_rescale_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<Q14ToQ7RescaleRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let operations = graph
+        .operations
+        .iter()
+        .map(|operation| (operation.id.as_str(), operation))
+        .collect::<BTreeMap<_, _>>();
+    let mut regions = Vec::new();
+
+    for target in &graph.operations {
+        let required_input = match target.operator {
+            ModelOperator::Silu => {
+                let [source_id] = target.inputs.as_slice() else {
+                    return Err(format!(
+                        "semantic SiLU operation {} must have exactly one input",
+                        target.id
+                    ));
+                };
+                Some((source_id, 0_u32))
+            }
+            ModelOperator::Multiply => {
+                let [activated_id, source_id] = target.inputs.as_slice() else {
+                    return Err(format!(
+                        "semantic multiply operation {} must have exactly two inputs",
+                        target.id
+                    ));
+                };
+                let activated = operations.get(activated_id.as_str()).ok_or_else(|| {
+                    format!(
+                        "semantic multiply operation {} references missing input {activated_id}",
+                        target.id
+                    )
+                })?;
+                if activated.operator != ModelOperator::Silu
+                    || activated.output_shape != target.output_shape
+                {
+                    return Err(format!(
+                        "semantic multiply operation {} requires a shape-matched SiLU first input",
+                        target.id
+                    ));
+                }
+                Some((source_id, 1_u32))
+            }
+            _ => None,
+        };
+        let Some((source_id, target_input_index)) = required_input else {
+            continue;
+        };
+        let source = operations.get(source_id.as_str()).ok_or_else(|| {
+            format!(
+                "semantic operation {} references missing rescale input {source_id}",
+                target.id
+            )
+        })?;
+        if source.operator != ModelOperator::Linear || source.output_shape != target.output_shape {
+            return Err(format!(
+                "semantic operation {} requires a shape-matched linear Q14 input at slot {target_input_index}",
+                target.id
+            ));
+        }
+        regions.push(define_q14_to_q7_rescale_region(
+            &source.id,
+            &target.id,
+            target_input_index,
+            source.output_shape.clone(),
+        )?);
+    }
+    Ok(regions)
 }
 
 pub fn q14_to_q7_rescale_region_digest(region: &Q14ToQ7RescaleRegion) -> Digest {
@@ -2640,7 +2727,14 @@ pub fn execute_q14_to_q7_rescale(
 
 fn validate_q14_to_q7_rescale_region(region: &Q14ToQ7RescaleRegion) -> Result<(), String> {
     if region.schema_version != Q14_TO_Q7_REGION_SCHEMA_VERSION
-        || !valid_identity(&region.operation_id)
+        || !valid_identity(&region.source_operation_id)
+        || !valid_identity(&region.target_operation_id)
+        || region.operation_id
+            != q14_to_q7_rescale_operation_id(
+                &region.source_operation_id,
+                &region.target_operation_id,
+                region.target_input_index,
+            )
         || region.numeric_profile != pllm_core::fixed_point::Q14_TO_Q7_PROFILE
         || region.input.numeric != NumericType::Wrap32
         || region.output.numeric != NumericType::SignedFixedQ7
@@ -2659,6 +2753,14 @@ fn validate_q14_to_q7_rescale_region(region: &Q14ToQ7RescaleRegion) -> Result<()
     }
     tensor_elements(&region.input.shape)?;
     Ok(())
+}
+
+fn q14_to_q7_rescale_operation_id(
+    source_operation_id: &str,
+    target_operation_id: &str,
+    target_input_index: u32,
+) -> String {
+    format!("{target_operation_id}.input.{target_input_index}.from.{source_operation_id}.q14_to_q7")
 }
 
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {

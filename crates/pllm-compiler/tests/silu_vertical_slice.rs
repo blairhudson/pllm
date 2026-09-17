@@ -1,9 +1,10 @@
 use pllm_compiler::{
-    compile, lower_model_silu_operation, region_graph_digests, region_program_digest,
-    CompileRequest, KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor,
-    NumericType, Operator, Representation, SecurityProperties, TensorType,
-    SILU_Q7_EXPERIMENT_PROFILE, SILU_Q7_KERNEL_DESCRIPTOR_ID, SILU_Q7_METHOD_ID,
-    SILU_Q7_NUMERIC_GRAPH_ID, SILU_Q7_PROTECTED_GRAPH_ID,
+    compile, lower_model_q14_to_q7_rescale_regions, lower_model_silu_operation,
+    region_graph_digests, region_program_digest, CompileRequest, KernelDescriptor,
+    KernelImplementation, LogicalOperation, MethodDescriptor, NumericType, Operator,
+    Representation, SecurityProperties, TensorType, SILU_Q7_EXPERIMENT_PROFILE,
+    SILU_Q7_KERNEL_DESCRIPTOR_ID, SILU_Q7_METHOD_ID, SILU_Q7_NUMERIC_GRAPH_ID,
+    SILU_Q7_PROTECTED_GRAPH_ID,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
@@ -462,6 +463,26 @@ fn semantic_qwen_silu_lowers_without_name_parsing() {
     assert_eq!(
         operation.input_representation,
         Representation::ArithmeticLabel
+    );
+
+    let rescale_regions =
+        lower_model_q14_to_q7_rescale_regions(&plan, DecoderMode::Prefill).unwrap();
+    assert_eq!(rescale_regions.len(), 2);
+    assert!(rescale_regions.iter().any(|region| {
+        region.source_operation_id == "layer.0.gate_proj"
+            && region.target_operation_id == "layer.0.silu"
+            && region.target_input_index == 0
+    }));
+    assert!(rescale_regions.iter().any(|region| {
+        region.source_operation_id == "layer.0.up_proj"
+            && region.target_operation_id == "layer.0.gated_multiply"
+            && region.target_input_index == 1
+    }));
+    assert_eq!(
+        lower_model_q14_to_q7_rescale_regions(&plan, DecoderMode::Decode)
+            .unwrap()
+            .len(),
+        2
     );
 }
 

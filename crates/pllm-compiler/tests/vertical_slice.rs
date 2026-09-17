@@ -1142,7 +1142,9 @@ fn verified_region_executes_real_pllm_core_matrix() {
 
 #[test]
 fn executes_locked_centered_q14_to_q7_rescaling() {
-    let region = define_q14_to_q7_rescale_region("mlp.rescale", vec![1, 7]).unwrap();
+    let region =
+        define_q14_to_q7_rescale_region("layer.0.gate_proj", "layer.0.silu", 0, vec![1, 7])
+            .unwrap();
     assert_eq!(region.input.numeric, NumericType::Wrap32);
     assert_eq!(region.output.numeric, NumericType::SignedFixedQ7);
     assert_eq!(region.input_fractional_bits, 14);
@@ -1158,7 +1160,9 @@ fn executes_locked_centered_q14_to_q7_rescaling() {
 
 #[test]
 fn q14_to_q7_rescaling_rejects_range_shape_and_contract_mutation() {
-    let region = define_q14_to_q7_rescale_region("mlp.rescale", vec![1, 1]).unwrap();
+    let region =
+        define_q14_to_q7_rescale_region("layer.0.gate_proj", "layer.0.silu", 0, vec![1, 1])
+            .unwrap();
     assert!(execute_q14_to_q7_rescale(&region, &[wrap32(16_385)]).is_err());
     assert!(execute_q14_to_q7_rescale(&region, &[]).is_err());
 
@@ -1167,11 +1171,16 @@ fn q14_to_q7_rescaling_rejects_range_shape_and_contract_mutation() {
     mutated.divisor = 64;
     assert_ne!(q14_to_q7_rescale_region_digest(&mutated), original_digest);
     assert!(execute_q14_to_q7_rescale(&mutated, &[0]).is_err());
+
+    mutated.divisor = 128;
+    mutated.source_operation_id = "layer.0.up_proj".into();
+    assert_ne!(q14_to_q7_rescale_region_digest(&mutated), original_digest);
+    assert!(execute_q14_to_q7_rescale(&mutated, &[0]).is_err());
 }
 
 #[test]
 fn q14_to_q7_rescaling_rejects_invalid_identity_and_shape() {
-    assert!(define_q14_to_q7_rescale_region("bad id", vec![1]).is_err());
-    assert!(define_q14_to_q7_rescale_region("valid.id", vec![]).is_err());
-    assert!(define_q14_to_q7_rescale_region("valid.id", vec![1, 0]).is_err());
+    assert!(define_q14_to_q7_rescale_region("bad id", "valid.id", 0, vec![1]).is_err());
+    assert!(define_q14_to_q7_rescale_region("valid.id", "target.id", 0, vec![]).is_err());
+    assert!(define_q14_to_q7_rescale_region("valid.id", "target.id", 0, vec![1, 0]).is_err());
 }

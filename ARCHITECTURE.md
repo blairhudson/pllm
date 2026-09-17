@@ -70,10 +70,11 @@ weight identity; length-aware final-token selection remains fail-closed, and thi
 does not change the public runtime's client-local output-head placement. It also
 defines a digest-bound centered-wrap32 Q14-to-Q7 rescale region with explicit scale,
 rounding, and range policy, plus an exhaustive Q7 multiplication reference. These
-numeric prerequisites are not yet connected to semantic linear provenance or a
-protected two-input multiplication method and therefore do not promote decoder
-coverage. It does not yet schedule these regions as a complete decoder or activate
-a complete model profile.
+rescale regions bind the exact dense-Qwen linear producer, nonlinear consumer, and
+consumer input slot. A protected two-input multiplication method and complete
+numeric scheduling are still unavailable, so these prerequisites do not promote
+decoder coverage. It does not yet schedule these regions as a complete decoder or
+activate a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 
