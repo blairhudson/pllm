@@ -6,18 +6,18 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
-Source hash: `sha256:e4d167b514e833f932500c9232564f8223aa42f825f9c1df9f9a62a80e7f2c64`
+Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Source hash: `sha256:58f8a074aebb9d590958a0558c446748c9b7e2a8e68b2621f50a6e6b209b18c4`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
-Only R23 has a PLLM reimplementation, limited to a structural `DecoderPlan` adaptation. It does not reproduce MPCache's protected three-party runtime. R01-R03 are reference primitives only, and R24 is planned.
+R03 has a scoped clean-room component adaptation in the compact scalar Q7 program. R23 has a structural `DecoderPlan` adaptation. Neither is a paper reproduction or protected-runtime result. R01-R02 remain reference primitives only, and R24 is planned.
 
 ## Reimplementation plan
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. Digest-bound centered-wrap32 Q14-to-Q7 regions now freeze scale, ties-to-even rounding, reject-on-range semantics, and the exact dense-Qwen producer, consumer, and input slot; exhaustive Q7 multiplication is a reference primitive only. Protected multiplication, complete numeric scheduling, length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. Digest-bound centered-wrap32 Q14-to-Q7 regions freeze scale, ties-to-even rounding, reject-on-range semantics, and exact producer-consumer provenance. A compact scalar protected region composes Q7 SiLU and multiplication through an exact mixed-modulus program. Tensor protected multiplication, complete numeric scheduling, length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 
@@ -27,7 +27,7 @@ Plan status as of 2026-09-17:
 | ---: | --- | --- | --- |
 | 1 | Delegated matrix-vector execution | [R07](/research/papers/r07-slalom/), [R24](/research/papers/r24-maverick/), [R08](/research/papers/r08-carnival/), [R16](/research/papers/r16-trapdoored-matrices/) | `planned` |
 | 2 | Activation approximation | [R18](/research/papers/r18-compact/) | `planned` |
-| 3 | Arithmetic garbling foundation | [R03](/research/papers/r03-garbling-gadgets/), [R04](/research/papers/r04-half-gates/), [R01](/research/papers/r01-dash/), [R02](/research/papers/r02-redash/) | `reference primitives only` |
+| 3 | Arithmetic garbling foundation | [R03](/research/papers/r03-garbling-gadgets/), [R04](/research/papers/r04-half-gates/), [R01](/research/papers/r01-dash/), [R02](/research/papers/r02-redash/) | `partial PLLM component adaptation` |
 | 4 | Protected conversions and lookup | [R06](/research/papers/r06-duty-free-bits/), [R05](/research/papers/r05-logrow/) | `planned` |
 | 5 | Protected KV-cache policy | [R23](/research/papers/r23-mpcache/) | `structural adaptation only` |
 | 6 | Decision structures and regional selection | [R11](/research/papers/r11-fevbdd/), [R10](/research/papers/r10-oblivious-decision-programs/), [R09](/research/papers/r09-hycc/) | `planned` |
@@ -61,7 +61,7 @@ Module homes:
 
 ### 3. Arithmetic garbling foundation
 
-**Status:** `reference primitives only`
+**Status:** `partial PLLM component adaptation`
 **Papers:** [R03](/research/papers/r03-garbling-gadgets/), [R04](/research/papers/r04-half-gates/), [R01](/research/papers/r01-dash/), [R02](/research/papers/r02-redash/)
 
 Complete reviewed arithmetic and Boolean foundations, tensor evaluation, and residue scaling before full decoder-region composition.
@@ -152,7 +152,7 @@ Paper names remain provenance. Implementations live in capability-oriented modul
 | ---: | --- | --- | --- |
 | 1 | [R01](/research/papers/r01-dash/) | Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits | `reference primitive only` |
 | 2 | [R02](/research/papers/r02-redash/) | ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference | `reference primitive only` |
-| 3 | [R03](/research/papers/r03-garbling-gadgets/) | Garbling Gadgets for Boolean and Arithmetic Circuits | `reference primitive only` |
+| 3 | [R03](/research/papers/r03-garbling-gadgets/) | Garbling Gadgets for Boolean and Arithmetic Circuits | `PLLM component adaptation` |
 | 4 | [R04](/research/papers/r04-half-gates/) | Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates | `tracked` |
 | 5 | [R05](/research/papers/r05-logrow/) | Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts | `tracked` |
 | 6 | [R06](/research/papers/r06-duty-free-bits/) | Duty-Free Bits: Projectivizing Garbling Schemes | `tracked` |

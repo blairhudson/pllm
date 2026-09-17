@@ -6,8 +6,8 @@ What PLLM will reproduce, implement, review, and measure next.
 
 Document ID: `pllm.docs.research.backlog`  
 Release: `0.1.0`  
-Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
-Source hash: `sha256:e8d34ef74488bece6645a7ce3418cc444a80f873a353d035f82c3f294ec696fc`
+Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Source hash: `sha256:03534dba38a58aa58afa777adb2a64477f157241e25257e4e9e90331044f0647`
 
 PLLM tracks papers because they may improve a concrete protocol, compiler pass,
 numeric primitive, or state-management boundary. A tracked paper is not a PLLM
@@ -23,11 +23,11 @@ partial coverage.
 prefill and decode runs with exact model, prompt length, output length,
 machine, topology, cold/warm state, protocol bytes, and failure behavior.
 Keep loopback, WAN, CPU, and accelerator claims separate.
-3. **Tensorize and review the experimental gated-MLP component.** Replace the
-scalar binary projection with a bounded tensor method, validate its Q7 numeric
-schedule, one-use lifecycle, authenticated plan binding, and evaluator view,
-then obtain cryptographic review. The current scalar composition is not a
-complete-model security result.
+3. **Tensorize and review the experimental gated-MLP component.** Extend the
+compact scalar mixed-modulus program into a bounded tensor method, validate its
+one-use lifecycle, authenticated plan binding, evaluator view, and memory
+schedule, then obtain cryptographic review. The exact Q7 scalar schedule is not
+a complete-model security result.
 
 ## Composition and search
 
@@ -61,7 +61,7 @@ cohort rather than declaring one method universally best.
 | --- | --- | --- | --- |
 | R24 | Maverick | Specify delegated matrix-vector execution, LPN masking, and batch verification against the prepared public-weight stage contract; independently implement bounded native primitives and run the paper's Qwen3-4B comparison. | Planned; no PLLM implementation or reproduction |
 | R23 | MPCache | Validate the existing model-neutral `DecoderPlan` transformation, then implement and measure protected cache selection under an explicitly compatible topology. | Structural plan adaptation only |
-| R01-R03 | Dash, ReDash, table-free arithmetic garbling | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | Reference primitives only; not reproduced |
+| R01-R03 | Dash, ReDash, table-free arithmetic garbling | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | R03 source locked and adapted into the compact scalar Q7 program; not reproduced |
 | R04-R11 | Garbling and decision-program foundations | Implement only the primitives required by an accepted complete-model plan, with paper-scoped tests and view definitions. | Tracked |
 | R12-R18 | GPU/MPC preprocessing and nonlinear primitives | Reproduce comparable operators before considering integration; preserve each paper's party count and trust model in reports. | Tracked |
 | R19-R22 | Private-transformer systems | Use as full-system comparison targets. Do not transfer their performance or security claims across different models, numeric graphs, or party topologies. | Tracked |

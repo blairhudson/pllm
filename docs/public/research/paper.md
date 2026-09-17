@@ -6,8 +6,8 @@ Private multi-party LLM inference and evidence-driven research-component composi
 
 Document ID: `pllm.research.paper`  
 Release: `0.1.0`  
-Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
-Source hash: `sha256:f4d165beef49c6ba8b4c184c5a00323b4d64b5c9dc52b471033d65e52990a212`
+Build: `sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62`  
+Source hash: `sha256:850d64d5229a16aa0797859cefccf62815becf8049231e9b238973d2dcc28778`
 
 [Download PDF ↗](/downloads/paper.pdf)
 
@@ -85,7 +85,7 @@ The autonomous harness is intended to turn pinned sources and hypotheses into va
 
 Garbling support is narrower still. The compiler can bind and evaluate a one-use arithmetic-garbling payload for at most 128 elements of signed Q7 SiLU input over `[-1,1]`. It computes the fixed quadratic approximation `q(x)=x/2+x^2/4` with deterministic ties-to-even rounding; the implementation’s exhaustive encoded-domain test bounds absolute error against SiLU by 0.02285. Payloads are digest-bound, strictly decoded, and burned through a bounded process-local ledger.
 
-A separate scalar reference region jointly garbles SiLU and two-input Q7 multiplication. The SiLU output remains an encoded label and enters the binary gate directly; it is never decoded and re-encoded between operators. Both inputs are provenance-bound to exact dense-Qwen linear-to-Q7 edges. The binary table is about 3.18 MB per scalar, so tensor execution remains deliberately unavailable.
+A separate scalar reference region jointly garbles SiLU and two-input Q7 multiplication. The SiLU output remains an encoded label and enters a compact mixed-modulus arithmetic program directly; it is never decoded and re-encoded between operators. Following the projection and CRT gadgets of ([Ball et al. 2017](#ref-ball2017garbling)), prime-residue multiplication, CRT conversion, and exact ties-to-even rescaling reduce the measured evaluator payload from 3,183,176 to 649,160 bytes per scalar. Both inputs are provenance-bound to exact dense-Qwen linear-to-Q7 edges. Tensor execution remains deliberately unavailable.
 
 This component is an experimental primitive, disabled from complete deployment profiles. It is not full-model garbling, does not cover the other missing operators at tensor scale, and has no cryptographic review or production-security claim. It also does not replace the additive-masking protocol used by the prepared runtime.
 
@@ -126,6 +126,8 @@ PLLM is a high-performance private LLM multi-party inference runtime and autonom
 The harness also lowers several model families into a shared semantic IR and organizes research implementations as composable capability families. Complete plan-compiled model execution and autonomous plan search remain unavailable. Garbled nonlinear execution is limited to bounded experimental Q7 SiLU and one scalar label-preserving gated-multiply composition. These runtime, compiler, component, and evidence claims remain separate. Retained Qwen2.5 measurements show one historical CPU-loopback implementation working within that boundary; they establish nothing beyond that recorded system and workload.
 
 # References
+
+Ball, Marshall, Tal Malkin, and Mike Rosulek. 2017. “Garbling Gadgets for Boolean and Arithmetic Circuits.” *Proceedings of the 2017 ACM SIGSAC Conference on Computer and Communications Security*, 565–77. [doi.org/10.1145/3133956.3133964](https://doi.org/10.1145/3133956.3133964).
 
 Chen, Tianyu, Hangbo Bao, Shaohan Huang, et al. 2022. “THE-X: Privacy-Preserving Transformer Inference with Homomorphic Encryption.” *Findings of the Association for Computational Linguistics: ACL 2022*, 3510–20. [doi.org/10.18653/v1/2022.findings-acl.277](https://doi.org/10.18653/v1/2022.findings-acl.277).
 

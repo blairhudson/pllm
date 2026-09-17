@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a
+Build: sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -120,7 +120,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Research papers](https://pllm.run/research/papers/) ([Markdown](https://pllm.run/research/papers.md)): Prioritized paper reimplementation plan, source status, contribution summaries, and PLLM implementation boundaries.
 - [R01: Dash: Accelerating Distributed Private Convolutional Neural Network Inference with Arithmetic Garbled Circuits](https://pllm.run/research/papers/r01-dash/) ([Markdown](https://pllm.run/research/papers/r01-dash.md)): Arithmetic garbling and LabelTensors provide the foundation for offline preparation and local encoded public-weight evaluation. PLLM status: reference primitive only.
 - [R02: ReDASH: Fast and efficient Scaling in Arithmetic Garbled Circuits for Secure Outsourced Inference](https://pllm.run/research/papers/r02-redash/) ([Markdown](https://pllm.run/research/papers/r02-redash.md)): ReDASH generalizes residue-number-system scaling and uses ScaleQuant+ to reduce encoded-inference overhead. PLLM status: reference primitive only.
-- [R03: Garbling Gadgets for Boolean and Arithmetic Circuits](https://pllm.run/research/papers/r03-garbling-gadgets/) ([Markdown](https://pllm.run/research/papers/r03-garbling-gadgets.md)): Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model. PLLM status: reference primitive only.
+- [R03: Garbling Gadgets for Boolean and Arithmetic Circuits](https://pllm.run/research/papers/r03-garbling-gadgets/) ([Markdown](https://pllm.run/research/papers/r03-garbling-gadgets.md)): Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model. PLLM status: PLLM component adaptation.
 - [R04: Two Halves Make a Whole: Reducing Data Transfer in Garbled Circuits using Half Gates](https://pllm.run/research/papers/r04-half-gates/) ([Markdown](https://pllm.run/research/papers/r04-half-gates.md)): Half-gates reduce AND-gate communication while remaining compatible with free XOR. PLLM status: tracked.
 - [R05: Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts](https://pllm.run/research/papers/r05-logrow/) ([Markdown](https://pllm.run/research/papers/r05-logrow.md)): The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term. PLLM status: tracked.
 - [R06: Duty-Free Bits: Projectivizing Garbling Schemes](https://pllm.run/research/papers/r06-duty-free-bits/) ([Markdown](https://pllm.run/research/papers/r06-duty-free-bits.md)): This work studies projective conversion from Yao-style bit labels into affine encodings and related vector-OLE applications. PLLM status: tracked.

@@ -78,7 +78,7 @@ fn composed_gate_executes_without_exposing_the_silu_value() {
         .remove(0);
     let material = prepare_bound_gated_multiply_q7_material(&plan, &region).unwrap();
     let payload = material.evaluator_payload();
-    assert!(payload.len() > 3_000_000);
+    assert_eq!(payload.len(), 649_160);
     assert!(payload.len() <= GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES);
     let mut evaluator = GatedMultiplyQ7Evaluator::new(&region, &payload).unwrap();
     let output = evaluator
@@ -152,7 +152,7 @@ fn authentic_wrong_region_binding_burns_material() {
 }
 
 #[test]
-fn malformed_input_and_cross_lane_labels_burn_both_gates() {
+fn malformed_input_and_cross_lane_labels_burn_the_program() {
     let plan = qwen_plan(1);
     let region = lower_model_gated_multiply_q7_regions(&plan, DecoderMode::Prefill)
         .unwrap()

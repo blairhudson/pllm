@@ -102,8 +102,8 @@
         "Mike Rosulek"
       ],
       "primary_url": "https://eprint.iacr.org/2016/969",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "source_access": "primary_full_text_pdf",
+      "verified_on": "2026-09-17",
       "track": "single_evaluator",
       "family": "primitive",
       "source_summary": "Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model.",
@@ -117,16 +117,16 @@
       "security_boundary": "Functionality alone does not validate affine-label correlations or an arbitrary hash replacement. Reject unsupported non-unit constants or lower them through justified gadgets.",
       "prior_evidence": "Affine-label arithmetic exists in archived references; no proof-equivalent native port has been established.",
       "source_lock": {
-        "paper_sha256": null,
+        "paper_sha256": "e9a7cfec82e60b3c71970f8d617015ab0b731bb53d76710fcbf07bbb11a74755",
         "artifact_commit": null,
-        "license_review": "required_before_vendoring"
+        "license_review": "approved"
       },
-      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "implementation_status": "component_adaptation_only",
       "assurance_status": "not_reviewed",
       "eligible_default": false,
       "native_owner": "Rust",
       "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "fulltext_gate": false,
       "card": "notes/R03-garbling_gadgets.md"
     },
     {

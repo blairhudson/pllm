@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a",
+  "buildId": "sha256:2b873610e88902ce44935954b3c8be5ba82c51e9673ea0929e4c8f08e5a4bf62",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -1773,7 +1773,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:f4d165beef49c6ba8b4c184c5a00323b4d64b5c9dc52b471033d65e52990a212"
+      "contentHash": "sha256:850d64d5229a16aa0797859cefccf62815becf8049231e9b238973d2dcc28778"
     },
     {
       "id": "pllm.research.whitepaper",
@@ -3802,7 +3802,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:e8d34ef74488bece6645a7ce3418cc444a80f873a353d035f82c3f294ec696fc"
+      "contentHash": "sha256:03534dba38a58aa58afa777adb2a64477f157241e25257e4e9e90331044f0647"
     },
     {
       "id": "pllm.docs.research.experiments",
@@ -3889,7 +3889,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:e4d167b514e833f932500c9232564f8223aa42f825f9c1df9f9a62a80e7f2c64"
+      "contentHash": "sha256:58f8a074aebb9d590958a0558c446748c9b7e2a8e68b2621f50a6e6b209b18c4"
     },
     {
       "id": "pllm.docs.research.papers.r01-dash",
@@ -3956,7 +3956,7 @@
     {
       "id": "pllm.docs.research.papers.r03-garbling-gadgets",
       "title": "R03: Garbling Gadgets for Boolean and Arithmetic Circuits",
-      "summary": "Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model. PLLM status: reference primitive only.",
+      "summary": "Arithmetic garbling provides free additions and specialized gadgets, with a stated symmetric-primitive security model. PLLM status: PLLM component adaptation.",
       "sourcePath": "content/docs/research/papers/r03-garbling-gadgets.mdx",
       "canonicalUrl": "/research/papers/r03-garbling-gadgets/",
       "markdownUrl": "/research/papers/r03-garbling-gadgets.md",
@@ -3982,7 +3982,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:211a2b5670d4a4366cb524b30139a72d3dd26f9ceec4bbeb2edc317868383964"
+      "contentHash": "sha256:24dd1d6b184130011f70fd1f3bffd1a94a22e18d0ab1b2e296f32b1af963c1d7"
     },
     {
       "id": "pllm.docs.research.papers.r04-half-gates",

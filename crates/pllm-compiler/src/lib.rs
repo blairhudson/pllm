@@ -38,12 +38,12 @@ pub const GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID: &str =
 pub const GATED_MULTIPLY_Q7_METHOD_ID: &str = "arithmetic-garbling-gated-multiply-q7";
 pub const GATED_MULTIPLY_Q7_KERNEL_ID: &str = "pllm-garble-gated-multiply-q7";
 pub const GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS: usize = 1;
-pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 3_250_000;
+pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 700_000;
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const GATED_MULTIPLY_Q7_ISSUANCE_CAPACITY: usize = 1_024;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
 const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
-const GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_gate.v1";
+const GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_program.v2";
 const GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.gated_multiply_q7_gate.issuance.v1";
 
 pub fn silu_q7_kernel_artifact_digest() -> Digest {
@@ -3628,11 +3628,10 @@ impl SiluQ7Evaluator {
 struct GatedMultiplyQ7GateHeader {
     schema_version: String,
     region_digest: Digest,
-    silu_gate_digest: Digest,
-    multiply_gate_digest: Digest,
+    program_digest: Digest,
 }
 
-/// Client-only encodings plus a region-bound pair of evaluator gates.
+/// Client-only encodings plus a region-bound evaluator program.
 pub struct BoundGatedMultiplyQ7Material {
     material: pllm_garble::GatedMultiplyQ7Material,
     evaluator_payload: Vec<u8>,
@@ -3656,7 +3655,7 @@ impl BoundGatedMultiplyQ7Material {
     }
 }
 
-/// Prepare a scalar, one-use, label-preserving `SiLU(gate) * up` gate pair.
+/// Prepare a scalar, one-use, label-preserving `SiLU(gate) * up` program.
 pub fn prepare_bound_gated_multiply_q7_material(
     plan: &DecoderPlan,
     region: &ModelGatedMultiplyQ7Region,
@@ -3667,33 +3666,23 @@ pub fn prepare_bound_gated_multiply_q7_material(
     let material =
         pllm_garble::prepare_gated_multiply_q7_with_context(digest_array(&region_digest)?)
             .map_err(|error| error.to_string())?;
-    let (silu_gate, multiply_gate) = material.gate_bytes();
+    let program = material.program_bytes();
     let header = GatedMultiplyQ7GateHeader {
-        schema_version: GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION.into(),
+        schema_version: GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION.into(),
         region_digest,
-        silu_gate_digest: digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, &silu_gate),
-        multiply_gate_digest: digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, &multiply_gate),
+        program_digest: digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, &program),
     };
     let encoded_header = canonical_bytes(&header);
     let header_len = u32::try_from(encoded_header.len())
         .map_err(|_| "gated Q7 multiply header exceeds u32".to_owned())?;
-    let silu_len = u32::try_from(silu_gate.len())
-        .map_err(|_| "gated Q7 multiply SiLU gate exceeds u32".to_owned())?;
-    let mut evaluator_payload =
-        Vec::with_capacity(8 + encoded_header.len() + silu_gate.len() + multiply_gate.len());
+    let mut evaluator_payload = Vec::with_capacity(4 + encoded_header.len() + program.len());
     evaluator_payload.extend_from_slice(&header_len.to_le_bytes());
     evaluator_payload.extend_from_slice(&encoded_header);
-    evaluator_payload.extend_from_slice(&silu_len.to_le_bytes());
-    evaluator_payload.extend_from_slice(&silu_gate);
-    evaluator_payload.extend_from_slice(&multiply_gate);
+    evaluator_payload.extend_from_slice(&program);
     if evaluator_payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
         return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
     }
-    let silu_gate = pllm_garble::GarbledProjection::from_bytes(&silu_gate)
-        .map_err(|error| error.to_string())?;
-    let multiply_gate = pllm_garble::GarbledProjection::from_bytes(&multiply_gate)
-        .map_err(|error| error.to_string())?;
-    let material_id = gated_multiply_q7_material_id(&silu_gate, &multiply_gate)?;
+    let material_id = material.material_id();
     register_gated_multiply_q7_material(
         material_id,
         digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, &evaluator_payload),
@@ -3759,10 +3748,7 @@ fn consume_gated_multiply_q7_material(
 
 /// Bound evaluator state for one scalar gated Q7 multiplication.
 pub struct GatedMultiplyQ7Evaluator {
-    gates: Option<(
-        pllm_garble::GarbledProjection,
-        pllm_garble::GarbledProjection,
-    )>,
+    program: Option<pllm_garble::GarbledProgram>,
     consumed: bool,
 }
 
@@ -3770,56 +3756,43 @@ impl GatedMultiplyQ7Evaluator {
     pub fn new(region: &ModelGatedMultiplyQ7Region, payload: &[u8]) -> Result<Self, String> {
         validate_scalar_gated_multiply_q7_region(region)?;
         let expected_region = model_gated_multiply_q7_region_digest(region);
-        let (header, silu_bytes, multiply_bytes) = decode_gated_multiply_q7_gates(payload)?;
-        let silu_gate = pllm_garble::GarbledProjection::from_bytes(silu_bytes)
-            .map_err(|error| error.to_string())?;
-        let multiply_gate = pllm_garble::GarbledProjection::from_bytes(multiply_bytes)
+        let (header, program_bytes) = decode_gated_multiply_q7_program(payload)?;
+        let program = pllm_garble::GarbledProgram::from_bytes(program_bytes)
             .map_err(|error| error.to_string())?;
         consume_gated_multiply_q7_material(
-            gated_multiply_q7_material_id(&silu_gate, &multiply_gate)?,
+            program.material_id(),
             &digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, payload),
         )?;
         if header.region_digest != expected_region {
             return Err("gated Q7 multiply commitment does not match region".into());
         }
         let context = digest_array(&expected_region)?;
-        if silu_gate.context_digest() != context || multiply_gate.context_digest() != context {
+        if program.context_digest() != context {
             return Err("gated Q7 multiply authentication is bound to another region".into());
         }
-        if silu_gate.input_moduli() != [pllm_garble::SILU_QUADRATIC_Q7_MODULUS]
-            || silu_gate.output_modulus() != pllm_garble::SILU_QUADRATIC_Q7_MODULUS
-            || multiply_gate.input_moduli()
-                != [
-                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
-                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
-                ]
-            || multiply_gate.output_modulus() != pllm_garble::SILU_QUADRATIC_Q7_MODULUS
+        if program.input_moduli()
+            != [
+                pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+                pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+            ]
         {
-            return Err("gated Q7 multiply gates use the wrong arithmetic modulus".into());
+            return Err("gated Q7 multiply program uses the wrong arithmetic modulus".into());
         }
         Ok(Self {
-            gates: Some((silu_gate, multiply_gate)),
+            program: Some(program),
             consumed: false,
         })
     }
 
-    /// Consume both gates on the first attempt, including malformed input.
+    /// Consume the complete program on the first attempt, including malformed input.
     pub fn evaluate(&mut self, gate_label: &[u8], up_label: &[u8]) -> Result<Vec<u8>, String> {
         self.burn()?;
-        let (silu_gate, multiply_gate) = self
-            .gates
+        let program = self
+            .program
             .take()
             .ok_or("gated Q7 multiply evaluator material is absent")?;
-        let gate_label =
-            pllm_garble::Label::from_bytes(gate_label).map_err(|error| error.to_string())?;
-        let activated = silu_gate
-            .evaluate(&[&gate_label])
-            .map_err(|error| error.to_string())?;
-        let up_label =
-            pllm_garble::Label::from_bytes(up_label).map_err(|error| error.to_string())?;
-        multiply_gate
-            .evaluate(&[&activated, &up_label])
-            .map(|label| label.to_bytes())
+        program
+            .evaluate(&[gate_label, up_label])
             .map_err(|error| error.to_string())
     }
 
@@ -3845,19 +3818,9 @@ fn validate_scalar_gated_multiply_q7_region(
     Ok(())
 }
 
-fn gated_multiply_q7_material_id(
-    silu_gate: &pllm_garble::GarbledProjection,
-    multiply_gate: &pllm_garble::GarbledProjection,
-) -> Result<[u8; 32], String> {
-    digest_array(&canonical_digest(
-        "pllm.gated_multiply_q7.material.v1",
-        &[silu_gate.material_id(), multiply_gate.material_id()],
-    ))
-}
-
-fn decode_gated_multiply_q7_gates(
+fn decode_gated_multiply_q7_program(
     payload: &[u8],
-) -> Result<(GatedMultiplyQ7GateHeader, &[u8], &[u8]), String> {
+) -> Result<(GatedMultiplyQ7GateHeader, &[u8]), String> {
     if payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
         return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
     }
@@ -3874,38 +3837,19 @@ fn decode_gated_multiply_q7_gates(
     let header_bytes = payload
         .get(4..header_end)
         .ok_or("gated Q7 multiply header is truncated")?;
-    let silu_len_end = header_end
-        .checked_add(4)
-        .ok_or("gated Q7 multiply payload length overflows")?;
-    let silu_len = u32::from_le_bytes(
-        payload
-            .get(header_end..silu_len_end)
-            .ok_or("gated Q7 multiply SiLU length is truncated")?
-            .try_into()
-            .map_err(|_| "gated Q7 multiply SiLU length is truncated")?,
-    ) as usize;
-    let silu_end = silu_len_end
-        .checked_add(silu_len)
-        .ok_or("gated Q7 multiply SiLU length overflows")?;
-    let silu_gate = payload
-        .get(silu_len_end..silu_end)
-        .filter(|gate| !gate.is_empty())
-        .ok_or("gated Q7 multiply SiLU gate is absent")?;
-    let multiply_gate = payload
-        .get(silu_end..)
-        .filter(|gate| !gate.is_empty())
-        .ok_or("gated Q7 multiply gate is absent")?;
+    let program = payload
+        .get(header_end..)
+        .filter(|program| !program.is_empty())
+        .ok_or("gated Q7 multiply program is absent")?;
     let header: GatedMultiplyQ7GateHeader =
         serde_json::from_slice(header_bytes).map_err(|_| "gated Q7 multiply header is invalid")?;
-    if header.schema_version != GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION
+    if header.schema_version != GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION
         || canonical_bytes(&header) != header_bytes
-        || header.silu_gate_digest != digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, silu_gate)
-        || header.multiply_gate_digest
-            != digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, multiply_gate)
+        || header.program_digest != digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, program)
     {
-        return Err("gated Q7 multiply gate commitment is invalid".into());
+        return Err("gated Q7 multiply program commitment is invalid".into());
     }
-    Ok((header, silu_gate, multiply_gate))
+    Ok((header, program))
 }
 
 fn digest_array(digest: &Digest) -> Result<[u8; 32], String> {

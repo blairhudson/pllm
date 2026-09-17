@@ -1,0 +1,15 @@
+{
+  "schema_version": "pllm.source_record.v1",
+  "id": "R03",
+  "title": "Garbling Gadgets for Boolean and Arithmetic Circuits",
+  "authors": ["Marshall Ball", "Tal Malkin", "Mike Rosulek"],
+  "year": 2016,
+  "primary_url": "https://eprint.iacr.org/2016/969",
+  "access": "primary_full_text_pdf",
+  "verified_on": "2026-09-17",
+  "paper_digest": "e9a7cfec82e60b3c71970f8d617015ab0b731bb53d76710fcbf07bbb11a74755",
+  "local_path": "papers/r03-garbling-gadgets.pdf",
+  "artifact_commit": null,
+  "license_review": "approved",
+  "notes": "The ePrint paper is CC BY 4.0. PLLM uses the locked publication as a clean-room specification and does not import or depend on an upstream implementation."
+}

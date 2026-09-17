@@ -74,12 +74,14 @@ rounding, and range policy, plus exhaustive Q7 multiplication and gated-MLP
 references. These rescale regions bind the exact dense-Qwen linear producer,
 nonlinear consumer, and consumer input slot. One experimental protected scalar
 region jointly garbles SiLU and its two-input multiplication, feeding the hidden
-SiLU output label directly into the multiplication gate. Its authenticated,
-digest-bound material is one-use and capped at one element because its binary
-projection table is about 3.18 MB. Tensor scheduling, complete numeric scheduling,
-and other multiplication contracts remain unavailable, so this does not promote
-decoder coverage. It does not yet schedule these regions as a complete decoder or
-activate a complete model profile.
+SiLU output label directly into multiplication. Its compact mixed-modulus program
+uses source-locked arithmetic projections, prime-residue multiplication, CRT
+conversion, and exact ties-to-even rescaling. Authenticated, digest-bound material
+is one-use and measures 649,160 bytes per scalar, 79.6% below the prior dense binary
+table. Tensor scheduling, complete numeric scheduling, and other multiplication
+contracts remain unavailable, so this does not promote decoder coverage. It does
+not yet schedule these regions as a complete decoder or activate a complete model
+profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 

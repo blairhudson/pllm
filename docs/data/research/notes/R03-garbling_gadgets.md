@@ -1,10 +1,10 @@
 # R03 · Garbling Gadgets for Boolean and Arithmetic Circuits
 
-**Priority 3 · 2016 · single_evaluator · source checked 2026-09-14**
+**Priority 3 · 2016 · single_evaluator · source checked 2026-09-17**
 
 Authors: Marshall Ball, Tal Malkin, Mike Rosulek.  
 Primary source: https://eprint.iacr.org/2016/969  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Access: primary ePrint PDF, SHA-256 `e9a7cfec82e60b3c71970f8d617015ab0b731bb53d76710fcbf07bbb11a74755`, CC BY 4.0. The source lock covers the paper only; no upstream implementation is used or accepted as a runtime dependency.
 
 ## What the source contributes
 
@@ -47,7 +47,7 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-PLLM now has a clean-room mixed-modulus reference and one bounded single-modulus Q7 SiLU projection slice with exhaustive finite-domain parity, authenticated plan binding, strict gate serialization and bounded process-local one-use enforcement. This adapted component is not a proof-equivalent reproduction of the source and has no cryptographic review.
+PLLM now has a clean-room mixed-modulus reference and bounded single-modulus Q7 projection slices with exhaustive finite-domain parity, authenticated plan binding, strict gate serialization and bounded process-local one-use enforcement. These adapted components are not proof-equivalent reproductions of the source and have no cryptographic review.
 
 The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
 
