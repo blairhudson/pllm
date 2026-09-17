@@ -6,7 +6,7 @@ Inspect versioned capabilities and apply compatible components to a model plan.
 
 Document ID: `pllm.docs.sdk.components`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce`
 
 A component identifies one versioned capability and its public parameters. The

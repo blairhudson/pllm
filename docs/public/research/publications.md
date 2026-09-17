@@ -6,7 +6,7 @@ Learn which evidence and review a PLLM research claim needs before publication.
 
 Document ID: `pllm.docs.research.publications`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:fa16c1fbe2aefc7795dd8295365e02cba1e53a90bdf9123af6becc25ea3a4b88`
 
 PLLM distinguishes a reproduction, an engineering improvement, and a scientific

@@ -6,7 +6,7 @@ Rust crates, the Python binding, data ownership, threading, and ABI support.
 
 Document ID: `pllm.docs.reference.native`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:9e528d54619b53c606bc73facfc49add51941b67a4e98bf13e995edc666de3cd`
 
 `pllm-core` owns validated integer matrices and native execution. `pllm-models` owns model-neutral semantic lowering. Research-method crates transform semantic plans. `pllm-types` owns canonical records; `pllm-compiler` validates executable plans. `pllm-python` contains only the PyO3 boundary exposed as `pllm._native`.

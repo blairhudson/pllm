@@ -6,7 +6,7 @@ Turn a published method into a versioned component and a recorded plan change.
 
 Document ID: `pllm.docs.build.research`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:43933f6c157772344c1058a9a1e8464a94a2588d891748c282a9da61c5849a93`
 
 A new reimplementation follows distinct identities:

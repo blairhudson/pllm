@@ -2,6 +2,14 @@
 //! protocol descriptions. This unreviewed research crate is disabled in all
 //! production profiles and makes no cryptographic assurance claim.
 
+pub mod gated_multiply_q7;
+
+pub use gated_multiply_q7::{
+    Method as GatedMultiplyQ7Method,
+    BINARY_TABLE_COMPONENT_ID as BINARY_TABLE_GATED_MULTIPLY_Q7_COMPONENT_ID,
+    R03_CRT_COMPONENT_ID as R03_CRT_GATED_MULTIPLY_Q7_COMPONENT_ID,
+};
+
 use sha2::{Digest as _, Sha256};
 use std::{collections::BTreeMap, error::Error, fmt};
 use zeroize::Zeroize;
@@ -1173,8 +1181,46 @@ pub fn prepare_gated_multiply_q7() -> Result<GatedMultiplyQ7Material, GarbleErro
     prepare_gated_multiply_q7_with_context([0_u8; 32])
 }
 
-/// Prepare one compact mixed-modulus program so intermediate values remain labels.
 pub fn prepare_gated_multiply_q7_with_context(
+    context_digest: [u8; 32],
+) -> Result<GatedMultiplyQ7Material, GarbleError> {
+    prepare_gated_multiply_q7_with_method_and_context(GatedMultiplyQ7Method::R03Crt, context_digest)
+}
+
+/// Prepare one selected program while keeping intermediate values as labels.
+pub fn prepare_gated_multiply_q7_with_method_and_context(
+    method: GatedMultiplyQ7Method,
+    context_digest: [u8; 32],
+) -> Result<GatedMultiplyQ7Material, GarbleError> {
+    match method {
+        GatedMultiplyQ7Method::BinaryTable => {
+            prepare_binary_table_gated_multiply_q7(context_digest)
+        }
+        GatedMultiplyQ7Method::R03Crt => prepare_r03_crt_gated_multiply_q7(context_digest),
+    }
+}
+
+fn prepare_binary_table_gated_multiply_q7(
+    context_digest: [u8; 32],
+) -> Result<GatedMultiplyQ7Material, GarbleError> {
+    let q7_modulus = Modulus::new(SILU_QUADRATIC_Q7_MODULUS)?;
+    let mut builder = ProgramBuilder::new(context_digest);
+    let gate_input_index = builder.input(q7_modulus)?;
+    let up_input_index = builder.input(q7_modulus)?;
+    let activated = builder.project(&[gate_input_index], q7_modulus, |values| {
+        let result = pllm_core::silu_quadratic_q7(q7_centered(values[0]))
+            .expect("every modulus-257 residue maps to the locked Q7 domain");
+        q7_residue(result).expect("locked Q7 SiLU output remains in domain")
+    })?;
+    let output_index = builder.project(&[activated, up_input_index], q7_modulus, |values| {
+        let result = pllm_core::multiply_q7(q7_centered(values[0]), q7_centered(values[1]))
+            .expect("every modulus-257 input pair has a bounded Q7 product");
+        q7_residue(result).expect("locked Q7 multiplication output remains in domain")
+    })?;
+    finish_gated_multiply_q7(builder, output_index)
+}
+
+fn prepare_r03_crt_gated_multiply_q7(
     context_digest: [u8; 32],
 ) -> Result<GatedMultiplyQ7Material, GarbleError> {
     let q7_modulus = Modulus::new(SILU_QUADRATIC_Q7_MODULUS)?;
@@ -1281,6 +1327,13 @@ pub fn prepare_gated_multiply_q7_with_context(
     let tie_round_q7 = builder.project(&[tie_round], q7_modulus, |values| values[0])?;
     let rounded = builder.add(base_quotient, round_up_q7)?;
     let output_index = builder.add(rounded, tie_round_q7)?;
+    finish_gated_multiply_q7(builder, output_index)
+}
+
+fn finish_gated_multiply_q7(
+    builder: ProgramBuilder,
+    output_index: u16,
+) -> Result<GatedMultiplyQ7Material, GarbleError> {
     let (program, inputs, output) = builder.finish(output_index)?;
     let [gate_input, up_input]: [WireEncoding; 2] =
         inputs.try_into().map_err(|_| GarbleError::InvalidProgram)?;
@@ -2102,6 +2155,35 @@ mod tests {
                 pllm_core::multiply_q7(pllm_core::silu_quadratic_q7(gate).unwrap(), up).unwrap();
             assert_eq!(material.decode(&output).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn gated_multiply_q7_methods_share_the_numeric_contract() {
+        let mut payload_lengths = Vec::new();
+        for method in [
+            GatedMultiplyQ7Method::BinaryTable,
+            GatedMultiplyQ7Method::R03Crt,
+        ] {
+            let material =
+                prepare_gated_multiply_q7_with_method_and_context(method, [11_u8; 32]).unwrap();
+            let program = material.program_bytes();
+            for (gate, up) in [(-128, 127), (-65, -96), (0, 128), (64, -96), (128, 128)] {
+                let output = evaluate_gated_multiply_q7(
+                    &program,
+                    &material.encode_gate(gate).unwrap(),
+                    &material.encode_up(up).unwrap(),
+                )
+                .unwrap();
+                assert_eq!(
+                    material.decode(&output).unwrap(),
+                    pllm_core::gated_multiply_q7(gate, up).unwrap(),
+                    "{}",
+                    method.component_id()
+                );
+            }
+            payload_lengths.push(program.len());
+        }
+        assert!(payload_lengths[0] > payload_lengths[1]);
     }
 
     #[test]

@@ -17,3 +17,12 @@ provenance and limitations. Fidelity, protected execution, assurance, and
 matched benchmarks have not been evaluated for this structural adaptation.
 
 A method that resembles a paper is not automatically a faithful reproduction.
+
+Protected Q7 `SiLU(gate) * up` follows the same rule. Python exposes
+`BinaryTableGatedMultiplyQ7` and `R03CrtGatedMultiplyQ7` as interchangeable
+method components. `ScalarProtectedTensorSchedule` and
+`IndependentLanesProtectedTensorSchedule` select scheduling separately. All
+four are distinct component identities in two capability families; R03 is
+provenance for one implementation, not a package boundary. Four lanes are the
+current maximum, and no selection establishes complete-decoder coverage or
+cryptographic assurance.

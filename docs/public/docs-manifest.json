@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e",
+  "buildId": "sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -1406,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:9f5ef8796284733ba1c4f9019ed411e6a59ebaff85841803af0658fcb85df32f"
+      "contentHash": "sha256:ef48d5a638d4cb5edc9f30d1269a8707ac2a4f571ba35f2f613c72effb0feb3d"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1435,9 +1435,11 @@
       ],
       "componentIds": [
         "pllm/cpu",
+        "pllm/gated-multiply-q7",
         "pllm/kv-cache-eviction",
         "pllm/masked-linear",
-        "pllm/model-aware-corrections"
+        "pllm/model-aware-corrections",
+        "pllm/protected-tensor-schedule"
       ],
       "sourcePaths": [
         "content/docs/reference/components.mdx",
@@ -1450,7 +1452,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:23285692d3951cdb1e784946ffdd0d994a8508020450364a862da482a0e414e1"
+      "contentHash": "sha256:cc976fe4c486164c421ae15ea43aa2f681ee8637a56bc5d69079544a5f87d73d"
     },
     {
       "id": "pllm.docs.reference.schemas",
@@ -1574,7 +1576,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:ca2c53148211ceefd423aa628568d13bbec20e4084a222ba9988e21e03389c35"
+      "contentHash": "sha256:984700ca8104eb825f52b2dbbccbef80c6141a73b4e45137252e0f43f9bd42e4"
     },
     {
       "id": "pllm.docs.research.compositions",
@@ -1605,7 +1607,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:aa7404a9b15ad8b26a476f3435638fc049c8b9be619d612c7aeee9a3ccf19171"
+      "contentHash": "sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f"
     },
     {
       "id": "pllm.docs.research.evidence",
@@ -1773,7 +1775,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:48725bac450295c5bb66486ffbd2c602fb53c6167986947ac20b32c5ea804a02"
+      "contentHash": "sha256:b660250e1d3a99b757fca470e5e2a264c7823508aa515f0488f6c52df5d5688f"
     },
     {
       "id": "pllm.research.whitepaper",
@@ -1804,7 +1806,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:a3f6b1c0b04d85e5fae709f55f041438930b0f735a1f1bec29ce6256b99ba736",
+      "contentHash": "sha256:2ad62d645df6784802f92ba06050eaaf9403300dfba44c11a3196795b99d18d0",
       "citationLinks": [
         "/learn/understand/architecture/",
         "/learn/understand/privacy-assurance/"
@@ -3802,7 +3804,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:03534dba38a58aa58afa777adb2a64477f157241e25257e4e9e90331044f0647"
+      "contentHash": "sha256:2a35235ab25647875e7e70eda42ffb73a22aad537b9167a48e2b2580b88e8b2d"
     },
     {
       "id": "pllm.docs.research.experiments",
@@ -3889,7 +3891,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:58f8a074aebb9d590958a0558c446748c9b7e2a8e68b2621f50a6e6b209b18c4"
+      "contentHash": "sha256:384b2206215a8425006e99cd87e948082966015ae7152e8637ea171f3f9f4c67"
     },
     {
       "id": "pllm.docs.research.papers.r01-dash",
@@ -3982,7 +3984,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:24dd1d6b184130011f70fd1f3bffd1a94a22e18d0ab1b2e296f32b1af963c1d7"
+      "contentHash": "sha256:23a38b64e6a2e38612bc8c3df7321f90397a46b0f2c7adead4ed76c31f31d84c"
     },
     {
       "id": "pllm.docs.research.papers.r04-half-gates",

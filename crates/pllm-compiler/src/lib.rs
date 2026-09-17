@@ -30,21 +30,30 @@ pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
 pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v2";
-pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v1";
+pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v2";
 pub const GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID: &str =
     pllm_core::fixed_point::GATED_MULTIPLY_Q7_PROFILE;
 pub const GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID: &str =
     "pllm.protected.arithmetic_garbling.gated_multiply_q7.v1";
 pub const GATED_MULTIPLY_Q7_METHOD_ID: &str = "arithmetic-garbling-gated-multiply-q7";
 pub const GATED_MULTIPLY_Q7_KERNEL_ID: &str = "pllm-garble-gated-multiply-q7";
-pub const GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS: usize = 1;
-pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 275_000;
+pub const GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID: &str =
+    pllm_garble::BINARY_TABLE_GATED_MULTIPLY_Q7_COMPONENT_ID;
+pub const GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID: &str =
+    pllm_garble::R03_CRT_GATED_MULTIPLY_Q7_COMPONENT_ID;
+pub const GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID: &str = "pllm/scalar/v1";
+pub const GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID: &str =
+    "pllm/independent-lanes/v1";
+pub const GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS: usize = 4;
+pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 10_000_000;
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const GATED_MULTIPLY_Q7_ISSUANCE_CAPACITY: usize = 1_024;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
 const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
-const GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_program.v2";
+const GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_bundle.v1";
 const GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.gated_multiply_q7_gate.issuance.v1";
+const GATED_MULTIPLY_Q7_LANE_CONTEXT_DOMAIN: &str = "pllm.gated_multiply_q7_lane.v1";
+const GATED_MULTIPLY_Q7_BUNDLE_ID_DOMAIN: &str = "pllm.gated_multiply_q7_bundle_id.v1";
 
 pub fn silu_q7_kernel_artifact_digest() -> Digest {
     canonical_digest(
@@ -97,9 +106,18 @@ pub fn silu_q7_installed_contract() -> SiluQ7InstalledContract {
 }
 
 pub fn silu_q7_method_artifact_digest() -> Digest {
-    digest_bytes(
-        "pllm.artifact.rust-source.v1",
-        include_bytes!("../../pllm-garble/src/lib.rs"),
+    canonical_digest(
+        "pllm.artifact.rust-source-set.v1",
+        &[
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-garble/src/lib.rs"),
+            ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-garble/src/gated_multiply_q7.rs"),
+            ),
+        ],
     )
 }
 
@@ -244,7 +262,7 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::Multiply {
-                    "gated-MLP SiLU and multiplication compose without decoding for one scalar Q7 element; tensor scheduling and other multiplication contracts are unavailable"
+                    "gated-MLP SiLU and multiplication compose without decoding for at most four independently garbled Q7 elements; real-model tensor scheduling and other multiplication contracts are unavailable"
                         .to_owned()
                 } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
@@ -421,6 +439,9 @@ pub struct ModelGatedMultiplyQ7Region {
     pub output: TensorType,
     pub numeric_graph_id: String,
     pub protected_graph_id: String,
+    pub method_component_id: String,
+    pub schedule_component_id: String,
+    pub max_tensor_elements: usize,
     pub method: VersionedArtifact,
     pub kernel: VersionedArtifact,
     pub compiler: VersionedArtifact,
@@ -900,6 +921,69 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
                 "configuration component {slot} does not accept parameters"
             ));
         }
+        if matches!(
+            component.component.as_str(),
+            GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID
+                | GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID
+                | GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID
+        ) && !component.params.is_empty()
+        {
+            return Err(format!(
+                "configuration component {slot} does not accept parameters"
+            ));
+        }
+        if component.component == GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID {
+            let max_elements = component
+                .params
+                .get("max_elements")
+                .and_then(serde_json::Value::as_u64);
+            if component.params.len() != 1 || !matches!(max_elements, Some(2..=4)) {
+                return Err(format!(
+                    "configuration component {slot} requires max_elements between 2 and 4"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_baseline_components(document: &ExperimentDocument) -> Result<(), String> {
+    for (slot, required) in [
+        ("linear", "pllm/masked-linear"),
+        ("preparation", "pllm/model-aware-corrections"),
+        ("inference", "pllm/inference"),
+    ] {
+        let component = document
+            .pipeline
+            .components
+            .get(slot)
+            .ok_or_else(|| format!("baseline profile requires {slot} component {required}"))?;
+        if component.component != required || !component.params.is_empty() {
+            return Err(format!(
+                "baseline profile requires {slot} component {required} with no parameters"
+            ));
+        }
+    }
+    let kernels = document
+        .pipeline
+        .components
+        .get("kernels")
+        .ok_or_else(|| "baseline profile requires kernels component pllm/cpu".to_string())?;
+    if kernels.component != "pllm/cpu"
+        || kernels.params.len() != 1
+        || kernels
+            .params
+            .get("threads")
+            .and_then(serde_json::Value::as_u64)
+            .is_none_or(|threads| threads == 0)
+    {
+        return Err(
+            "baseline profile requires kernels component pllm/cpu with positive integer threads"
+                .into(),
+        );
+    }
+    if document.pipeline.components.len() != 4 {
+        return Err("baseline profile requires exactly linear, preparation, inference, and kernels components".into());
     }
     Ok(())
 }
@@ -917,21 +1001,7 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentProfile, Str
             document.pipeline.profile
         ));
     }
-    for (slot, required) in [
-        ("preparation", "pllm/model-aware-corrections"),
-        ("inference", "pllm/inference"),
-    ] {
-        let component = document
-            .pipeline
-            .components
-            .get(slot)
-            .ok_or_else(|| format!("baseline profile requires {slot} component {required}"))?;
-        if component.component != required || !component.params.is_empty() {
-            return Err(format!(
-                "baseline profile requires {slot} component {required} with no parameters"
-            ));
-        }
-    }
+    validate_baseline_components(&document)?;
 
     Ok(ResolvedExperimentProfile {
         canonical_profile: canonical_bytes(&document.pipeline),
@@ -1416,6 +1486,9 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
         )));
     }
     validate_experiment(&document.configuration).map_err(document_error)?;
+    if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
+        validate_baseline_components(&document.configuration).map_err(document_error)?;
+    }
     if canonical_bytes(&document) != bytes {
         return Err(document_error(
             "compile document must use canonical compact sorted JSON bytes",
@@ -2836,6 +2909,28 @@ pub fn lower_model_gated_multiply_q7_regions(
     plan: &DecoderPlan,
     mode: DecoderMode,
 ) -> Result<Vec<ModelGatedMultiplyQ7Region>, String> {
+    lower_model_gated_multiply_q7_regions_with_components(
+        plan,
+        mode,
+        GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
+        GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID,
+        1,
+    )
+}
+
+/// Lower dense gated-MLP regions with explicit method and scheduler components.
+pub fn lower_model_gated_multiply_q7_regions_with_components(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    method_component_id: &str,
+    schedule_component_id: &str,
+    max_tensor_elements: usize,
+) -> Result<Vec<ModelGatedMultiplyQ7Region>, String> {
+    validate_gated_multiply_q7_components(
+        method_component_id,
+        schedule_component_id,
+        max_tensor_elements,
+    )?;
     plan.validate().map_err(|error| error.to_string())?;
     let graph = model_graph(plan, mode);
     let operations = graph
@@ -2933,6 +3028,9 @@ pub fn lower_model_gated_multiply_q7_regions(
             output: input,
             numeric_graph_id: GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID.into(),
             protected_graph_id: GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID.into(),
+            method_component_id: method_component_id.into(),
+            schedule_component_id: schedule_component_id.into(),
+            max_tensor_elements,
             method: VersionedArtifact {
                 id: GATED_MULTIPLY_Q7_METHOD_ID.into(),
                 version: "1".into(),
@@ -2964,6 +3062,11 @@ fn validate_model_gated_multiply_q7_region(
 ) -> Result<(), String> {
     validate_q14_to_q7_rescale_region(&region.gate_rescale)?;
     validate_q14_to_q7_rescale_region(&region.up_rescale)?;
+    validate_gated_multiply_q7_components(
+        &region.method_component_id,
+        &region.schedule_component_id,
+        region.max_tensor_elements,
+    )?;
     if region.schema_version != GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION
         || region.profile != SILU_Q7_EXPERIMENT_PROFILE
         || !valid_identity(&region.gate_linear_operation_id)
@@ -2998,6 +3101,34 @@ fn validate_model_gated_multiply_q7_region(
     }
     tensor_elements(&region.input.shape)?;
     Ok(())
+}
+
+fn validate_gated_multiply_q7_components(
+    method_component_id: &str,
+    schedule_component_id: &str,
+    max_tensor_elements: usize,
+) -> Result<(), String> {
+    if !matches!(
+        method_component_id,
+        GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID | GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID
+    ) {
+        return Err("unsupported gated Q7 multiply method implementation".into());
+    }
+    match schedule_component_id {
+        GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID if max_tensor_elements == 1 => Ok(()),
+        GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID
+            if (2..=GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS).contains(&max_tensor_elements) =>
+        {
+            Ok(())
+        }
+        GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID => {
+            Err("scalar gated Q7 multiply scheduling requires one element".into())
+        }
+        GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID => Err(format!(
+            "independent-lane gated Q7 multiply scheduling supports 2..={GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS} elements"
+        )),
+        _ => Err("unsupported gated Q7 multiply schedule implementation".into()),
+    }
 }
 
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
@@ -3628,13 +3759,21 @@ impl SiluQ7Evaluator {
 struct GatedMultiplyQ7GateHeader {
     schema_version: String,
     region_digest: Digest,
-    program_digest: Digest,
+    #[serde(rename = "method_implementation")]
+    method_component_id: String,
+    #[serde(rename = "schedule_implementation")]
+    schedule_component_id: String,
+    element_count: usize,
+    bundle_id: Digest,
+    program_digests: Vec<Digest>,
 }
 
 /// Client-only encodings plus a region-bound evaluator program.
 pub struct BoundGatedMultiplyQ7Material {
-    material: pllm_garble::GatedMultiplyQ7Material,
+    materials: Vec<pllm_garble::GatedMultiplyQ7Material>,
     evaluator_payload: Vec<u8>,
+    issuance_id: [u8; 32],
+    issuance_digest: Digest,
 }
 
 impl BoundGatedMultiplyQ7Material {
@@ -3642,54 +3781,139 @@ impl BoundGatedMultiplyQ7Material {
         self.evaluator_payload.clone()
     }
 
+    pub fn element_count(&self) -> usize {
+        self.materials.len()
+    }
+
+    /// Cancel evaluator issuance when prepared material will not be used.
+    pub fn cancel(&self) -> Result<bool, String> {
+        unregister_gated_multiply_q7_material(self.issuance_id, &self.issuance_digest)
+    }
+
     pub fn encode_gate(&self, value: i16) -> Result<Vec<u8>, pllm_garble::GarbleError> {
-        self.material.encode_gate(value)
+        let [material] = self.materials.as_slice() else {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        };
+        material.encode_gate(value)
     }
 
     pub fn encode_up(&self, value: i16) -> Result<Vec<u8>, pllm_garble::GarbleError> {
-        self.material.encode_up(value)
+        let [material] = self.materials.as_slice() else {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        };
+        material.encode_up(value)
     }
 
     pub fn decode(&self, bytes: &[u8]) -> Result<i16, pllm_garble::GarbleError> {
-        self.material.decode(bytes)
+        let [material] = self.materials.as_slice() else {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        };
+        material.decode(bytes)
+    }
+
+    pub fn encode_gates(&self, values: &[i16]) -> Result<Vec<Vec<u8>>, pllm_garble::GarbleError> {
+        if values.len() != self.materials.len() {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        }
+        self.materials
+            .iter()
+            .zip(values)
+            .map(|(material, value)| material.encode_gate(*value))
+            .collect()
+    }
+
+    pub fn encode_ups(&self, values: &[i16]) -> Result<Vec<Vec<u8>>, pllm_garble::GarbleError> {
+        if values.len() != self.materials.len() {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        }
+        self.materials
+            .iter()
+            .zip(values)
+            .map(|(material, value)| material.encode_up(*value))
+            .collect()
+    }
+
+    pub fn decode_tensor(&self, labels: &[Vec<u8>]) -> Result<Vec<i16>, pllm_garble::GarbleError> {
+        if labels.len() != self.materials.len() {
+            return Err(pllm_garble::GarbleError::InvalidProgram);
+        }
+        self.materials
+            .iter()
+            .zip(labels)
+            .map(|(material, label)| material.decode(label))
+            .collect()
     }
 }
 
-/// Prepare a scalar, one-use, label-preserving `SiLU(gate) * up` program.
+impl Drop for BoundGatedMultiplyQ7Material {
+    fn drop(&mut self) {
+        let _ = unregister_gated_multiply_q7_material(self.issuance_id, &self.issuance_digest);
+    }
+}
+
+/// Prepare a bounded, one-use, label-preserving `SiLU(gate) * up` bundle.
 pub fn prepare_bound_gated_multiply_q7_material(
     plan: &DecoderPlan,
     region: &ModelGatedMultiplyQ7Region,
 ) -> Result<BoundGatedMultiplyQ7Material, String> {
     validate_model_gated_multiply_q7_region_against_plan(plan, region)?;
-    validate_scalar_gated_multiply_q7_region(region)?;
+    let elements = validate_schedulable_gated_multiply_q7_region(region)?;
     let region_digest = model_gated_multiply_q7_region_digest(region);
-    let material =
-        pllm_garble::prepare_gated_multiply_q7_with_context(digest_array(&region_digest)?)
-            .map_err(|error| error.to_string())?;
-    let program = material.program_bytes();
+    let method = gated_multiply_q7_method(region)?;
+    let mut materials = Vec::with_capacity(elements);
+    let mut programs = Vec::with_capacity(elements);
+    for lane in 0..elements {
+        let context = gated_multiply_q7_lane_context(&region_digest, lane)?;
+        let material =
+            pllm_garble::prepare_gated_multiply_q7_with_method_and_context(method, context)
+                .map_err(|error| error.to_string())?;
+        programs.push(material.program_bytes());
+        materials.push(material);
+    }
+    let material_ids = materials
+        .iter()
+        .map(pllm_garble::GatedMultiplyQ7Material::material_id)
+        .collect::<Vec<_>>();
+    let bundle_id = canonical_digest(GATED_MULTIPLY_Q7_BUNDLE_ID_DOMAIN, &material_ids);
+    let bundle_id_bytes = digest_array(&bundle_id)?;
     let header = GatedMultiplyQ7GateHeader {
         schema_version: GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION.into(),
         region_digest,
-        program_digest: digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, &program),
+        method_component_id: region.method_component_id.clone(),
+        schedule_component_id: region.schedule_component_id.clone(),
+        element_count: elements,
+        bundle_id,
+        program_digests: programs
+            .iter()
+            .map(|program| digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, program))
+            .collect(),
     };
     let encoded_header = canonical_bytes(&header);
     let header_len = u32::try_from(encoded_header.len())
         .map_err(|_| "gated Q7 multiply header exceeds u32".to_owned())?;
-    let mut evaluator_payload = Vec::with_capacity(4 + encoded_header.len() + program.len());
+    let program_bytes = programs.iter().map(Vec::len).sum::<usize>();
+    let mut evaluator_payload = Vec::with_capacity(
+        4 + encoded_header.len() + programs.len().saturating_mul(4) + program_bytes,
+    );
     evaluator_payload.extend_from_slice(&header_len.to_le_bytes());
     evaluator_payload.extend_from_slice(&encoded_header);
-    evaluator_payload.extend_from_slice(&program);
+    for program in programs {
+        let length = u32::try_from(program.len())
+            .map_err(|_| "gated Q7 multiply program exceeds u32".to_owned())?;
+        evaluator_payload.extend_from_slice(&length.to_le_bytes());
+        evaluator_payload.extend_from_slice(&program);
+    }
     if evaluator_payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
         return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
     }
-    let material_id = material.material_id();
-    register_gated_multiply_q7_material(
-        material_id,
-        digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, &evaluator_payload),
-    )?;
+    let issuance_digest =
+        digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, &evaluator_payload);
+    register_gated_multiply_q7_material(bundle_id_bytes, issuance_digest.clone())?;
     Ok(BoundGatedMultiplyQ7Material {
-        material,
+        materials,
         evaluator_payload,
+        issuance_id: bundle_id_bytes,
+        issuance_digest,
     })
 }
 
@@ -3701,7 +3925,13 @@ fn validate_model_gated_multiply_q7_region_against_plan(
     if region.model_plan_digest != plan.digest() {
         return Err("gated Q7 multiply region does not match the decoder plan digest".into());
     }
-    let expected = lower_model_gated_multiply_q7_regions(plan, region.mode)?;
+    let expected = lower_model_gated_multiply_q7_regions_with_components(
+        plan,
+        region.mode,
+        &region.method_component_id,
+        &region.schedule_component_id,
+        region.max_tensor_elements,
+    )?;
     if !expected.iter().any(|candidate| candidate == region) {
         return Err("gated Q7 multiply region was not lowered from the decoder plan".into());
     }
@@ -3729,6 +3959,21 @@ fn register_gated_multiply_q7_material(
     Ok(())
 }
 
+fn unregister_gated_multiply_q7_material(
+    material_id: [u8; 32],
+    payload_digest: &Digest,
+) -> Result<bool, String> {
+    let mut registry = GATED_MULTIPLY_Q7_ISSUANCE_REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "gated Q7 multiply issuance registry is poisoned")?;
+    if registry.get(&material_id) != Some(payload_digest) {
+        return Ok(false);
+    }
+    registry.remove(&material_id);
+    Ok(true)
+}
+
 fn consume_gated_multiply_q7_material(
     material_id: [u8; 32],
     payload_digest: &Digest,
@@ -3746,54 +3991,95 @@ fn consume_gated_multiply_q7_material(
     Ok(())
 }
 
-/// Bound evaluator state for one scalar gated Q7 multiplication.
+/// Bound evaluator state for one scalar or bounded tensor gated Q7 multiplication.
 pub struct GatedMultiplyQ7Evaluator {
-    program: Option<pllm_garble::GarbledProgram>,
+    programs: Option<Vec<pllm_garble::GarbledProgram>>,
     consumed: bool,
 }
 
 impl GatedMultiplyQ7Evaluator {
     pub fn new(region: &ModelGatedMultiplyQ7Region, payload: &[u8]) -> Result<Self, String> {
-        validate_scalar_gated_multiply_q7_region(region)?;
+        let elements = validate_schedulable_gated_multiply_q7_region(region)?;
         let expected_region = model_gated_multiply_q7_region_digest(region);
         let (header, program_bytes) = decode_gated_multiply_q7_program(payload)?;
-        let program = pllm_garble::GarbledProgram::from_bytes(program_bytes)
-            .map_err(|error| error.to_string())?;
         consume_gated_multiply_q7_material(
-            program.material_id(),
+            digest_array(&header.bundle_id)?,
             &digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, payload),
         )?;
-        if header.region_digest != expected_region {
+        if header.region_digest != expected_region
+            || header.method_component_id != region.method_component_id
+            || header.schedule_component_id != region.schedule_component_id
+            || header.element_count != elements
+            || header.program_digests.len() != elements
+            || program_bytes.len() != elements
+        {
             return Err("gated Q7 multiply commitment does not match region".into());
         }
-        let context = digest_array(&expected_region)?;
-        if program.context_digest() != context {
-            return Err("gated Q7 multiply authentication is bound to another region".into());
-        }
-        if program.input_moduli()
-            != [
-                pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
-                pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
-            ]
+        let mut programs = Vec::with_capacity(elements);
+        for (lane, (bytes, digest)) in program_bytes
+            .into_iter()
+            .zip(&header.program_digests)
+            .enumerate()
         {
-            return Err("gated Q7 multiply program uses the wrong arithmetic modulus".into());
+            if digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, bytes) != *digest {
+                return Err("gated Q7 multiply program commitment is invalid".into());
+            }
+            let program = pllm_garble::GarbledProgram::from_bytes(bytes)
+                .map_err(|error| error.to_string())?;
+            if program.context_digest() != gated_multiply_q7_lane_context(&expected_region, lane)? {
+                return Err("gated Q7 multiply authentication is bound to another lane".into());
+            }
+            if program.input_moduli()
+                != [
+                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+                ]
+            {
+                return Err("gated Q7 multiply program uses the wrong arithmetic modulus".into());
+            }
+            programs.push(program);
         }
         Ok(Self {
-            program: Some(program),
+            programs: Some(programs),
             consumed: false,
         })
     }
 
+    pub fn element_count(&self) -> usize {
+        self.programs.as_ref().map_or(0, Vec::len)
+    }
+
     /// Consume the complete program on the first attempt, including malformed input.
     pub fn evaluate(&mut self, gate_label: &[u8], up_label: &[u8]) -> Result<Vec<u8>, String> {
+        let mut outputs = self.evaluate_tensor(&[gate_label], &[up_label])?;
+        outputs
+            .pop()
+            .ok_or("gated Q7 multiply scalar output is absent".into())
+    }
+
+    /// Burn every lane before label parsing and release no partial output.
+    pub fn evaluate_tensor(
+        &mut self,
+        gate_labels: &[&[u8]],
+        up_labels: &[&[u8]],
+    ) -> Result<Vec<Vec<u8>>, String> {
         self.burn()?;
-        let program = self
-            .program
+        let programs = self
+            .programs
             .take()
             .ok_or("gated Q7 multiply evaluator material is absent")?;
-        program
-            .evaluate(&[gate_label, up_label])
-            .map_err(|error| error.to_string())
+        if gate_labels.len() != programs.len() || up_labels.len() != programs.len() {
+            return Err("gated Q7 multiply label count does not match the bundle".into());
+        }
+        programs
+            .into_iter()
+            .zip(gate_labels.iter().zip(up_labels))
+            .map(|(program, (gate, up))| {
+                program
+                    .evaluate(&[gate, up])
+                    .map_err(|error| error.to_string())
+            })
+            .collect()
     }
 
     pub fn burn(&mut self) -> Result<(), String> {
@@ -3805,22 +4091,23 @@ impl GatedMultiplyQ7Evaluator {
     }
 }
 
-fn validate_scalar_gated_multiply_q7_region(
+fn validate_schedulable_gated_multiply_q7_region(
     region: &ModelGatedMultiplyQ7Region,
-) -> Result<(), String> {
+) -> Result<usize, String> {
     validate_model_gated_multiply_q7_region(region)?;
     let elements = tensor_elements(&region.input.shape)?;
-    if elements != GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS {
+    if elements > region.max_tensor_elements {
         return Err(format!(
-            "gated Q7 multiply reference executor requires exactly one element, received {elements}"
+            "gated Q7 multiply scheduler permits at most {} elements, received {elements}",
+            region.max_tensor_elements
         ));
     }
-    Ok(())
+    Ok(elements)
 }
 
 fn decode_gated_multiply_q7_program(
     payload: &[u8],
-) -> Result<(GatedMultiplyQ7GateHeader, &[u8]), String> {
+) -> Result<(GatedMultiplyQ7GateHeader, Vec<&[u8]>), String> {
     if payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
         return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
     }
@@ -3837,19 +4124,63 @@ fn decode_gated_multiply_q7_program(
     let header_bytes = payload
         .get(4..header_end)
         .ok_or("gated Q7 multiply header is truncated")?;
-    let program = payload
-        .get(header_end..)
-        .filter(|program| !program.is_empty())
-        .ok_or("gated Q7 multiply program is absent")?;
     let header: GatedMultiplyQ7GateHeader =
         serde_json::from_slice(header_bytes).map_err(|_| "gated Q7 multiply header is invalid")?;
     if header.schema_version != GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION
         || canonical_bytes(&header) != header_bytes
-        || header.program_digest != digest_bytes(GATED_MULTIPLY_Q7_PROGRAM_SCHEMA_VERSION, program)
+        || header.element_count == 0
+        || header.element_count > GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS
+        || header.program_digests.len() != header.element_count
     {
         return Err("gated Q7 multiply program commitment is invalid".into());
     }
-    Ok((header, program))
+    let mut position = header_end;
+    let mut programs = Vec::with_capacity(header.element_count);
+    for _ in 0..header.element_count {
+        let length_end = position
+            .checked_add(4)
+            .ok_or("gated Q7 multiply program length overflows")?;
+        let length = u32::from_le_bytes(
+            payload
+                .get(position..length_end)
+                .ok_or("gated Q7 multiply program length is truncated")?
+                .try_into()
+                .map_err(|_| "gated Q7 multiply program length is truncated")?,
+        ) as usize;
+        position = length_end;
+        let end = position
+            .checked_add(length)
+            .ok_or("gated Q7 multiply program length overflows")?;
+        let program = payload
+            .get(position..end)
+            .filter(|program| !program.is_empty())
+            .ok_or("gated Q7 multiply program is truncated")?;
+        programs.push(program);
+        position = end;
+    }
+    if position != payload.len() {
+        return Err("gated Q7 multiply payload has trailing bytes".into());
+    }
+    Ok((header, programs))
+}
+
+fn gated_multiply_q7_method(
+    region: &ModelGatedMultiplyQ7Region,
+) -> Result<pllm_garble::GatedMultiplyQ7Method, String> {
+    match region.method_component_id.as_str() {
+        GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID => {
+            Ok(pllm_garble::GatedMultiplyQ7Method::BinaryTable)
+        }
+        GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID => Ok(pllm_garble::GatedMultiplyQ7Method::R03Crt),
+        _ => Err("unsupported gated Q7 multiply method implementation".into()),
+    }
+}
+
+fn gated_multiply_q7_lane_context(region_digest: &Digest, lane: usize) -> Result<[u8; 32], String> {
+    digest_array(&canonical_digest(
+        GATED_MULTIPLY_Q7_LANE_CONTEXT_DOMAIN,
+        &(region_digest, lane),
+    ))
 }
 
 fn digest_array(digest: &Digest) -> Result<[u8; 32], String> {

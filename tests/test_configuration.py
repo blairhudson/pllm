@@ -9,7 +9,15 @@ from pathlib import Path
 import pytest
 
 from pllm import Experiment, Model, Pipeline
-from pllm.components import ComponentDescriptor, ComponentRef, KvCacheEviction
+from pllm.components import (
+    BinaryTableGatedMultiplyQ7,
+    ComponentDescriptor,
+    ComponentRef,
+    IndependentLanesProtectedTensorSchedule,
+    KvCacheEviction,
+    R03CrtGatedMultiplyQ7,
+    ScalarProtectedTensorSchedule,
+)
 from pllm.config import (
     ConfigurationError,
     ExecutionBudget,
@@ -256,3 +264,132 @@ def test_builtin_component_descriptors_are_static_and_immutable() -> None:
     assert get_component("pllm/kv-cache-eviction") is descriptor
     with pytest.raises(KeyError, match="built-in component not found"):
         get_component("missing")
+
+
+@pytest.mark.parametrize(
+    "component, identity, category, params",
+    [
+        (
+            BinaryTableGatedMultiplyQ7(),
+            "pllm/binary-table/v1",
+            "pllm/nonlinear-protocol",
+            {},
+        ),
+        (
+            R03CrtGatedMultiplyQ7(),
+            "pllm/r03-crt/v1",
+            "pllm/nonlinear-protocol",
+            {},
+        ),
+        (
+            ScalarProtectedTensorSchedule(),
+            "pllm/scalar/v1",
+            "pllm/protected-scheduler",
+            {},
+        ),
+        (
+            IndependentLanesProtectedTensorSchedule(),
+            "pllm/independent-lanes/v1",
+            "pllm/protected-scheduler",
+            {"max_elements": 4},
+        ),
+    ],
+)
+def test_concrete_components_have_distinct_descriptors_and_roundtrip(
+    component: ComponentRef,
+    identity: str,
+    category: str,
+    params: dict[str, object],
+) -> None:
+    descriptor = component.describe()
+    spec = example().to_spec()
+    spec["pipeline"]["components"]["candidate"] = component.to_spec()
+
+    loaded = Experiment.from_spec(spec).pipeline.components["candidate"]
+
+    assert type(loaded) is type(component)
+    assert loaded == component
+    assert component.component == descriptor.component == identity
+    assert component.get_params() == params
+    assert component.to_spec() == {"component": identity, "params": params}
+    assert descriptor.category == category
+    assert descriptor.provider == descriptor.distribution == "pllm"
+    assert descriptor.capabilities
+    assert descriptor.parameter_schema["additionalProperties"] is False
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        BinaryTableGatedMultiplyQ7(),
+        R03CrtGatedMultiplyQ7(),
+        ScalarProtectedTensorSchedule(),
+        IndependentLanesProtectedTensorSchedule(),
+    ],
+)
+def test_concrete_component_identity_cannot_be_switched_by_params(component: ComponentRef) -> None:
+    with pytest.raises(ConfigurationError, match="unknown parameter path"):
+        component.with_params(implementation="other")
+
+
+def test_independent_lanes_schedule_clones_max_elements_immutably() -> None:
+    original = IndependentLanesProtectedTensorSchedule()
+    changed = original.with_params(max_elements=2)
+
+    assert isinstance(changed, IndependentLanesProtectedTensorSchedule)
+    assert original.get_params() == {"max_elements": 4}
+    assert changed.get_params() == {"max_elements": 2}
+
+
+@pytest.mark.parametrize("value", [True, 1, 1.0, "2", 5])
+def test_independent_lanes_schedule_rejects_invalid_max_elements(value: object) -> None:
+    with pytest.raises(ConfigurationError, match="integer"):
+        IndependentLanesProtectedTensorSchedule(max_elements=value)
+
+
+@pytest.mark.parametrize(
+    "component, params",
+    [
+        ("pllm/binary-table/v1", {"implementation": "other"}),
+        ("pllm/r03-crt/v1", {"unexpected": True}),
+        ("pllm/scalar/v1", {"max_elements": 1}),
+        ("pllm/independent-lanes/v1", {}),
+        (
+            "pllm/independent-lanes/v1",
+            {"max_elements": 4, "implementation": "other"},
+        ),
+    ],
+)
+def test_concrete_component_deserialization_rejects_inexact_params(
+    component: str, params: dict[str, object]
+) -> None:
+    spec = example().to_spec()
+    spec["pipeline"]["components"]["candidate"] = {
+        "component": component,
+        "params": params,
+    }
+
+    with pytest.raises(ConfigurationError, match="unknown fields|missing fields"):
+        Experiment.from_spec(spec)
+
+
+def test_component_classes_are_exported_only_from_components_facade() -> None:
+    import pllm
+    import pllm.components as components
+
+    for name in (
+        "BinaryTableGatedMultiplyQ7",
+        "R03CrtGatedMultiplyQ7",
+        "ScalarProtectedTensorSchedule",
+        "IndependentLanesProtectedTensorSchedule",
+        "GatedMultiplyQ7",
+        "ProtectedTensorSchedule",
+    ):
+        assert not hasattr(pllm, name)
+    assert components.BinaryTableGatedMultiplyQ7 is BinaryTableGatedMultiplyQ7
+    assert components.R03CrtGatedMultiplyQ7 is R03CrtGatedMultiplyQ7
+    assert components.ScalarProtectedTensorSchedule is ScalarProtectedTensorSchedule
+    assert (
+        components.IndependentLanesProtectedTensorSchedule
+        is IndependentLanesProtectedTensorSchedule
+    )

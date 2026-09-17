@@ -62,7 +62,7 @@ test('manifest is complete, versioned, and hashes exact source', () => {
     assert.equal(record.contentHash, `sha256:${digest}`);
   }
   assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
-  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/cpu', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections']);
+  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/cpu', 'pllm/gated-multiply-q7', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections', 'pllm/protected-tensor-schedule']);
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl.startsWith('/cli/reference/research/')));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl === '/research/records/method-catalog/'));
   assert.ok(!manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));

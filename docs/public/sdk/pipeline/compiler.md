@@ -6,7 +6,7 @@ Learn how PLLM turns a model plan and component choices into a checked execution
 
 Document ID: `pllm.docs.compiler`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:c0d3ee32135e041d2e3501df584823d60b898062ef00819484113f15f9084ffb`
 
 Compilation combines a model plan, component choices, workload limits, and policy.

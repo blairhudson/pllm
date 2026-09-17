@@ -306,8 +306,7 @@ class KvCacheEviction(ComponentRef):
         share_adjacent_layers: bool = True,
     ) -> None:
         sizes = tuple(
-            _integer(size, f"cluster_sizes[{index}]")
-            for index, size in enumerate(cluster_sizes)
+            _integer(size, f"cluster_sizes[{index}]") for index, size in enumerate(cluster_sizes)
         )
         if not sizes:
             raise ConfigurationError("cluster_sizes must be non-empty")
@@ -333,6 +332,76 @@ class KvCacheEviction(ComponentRef):
     @classmethod
     def describe(cls) -> ComponentDescriptor:
         return _BUILTIN_DESCRIPTORS["pllm/kv-cache-eviction"]
+
+
+class BinaryTableGatedMultiplyQ7(ComponentRef):
+    """Binary-table implementation of protected Q7 ``SiLU(gate) * up``."""
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        super().__init__("pllm/binary-table/v1")
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return _BUILTIN_DESCRIPTORS["pllm/binary-table/v1"]
+
+
+class R03CrtGatedMultiplyQ7(ComponentRef):
+    """R03 CRT implementation of protected Q7 ``SiLU(gate) * up``."""
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        super().__init__("pllm/r03-crt/v1")
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return _BUILTIN_DESCRIPTORS["pllm/r03-crt/v1"]
+
+
+class ScalarProtectedTensorSchedule(ComponentRef):
+    """Scalar one-use scheduling for protected tensor elements."""
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        super().__init__("pllm/scalar/v1")
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return _BUILTIN_DESCRIPTORS["pllm/scalar/v1"]
+
+
+class IndependentLanesProtectedTensorSchedule(ComponentRef):
+    """Independent-lane one-use scheduling for protected tensor elements."""
+
+    __slots__ = ()
+
+    def __init__(self, *, max_elements: int = 4) -> None:
+        max_elements = _integer(max_elements, "max_elements", minimum=2)
+        if max_elements > 4:
+            raise ConfigurationError("max_elements must be an integer <= 4")
+        super().__init__(
+            "pllm/independent-lanes/v1",
+            {"max_elements": max_elements},
+        )
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        return {"max_elements": self.params["max_elements"]}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return _BUILTIN_DESCRIPTORS["pllm/independent-lanes/v1"]
 
 
 def _ratio(value: object, path: str) -> dict[str, int]:
@@ -603,6 +672,18 @@ def _component_from_spec(value: object, path: str) -> ComponentRef:
             cluster_sizes=exact["cluster_sizes"],
             share_adjacent_layers=exact["share_adjacent_layers"],
         )
+    if component == "pllm/binary-table/v1":
+        _fields(params, set(), f"{path}.params")
+        return BinaryTableGatedMultiplyQ7()
+    if component == "pllm/r03-crt/v1":
+        _fields(params, set(), f"{path}.params")
+        return R03CrtGatedMultiplyQ7()
+    if component == "pllm/scalar/v1":
+        _fields(params, set(), f"{path}.params")
+        return ScalarProtectedTensorSchedule()
+    if component == "pllm/independent-lanes/v1":
+        exact = _fields(params, {"max_elements"}, f"{path}.params")
+        return IndependentLanesProtectedTensorSchedule(max_elements=exact["max_elements"])
     return ComponentRef(component, params)
 
 
@@ -804,6 +885,65 @@ _BUILTIN_DESCRIPTORS = {
         },
         capabilities=("bounded-kv-cache-eviction",),
         required_host_features=("decoder-plan-v1",),
+    ),
+    "pllm/binary-table/v1": ComponentDescriptor(
+        component="pllm/binary-table/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/nonlinear-protocol",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("protected-gated-multiply-q7",),
+        required_host_features=("decoder-plan-v1", "signed-q7"),
+        role_eligibility=("client", "inference"),
+    ),
+    "pllm/r03-crt/v1": ComponentDescriptor(
+        component="pllm/r03-crt/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/nonlinear-protocol",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("protected-gated-multiply-q7",),
+        required_host_features=("decoder-plan-v1", "signed-q7"),
+        role_eligibility=("client", "inference"),
+    ),
+    "pllm/scalar/v1": ComponentDescriptor(
+        component="pllm/scalar/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/protected-scheduler",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("one-use-protected-tensor-scheduling",),
+        required_host_features=("authenticated-one-use-material",),
+        role_eligibility=("client", "inference"),
+    ),
+    "pllm/independent-lanes/v1": ComponentDescriptor(
+        component="pllm/independent-lanes/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/protected-scheduler",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "max_elements": {"type": "integer", "minimum": 2, "maximum": 4},
+            },
+            "required": ["max_elements"],
+            "additionalProperties": False,
+        },
+        capabilities=("one-use-protected-tensor-scheduling",),
+        required_host_features=("authenticated-one-use-material",),
+        role_eligibility=("client", "inference"),
     ),
 }
 

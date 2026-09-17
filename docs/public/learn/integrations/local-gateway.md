@@ -6,7 +6,7 @@ Start the trusted loopback gateway locally or connect it to separate PLLM servic
 
 Document ID: `pllm.docs.learn.integrations.local-gateway`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:e1ad2b7ef4325d09f45085a5da35d4145b45f48b5a631c5ebd14b45218339e07`
 
 The gateway is client-controlled and trusted. It binds to `127.0.0.1:8080` by

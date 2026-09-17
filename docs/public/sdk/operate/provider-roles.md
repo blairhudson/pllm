@@ -6,7 +6,7 @@ Understand the responsibilities of deployment operators, preparation services, a
 
 Document ID: `pllm.docs.operate.provider-roles`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872`
 
 Provider supplies static component metadata and implementation artifacts. Operator supplies process placement, authenticated identity, authorization, storage, and operational policy. Preparation creates or installs method-specific material. Inference consumes assigned plan work. A deployment may combine processes, but cannot erase semantic role boundaries or establish non-collusion.

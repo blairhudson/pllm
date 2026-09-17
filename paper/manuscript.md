@@ -24,7 +24,7 @@ abstract: |
   assurance and benchmark evidence. Constrained plan-space search is planned, not
   yet implemented. Adapter coverage likewise does not imply complete execution:
   the current compiler cannot execute a complete lowered model, and garbling is
-  limited to experimental bounded Q7 SiLU and scalar gated-multiply components. Security requires
+  limited to experimental bounded Q7 SiLU and four-lane gated-multiply components. Security requires
   protocol-following, non-colluding Preparation and Inference roles. Retained
   performance evidence covers only nine historical warm Qwen2.5-0.5B CPU-loopback
   runs and supports no broader deployment or performance claim.
@@ -216,15 +216,15 @@ exhaustive encoded-domain test bounds absolute error against SiLU by 0.02285.
 Payloads are digest-bound, strictly decoded, and burned through a bounded
 process-local ledger.
 
-A separate scalar reference region jointly garbles SiLU and two-input Q7
-multiplication. The SiLU output remains an encoded label and enters a compact
-mixed-modulus arithmetic program directly; it is never decoded and re-encoded
-between operators. Following the projection and CRT gadgets of
-[@ball2017garbling], prime-residue multiplication, CRT conversion, and exact
-ties-to-even rescaling and canonical fixed-bit row transport reduce the measured
-evaluator payload from 3,183,176 to 245,209 bytes per scalar. Both inputs are
-provenance-bound to exact dense-Qwen linear-to-Q7 edges. Tensor execution remains
-deliberately unavailable.
+A separate region jointly garbles SiLU and two-input Q7 multiplication without
+decoding the intermediate label. Selectable method components retain a dense
+binary-table baseline and add a compact mixed-modulus implementation based on
+the projection and CRT gadgets of [@ball2017garbling], prime-residue
+multiplication, exact ties-to-even rescaling, and packed row transport. Their
+current one-lane evaluator payloads measure 2,387,674 and 245,397 bytes,
+respectively. A separate scheduler supports one or at most four independent
+one-use lanes; four compact lanes measure 980,573 bytes. Both inputs remain bound
+to exact dense-Qwen linear-to-Q7 edges. Real-model tensor scale remains unavailable.
 
 This component is an experimental primitive, disabled from complete deployment
 profiles. It is not full-model garbling, does not cover the other missing
@@ -294,8 +294,8 @@ of the client boundary.
 The harness also lowers several model families into a shared semantic IR and
 organizes research implementations as composable capability families. Complete
 plan-compiled model execution and autonomous plan search remain unavailable.
-Garbled nonlinear execution is limited to bounded experimental Q7 SiLU and one
-scalar label-preserving gated-multiply composition.
+Garbled nonlinear execution is limited to bounded experimental Q7 SiLU and at
+most four independent label-preserving gated-multiply lanes.
 These runtime, compiler, component, and evidence claims remain separate. Retained
 Qwen2.5 measurements show one historical CPU-loopback implementation working
 within that boundary; they establish nothing beyond that recorded system and

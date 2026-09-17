@@ -395,7 +395,7 @@ mod tests {
         let bytes = canonical_bytes(&value);
         assert_eq!(
             configuration_digest_bytes(&bytes).as_str(),
-            "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+            "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
         );
     }
 }

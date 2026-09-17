@@ -4,8 +4,9 @@
   "pipeline": {
     "profile": "baseline.masked_linear_cpu",
     "model": {"source": "Qwen/Qwen2.5-0.5B-Instruct"},
-    "components": {
-      "linear": {"component": "pllm/masked-linear", "params": {}},
+      "components": {
+        "inference": {"component": "pllm/inference", "params": {}},
+        "linear": {"component": "pllm/masked-linear", "params": {}},
       "preparation": {"component": "pllm/model-aware-corrections", "params": {}},
       "kernels": {"component": "pllm/cpu", "params": {"threads": 4}}
     }

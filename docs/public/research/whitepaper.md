@@ -6,8 +6,8 @@ A concise guide to PLLM’s private multi-party runtime and autonomous research 
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
-Source hash: `sha256:a3f6b1c0b04d85e5fae709f55f041438930b0f735a1f1bec29ce6256b99ba736`
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
+Source hash: `sha256:2ad62d645df6784802f92ba06050eaaf9403300dfba44c11a3196795b99d18d0`
 
 [Download PDF ↗](/downloads/whitepaper.pdf)
 
@@ -70,7 +70,7 @@ The next step is constrained plan-space exploration. Exhaustive grid search fits
 
 The prepared three-role runtime, one-use inventory lifecycle, local compatible gateway, native integer matrix executor, telemetry, and benchmark dashboard are implemented. Model adapters lower Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and selected Gemma 4 text configurations into a shared semantic representation.
 
-Complete execution through the new compiler is not implemented. Its current protected nonlinear work is limited to experimental bounded Q7 SiLU and one scalar label-preserving gated-multiply composition; tensor scheduling remains unavailable. Model lowering is not evidence of compiler coverage, generation quality, deployment readiness, or production security.
+Complete execution through the new compiler is not implemented. Its current protected nonlinear work includes experimental bounded Q7 SiLU plus selectable dense-table and compact gated-multiply components. Scalar and independent four-lane one-use schedules are separate choices; real-model tensor scale remains unavailable. Model lowering is not evidence of compiler coverage, generation quality, deployment readiness, or production security.
 
 The retained performance study contains nine warm Qwen2.5-0.5B runs in three input-length cohorts on one Apple M5 CPU loopback host. It confirms that the measured revision used offline preparation and no online Preparation requests. It does not establish WAN, GPU, multi-host, cost, energy, adversarial, or general performance results.
 

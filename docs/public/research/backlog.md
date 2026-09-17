@@ -6,8 +6,8 @@ What PLLM will reproduce, implement, review, and measure next.
 
 Document ID: `pllm.docs.research.backlog`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
-Source hash: `sha256:03534dba38a58aa58afa777adb2a64477f157241e25257e4e9e90331044f0647`
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
+Source hash: `sha256:2a35235ab25647875e7e70eda42ffb73a22aad537b9167a48e2b2580b88e8b2d`
 
 PLLM tracks papers because they may improve a concrete protocol, compiler pass,
 numeric primitive, or state-management boundary. A tracked paper is not a PLLM
@@ -23,11 +23,11 @@ partial coverage.
 prefill and decode runs with exact model, prompt length, output length,
 machine, topology, cold/warm state, protocol bytes, and failure behavior.
 Keep loopback, WAN, CPU, and accelerator claims separate.
-3. **Tensorize and review the experimental gated-MLP component.** Extend the
-compact scalar mixed-modulus program into a bounded tensor method, validate its
-one-use lifecycle, authenticated plan binding, evaluator view, and memory
-schedule, then obtain cryptographic review. The exact Q7 scalar schedule is not
-a complete-model security result.
+3. **Scale and review the experimental gated-MLP components.** The dense-table
+baseline and compact mixed-modulus method now share one capability contract;
+scalar and independent four-lane schedules are separate selections. Extend
+beyond the four-lane bound, validate the resulting memory schedule, and obtain
+cryptographic review. Bounded Q7 bundles are not a complete-model security result.
 
 ## Composition and search
 
@@ -61,7 +61,7 @@ cohort rather than declaring one method universally best.
 | --- | --- | --- | --- |
 | R24 | Maverick | Specify delegated matrix-vector execution, LPN masking, and batch verification against the prepared public-weight stage contract; independently implement bounded native primitives and run the paper's Qwen3-4B comparison. | Planned; no PLLM implementation or reproduction |
 | R23 | MPCache | Validate the existing model-neutral `DecoderPlan` transformation, then implement and measure protected cache selection under an explicitly compatible topology. | Structural plan adaptation only |
-| R01-R03 | Dash, ReDash, table-free arithmetic garbling | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | R03 source locked and adapted into the compact scalar Q7 program; not reproduced |
+| R01-R03 | Dash, ReDash, table-free arithmetic garbling | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | R03 source locked and adapted into the compact Q7 implementation with bounded four-lane scheduling; not reproduced |
 | R04-R11 | Garbling and decision-program foundations | Implement only the primitives required by an accepted complete-model plan, with paper-scoped tests and view definitions. | Tracked |
 | R12-R18 | GPU/MPC preprocessing and nonlinear primitives | Reproduce comparable operators before considering integration; preserve each paper's party count and trust model in reports. | Tracked |
 | R19-R22 | Private-transformer systems | Use as full-system comparison targets. Do not transfer their performance or security claims across different models, numeric graphs, or party topologies. | Tracked |

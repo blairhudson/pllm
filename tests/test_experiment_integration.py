@@ -7,12 +7,14 @@ import pytest
 
 from pllm import (
     ComponentRef,
+    Cpu,
     Deployment,
     ExecutionBudget,
     Experiment,
     ExperimentProfile,
     Model,
     ModelAwareCorrections,
+    MaskedLinear,
     OpenAI,
     Pipeline,
     _native,
@@ -30,8 +32,10 @@ def baseline_experiment(model: str = "model-a") -> Experiment:
             "baseline.masked_linear_cpu",
             model=Model(model),
             components={
+                "linear": MaskedLinear(),
                 "preparation": ModelAwareCorrections(),
                 "inference": ComponentRef("pllm/inference"),
+                "kernels": Cpu(threads=4),
             },
         ),
         deployment=Deployment.local(root=".pllm/baseline"),
@@ -56,6 +60,8 @@ def test_profile_is_native_resolved_and_immutable():
     assert profile.configuration_digest == experiment.configuration_digest()
     assert profile.canonical_profile == (
         b'{"components":{"inference":{"component":"pllm/inference","params":{}},'
+        b'"kernels":{"component":"pllm/cpu","params":{"threads":4}},'
+        b'"linear":{"component":"pllm/masked-linear","params":{}},'
         b'"preparation":{"component":"pllm/model-aware-corrections","params":{}}},'
         b'"model":{"source":"model-a"},"profile":"baseline.masked_linear_cpu"}'
     )

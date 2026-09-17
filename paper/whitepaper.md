@@ -117,8 +117,9 @@ implemented. Model adapters lower Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and selecte
 Gemma 4 text configurations into a shared semantic representation.
 
 Complete execution through the new compiler is not implemented. Its current
-protected nonlinear work is limited to experimental bounded Q7 SiLU and one
-scalar label-preserving gated-multiply composition; tensor scheduling remains
+protected nonlinear work includes experimental bounded Q7 SiLU plus selectable
+dense-table and compact gated-multiply components. Scalar and independent
+four-lane one-use schedules are separate choices; real-model tensor scale remains
 unavailable. Model lowering is not evidence of compiler coverage, generation
 quality, deployment readiness, or production security.
 

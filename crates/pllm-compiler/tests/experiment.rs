@@ -11,6 +11,8 @@ fn experiment() -> Value {
             "model": {"source": "model-a"},
             "components": {
                 "inference": {"component": "pllm/inference", "params": {}},
+                "kernels": {"component": "pllm/cpu", "params": {"threads": 4}},
+                "linear": {"component": "pllm/masked-linear", "params": {}},
                 "preparation": {
                     "component": "pllm/model-aware-corrections",
                     "params": {}
@@ -77,4 +79,47 @@ fn requires_baseline_component_slots_and_identities() {
             .unwrap_err()
             .contains(expected));
     }
+}
+
+#[test]
+fn validates_and_rejects_unexecuted_gated_component_selections() {
+    let mut malformed = experiment();
+    malformed["pipeline"]["components"]["nonlinear"] = json!({
+        "component": "pllm/r03-crt/v1",
+        "params": {"unexpected": "paper-name"}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&malformed))
+        .unwrap_err()
+        .contains("does not accept parameters"));
+
+    let mut unused = experiment();
+    unused["pipeline"]["components"]["nonlinear"] = json!({
+        "component": "pllm/r03-crt/v1",
+        "params": {}
+    });
+    unused["pipeline"]["components"]["nonlinear_schedule"] = json!({
+        "component": "pllm/independent-lanes/v1",
+        "params": {"max_elements": 4}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&unused))
+        .unwrap_err()
+        .contains("baseline profile requires exactly"));
+
+    let mut unknown = experiment();
+    unknown["pipeline"]["components"]["unused"] = json!({
+        "component": "example/unused",
+        "params": {}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&unknown))
+        .unwrap_err()
+        .contains("baseline profile requires exactly"));
+
+    let mut duplicate = experiment();
+    duplicate["pipeline"]["components"]["duplicate"] = json!({
+        "component": "pllm/inference",
+        "params": {}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&duplicate))
+        .unwrap_err()
+        .contains("baseline profile requires exactly"));
 }

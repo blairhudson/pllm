@@ -130,12 +130,19 @@ def silu_compiled_fixture(size: int):
     return _native.compile_plan(encoded)
 
 
-def gated_multiply_region(mode: str = "prefill"):
+def gated_multiply_region(
+    mode: str = "prefill",
+    *,
+    intermediate_size: int = 1,
+    method: str = "pllm/r03-crt/v1",
+    schedule: str = "pllm/scalar/v1",
+    max_tensor_elements: int = 1,
+):
     config = json.dumps(
         {
             "hidden_act": "silu",
             "hidden_size": 2,
-            "intermediate_size": 1,
+            "intermediate_size": intermediate_size,
             "max_position_embeddings": 8,
             "model_type": "qwen2",
             "num_attention_heads": 1,
@@ -150,7 +157,7 @@ def gated_multiply_region(mode: str = "prefill"):
         sort_keys=True,
     ).encode()
     plan = _native.lower_model(config, 1, 1, 1)
-    (region,) = _native.lower_gated_multiply_q7(plan, mode)
+    (region,) = _native.lower_gated_multiply_q7(plan, mode, method, schedule, max_tensor_elements)
     return region
 
 
@@ -169,18 +176,18 @@ def test_compiled_plan_matches_canonical_fixtures_and_digests():
     ).read_bytes().removesuffix(b"\n")
     assert (
         plan.configuration_digest
-        == "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+        == "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
     )
     assert (
         plan.logical_plan_digest
-        == "ccb6dc4466602d04fd5097f4b0a49aa555de876e4e99427eed7816a67b2a6df1"
+        == "a2dd71d2dd5e3917b4a4578dbde9d1287a285df6fd722d3acb97f7dbcaf26961"
     )
     assert (
         plan.execution_plan_digest
-        == "768546d8d9ef3420ba13a02887251e6172e6d608ca1b84ede26248472f28a035"
+        == "bdba1776ec7496d2a41f5508c6efb0d56bc66c0ccfd49267f90ce6c6811f31b7"
     )
     assert (
-        plan.plan_lock_digest == "61a45e7af9eb10e4825871657c1ee5b2a85959c1ebeeae48c00adfd4168b64ca"
+        plan.plan_lock_digest == "32e02bfcc5a235ab148b77508ee9fe7acba64a4b51dae222eb96538882ba13ce"
     )
     assert plan.input_shape == (2, 3)
     assert plan.output_shape == (2, 2)
@@ -337,7 +344,7 @@ def test_gated_q7_multiply_crosses_opaque_native_boundary_and_burns_material():
     assert region.multiply_operation_id == "layer.0.gated_multiply"
     assert len(region.digest) == 64
     material = region.prepare_material()
-    assert len(material.evaluator_payload) == 245_209
+    assert len(material.evaluator_payload) == 245_397
     evaluator = region.prepare_evaluator(material.evaluator_payload)
     with pytest.raises(ValueError, match="already bound"):
         region.prepare_evaluator(material.evaluator_payload)
@@ -360,6 +367,134 @@ def test_gated_q7_multiply_oversized_label_burns_the_program():
         evaluator.evaluate(material.encode_gate(1), material.encode_up(1))
 
 
+@pytest.mark.parametrize("invalid", [bytearray(b"label"), memoryview(b"label"), "label"])
+def test_gated_q7_multiply_non_bytes_label_burns_before_conversion(invalid):
+    region = gated_multiply_region("decode")
+    material = region.prepare_material()
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    with pytest.raises(ValueError, match="must be bytes"):
+        evaluator.evaluate(invalid, material.encode_up(1))
+    with pytest.raises(ValueError, match="already consumed"):
+        evaluator.evaluate(material.encode_gate(1), material.encode_up(1))
+
+
 def test_gated_q7_multiply_rejects_unknown_decoder_mode():
     with pytest.raises(ValueError, match="decoder mode must be prefill or decode"):
         gated_multiply_region("training")
+
+
+def test_gated_q7_components_cross_native_tensor_boundary_atomically():
+    region = gated_multiply_region(
+        intermediate_size=4,
+        schedule="pllm/independent-lanes/v1",
+        max_tensor_elements=4,
+    )
+    assert region.method_component_id == "pllm/r03-crt/v1"
+    assert region.schedule_component_id == "pllm/independent-lanes/v1"
+    assert region.max_tensor_elements == 4
+    material = region.prepare_material()
+    assert material.element_count == 4
+    assert len(material.evaluator_payload) == 980_573
+    gates = (-128, -65, 64, 128)
+    ups = (127, -96, -96, 128)
+    gate_labels = material.encode_gates(gates)
+    up_labels = material.encode_ups(ups)
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    outputs = evaluator.evaluate_tensor(gate_labels, up_labels)
+    assert material.decode_tensor(outputs) == [-32, 18, -30, 96]
+    with pytest.raises(ValueError, match="already consumed"):
+        evaluator.evaluate_tensor(gate_labels, up_labels)
+
+
+def test_gated_q7_tensor_rejects_one_bad_lane_and_burns_bundle():
+    region = gated_multiply_region(
+        intermediate_size=2,
+        schedule="pllm/independent-lanes/v1",
+        max_tensor_elements=2,
+    )
+    material = region.prepare_material()
+    gates = list(material.encode_gates((5, 6)))
+    gates[1] += b"x"
+    ups = material.encode_ups((7, 8))
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    with pytest.raises(ValueError, match="label encoding is invalid"):
+        evaluator.evaluate_tensor(gates, ups)
+    with pytest.raises(ValueError, match="already consumed"):
+        evaluator.evaluate_tensor(material.encode_gates((5, 6)), ups)
+
+
+def test_gated_q7_tensor_burns_before_python_sequence_callbacks():
+    region = gated_multiply_region(
+        intermediate_size=2,
+        schedule="pllm/independent-lanes/v1",
+        max_tensor_elements=2,
+    )
+    material = region.prepare_material()
+    gates = material.encode_gates((5, 6))
+    ups = material.encode_ups((7, 8))
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+
+    class ReentrantSequence(tuple):
+        def __new__(cls, values):
+            return super().__new__(cls, values)
+
+        def __init__(self, values) -> None:
+            self.rejected = False
+
+        def __getitem__(self, index):
+            if not self.rejected:
+                self.rejected = True
+                with pytest.raises(ValueError, match="already consumed"):
+                    evaluator.evaluate_tensor(gates, ups)
+            return super().__getitem__(index)
+
+    reentrant_gates = ReentrantSequence(gates)
+    outputs = evaluator.evaluate_tensor(reentrant_gates, ups)
+    assert reentrant_gates.rejected is True
+    assert material.decode_tensor(outputs) == [0, 0]
+
+
+def test_gated_q7_tensor_bounds_values_before_copy_and_supports_cancellation():
+    region = gated_multiply_region(
+        intermediate_size=2,
+        schedule="pllm/independent-lanes/v1",
+        max_tensor_elements=2,
+    )
+    material = region.prepare_material()
+    payload = material.evaluator_payload
+    with pytest.raises(ValueError, match="expected 2 gate values, got 5"):
+        material.encode_gates(range(5))
+    assert material.cancel() is True
+    assert material.cancel() is False
+    with pytest.raises(ValueError, match="was not issued or was already bound"):
+        region.prepare_evaluator(payload)
+
+
+def test_gated_q7_method_selection_keeps_dense_baseline_available():
+    region = gated_multiply_region(method="pllm/binary-table/v1")
+    material = region.prepare_material()
+    assert region.method_component_id == "pllm/binary-table/v1"
+    assert len(material.evaluator_payload) == 2_387_674
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    output = evaluator.evaluate(material.encode_gate(-65), material.encode_up(127))
+    assert material.decode(output) == -24
+
+
+@pytest.mark.parametrize(
+    ("method", "schedule", "elements", "message"),
+    [
+        ("paper-name", "pllm/scalar/v1", 1, "unsupported.*method"),
+        ("pllm/r03-crt/v1", "paper-name", 1, "unsupported.*schedule"),
+        ("pllm/r03-crt/v1", "pllm/scalar/v1", 2, "requires one element"),
+        ("pllm/r03-crt/v1", "pllm/independent-lanes/v1", 5, "supports 2..=4"),
+    ],
+)
+def test_gated_q7_rejects_incompatible_component_selection(
+    method: str, schedule: str, elements: int, message: str
+):
+    with pytest.raises(ValueError, match=message):
+        gated_multiply_region(
+            method=method,
+            schedule=schedule,
+            max_tensor_elements=elements,
+        )

@@ -51,7 +51,7 @@ function perspectiveFor(paper) {
     return `${context}\n\nThis work is planned. PLLM does not yet implement Maverick's delegation, LPN masking, or batch verification, and claims no reproduction or matched benchmark.\n\n${boundary}`;
   }
   if (paper.id === 'R03') {
-    return `${context}\n\nPLLM uses the source-locked projection and CRT constructions in a clean-room compact scalar Q7 program. This is a scoped component adaptation, not a paper reproduction, reviewed protected runtime, tensor method, or complete-model result.\n\n${boundary}`;
+    return `${context}\n\nPLLM uses the source-locked projection and CRT constructions in a clean-room compact Q7 implementation beside a retained dense-table baseline. A separate scheduler supports at most four independent lanes. This is a scoped component adaptation, not a paper reproduction, reviewed protected runtime, real-model tensor method, or complete-model result.\n\n${boundary}`;
   }
   if (['R01', 'R02'].includes(paper.id)) {
     return `${context}\n\nPLLM has related clean-room reference primitives only. They are not a paper reproduction, reviewed protected runtime, or complete-model result.\n\n${boundary}`;
@@ -144,7 +144,7 @@ description: "Prioritized paper reimplementation plan, source status, contributi
 
 This catalog is generated from the canonical research registry as of ${registry.as_of}. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
-R03 has a scoped clean-room component adaptation in the compact scalar Q7 program. R23 has a structural \`DecoderPlan\` adaptation. Neither is a paper reproduction or protected-runtime result. R01-R02 remain reference primitives only, and R24 is planned.
+R03 has a scoped clean-room component adaptation in the compact Q7 implementation. R23 has a structural \`DecoderPlan\` adaptation. Neither is a paper reproduction or protected-runtime result. R01-R02 remain reference primitives only, and R24 is planned.
 
 ## Reimplementation plan
 

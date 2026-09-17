@@ -6,7 +6,10 @@ use pllm_core::{codec, kernels};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
@@ -42,6 +45,65 @@ fn checked_byte_sequence(
     }
     Ok(output)
 }
+
+fn checked_gated_byte_sequence(
+    value: &Bound<'_, PyAny>,
+    expected: usize,
+    kind: &str,
+) -> PyResult<Vec<Vec<u8>>> {
+    let sequence = value.cast::<PySequence>().map_err(|_| {
+        PyValueError::new_err(format!("gated Q7 multiply {kind}s must be a sequence"))
+    })?;
+    let count = sequence.len()?;
+    if count != expected {
+        return Err(PyValueError::new_err(format!(
+            "gated Q7 multiply expected {expected} {kind}s, got {count}"
+        )));
+    }
+    let mut output = Vec::with_capacity(count);
+    for index in 0..count {
+        let item = sequence.get_item(index)?;
+        let bytes = item.cast::<PyBytes>().map_err(|_| {
+            PyValueError::new_err(format!(
+                "gated Q7 multiply {kind} at index {index} must be bytes"
+            ))
+        })?;
+        if bytes.as_bytes().len() > pllm_compiler::SILU_Q7_MAX_LABEL_BYTES {
+            return Err(PyValueError::new_err(format!(
+                "gated Q7 multiply {kind} exceeds its byte bound"
+            )));
+        }
+        output.push(bytes.as_bytes().to_vec());
+    }
+    Ok(output)
+}
+
+fn checked_i16_sequence(
+    value: &Bound<'_, PyAny>,
+    expected: usize,
+    kind: &str,
+) -> PyResult<Vec<i16>> {
+    let sequence = value.cast::<PySequence>().map_err(|_| {
+        PyValueError::new_err(format!("gated Q7 multiply {kind}s must be a sequence"))
+    })?;
+    let count = sequence.len()?;
+    if count != expected {
+        return Err(PyValueError::new_err(format!(
+            "gated Q7 multiply expected {expected} {kind}s, got {count}"
+        )));
+    }
+    let mut output = Vec::with_capacity(count);
+    for index in 0..count {
+        let item = sequence.get_item(index)?;
+        output.push(item.extract::<i16>().map_err(|_| {
+            PyValueError::new_err(format!(
+                "gated Q7 multiply {kind} at index {index} must fit i16"
+            ))
+        })?);
+    }
+    Ok(output)
+}
+
 fn compilation_invalid(diagnostics: Vec<pllm_compiler::Diagnostic>) -> PyErr {
     let json = pllm_compiler::diagnostics_json(&diagnostics);
     PyValueError::new_err(String::from_utf8_lossy(&json).into_owned())
@@ -158,6 +220,21 @@ impl GatedMultiplyQ7Region {
         &self.inner.multiply_operation_id
     }
 
+    #[getter]
+    fn method_component_id(&self) -> &str {
+        &self.inner.method_component_id
+    }
+
+    #[getter]
+    fn schedule_component_id(&self) -> &str {
+        &self.inner.schedule_component_id
+    }
+
+    #[getter]
+    fn max_tensor_elements(&self) -> usize {
+        self.inner.max_tensor_elements
+    }
+
     fn prepare_material(&self, py: Python<'_>) -> PyResult<GarbledGatedMultiplyQ7Material> {
         let inner = py
             .detach(|| {
@@ -183,6 +260,7 @@ impl GatedMultiplyQ7Region {
             .map_err(invalid)?;
         Ok(GatedMultiplyQ7Evaluator {
             inner: Mutex::new(inner),
+            claimed: AtomicBool::new(false),
         })
     }
 }
@@ -197,6 +275,15 @@ impl GarbledGatedMultiplyQ7Material {
     #[getter]
     fn evaluator_payload<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.inner.evaluator_payload())
+    }
+
+    #[getter]
+    fn element_count(&self) -> usize {
+        self.inner.element_count()
+    }
+
+    fn cancel(&self) -> PyResult<bool> {
+        self.inner.cancel().map_err(invalid)
     }
 
     fn encode_gate<'py>(&self, py: Python<'py>, value: i16) -> PyResult<Bound<'py, PyBytes>> {
@@ -220,11 +307,57 @@ impl GarbledGatedMultiplyQ7Material {
             .decode(label.as_bytes())
             .map_err(|error| invalid(error.to_string()))
     }
+
+    fn encode_gates<'py>(
+        &self,
+        py: Python<'py>,
+        values: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyTuple>> {
+        let values = checked_i16_sequence(values, self.inner.element_count(), "gate value")?;
+        let labels = self
+            .inner
+            .encode_gates(&values)
+            .map_err(|error| invalid(error.to_string()))?;
+        PyTuple::new(py, labels.iter().map(|label| PyBytes::new(py, label)))
+    }
+
+    fn encode_ups<'py>(
+        &self,
+        py: Python<'py>,
+        values: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyTuple>> {
+        let values = checked_i16_sequence(values, self.inner.element_count(), "up value")?;
+        let labels = self
+            .inner
+            .encode_ups(&values)
+            .map_err(|error| invalid(error.to_string()))?;
+        PyTuple::new(py, labels.iter().map(|label| PyBytes::new(py, label)))
+    }
+
+    fn decode_tensor(&self, labels: &Bound<'_, PyAny>) -> PyResult<Vec<i16>> {
+        let labels =
+            checked_gated_byte_sequence(labels, self.inner.element_count(), "output label")?;
+        self.inner
+            .decode_tensor(&labels)
+            .map_err(|error| invalid(error.to_string()))
+    }
 }
 
 #[pyclass(module = "pllm._native")]
 struct GatedMultiplyQ7Evaluator {
     inner: Mutex<pllm_compiler::GatedMultiplyQ7Evaluator>,
+    claimed: AtomicBool,
+}
+
+impl GatedMultiplyQ7Evaluator {
+    fn claim(&self) -> PyResult<()> {
+        if self.claimed.swap(true, Ordering::AcqRel) {
+            return Err(invalid(
+                "gated Q7 multiply evaluator was already consumed".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[pymethods]
@@ -232,9 +365,36 @@ impl GatedMultiplyQ7Evaluator {
     fn evaluate<'py>(
         &self,
         py: Python<'py>,
-        gate_label: &Bound<'_, PyBytes>,
-        up_label: &Bound<'_, PyBytes>,
+        gate_label: &Bound<'_, PyAny>,
+        up_label: &Bound<'_, PyAny>,
     ) -> PyResult<Bound<'py, PyBytes>> {
+        self.claim()?;
+        let gate_label = match gate_label.cast::<PyBytes>() {
+            Ok(label) => label,
+            Err(_) => {
+                self.inner
+                    .lock()
+                    .map_err(|_| {
+                        PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned")
+                    })?
+                    .burn()
+                    .map_err(invalid)?;
+                return Err(invalid("gated Q7 multiply gate label must be bytes".into()));
+            }
+        };
+        let up_label = match up_label.cast::<PyBytes>() {
+            Ok(label) => label,
+            Err(_) => {
+                self.inner
+                    .lock()
+                    .map_err(|_| {
+                        PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned")
+                    })?
+                    .burn()
+                    .map_err(invalid)?;
+                return Err(invalid("gated Q7 multiply up label must be bytes".into()));
+            }
+        };
         if gate_label.as_bytes().len() > pllm_compiler::SILU_Q7_MAX_LABEL_BYTES
             || up_label.as_bytes().len() > pllm_compiler::SILU_Q7_MAX_LABEL_BYTES
         {
@@ -260,6 +420,57 @@ impl GatedMultiplyQ7Evaluator {
             })
             .map_err(invalid)?;
         Ok(PyBytes::new(py, &output))
+    }
+
+    fn evaluate_tensor<'py>(
+        &self,
+        py: Python<'py>,
+        gate_labels: &Bound<'_, PyAny>,
+        up_labels: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyTuple>> {
+        self.claim()?;
+        let expected = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned"))?
+            .element_count();
+        let gates = match checked_gated_byte_sequence(gate_labels, expected, "gate label") {
+            Ok(labels) => labels,
+            Err(error) => {
+                self.inner
+                    .lock()
+                    .map_err(|_| {
+                        PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned")
+                    })?
+                    .burn()
+                    .map_err(invalid)?;
+                return Err(error);
+            }
+        };
+        let ups = match checked_gated_byte_sequence(up_labels, expected, "up label") {
+            Ok(labels) => labels,
+            Err(error) => {
+                self.inner
+                    .lock()
+                    .map_err(|_| {
+                        PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned")
+                    })?
+                    .burn()
+                    .map_err(invalid)?;
+                return Err(error);
+            }
+        };
+        let gate_refs = gates.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let up_refs = ups.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let outputs = py
+            .detach(|| {
+                self.inner
+                    .lock()
+                    .map_err(|_| "gated Q7 multiply evaluator lock was poisoned".to_string())?
+                    .evaluate_tensor(&gate_refs, &up_refs)
+            })
+            .map_err(invalid)?;
+        PyTuple::new(py, outputs.iter().map(|output| PyBytes::new(py, output)))
     }
 }
 #[pymethods]
@@ -517,10 +728,19 @@ fn decoder_coverage<'py>(
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&report)))
 }
 
-#[pyfunction]
+#[pyfunction(signature = (
+    plan,
+    mode,
+    method_component_id = "pllm/r03-crt/v1",
+    schedule_component_id = "pllm/scalar/v1",
+    max_tensor_elements = 1
+))]
 fn lower_gated_multiply_q7(
     plan: &Bound<'_, PyBytes>,
     mode: &str,
+    method_component_id: &str,
+    schedule_component_id: &str,
+    max_tensor_elements: usize,
 ) -> PyResult<Vec<GatedMultiplyQ7Region>> {
     let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
         .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
@@ -529,8 +749,14 @@ fn lower_gated_multiply_q7(
         "decode" => pllm_models::DecoderMode::Decode,
         _ => return Err(invalid("decoder mode must be prefill or decode".into())),
     };
-    let regions =
-        pllm_compiler::lower_model_gated_multiply_q7_regions(&plan, mode).map_err(invalid)?;
+    let regions = pllm_compiler::lower_model_gated_multiply_q7_regions_with_components(
+        &plan,
+        mode,
+        method_component_id,
+        schedule_component_id,
+        max_tensor_elements,
+    )
+    .map_err(invalid)?;
     let plan = Arc::new(plan);
     Ok(regions
         .into_iter()

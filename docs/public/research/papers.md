@@ -6,18 +6,18 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
-Source hash: `sha256:58f8a074aebb9d590958a0558c446748c9b7e2a8e68b2621f50a6e6b209b18c4`
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
+Source hash: `sha256:384b2206215a8425006e99cd87e948082966015ae7152e8637ea171f3f9f4c67`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
-R03 has a scoped clean-room component adaptation in the compact scalar Q7 program. R23 has a structural `DecoderPlan` adaptation. Neither is a paper reproduction or protected-runtime result. R01-R02 remain reference primitives only, and R24 is planned.
+R03 has a scoped clean-room component adaptation in the compact Q7 implementation. R23 has a structural `DecoderPlan` adaptation. Neither is a paper reproduction or protected-runtime result. R01-R02 remain reference primitives only, and R24 is planned.
 
 ## Reimplementation plan
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. Digest-bound centered-wrap32 Q14-to-Q7 regions freeze scale, ties-to-even rounding, reject-on-range semantics, and exact producer-consumer provenance. A compact scalar protected region composes Q7 SiLU and multiplication through an exact mixed-modulus program. Tensor protected multiplication, complete numeric scheduling, length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. Digest-bound centered-wrap32 Q14-to-Q7 regions freeze scale, ties-to-even rounding, reject-on-range semantics, and exact producer-consumer provenance. Selectable dense-table and compact mixed-modulus components compose Q7 SiLU and multiplication, with separate scalar or bounded four-lane one-use scheduling. Real-model tensor scale, complete numeric scheduling, length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 

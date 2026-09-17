@@ -72,15 +72,18 @@ does not change the public runtime's client-local output-head placement. It also
 defines a digest-bound centered-wrap32 Q14-to-Q7 rescale region with explicit scale,
 rounding, and range policy, plus exhaustive Q7 multiplication and gated-MLP
 references. These rescale regions bind the exact dense-Qwen linear producer,
-nonlinear consumer, and consumer input slot. One experimental protected scalar
-region jointly garbles SiLU and its two-input multiplication, feeding the hidden
-SiLU output label directly into multiplication. Its compact mixed-modulus program
-uses source-locked arithmetic projections, prime-residue multiplication, CRT
-conversion, and exact ties-to-even rescaling. Authenticated, digest-bound material
-is one-use and uses canonical fixed-bit row transport. It measures 245,209 bytes
-per scalar, 92.3% below the prior dense binary table. Tensor scheduling, complete
-numeric scheduling, and other multiplication contracts remain unavailable, so
-this does not promote decoder coverage. It does
+nonlinear consumer, and consumer input slot. One experimental protected region
+jointly garbles SiLU and its two-input multiplication, feeding the hidden SiLU
+output label directly into multiplication. Its nonlinear-method component selects
+either a dense binary table or a compact mixed-modulus program using source-locked
+arithmetic projections, prime-residue multiplication, CRT conversion, and exact
+ties-to-even rescaling. A separate scheduler component selects one scalar or at
+most four independent lanes. Authenticated, digest-bound bundles commit lane order
+and burn atomically before label parsing. Current component-bound evaluator
+payloads measure 2,387,674 bytes for one dense-table lane, 245,397 bytes for one
+compact lane, and 980,573 bytes for four compact lanes. Complete numeric
+scheduling, real-model tensor scale, and other multiplication contracts remain
+unavailable, so this does not promote decoder coverage. It does
 not yet schedule these regions as a complete decoder or activate a complete model
 profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts

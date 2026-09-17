@@ -6,8 +6,8 @@ Learn how PLLM records research recipes and changes to a model plan.
 
 Document ID: `pllm.docs.research.compositions`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
-Source hash: `sha256:aa7404a9b15ad8b26a476f3435638fc049c8b9be619d612c7aeee9a3ccf19171`
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
+Source hash: `sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f`
 
 Research workflows describe source acquisition, target model operations,
 required evidence, review gates, and failure policy. They are documentation, not
@@ -26,3 +26,25 @@ MPCache is one example: `pllm/kv-cache-eviction` structurally adapts a compatibl
 plan through code in `crates/pllm-models/src/cache.rs`. It is not a protected
 MPCache runtime. See [method implementations](/research/methods/) and the public
 [component APIs](/sdk/components/).
+
+Method and lifecycle choices remain separate, so research configurations can
+declare and later recombine them:
+
+```python
+from pllm.components import (
+    IndependentLanesProtectedTensorSchedule,
+    R03CrtGatedMultiplyQ7,
+)
+
+method = R03CrtGatedMultiplyQ7()
+schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
+
+assert method.describe().category == "pllm/nonlinear-protocol"
+assert schedule.describe().category == "pllm/protected-scheduler"
+```
+
+These declarations are immutable configuration inputs. The baseline Experiment
+profile rejects them because it does not execute this protected region. The
+specialized native region test path consumes both selections; full-decoder
+Experiment resolution and matched benchmarking remain deferred until compiler
+coverage is complete.

@@ -3,16 +3,28 @@
 from typing import Mapping, cast
 
 import pllm.configuration as _configuration
-from pllm.configuration import ComponentDescriptor, ComponentRef, KvCacheEviction
+from pllm.configuration import (
+    BinaryTableGatedMultiplyQ7,
+    ComponentDescriptor,
+    ComponentRef,
+    IndependentLanesProtectedTensorSchedule,
+    KvCacheEviction,
+    R03CrtGatedMultiplyQ7,
+    ScalarProtectedTensorSchedule,
+)
 
 _BUILTIN_DESCRIPTORS = cast(
     Mapping[str, ComponentDescriptor], getattr(_configuration, "_BUILTIN_DESCRIPTORS")
 )
 
 __all__ = [
+    "BinaryTableGatedMultiplyQ7",
     "ComponentDescriptor",
     "ComponentRef",
+    "IndependentLanesProtectedTensorSchedule",
     "KvCacheEviction",
+    "R03CrtGatedMultiplyQ7",
+    "ScalarProtectedTensorSchedule",
     "get_component",
     "list_components",
 ]

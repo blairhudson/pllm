@@ -6,7 +6,7 @@ Load, inspect, and export a reproducible PLLM experiment configuration.
 
 Document ID: `pllm.docs.sdk.configuration`  
 Release: `0.1.0`  
-Build: `sha256:06781cb06588c2919922b5252154662ef566cf6cbec9ad8049f32aa70887b75e`  
+Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
 Source hash: `sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8`
 
 PLLM configuration objects describe public intent. Creating one does not download

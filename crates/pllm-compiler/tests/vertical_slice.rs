@@ -570,6 +570,17 @@ fn compile_document_rejects_noncanonical_duplicate_unknown_and_wrong_schema() {
         document_error_code(&pllm_types::canonical_bytes(&wrong_configuration)),
         DiagnosticCode::InvalidDocument
     );
+
+    let mut unused_component: serde_json::Value =
+        serde_json::from_slice(&document_bytes(&request(2, 3, 2))).unwrap();
+    unused_component["configuration"]["pipeline"]["components"]["nonlinear"] = serde_json::json!({
+        "component": pllm_compiler::GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
+        "params": {}
+    });
+    assert_eq!(
+        document_error_code(&pllm_types::canonical_bytes(&unused_component)),
+        DiagnosticCode::InvalidDocument
+    );
 }
 
 #[test]
@@ -624,23 +635,23 @@ fn canonical_manifests_have_exact_boundaries_and_stable_digests() {
     );
     assert_eq!(
         compiled.lock.logical_plan_digest.as_str(),
-        "ccb6dc4466602d04fd5097f4b0a49aa555de876e4e99427eed7816a67b2a6df1"
+        "a2dd71d2dd5e3917b4a4578dbde9d1287a285df6fd722d3acb97f7dbcaf26961"
     );
     assert_eq!(
         compiled.lock.execution_plan_digest.as_str(),
-        "768546d8d9ef3420ba13a02887251e6172e6d608ca1b84ede26248472f28a035"
+        "bdba1776ec7496d2a41f5508c6efb0d56bc66c0ccfd49267f90ce6c6811f31b7"
     );
     assert_eq!(
         pllm_compiler::region_program_digest(&compiled.region_program).as_str(),
-        "6c47cebfb806e983a0a3ff2de88ed5f0ca337cdd3cef7f0efb4bb467e0ae69a3"
+        "f0e1fb6b830785dd74da3cfeb633c69355e05a214160245c722030a003fed215"
     );
     assert_eq!(
         pllm_types::plan_lock_digest(&compiled.lock).as_str(),
-        "61a45e7af9eb10e4825871657c1ee5b2a85959c1ebeeae48c00adfd4168b64ca"
+        "32e02bfcc5a235ab148b77508ee9fe7acba64a4b51dae222eb96538882ba13ce"
     );
     assert_eq!(
         compiled.logical.configuration_digest.as_str(),
-        "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
     );
 
     let logical = String::from_utf8(compiled.logical_json()).unwrap();
@@ -718,7 +729,7 @@ fn configuration_identity_is_canonical_plain_sha256() {
     let canonical = configuration_json();
     assert_eq!(
         configuration_digest_bytes(&canonical).as_str(),
-        "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
     );
 
     let mut noncanonical = request(1, 3, 2);
