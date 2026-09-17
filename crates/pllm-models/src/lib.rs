@@ -1156,7 +1156,7 @@ fn validate_operation(
     }
     if matches!(
         operation.operator,
-        ModelOperator::Softmax | ModelOperator::LastToken | ModelOperator::Slice
+        ModelOperator::Softmax | ModelOperator::Slice
     ) {
         let axis = attributes
             .get("axis")
@@ -1183,27 +1183,7 @@ fn validate_operation(
         ModelOperator::AttentionScores | ModelOperator::AttentionValues => {
             validate_attention_operation(operation, shapes)?;
         }
-        ModelOperator::LastToken => {
-            if !matches!(operation.inputs.len(), 1 | 2) {
-                return Err(ModelError::Incomplete(format!(
-                    "operation {} has invalid input arity",
-                    operation.id
-                )));
-            }
-            if operation.inputs.len() == 2
-                && (operation.inputs[1] != "input.sequence_lengths"
-                    || attributes.get("selection").and_then(Value::as_str) != Some("last_valid")
-                    || attributes
-                        .get("valid_lengths_input")
-                        .and_then(Value::as_str)
-                        != Some("input.sequence_lengths"))
-            {
-                return Err(ModelError::Incomplete(format!(
-                    "operation {} has invalid length-aware selection",
-                    operation.id
-                )));
-            }
-        }
+        ModelOperator::LastToken => validate_last_token(operation, shapes)?,
         _ => {}
     }
     if operation.operator == ModelOperator::CacheSuffix {
@@ -1250,6 +1230,69 @@ fn validate_operation(
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid softcap",
+            operation.id
+        )));
+    }
+    Ok(())
+}
+
+fn validate_last_token(
+    operation: &ModelOperation,
+    shapes: &BTreeMap<String, Vec<u64>>,
+) -> Result<(), ModelError> {
+    if !matches!(operation.inputs.len(), 1 | 2) {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid input arity",
+            operation.id
+        )));
+    }
+    let input_shape = shapes.get(&operation.inputs[0]).ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "operation {} has no declared input shape",
+            operation.id
+        ))
+    })?;
+    let axis = operation.attributes["axis"].as_i64().ok_or_else(|| {
+        ModelError::Incomplete(format!("operation {} has invalid axis", operation.id))
+    })?;
+    let rank = i64::try_from(input_shape.len()).map_err(|_| {
+        ModelError::Incomplete(format!("operation {} rank overflowed", operation.id))
+    })?;
+    if rank < 2 || axis < -rank || axis >= rank {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} axis is out of range",
+            operation.id
+        )));
+    }
+    let normalized_axis =
+        usize::try_from(if axis < 0 { rank + axis } else { axis }).map_err(|_| {
+            ModelError::Incomplete(format!("operation {} has invalid axis", operation.id))
+        })?;
+    let mut expected_shape = input_shape.clone();
+    expected_shape.remove(normalized_axis);
+    if operation.output_shape != expected_shape {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} output shape does not remove its selected axis",
+            operation.id
+        )));
+    }
+    let attributes = operation.attributes.as_object().expect("validated above");
+    if operation.inputs.len() == 1 {
+        if attributes.contains_key("selection") || attributes.contains_key("valid_lengths_input") {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} has contradictory fixed-last metadata",
+                operation.id
+            )));
+        }
+    } else if operation.inputs[1] != "input.sequence_lengths"
+        || attributes.get("selection").and_then(Value::as_str) != Some("last_valid")
+        || attributes
+            .get("valid_lengths_input")
+            .and_then(Value::as_str)
+            != Some("input.sequence_lengths")
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid length-aware selection",
             operation.id
         )));
     }
@@ -1935,5 +1978,39 @@ mod tests {
             .unwrap()
             .attributes["axis"] = json!(8);
         assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = lower_qwen_decoder(
+            &config(),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 8,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap();
+        plan.prefill
+            .operations
+            .iter_mut()
+            .find(|operation| operation.operator == ModelOperator::LastToken)
+            .unwrap()
+            .attributes["axis"] = json!(3);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = lower_qwen_decoder(
+            &config(),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 8,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap();
+        plan.prefill
+            .operations
+            .iter_mut()
+            .find(|operation| operation.operator == ModelOperator::LastToken)
+            .unwrap()
+            .output_shape = vec![1, 8];
+        assert!(plan.validate().is_err());
     }
 }

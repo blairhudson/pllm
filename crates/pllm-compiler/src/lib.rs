@@ -129,12 +129,15 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let output_head_executable = lower_model_output_head_regions(plan, DecoderMode::Prefill)
         .is_ok()
         && lower_model_output_head_regions(plan, DecoderMode::Decode).is_ok();
+    let last_token_executable = lower_model_last_token_regions(plan, DecoderMode::Prefill).is_ok()
+        && lower_model_last_token_regions(plan, DecoderMode::Decode).is_ok();
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
             let executable = operator == ModelOperator::Linear
                 || (operator == ModelOperator::Reshape && reshape_executable)
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
+                || (operator == ModelOperator::LastToken && last_token_executable)
                 || (operator == ModelOperator::OutputHead && output_head_executable);
             let primitive = matches!(
                 operator,
@@ -169,6 +172,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::ResidualAdd && executable {
                     Some("pllm/core-tensor@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::LastToken && executable {
+                    Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if primitive {
@@ -184,6 +189,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::ResidualAdd && executable {
                     "semantic residual additions execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::LastToken && executable {
+                    "physical-last selections execute, but length-aware selection and whole-decoder scheduling are unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
@@ -301,6 +309,17 @@ pub struct ModelOutputHeadRegion {
     pub operation_id: String,
     pub input_id: String,
     pub weight_id: String,
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelLastTokenRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub axis: usize,
     pub input: TensorType,
     pub output: TensorType,
 }
@@ -2477,6 +2496,62 @@ pub fn execute_model_output_head(
     matrix.wrap32(&executor, input, batch)
 }
 
+/// Extract fixed physical-last selections while rejecting length-aware forms.
+pub fn lower_model_last_token_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelLastTokenRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::LastToken)
+        .map(|operation| lower_model_last_token_region(graph, mode, operation))
+        .collect()
+}
+
+/// Select the final physical element on the semantic sequence axis.
+pub fn execute_model_last_token(
+    region: &ModelLastTokenRegion,
+    input: &[u32],
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::Wrap32
+        || region.input.shape.len() < 2
+        || region.axis >= region.input.shape.len()
+        || region.input.shape.contains(&0)
+    {
+        return Err("semantic last-token region has an invalid wrap32 input contract".into());
+    }
+    let mut expected_output_shape = region.input.shape.clone();
+    expected_output_shape.remove(region.axis);
+    if region.output.shape != expected_output_shape {
+        return Err("semantic last-token output shape does not remove its selected axis".into());
+    }
+    let input_elements = tensor_elements(&region.input.shape)?;
+    if input.len() != input_elements {
+        return Err("last-token input length does not match its semantic shape".into());
+    }
+    let outer = tensor_elements(&region.input.shape[..region.axis])?;
+    let axis = usize::try_from(region.input.shape[region.axis])
+        .map_err(|_| "last-token axis extent exceeds usize")?;
+    let inner = tensor_elements(&region.input.shape[region.axis + 1..])?;
+    let output_elements = outer
+        .checked_mul(inner)
+        .ok_or("last-token output element count overflows usize")?;
+    let mut output = Vec::with_capacity(output_elements);
+    for outer_index in 0..outer {
+        let start = outer_index
+            .checked_mul(axis)
+            .and_then(|offset| offset.checked_add(axis - 1))
+            .and_then(|offset| offset.checked_mul(inner))
+            .ok_or("last-token source offset overflows usize")?;
+        output.extend_from_slice(&input[start..start + inner]);
+    }
+    Ok(output)
+}
+
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
     match mode {
         DecoderMode::Prefill => &plan.prefill,
@@ -2662,6 +2737,66 @@ fn lower_model_output_head_region(
         operation_id: operation.id.clone(),
         input_id: input_id.clone(),
         weight_id,
+        input: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: input.output_shape.clone(),
+        },
+        output: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: operation.output_shape.clone(),
+        },
+    })
+}
+
+fn lower_model_last_token_region(
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelLastTokenRegion, String> {
+    let operation_id = operation.id.as_str();
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic last-token operation {operation_id} uses length-aware selection, which is not executable"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!(
+                "semantic last-token operation {operation_id} references missing input {input_id}"
+            )
+        })?;
+    let axis = operation
+        .attributes
+        .get("axis")
+        .and_then(serde_json::Value::as_i64)
+        .ok_or_else(|| format!("semantic last-token operation {operation_id} has no valid axis"))?;
+    let rank = i64::try_from(input.output_shape.len())
+        .map_err(|_| format!("semantic last-token operation {operation_id} rank overflowed"))?;
+    if rank < 2 || axis < -rank || axis >= rank {
+        return Err(format!(
+            "semantic last-token operation {operation_id} axis is out of range"
+        ));
+    }
+    let axis = usize::try_from(if axis < 0 { rank + axis } else { axis })
+        .map_err(|_| format!("semantic last-token operation {operation_id} axis is invalid"))?;
+    let mut expected_output_shape = input.output_shape.clone();
+    expected_output_shape.remove(axis);
+    if operation.output_shape != expected_output_shape {
+        return Err(format!(
+            "semantic last-token operation {operation_id} output shape does not remove its selected axis"
+        ));
+    }
+    tensor_elements(&input.output_shape)?;
+    tensor_elements(&operation.output_shape)?;
+    Ok(ModelLastTokenRegion {
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_id: input_id.clone(),
+        axis,
         input: TensorType {
             numeric: NumericType::Wrap32,
             shape: input.output_shape.clone(),
