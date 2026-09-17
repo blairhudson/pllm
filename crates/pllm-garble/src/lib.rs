@@ -596,6 +596,34 @@ pub struct SiluQuadraticQ7Material {
     output: WireEncoding,
 }
 
+/// Client encodings and evaluator gates for label-preserving `SiLU(gate) * up`.
+pub struct GatedMultiplyQ7Material {
+    silu_gate: GarbledProjection,
+    multiply_gate: GarbledProjection,
+    gate_input: WireEncoding,
+    up_input: WireEncoding,
+    output: WireEncoding,
+}
+
+impl GatedMultiplyQ7Material {
+    pub fn gate_bytes(&self) -> (Vec<u8>, Vec<u8>) {
+        (self.silu_gate.to_bytes(), self.multiply_gate.to_bytes())
+    }
+
+    pub fn encode_gate(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
+        Ok(self.gate_input.encode(q7_residue(value)?)?.to_bytes())
+    }
+
+    pub fn encode_up(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
+        Ok(self.up_input.encode(q7_residue(value)?)?.to_bytes())
+    }
+
+    pub fn decode(&self, label_bytes: &[u8]) -> Result<i16, GarbleError> {
+        let label = Label::from_bytes(label_bytes)?;
+        Ok(q7_centered(self.output.decode(&label)?))
+    }
+}
+
 impl SiluQuadraticQ7Material {
     pub fn gate_bytes(&self) -> Vec<u8> {
         self.gate.to_bytes()
@@ -635,6 +663,47 @@ pub fn prepare_silu_quadratic_q7_with_context(
     })
 }
 
+pub fn prepare_gated_multiply_q7() -> Result<GatedMultiplyQ7Material, GarbleError> {
+    prepare_gated_multiply_q7_with_context([0_u8; 32])
+}
+
+/// Prepare both gates together so the evaluator never decodes the SiLU output.
+pub fn prepare_gated_multiply_q7_with_context(
+    context_digest: [u8; 32],
+) -> Result<GatedMultiplyQ7Material, GarbleError> {
+    let modulus = Modulus::new(SILU_QUADRATIC_Q7_MODULUS)?;
+    let mut garbler = Garbler::new();
+    let gate_input = garbler.wire(modulus)?;
+    let up_input = garbler.wire(modulus)?;
+    let (silu_gate, activated) = garbler.garble_projection_with_context(
+        &[&gate_input],
+        modulus,
+        context_digest,
+        |residues| {
+            let result = pllm_core::silu_quadratic_q7(q7_centered(residues[0]))
+                .expect("every modulus-257 residue maps to the locked Q7 domain");
+            q7_residue(result).expect("locked Q7 SiLU output remains in domain")
+        },
+    )?;
+    let (multiply_gate, output) = garbler.garble_projection_with_context(
+        &[&activated, &up_input],
+        modulus,
+        context_digest,
+        |residues| {
+            let result = pllm_core::multiply_q7(q7_centered(residues[0]), q7_centered(residues[1]))
+                .expect("every modulus-257 input pair has a bounded Q7 product");
+            q7_residue(result).expect("locked Q7 multiplication output remains in domain")
+        },
+    )?;
+    Ok(GatedMultiplyQ7Material {
+        silu_gate,
+        multiply_gate,
+        gate_input,
+        up_input,
+        output,
+    })
+}
+
 #[cfg(test)]
 fn evaluate_silu_quadratic_q7(
     gate_bytes: &[u8],
@@ -645,9 +714,24 @@ fn evaluate_silu_quadratic_q7(
     Ok(gate.evaluate(&[&input])?.to_bytes())
 }
 
+#[cfg(test)]
+fn evaluate_gated_multiply_q7(
+    silu_gate_bytes: &[u8],
+    multiply_gate_bytes: &[u8],
+    gate_input_label_bytes: &[u8],
+    up_input_label_bytes: &[u8],
+) -> Result<Vec<u8>, GarbleError> {
+    let silu_gate = GarbledProjection::from_bytes(silu_gate_bytes)?;
+    let multiply_gate = GarbledProjection::from_bytes(multiply_gate_bytes)?;
+    let gate_input = Label::from_bytes(gate_input_label_bytes)?;
+    let up_input = Label::from_bytes(up_input_label_bytes)?;
+    let activated = silu_gate.evaluate(&[&gate_input])?;
+    Ok(multiply_gate.evaluate(&[&activated, &up_input])?.to_bytes())
+}
+
 fn q7_residue(value: i16) -> Result<u16, GarbleError> {
     if !(-128..=128).contains(&value) {
-        return Err(GarbleError::ValueOutsideSiluQ7(value));
+        return Err(GarbleError::ValueOutsideQ7(value));
     }
     Ok(if value < 0 {
         (i32::from(value) + i32::from(SILU_QUADRATIC_Q7_MODULUS)) as u16
@@ -679,7 +763,7 @@ pub enum GarbleError {
     ProjectionTooLarge,
     Randomness(String),
     UnknownOutputLabel,
-    ValueOutsideSiluQ7(i16),
+    ValueOutsideQ7(i16),
     ValueOutsideModulus { value: u16, modulus: u16 },
 }
 
@@ -711,8 +795,8 @@ impl fmt::Display for GarbleError {
             Self::UnknownOutputLabel => {
                 formatter.write_str("output label is not in the decoding set")
             }
-            Self::ValueOutsideSiluQ7(value) => {
-                write!(formatter, "Q7 SiLU value {value} is outside -128..=128")
+            Self::ValueOutsideQ7(value) => {
+                write!(formatter, "Q7 value {value} is outside -128..=128")
             }
             Self::ValueOutsideModulus { value, modulus } => {
                 write!(formatter, "value {value} is outside modulus {modulus}")
@@ -1233,10 +1317,7 @@ mod tests {
     #[test]
     fn silu_q7_rejects_out_of_domain_and_tampered_material() {
         let material = prepare_silu_quadratic_q7().unwrap();
-        assert_eq!(
-            material.encode(129),
-            Err(GarbleError::ValueOutsideSiluQ7(129))
-        );
+        assert_eq!(material.encode(129), Err(GarbleError::ValueOutsideQ7(129)));
 
         let gate = material.gate_bytes();
         let mut input = material.encode(0).unwrap();
@@ -1244,6 +1325,54 @@ mod tests {
         assert_eq!(
             evaluate_silu_quadratic_q7(&gate, &input),
             Err(GarbleError::InvalidLabel)
+        );
+    }
+
+    #[test]
+    fn gated_multiply_q7_preserves_the_silu_output_label() {
+        let material = prepare_gated_multiply_q7().unwrap();
+        let (silu_gate, multiply_gate) = material.gate_bytes();
+        for (gate, up) in [(-128, -128), (-65, 127), (0, 128), (64, -96), (128, 128)] {
+            let output = evaluate_gated_multiply_q7(
+                &silu_gate,
+                &multiply_gate,
+                &material.encode_gate(gate).unwrap(),
+                &material.encode_up(up).unwrap(),
+            )
+            .unwrap();
+            let expected =
+                pllm_core::multiply_q7(pllm_core::silu_quadratic_q7(gate).unwrap(), up).unwrap();
+            assert_eq!(material.decode(&output).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn gated_multiply_q7_rejects_cross_lane_and_cross_material_labels() {
+        let material = prepare_gated_multiply_q7_with_context([7_u8; 32]).unwrap();
+        let other = prepare_gated_multiply_q7_with_context([7_u8; 32]).unwrap();
+        let (silu_gate, multiply_gate) = material.gate_bytes();
+
+        assert_eq!(
+            evaluate_gated_multiply_q7(
+                &silu_gate,
+                &multiply_gate,
+                &material.encode_up(9).unwrap(),
+                &material.encode_gate(5).unwrap(),
+            ),
+            Err(GarbleError::Authentication)
+        );
+        assert_eq!(
+            evaluate_gated_multiply_q7(
+                &silu_gate,
+                &multiply_gate,
+                &other.encode_gate(5).unwrap(),
+                &material.encode_up(9).unwrap(),
+            ),
+            Err(GarbleError::Authentication)
+        );
+        assert_eq!(
+            material.encode_up(129),
+            Err(GarbleError::ValueOutsideQ7(129))
         );
     }
 }

@@ -6,7 +6,7 @@ Mixed-modulus labels and projection gates over bounded arithmetic values.
 
 Document ID: `pllm.docs.protocols.garbling.arithmetic`  
 Release: `0.1.0`  
-Build: `sha256:a56b03bbcab50da4d618a10a27d57d6fe15bc392dc06b104c6c4a924b7db4025`  
+Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
 Source hash: `sha256:5d8e8cd921ebfd04bf47b410e73c52dbaa629702ba30cfa0582ef136aa064247`
 
 Arithmetic garbling represents values with labels per modulus. Free compatible arithmetic can avoid tables; nonlinear projection reconstructs signed values jointly from a coprime residue bundle and emits output labels. Gate material is shape-bound, strictly serialized, and consumed once.

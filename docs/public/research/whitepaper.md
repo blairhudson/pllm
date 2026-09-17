@@ -6,8 +6,8 @@ A concise guide to PLLM’s private multi-party runtime and autonomous research 
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:a56b03bbcab50da4d618a10a27d57d6fe15bc392dc06b104c6c4a924b7db4025`  
-Source hash: `sha256:868716cebdf0bc6d7c450c1e4b3982fc011f261e79ff9e135569267023828ccc`
+Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
+Source hash: `sha256:a3f6b1c0b04d85e5fae709f55f041438930b0f735a1f1bec29ce6256b99ba736`
 
 [Download PDF ↗](/downloads/whitepaper.pdf)
 
@@ -70,7 +70,7 @@ The next step is constrained plan-space exploration. Exhaustive grid search fits
 
 The prepared three-role runtime, one-use inventory lifecycle, local compatible gateway, native integer matrix executor, telemetry, and benchmark dashboard are implemented. Model adapters lower Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and selected Gemma 4 text configurations into a shared semantic representation.
 
-Complete execution through the new compiler is not implemented. Its current protected nonlinear work is limited to an experimental bounded Q7 SiLU component. Model lowering is not evidence of compiler coverage, generation quality, deployment readiness, or production security.
+Complete execution through the new compiler is not implemented. Its current protected nonlinear work is limited to experimental bounded Q7 SiLU and one scalar label-preserving gated-multiply composition; tensor scheduling remains unavailable. Model lowering is not evidence of compiler coverage, generation quality, deployment readiness, or production security.
 
 The retained performance study contains nine warm Qwen2.5-0.5B runs in three input-length cohorts on one Apple M5 CPU loopback host. It confirms that the measured revision used offline preparation and no online Preparation requests. It does not establish WAN, GPU, multi-host, cost, energy, adversarial, or general performance results.
 

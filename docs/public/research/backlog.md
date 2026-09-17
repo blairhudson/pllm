@@ -6,8 +6,8 @@ What PLLM will reproduce, implement, review, and measure next.
 
 Document ID: `pllm.docs.research.backlog`  
 Release: `0.1.0`  
-Build: `sha256:a56b03bbcab50da4d618a10a27d57d6fe15bc392dc06b104c6c4a924b7db4025`  
-Source hash: `sha256:bde5c01580e5685b8ef595caadc27373b99df2d5b2f8ad5ec181f9218bd48d6e`
+Build: `sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a`  
+Source hash: `sha256:e8d34ef74488bece6645a7ce3418cc444a80f873a353d035f82c3f294ec696fc`
 
 PLLM tracks papers because they may improve a concrete protocol, compiler pass,
 numeric primitive, or state-management boundary. A tracked paper is not a PLLM
@@ -23,9 +23,10 @@ partial coverage.
 prefill and decode runs with exact model, prompt length, output length,
 machine, topology, cold/warm state, protocol bytes, and failure behavior.
 Keep loopback, WAN, CPU, and accelerator claims separate.
-3. **Review the experimental SiLU component.** Validate the bounded Q7 numeric
-profile, one-use gate lifecycle, authenticated plan binding, and evaluator
-view before expanding compiler coverage. The current primitive is not a
+3. **Tensorize and review the experimental gated-MLP component.** Replace the
+scalar binary projection with a bounded tensor method, validate its Q7 numeric
+schedule, one-use lifecycle, authenticated plan binding, and evaluator view,
+then obtain cryptographic review. The current scalar composition is not a
 complete-model security result.
 
 ## Composition and search

@@ -130,6 +130,30 @@ def silu_compiled_fixture(size: int):
     return _native.compile_plan(encoded)
 
 
+def gated_multiply_region(mode: str = "prefill"):
+    config = json.dumps(
+        {
+            "hidden_act": "silu",
+            "hidden_size": 2,
+            "intermediate_size": 1,
+            "max_position_embeddings": 8,
+            "model_type": "qwen2",
+            "num_attention_heads": 1,
+            "num_hidden_layers": 1,
+            "num_key_value_heads": 1,
+            "rms_norm_eps": 1e-6,
+            "rope_theta": 10000.0,
+            "tie_word_embeddings": True,
+            "vocab_size": 8,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    plan = _native.lower_model(config, 1, 1, 1)
+    (region,) = _native.lower_gated_multiply_q7(plan, mode)
+    return region
+
+
 def test_compiled_plan_matches_canonical_fixtures_and_digests():
     plan = compiled_fixture()
 
@@ -306,3 +330,35 @@ def test_q7_silu_copies_mutable_sequences_once():
     gates = MutatingSequence(material.gate)
     plan.prepare_silu_q7_evaluator(gates)
     assert gates.calls == 1
+
+
+def test_gated_q7_multiply_crosses_opaque_native_boundary_and_burns_material():
+    region = gated_multiply_region()
+    assert region.multiply_operation_id == "layer.0.gated_multiply"
+    assert len(region.digest) == 64
+    material = region.prepare_material()
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    with pytest.raises(ValueError, match="already bound"):
+        region.prepare_evaluator(material.evaluator_payload)
+
+    output = evaluator.evaluate(material.encode_gate(-65), material.encode_up(127))
+    assert material.decode(output) == -24
+    with pytest.raises(ValueError, match="already consumed"):
+        evaluator.evaluate(material.encode_gate(-65), material.encode_up(127))
+    with pytest.raises(AttributeError):
+        region.multiply_operation_id = "forged"
+
+
+def test_gated_q7_multiply_oversized_label_burns_both_gates():
+    region = gated_multiply_region("decode")
+    material = region.prepare_material()
+    evaluator = region.prepare_evaluator(material.evaluator_payload)
+    with pytest.raises(ValueError, match="label exceeds its byte bound"):
+        evaluator.evaluate(b"x" * 1025, material.encode_up(1))
+    with pytest.raises(ValueError, match="already consumed"):
+        evaluator.evaluate(material.encode_gate(1), material.encode_up(1))
+
+
+def test_gated_q7_multiply_rejects_unknown_decoder_mode():
+    with pytest.raises(ValueError, match="decoder mode must be prefill or decode"):
+        gated_multiply_region("training")

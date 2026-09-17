@@ -2,6 +2,7 @@ use std::{error::Error, fmt};
 
 pub const Q14_TO_Q7_PROFILE: &str = "pllm.numeric.rescale.q14_to_q7.v1";
 pub const Q7_MULTIPLY_PROFILE: &str = "pllm.numeric.multiply.q7.v1";
+pub const GATED_MULTIPLY_Q7_PROFILE: &str = "pllm.numeric.gated_multiply.q7.v1";
 pub const SIGNED_Q7_SCALE: i16 = 128;
 pub const SIGNED_Q7_MIN: i16 = -128;
 pub const SIGNED_Q7_MAX: i16 = 128;
@@ -56,6 +57,15 @@ pub fn multiply_q7(left: i16, right: i16) -> Result<i16, FixedPointError> {
         i64::from(left) * i64::from(right),
         i64::from(SIGNED_Q7_SCALE),
     ) as i16)
+}
+
+/// Exact bounded composition used by the protected gated-MLP reference slice.
+pub fn gated_multiply_q7(gate: i16, up: i16) -> Result<i16, FixedPointError> {
+    validate_q7(gate)?;
+    validate_q7(up)?;
+    let activated = crate::activation::silu_quadratic_q7(gate)
+        .map_err(|_| FixedPointError::Q7InputOutOfRange { value: gate })?;
+    multiply_q7(activated, up)
 }
 
 pub fn multiply_q7_tensor(left: &[i16], right: &[i16]) -> Result<Vec<i16>, FixedPointError> {
@@ -129,6 +139,18 @@ mod tests {
                 let expected = (f64::from(left) * f64::from(right) / f64::from(SIGNED_Q7_SCALE))
                     .round_ties_even() as i16;
                 assert_eq!(multiply_q7(left, right), Ok(expected));
+            }
+        }
+    }
+
+    #[test]
+    fn gated_multiplication_matches_explicit_composition_exhaustively() {
+        for gate in SIGNED_Q7_MIN..=SIGNED_Q7_MAX {
+            for up in SIGNED_Q7_MIN..=SIGNED_Q7_MAX {
+                assert_eq!(
+                    gated_multiply_q7(gate, up),
+                    multiply_q7(crate::activation::silu_quadratic_q7(gate).unwrap(), up)
+                );
             }
         }
     }

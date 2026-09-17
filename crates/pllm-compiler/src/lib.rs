@@ -30,9 +30,21 @@ pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
 pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v2";
+pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v1";
+pub const GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID: &str =
+    pllm_core::fixed_point::GATED_MULTIPLY_Q7_PROFILE;
+pub const GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID: &str =
+    "pllm.protected.arithmetic_garbling.gated_multiply_q7.v1";
+pub const GATED_MULTIPLY_Q7_METHOD_ID: &str = "arithmetic-garbling-gated-multiply-q7";
+pub const GATED_MULTIPLY_Q7_KERNEL_ID: &str = "pllm-garble-gated-multiply-q7";
+pub const GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS: usize = 1;
+pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 3_250_000;
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
+const GATED_MULTIPLY_Q7_ISSUANCE_CAPACITY: usize = 1_024;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
 const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
+const GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_gate.v1";
+const GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.gated_multiply_q7_gate.issuance.v1";
 
 pub fn silu_q7_kernel_artifact_digest() -> Digest {
     canonical_digest(
@@ -88,6 +100,27 @@ pub fn silu_q7_method_artifact_digest() -> Digest {
     digest_bytes(
         "pllm.artifact.rust-source.v1",
         include_bytes!("../../pllm-garble/src/lib.rs"),
+    )
+}
+
+pub fn gated_multiply_q7_method_artifact_digest() -> Digest {
+    silu_q7_method_artifact_digest()
+}
+
+pub fn gated_multiply_q7_kernel_artifact_digest() -> Digest {
+    canonical_digest(
+        "pllm.artifact.rust-source-set.v1",
+        &[
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/activation.rs"),
+            ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/fixed_point.rs"),
+            ),
+            gated_multiply_q7_method_artifact_digest(),
+        ],
     )
 }
 
@@ -181,6 +214,12 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::Silu {
+                    Some("pllm/agc-silu-q7@0.1.0-alpha.1-experimental".to_owned())
+                } else if operator == ModelOperator::Multiply {
+                    Some(
+                        "pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental".to_owned(),
+                    )
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
@@ -200,6 +239,12 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::Silu {
+                    "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::Multiply {
+                    "gated-MLP SiLU and multiplication compose without decoding for one scalar Q7 element; tensor scheduling and other multiplication contracts are unavailable"
                         .to_owned()
                 } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
@@ -356,6 +401,29 @@ pub struct Q14ToQ7RescaleRegion {
     pub divisor: u32,
     pub rounding: FixedPointRounding,
     pub range_policy: FixedPointRangePolicy,
+}
+
+/// Exact semantic and installed-component binding for one gated Q7 MLP region.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelGatedMultiplyQ7Region {
+    pub schema_version: String,
+    pub profile: String,
+    pub model_plan_digest: Digest,
+    pub mode: DecoderMode,
+    pub layer: u64,
+    pub gate_linear_operation_id: String,
+    pub gate_rescale: Q14ToQ7RescaleRegion,
+    pub silu_operation_id: String,
+    pub up_linear_operation_id: String,
+    pub up_rescale: Q14ToQ7RescaleRegion,
+    pub multiply_operation_id: String,
+    pub input: TensorType,
+    pub output: TensorType,
+    pub numeric_graph_id: String,
+    pub protected_graph_id: String,
+    pub method: VersionedArtifact,
+    pub kernel: VersionedArtifact,
+    pub compiler: VersionedArtifact,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2763,6 +2831,175 @@ fn q14_to_q7_rescale_operation_id(
     format!("{target_operation_id}.input.{target_input_index}.from.{source_operation_id}.q14_to_q7")
 }
 
+/// Lower dense gated-MLP `SiLU(gate_proj) * up_proj` regions without name parsing.
+pub fn lower_model_gated_multiply_q7_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelGatedMultiplyQ7Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let operations = graph
+        .operations
+        .iter()
+        .map(|operation| (operation.id.as_str(), operation))
+        .collect::<BTreeMap<_, _>>();
+    let mut regions = Vec::new();
+
+    for multiply in graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::Multiply)
+    {
+        let [activated_id, up_id] = multiply.inputs.as_slice() else {
+            return Err(format!(
+                "semantic multiply operation {} must have exactly two inputs",
+                multiply.id
+            ));
+        };
+        let activated = operations.get(activated_id.as_str()).ok_or_else(|| {
+            format!(
+                "semantic multiply operation {} references missing input {activated_id}",
+                multiply.id
+            )
+        })?;
+        if activated.operator != ModelOperator::Silu {
+            continue;
+        }
+        let [gate_id] = activated.inputs.as_slice() else {
+            return Err(format!(
+                "semantic SiLU operation {} must have exactly one input",
+                activated.id
+            ));
+        };
+        let gate = operations.get(gate_id.as_str()).ok_or_else(|| {
+            format!(
+                "semantic SiLU operation {} references missing input {gate_id}",
+                activated.id
+            )
+        })?;
+        let up = operations.get(up_id.as_str()).ok_or_else(|| {
+            format!(
+                "semantic multiply operation {} references missing input {up_id}",
+                multiply.id
+            )
+        })?;
+        let Some(layer) = multiply.layer else {
+            return Err(format!(
+                "semantic gated multiply operation {} has no layer identity",
+                multiply.id
+            ));
+        };
+        if gate.operator != ModelOperator::Linear
+            || up.operator != ModelOperator::Linear
+            || gate.layer != Some(layer)
+            || up.layer != Some(layer)
+            || activated.layer != Some(layer)
+            || gate.output_shape != activated.output_shape
+            || gate.output_shape != up.output_shape
+            || gate.output_shape != multiply.output_shape
+        {
+            return Err(format!(
+                "semantic gated multiply operation {} requires same-layer, shape-matched linear gate/up producers",
+                multiply.id
+            ));
+        }
+        let input = TensorType {
+            numeric: NumericType::SignedFixedQ7,
+            shape: multiply.output_shape.clone(),
+        };
+        let region = ModelGatedMultiplyQ7Region {
+            schema_version: GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION.into(),
+            profile: SILU_Q7_EXPERIMENT_PROFILE.into(),
+            model_plan_digest: plan.digest(),
+            mode,
+            layer,
+            gate_linear_operation_id: gate.id.clone(),
+            gate_rescale: define_q14_to_q7_rescale_region(
+                &gate.id,
+                &activated.id,
+                0,
+                gate.output_shape.clone(),
+            )?,
+            silu_operation_id: activated.id.clone(),
+            up_linear_operation_id: up.id.clone(),
+            up_rescale: define_q14_to_q7_rescale_region(
+                &up.id,
+                &multiply.id,
+                1,
+                up.output_shape.clone(),
+            )?,
+            multiply_operation_id: multiply.id.clone(),
+            input: input.clone(),
+            output: input,
+            numeric_graph_id: GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID.into(),
+            protected_graph_id: GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID.into(),
+            method: VersionedArtifact {
+                id: GATED_MULTIPLY_Q7_METHOD_ID.into(),
+                version: "1".into(),
+                digest: gated_multiply_q7_method_artifact_digest(),
+            },
+            kernel: VersionedArtifact {
+                id: GATED_MULTIPLY_Q7_KERNEL_ID.into(),
+                version: "1".into(),
+                digest: gated_multiply_q7_kernel_artifact_digest(),
+            },
+            compiler: VersionedArtifact {
+                id: SILU_Q7_COMPILER_ID.into(),
+                version: env!("CARGO_PKG_VERSION").into(),
+                digest: silu_q7_compiler_artifact_digest(),
+            },
+        };
+        validate_model_gated_multiply_q7_region(&region)?;
+        regions.push(region);
+    }
+    Ok(regions)
+}
+
+pub fn model_gated_multiply_q7_region_digest(region: &ModelGatedMultiplyQ7Region) -> Digest {
+    canonical_digest(GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION, region)
+}
+
+fn validate_model_gated_multiply_q7_region(
+    region: &ModelGatedMultiplyQ7Region,
+) -> Result<(), String> {
+    validate_q14_to_q7_rescale_region(&region.gate_rescale)?;
+    validate_q14_to_q7_rescale_region(&region.up_rescale)?;
+    if region.schema_version != GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION
+        || region.profile != SILU_Q7_EXPERIMENT_PROFILE
+        || !valid_identity(&region.gate_linear_operation_id)
+        || !valid_identity(&region.silu_operation_id)
+        || !valid_identity(&region.up_linear_operation_id)
+        || !valid_identity(&region.multiply_operation_id)
+        || region.gate_rescale.source_operation_id != region.gate_linear_operation_id
+        || region.gate_rescale.target_operation_id != region.silu_operation_id
+        || region.gate_rescale.target_input_index != 0
+        || region.up_rescale.source_operation_id != region.up_linear_operation_id
+        || region.up_rescale.target_operation_id != region.multiply_operation_id
+        || region.up_rescale.target_input_index != 1
+        || region.gate_rescale.output != region.input
+        || region.up_rescale.output != region.input
+        || region.input != region.output
+        || region.input.numeric != NumericType::SignedFixedQ7
+        || region.input.shape.is_empty()
+        || region.input.shape.contains(&0)
+        || region.numeric_graph_id != GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID
+        || region.protected_graph_id != GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID
+        || region.method.id != GATED_MULTIPLY_Q7_METHOD_ID
+        || region.method.version != "1"
+        || region.method.digest != gated_multiply_q7_method_artifact_digest()
+        || region.kernel.id != GATED_MULTIPLY_Q7_KERNEL_ID
+        || region.kernel.version != "1"
+        || region.kernel.digest != gated_multiply_q7_kernel_artifact_digest()
+        || region.compiler.id != SILU_Q7_COMPILER_ID
+        || region.compiler.version != env!("CARGO_PKG_VERSION")
+        || region.compiler.digest != silu_q7_compiler_artifact_digest()
+    {
+        return Err("gated Q7 multiply region does not match the installed contract".into());
+    }
+    tensor_elements(&region.input.shape)?;
+    Ok(())
+}
+
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
     match mode {
         DecoderMode::Prefill => &plan.prefill,
@@ -3386,18 +3623,302 @@ impl SiluQ7Evaluator {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct GatedMultiplyQ7GateHeader {
+    schema_version: String,
+    region_digest: Digest,
+    silu_gate_digest: Digest,
+    multiply_gate_digest: Digest,
+}
+
+/// Client-only encodings plus a region-bound pair of evaluator gates.
+pub struct BoundGatedMultiplyQ7Material {
+    material: pllm_garble::GatedMultiplyQ7Material,
+    evaluator_payload: Vec<u8>,
+}
+
+impl BoundGatedMultiplyQ7Material {
+    pub fn evaluator_payload(&self) -> Vec<u8> {
+        self.evaluator_payload.clone()
+    }
+
+    pub fn encode_gate(&self, value: i16) -> Result<Vec<u8>, pllm_garble::GarbleError> {
+        self.material.encode_gate(value)
+    }
+
+    pub fn encode_up(&self, value: i16) -> Result<Vec<u8>, pllm_garble::GarbleError> {
+        self.material.encode_up(value)
+    }
+
+    pub fn decode(&self, bytes: &[u8]) -> Result<i16, pllm_garble::GarbleError> {
+        self.material.decode(bytes)
+    }
+}
+
+/// Prepare a scalar, one-use, label-preserving `SiLU(gate) * up` gate pair.
+pub fn prepare_bound_gated_multiply_q7_material(
+    plan: &DecoderPlan,
+    region: &ModelGatedMultiplyQ7Region,
+) -> Result<BoundGatedMultiplyQ7Material, String> {
+    validate_model_gated_multiply_q7_region_against_plan(plan, region)?;
+    validate_scalar_gated_multiply_q7_region(region)?;
+    let region_digest = model_gated_multiply_q7_region_digest(region);
+    let material =
+        pllm_garble::prepare_gated_multiply_q7_with_context(digest_array(&region_digest)?)
+            .map_err(|error| error.to_string())?;
+    let (silu_gate, multiply_gate) = material.gate_bytes();
+    let header = GatedMultiplyQ7GateHeader {
+        schema_version: GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION.into(),
+        region_digest,
+        silu_gate_digest: digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, &silu_gate),
+        multiply_gate_digest: digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, &multiply_gate),
+    };
+    let encoded_header = canonical_bytes(&header);
+    let header_len = u32::try_from(encoded_header.len())
+        .map_err(|_| "gated Q7 multiply header exceeds u32".to_owned())?;
+    let silu_len = u32::try_from(silu_gate.len())
+        .map_err(|_| "gated Q7 multiply SiLU gate exceeds u32".to_owned())?;
+    let mut evaluator_payload =
+        Vec::with_capacity(8 + encoded_header.len() + silu_gate.len() + multiply_gate.len());
+    evaluator_payload.extend_from_slice(&header_len.to_le_bytes());
+    evaluator_payload.extend_from_slice(&encoded_header);
+    evaluator_payload.extend_from_slice(&silu_len.to_le_bytes());
+    evaluator_payload.extend_from_slice(&silu_gate);
+    evaluator_payload.extend_from_slice(&multiply_gate);
+    if evaluator_payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
+        return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
+    }
+    let silu_gate = pllm_garble::GarbledProjection::from_bytes(&silu_gate)
+        .map_err(|error| error.to_string())?;
+    let multiply_gate = pllm_garble::GarbledProjection::from_bytes(&multiply_gate)
+        .map_err(|error| error.to_string())?;
+    let material_id = gated_multiply_q7_material_id(&silu_gate, &multiply_gate)?;
+    register_gated_multiply_q7_material(
+        material_id,
+        digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, &evaluator_payload),
+    )?;
+    Ok(BoundGatedMultiplyQ7Material {
+        material,
+        evaluator_payload,
+    })
+}
+
+fn validate_model_gated_multiply_q7_region_against_plan(
+    plan: &DecoderPlan,
+    region: &ModelGatedMultiplyQ7Region,
+) -> Result<(), String> {
+    validate_model_gated_multiply_q7_region(region)?;
+    if region.model_plan_digest != plan.digest() {
+        return Err("gated Q7 multiply region does not match the decoder plan digest".into());
+    }
+    let expected = lower_model_gated_multiply_q7_regions(plan, region.mode)?;
+    if !expected.iter().any(|candidate| candidate == region) {
+        return Err("gated Q7 multiply region was not lowered from the decoder plan".into());
+    }
+    Ok(())
+}
+
+static GATED_MULTIPLY_Q7_ISSUANCE_REGISTRY: OnceLock<Mutex<BTreeMap<[u8; 32], Digest>>> =
+    OnceLock::new();
+
+fn register_gated_multiply_q7_material(
+    material_id: [u8; 32],
+    payload_digest: Digest,
+) -> Result<(), String> {
+    let mut registry = GATED_MULTIPLY_Q7_ISSUANCE_REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "gated Q7 multiply issuance registry is poisoned")?;
+    if registry.contains_key(&material_id) {
+        return Err("gated Q7 multiply material identifier collision".into());
+    }
+    if registry.len() >= GATED_MULTIPLY_Q7_ISSUANCE_CAPACITY {
+        return Err("gated Q7 multiply issuance capacity is exhausted".into());
+    }
+    registry.insert(material_id, payload_digest);
+    Ok(())
+}
+
+fn consume_gated_multiply_q7_material(
+    material_id: [u8; 32],
+    payload_digest: &Digest,
+) -> Result<(), String> {
+    let mut registry = GATED_MULTIPLY_Q7_ISSUANCE_REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "gated Q7 multiply issuance registry is poisoned")?;
+    if registry.get(&material_id) != Some(payload_digest) {
+        return Err(
+            "gated Q7 multiply evaluator material was not issued or was already bound".into(),
+        );
+    }
+    registry.remove(&material_id);
+    Ok(())
+}
+
+/// Bound evaluator state for one scalar gated Q7 multiplication.
+pub struct GatedMultiplyQ7Evaluator {
+    gates: Option<(
+        pllm_garble::GarbledProjection,
+        pllm_garble::GarbledProjection,
+    )>,
+    consumed: bool,
+}
+
+impl GatedMultiplyQ7Evaluator {
+    pub fn new(region: &ModelGatedMultiplyQ7Region, payload: &[u8]) -> Result<Self, String> {
+        validate_scalar_gated_multiply_q7_region(region)?;
+        let expected_region = model_gated_multiply_q7_region_digest(region);
+        let (header, silu_bytes, multiply_bytes) = decode_gated_multiply_q7_gates(payload)?;
+        let silu_gate = pllm_garble::GarbledProjection::from_bytes(silu_bytes)
+            .map_err(|error| error.to_string())?;
+        let multiply_gate = pllm_garble::GarbledProjection::from_bytes(multiply_bytes)
+            .map_err(|error| error.to_string())?;
+        consume_gated_multiply_q7_material(
+            gated_multiply_q7_material_id(&silu_gate, &multiply_gate)?,
+            &digest_bytes(GATED_MULTIPLY_Q7_ISSUANCE_DIGEST_DOMAIN, payload),
+        )?;
+        if header.region_digest != expected_region {
+            return Err("gated Q7 multiply commitment does not match region".into());
+        }
+        let context = digest_array(&expected_region)?;
+        if silu_gate.context_digest() != context || multiply_gate.context_digest() != context {
+            return Err("gated Q7 multiply authentication is bound to another region".into());
+        }
+        if silu_gate.input_moduli() != [pllm_garble::SILU_QUADRATIC_Q7_MODULUS]
+            || silu_gate.output_modulus() != pllm_garble::SILU_QUADRATIC_Q7_MODULUS
+            || multiply_gate.input_moduli()
+                != [
+                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+                    pllm_garble::SILU_QUADRATIC_Q7_MODULUS,
+                ]
+            || multiply_gate.output_modulus() != pllm_garble::SILU_QUADRATIC_Q7_MODULUS
+        {
+            return Err("gated Q7 multiply gates use the wrong arithmetic modulus".into());
+        }
+        Ok(Self {
+            gates: Some((silu_gate, multiply_gate)),
+            consumed: false,
+        })
+    }
+
+    /// Consume both gates on the first attempt, including malformed input.
+    pub fn evaluate(&mut self, gate_label: &[u8], up_label: &[u8]) -> Result<Vec<u8>, String> {
+        self.burn()?;
+        let (silu_gate, multiply_gate) = self
+            .gates
+            .take()
+            .ok_or("gated Q7 multiply evaluator material is absent")?;
+        let gate_label =
+            pllm_garble::Label::from_bytes(gate_label).map_err(|error| error.to_string())?;
+        let activated = silu_gate
+            .evaluate(&[&gate_label])
+            .map_err(|error| error.to_string())?;
+        let up_label =
+            pllm_garble::Label::from_bytes(up_label).map_err(|error| error.to_string())?;
+        multiply_gate
+            .evaluate(&[&activated, &up_label])
+            .map(|label| label.to_bytes())
+            .map_err(|error| error.to_string())
+    }
+
+    pub fn burn(&mut self) -> Result<(), String> {
+        if self.consumed {
+            return Err("gated Q7 multiply evaluator material was already consumed".into());
+        }
+        self.consumed = true;
+        Ok(())
+    }
+}
+
+fn validate_scalar_gated_multiply_q7_region(
+    region: &ModelGatedMultiplyQ7Region,
+) -> Result<(), String> {
+    validate_model_gated_multiply_q7_region(region)?;
+    let elements = tensor_elements(&region.input.shape)?;
+    if elements != GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS {
+        return Err(format!(
+            "gated Q7 multiply reference executor requires exactly one element, received {elements}"
+        ));
+    }
+    Ok(())
+}
+
+fn gated_multiply_q7_material_id(
+    silu_gate: &pllm_garble::GarbledProjection,
+    multiply_gate: &pllm_garble::GarbledProjection,
+) -> Result<[u8; 32], String> {
+    digest_array(&canonical_digest(
+        "pllm.gated_multiply_q7.material.v1",
+        &[silu_gate.material_id(), multiply_gate.material_id()],
+    ))
+}
+
+fn decode_gated_multiply_q7_gates(
+    payload: &[u8],
+) -> Result<(GatedMultiplyQ7GateHeader, &[u8], &[u8]), String> {
+    if payload.len() > GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
+        return Err("gated Q7 multiply evaluator payload exceeds its byte bound".into());
+    }
+    let header_len = u32::from_le_bytes(
+        payload
+            .get(..4)
+            .ok_or("gated Q7 multiply payload is truncated")?
+            .try_into()
+            .map_err(|_| "gated Q7 multiply payload is truncated")?,
+    ) as usize;
+    let header_end = 4_usize
+        .checked_add(header_len)
+        .ok_or("gated Q7 multiply header length overflows")?;
+    let header_bytes = payload
+        .get(4..header_end)
+        .ok_or("gated Q7 multiply header is truncated")?;
+    let silu_len_end = header_end
+        .checked_add(4)
+        .ok_or("gated Q7 multiply payload length overflows")?;
+    let silu_len = u32::from_le_bytes(
+        payload
+            .get(header_end..silu_len_end)
+            .ok_or("gated Q7 multiply SiLU length is truncated")?
+            .try_into()
+            .map_err(|_| "gated Q7 multiply SiLU length is truncated")?,
+    ) as usize;
+    let silu_end = silu_len_end
+        .checked_add(silu_len)
+        .ok_or("gated Q7 multiply SiLU length overflows")?;
+    let silu_gate = payload
+        .get(silu_len_end..silu_end)
+        .filter(|gate| !gate.is_empty())
+        .ok_or("gated Q7 multiply SiLU gate is absent")?;
+    let multiply_gate = payload
+        .get(silu_end..)
+        .filter(|gate| !gate.is_empty())
+        .ok_or("gated Q7 multiply gate is absent")?;
+    let header: GatedMultiplyQ7GateHeader =
+        serde_json::from_slice(header_bytes).map_err(|_| "gated Q7 multiply header is invalid")?;
+    if header.schema_version != GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION
+        || canonical_bytes(&header) != header_bytes
+        || header.silu_gate_digest != digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, silu_gate)
+        || header.multiply_gate_digest
+            != digest_bytes(GATED_MULTIPLY_Q7_GATE_SCHEMA_VERSION, multiply_gate)
+    {
+        return Err("gated Q7 multiply gate commitment is invalid".into());
+    }
+    Ok((header, silu_gate, multiply_gate))
+}
+
 fn digest_array(digest: &Digest) -> Result<[u8; 32], String> {
     let encoded = digest.as_str().as_bytes();
     if encoded.len() != 64 {
-        return Err("Q7 SiLU plan digest has the wrong width".into());
+        return Err("plan digest has the wrong width".into());
     }
     let mut output = [0_u8; 32];
     for (index, byte) in output.iter_mut().enumerate() {
         let offset = index * 2;
         let pair = std::str::from_utf8(&encoded[offset..offset + 2])
-            .map_err(|_| "Q7 SiLU plan digest is not hexadecimal")?;
-        *byte =
-            u8::from_str_radix(pair, 16).map_err(|_| "Q7 SiLU plan digest is not hexadecimal")?;
+            .map_err(|_| "plan digest is not hexadecimal")?;
+        *byte = u8::from_str_radix(pair, 16).map_err(|_| "plan digest is not hexadecimal")?;
     }
     Ok(output)
 }

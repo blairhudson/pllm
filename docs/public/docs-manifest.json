@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:a56b03bbcab50da4d618a10a27d57d6fe15bc392dc06b104c6c4a924b7db4025",
+  "buildId": "sha256:426652b6512bb11e794ef7caf6e150d2b19f0c9f7b933d041295b3bacebb441a",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -1773,7 +1773,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:b6cce87ab29f503934753fc9d6b5124f24446ed7a308480fad20abecb99b7f08"
+      "contentHash": "sha256:f4d165beef49c6ba8b4c184c5a00323b4d64b5c9dc52b471033d65e52990a212"
     },
     {
       "id": "pllm.research.whitepaper",
@@ -1804,7 +1804,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:868716cebdf0bc6d7c450c1e4b3982fc011f261e79ff9e135569267023828ccc",
+      "contentHash": "sha256:a3f6b1c0b04d85e5fae709f55f041438930b0f735a1f1bec29ce6256b99ba736",
       "citationLinks": [
         "/learn/understand/architecture/",
         "/learn/understand/privacy-assurance/"
@@ -3802,7 +3802,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:bde5c01580e5685b8ef595caadc27373b99df2d5b2f8ad5ec181f9218bd48d6e"
+      "contentHash": "sha256:e8d34ef74488bece6645a7ce3418cc444a80f873a353d035f82c3f294ec696fc"
     },
     {
       "id": "pllm.docs.research.experiments",

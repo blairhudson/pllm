@@ -17,9 +17,10 @@ implementation. A similar data flow is not a reproduction.
    prefill and decode runs with exact model, prompt length, output length,
    machine, topology, cold/warm state, protocol bytes, and failure behavior.
    Keep loopback, WAN, CPU, and accelerator claims separate.
-3. **Review the experimental SiLU component.** Validate the bounded Q7 numeric
-   profile, one-use gate lifecycle, authenticated plan binding, and evaluator
-   view before expanding compiler coverage. The current primitive is not a
+3. **Tensorize and review the experimental gated-MLP component.** Replace the
+   scalar binary projection with a bounded tensor method, validate its Q7 numeric
+   schedule, one-use lifecycle, authenticated plan binding, and evaluator view,
+   then obtain cryptographic review. The current scalar composition is not a
    complete-model security result.
 
 ## Composition and search

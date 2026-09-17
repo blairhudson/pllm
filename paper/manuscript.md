@@ -24,7 +24,7 @@ abstract: |
   assurance and benchmark evidence. Constrained plan-space search is planned, not
   yet implemented. Adapter coverage likewise does not imply complete execution:
   the current compiler cannot execute a complete lowered model, and garbling is
-  limited to an experimental bounded Q7 SiLU component. Security requires
+  limited to experimental bounded Q7 SiLU and scalar gated-multiply components. Security requires
   protocol-following, non-colluding Preparation and Inference roles. Retained
   performance evidence covers only nine historical warm Qwen2.5-0.5B CPU-loopback
   runs and supports no broader deployment or performance claim.
@@ -206,19 +206,25 @@ spaces and seeded random search over larger spaces are planned; neither exists i
 the current runtime, and no candidate is promoted without separate correctness,
 security, quality, and performance gates.
 
-### Experimental Q7 SiLU garbling
+### Experimental Q7 gated-MLP garbling
 
 Garbling support is narrower still. The compiler can bind and evaluate a one-use
-arithmetic-garbling payload for at most 128 elements of signed Q7 input over
+arithmetic-garbling payload for at most 128 elements of signed Q7 SiLU input over
 $[-1,1]$. It computes the fixed quadratic approximation
 $q(x)=x/2+x^2/4$ with deterministic ties-to-even rounding; the implementation's
 exhaustive encoded-domain test bounds absolute error against SiLU by 0.02285.
 Payloads are digest-bound, strictly decoded, and burned through a bounded
 process-local ledger.
 
+A separate scalar reference region jointly garbles SiLU and two-input Q7
+multiplication. The SiLU output remains an encoded label and enters the binary
+gate directly; it is never decoded and re-encoded between operators. Both inputs
+are provenance-bound to exact dense-Qwen linear-to-Q7 edges. The binary table is
+about 3.18 MB per scalar, so tensor execution remains deliberately unavailable.
+
 This component is an experimental primitive, disabled from complete deployment
 profiles. It is not full-model garbling, does not cover the other missing
-operators, and has no cryptographic review or production-security claim. It also
+operators at tensor scale, and has no cryptographic review or production-security claim. It also
 does not replace the additive-masking protocol used by the prepared runtime.
 
 ## Historical evaluation
@@ -283,8 +289,9 @@ of the client boundary.
 
 The harness also lowers several model families into a shared semantic IR and
 organizes research implementations as composable capability families. Complete
-plan-compiled model execution and autonomous plan search remain unavailable. The
-only garbled nonlinear execution is a bounded experimental Q7 SiLU component.
+plan-compiled model execution and autonomous plan search remain unavailable.
+Garbled nonlinear execution is limited to bounded experimental Q7 SiLU and one
+scalar label-preserving gated-multiply composition.
 These runtime, compiler, component, and evidence claims remain separate. Retained
 Qwen2.5 measurements show one historical CPU-loopback implementation working
 within that boundary; they establish nothing beyond that recorded system and

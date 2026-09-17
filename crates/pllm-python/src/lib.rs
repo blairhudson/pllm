@@ -6,7 +6,7 @@ use pllm_core::{codec, kernels};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
@@ -138,6 +138,129 @@ impl GarbledSiluQ7Material {
 struct SiluQ7Evaluator {
     inner: Mutex<pllm_compiler::SiluQ7Evaluator>,
     elements: usize,
+}
+
+#[pyclass(frozen, module = "pllm._native")]
+struct GatedMultiplyQ7Region {
+    inner: pllm_compiler::ModelGatedMultiplyQ7Region,
+    plan: Arc<pllm_models::DecoderPlan>,
+}
+
+#[pymethods]
+impl GatedMultiplyQ7Region {
+    #[getter]
+    fn digest(&self) -> String {
+        pllm_compiler::model_gated_multiply_q7_region_digest(&self.inner).to_string()
+    }
+
+    #[getter]
+    fn multiply_operation_id(&self) -> &str {
+        &self.inner.multiply_operation_id
+    }
+
+    fn prepare_material(&self, py: Python<'_>) -> PyResult<GarbledGatedMultiplyQ7Material> {
+        let inner = py
+            .detach(|| {
+                pllm_compiler::prepare_bound_gated_multiply_q7_material(&self.plan, &self.inner)
+            })
+            .map_err(invalid)?;
+        Ok(GarbledGatedMultiplyQ7Material { inner })
+    }
+
+    fn prepare_evaluator(
+        &self,
+        py: Python<'_>,
+        payload: &Bound<'_, PyBytes>,
+    ) -> PyResult<GatedMultiplyQ7Evaluator> {
+        if payload.as_bytes().len() > pllm_compiler::GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES {
+            return Err(invalid(
+                "gated Q7 multiply evaluator payload exceeds its byte bound".into(),
+            ));
+        }
+        let payload = payload.as_bytes().to_vec();
+        let inner = py
+            .detach(|| pllm_compiler::GatedMultiplyQ7Evaluator::new(&self.inner, &payload))
+            .map_err(invalid)?;
+        Ok(GatedMultiplyQ7Evaluator {
+            inner: Mutex::new(inner),
+        })
+    }
+}
+
+#[pyclass(frozen, module = "pllm._native")]
+struct GarbledGatedMultiplyQ7Material {
+    inner: pllm_compiler::BoundGatedMultiplyQ7Material,
+}
+
+#[pymethods]
+impl GarbledGatedMultiplyQ7Material {
+    #[getter]
+    fn evaluator_payload<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.evaluator_payload())
+    }
+
+    fn encode_gate<'py>(&self, py: Python<'py>, value: i16) -> PyResult<Bound<'py, PyBytes>> {
+        let label = self
+            .inner
+            .encode_gate(value)
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &label))
+    }
+
+    fn encode_up<'py>(&self, py: Python<'py>, value: i16) -> PyResult<Bound<'py, PyBytes>> {
+        let label = self
+            .inner
+            .encode_up(value)
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &label))
+    }
+
+    fn decode(&self, label: &Bound<'_, PyBytes>) -> PyResult<i16> {
+        self.inner
+            .decode(label.as_bytes())
+            .map_err(|error| invalid(error.to_string()))
+    }
+}
+
+#[pyclass(module = "pllm._native")]
+struct GatedMultiplyQ7Evaluator {
+    inner: Mutex<pllm_compiler::GatedMultiplyQ7Evaluator>,
+}
+
+#[pymethods]
+impl GatedMultiplyQ7Evaluator {
+    fn evaluate<'py>(
+        &self,
+        py: Python<'py>,
+        gate_label: &Bound<'_, PyBytes>,
+        up_label: &Bound<'_, PyBytes>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        if gate_label.as_bytes().len() > pllm_compiler::SILU_Q7_MAX_LABEL_BYTES
+            || up_label.as_bytes().len() > pllm_compiler::SILU_Q7_MAX_LABEL_BYTES
+        {
+            self.inner
+                .lock()
+                .map_err(|_| {
+                    PyRuntimeError::new_err("gated Q7 multiply evaluator lock was poisoned")
+                })?
+                .burn()
+                .map_err(invalid)?;
+            return Err(invalid(
+                "gated Q7 multiply label exceeds its byte bound".into(),
+            ));
+        }
+        let gate_label = gate_label.as_bytes().to_vec();
+        let up_label = up_label.as_bytes().to_vec();
+        let output = py
+            .detach(|| {
+                self.inner
+                    .lock()
+                    .map_err(|_| "gated Q7 multiply evaluator lock was poisoned".to_string())?
+                    .evaluate(&gate_label, &up_label)
+            })
+            .map_err(invalid)?;
+        Ok(PyBytes::new(py, &output))
+    }
 }
 #[pymethods]
 impl SiluQ7Evaluator {
@@ -395,6 +518,30 @@ fn decoder_coverage<'py>(
 }
 
 #[pyfunction]
+fn lower_gated_multiply_q7(
+    plan: &Bound<'_, PyBytes>,
+    mode: &str,
+) -> PyResult<Vec<GatedMultiplyQ7Region>> {
+    let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
+        .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
+    let mode = match mode {
+        "prefill" => pllm_models::DecoderMode::Prefill,
+        "decode" => pllm_models::DecoderMode::Decode,
+        _ => return Err(invalid("decoder mode must be prefill or decode".into())),
+    };
+    let regions =
+        pllm_compiler::lower_model_gated_multiply_q7_regions(&plan, mode).map_err(invalid)?;
+    let plan = Arc::new(plan);
+    Ok(regions
+        .into_iter()
+        .map(|inner| GatedMultiplyQ7Region {
+            inner,
+            plan: Arc::clone(&plan),
+        })
+        .collect())
+}
+
+#[pyfunction]
 fn apply_model_component<'py>(
     py: Python<'py>,
     plan: &[u8],
@@ -641,6 +788,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<ResolvedExperimentProfile>()?;
     module.add_class::<GarbledSiluQ7Material>()?;
     module.add_class::<SiluQ7Evaluator>()?;
+    module.add_class::<GatedMultiplyQ7Region>()?;
+    module.add_class::<GarbledGatedMultiplyQ7Material>()?;
+    module.add_class::<GatedMultiplyQ7Evaluator>()?;
     module.add_class::<Executor>()?;
     module.add_function(wrap_pyfunction!(compile_plan, module)?)?;
     module.add_function(wrap_pyfunction!(silu_q7_contract, module)?)?;
@@ -649,6 +799,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(assurance_results, module)?)?;
     module.add_function(wrap_pyfunction!(lower_model, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
+    module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;
     module.add_function(wrap_pyfunction!(capabilities, module)?)?;
