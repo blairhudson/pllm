@@ -29,6 +29,7 @@ pub const SILU_Q7_COMPILER_ID: &str = "pllm-compiler";
 pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
+pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v1";
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
 const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
@@ -40,6 +41,10 @@ pub fn silu_q7_kernel_artifact_digest() -> Digest {
             digest_bytes(
                 "pllm.artifact.rust-source.v1",
                 include_bytes!("../../pllm-core/src/activation.rs"),
+            ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/fixed_point.rs"),
             ),
             silu_q7_method_artifact_digest(),
         ],
@@ -322,6 +327,32 @@ pub struct ModelLastTokenRegion {
     pub axis: usize,
     pub input: TensorType,
     pub output: TensorType,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixedPointRounding {
+    TiesToEven,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixedPointRangePolicy {
+    RejectOutsideUnitInterval,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct Q14ToQ7RescaleRegion {
+    pub schema_version: String,
+    pub operation_id: String,
+    pub numeric_profile: String,
+    pub input: TensorType,
+    pub output: TensorType,
+    pub input_fractional_bits: u8,
+    pub output_fractional_bits: u8,
+    pub divisor: u32,
+    pub rounding: FixedPointRounding,
+    pub range_policy: FixedPointRangePolicy,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2550,6 +2581,84 @@ pub fn execute_model_last_token(
         output.extend_from_slice(&input[start..start + inner]);
     }
     Ok(output)
+}
+
+/// Define the exact centered-wrap32 Q14 to bounded signed-Q7 conversion contract.
+pub fn define_q14_to_q7_rescale_region(
+    operation_id: &str,
+    shape: Vec<u64>,
+) -> Result<Q14ToQ7RescaleRegion, String> {
+    if !valid_identity(operation_id) {
+        return Err("Q14-to-Q7 operation ID is invalid".into());
+    }
+    if shape.is_empty() || shape.contains(&0) {
+        return Err("Q14-to-Q7 conversion requires a non-empty tensor shape".into());
+    }
+    tensor_elements(&shape)?;
+    Ok(Q14ToQ7RescaleRegion {
+        schema_version: Q14_TO_Q7_REGION_SCHEMA_VERSION.into(),
+        operation_id: operation_id.into(),
+        numeric_profile: pllm_core::fixed_point::Q14_TO_Q7_PROFILE.into(),
+        input: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: shape.clone(),
+        },
+        output: TensorType {
+            numeric: NumericType::SignedFixedQ7,
+            shape,
+        },
+        input_fractional_bits: 14,
+        output_fractional_bits: 7,
+        divisor: 128,
+        rounding: FixedPointRounding::TiesToEven,
+        range_policy: FixedPointRangePolicy::RejectOutsideUnitInterval,
+    })
+}
+
+pub fn q14_to_q7_rescale_region_digest(region: &Q14ToQ7RescaleRegion) -> Digest {
+    canonical_digest(Q14_TO_Q7_REGION_SCHEMA_VERSION, region)
+}
+
+/// Center-decode wrap32 Q14 values and rescale them under the locked contract.
+pub fn execute_q14_to_q7_rescale(
+    region: &Q14ToQ7RescaleRegion,
+    input: &[u32],
+) -> Result<Vec<i16>, String> {
+    validate_q14_to_q7_rescale_region(region)?;
+    let elements = tensor_elements(&region.input.shape)?;
+    if input.len() != elements {
+        return Err(format!(
+            "Q14-to-Q7 conversion requires {elements} elements, received {}",
+            input.len()
+        ));
+    }
+    input
+        .iter()
+        .map(|value| pllm_core::rescale_q14_to_q7(*value as i32).map_err(|error| error.to_string()))
+        .collect()
+}
+
+fn validate_q14_to_q7_rescale_region(region: &Q14ToQ7RescaleRegion) -> Result<(), String> {
+    if region.schema_version != Q14_TO_Q7_REGION_SCHEMA_VERSION
+        || !valid_identity(&region.operation_id)
+        || region.numeric_profile != pllm_core::fixed_point::Q14_TO_Q7_PROFILE
+        || region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::SignedFixedQ7
+        || region.input.shape != region.output.shape
+        || region.input.shape.is_empty()
+        || region.input.shape.contains(&0)
+        || region.input_fractional_bits != 14
+        || region.output_fractional_bits != 7
+        || region.divisor != 128
+        || region.rounding != FixedPointRounding::TiesToEven
+        || region.range_policy != FixedPointRangePolicy::RejectOutsideUnitInterval
+    {
+        return Err(
+            "Q14-to-Q7 conversion region does not match the locked numeric contract".into(),
+        );
+    }
+    tensor_elements(&region.input.shape)?;
+    Ok(())
 }
 
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {

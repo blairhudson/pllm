@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:d7e297a96b58353cf8b221cf4bcd8c22a00010928161fd1a366d85134a3e5756`  
-Source hash: `sha256:7433bbedbf6451d1fa03f42caffdac22e5e845cc9e5fca022719950bdd2d860d`
+Build: `sha256:5305ca7ad557c9bb6bc08f507fdb6c80bb709c09979323514d5730cb3edd75f9`  
+Source hash: `sha256:a8c3dd6b55e7d641fc3855c92d1477ce37ab1943227c9b5c39d7870971a4093d`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ Only R23 has a PLLM reimplementation, limited to a structural `DecoderPlan` adap
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. Length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, residual additions execute in the wrap32 ring, and dense-Qwen physical-last token selection executes as an exact checked tensor region. A digest-bound centered-wrap32 Q14-to-Q7 region now freezes scale, ties-to-even rounding, and reject-on-range semantics; exhaustive Q7 multiplication is a reference primitive only. Semantic provenance, protected multiplication, length-aware selection, whole-model scheduling, and the remaining operators remain unavailable.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 

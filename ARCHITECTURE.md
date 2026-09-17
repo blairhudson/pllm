@@ -30,6 +30,9 @@ mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
 signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
 absolute SiLU error bound of `0.02285`.
+It also owns exact reference primitives for bounded signed Q14-to-Q7 rescaling and
+Q7 multiplication. Both use deterministic ties-to-even division by 128 and reject
+inputs outside their declared domains rather than saturating.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It depends on `pllm-core` and PyO3. The stable Python ABI is
@@ -64,9 +67,13 @@ SiLU tensor through experimental one-use arithmetic garbling, and select the fin
 sequence element for dense Qwen through an exact checked tensor region. It can also
 execute an output-head matrix region with exact semantic shape and tied or untied
 weight identity; length-aware final-token selection remains fail-closed, and this
-does not change the public runtime's client-local output-head placement. It does
-not yet schedule these regions as a complete decoder or activate a complete model
-profile.
+does not change the public runtime's client-local output-head placement. It also
+defines a digest-bound centered-wrap32 Q14-to-Q7 rescale region with explicit scale,
+rounding, and range policy, plus an exhaustive Q7 multiplication reference. These
+numeric prerequisites are not yet connected to semantic linear provenance or a
+protected two-input multiplication method and therefore do not promote decoder
+coverage. It does not yet schedule these regions as a complete decoder or activate
+a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 

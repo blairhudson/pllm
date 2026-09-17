@@ -6,7 +6,7 @@ Keep sources, methods, implementations, plans, evidence, assurance, and claims i
 
 Document ID: `pllm.docs.research.records`  
 Release: `0.1.0`  
-Build: `sha256:d7e297a96b58353cf8b221cf4bcd8c22a00010928161fd1a366d85134a3e5756`  
+Build: `sha256:5305ca7ad557c9bb6bc08f507fdb6c80bb709c09979323514d5730cb3edd75f9`  
 Source hash: `sha256:765e0aea01659953c8acb8f99e705e6e862837995d54fe3d2d3fdde57150bf7e`
 
 PLLM research uses immutable, linked records rather than one undifferentiated

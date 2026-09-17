@@ -6,7 +6,7 @@ Run the headless transport benchmark or open the diagnostic dashboard.
 
 Document ID: `pllm.docs.cli.benchmarking`  
 Release: `0.1.0`  
-Build: `sha256:d7e297a96b58353cf8b221cf4bcd8c22a00010928161fd1a366d85134a3e5756`  
+Build: `sha256:5305ca7ad557c9bb6bc08f507fdb6c80bb709c09979323514d5730cb3edd75f9`  
 Source hash: `sha256:e6a9254b5ee1cc3476bbb88678124ba2eedbdd93afb87fb6375602216410b86a`
 
 Use the headless runner for repeatable local measurements:

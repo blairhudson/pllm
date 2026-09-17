@@ -1,12 +1,13 @@
 use pllm_compiler::{
-    compile, compile_document, decoder_coverage, diagnostics_json, execute_model_last_token,
-    execute_model_output_head, execute_model_reshape, execute_model_residual, execute_wrap32,
+    compile, compile_document, decoder_coverage, define_q14_to_q7_rescale_region, diagnostics_json,
+    execute_model_last_token, execute_model_output_head, execute_model_reshape,
+    execute_model_residual, execute_q14_to_q7_rescale, execute_wrap32,
     lower_model_last_token_regions, lower_model_linear_operation, lower_model_linear_regions,
     lower_model_output_head_regions, lower_model_reshape_regions, lower_model_residual_regions,
-    CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic, DiagnosticCode,
-    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor, ModelReshapeLayout,
-    NumericType, Operator, Representation, SecurityProperties, TensorType,
-    COMPILE_REQUEST_SCHEMA_VERSION,
+    q14_to_q7_rescale_region_digest, CandidateEvidence, CapabilityLevel, CompileRequest,
+    Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation, LogicalOperation,
+    MethodDescriptor, ModelReshapeLayout, NumericType, Operator, Representation,
+    SecurityProperties, TensorType, COMPILE_REQUEST_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
@@ -34,6 +35,10 @@ fn tensor(batch: u64, width: u64) -> TensorType {
         numeric: NumericType::Wrap32,
         shape: vec![batch, width],
     }
+}
+
+fn wrap32(value: i32) -> u32 {
+    value as u32
 }
 
 fn privacy() -> PrivacyContract {
@@ -1133,4 +1138,40 @@ fn verified_region_executes_real_pllm_core_matrix() {
     let mut tampered = compiled;
     tampered.region_program.output.shape[1] += 1;
     assert!(execute_wrap32(&tampered, &weights, &input, 1, false).is_err());
+}
+
+#[test]
+fn executes_locked_centered_q14_to_q7_rescaling() {
+    let region = define_q14_to_q7_rescale_region("mlp.rescale", vec![1, 7]).unwrap();
+    assert_eq!(region.input.numeric, NumericType::Wrap32);
+    assert_eq!(region.output.numeric, NumericType::SignedFixedQ7);
+    assert_eq!(region.input_fractional_bits, 14);
+    assert_eq!(region.output_fractional_bits, 7);
+    assert_eq!(region.divisor, 128);
+
+    let input = [-16_384, -192, -64, 0, 64, 192, 16_384].map(wrap32);
+    assert_eq!(
+        execute_q14_to_q7_rescale(&region, &input).unwrap(),
+        vec![-128, -2, 0, 0, 0, 2, 128]
+    );
+}
+
+#[test]
+fn q14_to_q7_rescaling_rejects_range_shape_and_contract_mutation() {
+    let region = define_q14_to_q7_rescale_region("mlp.rescale", vec![1, 1]).unwrap();
+    assert!(execute_q14_to_q7_rescale(&region, &[wrap32(16_385)]).is_err());
+    assert!(execute_q14_to_q7_rescale(&region, &[]).is_err());
+
+    let original_digest = q14_to_q7_rescale_region_digest(&region);
+    let mut mutated = region;
+    mutated.divisor = 64;
+    assert_ne!(q14_to_q7_rescale_region_digest(&mutated), original_digest);
+    assert!(execute_q14_to_q7_rescale(&mutated, &[0]).is_err());
+}
+
+#[test]
+fn q14_to_q7_rescaling_rejects_invalid_identity_and_shape() {
+    assert!(define_q14_to_q7_rescale_region("bad id", vec![1]).is_err());
+    assert!(define_q14_to_q7_rescale_region("valid.id", vec![]).is_err());
+    assert!(define_q14_to_q7_rescale_region("valid.id", vec![1, 0]).is_err());
 }

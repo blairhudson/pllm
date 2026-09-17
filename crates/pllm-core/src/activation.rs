@@ -1,5 +1,7 @@
 use std::{error::Error, fmt};
 
+use crate::fixed_point::div_round_ties_even;
+
 pub const SILU_QUADRATIC_Q7_PROFILE: &str = "pllm.numeric.silu.quadratic_q7.v1";
 pub const SILU_QUADRATIC_Q7_SCALE: i16 = 128;
 pub const SILU_QUADRATIC_Q7_MIN: i16 = -128;
@@ -35,17 +37,6 @@ pub fn silu_quadratic_q7(value: i16) -> Result<i16, ActivationRangeError> {
 
 pub fn silu_quadratic_q7_tensor(input: &[i16]) -> Result<Vec<i16>, ActivationRangeError> {
     input.iter().copied().map(silu_quadratic_q7).collect()
-}
-
-fn div_round_ties_even(numerator: i64, denominator: i64) -> i64 {
-    let quotient = numerator.div_euclid(denominator);
-    let remainder = numerator.rem_euclid(denominator);
-    match (remainder * 2).cmp(&denominator) {
-        std::cmp::Ordering::Less => quotient,
-        std::cmp::Ordering::Greater => quotient + 1,
-        std::cmp::Ordering::Equal if quotient % 2 == 0 => quotient,
-        std::cmp::Ordering::Equal => quotient + 1,
-    }
 }
 
 #[cfg(test)]
