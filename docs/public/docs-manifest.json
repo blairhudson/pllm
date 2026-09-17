@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2",
+  "buildId": "sha256:55dedf191ed9de69d95eb69a68160a404194419bf2f721a57103e95fdce4a4e0",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -3247,7 +3247,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
       "navigationOrder": 102,
-      "contentHash": "sha256:855118c0fcd1a3808d668d61c7c4055cd1ea51e050b2d201e68996910e5db08f"
+      "contentHash": "sha256:17d5ae9315fe707c62863428522610fb863b1e386fa04ab43f8c10fec33ba339"
     },
     {
       "id": "pllm.docs.operators",
@@ -3443,7 +3443,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
       "navigationOrder": 105,
-      "contentHash": "sha256:98e36edf694d4ce71dcd3b8e1c983037a2934867080c0780ac96d96b557b5724"
+      "contentHash": "sha256:5d8e8cd921ebfd04bf47b410e73c52dbaa629702ba30cfa0582ef136aa064247"
     },
     {
       "id": "pllm.docs.protocols.garbling.half-gates",
@@ -3889,7 +3889,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:fdc21f5dba8d975761c3f3716b4279f0911bcda3f54f449f83191f5aa6994257"
+      "contentHash": "sha256:d572753602f41366a7ba1e40a0968694f330ec8d5ea444f90912f10aa6c4af78"
     },
     {
       "id": "pllm.docs.research.papers.r01-dash",

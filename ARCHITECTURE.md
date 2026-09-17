@@ -60,7 +60,10 @@ profile remains incomplete and cannot execute any complete newly listed text pla
 The compiler can execute each semantic decoder linear operation as an exact
 flattened wrap32 matrix region, execute Qwen head-layout reshapes as exact checked
 permutations, execute residual additions in the wrap32 ring, and execute a bounded
-SiLU tensor through experimental one-use arithmetic garbling. It does not yet
+SiLU tensor through experimental one-use arithmetic garbling. It can also execute
+an output-head matrix region with exact semantic shape and tied or untied weight
+identity; this does not change the public runtime's client-local output-head
+placement. It does not yet
 schedule these regions as a complete decoder or activate a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.

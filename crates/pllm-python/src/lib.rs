@@ -27,6 +27,7 @@ fn checked_byte_sequence(
             "Q7 SiLU expected {expected} {kind}s, got {count}"
         )));
     }
+    let mut output = Vec::with_capacity(count);
     for index in 0..count {
         let item = sequence.get_item(index)?;
         let bytes = item.cast::<PyBytes>().map_err(|_| {
@@ -37,16 +38,9 @@ fn checked_byte_sequence(
                 "Q7 SiLU {kind} exceeds its byte bound"
             )));
         }
+        output.push(bytes.as_bytes().to_vec());
     }
-    (0..count)
-        .map(|index| {
-            sequence
-                .get_item(index)?
-                .cast::<PyBytes>()
-                .map(|bytes| bytes.as_bytes().to_vec())
-                .map_err(Into::into)
-        })
-        .collect()
+    Ok(output)
 }
 fn compilation_invalid(diagnostics: Vec<pllm_compiler::Diagnostic>) -> PyErr {
     let json = pllm_compiler::diagnostics_json(&diagnostics);

@@ -63,10 +63,31 @@ mod tests {
 
     #[test]
     fn rounds_halfway_values_to_even() {
-        assert_eq!(silu_quadratic_q7(-112), Ok(-32));
-        assert_eq!(silu_quadratic_q7(-80), Ok(-28));
-        assert_eq!(silu_quadratic_q7(16), Ok(8));
-        assert_eq!(silu_quadratic_q7(48), Ok(28));
+        for (input, expected) in [
+            (-112, -32),
+            (-80, -28),
+            (-48, -20),
+            (-16, -8),
+            (16, 8),
+            (48, 28),
+            (80, 52),
+            (112, 80),
+        ] {
+            assert_eq!(silu_quadratic_q7(input), Ok(expected));
+        }
+        assert_eq!(div_round_ties_even(3, 2), 2);
+        assert_eq!(div_round_ties_even(5, 2), 2);
+        assert_eq!(div_round_ties_even(-3, 2), -2);
+        assert_eq!(div_round_ties_even(-5, 2), -2);
+    }
+
+    #[test]
+    fn exhaustive_outputs_match_independent_exact_oracle() {
+        for encoded in SILU_QUADRATIC_Q7_MIN..=SILU_QUADRATIC_Q7_MAX {
+            let value = i64::from(encoded);
+            let expected = ((value * value + 256 * value) as f64 / 512.0).round_ties_even();
+            assert_eq!(silu_quadratic_q7(encoded), Ok(expected as i16));
+        }
     }
 
     #[test]

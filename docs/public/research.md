@@ -6,7 +6,7 @@ PLLM original research, technical paper, tracked papers, and implementation back
 
 Document ID: `pllm.research`  
 Release: `0.1.0`  
-Build: `sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2`  
+Build: `sha256:55dedf191ed9de69d95eb69a68160a404194419bf2f721a57103e95fdce4a4e0`  
 Source hash: `sha256:3a6c188317f497b69d71c7046e87e765ba05105799dc8eae573a1d9cd34981ec`
 
 # Research for high-performance private LLM inference.

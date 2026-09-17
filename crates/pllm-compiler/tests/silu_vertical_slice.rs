@@ -1,13 +1,15 @@
 use pllm_compiler::{
-    compile, lower_model_silu_operation, region_graph_digests, CompileRequest, KernelDescriptor,
-    KernelImplementation, LogicalOperation, MethodDescriptor, NumericType, Operator,
-    Representation, SecurityProperties, TensorType, SILU_Q7_KERNEL_DESCRIPTOR_ID,
-    SILU_Q7_METHOD_ID, SILU_Q7_NUMERIC_GRAPH_ID, SILU_Q7_PROTECTED_GRAPH_ID,
+    compile, lower_model_silu_operation, region_graph_digests, region_program_digest,
+    CompileRequest, KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor,
+    NumericType, Operator, Representation, SecurityProperties, TensorType,
+    SILU_Q7_EXPERIMENT_PROFILE, SILU_Q7_KERNEL_DESCRIPTOR_ID, SILU_Q7_METHOD_ID,
+    SILU_Q7_NUMERIC_GRAPH_ID, SILU_Q7_PROTECTED_GRAPH_ID,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
-    configuration_digest_bytes, privacy_contract_digest, Digest, LockedContext, NamedDigest,
-    PrivacyContract, RolePlanReference, VersionedArtifact, LOCKED_CONTEXT_SCHEMA_VERSION,
+    canonical_bytes, configuration_digest_bytes, execution_plan_digest, logical_plan_digest,
+    privacy_contract_digest, Digest, LockedContext, NamedDigest, PrivacyContract,
+    RolePlanReference, VersionedArtifact, LOCKED_CONTEXT_SCHEMA_VERSION,
     PRIVACY_CONTRACT_SCHEMA_VERSION,
 };
 
@@ -51,15 +53,16 @@ fn request(shape: Vec<u64>, allow_experimental: bool) -> CompileRequest {
         Representation::ArithmeticLabel,
         &operations,
     );
-    let configuration_json =
-        br#"{"profile":"research.single_evaluator.silu_q7","schema":"pllm.experiment.v1"}"#
-            .to_vec();
+    let configuration_json = canonical_bytes(&serde_json::json!({
+        "profile": SILU_Q7_EXPERIMENT_PROFILE,
+        "schema": "pllm.experiment.v1"
+    }));
     CompileRequest {
         configuration_digest: configuration_digest_bytes(&configuration_json),
         configuration_json,
         context: LockedContext {
             schema_version: LOCKED_CONTEXT_SCHEMA_VERSION.into(),
-            profile: "research.single_evaluator.silu_q7".into(),
+            profile: SILU_Q7_EXPERIMENT_PROFILE.into(),
             model: named("model.qwen.fixture", '1'),
             tokenizer: named("tokenizer.fixture", '2'),
             semantic_graph: NamedDigest {
@@ -319,7 +322,10 @@ fn evaluator_payload_is_plan_bound_and_duplicate_binding_is_burned() {
     let error = pllm_compiler::SiluQ7Evaluator::new(&compiled, &[payload])
         .err()
         .unwrap();
-    assert_eq!(error, "Q7 SiLU evaluator material was already bound");
+    assert_eq!(
+        error,
+        "Q7 SiLU evaluator material was not issued or was already bound"
+    );
 
     let fresh = pllm_compiler::prepare_bound_silu_q7_material(&compiled).unwrap();
     let _evaluator =
@@ -356,7 +362,63 @@ fn editable_envelope_metadata_cannot_rebind_authenticated_gate_rows() {
         .unwrap();
     assert_eq!(
         error,
-        "Q7 SiLU gate authentication is bound to another plan"
+        "Q7 SiLU evaluator material was not issued or was already bound"
+    );
+
+    let mut evaluator = pllm_compiler::SiluQ7Evaluator::new(&compiled, &[payload]).unwrap();
+    let encoded = material.encode(-128).unwrap();
+    assert_eq!(
+        material
+            .decode(&evaluator.evaluate(&[encoded]).unwrap()[0])
+            .unwrap(),
+        -32
+    );
+}
+
+#[test]
+fn compiler_rejects_silu_under_baseline_profile() {
+    let mut request = request(vec![1], true);
+    request.context.profile = pllm_compiler::BASELINE_EXPERIMENT_PROFILE.into();
+    request.configuration_json = serde_json::to_vec(&serde_json::json!({
+        "profile": pllm_compiler::BASELINE_EXPERIMENT_PROFILE,
+        "schema": "pllm.experiment.v1"
+    }))
+    .unwrap();
+    request.configuration_digest = configuration_digest_bytes(&request.configuration_json);
+    let errors = compile(&request).unwrap_err();
+    assert!(errors.iter().any(|error| {
+        error.subject_id == "configuration.profile"
+            && error.message.contains(SILU_Q7_EXPERIMENT_PROFILE)
+    }));
+}
+
+#[test]
+fn verification_rechecks_candidate_policy() {
+    let mut compiled = compile(&request(vec![1], true)).unwrap();
+    compiled.privacy_contract.allow_experimental = false;
+    let privacy_digest = privacy_contract_digest(&compiled.privacy_contract);
+    compiled.logical.privacy_contract.digest = privacy_digest.clone();
+    compiled.locked_context.privacy_contract.digest = privacy_digest.clone();
+    compiled.lock.privacy_contract_digest = privacy_digest;
+
+    let logical_digest = logical_plan_digest(&compiled.logical);
+    compiled.execution.logical_plan_digest = logical_digest.clone();
+    compiled.lock.logical_plan_digest = logical_digest.clone();
+    compiled.region_program.logical_plan_digest = logical_digest;
+    let region_digest = region_program_digest(&compiled.region_program);
+    compiled
+        .execution
+        .role_plans
+        .iter_mut()
+        .find(|plan| plan.role == compiled.region_program.execution_role)
+        .unwrap()
+        .digest = region_digest;
+    compiled.lock.execution_plan_digest = execution_plan_digest(&compiled.execution);
+
+    let error = compiled.verify().unwrap_err();
+    assert!(
+        error.contains("selected candidate no longer satisfies privacy contract"),
+        "{error}"
     );
 }
 

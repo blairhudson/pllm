@@ -20,7 +20,8 @@ use std::sync::{Mutex, OnceLock};
 pub const REGION_PROGRAM_SCHEMA_VERSION: &str = "pllm.region_program.v1";
 pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v1";
 pub const BASELINE_EXPERIMENT_PROFILE: &str = "baseline.masked_linear_cpu";
-pub const SILU_Q7_NUMERIC_GRAPH_ID: &str = "pllm.numeric.silu.quadratic_q7.v1";
+pub const SILU_Q7_EXPERIMENT_PROFILE: &str = "research.single_evaluator";
+pub const SILU_Q7_NUMERIC_GRAPH_ID: &str = pllm_core::activation::SILU_QUADRATIC_Q7_PROFILE;
 pub const SILU_Q7_PROTECTED_GRAPH_ID: &str = "pllm.protected.arithmetic_garbling.silu_q7.v1";
 pub const SILU_Q7_METHOD_ID: &str = "arithmetic-garbling-silu-q7";
 pub const SILU_Q7_KERNEL_DESCRIPTOR_ID: &str = "pllm-garble-silu-quadratic-q7";
@@ -28,8 +29,9 @@ pub const SILU_Q7_COMPILER_ID: &str = "pllm-compiler";
 pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
-const SILU_Q7_BURN_LEDGER_CAPACITY: usize = 65_536;
+const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const SILU_Q7_GATE_SCHEMA_VERSION: &str = "pllm.silu_q7_gate.v2";
+const SILU_Q7_ISSUANCE_DIGEST_DOMAIN: &str = "pllm.silu_q7_gate.issuance.v1";
 
 pub fn silu_q7_kernel_artifact_digest() -> Digest {
     canonical_digest(
@@ -50,6 +52,7 @@ pub fn silu_q7_compiler_artifact_digest() -> Digest {
 
 #[derive(Serialize)]
 pub struct SiluQ7InstalledContract {
+    pub profile: &'static str,
     pub compiler_id: &'static str,
     pub compiler_version: &'static str,
     pub compiler_artifact_digest: Digest,
@@ -63,6 +66,7 @@ pub struct SiluQ7InstalledContract {
 
 pub fn silu_q7_installed_contract() -> SiluQ7InstalledContract {
     SiluQ7InstalledContract {
+        profile: SILU_Q7_EXPERIMENT_PROFILE,
         compiler_id: SILU_Q7_COMPILER_ID,
         compiler_version: env!("CARGO_PKG_VERSION"),
         compiler_artifact_digest: silu_q7_compiler_artifact_digest(),
@@ -122,12 +126,16 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
         && lower_model_reshape_regions(plan, DecoderMode::Decode).is_ok();
     let residual_executable = lower_model_residual_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_model_residual_regions(plan, DecoderMode::Decode).is_ok();
+    let output_head_executable = lower_model_output_head_regions(plan, DecoderMode::Prefill)
+        .is_ok()
+        && lower_model_output_head_regions(plan, DecoderMode::Decode).is_ok();
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
             let executable = operator == ModelOperator::Linear
                 || (operator == ModelOperator::Reshape && reshape_executable)
-                || (operator == ModelOperator::ResidualAdd && residual_executable);
+                || (operator == ModelOperator::ResidualAdd && residual_executable)
+                || (operator == ModelOperator::OutputHead && output_head_executable);
             let primitive = matches!(
                 operator,
                 ModelOperator::TokenLookup
@@ -161,6 +169,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::ResidualAdd && executable {
                     Some("pllm/core-tensor@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::OutputHead && executable {
+                    Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
@@ -174,6 +184,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::ResidualAdd && executable {
                     "semantic residual additions execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::OutputHead && executable {
+                    "semantic output heads execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
@@ -277,6 +290,17 @@ pub struct ModelResidualRegion {
     pub layer: Option<u64>,
     pub operation_id: String,
     pub input_ids: [String; 2],
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelOutputHeadRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub weight_id: String,
     pub input: TensorType,
     pub output: TensorType,
 }
@@ -1281,6 +1305,17 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
 
 pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>> {
     let mut diagnostics = validate_context(request);
+    let has_silu = request
+        .operations
+        .iter()
+        .any(|operation| operation.operator == Operator::Silu);
+    if has_silu && request.context.profile != SILU_Q7_EXPERIMENT_PROFILE {
+        diagnostics.push(diagnostic(
+            DiagnosticCode::InvalidContext,
+            "configuration.profile",
+            format!("Q7 SiLU requires profile {SILU_Q7_EXPERIMENT_PROFILE}"),
+        ));
+    }
     let mut operation_ids = BTreeMap::new();
     let mut method_ids = BTreeMap::new();
     let mut kernel_ids = BTreeMap::new();
@@ -1493,11 +1528,7 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
             "final operation does not produce declared region output",
         ));
     }
-    if request
-        .operations
-        .iter()
-        .any(|operation| operation.operator == Operator::Silu)
-    {
+    if has_silu {
         if request.context.numeric_graph.id != SILU_Q7_NUMERIC_GRAPH_ID {
             diagnostics.push(diagnostic(
                 DiagnosticCode::InvalidContext,
@@ -1967,6 +1998,11 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
         let [step] = region.steps.as_slice() else {
             return Err("the Q7 SiLU executor supports only a singleton region".into());
         };
+        if logical.profile != SILU_Q7_EXPERIMENT_PROFILE {
+            return Err(format!(
+                "Q7 SiLU requires profile {SILU_Q7_EXPERIMENT_PROFILE}"
+            ));
+        }
         if logical.numeric_graph.id != SILU_Q7_NUMERIC_GRAPH_ID
             || logical.protected_graph.id != SILU_Q7_PROTECTED_GRAPH_ID
         {
@@ -2110,7 +2146,6 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
     if logical.required_claim_ids != claim_ids {
         return Err("logical required claims differ from privacy contract".into());
     }
-
     if !compiled
         .assurance_results
         .windows(2)
@@ -2392,6 +2427,56 @@ pub fn execute_model_residual(
     pllm_core::add_wrap32(left, right)
 }
 
+/// Extract semantic output heads with their exact checkpoint weight identity.
+pub fn lower_model_output_head_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelOutputHeadRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::OutputHead)
+        .map(|operation| lower_model_output_head_region(graph, mode, operation))
+        .collect()
+}
+
+/// Execute one semantic output head through the wrap32 matrix kernel.
+pub fn execute_model_output_head(
+    region: &ModelOutputHeadRegion,
+    weights: &[u8],
+    input: &[u32],
+    threads: usize,
+    simd: bool,
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::Wrap32
+        || region.input.shape.len() < 2
+        || region.output.shape.len() != region.input.shape.len()
+        || region.input.shape[..region.input.shape.len() - 1]
+            != region.output.shape[..region.output.shape.len() - 1]
+    {
+        return Err(
+            "semantic output head requires matching wrap32 leading dimensions and one feature dimension"
+                .into(),
+        );
+    }
+    let leading = &region.input.shape[..region.input.shape.len() - 1];
+    let batch = leading.iter().try_fold(1_u64, |rows, dimension| {
+        rows.checked_mul(*dimension)
+            .ok_or("semantic output-head row count overflows u64")
+    })?;
+    let batch = usize::try_from(batch).map_err(|_| "output-head row count exceeds usize")?;
+    let columns = usize::try_from(*region.input.shape.last().unwrap())
+        .map_err(|_| "output-head input width exceeds usize")?;
+    let rows = usize::try_from(*region.output.shape.last().unwrap())
+        .map_err(|_| "output-head output width exceeds usize")?;
+    let matrix = pllm_core::Matrix::new(weights, rows, columns)?;
+    let executor = pllm_core::Executor::new(threads, simd)?;
+    matrix.wrap32(&executor, input, batch)
+}
+
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
     match mode {
         DecoderMode::Prefill => &plan.prefill,
@@ -2525,6 +2610,66 @@ fn lower_model_residual_region(
         input_ids: [left_id.clone(), right_id.clone()],
         input: tensor.clone(),
         output: tensor,
+    })
+}
+
+fn lower_model_output_head_region(
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelOutputHeadRegion, String> {
+    let operation_id = operation.id.as_str();
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic output-head operation {operation_id} must have exactly one input"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!(
+                "semantic output-head operation {operation_id} references missing input {input_id}"
+            )
+        })?;
+    if operation.operator != ModelOperator::OutputHead
+        || input.output_shape.len() < 2
+        || operation.output_shape.len() != input.output_shape.len()
+        || input.output_shape.contains(&0)
+        || operation.output_shape.contains(&0)
+        || input.output_shape[..input.output_shape.len() - 1]
+            != operation.output_shape[..operation.output_shape.len() - 1]
+    {
+        return Err(format!(
+            "semantic output-head operation {operation_id} requires matching nonzero leading dimensions and one feature dimension"
+        ));
+    }
+    tensor_elements(&input.output_shape)?;
+    tensor_elements(&operation.output_shape)?;
+    let weight_id = operation
+        .attributes
+        .get("weight")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            format!("semantic output-head operation {operation_id} has no weight identity")
+        })?
+        .to_owned();
+    Ok(ModelOutputHeadRegion {
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_id: input_id.clone(),
+        weight_id,
+        input: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: input.output_shape.clone(),
+        },
+        output: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: operation.output_shape.clone(),
+        },
     })
 }
 
@@ -2753,26 +2898,51 @@ pub fn prepare_bound_silu_q7_material(
     evaluator_payload.extend_from_slice(&header_len.to_le_bytes());
     evaluator_payload.extend_from_slice(&encoded_header);
     evaluator_payload.extend_from_slice(&gate);
+    let gate =
+        pllm_garble::GarbledProjection::from_bytes(&gate).map_err(|error| error.to_string())?;
+    register_silu_q7_material(
+        gate.material_id(),
+        digest_bytes(SILU_Q7_ISSUANCE_DIGEST_DOMAIN, &evaluator_payload),
+    )?;
     Ok(BoundSiluQ7Material {
         material,
         evaluator_payload,
     })
 }
 
-static SILU_Q7_BURN_LEDGER: OnceLock<Mutex<BTreeSet<[u8; 32]>>> = OnceLock::new();
+static SILU_Q7_ISSUANCE_REGISTRY: OnceLock<Mutex<BTreeMap<[u8; 32], Digest>>> = OnceLock::new();
 
-fn burn_silu_q7_material(material_ids: &BTreeSet<[u8; 32]>) -> Result<(), String> {
-    let mut ledger = SILU_Q7_BURN_LEDGER
+fn register_silu_q7_material(material_id: [u8; 32], payload_digest: Digest) -> Result<(), String> {
+    let mut registry = SILU_Q7_ISSUANCE_REGISTRY
         .get_or_init(Default::default)
         .lock()
-        .map_err(|_| "Q7 SiLU burn ledger is poisoned")?;
-    if material_ids.iter().any(|id| ledger.contains(id)) {
-        return Err("Q7 SiLU evaluator material was already bound".into());
+        .map_err(|_| "Q7 SiLU issuance registry is poisoned")?;
+    if registry.contains_key(&material_id) {
+        return Err("Q7 SiLU material identifier collision".into());
     }
-    if ledger.len().saturating_add(material_ids.len()) > SILU_Q7_BURN_LEDGER_CAPACITY {
-        return Err("Q7 SiLU burn ledger capacity is exhausted".into());
+    if registry.len() >= SILU_Q7_ISSUANCE_CAPACITY {
+        return Err("Q7 SiLU issuance capacity is exhausted".into());
     }
-    ledger.extend(material_ids.iter().cloned());
+    registry.insert(material_id, payload_digest);
+    Ok(())
+}
+
+fn consume_silu_q7_material(materials: &BTreeMap<[u8; 32], Digest>) -> Result<(), String> {
+    let mut registry = SILU_Q7_ISSUANCE_REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| "Q7 SiLU issuance registry is poisoned")?;
+    let all_issued = materials
+        .iter()
+        .all(|(id, digest)| registry.get(id) == Some(digest));
+    for (id, digest) in materials {
+        if registry.get(id) == Some(digest) {
+            registry.remove(id);
+        }
+    }
+    if !all_issued {
+        return Err("Q7 SiLU evaluator material was not issued or was already bound".into());
+    }
     Ok(())
 }
 
@@ -2794,16 +2964,21 @@ impl SiluQ7Evaluator {
         }
         let expected_plan = silu_q7_compiled_plan_digest(compiled);
         let mut decoded = Vec::with_capacity(elements);
-        let mut material_ids = BTreeSet::new();
+        let mut issued_materials = BTreeMap::new();
         let mut duplicate = false;
         for payload in payloads {
             let (header, gate_bytes) = decode_silu_q7_gate(payload)?;
             let gate = pllm_garble::GarbledProjection::from_bytes(gate_bytes)
                 .map_err(|error| error.to_string())?;
-            duplicate |= !material_ids.insert(gate.material_id());
+            duplicate |= issued_materials
+                .insert(
+                    gate.material_id(),
+                    digest_bytes(SILU_Q7_ISSUANCE_DIGEST_DOMAIN, payload),
+                )
+                .is_some();
             decoded.push((header, gate));
         }
-        burn_silu_q7_material(&material_ids)?;
+        consume_silu_q7_material(&issued_materials)?;
         if duplicate {
             return Err("Q7 SiLU evaluator payload contains duplicate material".into());
         }

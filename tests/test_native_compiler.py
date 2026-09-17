@@ -24,6 +24,8 @@ def compiled_fixture() -> _native.CompiledPlan:
 def silu_compiled_fixture(size: int):
     document = json.loads((FIXTURES / "compile-request.valid.json").read_bytes())
     contract = json.loads(_native.silu_q7_contract())
+    document["configuration"]["pipeline"]["profile"] = contract["profile"]
+    document["context"]["profile"] = contract["profile"]
     document["context"]["compiler"] = {
         "id": contract["compiler_id"],
         "version": contract["compiler_version"],
@@ -280,3 +282,27 @@ def test_q7_silu_rejects_oversized_label_before_copy_and_burns_material():
         evaluator.evaluate((b"x" * 1025,))
     with pytest.raises(ValueError, match="already consumed"):
         evaluator.evaluate((material.encode(0),))
+
+
+def test_q7_silu_copies_mutable_sequences_once():
+    plan = silu_compiled_fixture(1)
+    material = plan.prepare_silu_q7_material()
+
+    class MutatingSequence(tuple):
+        def __new__(cls, first: bytes):
+            return super().__new__(cls, (first,))
+
+        def __init__(self, first: bytes) -> None:
+            self.calls = 0
+
+        def __getitem__(self, index):
+            if index != 0:
+                raise IndexError
+            self.calls += 1
+            if self.calls == 1:
+                return super().__getitem__(index)
+            return b"x" * 16_385
+
+    gates = MutatingSequence(material.gate)
+    plan.prepare_silu_q7_evaluator(gates)
+    assert gates.calls == 1

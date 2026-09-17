@@ -1,10 +1,10 @@
 use pllm_compiler::{
-    compile, compile_document, decoder_coverage, diagnostics_json, execute_model_reshape,
-    execute_model_residual, execute_wrap32, lower_model_linear_operation,
-    lower_model_linear_regions, lower_model_reshape_regions, lower_model_residual_regions,
-    CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic, DiagnosticCode,
-    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor, ModelReshapeLayout,
-    NumericType, Operator, Representation, SecurityProperties, TensorType,
+    compile, compile_document, decoder_coverage, diagnostics_json, execute_model_output_head,
+    execute_model_reshape, execute_model_residual, execute_wrap32, lower_model_linear_operation,
+    lower_model_linear_regions, lower_model_output_head_regions, lower_model_reshape_regions,
+    lower_model_residual_regions, CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic,
+    DiagnosticCode, KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor,
+    ModelReshapeLayout, NumericType, Operator, Representation, SecurityProperties, TensorType,
     COMPILE_REQUEST_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
@@ -357,6 +357,68 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
         .unwrap();
     assert_eq!(residual_coverage.occurrences, 4);
     assert_eq!(residual_coverage.level, CapabilityLevel::ExecutableRegion);
+    let output_heads = lower_model_output_head_regions(&plan, DecoderMode::Prefill).unwrap();
+    assert_eq!(output_heads.len(), 1);
+    let output_head = &output_heads[0];
+    assert_eq!(output_head.mode, DecoderMode::Prefill);
+    assert_eq!(output_head.layer, None);
+    assert_eq!(output_head.input_id, "last_hidden");
+    assert_eq!(output_head.weight_id, "model.embed_tokens.weight");
+    assert_eq!(output_head.input.shape, vec![1, 8]);
+    assert_eq!(output_head.output.shape, vec![1, 32]);
+    let untied_config = String::from_utf8(config.to_vec()).unwrap().replace(
+        "\"tie_word_embeddings\":true",
+        "\"tie_word_embeddings\":false",
+    );
+    let untied_plan = lower_model_json(
+        untied_config.as_bytes(),
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 2,
+            max_new_tokens: 1,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        lower_model_output_head_regions(&untied_plan, DecoderMode::Prefill).unwrap()[0].weight_id,
+        "lm_head.weight"
+    );
+    assert_eq!(
+        execute_model_output_head(
+            output_head,
+            &[1; 256],
+            &(1_u32..=8).collect::<Vec<_>>(),
+            1,
+            false,
+        )
+        .unwrap(),
+        vec![36; 32]
+    );
+    assert!(execute_model_output_head(output_head, &[1; 255], &[1; 8], 1, false).is_err());
+    assert!(execute_model_output_head(output_head, &[1; 256], &[1; 7], 1, false).is_err());
+    let mut rank_three = output_head.clone();
+    rank_three.input.shape = vec![1, 1, 8];
+    rank_three.output.shape = vec![1, 1, 32];
+    assert_eq!(
+        execute_model_output_head(&rank_three, &[1; 256], &[1; 8], 1, false).unwrap(),
+        vec![8; 32]
+    );
+    assert_eq!(
+        lower_model_output_head_regions(&plan, DecoderMode::Decode)
+            .unwrap()
+            .len(),
+        1
+    );
+    let output_head_coverage = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == ModelOperator::OutputHead)
+        .unwrap();
+    assert_eq!(output_head_coverage.occurrences, 2);
+    assert_eq!(
+        output_head_coverage.level,
+        CapabilityLevel::ExecutableRegion
+    );
     assert!(!coverage.complete);
     let (input, operation) =
         lower_model_linear_operation(&plan, DecoderMode::Prefill, &linear.id).unwrap();

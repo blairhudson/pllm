@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2`  
-Source hash: `sha256:fdc21f5dba8d975761c3f3716b4279f0911bcda3f54f449f83191f5aa6994257`
+Build: `sha256:55dedf191ed9de69d95eb69a68160a404194419bf2f721a57103e95fdce4a4e0`  
+Source hash: `sha256:d572753602f41366a7ba1e40a0968694f330ec8d5ea444f90912f10aa6c4af78`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,11 +17,11 @@ Only R23 has a PLLM reimplementation, limited to a structural `DecoderPlan` adap
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, and residual additions execute in the wrap32 ring; whole-model scheduling and the remaining operators remain unavailable.
-2. Re-measure the current prepared runtime on the current revision.
-3. Review the bounded Q7 SiLU component before expanding compiler coverage.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions, Qwen head-layout reshapes execute as exact checked permutations, and residual additions execute in the wrap32 ring; whole-model scheduling and the remaining operators remain unavailable.
+2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
+3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 
-Plan status as of 2026-09-16:
+Plan status as of 2026-09-17:
 
 | Priority | Capability track | Papers | Track status |
 | ---: | --- | --- | --- |

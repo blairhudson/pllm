@@ -4,6 +4,7 @@ description: "Compile and evaluate PLLM's bounded experimental Q7 SiLU component
 ---
 
 PLLM implements one executable SiLU profile:
+`research.single_evaluator`, using numeric graph
 `pllm.numeric.silu.quadratic_q7.v1`. It encodes `[-1, 1]` at scale 128,
 evaluates `x / 2 + x² / 4`, rounds ties to even, and rejects inputs outside the
 locked domain. Across all 257 encoded inputs, absolute error against SiLU is at
@@ -13,9 +14,10 @@ initial bounded slice.
 The protected implementation uses modulus 257 across the bounded Q7 input and
 output domains. Client wire
 encodings and evaluator gates remain separate. Evaluator material is serialized
-for transport, bound to the compiled plan, consumed once, and burned on an invalid
-evaluation attempt. This is an experimental reference component, not a complete
-Qwen execution profile or a production-security claim.
+for transport within one process, registered when issued, bound to the compiled
+plan, and consumed once after exact payload authentication. This is an experimental
+reference component, not a complete Qwen execution profile, a cross-process replay
+protocol, or a production-security claim.
 
 ## Python SDK example
 
