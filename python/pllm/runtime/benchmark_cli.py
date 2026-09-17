@@ -14,12 +14,18 @@ import tempfile
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 from typing import Any, BinaryIO
 
 import httpx
 
+if TYPE_CHECKING:
+    from pllm.configuration import Experiment
+
 
 REPORT_SCHEMA = "pllm.loopback_benchmark.v1"
+COMPARISON_REPORT_SCHEMA = "pllm.loopback_benchmark_comparison.v1"
 ProgressCallback = Callable[[str], None]
 
 
@@ -105,6 +111,113 @@ def build_loopback_report(
         "limitations": [
             "single host and loopback network",
             "diagnostic record, not a canonical EvidenceReport",
+            "does not establish model quality, energy, price, adversarial security, or non-collusion",
+        ],
+    }
+
+
+def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
+    runs = report.get("runs")
+    if not isinstance(runs, list) or not runs:
+        return None
+    keys = {
+        (
+            run.get("model_fingerprint"),
+            run.get("tokens", {}).get("input_tokens"),
+            run.get("tokens", {}).get("output_tokens"),
+            run.get("max_output_tokens"),
+            run.get("warm"),
+        )
+        for run in runs
+    }
+    return next(iter(keys)) if len(keys) == 1 else None
+
+
+def build_comparison_report(
+    candidates: list[tuple[Experiment, dict[str, Any]]],
+) -> dict[str, Any]:
+    """Build one matched report over independently executed Experiment pipelines."""
+    if len(candidates) < 2:
+        raise ValueError("comparison requires at least two Experiment pipelines")
+    records = [
+        {
+            "name": experiment.name,
+            "configuration_digest": experiment.configuration_digest(),
+            "pipeline": experiment.pipeline.to_spec(),
+            "report": report,
+        }
+        for experiment, report in candidates
+    ]
+    digests = [record["configuration_digest"] for record in records]
+    names = [record["name"] for record in records]
+    if len(set(digests)) != len(digests):
+        raise ValueError("comparison Experiment pipelines must have unique configurations")
+    if len(set(names)) != len(names):
+        raise ValueError("comparison Experiment names must be unique")
+
+    keys = [_comparison_key(report) for _, report in candidates]
+    comparable = all(key is not None for key in keys) and len(set(keys)) == 1
+    comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
+    metrics = {
+        "full_seconds": ("median_full_seconds", False),
+        "online_seconds": ("median_online_seconds", False),
+        "ttft_seconds": ("median_ttft_seconds", False),
+        "tokens_per_second": ("median_tokens_per_second", True),
+    }
+    rankings: dict[str, list[dict[str, Any]]] = {metric: [] for metric in metrics}
+    winners: dict[str, str | None] = {metric: None for metric in metrics}
+    if comparable:
+        for metric, (summary_key, reverse) in metrics.items():
+            values = [
+                (
+                    float(record["report"]["summary"][summary_key]),
+                    str(record["configuration_digest"]),
+                    str(record["name"]),
+                )
+                for record in records
+                if record["report"]["summary"].get(summary_key) is not None
+            ]
+            values.sort(key=lambda item: ((-item[0]) if reverse else item[0], item[1]))
+            rankings[metric] = [
+                {
+                    "rank": rank,
+                    "name": name,
+                    "configuration_digest": digest,
+                    "value": value,
+                }
+                for rank, (value, digest, name) in enumerate(values, start=1)
+            ]
+            if values:
+                winners[metric] = values[0][1]
+
+    checks = {
+        "all_candidates_passed": all(
+            report.get("checks", {}).get("passed") is True for _, report in candidates
+        ),
+        "unique_configurations": len(set(digests)) == len(digests),
+        "matched_workload": comparable,
+    }
+    comparison = None
+    if comparison_key is not None:
+        comparison = {
+            "model_fingerprint": comparison_key[0],
+            "input_tokens": comparison_key[1],
+            "output_tokens": comparison_key[2],
+            "max_output_tokens": comparison_key[3],
+            "warm": comparison_key[4],
+        }
+    return {
+        "schema_version": COMPARISON_REPORT_SCHEMA,
+        "scope": "single-host-loopback-diagnostic-comparison",
+        "checks": {"passed": all(checks.values()), **checks},
+        "comparison_key": comparison,
+        "candidates": records,
+        "rankings": rankings,
+        "winners": winners,
+        "limitations": [
+            "single host and loopback network",
+            "diagnostic comparison, not a canonical EvidenceReport",
+            "rankings exist only for exact matched measured workloads",
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],
     }
@@ -254,105 +367,121 @@ def run_loopback_benchmark(
     timeout_seconds: float,
     show_dashboard: bool = False,
     progress: ProgressCallback | None = None,
+    experiment: Experiment | None = None,
 ) -> dict[str, Any]:
     """Run the real client, preparation, and inference roles on loopback."""
     port = _free_port()
-    resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
+    if experiment is not None:
+        if tiny:
+            raise ValueError("Experiment pipelines cannot use the generated tiny model")
+        experiment.resolve()
+        model = experiment.pipeline.model.source
+        resolved_model_id = model
+    else:
+        resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
     startup_inventory_rows = (
         min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if tiny else 64
     )
-    command = [
-        sys.executable,
-        "-m",
-        "pllm",
-        "dev",
-        "dashboard",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        str(port),
-        "--max-output-tokens",
-        str(max_output_tokens),
-        "--history-db",
-        ":memory:",
-        "--startup-inventory-rows",
-        str(startup_inventory_rows),
-    ]
-    if not show_dashboard:
-        command.append("--no-open")
-    if tiny:
-        command.append("--tiny")
-    else:
-        command.extend(("--model", model))
-        if model_id is not None:
-            command.extend(("--model-id", model_id))
+    with tempfile.TemporaryDirectory(prefix="pllm-benchmark-") as temporary:
+        command = [
+            sys.executable,
+            "-m",
+            "pllm",
+            "dev",
+            "dashboard",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--max-output-tokens",
+            str(max_output_tokens),
+            "--history-db",
+            ":memory:",
+            "--startup-inventory-rows",
+            str(startup_inventory_rows),
+        ]
+        if not show_dashboard:
+            command.append("--no-open")
+        if tiny:
+            command.append("--tiny")
+        else:
+            command.extend(("--model", model))
+            if model_id is not None:
+                command.extend(("--model-id", model_id))
+        if experiment is not None:
+            experiment_path = Path(temporary) / "experiment.json"
+            experiment_path.write_bytes(experiment.canonical_bytes())
+            command.extend(("--experiment-config", str(experiment_path)))
 
-    with tempfile.TemporaryFile() as log:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-        previous_sigterm: Any = None
-
-        def terminate(_signum: int, _frame: Any) -> None:
-            raise KeyboardInterrupt
-
-        if threading.current_thread() is threading.main_thread():
-            previous_sigterm = signal.getsignal(signal.SIGTERM)
-            signal.signal(signal.SIGTERM, terminate)
+        log = tempfile.TemporaryFile()
         try:
-            with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5.0) as client:
-                _wait_for_ready(
-                    client,
-                    process,
-                    time.monotonic() + timeout_seconds,
-                    progress,
-                )
-                warmup_runs = []
-                for index in range(warmups):
-                    if progress is not None:
-                        progress(f"Running warmup {index + 1}/{warmups}")
-                    warmup_runs.append(
-                        _run_once(
-                            client,
-                            process,
-                            prompt=prompt,
-                            max_output_tokens=max_output_tokens,
-                            timeout_seconds=timeout_seconds,
-                            progress=progress,
-                            progress_label=f"Warmup {index + 1}/{warmups} running",
-                        )
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            previous_sigterm: Any = None
+
+            def terminate(_signum: int, _frame: Any) -> None:
+                raise KeyboardInterrupt
+
+            if threading.current_thread() is threading.main_thread():
+                previous_sigterm = signal.getsignal(signal.SIGTERM)
+                signal.signal(signal.SIGTERM, terminate)
+            try:
+                with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5.0) as client:
+                    _wait_for_ready(
+                        client,
+                        process,
+                        time.monotonic() + timeout_seconds,
+                        progress,
                     )
-                runs = []
-                for index in range(repetitions):
-                    if progress is not None:
-                        progress(f"Running measurement {index + 1}/{repetitions}")
-                    runs.append(
-                        _run_once(
-                            client,
-                            process,
-                            prompt=prompt,
-                            max_output_tokens=max_output_tokens,
-                            timeout_seconds=timeout_seconds,
-                            progress=progress,
-                            progress_label=f"Measurement {index + 1}/{repetitions} running",
+                    warmup_runs = []
+                    for index in range(warmups):
+                        if progress is not None:
+                            progress(f"Running warmup {index + 1}/{warmups}")
+                        warmup_runs.append(
+                            _run_once(
+                                client,
+                                process,
+                                prompt=prompt,
+                                max_output_tokens=max_output_tokens,
+                                timeout_seconds=timeout_seconds,
+                                progress=progress,
+                                progress_label=f"Warmup {index + 1}/{warmups} running",
+                            )
                         )
-                    )
-        except KeyboardInterrupt as exc:
-            raise LoopbackBenchmarkError("benchmark interrupted") from exc
-        except LoopbackBenchmarkError as exc:
-            diagnostic = _diagnostic_log(log)
-            suffix = f"\n{diagnostic}" if diagnostic else ""
-            raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
+                    runs = []
+                    for index in range(repetitions):
+                        if progress is not None:
+                            progress(f"Running measurement {index + 1}/{repetitions}")
+                        runs.append(
+                            _run_once(
+                                client,
+                                process,
+                                prompt=prompt,
+                                max_output_tokens=max_output_tokens,
+                                timeout_seconds=timeout_seconds,
+                                progress=progress,
+                                progress_label=f"Measurement {index + 1}/{repetitions} running",
+                            )
+                        )
+            except KeyboardInterrupt as exc:
+                raise LoopbackBenchmarkError("benchmark interrupted") from exc
+            except LoopbackBenchmarkError as exc:
+                diagnostic = _diagnostic_log(log)
+                suffix = f"\n{diagnostic}" if diagnostic else ""
+                raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
+            finally:
+                if previous_sigterm is not None:
+                    signal.signal(signal.SIGTERM, previous_sigterm)
+                if progress is not None:
+                    progress("Stopping benchmark roles")
+                _stop_process(process)
         finally:
-            if previous_sigterm is not None:
-                signal.signal(signal.SIGTERM, previous_sigterm)
-            if progress is not None:
-                progress("Stopping benchmark roles")
-            _stop_process(process)
+            log.close()
 
     report = build_loopback_report(
         model_id=resolved_model_id,

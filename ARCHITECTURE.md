@@ -58,9 +58,10 @@ evidence and deployment support are separate claims. A complete bounded semantic
 plan does not establish any later claim. In particular, the current compiler
 profile remains incomplete and cannot execute any complete newly listed text plan.
 The compiler can execute each semantic decoder linear operation as an exact
-flattened wrap32 matrix region and can execute a bounded SiLU tensor through
-experimental one-use arithmetic garbling. It does not yet schedule these regions
-as a complete decoder or activate a complete model profile.
+flattened wrap32 matrix region, execute Qwen head-layout reshapes as exact checked
+permutations, execute residual additions in the wrap32 ring, and execute a bounded
+SiLU tensor through experimental one-use arithmetic garbling. It does not yet
+schedule these regions as a complete decoder or activate a complete model profile.
 The Python runtime's existing support for selected Gemma text checkpoint layouts
 is a separate runtime axis, not evidence for this semantic adapter or exact target.
 
@@ -183,6 +184,11 @@ SQLite archive. Its matrix groups only completed runs by model ID, immutable bod
 fingerprint, cold/warm mode, and exact input-token count. The archive never stores
 prompts, generated text, token IDs, activation payloads, seeds, masks, credentials,
 or protocol spans.
+The headless benchmark can execute multiple Experiment configurations sequentially
+and records both configuration and Pipeline digests. It ranks latency and throughput
+only when measured model fingerprint, input and output token counts, output cap, and
+warm state match exactly. An explicitly requested winner export writes the
+lowest-median-full-latency Experiment as canonical JSON for later reruns.
 
 ## Build and release boundaries
 

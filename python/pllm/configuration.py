@@ -13,6 +13,7 @@ from typing import Any, Mapping, cast
 import yaml
 
 _DIGEST_DOMAIN = b"pllm.configuration.v1\0"
+_PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v1\0"
 _EXPERIMENT_SCHEMA = "pllm.experiment.v1"
 _MAX_DOCUMENT_BYTES = 1_048_576
 
@@ -389,6 +390,18 @@ class Pipeline(_Configuration):
                 name: component.to_spec() for name, component in self.components.items()
             },
         }
+
+    def canonical_bytes(self) -> bytes:
+        return json.dumps(
+            self.to_spec(),
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    def digest(self) -> str:
+        return hashlib.sha256(_PIPELINE_DIGEST_DOMAIN + self.canonical_bytes()).hexdigest()
 
     def __hash__(self) -> int:
         return hash((self.profile, self.model, tuple(sorted(self.components.items()))))

@@ -23,6 +23,15 @@ roles. It does not create a canonical benchmark evidence record. Use
 interactive development view. See [research evidence](/research/evidence/) for
 the records and scope required to support a claim.
 
+Repeat `--experiment PATH` to run and compare immutable Pipeline selections from
+multiple Experiment configurations. The runner records each configuration and
+Pipeline digest, suppresses rankings for unmatched workloads, and can export the
+lowest-median-full-latency configuration with `--save-best PATH`. Reusable
+candidates and measured local winners are kept in `examples/benchmarks/`.
+These targets may be declarative JSON/YAML files or explicit SDK objects such as
+`examples/benchmarks/qwen_prepared.py:cpu_4`; Python targets require
+`--trust-python` because their module is executed during resolution.
+
 This SDK example requires a PLLM source checkout because it reads the checked-in
 `schemas/fixtures/compile-request.valid.json` compile request.
 

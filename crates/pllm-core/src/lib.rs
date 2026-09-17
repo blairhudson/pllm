@@ -6,8 +6,10 @@
 pub mod activation;
 pub mod codec;
 pub mod kernels;
+pub mod tensor;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use kernels::{Executor, Matrix};
+pub use tensor::add_wrap32;
 
 #[cfg(test)]
 mod tests;

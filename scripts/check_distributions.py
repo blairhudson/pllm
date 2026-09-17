@@ -30,9 +30,6 @@ def main() -> None:
         assert "pllm/models.pyi" in names
         assert "pllm/plan.py" in names
         assert "pllm/plan.pyi" in names
-        assert "pllm/research/__init__.py" in names
-        assert "pllm/research/__init__.pyi" in names
-        assert "pllm/research/_catalog.json" in names
         assert "pllm/dashboard/index.html" in names
         assert "pllm/dashboard/app.js" in names
         assert "pllm/dashboard/style.css" in names

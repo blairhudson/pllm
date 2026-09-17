@@ -1,0 +1,27 @@
+schema: pllm.experiment.v1
+name: qwen-prepared-cpu-4
+pipeline:
+  profile: baseline.masked_linear_cpu
+  model:
+    source: Qwen/Qwen2.5-0.5B-Instruct
+  components:
+    preparation:
+      component: pllm/model-aware-corrections
+      params: {}
+    inference:
+      component: pllm/inference
+      params: {}
+    linear:
+      component: pllm/masked-linear
+      params: {}
+    kernels:
+      component: pllm/cpu
+      params:
+        threads: 4
+deployment:
+  kind: local
+  root: .pllm/benchmarks/qwen-prepared-cpu-4
+budget:
+  requests: 4
+  max_input_tokens: 128
+  max_new_tokens: 16

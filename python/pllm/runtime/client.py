@@ -1295,6 +1295,13 @@ class RuntimeClient:
             descriptor = self._client_bundle_descriptor(model_id)
             if self.experiment is not None:
                 metadata = descriptor.get("metadata") or {}
+                if not metadata:
+                    manifest = self._model_manifest(model_id)
+                    runtime = manifest.get("runtime") or manifest.get("metadata") or {}
+                    metadata = {
+                        "client_runtime": runtime.get("client_runtime"),
+                        "privacy_mode": runtime.get("privacy_mode"),
+                    }
                 if (
                     metadata.get("client_runtime") != "masked_transformer_v1"
                     or metadata.get("privacy_mode") != "public"

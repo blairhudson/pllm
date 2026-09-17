@@ -65,6 +65,31 @@ def test_public_parser_owns_gateway_and_serve_syntax() -> None:
     assert "serve" in parser.format_help()
 
 
+def test_serve_accepts_python_experiment_target(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from pllm.cli import main
+
+    main(
+        [
+            "--format",
+            "json",
+            "--no-input",
+            "serve",
+            "inference",
+            "--experiment",
+            "examples/benchmarks/qwen_prepared.py:cpu_4",
+            "--trust-python",
+            "--dry-run",
+        ]
+    )
+    result = json.loads(capsys.readouterr().out)
+    data = result["data"]
+    assert data["models"] == ["Qwen/Qwen2.5-0.5B-Instruct"]
+    assert data["experiment"]["name"] == "qwen-prepared-cpu-4"
+    assert len(data["experiment"]["configuration_digest"]) == 64
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -364,6 +389,21 @@ def test_public_dispatch_passes_parsed_namespace_to_runtime(
     assert args.port == 8123
     assert args.api_key == "secret"
     assert preparation is True
+
+    app.main(
+        [
+            "--no-input",
+            "serve",
+            "inference",
+            "--experiment",
+            "examples/benchmarks/qwen_prepared.py:cpu_4",
+            "--trust-python",
+        ]
+    )
+    args, preparation = calls[1]
+    assert args.model == ["Qwen/Qwen2.5-0.5B-Instruct"]
+    assert args.engine_threads == 4
+    assert preparation is False
 
     gateway_calls: list[argparse.Namespace] = []
     monkeypatch.setattr(cli, "run_sidecar", gateway_calls.append)

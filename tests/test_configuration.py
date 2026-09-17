@@ -37,6 +37,7 @@ def example() -> Experiment:
             components={
                 "linear": MaskedLinear(),
                 "preparation": ModelAwareCorrections(),
+                "inference": ComponentRef("pllm/inference"),
                 "kernels": Cpu(threads=4),
             },
         ),
@@ -61,7 +62,8 @@ def test_canonical_bytes_and_digest_golden():
     expected = (
         b'{"budget":{"max_input_tokens":128,"max_new_tokens":32,"requests":1},'
         b'"deployment":{"kind":"local","root":".pllm/qwen-local"},"name":"qwen-local",'
-        b'"pipeline":{"components":{"kernels":{"component":"pllm/cpu","params":{"threads":4}},'
+        b'"pipeline":{"components":{"inference":{"component":"pllm/inference","params":{}},'
+        b'"kernels":{"component":"pllm/cpu","params":{"threads":4}},'
         b'"linear":{"component":"pllm/masked-linear","params":{}},"preparation":'
         b'{"component":"pllm/model-aware-corrections","params":{}}},"model":'
         b'{"source":"Qwen/Qwen2.5-0.5B-Instruct"},"profile":"baseline.masked_linear_cpu"},'
@@ -70,7 +72,7 @@ def test_canonical_bytes_and_digest_golden():
     assert canonical_bytes(example()) == expected
     assert example().canonical_bytes() == expected
     assert configuration_digest(example()) == (
-        "43cb9fa05e87d1fe88daf1d2573b42bc0794b84e505c90be07d3c647816cea32"
+        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
     )
     assert (
         configuration_digest(example())

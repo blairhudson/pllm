@@ -16,7 +16,8 @@ pllm serve inference --config inference.json
 ```text
 usage: pllm serve inference [-h] [--format {human,json,jsonl}] [--quiet]
                             [--no-color] [--no-input] [--dry-run]
-                            [--config CONFIG]
+                            [--config CONFIG] [--experiment TARGET]
+                            [--factory] [--trust-python]
                             [--privacy-mode {public,proprietary}]
                             [--protocol {guarded,blinded,secure,direct}]
                             [--host HOST] [--port PORT]
@@ -56,6 +57,10 @@ options:
   --dry-run             report work without persistent writes or service
                         startup
   --config CONFIG       JSON GatewayConfig file
+  --experiment TARGET   validated Experiment target
+  --factory             call an explicit zero-argument Python factory
+  --trust-python        approve execution of an explicit local Python
+                        experiment target
   --privacy-mode, --mode {public,proprietary}
   --protocol, --proprietary-protocol {guarded,blinded,secure,direct}
   --host HOST

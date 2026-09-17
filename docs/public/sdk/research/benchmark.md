@@ -6,8 +6,8 @@ Run scoped Python benchmarks and understand what the development dashboard does 
 
 Document ID: `pllm.docs.measure.benchmark`  
 Release: `0.1.0`  
-Build: `sha256:50bdd8d40f8b1f362adbabe08e845d37acfffd39aacc3351d7706456b26c4b1a`  
-Source hash: `sha256:d361426233eb578fec74fd0bcff69e32a3f1a555f63aaae0e76dda8964759916`
+Build: `sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2`  
+Source hash: `sha256:662d0c074f84cef4751f69f07f5050d18a4b2ac2ea1c67c4d034704dc0327120`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.
 
@@ -28,6 +28,15 @@ roles. It does not create a canonical benchmark evidence record. Use
 [`pllm dev dashboard`](/cli/reference/dev/dashboard/) only when you want the
 interactive development view. See [research evidence](/research/evidence/) for
 the records and scope required to support a claim.
+
+Repeat `--experiment PATH` to run and compare immutable Pipeline selections from
+multiple Experiment configurations. The runner records each configuration and
+Pipeline digest, suppresses rankings for unmatched workloads, and can export the
+lowest-median-full-latency configuration with `--save-best PATH`. Reusable
+candidates and measured local winners are kept in `examples/benchmarks/`.
+These targets may be declarative JSON/YAML files or explicit SDK objects such as
+`examples/benchmarks/qwen_prepared.py:cpu_4`; Python targets require
+`--trust-python` because their module is executed during resolution.
 
 This SDK example requires a PLLM source checkout because it reads the checked-in
 `schemas/fixtures/compile-request.valid.json` compile request.

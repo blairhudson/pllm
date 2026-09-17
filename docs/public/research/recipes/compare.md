@@ -6,11 +6,27 @@ Compare runs with matching inputs and report every relevant cost and uncertainty
 
 Document ID: `pllm.docs.measure.compare`  
 Release: `0.1.0`  
-Build: `sha256:50bdd8d40f8b1f362adbabe08e845d37acfffd39aacc3351d7706456b26c4b1a`  
-Source hash: `sha256:9bfb025e7fb48f4e7dd4f6da1ccce96a43aa6b0d2c6f2ce2c6df76b354b11198`
+Build: `sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2`  
+Source hash: `sha256:a602c74ba70adde296d62e32165b2c058f5a3a472ad847124318fcb7a50a1d52`
 
 Matched comparison freezes model/tokenizer, workload, numeric semantics, quality acceptance, privacy contract, roles/topology, hardware, software, preparation/freshness, cache, warmups, repetitions, failure accounting, and metrics.
 
 Report TPS, latency, peak memory, CPU, network, disk, preparation, quality, and privacy as vector. Different cohorts remain separate. A Pareto improvement is no worse on every comparable objective and strictly better on at least one under predeclared uncertainty treatment.
 
-Current generic comparison CLI: unavailable. Blocker: complete evidence-producing benchmark/search/compare facade and immutable cohort contract are not exposed by CLI.
+The loopback diagnostic runner compares multiple Experiments directly:
+
+```bash
+pllm benchmark run \
+  --experiment examples/benchmarks/qwen-prepared-cpu-1.yaml \
+  --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml \
+  --prompt "Explain private inference in one sentence." \
+  --max-output-tokens 16 \
+  --warmups 1 \
+  --repetitions 3 \
+  --output comparison.json
+```
+
+It emits no rankings unless model fingerprint, input and output token counts,
+token cap, and warm state match exactly. This is a diagnostic comparison, not a
+canonical evidence-producing search facade. Quality acceptance, uncertainty,
+multi-host topology, energy, price, and Pareto-front selection remain future work.

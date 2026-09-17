@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:50bdd8d40f8b1f362adbabe08e845d37acfffd39aacc3351d7706456b26c4b1a",
+  "buildId": "sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -554,7 +554,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
       "navigationOrder": 307,
-      "contentHash": "sha256:d361426233eb578fec74fd0bcff69e32a3f1a555f63aaae0e76dda8964759916"
+      "contentHash": "sha256:662d0c074f84cef4751f69f07f5050d18a4b2ac2ea1c67c4d034704dc0327120"
     },
     {
       "id": "pllm.docs.measure.compare",
@@ -585,7 +585,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
       "navigationOrder": 306,
-      "contentHash": "sha256:9bfb025e7fb48f4e7dd4f6da1ccce96a43aa6b0d2c6f2ce2c6df76b354b11198"
+      "contentHash": "sha256:a602c74ba70adde296d62e32165b2c058f5a3a472ad847124318fcb7a50a1d52"
     },
     {
       "id": "pllm.docs.measure.reproduce",
@@ -1179,7 +1179,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:96aa05429900a73f7fe22b8f36606f357b2120f75eb453a6b62944ea3201086b"
+      "contentHash": "sha256:0c63b7ca944661028d7ff7ac3ee8a47ddd7fce0069e6678414556f21b5535a9f"
     },
     {
       "id": "pllm.docs.reference.cli.gateway",
@@ -1287,7 +1287,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:33d864382913fb7174e54135b1748cf043fc2ac05d8eb24f59e44b368bd20790"
+      "contentHash": "sha256:8ea71a3e7646e448f7769608adbde3072528f84ef8bcebc77099edceb9e73e6e"
     },
     {
       "id": "pllm.docs.reference.cli.serve.preparation",
@@ -1322,7 +1322,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:bdc2b0145cac1b03a546ae69227773eac58210531d746f5d02ce720492f1b76c"
+      "contentHash": "sha256:048d6e2df5da9514398c29c0c6237b81ec28b176b2516d7aaf21cb544ae60d2e"
     },
     {
       "id": "pllm.docs.reference.cli.dev.dashboard",
@@ -2030,7 +2030,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
       "navigationOrder": 3,
-      "contentHash": "sha256:30078dca8a0fc8994d2a45c1d93b5fa1e12415c8e45e020cb62cf4caa480df6c"
+      "contentHash": "sha256:e6a9254b5ee1cc3476bbb88678124ba2eedbdd93afb87fb6375602216410b86a"
     },
     {
       "id": "pllm.docs.cli",
@@ -3889,7 +3889,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:301c5e657a775446a998db3de7c82783ffaa5a70a0a882dd930562744c871ec0"
+      "contentHash": "sha256:fdc21f5dba8d975761c3f3716b4279f0911bcda3f54f449f83191f5aa6994257"
     },
     {
       "id": "pllm.docs.research.papers.r01-dash",

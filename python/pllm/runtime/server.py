@@ -434,6 +434,7 @@ def create_app(
                     "created": int(manifest.created_at),
                     "owned_by": "pllm",
                     "runtime": {
+                        "client_runtime": manifest.metadata.get("client_runtime"),
                         "privacy_mode": (
                             manifest.metadata.get("privacy_mode", "private_engine")
                             if engine_name

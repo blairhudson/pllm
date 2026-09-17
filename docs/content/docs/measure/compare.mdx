@@ -7,4 +7,20 @@ Matched comparison freezes model/tokenizer, workload, numeric semantics, quality
 
 Report TPS, latency, peak memory, CPU, network, disk, preparation, quality, and privacy as vector. Different cohorts remain separate. A Pareto improvement is no worse on every comparable objective and strictly better on at least one under predeclared uncertainty treatment.
 
-Current generic comparison CLI: unavailable. Blocker: complete evidence-producing benchmark/search/compare facade and immutable cohort contract are not exposed by CLI.
+The loopback diagnostic runner compares multiple Experiments directly:
+
+```bash
+pllm benchmark run \
+  --experiment examples/benchmarks/qwen-prepared-cpu-1.yaml \
+  --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml \
+  --prompt "Explain private inference in one sentence." \
+  --max-output-tokens 16 \
+  --warmups 1 \
+  --repetitions 3 \
+  --output comparison.json
+```
+
+It emits no rankings unless model fingerprint, input and output token counts,
+token cap, and warm state match exactly. This is a diagnostic comparison, not a
+canonical evidence-producing search facade. Quality acceptance, uncertainty,
+multi-host topology, energy, price, and Pareto-front selection remain future work.

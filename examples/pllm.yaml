@@ -11,6 +11,9 @@ pipeline:
     preparation:
       component: pllm/model-aware-corrections
       params: {}
+    inference:
+      component: pllm/inference
+      params: {}
     kernels:
       component: pllm/cpu
       params:

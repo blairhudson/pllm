@@ -16,12 +16,13 @@ pllm benchmark run --prompt-file prompt.txt --max-output-tokens 24 --repetitions
 ```text
 usage: pllm benchmark run [-h] [--format {human,json,jsonl}] [--quiet]
                           [--no-color] [--no-input] [--dry-run]
+                          [--experiment TARGET] [--factory] [--trust-python]
                           [--model MODEL] [--model-id MODEL_ID] [--tiny]
                           [--prompt PROMPT | --prompt-file PROMPT_FILE]
                           [--max-output-tokens MAX_OUTPUT_TOKENS]
                           [--warmups WARMUPS] [--repetitions REPETITIONS]
                           [--timeout TIMEOUT] [--show-dashboard]
-                          [--output OUTPUT] [--force]
+                          [--output OUTPUT] [--save-best PATH] [--force]
 
 options:
   -h, --help            show this help message and exit
@@ -32,6 +33,11 @@ options:
   --no-input            fail instead of prompting
   --dry-run             report work without persistent writes or service
                         startup
+  --experiment TARGET   Experiment .json/.yaml or Python target; repeat to
+                        compare pipelines
+  --factory             call explicit zero-argument Python factories
+  --trust-python        approve execution of explicit local Python experiment
+                        targets
   --model MODEL         Hugging Face model ID or local checkpoint path
   --model-id MODEL_ID   stable model identity stored in the report
   --tiny                use generated random weights for a transport smoke
@@ -48,5 +54,7 @@ options:
   --show-dashboard      open the local dashboard in a browser (default:
                         hidden)
   --output OUTPUT       write the sanitized JSON report
+  --save-best PATH      write the Experiment with lowest measured median full
+                        latency as canonical JSON
   --force               replace --output if it exists
 ```

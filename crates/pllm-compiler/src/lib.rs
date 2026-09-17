@@ -118,10 +118,16 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     {
         *occurrences.entry(operation.operator).or_default() += 1;
     }
+    let reshape_executable = lower_model_reshape_regions(plan, DecoderMode::Prefill).is_ok()
+        && lower_model_reshape_regions(plan, DecoderMode::Decode).is_ok();
+    let residual_executable = lower_model_residual_regions(plan, DecoderMode::Prefill).is_ok()
+        && lower_model_residual_regions(plan, DecoderMode::Decode).is_ok();
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
-            let executable = operator == ModelOperator::Linear;
+            let executable = operator == ModelOperator::Linear
+                || (operator == ModelOperator::Reshape && reshape_executable)
+                || (operator == ModelOperator::ResidualAdd && residual_executable);
             let primitive = matches!(
                 operator,
                 ModelOperator::TokenLookup
@@ -149,15 +155,25 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 } else {
                     CapabilityLevel::Missing
                 },
-                component: if executable {
+                component: if operator == ModelOperator::Linear {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::Reshape && executable {
+                    Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::ResidualAdd && executable {
+                    Some("pllm/core-tensor@0.1.0-alpha.1".to_owned())
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
                     None
                 },
-                blocker: if executable {
+                blocker: if operator == ModelOperator::Linear {
                     "single semantic linear regions execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::Reshape && executable {
+                    "semantic layout transformations execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::ResidualAdd && executable {
+                    "semantic residual additions execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
@@ -235,6 +251,34 @@ pub struct ModelLinearRegion {
     pub bias_id: Option<String>,
     pub input: TensorType,
     pub operation: LogicalOperation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelReshapeLayout {
+    BatchHeadsSequenceFeature,
+    BatchSequenceHidden,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelReshapeRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub layout: ModelReshapeLayout,
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelResidualRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_ids: [String; 2],
+    pub input: TensorType,
+    pub output: TensorType,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2216,6 +2260,138 @@ pub fn lower_model_linear_regions(
         .collect()
 }
 
+/// Extract supported semantic reshape operations into exact layout transformations.
+pub fn lower_model_reshape_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelReshapeRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::Reshape)
+        .map(|operation| lower_model_reshape_region(graph, mode, operation))
+        .collect()
+}
+
+/// Execute the head/sequence permutation encoded by a semantic reshape layout.
+pub fn execute_model_reshape(
+    region: &ModelReshapeRegion,
+    input: &[u32],
+) -> Result<Vec<u32>, String> {
+    let input_elements = tensor_elements(&region.input.shape)?;
+    let output_elements = tensor_elements(&region.output.shape)?;
+    if input_elements != output_elements {
+        return Err("semantic reshape changes the element count".into());
+    }
+    if input.len() != input_elements {
+        return Err(format!(
+            "semantic reshape requires {input_elements} input elements, received {}",
+            input.len()
+        ));
+    }
+    let mut output = input.to_vec();
+    match region.layout {
+        ModelReshapeLayout::BatchHeadsSequenceFeature => {
+            let [batch, sequence, hidden] = region.input.shape.as_slice() else {
+                return Err("batch_heads_sequence_feature requires rank-3 input".into());
+            };
+            let [output_batch, heads, output_sequence, feature] = region.output.shape.as_slice()
+            else {
+                return Err("batch_heads_sequence_feature requires rank-4 output".into());
+            };
+            if batch != output_batch
+                || sequence != output_sequence
+                || hidden
+                    != &heads
+                        .checked_mul(*feature)
+                        .ok_or("reshape shape overflows u64")?
+            {
+                return Err("batch_heads_sequence_feature shapes are incompatible".into());
+            }
+            for b in 0..*batch {
+                for s in 0..*sequence {
+                    for h in 0..*heads {
+                        for d in 0..*feature {
+                            let source = (((b * sequence + s) * heads + h) * feature + d) as usize;
+                            let target = (((b * heads + h) * sequence + s) * feature + d) as usize;
+                            output[target] = input[source];
+                        }
+                    }
+                }
+            }
+        }
+        ModelReshapeLayout::BatchSequenceHidden => {
+            let [batch, heads, sequence, feature] = region.input.shape.as_slice() else {
+                return Err("batch_sequence_hidden requires rank-4 input".into());
+            };
+            let [output_batch, output_sequence, hidden] = region.output.shape.as_slice() else {
+                return Err("batch_sequence_hidden requires rank-3 output".into());
+            };
+            if batch != output_batch
+                || sequence != output_sequence
+                || hidden
+                    != &heads
+                        .checked_mul(*feature)
+                        .ok_or("reshape shape overflows u64")?
+            {
+                return Err("batch_sequence_hidden shapes are incompatible".into());
+            }
+            for b in 0..*batch {
+                for h in 0..*heads {
+                    for s in 0..*sequence {
+                        for d in 0..*feature {
+                            let source = (((b * heads + h) * sequence + s) * feature + d) as usize;
+                            let target = (((b * sequence + s) * heads + h) * feature + d) as usize;
+                            output[target] = input[source];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(output)
+}
+
+/// Extract semantic residual additions with both graph input identities intact.
+pub fn lower_model_residual_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelResidualRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::ResidualAdd)
+        .map(|operation| lower_model_residual_region(graph, mode, operation))
+        .collect()
+}
+
+/// Execute a semantic residual addition in the wrap32 ring.
+pub fn execute_model_residual(
+    region: &ModelResidualRegion,
+    left: &[u32],
+    right: &[u32],
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::Wrap32
+        || region.input.shape != region.output.shape
+    {
+        return Err("semantic residual requires equal wrap32 input and output tensors".into());
+    }
+    let elements = tensor_elements(&region.input.shape)?;
+    if left.len() != elements || right.len() != elements {
+        return Err(format!(
+            "semantic residual requires {elements} elements per input, received {} and {}",
+            left.len(),
+            right.len()
+        ));
+    }
+    pllm_core::add_wrap32(left, right)
+}
+
 fn model_graph(plan: &DecoderPlan, mode: DecoderMode) -> &DecoderGraph {
     match mode {
         DecoderMode::Prefill => &plan.prefill,
@@ -2304,6 +2480,163 @@ fn lower_model_linear_region(
             output_representation: Representation::MaskedRing,
         },
     })
+}
+
+fn lower_model_residual_region(
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelResidualRegion, String> {
+    let operation_id = operation.id.as_str();
+    let [left_id, right_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic residual operation {operation_id} must have exactly two inputs"
+        ));
+    };
+    let input_shape = [left_id, right_id]
+        .map(|input_id| {
+            graph
+                .operations
+                .iter()
+                .find(|candidate| candidate.id == *input_id)
+                .map(|input| input.output_shape.as_slice())
+                .ok_or_else(|| {
+                    format!(
+                        "semantic residual operation {operation_id} references missing input {input_id}"
+                    )
+                })
+        })
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+    if input_shape[0] != input_shape[1] || input_shape[0] != operation.output_shape {
+        return Err(format!(
+            "semantic residual operation {operation_id} requires equal input and output shapes"
+        ));
+    }
+    tensor_elements(&operation.output_shape)?;
+    let tensor = TensorType {
+        numeric: NumericType::Wrap32,
+        shape: operation.output_shape.clone(),
+    };
+    Ok(ModelResidualRegion {
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_ids: [left_id.clone(), right_id.clone()],
+        input: tensor.clone(),
+        output: tensor,
+    })
+}
+
+fn lower_model_reshape_region(
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelReshapeRegion, String> {
+    let operation_id = operation.id.as_str();
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic reshape operation {operation_id} must have exactly one input"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!("semantic reshape operation {operation_id} references missing input {input_id}")
+        })?;
+    let layout = match operation
+        .attributes
+        .get("layout")
+        .and_then(serde_json::Value::as_str)
+    {
+        Some("batch_heads_sequence_feature") => ModelReshapeLayout::BatchHeadsSequenceFeature,
+        Some("batch_sequence_hidden") => ModelReshapeLayout::BatchSequenceHidden,
+        _ => {
+            return Err(format!(
+                "semantic reshape operation {operation_id} has an unsupported layout"
+            ))
+        }
+    };
+    let region = ModelReshapeRegion {
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_id: input_id.clone(),
+        layout,
+        input: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: input.output_shape.clone(),
+        },
+        output: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: operation.output_shape.clone(),
+        },
+    };
+    validate_model_reshape_shapes(&region)?;
+    Ok(region)
+}
+
+fn validate_model_reshape_shapes(region: &ModelReshapeRegion) -> Result<(), String> {
+    let (batch, sequence, hidden, output_batch, output_sequence, heads, feature) = match region
+        .layout
+    {
+        ModelReshapeLayout::BatchHeadsSequenceFeature => {
+            let [batch, sequence, hidden] = region.input.shape.as_slice() else {
+                return Err("batch_heads_sequence_feature requires rank-3 input".into());
+            };
+            let [output_batch, heads, output_sequence, feature] = region.output.shape.as_slice()
+            else {
+                return Err("batch_heads_sequence_feature requires rank-4 output".into());
+            };
+            (
+                batch,
+                sequence,
+                hidden,
+                output_batch,
+                output_sequence,
+                heads,
+                feature,
+            )
+        }
+        ModelReshapeLayout::BatchSequenceHidden => {
+            let [batch, heads, sequence, feature] = region.input.shape.as_slice() else {
+                return Err("batch_sequence_hidden requires rank-4 input".into());
+            };
+            let [output_batch, output_sequence, hidden] = region.output.shape.as_slice() else {
+                return Err("batch_sequence_hidden requires rank-3 output".into());
+            };
+            (
+                batch,
+                sequence,
+                hidden,
+                output_batch,
+                output_sequence,
+                heads,
+                feature,
+            )
+        }
+    };
+    if batch != output_batch
+        || sequence != output_sequence
+        || hidden
+            != &heads
+                .checked_mul(*feature)
+                .ok_or("reshape shape overflows u64")?
+    {
+        return Err("semantic reshape shapes are incompatible".into());
+    }
+    Ok(())
+}
+
+fn tensor_elements(shape: &[u64]) -> Result<usize, String> {
+    let elements = shape.iter().try_fold(1_u64, |elements, dimension| {
+        elements
+            .checked_mul(*dimension)
+            .ok_or("semantic tensor element count overflows u64")
+    })?;
+    usize::try_from(elements).map_err(|_| "semantic tensor element count exceeds usize".into())
 }
 
 /// Extract one semantic SiLU operation into the compiler's locked Q7 representation.

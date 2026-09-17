@@ -352,6 +352,7 @@ class DashboardConfig:
     default_max_output_tokens: int
     history_path: Path | str | None = None
     startup_inventory_rows: int | None = None
+    experiment: Any | None = None
     otel_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
 
 
@@ -610,6 +611,14 @@ class DashboardRuntime:
                 "--push-api-key",
                 push_key,
             ]
+            if self.config.experiment is not None:
+                kernels = self.config.experiment.pipeline.components.get("kernels")
+                if kernels is not None and kernels.component == "pllm/cpu":
+                    threads = kernels.params.get("threads")
+                    if threads is not None:
+                        thread_args = ["--engine-threads", str(threads)]
+                        inference.extend(thread_args)
+                        preparation.extend(thread_args)
             if self._stopping.is_set():
                 return
             self._set(startup_step="inference")
@@ -628,6 +637,7 @@ class DashboardRuntime:
                 timeout=300,
                 prepared_inventory_rows=self._inventory_rows,
                 background_inventory_refill=False,
+                experiment=self.config.experiment,
             )
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -1473,6 +1483,17 @@ def run_dashboard(args: Any) -> None:
         raise SystemExit("--port must be between 1 and 65535")
     if not 1 <= args.max_output_tokens <= 512:
         raise SystemExit("--max-output-tokens must be between 1 and 512")
+    experiment = None
+    experiment_config = getattr(args, "experiment_config", None)
+    if experiment_config is not None:
+        from pllm.configuration import load_configuration
+
+        experiment = load_configuration(experiment_config)
+        experiment.resolve()
+        if args.tiny:
+            raise SystemExit("--experiment-config cannot be combined with --tiny")
+        args.model = experiment.pipeline.model.source
+        args.model_id = args.model
     model: Path | str | None = None
     if not args.tiny:
         candidate = Path(args.model).expanduser()
@@ -1486,6 +1507,7 @@ def run_dashboard(args: Any) -> None:
         default_max_output_tokens=args.max_output_tokens,
         history_path=getattr(args, "history_db", None),
         startup_inventory_rows=getattr(args, "startup_inventory_rows", None),
+        experiment=experiment,
     )
     dashboard_origin = _http_origin(args.host, args.port)
     os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = dashboard_origin

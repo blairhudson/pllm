@@ -81,6 +81,15 @@ def _target_options(parser: argparse.ArgumentParser) -> None:
 
 def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="JSON GatewayConfig file")
+    parser.add_argument("--experiment", metavar="TARGET", help="validated Experiment target")
+    parser.add_argument(
+        "--factory", action="store_true", help="call an explicit zero-argument Python factory"
+    )
+    parser.add_argument(
+        "--trust-python",
+        action="store_true",
+        help="approve execution of an explicit local Python experiment target",
+    )
     parser.add_argument(
         "--privacy-mode",
         "--mode",
@@ -245,6 +254,21 @@ def build_parser() -> _Parser:
         help="run the real client, preparation, and inference roles on loopback",
     )
     benchmark_run.add_argument(
+        "--experiment",
+        action="append",
+        default=[],
+        metavar="TARGET",
+        help="Experiment .json/.yaml or Python target; repeat to compare pipelines",
+    )
+    benchmark_run.add_argument(
+        "--factory", action="store_true", help="call explicit zero-argument Python factories"
+    )
+    benchmark_run.add_argument(
+        "--trust-python",
+        action="store_true",
+        help="approve execution of explicit local Python experiment targets",
+    )
+    benchmark_run.add_argument(
         "--model",
         default="Qwen/Qwen2.5-0.5B-Instruct",
         help="Hugging Face model ID or local checkpoint path",
@@ -286,6 +310,12 @@ def build_parser() -> _Parser:
         help="open the local dashboard in a browser (default: hidden)",
     )
     benchmark_run.add_argument("--output", type=Path, help="write the sanitized JSON report")
+    benchmark_run.add_argument(
+        "--save-best",
+        type=Path,
+        metavar="PATH",
+        help="write the Experiment with lowest measured median full latency as canonical JSON",
+    )
     benchmark_run.add_argument("--force", action="store_true", help="replace --output if it exists")
 
     dev = _command(commands, "dev", help="development tools")
@@ -303,6 +333,7 @@ def build_parser() -> _Parser:
     dashboard.add_argument("--max-output-tokens", type=int, default=24)
     dashboard.add_argument("--history-db", metavar="PATH")
     dashboard.add_argument("--startup-inventory-rows", type=int, help=argparse.SUPPRESS)
+    dashboard.add_argument("--experiment-config", type=Path, help=argparse.SUPPRESS)
     dashboard.add_argument("--no-open", action="store_true")
     return parser
 
@@ -427,7 +458,9 @@ def _components(args: argparse.Namespace, output_format: str, dry_run: bool) -> 
         )
 
 
-def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+def _benchmark(
+    args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool
+) -> None:
     if not 1 <= args.max_output_tokens <= 512:
         raise ResolutionError(
             "BENCHMARK_OUTPUT_LIMIT", "max output tokens must be between 1 and 512"
@@ -438,6 +471,53 @@ def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> N
         raise ResolutionError("BENCHMARK_REPETITIONS", "repetitions must be between 1 and 100")
     if not 1 <= args.timeout <= 3600:
         raise ResolutionError("BENCHMARK_TIMEOUT", "timeout must be between 1 and 3600 seconds")
+
+    experiments = []
+    if getattr(args, "experiment", None):
+        from pllm.configuration import Experiment
+
+        from .targets import resolve_target
+
+        if args.tiny:
+            raise ResolutionError(
+                "BENCHMARK_EXPERIMENT_TINY", "--experiment cannot be combined with --tiny"
+            )
+        for target_name in args.experiment:
+            target = resolve_target(
+                target_name,
+                factory=args.factory,
+                no_input=no_input,
+                trust_python=args.trust_python,
+                output_format=output_format,
+            )
+            if not isinstance(target.configuration, Experiment):
+                raise ResolutionError(
+                    "BENCHMARK_EXPERIMENT_TYPE", f"target is not an Experiment: {target_name}"
+                )
+            try:
+                target.configuration.resolve()
+            except (TypeError, ValueError) as exc:
+                raise ResolutionError("BENCHMARK_EXPERIMENT_INVALID", str(exc)) from exc
+            if args.max_output_tokens > target.configuration.budget.max_new_tokens:
+                raise ResolutionError(
+                    "BENCHMARK_EXPERIMENT_BUDGET",
+                    f"--max-output-tokens exceeds {target.configuration.name!r} budget",
+                )
+            experiments.append(target.configuration)
+        digests = [experiment.configuration_digest() for experiment in experiments]
+        names = [experiment.name for experiment in experiments]
+        if len(set(digests)) != len(digests):
+            raise ResolutionError(
+                "BENCHMARK_EXPERIMENT_DUPLICATE", "Experiment configurations must be unique"
+            )
+        if len(set(names)) != len(names):
+            raise ResolutionError(
+                "BENCHMARK_EXPERIMENT_NAME", "Experiment names must be unique"
+            )
+    if args.save_best is not None and len(experiments) < 2:
+        raise ResolutionError(
+            "BENCHMARK_SAVE_BEST", "--save-best requires at least two --experiment targets"
+        )
 
     output = args.output.expanduser() if args.output is not None else None
     if output is not None and not args.force:
@@ -470,6 +550,15 @@ def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> N
         "timeout_seconds": args.timeout,
         "show_dashboard": args.show_dashboard,
         "output": str(output) if output is not None else None,
+        "experiments": [
+            {
+                "name": experiment.name,
+                "configuration_digest": experiment.configuration_digest(),
+                "pipeline_digest": experiment.pipeline.digest(),
+            }
+            for experiment in experiments
+        ],
+        "save_best": str(args.save_best) if args.save_best is not None else None,
     }
     if dry_run:
         data = {"configuration": configuration, "dry_run": True}
@@ -479,29 +568,76 @@ def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> N
             emit_machine("benchmark.run", data, output_format)
         return
 
-    from pllm.runtime.benchmark_cli import LoopbackBenchmarkError, run_loopback_benchmark
+    from pllm.runtime.benchmark_cli import (
+        LoopbackBenchmarkError,
+        build_comparison_report,
+        run_loopback_benchmark,
+    )
 
     try:
-        report = run_loopback_benchmark(
-            model=args.model,
-            model_id=args.model_id,
-            tiny=args.tiny,
-            prompt=prompt,
-            max_output_tokens=args.max_output_tokens,
-            warmups=args.warmups,
-            repetitions=args.repetitions,
-            timeout_seconds=args.timeout,
-            show_dashboard=args.show_dashboard,
-            progress=(
-                lambda message: (
-                    print(message, file=sys.stderr, flush=True)
-                    if output_format == "human"
-                    else None
-                )
-            ),
-        )
-    except LoopbackBenchmarkError as exc:
+        candidate_reports = []
+        report: dict[str, Any] | None = None
+        selected_experiments = experiments or [None]
+        for index, experiment in enumerate(selected_experiments, start=1):
+            prefix = f"[{index}/{len(selected_experiments)}] " if experiments else ""
+            report = run_loopback_benchmark(
+                model=args.model,
+                model_id=args.model_id,
+                tiny=args.tiny,
+                prompt=prompt,
+                max_output_tokens=args.max_output_tokens,
+                warmups=args.warmups,
+                repetitions=args.repetitions,
+                timeout_seconds=args.timeout,
+                show_dashboard=args.show_dashboard,
+                experiment=experiment,
+                progress=(
+                    lambda message, prefix=prefix: (
+                        print(prefix + message, file=sys.stderr, flush=True)
+                        if output_format == "human"
+                        else None
+                    )
+                ),
+            )
+            if experiment is not None:
+                report["experiment"] = {
+                    "name": experiment.name,
+                    "configuration_digest": experiment.configuration_digest(),
+                    "pipeline_digest": experiment.pipeline.digest(),
+                }
+                candidate_reports.append((experiment, report))
+        if len(candidate_reports) > 1:
+            report = build_comparison_report(candidate_reports)
+    except (LoopbackBenchmarkError, ValueError) as exc:
         raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
+    if report is None:
+        raise RuntimeFailure("BENCHMARK_FAILED", "benchmark produced no report")
+
+    if args.save_best is not None:
+        winner_digest = report["winners"].get("full_seconds")
+        if winner_digest is None:
+            raise RuntimeFailure(
+                "BENCHMARK_NOT_COMPARABLE",
+                "winning configuration was not saved because measured workloads did not match",
+            )
+        winner = next(
+            experiment
+            for experiment in experiments
+            if experiment.configuration_digest() == winner_digest
+        )
+        best_path = args.save_best.expanduser()
+        mode = "wb" if args.force else "xb"
+        try:
+            best_path.parent.mkdir(parents=True, exist_ok=True)
+            with best_path.open(mode) as destination:
+                destination.write(winner.canonical_bytes())
+                destination.write(b"\n")
+        except FileExistsError as exc:
+            raise LocalIOError(
+                "OUTPUT_EXISTS", f"output already exists; use --force to replace it: {best_path}"
+            ) from exc
+        except OSError as exc:
+            raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {best_path}") from exc
 
     if output is not None:
         mode = "w" if args.force else "x"
@@ -518,17 +654,26 @@ def _benchmark(args: argparse.Namespace, output_format: str, dry_run: bool) -> N
 
     data = {"output": str(output) if output is not None else None, "report": report}
     if output_format == "human":
-        summary = report["summary"]
-        ttft = summary["median_ttft_seconds"]
-        throughput = summary["median_tokens_per_second"]
-        print(f"{report['configuration']['model_id']}: {summary['completed_runs']} run(s)")
-        if ttft is not None:
-            print(f"Median TTFT: {ttft:.3f}s")
-        if throughput is not None:
-            print(f"Median throughput: {throughput:.2f} token/s")
+        if "candidates" in report:
+            print(f"Compared {len(report['candidates'])} Experiment pipelines")
+            for ranking in report["rankings"].get("full_seconds", []):
+                print(f"{ranking['rank']}. {ranking['name']}: {ranking['value']:.3f}s median full")
+            if not report["checks"]["matched_workload"]:
+                print("No ranking: measured workloads did not match exactly")
+        else:
+            summary = report["summary"]
+            ttft = summary["median_ttft_seconds"]
+            throughput = summary["median_tokens_per_second"]
+            print(f"{report['configuration']['model_id']}: {summary['completed_runs']} run(s)")
+            if ttft is not None:
+                print(f"Median TTFT: {ttft:.3f}s")
+            if throughput is not None:
+                print(f"Median throughput: {throughput:.2f} token/s")
         print("Privacy/runtime checks: " + ("passed" if report["checks"]["passed"] else "failed"))
         if output is not None:
             print(f"Wrote {output}")
+        if args.save_best is not None:
+            print(f"Saved lowest-latency Experiment to {args.save_best.expanduser()}")
     else:
         emit_machine("benchmark.run", data, output_format)
 
@@ -649,9 +794,44 @@ def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> Non
         raise RuntimeFailure("GATEWAY_FAILED", f"gateway failed ({type(exc).__name__})") from exc
 
 
-def _serve(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+def _serve(
+    args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool
+) -> None:
     args.host = args.host or os.getenv("PLLM_HOST", "127.0.0.1")
     args.port = args.port if args.port is not None else _env_int("PLLM_PORT", 8000)
+    experiment = None
+    if args.experiment:
+        from pllm.configuration import Experiment
+
+        from .targets import resolve_target
+
+        if args.config or args.model or args.model_id or args.engine_threads is not None:
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_CONFLICT",
+                "--experiment cannot be combined with --config, --model, --model-id, or "
+                "--engine-threads",
+            )
+        target = resolve_target(
+            args.experiment,
+            factory=args.factory,
+            no_input=no_input,
+            trust_python=args.trust_python,
+            output_format=output_format,
+        )
+        if not isinstance(target.configuration, Experiment):
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_TYPE", f"target is not an Experiment: {args.experiment}"
+            )
+        experiment = target.configuration
+        try:
+            experiment.resolve()
+        except (TypeError, ValueError) as exc:
+            raise ResolutionError("SERVE_EXPERIMENT_INVALID", str(exc)) from exc
+        args.model = [experiment.pipeline.model.source]
+        args.model_id = [experiment.pipeline.model.source]
+        kernels = experiment.pipeline.components.get("kernels")
+        if kernels is not None and kernels.component == "pllm/cpu":
+            args.engine_threads = int(kernels.params["threads"])
     preview: dict[str, Any] = {}
     if args.config:
         try:
@@ -688,6 +868,12 @@ def _serve(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
         data = {
             "config": args.config,
             "dry_run": True,
+            "experiment": None
+            if experiment is None
+            else {
+                "configuration_digest": experiment.configuration_digest(),
+                "name": experiment.name,
+            },
             "host": args.host,
             "models": args.model_id
             or args.model
@@ -769,9 +955,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         elif args.command == "gateway":
             _gateway(args, output_format, dry_run)
         elif args.command == "serve":
-            _serve(args, output_format, dry_run)
+            _serve(args, output_format, no_input, dry_run)
         elif args.command == "benchmark":
-            _benchmark(args, output_format, dry_run)
+            _benchmark(args, output_format, no_input, dry_run)
         elif args.command == "dev":
             _dev(args, output_format, dry_run)
     except KeyboardInterrupt:

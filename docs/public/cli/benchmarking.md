@@ -6,8 +6,8 @@ Run the headless transport benchmark or open the diagnostic dashboard.
 
 Document ID: `pllm.docs.cli.benchmarking`  
 Release: `0.1.0`  
-Build: `sha256:50bdd8d40f8b1f362adbabe08e845d37acfffd39aacc3351d7706456b26c4b1a`  
-Source hash: `sha256:30078dca8a0fc8994d2a45c1d93b5fa1e12415c8e45e020cb62cf4caa480df6c`
+Build: `sha256:43a7d6d03570b59100102980d9b739320473c2b1c5a1a31e49972f24b77b95e2`  
+Source hash: `sha256:e6a9254b5ee1cc3476bbb88678124ba2eedbdd93afb87fb6375602216410b86a`
 
 Use the headless runner for repeatable local measurements:
 
@@ -18,6 +18,58 @@ pllm benchmark run --prompt-file prompt.txt --max-output-tokens 24 --repetitions
 The report contains sanitized diagnostic measurements. It is not a canonical
 research `EvidenceReport`, and a loopback run does not establish WAN, multi-host,
 energy, price, quality, or production non-collusion claims.
+
+Repeat `--experiment` to compare complete experiment configurations. Each
+Experiment contains one immutable Pipeline:
+
+```bash
+pllm benchmark run \
+  --experiment examples/benchmarks/qwen-prepared-cpu-1.yaml \
+  --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml \
+  --prompt "Explain private inference in one sentence." \
+  --max-output-tokens 16 \
+  --warmups 1 \
+  --repetitions 3 \
+  --output comparison.json
+```
+
+The comparison ranks full latency, online latency, time to first token, and
+throughput only when model fingerprint, input and output token counts, token cap,
+and warm state match. Add `--save-best winner.json` to export the lowest-median
+full-latency Experiment for a later rerun. Checked candidate and winner files live
+under `examples/benchmarks/`.
+
+An Experiment can instead be built with the SDK in a Python module:
+
+```bash
+pllm benchmark run \
+  --experiment examples/benchmarks/qwen_prepared.py:cpu_4 \
+  --trust-python \
+  --prompt "Explain private inference in one sentence." \
+  --max-output-tokens 16 \
+  --warmups 1 \
+  --repetitions 3 \
+  --output benchmark.json
+```
+
+The `path.py:object` target names one public `Experiment`. `--trust-python` is
+required in noninteractive use because resolving the target imports and executes
+the local module. Repeat `--experiment` with other objects to compare them.
+
+The same target can configure a provider role:
+
+```bash
+pllm serve inference \
+  --experiment examples/benchmarks/qwen_prepared.py:cpu_4 \
+  --trust-python \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+The Experiment supplies the model and CPU thread count. Role addresses and
+credentials remain `serve` arguments. The example's `prepared_cpu(model,
+threads=...)` SDK function accepts another supported model ID, so component
+selection does not need to be duplicated for each model.
 
 Use the dashboard when you need a visual transport trace:
 

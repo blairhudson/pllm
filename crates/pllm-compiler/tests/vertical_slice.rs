@@ -1,9 +1,11 @@
 use pllm_compiler::{
-    compile, compile_document, decoder_coverage, diagnostics_json, execute_wrap32,
-    lower_model_linear_operation, lower_model_linear_regions, CandidateEvidence, CapabilityLevel,
-    CompileRequest, Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation,
-    LogicalOperation, MethodDescriptor, NumericType, Operator, Representation, SecurityProperties,
-    TensorType, COMPILE_REQUEST_SCHEMA_VERSION,
+    compile, compile_document, decoder_coverage, diagnostics_json, execute_model_reshape,
+    execute_model_residual, execute_wrap32, lower_model_linear_operation,
+    lower_model_linear_regions, lower_model_reshape_regions, lower_model_residual_regions,
+    CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic, DiagnosticCode,
+    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor, ModelReshapeLayout,
+    NumericType, Operator, Representation, SecurityProperties, TensorType,
+    COMPILE_REQUEST_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
@@ -288,6 +290,30 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
     assert!(decode_regions
         .iter()
         .all(|region| region.input.shape[0] == 1));
+    let reshape_regions = lower_model_reshape_regions(&plan, DecoderMode::Prefill).unwrap();
+    assert_eq!(reshape_regions.len(), 4);
+    let heads = reshape_regions
+        .iter()
+        .find(|region| region.layout == ModelReshapeLayout::BatchHeadsSequenceFeature)
+        .unwrap();
+    let values = (0_u32..16).collect::<Vec<_>>();
+    let permuted = execute_model_reshape(heads, &values).unwrap();
+    assert_eq!(
+        permuted,
+        vec![0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15]
+    );
+    let hidden = reshape_regions
+        .iter()
+        .find(|region| region.layout == ModelReshapeLayout::BatchSequenceHidden)
+        .unwrap();
+    assert_eq!(execute_model_reshape(hidden, &permuted).unwrap(), values);
+    assert!(execute_model_reshape(heads, &[0; 15]).is_err());
+    assert_eq!(
+        lower_model_reshape_regions(&plan, DecoderMode::Decode)
+            .unwrap()
+            .len(),
+        4
+    );
     let coverage = decoder_coverage(&plan, "research.single_evaluator");
     let linear_coverage = coverage
         .operators
@@ -296,6 +322,41 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
         .unwrap();
     assert_eq!(linear_coverage.occurrences, 14);
     assert_eq!(linear_coverage.level, CapabilityLevel::ExecutableRegion);
+    let reshape_coverage = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == ModelOperator::Reshape)
+        .unwrap();
+    assert_eq!(reshape_coverage.occurrences, 8);
+    assert_eq!(reshape_coverage.level, CapabilityLevel::ExecutableRegion);
+    let residual_regions = lower_model_residual_regions(&plan, DecoderMode::Prefill).unwrap();
+    assert_eq!(residual_regions.len(), 2);
+    assert_eq!(residual_regions[0].layer, Some(0));
+    assert_eq!(residual_regions[0].input.shape, vec![1, 2, 8]);
+    assert_eq!(residual_regions[0].input_ids.len(), 2);
+    let left = vec![u32::MAX; 16];
+    let right = vec![2; 16];
+    assert_eq!(
+        execute_model_residual(&residual_regions[0], &left, &right).unwrap(),
+        vec![1; 16]
+    );
+    assert!(execute_model_residual(&residual_regions[0], &left[..15], &right).is_err());
+    let mut malformed_residual = residual_regions[0].clone();
+    malformed_residual.output.shape = vec![1, 1, 8];
+    assert!(execute_model_residual(&malformed_residual, &left, &right).is_err());
+    assert_eq!(
+        lower_model_residual_regions(&plan, DecoderMode::Decode)
+            .unwrap()
+            .len(),
+        2
+    );
+    let residual_coverage = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == ModelOperator::ResidualAdd)
+        .unwrap();
+    assert_eq!(residual_coverage.occurrences, 4);
+    assert_eq!(residual_coverage.level, CapabilityLevel::ExecutableRegion);
     assert!(!coverage.complete);
     let (input, operation) =
         lower_model_linear_operation(&plan, DecoderMode::Prefill, &linear.id).unwrap();

@@ -8,10 +8,18 @@ import httpx
 import pytest
 
 from pllm._cli.app import build_parser
-from pllm.runtime.benchmark_cli import _run_once, _wait_for_ready, build_loopback_report
+from pllm.configuration import Experiment
+from pllm.runtime.benchmark_cli import (
+    _run_once,
+    _wait_for_ready,
+    build_comparison_report,
+    build_loopback_report,
+)
 
 
-def _record(run_id: str, *, ttft: float, throughput: float) -> dict[str, object]:
+def _record(
+    run_id: str, *, ttft: float, throughput: float, full: float = 4.0
+) -> dict[str, object]:
     return {
         "schema_version": "pllm.benchmark_run.v3",
         "run_id": run_id,
@@ -19,7 +27,7 @@ def _record(run_id: str, *, ttft: float, throughput: float) -> dict[str, object]
         "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
         "model_fingerprint": "sha256:model",
         "durations": {
-            "full_seconds": 4.0,
+            "full_seconds": full,
             "online_seconds": 3.0,
             "ttft_seconds": ttft,
             "tokens_per_second": throughput,
@@ -38,13 +46,37 @@ def _record(run_id: str, *, ttft: float, throughput: float) -> dict[str, object]
     }
 
 
-def _report() -> dict[str, object]:
+def _report(*, full: float = 4.0) -> dict[str, object]:
     return build_loopback_report(
         model_id="Qwen/Qwen2.5-0.5B-Instruct",
         tiny=False,
         max_output_tokens=24,
         warmup_runs=[],
-        runs=[_record("run-1", ttft=0.98, throughput=8.46)],
+        runs=[_record("run-1", ttft=0.98, throughput=8.46, full=full)],
+    )
+
+
+def _experiment(name: str, threads: int) -> Experiment:
+    return Experiment.from_spec(
+        {
+            "schema": "pllm.experiment.v1",
+            "name": name,
+            "pipeline": {
+                "profile": "baseline.masked_linear_cpu",
+                "model": {"source": "Qwen/Qwen2.5-0.5B-Instruct"},
+                "components": {
+                    "inference": {"component": "pllm/inference", "params": {}},
+                    "kernels": {"component": "pllm/cpu", "params": {"threads": threads}},
+                    "linear": {"component": "pllm/masked-linear", "params": {}},
+                    "preparation": {
+                        "component": "pllm/model-aware-corrections",
+                        "params": {},
+                    },
+                },
+            },
+            "deployment": {"kind": "local", "root": "local://benchmark"},
+            "budget": {"requests": 4, "max_input_tokens": 256, "max_new_tokens": 24},
+        }
     )
 
 
@@ -137,6 +169,23 @@ def test_loopback_report_summarizes_records_and_has_no_text_payloads() -> None:
     assert '"token_ids"' not in serialized
 
 
+def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
+    slow, fast = _experiment("slow", 1), _experiment("fast", 4)
+    report = build_comparison_report([(slow, _report(full=5.0)), (fast, _report(full=3.0))])
+
+    assert report["schema_version"] == "pllm.loopback_benchmark_comparison.v1"
+    assert report["checks"]["matched_workload"] is True
+    assert report["rankings"]["full_seconds"][0]["name"] == "fast"
+    assert report["winners"]["full_seconds"] == fast.configuration_digest()
+
+    mismatched: Any = _report(full=2.0)
+    mismatched["runs"][0]["tokens"]["output_tokens"] = 12
+    report = build_comparison_report([(slow, _report()), (fast, mismatched)])
+    assert report["checks"]["matched_workload"] is False
+    assert report["rankings"]["full_seconds"] == []
+    assert report["winners"]["full_seconds"] is None
+
+
 def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path: Path) -> None:
     from pllm.cli import main
     from pllm.runtime import benchmark_cli
@@ -170,3 +219,44 @@ def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path
     assert result["command"] == "benchmark.run"
     assert report["checks"]["passed"] is True
     assert "private prompt" not in output.read_text(encoding="utf-8")
+
+
+def test_benchmark_command_compares_experiments_and_saves_lowest_latency(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    from pllm.cli import main
+    from pllm.runtime import benchmark_cli
+
+    slow, fast = _experiment("slow", 1), _experiment("fast", 4)
+    slow_path, fast_path = tmp_path / "slow.json", tmp_path / "fast.json"
+    slow_path.write_bytes(slow.canonical_bytes())
+    fast_path.write_bytes(fast.canonical_bytes())
+
+    def run(**kwargs):
+        threads = kwargs["experiment"].pipeline.components["kernels"].params["threads"]
+        return _report(full=5.0 if threads == 1 else 3.0)
+
+    monkeypatch.setattr(benchmark_cli, "run_loopback_benchmark", run)
+    output, best = tmp_path / "comparison.json", tmp_path / "best.json"
+    main(
+        [
+            "benchmark",
+            "run",
+            "--experiment",
+            str(slow_path),
+            "--experiment",
+            str(fast_path),
+            "--output",
+            str(output),
+            "--save-best",
+            str(best),
+            "--format",
+            "json",
+        ]
+    )
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    saved = Experiment.from_spec(json.loads(best.read_text(encoding="utf-8")))
+    assert report["rankings"]["full_seconds"][0]["name"] == "fast"
+    assert saved.configuration_digest() == fast.configuration_digest()
+    assert "slow" not in capsys.readouterr().err
