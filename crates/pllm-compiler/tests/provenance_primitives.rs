@@ -580,21 +580,31 @@ fn plan_authentication_policy_rejects_before_relowering_or_core_work() {
 }
 
 #[test]
-fn coverage_stays_reference_primitive_not_executable() {
+fn coverage_marks_valid_q10_descriptors_executable() {
     let decoder = plan(QWEN2, 1, 2, 2);
     let coverage = decoder_coverage(&decoder, "research.single_evaluator");
-    for operator in [
-        ModelOperator::RotaryEmbedding,
-        ModelOperator::KvCacheAppend,
-        ModelOperator::CacheSuffix,
+    for (operator, component) in [
+        (
+            ModelOperator::RotaryEmbedding,
+            "pllm/core-rope-q10@0.1.0-alpha.1",
+        ),
+        (
+            ModelOperator::KvCacheAppend,
+            "pllm/core-kv-cache-q10@0.1.0-alpha.1",
+        ),
+        (
+            ModelOperator::CacheSuffix,
+            "pllm/core-kv-cache-q10@0.1.0-alpha.1",
+        ),
     ] {
         let item = coverage
             .operators
             .iter()
             .find(|item| item.operator == operator)
             .unwrap();
-        assert_eq!(item.level, CapabilityLevel::Primitive);
-        assert!(item.blocker.contains("reference primitive"));
+        assert_eq!(item.level, CapabilityLevel::ExecutableRegion);
+        assert_eq!(item.component.as_deref(), Some(component));
+        assert!(item.blocker.contains("whole-decoder scheduling"));
     }
     assert!(!coverage.complete);
 }

@@ -74,7 +74,10 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
     levels = {row["operator"]: row["level"] for row in coverage.operators}
     assert levels["linear"] == "executable_region"
     assert levels["silu"] == "primitive"
-    assert levels["rms_norm"] == "primitive"
+    assert levels["rms_norm"] == "executable_region"
+    assert levels["rotary_embedding"] == "executable_region"
+    assert levels["kv_cache_append"] == "executable_region"
+    assert levels["cache_suffix"] == "executable_region"
     assert levels["attention_scores"] == "executable_region"
     assert levels["attention_scale"] == "executable_region"
     assert levels["causal_mask"] == "executable_region"

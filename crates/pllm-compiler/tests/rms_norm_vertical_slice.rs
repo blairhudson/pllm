@@ -64,11 +64,43 @@ fn direct_weight_norm_regions_bind_semantics_and_execute_reference() {
         .find(|coverage| coverage.operator == ModelOperator::RmsNorm)
         .unwrap();
     assert_eq!(rms_norm.occurrences, 6);
+    assert_eq!(rms_norm.level, CapabilityLevel::ExecutableRegion);
+    assert_eq!(
+        rms_norm.component.as_deref(),
+        Some("pllm/core-rms-norm-q10@0.1.0-alpha.1")
+    );
+    assert!(rms_norm.blocker.contains("whole-decoder scheduling"));
+}
+
+#[test]
+fn coverage_falls_back_to_fp32_reference_when_q10_width_exceeded() {
+    let plan = lower_model_json(
+        br#"{
+            "model_type":"qwen2","hidden_size":16384,"intermediate_size":4,
+            "num_hidden_layers":1,"num_attention_heads":2,"num_key_value_heads":1,
+            "vocab_size":32,"max_position_embeddings":32,"hidden_act":"silu",
+            "rms_norm_eps":1e-6,"rope_theta":10000.0,"tie_word_embeddings":true
+        }"#,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 2,
+            max_new_tokens: 1,
+        },
+    )
+    .unwrap();
+    assert!(lower_rms_norm_q10_direct_regions(&plan, DecoderMode::Decode).is_err());
+    assert!(lower_rms_norm_f32_direct_regions(&plan, DecoderMode::Decode).is_ok());
+    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let rms_norm = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == ModelOperator::RmsNorm)
+        .unwrap();
     assert_eq!(rms_norm.level, CapabilityLevel::Primitive);
-    assert!(rms_norm
-        .component
-        .as_deref()
-        .is_some_and(|component| component.starts_with("pllm/core")));
+    assert_eq!(
+        rms_norm.component.as_deref(),
+        Some("pllm/core-rms-norm-f32-reference@0.1.0-alpha.1")
+    );
     assert!(rms_norm
         .blocker
         .contains("no protected numeric decomposition"));

@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:a3db51eca723684328314c5428e7e991d7b5bb20ff973c6d46dfe9a79aec3a08`  
-Source hash: `sha256:d4d9cd23cfcd504359fb76ed7d9a95a9e19d829e1ecf6b0e4b4fda58056ba359`
+Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Source hash: `sha256:8d80e5e8a9a17bc257512f2016ddbcef47beb455c41aba33a46467b02d3596a9`
 
 Checked 16 September 2026.
 
@@ -68,6 +68,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
 | Compiler coverage report | Available; the current named profile remains incomplete |
+| Plan-bound Q10 state regions | Available for RMSNorm, rotary embedding, fixed-capacity KV initialization/append, and visible-prefix cache views; oversized RMSNorm falls back to the explicit FP32 reference and malformed provenance fails closed |
 | Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
 | Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |
 | Client-local attention-value region | Available for exact Q30-probability by Q10-value contraction in grouped-query cache and MPCache per-query/head-window layouts; output is signed Q10 with ties-to-even rounding |

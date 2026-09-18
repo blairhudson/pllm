@@ -399,12 +399,22 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let attention_scores_executable =
         lower_model_attention_scores_q20_regions(plan, DecoderMode::Prefill).is_ok()
             && lower_model_attention_scores_q20_regions(plan, DecoderMode::Decode).is_ok();
+    let rms_norm_q10_executable = lower_rms_norm_q10_direct_regions(plan, DecoderMode::Prefill)
+        .is_ok()
+        && lower_rms_norm_q10_direct_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
+            let descriptor_coverage = match operator {
+                ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
+                ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
+                ModelOperator::CacheSuffix => Some(&provenance_q10_coverage.cache_view),
+                _ => None,
+            };
+            let descriptor_executable = descriptor_coverage.is_some_and(Result::is_ok);
             let executable = operator == ModelOperator::Linear
                 || (operator == ModelOperator::Reshape && reshape_executable)
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
@@ -419,16 +429,16 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     ModelOperator::AttentionScores
                         | ModelOperator::AttentionScale
                         | ModelOperator::CausalMask
-                ) && attention_scores_executable);
-            let descriptor_coverage = match operator {
-                ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
-                ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
-                ModelOperator::CacheSuffix => Some(&provenance_q10_coverage.cache_view),
-                _ => None,
-            };
-            let descriptor_primitive = descriptor_coverage.is_some_and(Result::is_ok);
-            let primitive = descriptor_primitive
-                || matches!(
+                ) && attention_scores_executable)
+                || (descriptor_executable
+                    && matches!(
+                        operator,
+                        ModelOperator::RotaryEmbedding
+                            | ModelOperator::KvCacheAppend
+                            | ModelOperator::CacheSuffix
+                    ))
+                || (operator == ModelOperator::RmsNorm && rms_norm_q10_executable);
+            let primitive = matches!(
                 operator,
                 ModelOperator::TokenLookup
                     | ModelOperator::Reshape
@@ -477,6 +487,16 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 ) && executable
                 {
                     Some("pllm/client-attention-scores-q20@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::RmsNorm && executable {
+                    Some("pllm/core-rms-norm-q10@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::RotaryEmbedding && executable {
+                    Some("pllm/core-rope-q10@0.1.0-alpha.1".to_owned())
+                } else if matches!(
+                    operator,
+                    ModelOperator::KvCacheAppend | ModelOperator::CacheSuffix
+                ) && executable
+                {
+                    Some("pllm/core-kv-cache-q10@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
@@ -487,8 +507,6 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some(
                         "pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental".to_owned(),
                     )
-                } else if descriptor_primitive {
-                    Some("pllm/core-provenance-primitives@0.1.0-alpha.1-reference".to_owned())
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
@@ -538,11 +556,23 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 } else if operator == ModelOperator::Silu {
                     "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
                         .to_owned()
+                } else if operator == ModelOperator::RmsNorm && executable {
+                    "plan-bound Q10 RMSNorm executes with direct weights, but whole-decoder scheduling is unavailable"
+                        .to_owned()
                 } else if operator == ModelOperator::RmsNorm && rms_norm_reference {
                     "a plan-bound clear FP32 reference region executes, but no protected numeric decomposition or distributed executor is available"
                         .to_owned()
                 } else if operator == ModelOperator::Multiply {
                     "gated-MLP SiLU and multiplication compose without decoding through scalar, four-lane, or resource-bounded chunked independent-lane harnesses; complete numeric scheduling and other multiplication contracts are unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::RotaryEmbedding && executable {
+                    "plan-bound Q10 rotary embedding executes with exact position provenance, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::KvCacheAppend && executable {
+                    "plan-bound fixed-capacity Q10 KV-cache updates execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::CacheSuffix && executable {
+                    "plan-bound visible-prefix Q10 KV-cache views execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if let Some(Err(error)) = descriptor_coverage {
                     format!(
