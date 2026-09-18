@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
-Source hash: `sha256:15f42eb2d2a91486faf1048914c20c64c36ae9e3fd2eead3891c83d59f6ec0cc`
+Build: `sha256:4a02d6d6c164f106cb6698f1e14f6ed79d2e45e68a44719d9f0aa417993b4f8a`  
+Source hash: `sha256:a9c5c667e170aef243a2ec93e032a203cc50a3c44918f5b3a0c5018cfb76abe1`
 
 Checked 16 September 2026.
 
@@ -70,6 +70,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Compiler coverage report | Available; the current named profile remains incomplete |
 | Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
 | Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |
+| Client-local attention-value region | Available for exact Q30-probability by Q10-value contraction in grouped-query cache and MPCache per-query/head-window layouts; output is signed Q10 with ties-to-even rounding |
 | Prepared public-weight generation | Available for runtime-supported text checkpoint layouts; validated end to end with `Qwen/Qwen2.5-0.5B-Instruct` |
 | Responses API gateway | Available for text, streaming, function tools, continuation, compaction, storage controls, and structured errors |
 | Chat Completions API gateway | Available as a translation over the same private execution path for text, streaming, and function tools |

@@ -12,4 +12,5 @@ publish = false
 rayon.workspace = true
 getrandom.workspace = true
 libm.workspace = true
+serde.workspace = true
 zeroize.workspace = true

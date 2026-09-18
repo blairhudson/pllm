@@ -6,7 +6,7 @@ Private language model inference. Client and server guides, the protocol, and re
 
 Document ID: `pllm.home`  
 Release: `0.1.0`  
-Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
+Build: `sha256:4a02d6d6c164f106cb6698f1e14f6ed79d2e45e68a44719d9f0aa417993b4f8a`  
 Source hash: `sha256:8e4a8e12314eff4ae182cecc488c67484e8358825edc7cfdf5b6a03f2ef77285`
 
 # Keep your data private. Open compute to the world.

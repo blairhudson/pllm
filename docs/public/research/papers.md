@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
-Source hash: `sha256:da0c53f585aea1ea2b379afea90c5ca30e8c815172d5366892856154d00fdf00`
+Build: `sha256:4a02d6d6c164f106cb6698f1e14f6ed79d2e45e68a44719d9f0aa417993b4f8a`  
+Source hash: `sha256:2c333aab18a42d831a5f9bbeac8c7f1a8703ff7ff2c566c4e0e48046fc7e97dc`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ R03 has a scoped clean-room component adaptation in the compact Q7 implementatio
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions; Qwen head-layout reshapes and residual additions execute; prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback execute as checked regions. RMSNorm, RoPE, fixed-shape KV-cache, attention score/scale/mask/value, and causal-mask primitives are provenance-bound; client-local Q20-to-Q30 Softmax executes with deterministic pinned-libm exponentiation and exact Q30 row sums, but these regions are not yet whole-plan scheduled. Digest-bound centered-wrap32 Q14-to-Q7 regions and selectable dense-table/compact mixed-modulus Q7 SiLU and multiplication components are implemented with bounded one-use scheduling. The MPCache structural pass preserves fixed-capacity Key/Value state and adds explicit selection-index state for dense Qwen2/Qwen3. Complete numeric representation transitions, attention-value execution, real-model tensor composition, and whole-decoder scheduling remain unavailable.
+1. Complete one executable Qwen profile without hidden fallback regions. In progress: all prefill and decode linear operations and output heads execute as provenance-bound wrap32 regions; Qwen head-layout reshapes and residual additions execute; prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback execute as checked regions. RMSNorm, RoPE, fixed-shape KV-cache, attention score/scale, and causal-mask primitives are provenance-bound; client-local Q20-to-Q30 Softmax and Q30-probability by Q10-value attention contraction execute for both grouped-query caches and MPCache per-query windows, but these regions are not yet whole-plan scheduled. Digest-bound centered-wrap32 Q14-to-Q7 regions and selectable dense-table/compact mixed-modulus Q7 SiLU and multiplication components are implemented with bounded one-use scheduling. The MPCache structural pass preserves fixed-capacity Key/Value state and adds explicit selection-index state for dense Qwen2/Qwen3. Complete numeric representation transitions, plan-bound attention score/scale/mask execution, real-model tensor composition, and whole-decoder scheduling remain unavailable.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 

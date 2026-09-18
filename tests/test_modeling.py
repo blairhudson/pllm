@@ -76,6 +76,7 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
     assert levels["silu"] == "primitive"
     assert levels["rms_norm"] == "primitive"
     assert levels["softmax"] == "executable_region"
+    assert levels["attention_values"] == "executable_region"
     assert levels["last_token"] == "executable_region"
     assert levels["greedy_token_selection"] == "executable_region"
     assert levels["token_feedback"] == "executable_region"

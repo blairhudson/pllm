@@ -5,6 +5,7 @@
 //! Encryption and decryption remain the responsibility of the HE backend.
 pub mod activation;
 mod attention;
+mod attention_values;
 pub mod codec;
 pub mod fixed_point;
 pub mod kernels;
@@ -20,6 +21,12 @@ pub use attention::{
     ATTENTION_Q20_MAX_HEAD_DIM, ATTENTION_Q20_MAX_MULTIPLY_ACCUMULATES,
     ATTENTION_Q20_MAX_SCORE_ELEMENTS, ATTENTION_Q30_COEFFICIENT_MAX_ERROR_RAW, ATTENTION_SCALE_Q30,
     ATTENTION_SCORE_Q20_LAYOUT, ATTENTION_SCORE_Q20_PROFILE,
+};
+pub use attention_values::{
+    attention_values_q10, AttentionValueQ10Error, AttentionValueQ10Layout, AttentionValueQ10Policy,
+    AttentionValuesQ10, ATTENTION_VALUE_Q10_MAX_MULTIPLY_ACCUMULATES,
+    ATTENTION_VALUE_Q10_MAX_OUTPUT_ELEMENTS, ATTENTION_VALUE_Q10_MAX_ROUNDING_ERROR_RAW,
+    ATTENTION_VALUE_Q30_Q10_PROFILE,
 };
 pub use fixed_point::{
     gated_multiply_q7, multiply_q7, multiply_q7_tensor, rescale_q14_to_q10,

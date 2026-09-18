@@ -260,6 +260,7 @@ dependencies = [
  "getrandom",
  "libm",
  "rayon",
+ "serde",
  "zeroize",
 ]
 

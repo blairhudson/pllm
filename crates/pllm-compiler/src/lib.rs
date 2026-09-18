@@ -1,6 +1,8 @@
 //! Deterministic lowering from locked context into canonical plans plus a private region program.
 
-use pllm_models::{DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator};
+use pllm_models::{
+    DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator, StateKind,
+};
 use pllm_types::{
     assurance_result_digest, canonical_bytes, canonical_digest, configuration_digest_bytes,
     digest_bytes, execution_plan_digest, logical_plan_digest, plan_lock_bytes,
@@ -391,6 +393,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
         && lower_model_token_feedback_regions(plan, DecoderMode::Decode).is_ok();
     let softmax_executable = lower_model_softmax_q30_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_model_softmax_q30_regions(plan, DecoderMode::Decode).is_ok();
+    let attention_values_executable =
+        lower_model_attention_values_q10_regions(plan, DecoderMode::Prefill).is_ok()
+            && lower_model_attention_values_q10_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -404,7 +409,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 || (operator == ModelOperator::OutputHead && output_head_executable)
                 || (operator == ModelOperator::GreedyTokenSelection && greedy_executable)
                 || (operator == ModelOperator::TokenFeedback && feedback_executable)
-                || (operator == ModelOperator::Softmax && softmax_executable);
+                || (operator == ModelOperator::Softmax && softmax_executable)
+                || (operator == ModelOperator::AttentionValues && attention_values_executable);
             let descriptor_coverage = match operator {
                 ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
                 ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
@@ -452,6 +458,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/core-token-feedback@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Softmax && executable {
                     Some("pllm/client-softmax-q30@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::AttentionValues && executable {
+                    Some("pllm/client-attention-values-q10@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
@@ -494,6 +502,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::Softmax && executable {
                     "client-local Q20-to-Q30 softmax executes with exact row sums, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::AttentionValues && executable {
+                    "client-local Q30-probability by Q10-value attention contraction executes, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
@@ -549,6 +560,7 @@ pub enum NumericType {
     Wrap32,
     SignedFixed16,
     SignedFixedQ7,
+    SignedFixedQ10,
     SignedFixedQ20,
     UnsignedFixedQ30,
     TokenIdU32,
@@ -680,6 +692,20 @@ pub struct ModelSoftmaxQ30Region {
     pub axis: usize,
     pub numeric_profile: String,
     pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelAttentionValuesQ10Region {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub probabilities_input_id: String,
+    pub values_input_id: String,
+    pub numeric_profile: String,
+    pub layout: pllm_core::AttentionValueQ10Layout,
+    pub probabilities: TensorType,
+    pub values: TensorType,
     pub output: TensorType,
 }
 
@@ -3446,6 +3472,247 @@ pub fn execute_model_softmax_q30(
         .try_into()
         .map_err(|_| "softmax shape must have rank four".to_owned())?;
     pllm_core::softmax_q20_to_q30(scores, allowed, shape, policy).map_err(|error| error.to_string())
+}
+
+pub fn lower_model_attention_values_q10_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelAttentionValuesQ10Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::AttentionValues)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            let [probabilities_id, values_id] = operation.inputs.as_slice() else {
+                return Err(format!(
+                    "semantic attention-values operation {operation_id} must have exactly two inputs"
+                ));
+            };
+            let producer = |id: &str| {
+                graph
+                    .operations
+                    .iter()
+                    .find(|candidate| candidate.id == id)
+                    .ok_or_else(|| {
+                        format!(
+                            "semantic attention-values operation {operation_id} references missing input {id}"
+                        )
+                    })
+            };
+            let probabilities = producer(probabilities_id)?;
+            if probabilities.operator != ModelOperator::Softmax {
+                return Err(format!(
+                    "semantic attention-values operation {operation_id} must consume a softmax"
+                ));
+            }
+            let values = producer(values_id)?;
+            let layout = match values.operator {
+                ModelOperator::CacheSuffix => {
+                    if values.state_kind != Some(StateKind::Value) {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} must consume the value cache view"
+                        ));
+                    }
+                    pllm_core::AttentionValueQ10Layout::GroupedQuery
+                }
+                ModelOperator::SecureGather => {
+                    if values.state_kind != Some(StateKind::Value)
+                        || values
+                            .attributes
+                            .get("output_semantics")
+                            .and_then(serde_json::Value::as_str)
+                            != Some("per_query_head_cache_window")
+                    {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} must consume a per-query-head value gather"
+                        ));
+                    }
+                    pllm_core::AttentionValueQ10Layout::PerQueryHeadWindow
+                }
+                _ => {
+                    return Err(format!(
+                        "semantic attention-values operation {operation_id} must consume a cache view or value gather"
+                    ))
+                }
+            };
+            if probabilities.output_shape.len() != 4
+                || probabilities.output_shape.contains(&0)
+                || operation.output_shape.len() != 4
+                || operation.output_shape.contains(&0)
+            {
+                return Err(format!(
+                    "semantic attention-values operation {operation_id} requires nonzero rank-four probability and output shapes"
+                ));
+            }
+            let group_size = operation
+                .attributes
+                .get("group_size")
+                .and_then(serde_json::Value::as_u64)
+                .filter(|group_size| *group_size > 0)
+                .ok_or_else(|| {
+                    format!(
+                        "semantic attention-values operation {operation_id} has invalid group_size"
+                    )
+                })?;
+            let (batch, query_heads, queries, keys) = (
+                probabilities.output_shape[0],
+                probabilities.output_shape[1],
+                probabilities.output_shape[2],
+                probabilities.output_shape[3],
+            );
+            match layout {
+                pllm_core::AttentionValueQ10Layout::GroupedQuery => {
+                    if values.output_shape.len() != 4
+                        || values.output_shape.contains(&0)
+                        || values.output_shape[0] != batch
+                        || values.output_shape[2] != keys
+                        || query_heads % values.output_shape[1] != 0
+                        || group_size != query_heads / values.output_shape[1]
+                    {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} requires a [batch, kv_heads, keys, depth] grouped-query value view"
+                        ));
+                    }
+                    if operation.output_shape
+                        != [batch, query_heads, queries, values.output_shape[3]]
+                    {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} output shape does not match the grouped-query contraction"
+                        ));
+                    }
+                }
+                pllm_core::AttentionValueQ10Layout::PerQueryHeadWindow => {
+                    if values.output_shape.len() != 5
+                        || values.output_shape.contains(&0)
+                        || values.output_shape[..4]
+                            != [batch, query_heads, queries, keys]
+                    {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} requires a [batch, heads, query, keys, depth] per-query-head value window"
+                        ));
+                    }
+                    if operation.output_shape
+                        != [batch, query_heads, queries, values.output_shape[4]]
+                    {
+                        return Err(format!(
+                            "semantic attention-values operation {operation_id} output shape does not match the per-query-head contraction"
+                        ));
+                    }
+                }
+            }
+            tensor_elements(&probabilities.output_shape)?;
+            tensor_elements(&values.output_shape)?;
+            tensor_elements(&operation.output_shape)?;
+            Ok(ModelAttentionValuesQ10Region {
+                mode,
+                layer: operation.layer,
+                operation_id: operation.id.clone(),
+                probabilities_input_id: probabilities_id.clone(),
+                values_input_id: values_id.clone(),
+                numeric_profile: pllm_core::ATTENTION_VALUE_Q30_Q10_PROFILE.to_owned(),
+                layout,
+                probabilities: TensorType {
+                    numeric: NumericType::UnsignedFixedQ30,
+                    shape: probabilities.output_shape.clone(),
+                },
+                values: TensorType {
+                    numeric: NumericType::SignedFixedQ10,
+                    shape: values.output_shape.clone(),
+                },
+                output: TensorType {
+                    numeric: NumericType::SignedFixedQ10,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+pub fn execute_model_attention_values_q10(
+    region: &ModelAttentionValuesQ10Region,
+    probabilities: &pllm_core::SoftmaxProbabilitiesQ30,
+    values: &[i16],
+    policy: pllm_core::AttentionValueQ10Policy,
+) -> Result<pllm_core::AttentionValuesQ10, String> {
+    if region.numeric_profile != pllm_core::ATTENTION_VALUE_Q30_Q10_PROFILE
+        || region.probabilities.numeric != NumericType::UnsignedFixedQ30
+        || region.values.numeric != NumericType::SignedFixedQ10
+        || region.output.numeric != NumericType::SignedFixedQ10
+        || region.probabilities.shape.len() != 4
+        || region.probabilities.shape.contains(&0)
+        || region.output.shape.len() != 4
+        || region.output.shape.contains(&0)
+        || region.values.shape.contains(&0)
+    {
+        return Err(
+            "semantic attention-values requires the q30/q10 profile and nonzero rank-four shapes"
+                .into(),
+        );
+    }
+    let expected_value_rank = match region.layout {
+        pllm_core::AttentionValueQ10Layout::GroupedQuery => 4,
+        pllm_core::AttentionValueQ10Layout::PerQueryHeadWindow => 5,
+    };
+    if region.values.shape.len() != expected_value_rank {
+        return Err("semantic attention-values value rank does not match its layout".into());
+    }
+    let (batch, query_heads, queries, keys) = (
+        region.probabilities.shape[0],
+        region.probabilities.shape[1],
+        region.probabilities.shape[2],
+        region.probabilities.shape[3],
+    );
+    let consistent = match region.layout {
+        pllm_core::AttentionValueQ10Layout::GroupedQuery => {
+            region.values.shape[0] == batch
+                && region.values.shape[2] == keys
+                && query_heads % region.values.shape[1] == 0
+                && region.output.shape == [batch, query_heads, queries, region.values.shape[3]]
+        }
+        pllm_core::AttentionValueQ10Layout::PerQueryHeadWindow => {
+            region.values.shape[..4] == [batch, query_heads, queries, keys]
+                && region.output.shape == [batch, query_heads, queries, region.values.shape[4]]
+        }
+    };
+    if !consistent {
+        return Err("semantic attention-values shapes do not form a valid contraction".into());
+    }
+    let probability_shape: [usize; 4] = region
+        .probabilities
+        .shape
+        .iter()
+        .map(|dimension| {
+            usize::try_from(*dimension)
+                .map_err(|_| "attention-values dimension exceeds usize".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into()
+        .map_err(|_| "attention-values probability shape must have rank four".to_owned())?;
+    if probabilities.shape() != probability_shape {
+        return Err(
+            "attention-values probabilities do not match the region probability shape".into(),
+        );
+    }
+    let value_shape: Vec<usize> = region
+        .values
+        .shape
+        .iter()
+        .map(|dimension| {
+            usize::try_from(*dimension)
+                .map_err(|_| "attention-values dimension exceeds usize".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    pllm_core::attention_values_q10(
+        probabilities.probabilities(),
+        probability_shape,
+        values,
+        &value_shape,
+        policy,
+    )
+    .map_err(|error| error.to_string())
 }
 
 /// Extract direct-weight FP32 RMSNorm operations into plan-bound clear reference regions.
