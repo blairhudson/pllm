@@ -6,7 +6,7 @@ Boundary requirements for future independently distributed native capability pro
 
 Document ID: `pllm.docs.contribute.native-plugin-abi`  
 Release: `0.1.0`  
-Build: `sha256:4358d00f593125ffb699b8a2329c69e607727783bf40149859925cbfa47327b5`  
+Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
 Source hash: `sha256:18ab487287c0c85bacbb36f1101ad6d418351edc3235b1e2d75f046c387ca673`
 
 The installed native module is currently built with PLLM. A stable third-party native plugin ABI is not published.

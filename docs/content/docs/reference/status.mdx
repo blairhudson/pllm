@@ -69,6 +69,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
 | Compiler coverage report | Available; the current named profile remains incomplete |
 | Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
+| Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |
 | Prepared public-weight generation | Available for runtime-supported text checkpoint layouts; validated end to end with `Qwen/Qwen2.5-0.5B-Instruct` |
 | Responses API gateway | Available for text, streaming, function tools, continuation, compaction, storage controls, and structured errors |
 | Chat Completions API gateway | Available as a translation over the same private execution path for text, streaming, and function tools |

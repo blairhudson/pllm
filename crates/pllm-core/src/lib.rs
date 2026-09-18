@@ -11,6 +11,7 @@ pub mod kernels;
 pub mod kv_cache;
 pub mod rms_norm;
 pub mod rope;
+mod softmax;
 pub mod tensor;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use attention::{
@@ -33,6 +34,11 @@ pub use rms_norm::{
 pub use rope::{
     rope_q10, rope_q30_coefficients, RopeError, RopeQ10Config, RopeQ30Coefficient,
     ROPE_Q10_COEFFICIENT_PROFILE, ROPE_Q10_PROFILE, ROPE_Q30_COEFFICIENT_PROFILE,
+};
+pub use softmax::{
+    softmax_q20_to_q30, SoftmaxProbabilitiesQ30, SoftmaxQ30Error, SoftmaxQ30Policy,
+    SOFTMAX_Q20_TO_Q30_PROFILE, SOFTMAX_Q30_MAX_DECODED_ERROR, SOFTMAX_Q30_MAX_ELEMENTS,
+    SOFTMAX_Q30_MAX_ROW_LENGTH, SOFTMAX_Q30_ONE,
 };
 pub use tensor::add_wrap32;
 

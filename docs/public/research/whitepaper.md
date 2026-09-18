@@ -6,7 +6,7 @@ A concise guide to PLLM’s private multi-party runtime and autonomous research 
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:4358d00f593125ffb699b8a2329c69e607727783bf40149859925cbfa47327b5`  
+Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
 Source hash: `sha256:2ad62d645df6784802f92ba06050eaaf9403300dfba44c11a3196795b99d18d0`
 
 [Download PDF ↗](/downloads/whitepaper.pdf)

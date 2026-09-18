@@ -389,6 +389,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let feedback_executable = lower_model_token_feedback_regions(plan, DecoderMode::Prefill)
         .is_ok()
         && lower_model_token_feedback_regions(plan, DecoderMode::Decode).is_ok();
+    let softmax_executable = lower_model_softmax_q30_regions(plan, DecoderMode::Prefill).is_ok()
+        && lower_model_softmax_q30_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -401,7 +403,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 || (operator == ModelOperator::LastToken && last_token_executable)
                 || (operator == ModelOperator::OutputHead && output_head_executable)
                 || (operator == ModelOperator::GreedyTokenSelection && greedy_executable)
-                || (operator == ModelOperator::TokenFeedback && feedback_executable);
+                || (operator == ModelOperator::TokenFeedback && feedback_executable)
+                || (operator == ModelOperator::Softmax && softmax_executable);
             let descriptor_coverage = match operator {
                 ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
                 ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
@@ -447,6 +450,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/core-greedy-signed-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::TokenFeedback && executable {
                     Some("pllm/core-token-feedback@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::Softmax && executable {
+                    Some("pllm/client-softmax-q30@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
@@ -486,6 +491,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::TokenFeedback && executable {
                     "token-id feedback layout executes, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::Softmax && executable {
+                    "client-local Q20-to-Q30 softmax executes with exact row sums, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
@@ -541,6 +549,8 @@ pub enum NumericType {
     Wrap32,
     SignedFixed16,
     SignedFixedQ7,
+    SignedFixedQ20,
+    UnsignedFixedQ30,
     TokenIdU32,
 }
 
@@ -657,6 +667,18 @@ pub struct ModelTokenFeedbackRegion {
     pub layer: Option<u64>,
     pub operation_id: String,
     pub input_id: String,
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelSoftmaxQ30Region {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub axis: usize,
+    pub numeric_profile: String,
     pub input: TensorType,
     pub output: TensorType,
 }
@@ -3318,6 +3340,112 @@ pub fn execute_model_token_feedback(
         return Err("token-feedback input length does not match its semantic shape".into());
     }
     Ok(token_ids.to_vec())
+}
+
+pub fn lower_model_softmax_q30_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelSoftmaxQ30Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::Softmax)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            let [input_id] = operation.inputs.as_slice() else {
+                return Err(format!(
+                    "semantic softmax operation {operation_id} must have exactly one input"
+                ));
+            };
+            let input = graph
+                .operations
+                .iter()
+                .find(|candidate| candidate.id == *input_id)
+                .ok_or_else(|| {
+                    format!(
+                        "semantic softmax operation {operation_id} references missing input {input_id}"
+                    )
+                })?;
+            if input.operator != ModelOperator::CausalMask {
+                return Err(format!(
+                    "semantic softmax operation {operation_id} must consume a causal mask"
+                ));
+            }
+            if operation.output_shape.len() != 4
+                || operation.output_shape != input.output_shape
+                || operation.output_shape.contains(&0)
+            {
+                return Err(format!(
+                    "semantic softmax operation {operation_id} requires a nonzero rank-four shape matching its mask input"
+                ));
+            }
+            let axis = operation
+                .attributes
+                .get("axis")
+                .and_then(serde_json::Value::as_i64)
+                .ok_or_else(|| {
+                    format!("semantic softmax operation {operation_id} has invalid axis")
+                })?;
+            let normalized = if axis < 0 { axis + 4 } else { axis };
+            if normalized != 3 {
+                return Err(format!(
+                    "semantic softmax operation {operation_id} must normalize over the final axis"
+                ));
+            }
+            tensor_elements(&input.output_shape)?;
+            tensor_elements(&operation.output_shape)?;
+            Ok(ModelSoftmaxQ30Region {
+                mode,
+                layer: operation.layer,
+                operation_id: operation.id.clone(),
+                input_id: input_id.clone(),
+                axis: 3,
+                numeric_profile: pllm_core::SOFTMAX_Q20_TO_Q30_PROFILE.to_owned(),
+                input: TensorType {
+                    numeric: NumericType::SignedFixedQ20,
+                    shape: input.output_shape.clone(),
+                },
+                output: TensorType {
+                    numeric: NumericType::UnsignedFixedQ30,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+pub fn execute_model_softmax_q30(
+    region: &ModelSoftmaxQ30Region,
+    scores: &[i64],
+    allowed: &[bool],
+    policy: pllm_core::SoftmaxQ30Policy,
+) -> Result<pllm_core::SoftmaxProbabilitiesQ30, String> {
+    if region.numeric_profile != pllm_core::SOFTMAX_Q20_TO_Q30_PROFILE
+        || region.input.numeric != NumericType::SignedFixedQ20
+        || region.output.numeric != NumericType::UnsignedFixedQ30
+        || region.axis != 3
+        || region.input.shape.len() != 4
+        || region.input.shape != region.output.shape
+        || region.input.shape.contains(&0)
+    {
+        return Err(
+            "semantic softmax requires the q20-to-q30 profile, matching nonzero rank-four shapes, and axis three"
+                .into(),
+        );
+    }
+    let shape: [usize; 4] = region
+        .input
+        .shape
+        .iter()
+        .map(|dimension| {
+            usize::try_from(*dimension).map_err(|_| "softmax dimension exceeds usize".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into()
+        .map_err(|_| "softmax shape must have rank four".to_owned())?;
+    pllm_core::softmax_q20_to_q30(scores, allowed, shape, policy).map_err(|error| error.to_string())
 }
 
 /// Extract direct-weight FP32 RMSNorm operations into plan-bound clear reference regions.

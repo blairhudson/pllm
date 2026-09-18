@@ -6,7 +6,7 @@ Private multi-party LLM inference and evidence-driven research-component composi
 
 Document ID: `pllm.research.paper`  
 Release: `0.1.0`  
-Build: `sha256:4358d00f593125ffb699b8a2329c69e607727783bf40149859925cbfa47327b5`  
+Build: `sha256:8db228446618c1e95120afa32d874de6f8cba2e6e356c6b0c1157f0c5b7cc58e`  
 Source hash: `sha256:b660250e1d3a99b757fca470e5e2a264c7823508aa515f0488f6c52df5d5688f`
 
 [Download PDF ↗](/downloads/paper.pdf)
