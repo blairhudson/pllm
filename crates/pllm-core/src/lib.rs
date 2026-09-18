@@ -14,6 +14,7 @@ pub mod rms_norm;
 pub mod rope;
 mod softmax;
 pub mod tensor;
+mod token_lookup;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use attention::{
     attention_scale_q30, attention_scores_q20, attention_scores_window_q20, AttentionScoreQ20Error,
@@ -49,6 +50,11 @@ pub use softmax::{
     SOFTMAX_Q30_MAX_ROW_LENGTH, SOFTMAX_Q30_ONE,
 };
 pub use tensor::add_wrap32;
+pub use token_lookup::{
+    token_lookup_q10, TokenEmbeddingsQ10, TokenLookupQ10Error, TokenLookupQ10Policy,
+    TOKEN_LOOKUP_Q10_MAX_OUTPUT_ELEMENTS, TOKEN_LOOKUP_Q10_MAX_WEIGHT_ELEMENTS,
+    TOKEN_LOOKUP_Q10_PROFILE,
+};
 
 #[cfg(test)]
 mod tests;

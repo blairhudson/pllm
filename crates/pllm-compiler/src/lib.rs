@@ -421,6 +421,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let gated_multiply_q7_executable =
         model_gated_multiply_q7_chunked_executable(plan, DecoderMode::Prefill)
             && model_gated_multiply_q7_chunked_executable(plan, DecoderMode::Decode);
+    let token_lookup_executable = lower_model_token_lookup_q10_regions(plan, DecoderMode::Prefill)
+        .is_ok()
+        && lower_model_token_lookup_q10_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -458,6 +461,7 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     ))
                 || (matches!(operator, ModelOperator::Silu | ModelOperator::Multiply)
                     && gated_multiply_q7_executable)
+                || (operator == ModelOperator::TokenLookup && token_lookup_executable)
                 || (operator == ModelOperator::RmsNorm && rms_norm_q10_executable);
             let primitive = matches!(
                 operator,
@@ -528,6 +532,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some(
                         "pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental".to_owned(),
                     )
+                } else if operator == ModelOperator::TokenLookup && executable {
+                    Some("pllm/client-token-lookup-q10@0.1.0-alpha.1".to_owned())
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
@@ -604,6 +610,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::CacheSuffix && executable {
                     "plan-bound visible-prefix Q10 KV-cache views execute, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::TokenLookup && executable {
+                    "client-local Q10 token embedding lookup executes with bounded vocabulary checks, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if let Some(Err(error)) = descriptor_coverage {
                     format!(
@@ -767,6 +776,19 @@ pub struct ModelTokenFeedbackRegion {
     pub operation_id: String,
     pub input_id: String,
     pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelTokenLookupQ10Region {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub tokens_input_id: String,
+    pub weight_id: String,
+    pub numeric_profile: String,
+    pub tokens: TensorType,
+    pub weight_shape: Vec<u64>,
     pub output: TensorType,
 }
 
@@ -3470,6 +3492,139 @@ pub fn execute_model_token_feedback(
         return Err("token-feedback input length does not match its semantic shape".into());
     }
     Ok(token_ids.to_vec())
+}
+
+pub fn lower_model_token_lookup_q10_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelTokenLookupQ10Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let output_heads = graph
+        .operations
+        .iter()
+        .filter(|operation| {
+            operation.operator == ModelOperator::OutputHead && operation.layer.is_none()
+        })
+        .collect::<Vec<_>>();
+    let [output_head] = output_heads.as_slice() else {
+        return Err("semantic token lookup requires exactly one unlayered output head".to_owned());
+    };
+    if output_head.output_shape.len() != 2
+        || output_head.output_shape[0] != graph.batch
+        || output_head.output_shape[1] == 0
+    {
+        return Err(
+            "semantic token lookup requires a nonzero [batch, vocabulary] output head".to_owned(),
+        );
+    }
+    let vocabulary = output_head.output_shape[1];
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::TokenLookup)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            if operation.inputs.as_slice() != ["input.tokens"] {
+                return Err(format!(
+                    "semantic token-lookup operation {operation_id} must consume input.tokens"
+                ));
+            }
+            if operation.layer.is_some() {
+                return Err(format!(
+                    "semantic token-lookup operation {operation_id} must be unlayered"
+                ));
+            }
+            if operation.output_shape.len() != 3
+                || operation.output_shape[0] != graph.batch
+                || operation.output_shape[1] != graph.query_sequence
+                || operation.output_shape[2] == 0
+            {
+                return Err(format!(
+                    "semantic token-lookup operation {operation_id} requires a nonzero [batch, query, hidden] output"
+                ));
+            }
+            let weight_id = operation
+                .attributes
+                .get("weight")
+                .and_then(|weight| weight.as_str())
+                .filter(|weight| !weight.is_empty())
+                .ok_or_else(|| {
+                    format!(
+                        "semantic token-lookup operation {operation_id} requires a nonempty weight attribute"
+                    )
+                })?;
+            let weight_shape = vec![vocabulary, operation.output_shape[2]];
+            let weight_elements = tensor_elements(&weight_shape)?;
+            if weight_elements > pllm_core::TOKEN_LOOKUP_Q10_MAX_WEIGHT_ELEMENTS {
+                return Err(format!(
+                    "semantic token-lookup operation {operation_id} weight table exceeds the bounded Q10 vocabulary cap"
+                ));
+            }
+            let output_elements = tensor_elements(&operation.output_shape)?;
+            if output_elements > pllm_core::TOKEN_LOOKUP_Q10_MAX_OUTPUT_ELEMENTS {
+                return Err(format!(
+                    "semantic token-lookup operation {operation_id} output exceeds the bounded Q10 element cap"
+                ));
+            }
+            Ok(ModelTokenLookupQ10Region {
+                mode,
+                layer: operation.layer,
+                operation_id: operation.id.clone(),
+                tokens_input_id: "input.tokens".to_owned(),
+                weight_id: weight_id.to_owned(),
+                numeric_profile: pllm_core::TOKEN_LOOKUP_Q10_PROFILE.to_owned(),
+                tokens: TensorType {
+                    numeric: NumericType::TokenIdU32,
+                    shape: operation.output_shape[..2].to_vec(),
+                },
+                weight_shape,
+                output: TensorType {
+                    numeric: NumericType::SignedFixedQ10,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+pub fn execute_model_token_lookup_q10(
+    region: &ModelTokenLookupQ10Region,
+    token_ids: &[u32],
+    weights: &[i16],
+    policy: pllm_core::TokenLookupQ10Policy,
+) -> Result<pllm_core::TokenEmbeddingsQ10, String> {
+    if region.numeric_profile != pllm_core::TOKEN_LOOKUP_Q10_PROFILE
+        || region.layer.is_some()
+        || region.tokens_input_id != "input.tokens"
+        || region.weight_id.is_empty()
+        || region.tokens.numeric != NumericType::TokenIdU32
+        || region.output.numeric != NumericType::SignedFixedQ10
+        || region.tokens.shape.len() != 2
+        || region.output.shape.len() != 3
+        || region.weight_shape.len() != 2
+        || region.tokens.shape.contains(&0)
+        || region.output.shape.contains(&0)
+        || region.weight_shape.contains(&0)
+        || region.output.shape[..2] != region.tokens.shape[..]
+        || region.output.shape[2] != region.weight_shape[1]
+    {
+        return Err(
+            "semantic token lookup requires token-id [batch, query] inputs, a [vocabulary, hidden] weight table, and a signed Q10 [batch, query, hidden] output"
+                .into(),
+        );
+    }
+    let token_shape = [
+        usize::try_from(region.tokens.shape[0]).map_err(|_| "token-lookup batch exceeds usize")?,
+        usize::try_from(region.tokens.shape[1]).map_err(|_| "token-lookup query exceeds usize")?,
+    ];
+    let weight_shape = [
+        usize::try_from(region.weight_shape[0])
+            .map_err(|_| "token-lookup vocabulary exceeds usize")?,
+        usize::try_from(region.weight_shape[1]).map_err(|_| "token-lookup hidden exceeds usize")?,
+    ];
+    pllm_core::token_lookup_q10(token_ids, token_shape, weights, weight_shape, policy)
+        .map_err(|error| error.to_string())
 }
 
 pub fn lower_model_softmax_q30_regions(

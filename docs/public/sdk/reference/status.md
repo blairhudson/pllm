@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
-Source hash: `sha256:6d1dbf8b0260d503deb969c33d7874721f04c09246b08db7cdb0231f6f4f6b2a`
+Build: `sha256:96b6d9446e37113d9d2892113cefbcf72b64f5f3fc8eeb331b7caddd36ad60a0`  
+Source hash: `sha256:53c94915177d3ee016875ec4966df2f14d53778c139c68369ce67e4af2438926`
 
 Checked 16 September 2026.
 
@@ -67,8 +67,9 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Immutable `Experiment` configuration | Available for the documented schema |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
-| Compiler coverage report | Available; the current named profile remains incomplete |
+| Compiler coverage report | Available; every operator in the bounded dense-Qwen profile has an executable region, but cross-region numeric/state scheduling is incomplete and `complete` remains false |
 | Plan-bound Q10 state regions | Available for RMSNorm, rotary embedding, fixed-capacity KV initialization/append, and visible-prefix cache views; oversized RMSNorm falls back to the explicit FP32 reference and malformed provenance fails closed |
+| Client-local Q10 token lookup | Available for bounded dense-Qwen token tables with typed token IDs, pre-allocation vocabulary checks, borrowed Q10 weights, and zeroized embedding outputs |
 | Protected Q7 gated-MLP nonlinear region | Available for dense-Qwen SiLU and multiplication as one chunked one-use tensor region up to 4,000,000 elements; oversized tensors remain primitive-only |
 | Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
 | Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |
