@@ -61,6 +61,7 @@ _EXPORTS = {
     "ModelAwareCorrections": ("pllm.configuration", "ModelAwareCorrections"),
     "ModelPlan": ("pllm.modeling", "ModelPlan"),
     "DecoderCoverageReport": ("pllm.modeling", "DecoderCoverageReport"),
+    "DecoderRuntimeSchedule": ("pllm.modeling", "DecoderRuntimeSchedule"),
     "Pipeline": ("pllm.configuration", "Pipeline"),
     "assure": ("pllm.evidence", "assure"),
     "benchmark": ("pllm.evidence", "benchmark"),

@@ -50,6 +50,7 @@ from pllm.configuration import MaskedLinear as MaskedLinear
 from pllm.configuration import Model as Model
 from pllm.configuration import ModelAwareCorrections as ModelAwareCorrections
 from pllm.modeling import DecoderCoverageReport as DecoderCoverageReport
+from pllm.modeling import DecoderRuntimeSchedule as DecoderRuntimeSchedule
 from pllm.modeling import ModelPlan as ModelPlan
 from pllm.configuration import Pipeline as Pipeline
 from pllm.configuration import canonical_bytes as canonical_bytes

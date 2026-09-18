@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from jsonschema import Draft202012Validator
 
 import pllm
 from pllm.modeling import ModelPlan
@@ -130,6 +131,10 @@ def test_compiled_binding_is_canonical(tmp_path: Path):
     assert compiled.to_spec()["operation_count"] == len(covered)
 
     spec = compiled.to_spec()
+    binding_schema = json.loads(
+        Path("schemas/runtime-model-binding.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator(binding_schema).validate(spec)
     assert spec["schema"] == "pllm.runtime_model_binding.v1"
     assert len(spec["local_tensors"]) == 5
     assert [row["weight_id"] for row in spec["local_tensors"]] == sorted(
@@ -401,6 +406,7 @@ def test_completeness_scope_and_private_constructor(tmp_path: Path):
     assert compiled.completeness_scope == "runtime_binding"
     assert compiled.to_spec()["completeness_scope"] == "runtime_binding"
     assert plan.coverage().complete is False
+    assert plan.coverage("baseline.masked_linear_cpu").complete is True
 
     message = "CompiledRuntimeModel must be created by compile_runtime_model"
     with pytest.raises(RuntimeBindingError, match=message):
@@ -734,6 +740,11 @@ def test_config_reconstruction_binds_native_fields(tmp_path: Path):
     plan = _plan(config)
     compiled = compile_runtime_model(plan, bundle)
     assert compiled.complete is True
+    without_explicit_head_dim = dataclasses.replace(
+        bundle,
+        cfg={key: value for key, value in bundle.cfg.items() if key != "head_dim"},
+    )
+    assert compile_runtime_model(plan, without_explicit_head_dim).digest == compiled.digest
 
     for key, wrong in (
         ("rms_norm_eps", 1e-4),
@@ -753,7 +764,7 @@ def test_config_reconstruction_binds_native_fields(tmp_path: Path):
         ("qk_norm", True),
         ("v_norm", True),
         ("layer_types", ["full_attention", "sliding_attention"]),
-        ("sliding_window", 4096),
+        ("sliding_window", 0),
         ("num_kv_shared_layers", 1),
         ("attention_k_eq_v", True),
         ("hidden_size_per_layer_input", 16),
@@ -776,8 +787,11 @@ def test_runtime_config_and_tokenizer_digests(tmp_path: Path):
     compiled = compile_runtime_model(plan, bundle)
     spec = compiled.to_spec()
     assert len(compiled.runtime_config_digest) == 64
+    assert len(compiled.runtime_schedule_digest) == 64
     assert len(compiled.tokenizer_digest) == 64
     assert spec["runtime_config_digest"] == compiled.runtime_config_digest
+    assert spec["runtime_schedule_digest"] == compiled.runtime_schedule_digest
+    assert compiled.runtime_schedule_digest == plan.runtime_schedule().digest
     assert spec["tokenizer_digest"] == compiled.tokenizer_digest
     serialized = json.dumps(spec)
     assert "chat_template" not in serialized
@@ -873,6 +887,11 @@ def test_rope_scaling_and_semantic_bias_contract(tmp_path: Path):
             bundle, cfg={**bundle.cfg, "rope_scaling": accepted}
         )
         assert compile_runtime_model(plan, accepted_bundle).digest == compiled.digest
+    disabled_window = dataclasses.replace(
+        bundle,
+        cfg={**bundle.cfg, "sliding_window": 32768, "use_sliding_window": False},
+    )
+    assert compile_runtime_model(plan, disabled_window).digest == compiled.digest
 
     _, unbiased_bundle, _ = _bundle(tmp_path / "unbiased", with_qkv_bias=False)
     with pytest.raises(RuntimeBindingError):

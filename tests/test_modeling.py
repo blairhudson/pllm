@@ -92,6 +92,54 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
         first.prefill["output"] = "changed"
 
 
+def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
+    plan = pllm.lower_model(CONFIG, batch=1, max_input_tokens=128, max_new_tokens=32)
+    coverage = plan.coverage("baseline.masked_linear_cpu")
+    assert coverage.complete is True
+    assert all(row["level"] == "executable_region" for row in coverage.operators)
+    assert plan.coverage("research.single_evaluator").complete is False
+
+    schedule = plan.runtime_schedule()
+    repeated = plan.runtime_schedule("baseline.masked_linear_cpu")
+    assert isinstance(schedule, pllm.DecoderRuntimeSchedule)
+    assert schedule.complete is True
+    assert schedule.protected_execution is False
+    assert schedule.profile == "baseline.masked_linear_cpu"
+    assert schedule.digest == repeated.digest
+    assert schedule.canonical_bytes() == repeated.canonical_bytes()
+    document = schedule.to_dict()
+    schedule_schema = json.loads(
+        Path("schemas/dense-qwen-runtime-schedule.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator(schedule_schema).validate(document)
+    assert document["model_plan_digest"] == plan.digest
+    assert document["model_config_digest"] == plan.to_dict()["config_digest"]
+    for phase in ("prefill", "decode"):
+        graph = plan.to_dict()[phase]
+        scheduled = [
+            operation_id
+            for step in document[phase]["steps"]
+            for operation_id in step["operation_ids"]
+        ]
+        assert len(scheduled) == len(set(scheduled)) == len(graph["operations"])
+        assert set(scheduled) == {operation["id"] for operation in graph["operations"]}
+        remote = [
+            step for step in document[phase]["steps"]
+            if step["executor"] == "remote_stage"
+        ]
+        assert len(remote) == 2 + 4 * CONFIG["num_hidden_layers"]
+        assert remote[0]["stage_role"] == "token_lookup"
+        assert remote[-1]["stage_role"] == "lm_head"
+        assert document[phase]["steps"][-1]["operation_ids"] == ["token_feedback"]
+
+    with pytest.raises(ValueError, match="unsupported decoder runtime schedule profile"):
+        plan.runtime_schedule("research.single_evaluator")
+    batched = pllm.lower_model(CONFIG, batch=2, max_input_tokens=8, max_new_tokens=2)
+    assert batched.coverage("baseline.masked_linear_cpu").complete is False
+    with pytest.raises(ValueError, match="requires batch one"):
+        batched.runtime_schedule()
+
+
 def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
     base = pllm.lower_model(CONFIG, batch=1, max_input_tokens=128, max_new_tokens=32)
     base_document = base.to_dict()
@@ -160,6 +208,9 @@ def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
 
     levels = {row["operator"]: row["level"] for row in optimized.coverage().operators}
     assert levels["cache_active_indices"] == "missing"
+    assert optimized.coverage("baseline.masked_linear_cpu").complete is False
+    with pytest.raises(ValueError, match="does not support transformed plans"):
+        optimized.runtime_schedule()
     schema = json.loads(Path("schemas/decoder-plan.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator(schema).validate(document)
 

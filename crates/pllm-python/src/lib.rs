@@ -728,6 +728,27 @@ fn decoder_coverage<'py>(
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&report)))
 }
 
+#[pyfunction]
+fn decoder_runtime_schedule<'py>(
+    py: Python<'py>,
+    plan: &Bound<'_, PyBytes>,
+    profile: &str,
+) -> PyResult<(Bound<'py, PyBytes>, String)> {
+    if profile != pllm_compiler::DENSE_QWEN_MASKED_RUNTIME_PROFILE {
+        return Err(invalid(format!(
+            "unsupported decoder runtime schedule profile {profile:?}"
+        )));
+    }
+    let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
+        .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
+    let schedule = pllm_compiler::lower_dense_qwen_runtime_schedule(&plan).map_err(invalid)?;
+    let digest = schedule.digest().to_string();
+    Ok((
+        PyBytes::new(py, &pllm_types::canonical_bytes(&schedule)),
+        digest,
+    ))
+}
+
 #[pyfunction(signature = (
     plan,
     mode,
@@ -1025,6 +1046,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(assurance_results, module)?)?;
     module.add_function(wrap_pyfunction!(lower_model, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
+    module.add_function(wrap_pyfunction!(decoder_runtime_schedule, module)?)?;
     module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;

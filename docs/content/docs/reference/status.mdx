@@ -67,22 +67,23 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Immutable `Experiment` configuration | Available for the documented schema |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
-| Compiler coverage report | Available; every operator in the bounded dense-Qwen profile has an executable region, but cross-region numeric/state scheduling is incomplete and `complete` remains false |
+| Compiler coverage report | Available and profile-scoped; `baseline.masked_linear_cpu` is complete for untransformed dense Qwen2 through the model-aware runtime schedule, while `research.single_evaluator` remains incomplete |
+| Dense-Qwen2 runtime schedule | Available for the model-aware prepared runtime; topology-derived q/k/v and gate/up fusion, all layers, final norm, output head, decoder tail, and prefill/decode state are bound to the model plan, runtime bundle, tokenizer, and quantized-weight digests; a plan-bound session enforces greedy selection, feedback, workload limits, per-stage output contracts, and poisoned-state failure handling; the schedule is client-heavy and not protected execution of the fixed-Q10 research composites |
 | Plan-bound Q10 state regions | Available for RMSNorm, rotary embedding, fixed-capacity KV initialization/append, and visible-prefix cache views; oversized RMSNorm falls back to the explicit FP32 reference and malformed provenance fails closed |
 | Client-local Q10 token lookup | Available for bounded dense-Qwen token tables with typed token IDs, pre-allocation vocabulary checks, borrowed Q10 weights, and zeroized embedding outputs |
 | Graph-derived Q14-to-Q10 transitions | Available for dense-Qwen q/k/v projection-to-head edges and o-projection-to-attention-residual edges; topology-derived matching excludes gate/up/down/output-head paths and rejects incomplete model families |
 | Dense-Qwen2 attention-block oracle | Available as a clear fixed-scale prefill/decode composite covering RMSNorm through attention residual with plan/weight binding, fixed KV state, zeroized intermediates, and poisoned-state failure handling; Qwen3 and MPCache execution remain separate work |
 | Dense-Qwen2 layer oracle | Available as clear fixed-scale attention→MLP prefill/decode composition with a checked signed-Q10 edge and mode-stable plan/layer/weight state binding; post-append attention or MLP failures poison the layer state |
 | Protected Q7 gated-MLP nonlinear region | Available for dense-Qwen SiLU and multiplication as one chunked one-use tensor region up to 4,000,000 elements; oversized tensors remain primitive-only |
-| Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
+| Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; they participate in the complete model-aware baseline schedule but remain uncomposed in the fixed-Q10 research profile |
 | Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |
 | Client-local attention-value region | Available for exact Q30-probability by Q10-value contraction in grouped-query cache and MPCache per-query/head-window layouts; output is signed Q10 with ties-to-even rounding |
 | Client-local attention score chain | Available for grouped-query caches and MPCache per-query windows; Q10 dot products, exact Q20 scaling, causal/validity masking, and selected-position masking execute as one fused plan-bound region |
-| Prepared public-weight generation | Available for runtime-supported text checkpoint layouts; validated end to end with `Qwen/Qwen2.5-0.5B-Instruct` |
+| Prepared public-weight generation | Available for runtime-supported text checkpoint layouts; validated end to end with `Qwen/Qwen2.5-0.5B-Instruct`, including the digest-bound baseline `ModelPlan` schedule and shared runtime weight bundle |
 | Responses API gateway | Available for text, streaming, function tools, continuation, compaction, storage controls, and structured errors |
 | Chat Completions API gateway | Available as a translation over the same private execution path for text, streaming, and function tools |
 | Native compile, benchmark, and assurance APIs | Available for their documented narrow scopes |
-| Complete private generation from `ModelPlan` | Not supported; Qwen3.5 recurrent operators are missing from the compiler |
+| Complete private generation from `ModelPlan` | Available only for untransformed Qwen2 through `baseline.masked_linear_cpu` and a validated runtime bundle; protected research scheduling, MPCache execution, Qwen3, Qwen3.5, Phi, and Gemma remain incomplete |
 | Generation quality for semantic adapters | Not evaluated |
 | Privacy evidence for generated component descriptors | Not evaluated |
 | Remote role processes | Available; deployment automation, TLS, identity, rollback protection, and non-colluding operators are not provided by the commands |

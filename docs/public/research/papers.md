@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
-Source hash: `sha256:8f495dfe2de4455be30f4f4bdbe6fba6cfc723314a72ee5bc44b695ee42f7670`
+Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
+Source hash: `sha256:6639b16819b8c850eeda01994a03ce6cd4c75382798ad9351c0912a5f0c932cf`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ R03 has a scoped clean-room component adaptation in the compact Q7 implementatio
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. All semantic operators in the bounded dense-Qwen2/Qwen3 plan have executable-region coverage, and graph-derived Q14-to-Q10 conversions bind the dense-Qwen attention edges. A clear fixed-scale dense-Qwen2 attention composite executes prefill and stateful decode from RMSNorm through attention residual. That attention block now composes with the existing clear MLP composite into a complete executable layer whose signed-Q10 edge, plan and weight-manifest digests, and prefill-to-decode state are checked; attention or post-attention MLP failures poison advanced state. This is not yet a complete executable profile: layer blocks are not compiled/shared across all model layers, model weight quantization/loading is not bound to fixed-scale manifests, Qwen3 and MPCache selection execution remain separate, the final model norm/output head are not attached to the layer schedule, and whole-decoder scheduling remains unavailable, so coverage.complete remains false. Oversized tensors and incompatible model families continue to fall back or fail closed explicitly.
+1. Complete one executable Qwen profile without hidden fallback regions. The code-generated baseline.masked_linear_cpu profile is now complete for untransformed Qwen2: a topology-derived prefill/decode schedule fuses q/k/v and gate/up stages, covers every layer plus KV state, final norm, output head, greedy selection, and feedback, and binds the semantic plan to the existing model-aware runtime bundle, tokenizer, runtime configuration, quantized stage bytes, per-row scales, and preparation commitments. A plan-bound session enforces greedy selection and feedback, workload and remote-stage output contracts, and poisoned-state handling. The pinned Qwen2.5-0.5B checkpoint passes a clear native-kernel prefill-to-decode functionality check through this binding; retained prepared-runtime evidence separately covers the masked protocol. This does not complete research.single_evaluator or protected fixed-Q10/Q7 whole-model execution. Qwen3, MPCache selection execution, transformed plans, and incompatible families remain incomplete or fail closed explicitly.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/runtime-model-binding.schema.json",
+  "title": "PLLM runtime model binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "model_plan_digest", "model_family", "adapter", "bundle_fingerprint", "model_id", "body_fingerprint", "stage_commitment", "weight_bits", "activation_bits", "stages", "local_tensors", "local_operations", "operation_count", "complete", "completeness_scope", "runtime_config_digest", "runtime_schedule_digest", "tokenizer_digest"],
+  "properties": {
+    "schema": {"const": "pllm.runtime_model_binding.v1"},
+    "model_plan_digest": {"$ref": "#/$defs/digest"},
+    "model_family": {"const": "qwen2"},
+    "adapter": {"const": "pllm.qwen2.v1"},
+    "bundle_fingerprint": {"$ref": "#/$defs/digest"},
+    "model_id": {"type": "string", "minLength": 1},
+    "body_fingerprint": {"$ref": "#/$defs/digest"},
+    "stage_commitment": {"$ref": "#/$defs/digest"},
+    "weight_bits": {"type": "integer", "minimum": 2, "maximum": 8},
+    "activation_bits": {"type": "integer", "minimum": 2, "maximum": 8},
+    "stages": {"type": "array", "minItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/stage"}},
+    "local_tensors": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"$ref": "#/$defs/local_tensor"}},
+    "local_operations": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^(prefill|decode):.+$"}},
+    "operation_count": {"type": "integer", "minimum": 1},
+    "complete": {"const": true},
+    "completeness_scope": {"const": "runtime_binding"},
+    "runtime_config_digest": {"$ref": "#/$defs/digest"},
+    "runtime_schedule_digest": {"$ref": "#/$defs/digest"},
+    "tokenizer_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_id", "role", "layer_index", "semantic_operations", "in_features", "out_features", "weight_bits", "activation_bits", "ring", "modulus", "wire_bits", "weight_digest", "weight_scales_digest", "bias_digest", "client_weight_layout", "client_weight_digest", "client_weight_scales_digest", "client_aux_weight_digest", "client_aux_scales_digest"],
+      "properties": {
+        "stage_id": {"type": "string", "minLength": 1},
+        "role": {"enum": ["token_lookup", "qkv_projection", "attention_output", "mlp_gate_up", "mlp_down", "lm_head"]},
+        "layer_index": {"type": ["integer", "null"], "minimum": 0},
+        "semantic_operations": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^(prefill|decode):.+$"}},
+        "in_features": {"type": "integer", "minimum": 1},
+        "out_features": {"type": "integer", "minimum": 1},
+        "weight_bits": {"type": "integer", "minimum": 2, "maximum": 8},
+        "activation_bits": {"type": "integer", "minimum": 2, "maximum": 8},
+        "ring": {"const": "prime"},
+        "modulus": {"type": "integer", "minimum": 3, "maximum": 2147483647},
+        "wire_bits": {"enum": [16, 24, 32]},
+        "weight_digest": {"$ref": "#/$defs/digest"},
+        "weight_scales_digest": {"$ref": "#/$defs/digest"},
+        "bias_digest": {"$ref": "#/$defs/nullable_digest"},
+        "client_weight_layout": {"type": ["string", "null"], "enum": ["linear", "embedding", "transposed_embedding", null]},
+        "client_weight_digest": {"$ref": "#/$defs/nullable_digest"},
+        "client_weight_scales_digest": {"$ref": "#/$defs/nullable_digest"},
+        "client_aux_weight_digest": {"$ref": "#/$defs/nullable_digest"},
+        "client_aux_scales_digest": {"$ref": "#/$defs/nullable_digest"}
+      }
+    },
+    "local_tensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weight_id", "key", "shape", "dtype", "sha256"],
+      "properties": {
+        "weight_id": {"type": "string", "minLength": 1},
+        "key": {"type": "string", "minLength": 1},
+        "shape": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+        "dtype": {"const": "float32"},
+        "sha256": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

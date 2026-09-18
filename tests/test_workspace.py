@@ -86,10 +86,16 @@ def test_public_facades_are_identical_and_lightweight():
 import sys
 import pllm
 from pllm.config import Experiment
-from pllm.models import DecoderCoverageReport, ModelPlan, lower_model
+from pllm.models import (
+    DecoderCoverageReport,
+    DecoderRuntimeSchedule,
+    ModelPlan,
+    lower_model,
+)
 from pllm.plan import CompiledPlan
 assert pllm.Experiment is Experiment
 assert pllm.DecoderCoverageReport is DecoderCoverageReport
+assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
 assert pllm.ModelPlan is ModelPlan
 assert pllm.lower_model is lower_model
 assert pllm.CompiledPlan is CompiledPlan
@@ -119,9 +125,10 @@ def test_root_and_runtime_stubs_match_runtime_exports():
 
     import pllm.runtime as runtime
     assert set(runtime.__all__) == {
-        'AsyncOpenAI', 'AsyncPLLMTransport', 'CompiledRuntimeModel', 'ExecutionBudget',
-        'GatewayConfig', 'OpenAI', 'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol',
-        'RuntimeBindingError', 'RuntimeStageBinding', 'compile_runtime_model',
+        'AsyncOpenAI', 'AsyncPLLMTransport', 'CompiledRuntimeModel', 'CompiledRuntimeSession',
+        'ExecutionBudget', 'GatewayConfig', 'OpenAI', 'PLLMTransport', 'PrivacyMode',
+        'ProprietaryProtocol', 'RuntimeBindingError', 'RuntimeExecutionError',
+        'RuntimeStageBinding', 'compile_runtime_model',
         'create_app', 'create_sidecar_app', '__version__',
     }
     runtime_stub = ast.parse((ROOT / 'python/pllm/runtime/__init__.pyi').read_text())

@@ -55,6 +55,19 @@ class ModelPlan:
 
         return DecoderCoverageReport(_native.decoder_coverage(self._canonical_bytes, profile))
 
+    def runtime_schedule(
+        self, profile: str = "baseline.masked_linear_cpu"
+    ) -> "DecoderRuntimeSchedule":
+        from pllm import _native
+
+        payload, native_digest = _native.decoder_runtime_schedule(
+            self._canonical_bytes, profile
+        )
+        schedule = DecoderRuntimeSchedule(payload)
+        if schedule.digest != native_digest:
+            raise ValueError("decoder runtime schedule digest mismatch")
+        return schedule
+
     def apply(self, component: "ComponentRef") -> "ModelPlan":
         """Apply one model-graph component and return a new immutable plan."""
         from pllm import _native
@@ -98,6 +111,50 @@ class DecoderCoverageReport:
         return json.loads(self._canonical_bytes)
 
 
+@dataclass(frozen=True, slots=True)
+class DecoderRuntimeSchedule:
+    _canonical_bytes: bytes
+
+    def __post_init__(self) -> None:
+        document = json.loads(self._canonical_bytes)
+        if document.get("schema_version") != "pllm.dense_qwen_runtime_schedule.v1":
+            raise ValueError("invalid decoder runtime schedule")
+        if not document.get("complete") or document.get("protected_execution"):
+            raise ValueError("invalid decoder runtime schedule capability")
+
+    @property
+    def digest(self) -> str:
+        return hashlib.sha256(
+            b"pllm.dense_qwen_runtime_schedule.v1\0" + self._canonical_bytes
+        ).hexdigest()
+
+    @property
+    def profile(self) -> str:
+        return str(json.loads(self._canonical_bytes)["profile"])
+
+    @property
+    def complete(self) -> bool:
+        return bool(json.loads(self._canonical_bytes)["complete"])
+
+    @property
+    def protected_execution(self) -> bool:
+        return bool(json.loads(self._canonical_bytes)["protected_execution"])
+
+    @property
+    def prefill(self) -> Mapping[str, Any]:
+        return _freeze(json.loads(self._canonical_bytes)["prefill"])
+
+    @property
+    def decode(self) -> Mapping[str, Any]:
+        return _freeze(json.loads(self._canonical_bytes)["decode"])
+
+    def canonical_bytes(self) -> bytes:
+        return self._canonical_bytes
+
+    def to_dict(self) -> dict[str, Any]:
+        return json.loads(self._canonical_bytes)
+
+
 def lower_model(
     config: Mapping[str, Any] | bytes | str,
     *,
@@ -132,4 +189,4 @@ def lower_model(
     )
 
 
-__all__ = ["DecoderCoverageReport", "ModelPlan", "lower_model"]
+__all__ = ["DecoderCoverageReport", "DecoderRuntimeSchedule", "ModelPlan", "lower_model"]

@@ -6,14 +6,14 @@ Private multi-party LLM inference and evidence-driven research-component composi
 
 Document ID: `pllm.research.paper`  
 Release: `0.1.0`  
-Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
-Source hash: `sha256:b660250e1d3a99b757fca470e5e2a264c7823508aa515f0488f6c52df5d5688f`
+Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
+Source hash: `sha256:b30e1c92b912f0751bf2e706ce88f661f725a0a9e707876447f4a34860d03294`
 
 [Download PDF ↗](/downloads/paper.pdf)
 
 ## Abstract
 
-PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness. Its implemented prepared runtime separates Client, Preparation, and Inference. Preparation derives one-use masks and uploads `Wr-s` corrections before generation; online, Client and Inference exchange only tickets, masked activations `x-r`, and masked results `Wx-s`. A trusted local gateway retains plaintext, model state, and decoding inside the client boundary. The research harness lowers model families into a shared semantic representation, groups independently reimplemented methods by capability, composes compatible components into immutable plans, and binds those plans to assurance and benchmark evidence. Constrained plan-space search is planned, not yet implemented. Adapter coverage likewise does not imply complete execution: the current compiler cannot execute a complete lowered model, and garbling is limited to experimental bounded Q7 SiLU and four-lane gated-multiply components. Security requires protocol-following, non-colluding Preparation and Inference roles. Retained performance evidence covers only nine historical warm Qwen2.5-0.5B CPU-loopback runs and supports no broader deployment or performance claim.
+PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness. Its implemented prepared runtime separates Client, Preparation, and Inference. Preparation derives one-use masks and uploads `Wr-s` corrections before generation; online, Client and Inference exchange only tickets, masked activations `x-r`, and masked results `Wx-s`. A trusted local gateway retains plaintext, model state, and decoding inside the client boundary. The research harness lowers model families into a shared semantic representation, groups independently reimplemented methods by capability, composes compatible components into immutable plans, and binds those plans to assurance and benchmark evidence. Constrained plan-space search is planned, not yet implemented. Adapter coverage likewise does not imply complete execution. The compiler now emits a complete, digest-bound `baseline.masked_linear_cpu` schedule for untransformed Qwen2 and binds it to the existing model-aware prepared runtime; `research.single_evaluator` remains incomplete, and garbling is limited to experimental bounded Q7 SiLU and four-lane gated-multiply components. Security requires protocol-following, non-colluding Preparation and Inference roles. Retained performance evidence covers only nine historical warm Qwen2.5-0.5B CPU-loopback runs and supports no broader deployment or performance claim.
 
 ## Introduction
 
@@ -21,7 +21,7 @@ Ordinary hosted inference gives one operator the user’s plaintext prompt, toke
 
 PLLM combines two connected systems. Its high-performance private LLM multi-party inference runtime retains language and nonlinear state in a client-controlled environment while remote services perform masked integer matrix work. Its autonomous research harness represents model semantics, admits independently reimplemented components through typed capability contracts, composes compatible plans, and binds evaluation evidence to the exact plan tested. A complete semantic plan is not evidence of complete executable private inference.
 
-This paper claims an implemented prepared three-role runtime, a trusted local gateway, semantic adapters for the listed Qwen, Phi, and Gemma configurations, typed component and plan foundations, and a bounded experimental Q7 SiLU garbling component. It does **not** claim complete model execution through the compiler or implemented autonomous plan search. Evaluation is restricted to retained historical measurements from the prepared runtime.
+This paper claims an implemented prepared three-role runtime, a trusted local gateway, semantic adapters for the listed Qwen, Phi, and Gemma configurations, a complete model-aware Qwen2 baseline schedule bound to that runtime, typed component and plan foundations, and a bounded experimental Q7 SiLU garbling component. It does **not** claim complete execution for the protected research profile, transformed plans, other model families, or implemented autonomous plan search. Evaluation is restricted to retained historical measurements from the prepared runtime.
 
 ## Prepared inference protocol
 
@@ -65,7 +65,7 @@ Both services observe the public model, stage identities, tensor shapes, quantiz
 
 PLLM is distributed as one Python package with Rust native crates. In the prepared runtime, Python owns model orchestration, checkpoint import, protocol lifecycle, transport, scheduling, and gateway behavior. Rust owns validated immutable integer matrices, bounded arithmetic, codecs, randomness, scalar reference paths, runtime SIMD selection, and a persistent worker pool. Matrices are quantized and copied into Rust once for repeated execution. The current public-weight online path uses prepared additive masks, not homomorphic encryption.
 
-This runtime is client-heavy: attention, normalization, nonlinear operations, token boundaries, state, and sampling remain local. It supports prepared generation for selected text checkpoint layouts and has end-to-end historical evidence for Qwen2.5-0.5B. That fact is independent of the newer semantic compiler.
+This runtime is client-heavy: attention, normalization, nonlinear operations, token boundaries, state, and sampling remain local. It supports prepared generation for selected text checkpoint layouts and has end-to-end historical evidence for Qwen2.5-0.5B. The Qwen2 path can now be bound to a topology-derived semantic schedule, but that does not turn its client-local operations into protected research components.
 
 ### Semantic IR and compiler
 
@@ -73,7 +73,7 @@ Model adapters lower architecture-specific configuration into a model-family-neu
 
 Implemented adapters cover dense Qwen2, dense Qwen3, the pinned Qwen3.5-4B text decoder, Phi-4-mini-instruct, and the official Gemma 4 E2B and E4B text configurations. They represent fused projections, rotary variants, shared KV state, and, where applicable, recurrent and convolution state in the shared IR. Adapter support means configuration validation and semantic lowering only. It does not establish checkpoint import, compiler operator coverage, executable distributed placement, numerical parity, generation quality, or deployment support.
 
-The current named compiler profile reports incomplete coverage and cannot execute any complete listed model plan. In particular, complete protected attention, normalization, rescaling and truncation, persistent state, token selection, sampling, and feedback are not jointly available as an executable plan. Existing prepared-runtime model execution must therefore not be described as execution of the new compiler’s `ModelPlan`.
+Coverage is profile-scoped. For untransformed Qwen2, `baseline.masked_linear_cpu` now lowers every semantic operation into a deterministic prefill/decode schedule: q/k/v and gate/up stages are fused by topology; every layer, KV transition, final norm, last-token selection, output head, greedy selection, and feedback step is represented; and the schedule is bound to the model plan, tokenizer, runtime configuration, local tensors, quantized stage bytes, per-row scales, and preparation commitments. A plan-bound session enforces greedy token selection and feedback, input/output bounds, remote-stage shapes and finite values, and poisoned-state handling after partial failure. The same pinned Qwen2.5-0.5B checkpoint used by the prepared runtime passes a clear native-kernel prefill-to-decode functionality check through this binding; retained prepared-runtime evidence independently covers the masked protocol. This baseline remains client-heavy and non-protected for local operations. `research.single_evaluator`, transformed MPCache plans, Qwen3, Qwen3.5, Phi, and Gemma still report incomplete whole-model execution.
 
 ### Component library and autonomous search
 

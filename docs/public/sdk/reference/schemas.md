@@ -6,12 +6,14 @@ Versioned schemas for configurations, plans, evidence, assurance, and research r
 
 Document ID: `pllm.docs.reference.schemas`  
 Release: `0.1.0`  
-Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
-Source hash: `sha256:e1cf3d369c6b800eb009362e779c998232e2058bf986b5044f6a25e40cd8d7d7`
+Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
+Source hash: `sha256:935efca8ea94ceaa7b6b560413944283fce7a9457abc88165792a823bfc38982`
 
 Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.
 
 Configuration, semantic decoder plans, compile requests, executable plans, component descriptors, benchmark evidence, assurance evidence, research sources, methods, recipes, and publication assessment evolve independently. A schema-valid document can still be unsupported by a selected compiler or runtime profile.
+
+`dense-qwen-runtime-schedule.schema.json` covers the complete batch-one, untransformed Qwen2 schedule emitted for `baseline.masked_linear_cpu`. `runtime-model-binding.schema.json` covers the model-plan, schedule, tokenizer, runtime-configuration, local-tensor, quantized-stage, scale, and preparation commitments checked before that schedule can execute. Both schemas describe the model-aware baseline only; they do not authorize `research.single_evaluator`, MPCache execution, another model family, or protected client-local operators.
 
 ## Python SDK example
 

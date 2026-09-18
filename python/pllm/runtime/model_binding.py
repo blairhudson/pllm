@@ -6,7 +6,7 @@ import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import msgpack
 import numpy as np
@@ -18,6 +18,9 @@ from pllm.runtime.quantization import (
     signed_dot_bound,
 )
 from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime
+
+if TYPE_CHECKING:
+    from pllm.runtime.model_execution import CompiledRuntimeSession
 
 BINDING_SCHEMA = "pllm.runtime_model_binding.v1"
 BINDING_DOMAIN = b"pllm.runtime_model_binding.v1\0"
@@ -82,6 +85,7 @@ class CompiledRuntimeModel:
         "_fingerprint",
         "_local_operations",
         "_runtime_config_digest",
+        "_runtime_schedule_digest",
         "_stages",
         "_tokenizer_digest",
     )
@@ -103,6 +107,7 @@ class CompiledRuntimeModel:
         stages: tuple[RuntimeStageBinding, ...],
         local_operations: tuple[str, ...],
         runtime_config_digest: str,
+        runtime_schedule_digest: str,
         tokenizer_digest: str,
     ) -> CompiledRuntimeModel:
         self = object.__new__(cls)
@@ -114,6 +119,7 @@ class CompiledRuntimeModel:
         self._stages = stages
         self._local_operations = local_operations
         self._runtime_config_digest = runtime_config_digest
+        self._runtime_schedule_digest = runtime_schedule_digest
         self._tokenizer_digest = tokenizer_digest
         return self
 
@@ -142,6 +148,10 @@ class CompiledRuntimeModel:
         return self._runtime_config_digest
 
     @property
+    def runtime_schedule_digest(self) -> str:
+        return self._runtime_schedule_digest
+
+    @property
     def tokenizer_digest(self) -> str:
         return self._tokenizer_digest
 
@@ -159,13 +169,23 @@ class CompiledRuntimeModel:
     def to_spec(self) -> dict[str, Any]:
         return json.loads(self._canonical)
 
-    def runtime(
-        self, remote: Callable[[str, np.ndarray], np.ndarray]
-    ) -> MaskedTransformerClientRuntime:
+    def validate(self) -> None:
         refreshed = compile_runtime_model(self._plan, self._bundle)
         if refreshed.digest != self._digest or refreshed.to_spec() != self.to_spec():
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
+
+    def runtime(
+        self, remote: Callable[[str, np.ndarray], np.ndarray]
+    ) -> MaskedTransformerClientRuntime:
+        self.validate()
         return MaskedTransformerClientRuntime(self._bundle, remote)
+
+    def session(
+        self, remote: Callable[[str, np.ndarray], np.ndarray]
+    ) -> "CompiledRuntimeSession":
+        from pllm.runtime.model_execution import CompiledRuntimeSession
+
+        return CompiledRuntimeSession._create(self, remote)
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -436,8 +456,10 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     ):
         raise RuntimeBindingError("config layer_types must be a per-layer string list")
     sliding_window = cfg.get("sliding_window")
-    if sliding_window is not None:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids sliding windows")
+    if sliding_window is not None and _require_int(
+        sliding_window, "config sliding_window"
+    ) <= 0:
+        raise RuntimeBindingError("config sliding_window must be positive when present")
     shared_count = _require_int(
         cfg.get("num_kv_shared_layers", 0) or 0, "config num_kv_shared_layers"
     )
@@ -469,6 +491,7 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
     if use_sliding_window:
         raise RuntimeBindingError("base qwen2 runtime profile forbids sliding windows")
+    sliding_window = None
     attention_bias = bool(cfg.get("attention_bias", True))
     if not attention_bias:
         raise RuntimeBindingError("base qwen2 runtime profile requires attention bias")
@@ -655,6 +678,19 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         raise RuntimeBindingError("client bundle config does not reproduce the model plan")
     if reconstructed.to_dict().get("config_digest") != document.get("config_digest"):
         raise RuntimeBindingError("client bundle config digest does not match the plan")
+    try:
+        runtime_schedule = plan.runtime_schedule("baseline.masked_linear_cpu")
+    except Exception as exc:
+        raise RuntimeBindingError("native whole-decoder runtime scheduling failed") from exc
+    runtime_schedule_spec = runtime_schedule.to_dict()
+    if (
+        not runtime_schedule.complete
+        or runtime_schedule.protected_execution
+        or runtime_schedule_spec.get("model_plan_digest") != plan.digest
+        or runtime_schedule_spec.get("model_config_digest") != document.get("config_digest")
+    ):
+        raise RuntimeBindingError("native whole-decoder runtime schedule is inconsistent")
+    runtime_schedule_digest = runtime_schedule.digest
 
     runtime_config = _runtime_config(cfg)
     runtime_config_digest = _sha256(_canonical_json(runtime_config))
@@ -680,13 +716,18 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         "vocab_size": dims["vocab"],
     }
     for key, expected in manifest_dimensions.items():
-        if _require_int(manifest.get(key), f"manifest {key}") != expected:
+        manifest_value = _require_int(manifest.get(key), f"manifest {key}")
+        config_source = cfg.get(key)
+        if key == "head_dim" and config_source is None:
+            config_source = _require_int(cfg.get("hidden_size"), "config hidden_size") // _require_int(
+                cfg.get("num_attention_heads"), "config num_attention_heads"
+            )
+        config_value = _require_int(config_source, f"config {key}")
+        if manifest_value != expected:
             raise RuntimeBindingError(f"bundle manifest {key} does not match the model plan")
-        if _require_int(cfg.get(key), f"config {key}") != expected:
+        if config_value != expected:
             raise RuntimeBindingError(f"bundle config {key} does not match the model plan")
-        if _require_int(cfg.get(key), f"config {key}") != _require_int(
-            manifest.get(key), f"manifest {key}"
-        ):
+        if config_value != manifest_value:
             raise RuntimeBindingError(f"bundle config and manifest {key} disagree")
     if _require_int(
         cfg.get("max_position_embeddings"), "config max_position_embeddings"
@@ -1127,6 +1168,93 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         if prefill_ids != decode_ids or len(qualified) != len(prefill_ids) + len(decode_ids):
             raise RuntimeBindingError(f"stage {stage_id!r} prefill and decode mappings differ")
 
+    scheduled_operations: set[str] = set()
+    for phase in ("prefill", "decode"):
+        phase_schedule = runtime_schedule_spec.get(phase)
+        if not isinstance(phase_schedule, dict) or not isinstance(
+            phase_schedule.get("steps"), list
+        ):
+            raise RuntimeBindingError(f"native {phase} runtime schedule is malformed")
+        phase_operations = phases[phase][1]
+        for order, step in enumerate(phase_schedule["steps"]):
+            if (
+                not isinstance(step, dict)
+                or step.get("order") != order
+                or not isinstance(step.get("operation_ids"), list)
+                or not isinstance(step.get("operators"), list)
+                or not isinstance(step.get("input_ids"), list)
+            ):
+                raise RuntimeBindingError(f"native {phase} runtime step is malformed")
+            operation_ids = step["operation_ids"]
+            if not operation_ids or not all(isinstance(item, str) for item in operation_ids):
+                raise RuntimeBindingError(f"native {phase} runtime step operations are malformed")
+            operations = [phase_operations.get(operation_id) for operation_id in operation_ids]
+            if any(operation is None for operation in operations):
+                raise RuntimeBindingError(f"native {phase} runtime operation is unknown")
+            if step["operators"] != [operation["operator"] for operation in operations]:
+                raise RuntimeBindingError(f"native {phase} runtime operators are malformed")
+            if step.get("layer") != operations[0].get("layer") or any(
+                operation.get("layer") != step.get("layer") for operation in operations
+            ):
+                raise RuntimeBindingError(f"native {phase} runtime step layer is malformed")
+            if step["input_ids"] != operations[0].get("inputs") or any(
+                operation.get("inputs") != step["input_ids"] for operation in operations
+            ):
+                raise RuntimeBindingError(f"native {phase} runtime step inputs are malformed")
+            outputs = step.get("outputs")
+            if (
+                not isinstance(outputs, list)
+                or not all(isinstance(row, dict) for row in outputs)
+                or [row.get("operation_id") for row in outputs] != operation_ids
+            ):
+                raise RuntimeBindingError(f"native {phase} runtime outputs are malformed")
+            executor = step.get("executor")
+            layer = step.get("layer")
+            stage_role = step.get("stage_role")
+            stage_offset = 0
+            remote_stage = None
+            if executor == "remote_stage":
+                remote_stage = stage_by_role.get((stage_role, layer))
+                if remote_stage is None:
+                    raise RuntimeBindingError(f"native {phase} runtime stage is unknown")
+            elif executor != "client_local" or stage_role is not None or len(operation_ids) != 1:
+                raise RuntimeBindingError(f"native {phase} runtime executor is unsupported")
+            for operation_id, operation, output in zip(
+                operation_ids, operations, outputs, strict=True
+            ):
+                qualified = f"{phase}:{operation_id}"
+                if qualified in scheduled_operations:
+                    raise RuntimeBindingError(f"native runtime operation {qualified!r} is duplicated")
+                scheduled_operations.add(qualified)
+                width = _last_dim(operation.get("output_shape"), operation_id)
+                if (
+                    output.get("output_shape") != operation.get("output_shape")
+                    or output.get("stage_offset") != stage_offset
+                    or output.get("stage_width") != width
+                ):
+                    raise RuntimeBindingError(
+                        f"native runtime operation {qualified!r} has the wrong output slice"
+                    )
+                stage_offset += width
+                if executor == "client_local":
+                    if qualified not in local_operations or stage_offset != width:
+                        raise RuntimeBindingError(
+                            f"native runtime operation {qualified!r} has the wrong local executor"
+                        )
+                elif qualified not in stage_semantics[remote_stage.id]:
+                    raise RuntimeBindingError(
+                        f"native runtime operation {qualified!r} has the wrong remote stage"
+                    )
+            if remote_stage is not None and stage_offset != remote_stage.out_features:
+                raise RuntimeBindingError(
+                    f"native {phase} runtime stage {remote_stage.id!r} has the wrong output width"
+                )
+    expected_scheduled = local_operations | {
+        operation for operations in stage_semantics.values() for operation in operations
+    }
+    if scheduled_operations != expected_scheduled:
+        raise RuntimeBindingError("native runtime schedule and bundle binding differ")
+
     covered = len(local_operations) + sum(len(ids) for ids in stage_semantics.values())
     if covered != len(prefill_ops) + len(decode_ops):
         raise RuntimeBindingError("plan operation coverage is incomplete")
@@ -1221,6 +1349,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         "model_id": bundle.model_id,
         "manifest_identity": manifest_identity,
         "runtime_config_digest": runtime_config_digest,
+        "runtime_schedule_digest": runtime_schedule_digest,
         "tokenizer_digest": tokenizer_digest,
         "privacy": {
             "mode": privacy["mode"],
@@ -1293,6 +1422,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         "complete": True,
         "completeness_scope": "runtime_binding",
         "runtime_config_digest": runtime_config_digest,
+        "runtime_schedule_digest": runtime_schedule_digest,
         "tokenizer_digest": tokenizer_digest,
     }
     canonical_bytes = _canonical_json(spec)
@@ -1305,6 +1435,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         stages=tuple(bindings),
         local_operations=tuple(sorted(local_operations)),
         runtime_config_digest=runtime_config_digest,
+        runtime_schedule_digest=runtime_schedule_digest,
         tokenizer_digest=tokenizer_digest,
     )
 

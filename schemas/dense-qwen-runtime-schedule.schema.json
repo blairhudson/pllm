@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/dense-qwen-runtime-schedule.schema.json",
+  "title": "PLLM dense Qwen runtime schedule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile", "model_plan_digest", "model_config_digest", "prefill", "decode", "protected_execution", "complete"],
+  "properties": {
+    "schema_version": {"const": "pllm.dense_qwen_runtime_schedule.v1"},
+    "profile": {"const": "baseline.masked_linear_cpu"},
+    "model_plan_digest": {"$ref": "#/$defs/digest"},
+    "model_config_digest": {"$ref": "#/$defs/digest"},
+    "prefill": {"$ref": "#/$defs/phase"},
+    "decode": {"$ref": "#/$defs/phase"},
+    "protected_execution": {"const": false},
+    "complete": {"const": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "layer", "kind", "shape", "maximum_sequence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "layer": {"type": ["integer", "null"], "minimum": 0},
+        "kind": {"enum": ["key", "value"]},
+        "shape": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+        "maximum_sequence": {"type": "integer", "minimum": 1}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "output_shape", "stage_offset", "stage_width"],
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 1},
+        "output_shape": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+        "stage_offset": {"type": "integer", "minimum": 0},
+        "stage_width": {"type": "integer", "minimum": 1}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "operation_ids", "operators", "layer", "input_ids", "executor", "stage_role", "outputs"],
+      "properties": {
+        "order": {"type": "integer", "minimum": 0},
+        "operation_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "operators": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"enum": ["token_lookup", "reshape", "rms_norm", "linear", "rotary_embedding", "kv_cache_append", "cache_suffix", "attention_scores", "attention_scale", "causal_mask", "softmax", "attention_values", "residual_add", "silu", "multiply", "last_token", "output_head", "greedy_token_selection", "token_feedback"]}
+        },
+        "layer": {"type": ["integer", "null"], "minimum": 0},
+        "input_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "executor": {"enum": ["client_local", "remote_stage"]},
+        "stage_role": {"type": ["string", "null"]},
+        "outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/output"}}
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "batch", "query_sequence", "maximum_key_sequence", "state_inputs", "state_outputs", "steps", "output"],
+      "properties": {
+        "mode": {"enum": ["prefill", "decode"]},
+        "batch": {"type": "integer", "minimum": 1},
+        "query_sequence": {"type": "integer", "minimum": 1},
+        "maximum_key_sequence": {"type": "integer", "minimum": 1},
+        "state_inputs": {"type": "array", "items": {"$ref": "#/$defs/state"}},
+        "state_outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/state"}},
+        "steps": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/step"}},
+        "output": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

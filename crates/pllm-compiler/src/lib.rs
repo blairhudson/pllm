@@ -23,6 +23,7 @@ mod dense_qwen_attention;
 mod dense_qwen_layer;
 mod dense_qwen_mlp;
 mod dense_qwen_mlp_protected;
+mod dense_qwen_runtime_schedule;
 mod gated_tensor;
 mod provenance_primitives;
 mod rms_norm_protected;
@@ -61,6 +62,11 @@ pub use dense_qwen_mlp_protected::{
     DenseQwenMlpProtectedNonlinearBinding, DenseQwenMlpProtectedNonlinearExecution,
     DenseQwenMlpProtectedResourcePolicy, ExperimentalDenseQwenMlpProtectedNonlinearApproval,
     DENSE_QWEN_MLP_PROTECTED_HARD_MAX_ROWS, DENSE_QWEN_MLP_PROTECTED_HARD_MAX_TOTAL_BODY_BYTES,
+};
+pub use dense_qwen_runtime_schedule::{
+    lower_dense_qwen_runtime_schedule, DenseQwenRuntimeExecutor, DenseQwenRuntimeOutput,
+    DenseQwenRuntimePhaseSchedule, DenseQwenRuntimeSchedule, DenseQwenRuntimeStep,
+    DENSE_QWEN_MASKED_RUNTIME_PROFILE, DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION,
 };
 pub use gated_tensor::{
     prepare_bound_gated_multiply_q7_tensor_material, BoundGatedMultiplyQ7TensorMaterial,
@@ -404,6 +410,8 @@ fn model_gated_multiply_q7_chunked_executable(plan: &DecoderPlan, mode: DecoderM
 }
 
 pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageReport {
+    let masked_runtime_complete = profile == DENSE_QWEN_MASKED_RUNTIME_PROFILE
+        && lower_dense_qwen_runtime_schedule(plan).is_ok();
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -458,7 +466,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 _ => None,
             };
             let descriptor_executable = descriptor_coverage.is_some_and(Result::is_ok);
-            let executable = operator == ModelOperator::Linear
+            let executable = masked_runtime_complete
+                || operator == ModelOperator::Linear
                 || (operator == ModelOperator::Reshape && reshape_executable)
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
                 || (operator == ModelOperator::LastToken && last_token_executable)
@@ -509,7 +518,18 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 } else {
                     CapabilityLevel::Missing
                 },
-                component: if operator == ModelOperator::Linear {
+                component: if masked_runtime_complete {
+                    Some(
+                        match operator {
+                            ModelOperator::Linear => "pllm/masked-linear@0.1.0-alpha.1",
+                            ModelOperator::TokenLookup | ModelOperator::OutputHead => {
+                                "pllm/client-quantized-boundary@0.1.0-alpha.1"
+                            }
+                            _ => "pllm/client-transformer-runtime@0.1.0-alpha.1",
+                        }
+                        .to_owned(),
+                    )
+                } else if operator == ModelOperator::Linear {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Reshape && executable {
                     Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
@@ -560,7 +580,14 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 } else {
                     None
                 },
-                blocker: if operator == ModelOperator::Linear {
+                blocker: if masked_runtime_complete {
+                    match operator {
+                        ModelOperator::Linear => "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite",
+                        ModelOperator::TokenLookup | ModelOperator::OutputHead => "scheduled at the quantized client boundary by the complete model-aware runtime",
+                        _ => "scheduled client-local by the complete model-aware runtime; client-local execution is outside provider protection",
+                    }
+                    .to_owned()
+                } else if operator == ModelOperator::Linear {
                     "single semantic linear regions execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::Reshape && executable {
@@ -653,7 +680,7 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
         schema_version: "pllm.decoder_coverage_report.v1".to_owned(),
         profile: profile.to_owned(),
         model_config_digest: plan.config_digest.clone(),
-        complete: false,
+        complete: masked_runtime_complete,
         operators,
     }
 }
