@@ -195,14 +195,14 @@ uv run maturin develop --release
 PLLM_REQUIRE_RUST=1 uv run pytest -m rust
 ```
 
-Documentation checks:
+Documentation regeneration and checks:
 
 ```bash
-cd docs
-bun install --frozen-lockfile
-bun run check:content
-bun test
-bun run build
+npm --prefix docs ci
+uv run python scripts/docs_regen.py
+uv run python scripts/docs_regen.py --check
+npm --prefix docs run typecheck
+npm --prefix docs run build
 ```
 
 See [RELEASING.md](RELEASING.md) for release instructions.
@@ -211,8 +211,9 @@ See [RELEASING.md](RELEASING.md) for release instructions.
 
 `python/pllm` is the only installed Python namespace. `crates/pllm-core` has no
 Python dependency; `crates/pllm-python` exposes `pllm._native`. The Fumadocs site
-under `docs/`, papers under `paper/`, and historical evidence under `research/`
-are not included in the wheel.
+under `docs/`, papers under `paper/`, historical measurements under
+`docs/evidence/`, and research records under `docs/data/research/` are not included
+in the wheel.
 
 Code is licensed under [Apache 2.0](LICENSE). Model checkpoints have separate
 licenses.

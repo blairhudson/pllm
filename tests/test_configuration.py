@@ -4,6 +4,7 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
+import runpy
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,7 @@ from pllm.protocols.masked_linear import MaskedLinear
 ROOT = Path(__file__).resolve().parents[1]
 YAML_EXAMPLE = ROOT / "examples/pllm.yaml"
 PYTHON_EXAMPLE = ROOT / "examples/composition.py"
+FIRST_REQUEST_EXAMPLE = ROOT / "examples/first_request.py"
 
 
 def example() -> Experiment:
@@ -65,6 +67,12 @@ def test_python_yaml_and_importable_example_have_schema_parity():
 
     assert loaded == expected == module.experiment
     assert loaded.to_spec() == expected.to_spec()
+
+
+def test_first_request_example_executes_and_resolves() -> None:
+    namespace = runpy.run_path(str(FIRST_REQUEST_EXAMPLE))
+    assert namespace["experiment"] == example()
+    assert namespace["resolved"].configuration_digest == example().configuration_digest()
 
 
 def test_canonical_bytes_and_digest_golden():

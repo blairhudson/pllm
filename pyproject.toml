@@ -111,7 +111,6 @@ skip_covered = true
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-extend-exclude = ["research"]
 
 [tool.ruff.lint]
 # Enforce parser/runtime errors first; formatting legacy arithmetic is a separate change.

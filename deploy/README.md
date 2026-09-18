@@ -115,7 +115,7 @@ docker build -f deploy/Dockerfile.site -t pllm-docs .
 
 For systemd, install at `/opt/pllm`, copy deployment files to
 `/opt/pllm/deploy`, create the `pllm` user, run `uv sync --locked`, and verify
-`/opt/pllm/.venv/bin/pllm build` before enabling units. Put provider values in
+`/opt/pllm/.venv/bin/pllm --version` before enabling units. Put provider values in
 `/etc/pllm/provider.env` and preparation values in
 `/etc/pllm/preparation.env`, both mode `0600`. Keep checkpoints outside protected
 home directories.

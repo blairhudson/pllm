@@ -27,11 +27,19 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install 3.13
+      - run: uv sync --locked --python 3.13 --no-install-project
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: docs/.nvmrc
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+        working-directory: docs
       - name: Validate tag and build sdist
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          uv run --no-project --python 3.13 python scripts/release.py check "$RELEASE_TAG" --require-locks
+          uv run --no-sync python scripts/release.py check "$RELEASE_TAG" --require-locks --docs
           uvx --from "maturin==$MATURIN_VERSION" maturin sdist --out dist
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

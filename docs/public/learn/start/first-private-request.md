@@ -6,8 +6,8 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 
 Document ID: `pllm.docs.start.first-private-request`  
 Release: `0.1.0`  
-Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
-Source hash: `sha256:fdf846ad0299455a5dc51c5360b9e31c637f233d3e12bfb3ec08f4bf23ec12c7`
+Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Source hash: `sha256:86cb6ae6861c17f2747863f96cf66d6794a44c741794d7be5090b3a07eab1e17`
 
 ## Define the experiment
 
@@ -40,6 +40,8 @@ assert resolved.configuration_digest == experiment.configuration_digest()
 print(experiment.configuration_digest())
 print(experiment.to_spec())
 ```
+
+The checked-in `examples/first_request.py` executes this same resolution path in the test suite.
 
 The [SDK configuration model](/sdk/configuration/) keeps this declaration
 inspectable without starting a service or loading a model. You can inspect or

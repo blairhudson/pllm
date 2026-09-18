@@ -71,7 +71,7 @@ move together:
 ```bash
 uv run python scripts/release.py prepare 0.17.0a1
 # Review the complete diff, then merge.
-uv run python scripts/release.py check v0.17.0a1 --require-locks
+uv run python scripts/release.py check v0.17.0a1 --require-locks --docs
 git tag -a v0.17.0a1 -m "PLLM 0.17.0a1"
 git push origin v0.17.0a1
 ```
@@ -96,19 +96,17 @@ Run from a clean checkout with the committed locks:
 
 ```bash
 uv sync --locked --extra he --extra sdk
-cargo test --locked
+cargo test --locked --workspace
 cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
 uv run pytest
 uv run ruff check python/pllm scripts tests
 uv build
 uv run python scripts/check_distributions.py dist
 uv run twine check --strict dist/*
-cd docs
-npm ci
-npm run check:content
-npm test
-npm run typecheck
-NEXT_PUBLIC_BASE_PATH=/pllm npm run build
+npm --prefix docs ci
+uv run python scripts/docs_regen.py --check
+npm --prefix docs run typecheck
+NEXT_PUBLIC_BASE_PATH=/pllm npm --prefix docs run build
 ```
 
 Run paper generation only when its canonical source or release asset changed; do

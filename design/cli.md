@@ -306,24 +306,28 @@ These are acceptance requirements, not claims that they currently pass.
 
 ## Implementation status
 
-As inspected on 14 September 2026, only rows marked **Shipped** are parser-visible. Target design
-rows marked **Unavailable** are intentionally not placeholder commands.
+Only rows marked **Shipped** are parser-visible. This table records the exact parser
+surface checked by the generated CLI reference; target rows marked **Unavailable** are
+intentionally not placeholder commands.
 
 | Command | Status | Current boundary |
 | --- | --- | --- |
 | `config show TARGET` | **Shipped** | Strict JSON/YAML or explicitly trusted Python `Experiment`; canonical public output only |
 | `config export TARGET --output PATH [--force]` | **Shipped** | Strict public JSON/YAML; exclusive create unless forced; dry-run writes nothing |
 | `components list|show` | **Shipped** | Built-in public `ComponentDescriptor` metadata only |
-| `research sources|methods|recipes list|show` | **Shipped** | Immutable canonical repository records; no workflow execution |
+| `gateway` | **Shipped runtime facade** | Trusted local Responses and Chat Completions gateway; not yet the target-based `serve TARGET` contract |
+| `serve inference|preparation` | **Shipped role facade** | Existing authenticated runtime roles; not yet generic `party serve ROLE` over a plan lock |
+| `benchmark run` | **Shipped runtime facade** | Existing local benchmark orchestration and evidence output; `search` and `compare` are unavailable |
 | `dev dashboard` | **Shipped, non-normative** | Existing loopback dashboard, lazy runtime import |
 | `init` | **Unavailable** | Profile catalog unresolved |
 | `--set PATH=JSON_VALUE` | **Unavailable** | Typed override/schema integration incomplete |
-| `model lower` | **Unavailable** | No honest CLI lowering contract yet |
+| `model lower` | **Unavailable** | Python lowering exists; the target-based CLI contract is not shipped |
 | `plan check|compile|show` | **Unavailable** | Full lock and artifact CLI contract incomplete |
-| `prepare`, `run`, `chat` | **Unavailable** | Prepared-material lifecycle not exposed by 0.1 CLI |
-| `serve`, `party serve` | **Unavailable** | Target role/authentication contract incomplete |
-| `benchmark run|search|compare` | **Unavailable** | Evidence-producing benchmark facade incomplete |
+| `prepare`, `run`, `chat` | **Unavailable** | Prepared-material lifecycle is exposed through existing runtime facades, not these target commands |
+| `serve TARGET`, `party serve ROLE` | **Unavailable** | Generic target role/authentication contract incomplete |
+| `benchmark search|compare` | **Unavailable** | Cohort-safe search and comparison facade incomplete |
 | `assure run` | **Unavailable** | Scoped assurance facade incomplete |
+| `research sources|methods|recipes list|show` | **Unavailable** | Canonical records exist, but no parser-visible research commands ship |
 
 Removed pre-0.1 top-level runtime, market, provider, simulator, configuration-secret, and native
 build commands are not compatibility aliases. Runtime Python APIs remain separate and unchanged.

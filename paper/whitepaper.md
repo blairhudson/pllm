@@ -4,9 +4,9 @@ author: |
   Blair Hudson  
   deployscience labs  
   [blair@deployscience.com](mailto:blair@deployscience.com)
-date: 16 September 2026
+date: 19 September 2026
 web-date: September 2026
-edition: "05"
+edition: "06"
 description: A concise guide to PLLM's private multi-party runtime and autonomous research harness.
 pdf: whitepaper.pdf
 subject: private LLM inference, multi-party systems, autonomous research
@@ -116,12 +116,16 @@ gateway, native integer matrix executor, telemetry, and benchmark dashboard are
 implemented. Model adapters lower Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and selected
 Gemma 4 text configurations into a shared semantic representation.
 
-Complete execution through the new compiler is not implemented. Its current
-protected nonlinear work includes experimental bounded Q7 SiLU plus selectable
-dense-table and compact gated-multiply components. Scalar and independent
-four-lane one-use schedules are separate choices; real-model tensor scale remains
-unavailable. Model lowering is not evidence of compiler coverage, generation
-quality, deployment readiness, or production security.
+The compiler now emits a complete, digest-bound `baseline.masked_linear_cpu`
+schedule for untransformed Qwen2 and binds it to the existing model-aware prepared
+runtime. The pinned Qwen2.5-0.5B checkpoint passes a clear native-kernel
+prefill-to-decode functionality check through that binding; retained
+prepared-runtime evidence separately covers the masked protocol. This does not
+complete the protected research path: `research.single_evaluator`, transformed
+MPCache execution, other model families, and real-model tensor scale for the
+fixed-Q10/Q7 composites remain unavailable. Model lowering alone is not evidence
+of compiler coverage, generation quality, deployment readiness, or production
+security.
 
 The retained performance study contains nine warm Qwen2.5-0.5B runs in three
 input-length cohorts on one Apple M5 CPU loopback host. It confirms that the
@@ -131,9 +135,9 @@ performance results.
 
 ## What comes next
 
-PLLM's immediate work is to complete one private model path end to end, expand
-the component library without creating paper-specific silos, add reproducible
-grid and random search over compatible plans, and run broader quality,
+PLLM's immediate work is to complete one protected research model path end to end,
+expand the component library without creating paper-specific silos, add
+reproducible grid and random search over compatible plans, and run broader quality,
 performance, and security evaluations. A method is promoted only when its exact
 implementation and evidence support the claim being made.
 

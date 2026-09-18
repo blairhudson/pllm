@@ -22,16 +22,15 @@ add another Python package at the repository root.
 From the repository root:
 
 ```bash
-cd docs
-npm install
-bun run dev
+npm --prefix docs ci
+npm --prefix docs run dev
 ```
 
 The development site runs at <http://localhost:3000>. Edit documentation under
 `docs/content/`. Edit paper sources under `paper/`, then regenerate them with:
 
 ```bash
-uv run --no-project --python 3.13 python scripts/build_papers.py
+uv run python scripts/build_papers.py
 ```
 
 ## Check changes
@@ -49,11 +48,10 @@ uv run pytest
 For documentation changes:
 
 ```bash
-cd docs
-bun run check:content
-bun test
-bun run typecheck
-bun run build
+uv run python scripts/docs_regen.py
+uv run python scripts/docs_regen.py --check
+npm --prefix docs run typecheck
+npm --prefix docs run build
 ```
 
 Do not include credentials, private data, model checkpoints, or generated local

@@ -4,9 +4,9 @@ author: |
   Blair Hudson  
   deployscience labs  
   [blair@deployscience.com](mailto:blair@deployscience.com)
-date: 16 September 2026
+date: 19 September 2026
 web-date: September 2026
-edition: "05"
+edition: "06"
 description: Private multi-party LLM inference and evidence-driven research-component composition.
 pdf: paper.pdf
 subject: private language-model inference, multi-party computation, autonomous research, semantic compilation, additive masking
@@ -22,10 +22,13 @@ abstract: |
   representation, groups independently reimplemented methods by capability,
   composes compatible components into immutable plans, and binds those plans to
   assurance and benchmark evidence. Constrained plan-space search is planned, not
-  yet implemented. Adapter coverage likewise does not imply complete execution:
-  the current compiler cannot execute a complete lowered model, and garbling is
-  limited to experimental bounded Q7 SiLU and four-lane gated-multiply components. Security requires
-  protocol-following, non-colluding Preparation and Inference roles. Retained
+  yet implemented. Adapter coverage likewise does not imply complete execution.
+  The compiler now emits a complete, digest-bound `baseline.masked_linear_cpu`
+  schedule for untransformed Qwen2 and binds it to the existing model-aware
+  prepared runtime; `research.single_evaluator` remains incomplete, and garbling
+  is limited to experimental bounded Q7 SiLU and four-lane gated-multiply
+  components. Security requires protocol-following, non-colluding Preparation and
+  Inference roles. Retained
   performance evidence covers only nine historical warm Qwen2.5-0.5B CPU-loopback
   runs and supports no broader deployment or performance claim.
 bibliography: paper/references.bib
@@ -57,11 +60,13 @@ plans, and binds evaluation evidence to the exact plan tested. A complete semant
 plan is not evidence of complete executable private inference.
 
 This paper claims an implemented prepared three-role runtime, a trusted local
-gateway, semantic adapters for the listed Qwen, Phi, and Gemma configurations,
-typed component and plan foundations, and a bounded experimental Q7 SiLU garbling
-component. It does **not** claim complete model execution through the compiler or
-implemented autonomous plan search. Evaluation is restricted to retained
-historical measurements from the prepared runtime.
+gateway, semantic adapters for the listed Qwen, Phi, and Gemma configurations, a
+complete model-aware Qwen2 baseline schedule bound to that runtime, typed
+component and plan foundations, and a bounded experimental Q7 SiLU garbling
+component. It does **not** claim complete execution for the protected research
+profile, transformed plans, other model families, or implemented autonomous plan
+search. Evaluation is restricted to retained historical measurements from the
+prepared runtime.
 
 ## Prepared inference protocol
 
@@ -161,7 +166,9 @@ path uses prepared additive masks, not homomorphic encryption.
 This runtime is client-heavy: attention, normalization, nonlinear operations,
 token boundaries, state, and sampling remain local. It supports prepared
 generation for selected text checkpoint layouts and has end-to-end historical
-evidence for Qwen2.5-0.5B. That fact is independent of the newer semantic compiler.
+evidence for Qwen2.5-0.5B. The Qwen2 path can now be bound to a topology-derived
+semantic schedule, but that does not turn its client-local operations into
+protected research components.
 
 ### Semantic IR and compiler
 
@@ -181,12 +188,21 @@ does not establish checkpoint import, compiler operator coverage, executable
 distributed placement, numerical parity, generation quality, or deployment
 support.
 
-The current named compiler profile reports incomplete coverage and cannot execute
-any complete listed model plan. In particular, complete protected attention,
-normalization, rescaling and truncation, persistent state, token selection,
-sampling, and feedback are not jointly available as an executable plan. Existing
-prepared-runtime model execution must therefore not be described as execution of
-the new compiler's `ModelPlan`.
+Coverage is profile-scoped. For untransformed Qwen2,
+`baseline.masked_linear_cpu` now lowers every semantic operation into a
+deterministic prefill/decode schedule: q/k/v and gate/up stages are fused by
+topology; every layer, KV transition, final norm, last-token selection, output
+head, greedy selection, and feedback step is represented; and the schedule is
+bound to the model plan, tokenizer, runtime configuration, local tensors,
+quantized stage bytes, per-row scales, and preparation commitments. A plan-bound
+session enforces greedy token selection and feedback, input/output bounds,
+remote-stage shapes and finite values, and poisoned-state handling after partial
+failure. The same pinned Qwen2.5-0.5B checkpoint used by the prepared runtime
+passes a clear native-kernel prefill-to-decode functionality check through this
+binding; retained prepared-runtime evidence independently covers the masked
+protocol. This baseline remains client-heavy and non-protected for local
+operations. `research.single_evaluator`, transformed MPCache plans, Qwen3,
+Qwen3.5, Phi, and Gemma still report incomplete whole-model execution.
 
 ### Component library and autonomous search
 

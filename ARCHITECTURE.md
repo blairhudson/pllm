@@ -6,21 +6,37 @@ builds the PyO3 module `pllm._native` and packages it alongside `python/pllm`.
 ## Dependency direction
 
 ```text
-Python SDK, CLI and provider
+Python SDK, CLI and runtime
             │
             ▼
-pllm.runtime → pllm._native (PyO3)
-                         │
-                         ▼
-                     pllm-core
+pllm._native (`pllm-python`)
+            │
+            ├──▶ pllm-compiler ──▶ pllm-models ──▶ pllm-types
+            │          │                 │
+            │          ├──▶ pllm-core ───┤
+            │          └──▶ pllm-garble ─┘
+            ├──▶ pllm-bench ─────▶ pllm-compiler
+            └──▶ pllm-assurance ─▶ pllm-types
 ```
 
-The Rust core has no Python or web framework dependency. The binding translates
-Python bytes into validated integer buffers, calls the core without holding the
-Python interpreter lock, and returns immutable bytes. Python retains model and
-protocol orchestration. SEAL/TenSEAL is a separate cryptographic dependency.
+The Rust crates have no Python or web framework dependency. The binding translates
+Python bytes into validated native inputs, releases the Python interpreter lock for
+bounded execution, and returns typed handles or immutable bytes. Python retains model,
+protocol, service, and application orchestration. SEAL/TenSEAL is a separate
+cryptographic dependency.
 
 ## Crates
+
+| Crate | Responsibility |
+| --- | --- |
+| `pllm-types` | Canonical records, strict digests, plan locks, privacy contracts, and shared evidence vocabulary |
+| `pllm-core` | Bounded numeric primitives, immutable integer matrices, codecs, masking, SIMD dispatch, and reference kernels |
+| `pllm-models` | Model-family configuration validation, semantic decoder IR, state contracts, and graph transformations |
+| `pllm-garble` | Experimental one-use arithmetic-garbling material and evaluators |
+| `pllm-compiler` | Region lowering, complete model-aware Qwen2 baseline scheduling, fixed-scale research composites, and plan verification |
+| `pllm-assurance` | Scoped assurance results and checked public fixtures |
+| `pllm-bench` | Native and deployment measurement records tied to plan and environment digests |
+| `pllm-python` | The PyO3 `pllm._native` boundary exposed through the single Python distribution |
 
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
 runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,
@@ -36,9 +52,10 @@ multiplication use deterministic ties-to-even division by 128 and reject inputs
 outside their declared domains rather than saturating.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
-as `pllm._native`. It depends on `pllm-core` and PyO3. The stable Python ABI is
-configured from Python 3.11. The application dependency matrix currently limits
-Python to 3.11 through 3.13.
+as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
+`pllm-types`, `pllm-bench`, and `pllm-assurance` through PyO3. The stable Python
+ABI is configured from Python 3.11. The application dependency matrix currently
+limits Python to 3.11 through 3.13.
 
 `crates/pllm-models` owns the model-family-neutral semantic decoder IR. Semantic
 operators, layer identity and persistent-state kinds are explicit, so compiler and
@@ -59,35 +76,29 @@ only when a method has a genuinely different contract or lifecycle.
 Semantic adapter support, checkpoint import, runtime graph support, compiler
 operator coverage, protected/private parity, generation quality, benchmark
 evidence and deployment support are separate claims. A complete bounded semantic
-plan does not establish any later claim. In particular, the current compiler
-profile remains incomplete and cannot execute any complete newly listed text plan.
-The compiler can execute each semantic decoder linear operation as an exact
-flattened wrap32 matrix region, execute Qwen head-layout reshapes as exact checked
-permutations, execute residual additions in the wrap32 ring, execute a bounded
-SiLU tensor through experimental one-use arithmetic garbling, and select the final
-sequence element for dense Qwen through an exact checked tensor region. It can also
-execute an output-head matrix region with exact semantic shape and tied or untied
-weight identity; length-aware final-token selection remains fail-closed, and this
-does not change the public runtime's client-local output-head placement. It also
-defines a digest-bound centered-wrap32 Q14-to-Q7 rescale region with explicit scale,
-rounding, and range policy, plus exhaustive Q7 multiplication and gated-MLP
-references. These rescale regions bind the exact dense-Qwen linear producer,
-nonlinear consumer, and consumer input slot. One experimental protected region
-jointly garbles SiLU and its two-input multiplication, feeding the hidden SiLU
-output label directly into multiplication. Its nonlinear-method component selects
-either a dense binary table or a compact mixed-modulus program using source-locked
-arithmetic projections, prime-residue multiplication, CRT conversion, and exact
-ties-to-even rescaling. A separate scheduler component selects one scalar or at
-most four independent lanes. Authenticated, digest-bound bundles commit lane order
-and burn atomically before label parsing. Current component-bound evaluator
-payloads measure 2,387,674 bytes for one dense-table lane, 245,397 bytes for one
-compact lane, and 980,573 bytes for four compact lanes. Complete numeric
-scheduling, real-model tensor scale, and other multiplication contracts remain
-unavailable, so this does not promote decoder coverage. It does
-not yet schedule these regions as a complete decoder or activate a complete model
-profile.
-The Python runtime's existing support for selected Gemma text checkpoint layouts
-is a separate runtime axis, not evidence for this semantic adapter or exact target.
+plan does not establish any later claim, and coverage is profile-scoped.
+
+For batch-one, untransformed Qwen2, `baseline.masked_linear_cpu` now has a complete
+model-aware prefill/decode schedule. The compiler groups q/k/v and gate/up stages by
+graph topology, schedules every layer, KV transition, final norm, last-token
+selection, output head, greedy selection and feedback, and emits a canonical digest.
+The Python binding then verifies that schedule against the model configuration,
+tokenizer, local norm tensors, quantized stage bytes, per-row scales, modulus policy,
+preparation commitments and shared boundary weights. A plan-bound session enforces
+workload limits and remote-stage output contracts, poisons partially advanced state,
+and erases logits and KV state when execution ends. The pinned
+Qwen2.5-0.5B-Instruct checkpoint passes a clear native-kernel prefill-to-decode
+functionality test through this path; a separate tiny test exercises the masked
+stage protocol.
+
+This baseline does not promote `research.single_evaluator`. The fixed-Q10 research
+path has executable regions for all dense-Qwen semantic operators, graph-derived
+Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
+SiLU/multiply material, but those protected and fixed-scale components are not yet
+composed into a real-model whole decoder. Qwen3, transformed MPCache execution,
+Qwen3.5, Phi and Gemma likewise remain incomplete for whole-model compiler
+execution. Existing runtime support for those checkpoint families is a separate
+axis unless an exact schedule and binding say otherwise.
 
 ## Python package
 
@@ -216,12 +227,13 @@ lowest-median-full-latency Experiment as canonical JSON for later reruns.
 
 ## Build and release boundaries
 
-The Cargo workspace version is inherited by both Rust crates. The Python source
+The Cargo workspace version is inherited by all Rust crates. The Python source
 version and citation version are checked against it by `scripts/release.py`.
 Release changes use that script rather than independent manual edits.
 
-The root `cargo test` runs the Python independent core. The wheel matrix compiles
-the binding for each platform and runs Python tests against the installed wheel.
+The root `cargo test --workspace` runs the Python-independent Rust workspace. The
+wheel matrix compiles the binding for each platform and runs Python tests against
+the installed wheel.
 The publisher receives only validated artifacts and OIDC credentials; it does
 not compile source with publishing credentials in scope.
 

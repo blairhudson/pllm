@@ -6,8 +6,8 @@ Look up exact CLI commands, Python APIs, schemas, components, and current suppor
 
 Document ID: `pllm.docs.reference`  
 Release: `0.1.0`  
-Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
-Source hash: `sha256:ad1bcccd732d8bda3c513f4360146223fca6f12ec312a1e21c06aad9650bef89`
+Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Source hash: `sha256:aed35cbf2bee61f34a5c3ee7cb85d2b39bbe142538ba69401a466d34dfe60806`
 
 - [Python API](/sdk/reference/python/pllm/) lists the public package exports.
 - [Native API](/sdk/reference/native/) describes the Rust and PyO3 boundaries.
@@ -21,7 +21,7 @@ task pages cover [configuration inspection](/cli/reference/config/show/),
 track source status and planned work.
 - [Current support](/sdk/reference/status/) separates available, experimental, and unsupported behavior.
 
-Run `uv run python scripts/generate_developer_reference.py --check` to verify committed inventories.
+Run `uv run python scripts/docs_regen.py --check` to verify the committed Python/CLI inventories and public documentation graph together.
 
 ## Python SDK example
 

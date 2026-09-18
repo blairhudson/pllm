@@ -8,7 +8,7 @@
   },
   "scripts": {
     "generate": "node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
-    "dev": "bun run generate && bun --bun next dev",
+    "dev": "npm run generate && next dev",
     "build": "npm run generate && next build",
     "postinstall": "fumadocs-mdx",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",

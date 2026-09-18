@@ -27,6 +27,36 @@ def run_cli(*arguments: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[st
     )
 
 
+def test_design_status_matches_parser_visible_command_families() -> None:
+    parser = build_parser()
+    choices = next(
+        action.choices
+        for action in parser._actions
+        if getattr(action, "dest", None) == "command"
+    )
+    assert set(choices) == {"config", "components", "gateway", "serve", "benchmark", "dev"}
+    status = (ROOT / "design/cli.md").read_text(encoding="utf-8").split(
+        "## Implementation status", 1
+    )[1]
+    for shipped in (
+        "`config show TARGET`",
+        "`config export TARGET --output PATH [--force]`",
+        "`components list|show`",
+        "`gateway`",
+        "`serve inference|preparation`",
+        "`benchmark run`",
+        "`dev dashboard`",
+    ):
+        row = next(line for line in status.splitlines() if line.startswith(f"| {shipped} |"))
+        assert "**Shipped" in row
+    research = next(
+        line
+        for line in status.splitlines()
+        if line.startswith("| `research sources|methods|recipes list|show` |")
+    )
+    assert "**Unavailable**" in research
+
+
 def test_help_version_and_metadata_commands_keep_heavy_modules_unloaded() -> None:
     commands = [
         ["--help"],

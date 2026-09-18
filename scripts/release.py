@@ -35,6 +35,13 @@ def validate(tag: str, require_locks: bool = False) -> str:
                 raise ValueError(f"Missing {relative}. Run scripts/lock_dependencies.py and commit its outputs before tagging.")
     return expected
 
+def check_docs() -> None:
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts/docs_regen.py"), "--check"],
+        cwd=ROOT,
+        check=True,
+    )
+
 def source_archive(destination: Path) -> Path:
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / f"pllm-{version()}-repository.tar.gz"
@@ -76,6 +83,7 @@ def main() -> None:
     check = sub.add_parser("check")
     check.add_argument("tag")
     check.add_argument("--require-locks", action="store_true")
+    check.add_argument("--docs", action="store_true")
     archive = sub.add_parser("archive")
     archive.add_argument("--output", type=Path, default=ROOT / "release-assets")
     sums = sub.add_parser("checksums")
@@ -86,7 +94,10 @@ def main() -> None:
     prepared.add_argument("version")
     args = parser.parse_args()
     if args.command == "check":
-        print(validate(args.tag, args.require_locks))
+        validated = validate(args.tag, args.require_locks)
+        if args.docs:
+            check_docs()
+        print(validated)
     elif args.command == "archive":
         print(source_archive(args.output))
     elif args.command == "checksums":

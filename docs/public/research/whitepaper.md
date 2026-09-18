@@ -6,8 +6,8 @@ A concise guide to PLLM’s private multi-party runtime and autonomous research 
 
 Document ID: `pllm.research.whitepaper`  
 Release: `0.1.0`  
-Build: `sha256:358faf6bdfe0705a92c0f87f5cdd73fcee9a6ff7cd651f912f232815241ebaf7`  
-Source hash: `sha256:928db8d931bd21e8aa65c20d018b8beaf4e04677e1ddc2427aa9d96027e32232`
+Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Source hash: `sha256:bb82da13da8f01181220f54683f0f04f8bb3d0a18b75dbf850aae15f5220c4d5`
 
 [Download PDF ↗](/downloads/whitepaper.pdf)
 
@@ -76,6 +76,6 @@ The retained performance study contains nine warm Qwen2.5-0.5B runs in three inp
 
 ## What comes next
 
-PLLM’s immediate work is to complete one private model path end to end, expand the component library without creating paper-specific silos, add reproducible grid and random search over compatible plans, and run broader quality, performance, and security evaluations. A method is promoted only when its exact implementation and evidence support the claim being made.
+PLLM’s immediate work is to complete one protected research model path end to end, expand the component library without creating paper-specific silos, add reproducible grid and random search over compatible plans, and run broader quality, performance, and security evaluations. A method is promoted only when its exact implementation and evidence support the claim being made.
 
 The aim is straightforward: private LLM inference that applications can use, and a research system that can keep improving it without losing track of why a component was selected or what was actually measured.

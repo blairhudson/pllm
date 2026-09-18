@@ -20,6 +20,25 @@ def test_release_tag_matches_package_version():
     module = release_module()
     assert module.validate("v" + module.version()).startswith("v")
 
+
+def test_release_docs_check_uses_canonical_regeneration_command(monkeypatch):
+    module = release_module()
+    calls = []
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda command, *, cwd, check: calls.append((command, cwd, check)),
+    )
+    module.check_docs()
+    assert calls == [
+        (
+            [module.sys.executable, str(module.ROOT / "scripts/docs_regen.py"), "--check"],
+            module.ROOT,
+            True,
+        )
+    ]
+
+
 @pytest.mark.parametrize("tag", ["main", "v0.0.0", "v0.16.0;echo bad", ""])
 def test_invalid_release_tag_is_rejected(tag):
     with pytest.raises(ValueError):
