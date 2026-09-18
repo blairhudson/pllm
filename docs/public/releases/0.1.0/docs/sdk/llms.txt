@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e
+Build: sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -16,7 +16,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Operate](https://pllm.run/sdk/operate/) ([Markdown](https://pllm.run/sdk/operate.md)): Assign client, preparation, and inference responsibilities without weakening the privacy design.
 - [Client boundary](https://pllm.run/sdk/operate/client-boundary/) ([Markdown](https://pllm.run/sdk/operate/client-boundary.md)): Understand which data and runtime state must stay with the client.
 - [Provider roles](https://pllm.run/sdk/operate/provider-roles/) ([Markdown](https://pllm.run/sdk/operate/provider-roles.md)): Understand the responsibilities of deployment operators, preparation services, and inference services.
-- [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, required role placement, and missing orchestration.
+- [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, local role orchestration, and production gaps.
 - [Reference](https://pllm.run/sdk/reference/) ([Markdown](https://pllm.run/sdk/reference.md)): Look up exact CLI commands, Python APIs, schemas, components, and current support.
 - [Python API inventory](https://pllm.run/sdk/reference/python/pllm/) ([Markdown](https://pllm.run/sdk/reference/python/pllm.md)): Public Python classes, functions, and evidence APIs in the installed package.
 - [Component catalog](https://pllm.run/sdk/reference/components/) ([Markdown](https://pllm.run/sdk/reference/components.md)): Built-in component records with implementation, coverage, and evidence status.

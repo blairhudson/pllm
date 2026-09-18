@@ -14,6 +14,7 @@ from pllm.runtime.benchmark_cli import (
     _wait_for_ready,
     build_comparison_report,
     build_loopback_report,
+    run_loopback_benchmark,
 )
 
 
@@ -92,6 +93,25 @@ def test_benchmark_parser_defaults_to_real_qwen() -> None:
 def test_benchmark_dashboard_display_is_explicit() -> None:
     args = build_parser().parse_args(["benchmark", "run", "--show-dashboard"])
     assert args.show_dashboard is True
+
+
+@pytest.mark.integration
+def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
+    report = run_loopback_benchmark(
+        model="unused",
+        model_id=None,
+        tiny=True,
+        prompt="private",
+        max_output_tokens=1,
+        warmups=0,
+        repetitions=1,
+        timeout_seconds=120,
+    )
+    assert report["checks"]["passed"] is True
+    assert report["summary"]["completed_runs"] == 1
+    processes = report["runs"][0]["processes"]
+    assert set(processes) == {"client", "inference", "preparation"}
+    assert processes["client"]["cpu_seconds"] is not None
 
 
 class _RunningProcess:

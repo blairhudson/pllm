@@ -1,15 +1,15 @@
 # Deployment
 
-Understand current deployment support, required role placement, and missing orchestration.
+Understand current deployment support, local role orchestration, and production gaps.
 
 [View canonical HTML](https://pllm.run/sdk/operate/deployment/status/)
 
 Document ID: `pllm.docs.operate.deployment`  
 Release: `0.1.0`  
-Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
-Source hash: `sha256:320cf49735cbf4d8396953563062d172799336adc709cb3c3ad376b56da4aab9`
+Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
+Source hash: `sha256:e3f8165255071a381d02ff498b1f07c796a76e47d6795692f537de50045c1e83`
 
-Deployment declarations currently support local public configuration. Public CLI commands start the trusted gateway and separate inference and preparation roles, but generic remote `Deployment`, plan-locked role orchestration, operator identity provisioning, and production recovery are not established.
+Deployment declarations currently support local public configuration. `pllm.serve_local` and `pllm.runtime.build_roles` accept a typed `Model`, `Pipeline`, or `Experiment` and provide one bounded loopback topology for the local gateway, dashboard, and benchmark driver while keeping inference and preparation in separate operating-system processes. The handle owns environment-only role credentials, distinct ports, health checks, client routing, and deterministic shutdown. Generic remote `Deployment`, plan-locked multi-host orchestration, operator identity provisioning, and production recovery are not established.
 
 Docker and systemd artifacts are templates, not certified deployments. Never infer authentication from port, hostname, or role string. Secret role state must remain separate from exportable plan artifacts and benchmark records.
 
@@ -19,11 +19,19 @@ Use the exact [gateway and role lifecycle commands](/learn/integrations/local-ga
 
 ```python
 import pllm
+from pllm.runtime import build_roles
 
 deployment = pllm.Deployment.local(root=".pllm/local")
 assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
+
+model = pllm.Model.path("/srv/models/Qwen2.5-0.5B-Instruct")
+topology = build_roles(model, correlation_mode="local-test")
+assert topology.started is False
+assert [status.role for status in topology.statuses] == ["inference", "preparation"]
 ```
 
-API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
+`build_roles` only validates and builds the handle. Entering it, calling `start()`, or calling `pllm.serve_local(...)` starts both role processes and may resolve the model.
 
-Only local deployment configuration is supported; this does not perform orchestration.
+API: [`pllm.Deployment` and `pllm.serve_local`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Only loopback development orchestration is supported; it does not provision hosts, TLS, identities, or non-colluding operators.

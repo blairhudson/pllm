@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import os
-import re
 import secrets
 import signal
 import socket
 import statistics
-import subprocess
-import sys
-import tempfile
 import threading
 import time
+import webbrowser
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
-from typing import Any, BinaryIO
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
+import uvicorn
 
 if TYPE_CHECKING:
     from pllm.configuration import Experiment
@@ -44,6 +40,70 @@ def _free_port() -> int:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         return int(listener.getsockname()[1])
+
+
+_DASHBOARD_PORT: int | None = None
+_DASHBOARD_TOKEN: str | None = None
+_DASHBOARD_LOCK = threading.Lock()
+
+
+class _DashboardHandle:
+    def __init__(self, app: Any, port: int) -> None:
+        self.error: BaseException | None = None
+        self.server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host="127.0.0.1",
+                port=port,
+                log_level="warning",
+                access_log=False,
+            )
+        )
+        self.thread = threading.Thread(
+            target=self._run,
+            name="pllm-benchmark-dashboard",
+            daemon=True,
+        )
+
+    def _run(self) -> None:
+        try:
+            self.server.run()
+        except BaseException as exc:
+            self.error = exc
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def poll(self) -> int | None:
+        if self.thread.is_alive():
+            return None
+        return 1 if self.error is not None else 0
+
+    def close(self) -> None:
+        self.server.should_exit = True
+        self.thread.join(timeout=20)
+        if self.thread.is_alive():
+            self.server.force_exit = True
+            self.thread.join(timeout=5)
+        if self.thread.is_alive():
+            raise LoopbackBenchmarkError("benchmark dashboard did not stop")
+
+    def diagnostic(self) -> str:
+        return "" if self.error is None else f"{type(self.error).__name__}: {self.error}"
+
+
+def _wait_for_dashboard_listener(handle: _DashboardHandle, origin: str, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if handle.poll() is not None:
+            raise LoopbackBenchmarkError("benchmark dashboard exited during startup")
+        try:
+            if httpx.get(f"{origin}/api/snapshot", timeout=0.5).status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(0.05)
+    raise LoopbackBenchmarkError("benchmark dashboard did not start before timeout")
 
 
 def _median(records: list[dict[str, Any]], section: str, key: str) -> float | None:
@@ -225,7 +285,7 @@ def build_comparison_report(
 
 def _wait_for_ready(
     client: httpx.Client,
-    process: subprocess.Popen[bytes],
+    process: Any,
     deadline: float,
     progress: ProgressCallback | None,
 ) -> None:
@@ -267,7 +327,7 @@ def _wait_for_ready(
 
 def _run_once(
     client: httpx.Client,
-    process: subprocess.Popen[bytes],
+    process: Any,
     *,
     prompt: str,
     max_output_tokens: int,
@@ -322,37 +382,132 @@ def _run_once(
     raise LoopbackBenchmarkError("benchmark run did not complete before timeout")
 
 
-def _stop_process(process: subprocess.Popen[bytes]) -> None:
-    if process.poll() is not None:
-        return
-    if os.name == "posix":
-        os.killpg(process.pid, signal.SIGINT)
+def _run_loopback_benchmark(
+    *,
+    model: str,
+    model_id: str | None,
+    tiny: bool,
+    prompt: str,
+    max_output_tokens: int,
+    warmups: int,
+    repetitions: int,
+    timeout_seconds: float,
+    show_dashboard: bool = False,
+    progress: ProgressCallback | None = None,
+    experiment: Experiment | None = None,
+) -> dict[str, Any]:
+    global _DASHBOARD_PORT, _DASHBOARD_TOKEN
+    if _DASHBOARD_PORT is None:
+        _DASHBOARD_PORT = _free_port()
+    if _DASHBOARD_TOKEN is None:
+        _DASHBOARD_TOKEN = secrets.token_urlsafe(32)
+    port = _DASHBOARD_PORT
+    if experiment is not None:
+        if tiny:
+            raise ValueError("Experiment pipelines cannot use the generated tiny model")
+        experiment.resolve()
+        model = experiment.pipeline.model.source
+        resolved_model_id = experiment.pipeline.model.model_id or model
     else:
-        process.terminate()
+        resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
+    startup_inventory_rows = (
+        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if tiny else 64
+    )
+    from pllm.runtime.dashboard import DashboardConfig, create_dashboard_app
+
+    candidate = Path(model).expanduser()
+    model_path = None if tiny else candidate.resolve() if candidate.exists() else model
+    config = DashboardConfig(
+        host="127.0.0.1",
+        port=port,
+        model_path=model_path,
+        model_id=resolved_model_id,
+        default_max_output_tokens=max_output_tokens,
+        history_path=":memory:",
+        startup_inventory_rows=startup_inventory_rows,
+        experiment=experiment,
+        otel_token=_DASHBOARD_TOKEN,
+    )
+    origin = f"http://127.0.0.1:{port}"
+    handle = _DashboardHandle(create_dashboard_app(config), port)
+    handle.start()
     try:
-        process.wait(timeout=15)
-    except subprocess.TimeoutExpired:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            if os.name == "posix":
-                os.killpg(process.pid, signal.SIGKILL)
-            else:
-                process.kill()
-            process.wait(timeout=5)
+        _wait_for_dashboard_listener(handle, origin, timeout_seconds)
+    except Exception:
+        handle.close()
+        _DASHBOARD_PORT = None
+        raise
+    previous_sigterm: Any = None
 
+    def terminate(_signum: int, _frame: Any) -> None:
+        raise KeyboardInterrupt
 
-def _diagnostic_log(log: BinaryIO) -> str:
-    log.flush()
-    log.seek(0, os.SEEK_END)
-    size = log.tell()
-    log.seek(max(0, size - 4_000))
-    text = log.read().decode("utf-8", errors="replace").strip()
-    return re.sub(r"dash_[A-Za-z0-9_-]+", "<redacted>", text)
+    if threading.current_thread() is threading.main_thread():
+        previous_sigterm = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGTERM, terminate)
+    try:
+        if show_dashboard:
+            webbrowser.open(origin)
+        with httpx.Client(base_url=origin, timeout=5.0) as client:
+            _wait_for_ready(
+                client,
+                handle,
+                time.monotonic() + timeout_seconds,
+                progress,
+            )
+            warmup_runs = []
+            for index in range(warmups):
+                if progress is not None:
+                    progress(f"Running warmup {index + 1}/{warmups}")
+                warmup_runs.append(
+                    _run_once(
+                        client,
+                        handle,
+                        prompt=prompt,
+                        max_output_tokens=max_output_tokens,
+                        timeout_seconds=timeout_seconds,
+                        progress=progress,
+                        progress_label=f"Warmup {index + 1}/{warmups} running",
+                    )
+                )
+            runs = []
+            for index in range(repetitions):
+                if progress is not None:
+                    progress(f"Running measurement {index + 1}/{repetitions}")
+                runs.append(
+                    _run_once(
+                        client,
+                        handle,
+                        prompt=prompt,
+                        max_output_tokens=max_output_tokens,
+                        timeout_seconds=timeout_seconds,
+                        progress=progress,
+                        progress_label=f"Measurement {index + 1}/{repetitions} running",
+                    )
+                )
+    except KeyboardInterrupt as exc:
+        raise LoopbackBenchmarkError("benchmark interrupted") from exc
+    except LoopbackBenchmarkError as exc:
+        diagnostic = handle.diagnostic()
+        suffix = f"\n{diagnostic}" if diagnostic else ""
+        raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
+    finally:
+        if previous_sigterm is not None:
+            signal.signal(signal.SIGTERM, previous_sigterm)
+        if progress is not None:
+            progress("Stopping benchmark roles")
+        handle.close()
+
+    report = build_loopback_report(
+        model_id=resolved_model_id,
+        tiny=tiny,
+        max_output_tokens=max_output_tokens,
+        warmup_runs=warmup_runs,
+        runs=runs,
+    )
+    if not report["checks"]["passed"]:
+        raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
+    return report
 
 
 def run_loopback_benchmark(
@@ -370,126 +525,17 @@ def run_loopback_benchmark(
     experiment: Experiment | None = None,
 ) -> dict[str, Any]:
     """Run the real client, preparation, and inference roles on loopback."""
-    port = _free_port()
-    if experiment is not None:
-        if tiny:
-            raise ValueError("Experiment pipelines cannot use the generated tiny model")
-        experiment.resolve()
-        model = experiment.pipeline.model.source
-        resolved_model_id = model
-    else:
-        resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
-    startup_inventory_rows = (
-        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if tiny else 64
-    )
-    with tempfile.TemporaryDirectory(prefix="pllm-benchmark-") as temporary:
-        command = [
-            sys.executable,
-            "-m",
-            "pllm",
-            "dev",
-            "dashboard",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(port),
-            "--max-output-tokens",
-            str(max_output_tokens),
-            "--history-db",
-            ":memory:",
-            "--startup-inventory-rows",
-            str(startup_inventory_rows),
-        ]
-        if not show_dashboard:
-            command.append("--no-open")
-        if tiny:
-            command.append("--tiny")
-        else:
-            command.extend(("--model", model))
-            if model_id is not None:
-                command.extend(("--model-id", model_id))
-        if experiment is not None:
-            experiment_path = Path(temporary) / "experiment.json"
-            experiment_path.write_bytes(experiment.canonical_bytes())
-            command.extend(("--experiment-config", str(experiment_path)))
-
-        log = tempfile.TemporaryFile()
-        try:
-            process = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-            previous_sigterm: Any = None
-
-            def terminate(_signum: int, _frame: Any) -> None:
-                raise KeyboardInterrupt
-
-            if threading.current_thread() is threading.main_thread():
-                previous_sigterm = signal.getsignal(signal.SIGTERM)
-                signal.signal(signal.SIGTERM, terminate)
-            try:
-                with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=5.0) as client:
-                    _wait_for_ready(
-                        client,
-                        process,
-                        time.monotonic() + timeout_seconds,
-                        progress,
-                    )
-                    warmup_runs = []
-                    for index in range(warmups):
-                        if progress is not None:
-                            progress(f"Running warmup {index + 1}/{warmups}")
-                        warmup_runs.append(
-                            _run_once(
-                                client,
-                                process,
-                                prompt=prompt,
-                                max_output_tokens=max_output_tokens,
-                                timeout_seconds=timeout_seconds,
-                                progress=progress,
-                                progress_label=f"Warmup {index + 1}/{warmups} running",
-                            )
-                        )
-                    runs = []
-                    for index in range(repetitions):
-                        if progress is not None:
-                            progress(f"Running measurement {index + 1}/{repetitions}")
-                        runs.append(
-                            _run_once(
-                                client,
-                                process,
-                                prompt=prompt,
-                                max_output_tokens=max_output_tokens,
-                                timeout_seconds=timeout_seconds,
-                                progress=progress,
-                                progress_label=f"Measurement {index + 1}/{repetitions} running",
-                            )
-                        )
-            except KeyboardInterrupt as exc:
-                raise LoopbackBenchmarkError("benchmark interrupted") from exc
-            except LoopbackBenchmarkError as exc:
-                diagnostic = _diagnostic_log(log)
-                suffix = f"\n{diagnostic}" if diagnostic else ""
-                raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
-            finally:
-                if previous_sigterm is not None:
-                    signal.signal(signal.SIGTERM, previous_sigterm)
-                if progress is not None:
-                    progress("Stopping benchmark roles")
-                _stop_process(process)
-        finally:
-            log.close()
-
-    report = build_loopback_report(
-        model_id=resolved_model_id,
-        tiny=tiny,
-        max_output_tokens=max_output_tokens,
-        warmup_runs=warmup_runs,
-        runs=runs,
-    )
-    if not report["checks"]["passed"]:
-        raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
-    return report
+    with _DASHBOARD_LOCK:
+        return _run_loopback_benchmark(
+            model=model,
+            model_id=model_id,
+            tiny=tiny,
+            prompt=prompt,
+            max_output_tokens=max_output_tokens,
+            warmups=warmups,
+            repetitions=repetitions,
+            timeout_seconds=timeout_seconds,
+            show_dashboard=show_dashboard,
+            progress=progress,
+            experiment=experiment,
+        )

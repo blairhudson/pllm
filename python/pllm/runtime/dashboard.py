@@ -5,9 +5,6 @@ import json
 import os
 import re
 import secrets
-import socket
-import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -34,7 +31,9 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from safetensors.numpy import save_file
 
+from pllm.configuration import Model
 from pllm.runtime.client import OpenAI
+from pllm.runtime.servers import LocalTopology, build_roles
 from pllm.runtime.benchmark_history import (
     MAX_LIMIT,
     SCHEMA_VERSION,
@@ -310,6 +309,7 @@ class OTelStore:
                 "rss_peaks": {
                     service: self._service_values(service)["memory_bytes"] for service in services
                 },
+                "local_cpu_baseline": time.process_time(),
             }
 
     def finish_run_window(self, run_id: str) -> dict[str, dict[str, float | int | None]]:
@@ -336,6 +336,8 @@ class OTelStore:
                     for value in (window["rss_peaks"].get(service), values["memory_bytes"])
                     if value is not None
                 ]
+                if role == "client" and cpu_delta is None:
+                    cpu_delta = max(0.0, time.process_time() - window["local_cpu_baseline"])
                 result[role] = {
                     "cpu_seconds": cpu_delta,
                     "rss_peak_bytes": int(max(rss_values)) if rss_values else None,
@@ -392,15 +394,8 @@ class _IncompleteResponseError(RuntimeError):
     pass
 
 
-def _free_port() -> int:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
-
-
 class DashboardRuntime:
     _CLIENT_CLOSE_TIMEOUT_SECONDS = 2.0
-    _PROCESS_EXIT_TIMEOUT_SECONDS = 2.0
     _WORKER_JOIN_TIMEOUT_SECONDS = 5.0
     _BACKGROUND_JOIN_TIMEOUT_SECONDS = 1.0
 
@@ -411,19 +406,18 @@ class DashboardRuntime:
         history: BenchmarkHistory | None = None,
     ) -> None:
         self.config = config
+        experiment = getattr(config, "experiment", None)
         self.store = store
         self.history = history
         self._lock = threading.Lock()
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
-        self._processes: dict[str, subprocess.Popen[bytes]] = {}
-        self._logs: dict[str, Any] = {}
-        self._log_paths: dict[str, Path] = {}
+        self._topology: LocalTopology | None = None
         self._client: OpenAI | None = None
         self._state: dict[str, Any] = {
             "phase": "starting",
             "startup_step": "dashboard",
             "model_id": config.model_id,
-            "tiny": config.model_path is None,
+            "tiny": config.model_path is None and experiment is None,
             "prompt": "Explain why neither server can see the prompt.",
             "text": "",
             "tokens": 0,
@@ -440,7 +434,7 @@ class DashboardRuntime:
             "protocol_start_cursor": 0,
         }
         self._inventory_rows = getattr(config, "startup_inventory_rows", None) or (
-            256 if config.model_path is None else 64
+            256 if config.model_path is None and experiment is None else 64
         )
         self._online_traffic_baseline: dict[str, float] = {}
         self._preparation_cpu_baseline: float | None = None
@@ -460,13 +454,13 @@ class DashboardRuntime:
         self._last_privacy_delta: dict[str, int] = {}
 
     def _services_healthy(self) -> bool:
-        processes = getattr(self, "_processes", {})
-        return self._client is not None and (
-            not processes
-            or all(
-                (process := processes.get(role)) is not None and process.poll() is None
-                for role in ("preparation", "inference")
-            )
+        topology = getattr(self, "_topology", None)
+        return (
+            self._client is not None
+            and topology is not None
+            and topology.started
+            and not topology.closed
+            and all(status.running for status in topology.statuses)
         )
 
     async def _background_call(
@@ -559,92 +553,46 @@ class DashboardRuntime:
         try:
             self._temporary = tempfile.TemporaryDirectory(prefix="pllm-dashboard-")
             root = Path(self._temporary.name)
-            model = self.config.model_path
-            if model is None:
-                model = _create_demo_checkpoint(root / "model")
-            inference_port, preparation_port = _free_port(), _free_port()
-            inference_url = f"http://127.0.0.1:{inference_port}"
-            preparation_url = f"http://127.0.0.1:{preparation_port}"
-            inference_key, preparation_key, push_key = (
-                "dash_" + secrets.token_urlsafe(24),
-                "dash_" + secrets.token_urlsafe(24),
-                "dash_" + secrets.token_urlsafe(24),
+            source = self.config.model_path
+            if source is None and self.config.experiment is not None:
+                source = self.config.experiment.pipeline.model.source
+            if source is None:
+                source = _create_demo_checkpoint(root / "model")
+            candidate = Path(source).expanduser()
+            model = (
+                Model.path(str(candidate.resolve()), model_id=self.config.model_id)
+                if candidate.exists()
+                else Model.hf(str(source), model_id=self.config.model_id)
             )
-            common = [sys.executable, "-m", "pllm.runtime.cli"]
-            inference = [
-                *common,
-                "inference",
-                "--model",
-                str(model),
-                "--model-id",
-                self.config.model_id,
-                "--privacy-mode",
-                "public",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(inference_port),
-                "--api-key",
-                inference_key,
-                "--provider-push-api-key",
-                push_key,
-                "--rendezvous-capacity",
-                "131072",
-                "--rendezvous-max-bytes",
-                "1073741824",
-            ]
-            preparation = [
-                *common,
-                "preparation",
-                "--model",
-                str(model),
-                "--model-id",
-                self.config.model_id,
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(preparation_port),
-                "--api-key",
-                preparation_key,
-                "--inference-url",
-                inference_url,
-                "--push-api-key",
-                push_key,
-            ]
-            if self.config.experiment is not None:
-                kernels = self.config.experiment.pipeline.components.get("kernels")
-                if kernels is not None and kernels.component == "pllm/cpu":
-                    threads = kernels.params.get("threads")
-                    if threads is not None:
-                        thread_args = ["--engine-threads", str(threads)]
-                        inference.extend(thread_args)
-                        preparation.extend(thread_args)
             if self._stopping.is_set():
                 return
-            self._set(startup_step="inference")
-            self._spawn("inference", inference, root)
-            await self._wait_for_health(inference_url, "inference")
-            self._set(startup_step="preparation")
-            self._spawn("preparation", preparation, root)
-            await self._wait_for_health(preparation_url, "preparation")
-            self._client = OpenAI(
-                base_url=inference_url,
-                api_key=inference_key,
-                default_model=self.config.model_id,
-                preparation_base_url=preparation_url,
-                preparation_api_key=preparation_key,
+            self._topology = build_roles(
+                self.config.experiment or model,
+                model_id=self.config.model_id,
+                rendezvous_capacity=131_072,
+                rendezvous_max_bytes=1_073_741_824,
+                log_dir=root,
+                telemetry_endpoint=_http_origin(self.config.host, self.config.port),
+                telemetry_token=self.config.otel_token,
+                credential_prefix="dash",
+                progress=lambda role: self._set(startup_step=role),
+            )
+            await asyncio.to_thread(self._topology.start)
+            self._client = self._topology.client(
                 bundle_cache_dir=root / "bundle-cache",
                 timeout=300,
                 prepared_inventory_rows=self._inventory_rows,
                 background_inventory_refill=False,
-                experiment=self.config.experiment,
             )
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
             self._set(
                 phase="preparing",
                 startup_step="inventory",
-                endpoints={"preparation": preparation_url, "inference": inference_url},
+                endpoints={
+                    "preparation": self._topology.preparation_url,
+                    "inference": self._topology.inference_url,
+                },
             )
             await self._background_call(
                 self._client.preprocess,
@@ -662,54 +610,6 @@ class DashboardRuntime:
             )
         except Exception as exc:
             self._set(phase="error", error=f"startup failed: {type(exc).__name__}: {exc}")
-
-    def _spawn(self, role: str, command: list[str], root: Path) -> None:
-        if self._stopping.is_set():
-            raise RuntimeError("dashboard is stopping")
-        log = (root / f"{role}.log").open("wb")
-        env = os.environ.copy()
-        env.update(
-            {
-                "OTEL_EXPORTER_OTLP_ENDPOINT": _http_origin(self.config.host, self.config.port),
-                "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST": "",
-                "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST": "",
-                "OTEL_METRIC_EXPORT_INTERVAL": "500",
-                "OTEL_EXPORTER_OTLP_HEADERS": f"x-pllm-otel-token={self.config.otel_token}",
-                "OTEL_SERVICE_NAME": f"pllm-{role}",
-                "PYTHONUNBUFFERED": "1",
-            }
-        )
-        self._logs[role] = log
-        self._log_paths[role] = root / f"{role}.log"
-        self._processes[role] = subprocess.Popen(
-            command,
-            cwd=Path.cwd(),
-            env=env,
-            stdin=subprocess.DEVNULL,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
-
-    async def _wait_for_health(self, base_url: str, role: str) -> None:
-        deadline = time.monotonic() + 300
-        async with httpx.AsyncClient(timeout=1) as client:
-            while time.monotonic() < deadline:
-                if self._stopping.is_set():
-                    raise RuntimeError("dashboard stopped during startup")
-                process = self._processes[role]
-                if process.poll() is not None:
-                    log = self._log_paths[role].read_text(errors="replace")[-2000:]
-                    raise RuntimeError(
-                        f"{role} exited with status {process.returncode}: {log.strip()}"
-                    )
-                try:
-                    response = await client.get(f"{base_url}/health")
-                    if response.is_success:
-                        return
-                except httpx.HTTPError:
-                    pass
-                await asyncio.sleep(0.2)
-        raise TimeoutError(f"{role} did not become healthy")
 
     def begin(self, prompt: str, max_output_tokens: int, request_id: str | None = None) -> str:
         started_at_ns = time.time_ns()
@@ -1147,9 +1047,11 @@ class DashboardRuntime:
             if first and generated_after_first
             else None
         )
+        topology = getattr(self, "_topology", None)
+        statuses = () if topology is None else topology.statuses
         state["processes"] = {
-            role: {"pid": process.pid, "running": process.poll() is None}
-            for role, process in self._processes.items()
+            status.role: {"pid": status.pid, "running": status.running}
+            for status in statuses
         }
         audit = self._audit_snapshot()
         with self._lock:
@@ -1205,9 +1107,6 @@ class DashboardRuntime:
             self._stop_started = True
             self._stopping.set()
             worker = self._worker
-        for process in reversed(list(self._processes.values())):
-            if process.poll() is None:
-                process.terminate()
         if self._client is not None:
             try:
                 await asyncio.wait_for(
@@ -1216,16 +1115,12 @@ class DashboardRuntime:
                 )
             except Exception:
                 pass
-
-        async def reap(process: subprocess.Popen[bytes]) -> None:
+        topology = getattr(self, "_topology", None)
+        if topology is not None:
             try:
-                await asyncio.to_thread(process.wait, self._PROCESS_EXIT_TIMEOUT_SECONDS)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                with suppress(subprocess.TimeoutExpired):
-                    await asyncio.to_thread(process.wait, self._PROCESS_EXIT_TIMEOUT_SECONDS)
-
-        await asyncio.gather(*(reap(process) for process in self._processes.values()))
+                await asyncio.to_thread(topology.close)
+            except Exception:
+                pass
         if worker is not None and worker.is_alive():
             await asyncio.to_thread(worker.join, self._WORKER_JOIN_TIMEOUT_SECONDS)
         worker_alive = worker is not None and worker.is_alive()
@@ -1234,8 +1129,6 @@ class DashboardRuntime:
         for thread in background_threads:
             await asyncio.to_thread(thread.join, self._BACKGROUND_JOIN_TIMEOUT_SECONDS)
         background_alive = any(thread.is_alive() for thread in background_threads)
-        for log in self._logs.values():
-            log.close()
         if self._temporary is not None and not worker_alive and not background_alive:
             self._temporary.cleanup()
 

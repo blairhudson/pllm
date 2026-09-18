@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e",
+  "buildId": "sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -749,7 +749,7 @@
     {
       "id": "pllm.docs.operate.deployment",
       "title": "Deployment",
-      "summary": "Understand current deployment support, required role placement, and missing orchestration.",
+      "summary": "Understand current deployment support, local role orchestration, and production gaps.",
       "sourcePath": "content/docs/operate/deployment.mdx",
       "canonicalUrl": "/sdk/operate/deployment/status/",
       "markdownUrl": "/sdk/operate/deployment/status.md",
@@ -775,7 +775,7 @@
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
       "navigationOrder": 205,
-      "contentHash": "sha256:320cf49735cbf4d8396953563062d172799336adc709cb3c3ad376b56da4aab9"
+      "contentHash": "sha256:e3f8165255071a381d02ff498b1f07c796a76e47d6795692f537de50045c1e83"
     },
     {
       "id": "pllm.docs.reference",
@@ -1406,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:5f4d7c87ae617f1e7f142173accf46c085a2b19f75e9255f4b07e588de64db1c"
+      "contentHash": "sha256:314777e9e72d65a6662b649c426130b33ba41821304bd66309ede86bb9d64c74"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1514,7 +1514,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:b9062ddabcbb887bf55e6220a6c20012b29205666fc1a1a7110ac495965ca7e1"
+      "contentHash": "sha256:9f1d9628ae32605cd820c8d75b3b1742935a9f802accb99e7e63d6816f9e6098"
     },
     {
       "id": "pllm.docs.research.sources",

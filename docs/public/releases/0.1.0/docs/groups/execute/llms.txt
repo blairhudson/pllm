@@ -1,14 +1,14 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e
+Build: sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
 - [Operate](https://pllm.run/sdk/operate/) ([Markdown](https://pllm.run/sdk/operate.md)): Assign client, preparation, and inference responsibilities without weakening the privacy design.
 - [Client boundary](https://pllm.run/sdk/operate/client-boundary/) ([Markdown](https://pllm.run/sdk/operate/client-boundary.md)): Understand which data and runtime state must stay with the client.
 - [Provider roles](https://pllm.run/sdk/operate/provider-roles/) ([Markdown](https://pllm.run/sdk/operate/provider-roles.md)): Understand the responsibilities of deployment operators, preparation services, and inference services.
-- [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, required role placement, and missing orchestration.
+- [Deployment](https://pllm.run/sdk/operate/deployment/status/) ([Markdown](https://pllm.run/sdk/operate/deployment/status.md)): Understand current deployment support, local role orchestration, and production gaps.
 - [Compiler](https://pllm.run/sdk/pipeline/compiler/) ([Markdown](https://pllm.run/sdk/pipeline/compiler.md)): Learn how PLLM turns a model plan and component choices into a checked execution plan.
 - [Deployment](https://pllm.run/sdk/operate/deployment/) ([Markdown](https://pllm.run/sdk/operate/deployment.md)): Learn how to assign PLLM roles to authenticated services without changing privacy assumptions.
 - [Kernels](https://pllm.run/sdk/pipeline/kernels/) ([Markdown](https://pllm.run/sdk/pipeline/kernels.md)): Understand PLLM's native integer matrix kernels, memory costs, and CPU requirements.

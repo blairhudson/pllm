@@ -118,6 +118,16 @@ importers. Applications should not depend on internal module locations.
 A source checkout does not shadow an installed wheel through a second package
 at the repository root.
 
+`pllm.runtime.build_roles` constructs the single loopback role topology used by
+`gateway --local`, the development dashboard, and the benchmark driver. It starts
+inference and preparation as separate child processes, keeps generated credentials
+in environment variables rather than argv or status records, binds health-checked
+URLs to client/gateway factories, and owns process-group shutdown. The benchmark
+dashboard driver now runs in-process, so a diagnostic run has two role children
+rather than a dashboard child that creates another process tree. This topology is
+for local development and measurement; it does not establish non-colluding
+operators or production deployment.
+
 ## Hot operations
 
 A matrix is copied into Rust once at compilation, then reused for later calls.

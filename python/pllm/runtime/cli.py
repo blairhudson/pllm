@@ -2,20 +2,13 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
-import ipaddress
 import os
-import secrets
-import signal
 import socket
-import subprocess
 import sys
 import tempfile
-import threading
-import time
 from pathlib import Path
 from typing import Any
 
-import httpx
 import uvicorn
 
 from pllm.configuration import Model
@@ -29,6 +22,7 @@ from .preparation_server import create_preparation_app
 from .privacy import PrivacyMode, ProprietaryProtocol
 from .proprietary_engine import DirectFHETransformerEngine
 from .server import create_app
+from .servers import build_roles
 from .sidecar import create_sidecar_app
 from .transformer_engine import MaskedTransformerEngine
 
@@ -369,6 +363,11 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
             output_dither_bound=args.guard_output_dither,
         )
     engine = engine_type(**engine_kwargs)
+    from .telemetry import configure_telemetry
+
+    configure_telemetry(
+        "pllm-preparation" if preparation else "pllm-inference"
+    )
     app = (
         create_preparation_app(config, engine)
         if preparation
@@ -484,12 +483,6 @@ def run_sidecar(args: argparse.Namespace) -> None:
     )
 
 
-def _free_port() -> int:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
-
-
 def _is_loopback_host(host: str) -> bool:
     value = str(host).strip("[]")
     if value.lower() == "localhost":
@@ -506,185 +499,57 @@ def _is_loopback_host(host: str) -> bool:
         return bool(addresses) and all(ipaddress.ip_address(item).is_loopback for item in addresses)
 
 
-def _stop_process(process: subprocess.Popen[Any]) -> None:
-    if process.poll() is not None:
-        return
-    try:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-        process.wait(timeout=10)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
-        if process.poll() is None:
-            if os.name == "posix":
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            else:
-                process.kill()
-            process.wait(timeout=5)
-
-
-def _wait_for_service(
-    process: subprocess.Popen[Any], base_url: str, role: str, *, timeout: float = 300.0
-) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        returncode = process.poll()
-        if returncode is not None:
-            raise RuntimeError(f"local {role} service exited during startup ({returncode})")
-        try:
-            response = httpx.get(f"{base_url}/healthz", timeout=0.5)
-            if response.status_code == 200 and response.json().get("role") == role:
-                return
-        except (httpx.HTTPError, ValueError):
-            pass
-        time.sleep(0.1)
-    raise RuntimeError(f"local {role} service did not become ready before timeout")
-
-
-def _random_credential(used: set[str]) -> str:
-    while True:
-        value = "local_" + secrets.token_urlsafe(24)
-        if value not in used:
-            used.add(value)
-            return value
-
-
 def run_local_gateway(args: argparse.Namespace) -> None:
     """Run local inference/preparation process groups and gateway foreground."""
-    processes: list[subprocess.Popen[Any]] = []
     temporary: tempfile.TemporaryDirectory[str] | None = None
-    previous_sigterm: Any = None
-    signal_installed = False
-
-    def terminate(signum: int, _frame: Any) -> None:
-        raise SystemExit(128 + signum)
-
     try:
-        if threading.current_thread() is threading.main_thread():
-            previous_sigterm = signal.getsignal(signal.SIGTERM)
-            signal.signal(signal.SIGTERM, terminate)
-            signal_installed = True
-        model = args.model
-        model_id = getattr(args, "model_id", None) or model
+        source = str(args.model)
+        model_id = getattr(args, "model_id", None) or source
         if getattr(args, "tiny", False):
             from .dashboard import _create_demo_checkpoint
 
             temporary = tempfile.TemporaryDirectory(prefix="pllm-gateway-")
-            model = str(_create_demo_checkpoint(Path(temporary.name) / "model"))
+            source = str(_create_demo_checkpoint(Path(temporary.name) / "model"))
             model_id = getattr(args, "model_id", None) or "pllm-gateway-tiny"
-
-        used: set[str] = set()
-        inference_key = _random_credential(used)
-        preparation_key = _random_credential(used)
-        push_key = _random_credential(used)
-        reserved = {args.port}
-        inference_port = _free_port()
-        while inference_port in reserved:
-            inference_port = _free_port()
-        reserved.add(inference_port)
-        preparation_port = _free_port()
-        while preparation_port in reserved:
-            preparation_port = _free_port()
-        inference_url = f"http://127.0.0.1:{inference_port}"
-        preparation_url = f"http://127.0.0.1:{preparation_port}"
-
-        common = [sys.executable, "-m", "pllm.runtime.cli"]
-        model_options = ["--model", model, "--model-id", model_id]
-        if getattr(args, "revision", None):
-            model_options.extend(["--revision", args.revision])
-        if getattr(args, "hf_cache_dir", None):
-            model_options.extend(["--hf-cache-dir", args.hf_cache_dir])
-        if getattr(args, "tenseal_path", None):
-            model_options.extend(["--tenseal-path", args.tenseal_path])
-        if getattr(args, "local_files_only", False) or getattr(args, "tiny", False):
-            model_options.append("--local-files-only")
-        model_options.extend(
-            [
-                "--weight-bits",
-                str(getattr(args, "weight_bits", 8)),
-                "--activation-bits",
-                str(getattr(args, "activation_bits", 8)),
-            ]
-        )
-        inference = [
-            *common,
-            "inference",
-            "--privacy-mode",
-            "public",
-            "--protocol",
-            "guarded",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(inference_port),
-            "--rendezvous-capacity",
-            "262144",
-            "--rendezvous-max-bytes",
-            "2147483648",
-            *model_options,
-        ]
-        if args.correlation_mode == "local-test":
-            inference.append("--allow-insecure-local-correlations")
-        preparation = [
-            *common,
-            "preparation",
-            "--privacy-mode",
-            "public",
-            "--protocol",
-            "guarded",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(preparation_port),
-            *model_options,
-        ]
-        inference_env = os.environ.copy()
-        inference_env.update(
-            {"PLLM_API_KEY": inference_key, "PLLM_PROVIDER_PUSH_API_KEY": push_key}
-        )
-        preparation_env = os.environ.copy()
-        preparation_env.update(
-            {
-                "PLLM_API_KEY": preparation_key,
-                "PLLM_INFERENCE_URL": inference_url,
-                "PLLM_PUSH_API_KEY": push_key,
-            }
-        )
-        for command, environment in (
-            (inference, inference_env),
-            (preparation, preparation_env),
-        ):
-            processes.append(
-                subprocess.Popen(
-                    command,
-                    env=environment,
-                    stdin=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
+            model = Model.path(source, model_id=model_id)
+        else:
+            model = Model.hf(
+                source,
+                model_id=model_id,
+                revision=getattr(args, "revision", None),
+                local_files_only=getattr(args, "local_files_only", False),
             )
-        _wait_for_service(processes[0], inference_url, "inference")
-        _wait_for_service(processes[1], preparation_url, "trusted-preparation")
-
-        gateway_args = argparse.Namespace(**vars(args))
-        gateway_args.inference_url = inference_url
-        gateway_args.inference_key = inference_key
-        gateway_args.preparation_url = preparation_url
-        gateway_args.preparation_key = preparation_key
-        gateway_args.model = model_id
-        run_sidecar(gateway_args)
+        with build_roles(
+            model,
+            model_id=model_id,
+            weight_bits=getattr(args, "weight_bits", 8),
+            activation_bits=getattr(args, "activation_bits", 8),
+            correlation_mode=args.correlation_mode,
+            tenseal_path=getattr(args, "tenseal_path", None),
+            hf_cache_dir=getattr(args, "hf_cache_dir", None),
+            reserved_ports=(args.port,),
+        ) as topology:
+            app = topology.gateway_app(
+                local_api_key=getattr(args, "api_key", None)
+                or _env("PLLM_GATEWAY_API_KEY", "local"),
+                tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
+                session_transport=getattr(args, "transport", "websocket"),
+                correlation_prefetch=getattr(args, "correlation_prefetch", 4),
+                prepared_inventory_rows=getattr(args, "prepared_inventory_rows", 64),
+                token_cache_size=getattr(args, "token_cache_size", 512),
+                bundle_cache_mode=getattr(args, "bundle_cache_mode", "read-write"),
+                bundle_cache_dir=getattr(args, "bundle_cache_dir", None),
+                timeout=getattr(args, "timeout", 300.0),
+            )
+            uvicorn.run(
+                app,
+                host=getattr(args, "host", "127.0.0.1"),
+                port=getattr(args, "port", 8080),
+                access_log=False,
+            )
     finally:
-        if signal_installed:
-            signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        for process in reversed(processes):
-            _stop_process(process)
         if temporary is not None:
             temporary.cleanup()
-        if signal_installed:
-            signal.signal(signal.SIGTERM, previous_sigterm)
 
 
 def sidecar_main(argv: list[str] | None = None) -> None:

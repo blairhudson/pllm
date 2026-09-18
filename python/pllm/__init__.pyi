@@ -72,4 +72,5 @@ from pllm.model_loader import load_model as load_model
 from pllm.configuration import loads_configuration as loads_configuration
 from pllm.modeling import lower_model as lower_model
 from pllm.runtime.secure_selection import secure_argmax as secure_argmax
+from pllm.runtime.servers import serve_local as serve_local
 from ._version import __version__ as __version__

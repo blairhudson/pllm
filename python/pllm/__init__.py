@@ -82,6 +82,7 @@ _EXPORTS = {
     "lower_model": ("pllm.modeling", "lower_model"),
     "loads_configuration": ("pllm.configuration", "loads_configuration"),
     "secure_argmax": ("pllm.runtime.secure_selection", "secure_argmax"),
+    "serve_local": ("pllm.runtime.servers", "serve_local"),
 }
 
 __all__ = [*sorted(_EXPORTS), "__version__"]

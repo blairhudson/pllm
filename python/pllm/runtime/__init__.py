@@ -14,16 +14,21 @@ _EXPORTS = {
     "CompiledRuntimeSession": ("pllm.runtime.model_execution", "CompiledRuntimeSession"),
     "ExecutionBudget": ("pllm.configuration", "ExecutionBudget"),
     "GatewayConfig": ("pllm.runtime.config", "GatewayConfig"),
+    "LocalTopology": ("pllm.runtime.servers", "LocalTopology"),
     "OpenAI": ("pllm.runtime.client", "OpenAI"),
     "PLLMTransport": ("pllm.runtime.transport", "PLLMTransport"),
     "PrivacyMode": ("pllm.runtime.privacy", "PrivacyMode"),
     "ProprietaryProtocol": ("pllm.runtime.privacy", "ProprietaryProtocol"),
     "RuntimeBindingError": ("pllm.runtime.model_binding", "RuntimeBindingError"),
     "RuntimeExecutionError": ("pllm.runtime.model_execution", "RuntimeExecutionError"),
+    "RoleStatus": ("pllm.runtime.servers", "RoleStatus"),
     "RuntimeStageBinding": ("pllm.runtime.model_binding", "RuntimeStageBinding"),
+    "TopologyError": ("pllm.runtime.servers", "TopologyError"),
+    "build_roles": ("pllm.runtime.servers", "build_roles"),
     "compile_runtime_model": ("pllm.runtime.model_binding", "compile_runtime_model"),
     "create_app": ("pllm.runtime.server", "create_app"),
     "create_sidecar_app": ("pllm.runtime.sidecar", "create_sidecar_app"),
+    "serve_local": ("pllm.runtime.servers", "serve_local"),
 }
 
 __all__ = [*sorted(_EXPORTS), "__version__"]

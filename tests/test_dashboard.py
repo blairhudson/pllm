@@ -115,14 +115,15 @@ def test_dashboard_origin_formats_ipv6() -> None:
     assert _http_origin("::1", 8791) == "http://[::1]:8791"
 
 
-def test_otel_run_window_preserves_missing_process_samples() -> None:
+def test_otel_run_window_falls_back_to_local_client_process_samples() -> None:
     store = OTelStore()
     store.begin_run_window("run_missing")
 
     metrics = store.finish_run_window("run_missing")
 
-    assert metrics["client"]["cpu_seconds"] is None
-    assert metrics["client"]["rss_peak_bytes"] is None
+    assert metrics["client"]["cpu_seconds"] is not None
+    assert metrics["preparation"]["cpu_seconds"] is None
+    assert metrics["inference"]["cpu_seconds"] is None
 
 
 def test_dashboard_assets_are_packaged_beside_python_package() -> None:
@@ -158,29 +159,40 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
         ),
         OTelStore(),
     )
-    commands = {}
+    captured = {}
 
-    monkeypatch.setattr(
-        runtime,
-        "_spawn",
-        lambda role, command, _root: commands.__setitem__(role, command),
-    )
+    class Topology:
+        inference_url = "http://127.0.0.1:9101"
+        preparation_url = "http://127.0.0.1:9102"
 
-    async def healthy(_url, _role) -> None:
-        return None
+        def start(self):
+            captured["started"] = True
+            return self
+
+        @staticmethod
+        def client(**kwargs):
+            captured["client"] = kwargs
+            return SimpleNamespace()
+
+    def roles(model, **kwargs):
+        captured["model"] = model
+        captured["roles"] = kwargs
+        return Topology()
 
     async def stop_before_preparation(*_args, **_kwargs) -> None:
         raise RuntimeError("stop test startup")
 
-    monkeypatch.setattr(runtime, "_wait_for_health", healthy)
+    monkeypatch.setattr("pllm.runtime.dashboard.build_roles", roles)
     monkeypatch.setattr(runtime, "_background_call", stop_before_preparation)
 
     asyncio.run(runtime.start())
 
-    assert commands["inference"][1:4] == ["-m", "pllm.runtime.cli", "inference"]
-    assert commands["preparation"][1:4] == ["-m", "pllm.runtime.cli", "preparation"]
-    assert "--model" in commands["inference"]
-    assert "serve" not in commands["inference"]
+    assert captured["started"] is True
+    assert captured["model"].source == "/tmp/model"
+    assert captured["model"].kind == "huggingface"
+    assert captured["roles"]["model_id"] == "model"
+    assert captured["roles"]["credential_prefix"] == "dash"
+    assert captured["client"]["prepared_inventory_rows"] == 64
     runtime._temporary.cleanup()
 
 
@@ -201,7 +213,7 @@ def test_dashboard_snapshot_uses_cached_inventory_without_client_io() -> None:
         "tokens": 0,
         "inventory": {"status": "unprepared", "capacity": 0, "available": 0},
     }
-    runtime._processes = {}
+    runtime._topology = None
     runtime._client = Client()
     runtime.config = SimpleNamespace(model_id="model")
     runtime.store = OTelStore()
@@ -262,6 +274,11 @@ def test_completed_dashboard_run_does_not_eagerly_refill(monkeypatch) -> None:
         "finished_at": None,
     }
     runtime._client = client
+    runtime._topology = SimpleNamespace(
+        started=True,
+        closed=False,
+        statuses=(SimpleNamespace(running=True),),
+    )
     runtime.config = SimpleNamespace(model_id="model")
     runtime.store = SimpleNamespace(
         snapshot=lambda: {

@@ -46,6 +46,7 @@ def test_public_domain_facades_share_root_identities():
         lower_model,
     )
     from pllm.plan import CompiledPlan
+    from pllm.runtime import serve_local
 
     assert pllm.ExecutionBudget is ExecutionBudget
     assert pllm.Experiment is Experiment
@@ -56,6 +57,7 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.ModelPlan is ModelPlan
     assert pllm.load_model is load_model
     assert pllm.lower_model is lower_model
+    assert pllm.serve_local is serve_local
     assert pllm.CompiledPlan is CompiledPlan
 
 
@@ -64,8 +66,8 @@ def test_runtime_facade_is_intentionally_narrow():
 
     assert set(runtime.__all__) == {
         'AsyncOpenAI', 'AsyncPLLMTransport', 'CompiledRuntimeModel', 'CompiledRuntimeSession',
-        'ExecutionBudget', 'GatewayConfig', 'OpenAI', 'PLLMTransport', 'PrivacyMode',
-        'ProprietaryProtocol', 'RuntimeBindingError', 'RuntimeExecutionError',
-        'RuntimeStageBinding', 'compile_runtime_model',
-        'create_app', 'create_sidecar_app', '__version__',
+        'ExecutionBudget', 'GatewayConfig', 'LocalTopology', 'OpenAI', 'PLLMTransport',
+        'PrivacyMode', 'ProprietaryProtocol', 'RoleStatus', 'RuntimeBindingError',
+        'RuntimeExecutionError', 'RuntimeStageBinding', 'TopologyError', 'build_roles',
+        'compile_runtime_model', 'create_app', 'create_sidecar_app', 'serve_local', '__version__',
     }

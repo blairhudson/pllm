@@ -463,55 +463,47 @@ def test_gateway_runner_loads_explicit_client_toml(
     assert captured["session_transport"] == "http"
 
 
-def test_local_gateway_uses_env_credentials_and_cleans_up_children(
+def test_local_gateway_uses_shared_topology_and_closes_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from pllm.runtime import cli
 
     args = build_parser().parse_args(["gateway", "--local", "--model", "org/model"])
-    ports = iter((9101, 9102))
-    spawned: list[tuple[list[str], dict[str, str], bool]] = []
-    processes: list[object] = []
-    stopped: list[object] = []
+    captured: dict[str, Any] = {}
 
-    class Process:
-        pid = 1234
+    class Topology:
+        def __enter__(self):
+            captured["entered"] = True
+            return self
 
-        def poll(self) -> None:
-            return None
+        def __exit__(self, *_args):
+            captured["closed"] = True
 
-    def popen(command: list[str], **kwargs: Any) -> Process:
-        process = Process()
-        processes.append(process)
-        spawned.append((command, kwargs["env"], bool(kwargs["start_new_session"])))
-        return process
+        @staticmethod
+        def gateway_app(**kwargs):
+            captured["gateway"] = kwargs
+            return object()
 
-    monkeypatch.setattr(cli, "_free_port", lambda: next(ports))
-    monkeypatch.setattr(cli.subprocess, "Popen", popen)
-    monkeypatch.setattr(cli, "_wait_for_service", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cli, "_stop_process", stopped.append)
+    def roles(model, **kwargs):
+        captured["model"] = model
+        captured["roles"] = kwargs
+        return Topology()
+
+    monkeypatch.setattr(cli, "build_roles", roles)
     monkeypatch.setattr(
-        cli,
-        "run_sidecar",
-        lambda _args: (_ for _ in ()).throw(RuntimeError("gateway startup failed")),
+        cli.uvicorn,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("gateway startup failed")),
     )
 
     with pytest.raises(RuntimeError, match="gateway startup failed"):
         cli.run_local_gateway(args)
 
-    assert len(spawned) == 2
-    assert all(start_new_session for _, _, start_new_session in spawned)
-    assert stopped == list(reversed(processes))
-    all_arguments = [item for command, _, _ in spawned for item in command]
-    inference_env = spawned[0][1]
-    preparation_env = spawned[1][1]
-    credentials = {
-        inference_env["PLLM_API_KEY"],
-        inference_env["PLLM_PROVIDER_PUSH_API_KEY"],
-        preparation_env["PLLM_API_KEY"],
-    }
-    assert len(credentials) == 3
-    assert credentials.isdisjoint(all_arguments)
+    assert captured["entered"] is True
+    assert captured["closed"] is True
+    assert captured["model"].source == "org/model"
+    assert captured["roles"]["reserved_ports"] == (8080,)
+    assert captured["gateway"]["local_api_key"] == "local"
 
 
 def test_local_gateway_propagates_bfv_and_local_correlation_options(
@@ -531,38 +523,36 @@ def test_local_gateway_propagates_bfv_and_local_correlation_options(
             "/tmp/tenseal",
         ]
     )
-    ports = iter((9201, 9202))
-    commands: list[list[str]] = []
-    sidecar_args: list[argparse.Namespace] = []
+    captured: dict[str, Any] = {}
 
-    class Process:
-        pid = 1234
+    class Topology:
+        def __enter__(self):
+            return self
 
-        def poll(self) -> None:
+        def __exit__(self, *_args):
             return None
 
-    monkeypatch.setattr(cli, "_free_port", lambda: next(ports))
-    monkeypatch.setattr(
-        cli.subprocess,
-        "Popen",
-        lambda command, **_kwargs: commands.append(command) or Process(),
-    )
-    monkeypatch.setattr(cli, "_wait_for_service", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cli, "_stop_process", lambda _process: None)
-    monkeypatch.setattr(cli, "run_sidecar", sidecar_args.append)
+        @staticmethod
+        def gateway_app(**kwargs):
+            captured["gateway"] = kwargs
+            return object()
+
+    def roles(_model, **kwargs):
+        captured["roles"] = kwargs
+        return Topology()
+
+    monkeypatch.setattr(cli, "build_roles", roles)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *_args, **_kwargs: None)
 
     cli.run_local_gateway(args)
 
-    assert "--allow-insecure-local-correlations" in commands[0]
-    assert "--correlation-mode" not in commands[0]
-    assert "--correlation-mode" not in commands[1]
-    assert commands[0][commands[0].index("--tenseal-path") + 1] == "/tmp/tenseal"
-    assert commands[1][commands[1].index("--tenseal-path") + 1] == "/tmp/tenseal"
-    assert sidecar_args[0].correlation_mode == "local-test"
+    assert captured["roles"]["correlation_mode"] == "local-test"
+    assert captured["roles"]["tenseal_path"] == "/tmp/tenseal"
+    assert captured["gateway"]["tenseal_path"] == "/tmp/tenseal"
 
 
 def test_local_cleanup_targets_child_process_group(monkeypatch: pytest.MonkeyPatch) -> None:
-    from pllm.runtime import cli
+    from pllm.runtime import servers
 
     calls: list[tuple[int, signal.Signals]] = []
 
@@ -577,9 +567,9 @@ def test_local_cleanup_targets_child_process_group(monkeypatch: pytest.MonkeyPat
         def wait(*, timeout: float) -> None:
             assert timeout == 10
 
-    monkeypatch.setattr(cli.os, "name", "posix")
-    monkeypatch.setattr(cli.os, "killpg", lambda pid, sig: calls.append((pid, sig)))
+    monkeypatch.setattr(servers.os, "name", "posix")
+    monkeypatch.setattr(servers.os, "killpg", lambda pid, sig: calls.append((pid, sig)))
 
-    cli._stop_process(Process())
+    servers.LocalTopology._stop(Process())
 
     assert calls == [(4321, signal.SIGTERM)]

@@ -318,6 +318,11 @@ def test_runtime_persists_exact_sanitized_runs_and_recovers_after_failure(
     )
     client = _BenchmarkClient()
     runtime._client = client
+    runtime._topology = SimpleNamespace(
+        started=True,
+        closed=False,
+        statuses=(SimpleNamespace(running=True),),
+    )
     runtime._state["phase"] = "ready"
     runtime._model_fingerprint = "a" * 64
 
