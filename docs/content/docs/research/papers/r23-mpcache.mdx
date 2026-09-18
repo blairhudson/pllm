@@ -16,7 +16,7 @@ MPCache evaluates MPC-friendly static and dynamic KV-cache eviction in a three-p
 
 Reproduce cached generation and use its explicit KV state as a comparison oracle for PLLM decoder state without inferring complete protected boundary coverage.
 
-No MPCache reproduction has been executed. Current PLLM work is a structural DecoderPlan adaptation only.
+No MPCache reproduction has been executed. Current PLLM work implements a deterministic structural DecoderPlan adaptation for dense Qwen2/Qwen3 fixed-shape caches; protected execution, fidelity, assurance, and matched benchmarks remain unchecked.
 
 PLLM implements only a structural `DecoderPlan` adaptation. It does not reproduce MPCache's three-party protected runtime. Fidelity, protected execution, assurance, and matched benchmark status remain unchecked.
 

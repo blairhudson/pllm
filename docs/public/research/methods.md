@@ -6,15 +6,16 @@ Understand the difference between a published method and PLLM's independent impl
 
 Document ID: `pllm.docs.research.methods`  
 Release: `0.1.0`  
-Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
-Source hash: `sha256:984700ca8104eb825f52b2dbbccbef80c6141a73b4e45137252e0f43f9bd42e4`
+Build: `sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85`  
+Source hash: `sha256:bade14cd2b0d57d95384fd8eb9fbb288e2109dd7a8dae416db987d94d2545bba`
 
 PLLM's MPCache-inspired work lives in
 [`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).
 It is exposed through the `pllm/kv-cache-eviction` capability and Python
-`KvCacheEviction` component. Applying it changes KV-cache structure in a
-[`ModelPlan`](/sdk/plans/); it does not reproduce the paper's protected
-three-party runtime.
+`KvCacheEviction` component. Applying it to a dense Qwen2 or Qwen3
+[`ModelPlan`](/sdk/plans/) preserves fixed-capacity Key/Value state, adds explicit
+static-selection index state, and rewires decode attention through bounded dynamic
+gathers. It does not reproduce the paper's protected three-party runtime.
 
 Use the [component guide](/sdk/components/) and generated
 [component inventory](/sdk/reference/components/) for public parameters and

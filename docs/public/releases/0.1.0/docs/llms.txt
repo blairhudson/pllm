@@ -1,7 +1,7 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7
+Build: sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 
@@ -9,7 +9,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Installation](https://pllm.run/learn/start/installation/) ([Markdown](https://pllm.run/learn/start/installation.md)): Install the Python package and verify the CLI without loading a model or contacting a service.
 - [Inspect a private inference plan](https://pllm.run/learn/start/first-private-request/) ([Markdown](https://pllm.run/learn/start/first-private-request.md)): Define a reproducible experiment, lower a semantic model plan, and check its execution coverage.
 - [Configuration](https://pllm.run/sdk/configuration/) ([Markdown](https://pllm.run/sdk/configuration.md)): Load, inspect, and export a reproducible PLLM experiment configuration.
-- [Model plans](https://pllm.run/sdk/plans/) ([Markdown](https://pllm.run/sdk/plans.md)): Lower a model configuration, add components, and inspect compiler coverage.
+- [Model plans](https://pllm.run/sdk/plans/) ([Markdown](https://pllm.run/sdk/plans.md)): Lower a model configuration, apply a compiler component, and inspect execution coverage.
 - [Components](https://pllm.run/sdk/components/) ([Markdown](https://pllm.run/sdk/components.md)): Inspect versioned capabilities and apply compatible components to a model plan.
 - [Build](https://pllm.run/sdk/build/) ([Markdown](https://pllm.run/sdk/build.md)): Define a reproducible PLLM system from configuration, models, components, and research methods.
 - [Models](https://pllm.run/sdk/build/model-adapters/) ([Markdown](https://pllm.run/sdk/build/model-adapters.md)): Turn model-family configuration into a shared decoder plan.

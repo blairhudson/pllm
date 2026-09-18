@@ -78,6 +78,7 @@ include = [
   { path = "python/**/*.pyi", format = "sdist" },
   { path = "python/pllm/dashboard/**/*", format = "sdist" },
   { path = "Cargo.toml", format = "sdist" },
+  { path = "schemas/**/*.json", format = "sdist" },
   { path = "tests/**/*.py", format = "sdist" },
   { path = "scripts/**/*", format = "sdist" },
   { path = "Cargo.lock", format = "sdist" },

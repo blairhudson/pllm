@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7",
+  "buildId": "sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -133,7 +133,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
       "navigationOrder": 0,
-      "contentHash": "sha256:0ef7daf4f6dbbf65af60e4ffcbfaa269a11e3c25f7c564b69ec68e38ae0b728a"
+      "contentHash": "sha256:fdf846ad0299455a5dc51c5360b9e31c637f233d3e12bfb3ec08f4bf23ec12c7"
     },
     {
       "id": "pllm.docs.sdk.configuration",
@@ -169,7 +169,7 @@
     {
       "id": "pllm.docs.sdk.plans",
       "title": "Model plans",
-      "summary": "Lower a model configuration, add components, and inspect compiler coverage.",
+      "summary": "Lower a model configuration, apply a compiler component, and inspect execution coverage.",
       "sourcePath": "content/docs/sdk/plans.mdx",
       "canonicalUrl": "/sdk/plans/",
       "markdownUrl": "/sdk/plans.md",
@@ -195,7 +195,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 4,
-      "contentHash": "sha256:77c0bb7e4708ea66eaf0a632bf7df99881f11c9dc4e09d349978b38befd5d39d"
+      "contentHash": "sha256:ca573de30b839639a16e1fa927ef801b9496c39566ef0db5af7143cca802bbe1"
     },
     {
       "id": "pllm.docs.sdk.components",
@@ -1406,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:ef48d5a638d4cb5edc9f30d1269a8707ac2a4f571ba35f2f613c72effb0feb3d"
+      "contentHash": "sha256:6397ee24d26d462b91ae2bce644d10fc1c6d31fa6fd4adf0bac196f23a58893b"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1452,7 +1452,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:cc976fe4c486164c421ae15ea43aa2f681ee8637a56bc5d69079544a5f87d73d"
+      "contentHash": "sha256:d8f90eb55256786da91cf5c7907bc32faf245d0512d3b9c5adb54a69eff67b1f"
     },
     {
       "id": "pllm.docs.reference.schemas",
@@ -1514,7 +1514,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:45fe74207960dd7f928f710ab43f581211422633731e8d20a57722a5f9406b7e"
+      "contentHash": "sha256:a3dece13b87cd34531114ce511e52f90a9b5c19e824db8698f49f29e06c634b5"
     },
     {
       "id": "pllm.docs.research.sources",
@@ -1576,7 +1576,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:984700ca8104eb825f52b2dbbccbef80c6141a73b4e45137252e0f43f9bd42e4"
+      "contentHash": "sha256:bade14cd2b0d57d95384fd8eb9fbb288e2109dd7a8dae416db987d94d2545bba"
     },
     {
       "id": "pllm.docs.research.compositions",
@@ -4604,7 +4604,7 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:82a07794a6271b59d14e810bfedef103c31e14bfbc8c42ed752b15900d02d0f4"
+      "contentHash": "sha256:7cf4288ed443a9f40331a709e2f143f1d35ae9422ef5ee4f934e16a74d4297ee"
     },
     {
       "id": "pllm.docs.research.papers.r24-maverick",

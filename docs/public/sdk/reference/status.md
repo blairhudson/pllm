@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
-Source hash: `sha256:45fe74207960dd7f928f710ab43f581211422633731e8d20a57722a5f9406b7e`
+Build: `sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85`  
+Source hash: `sha256:a3dece13b87cd34531114ce511e52f90a9b5c19e824db8698f49f29e06c634b5`
 
 Checked 16 September 2026.
 
@@ -66,7 +66,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
-| MPCache plan transformation | Experimental for compatible Qwen2 plans; Gemma plans are rejected |
+| MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
 | Compiler coverage report | Available; the current named profile remains incomplete |
 | Prepared public-weight generation | Available for runtime-supported text checkpoint layouts; validated end to end with `Qwen/Qwen2.5-0.5B-Instruct` |
 | Responses API gateway | Available for text, streaming, function tools, continuation, compaction, storage controls, and structured errors |

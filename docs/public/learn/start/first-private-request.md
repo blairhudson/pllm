@@ -6,13 +6,13 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 
 Document ID: `pllm.docs.start.first-private-request`  
 Release: `0.1.0`  
-Build: `sha256:bab6f73b33765ac11862794abf645d4eb324a2fd52abc43cc2a9cd21c09e27c7`  
-Source hash: `sha256:0ef7daf4f6dbbf65af60e4ffcbfaa269a11e3c25f7c564b69ec68e38ae0b728a`
+Build: `sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85`  
+Source hash: `sha256:fdf846ad0299455a5dc51c5360b9e31c637f233d3e12bfb3ec08f4bf23ec12c7`
 
 ## Define the experiment
 
 ```python
-from pllm import Experiment, Model, Pipeline
+from pllm import ComponentRef, Experiment, Model, Pipeline
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.preparation import ModelAwareCorrections
@@ -27,6 +27,7 @@ experiment = Experiment(
         components={
             "linear": MaskedLinear(),
             "preparation": ModelAwareCorrections(),
+            "inference": ComponentRef("pllm/inference"),
             "kernels": Cpu(threads=4),
         },
     ),
@@ -34,6 +35,8 @@ experiment = Experiment(
     budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
 )
 
+resolved = experiment.resolve()
+assert resolved.configuration_digest == experiment.configuration_digest()
 print(experiment.configuration_digest())
 print(experiment.to_spec())
 ```
@@ -71,14 +74,17 @@ config = {
 plan = pllm.lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
 composed = plan.apply(KvCacheEviction())
 coverage = composed.coverage("research.single_evaluator")
+assert composed.digest != plan.digest
+assert coverage.complete is False
 print(composed.digest, coverage.complete, coverage.to_dict())
 ```
 
-This plan describes work that could precede an inference request. The reported
-compiler coverage is currently incomplete, so the example does not perform
-private text generation. Semantic planning, runtime support, model quality,
-benchmark results, privacy evidence, and deployment readiness are separate
-status checks.
+This plan describes work that could precede an inference request. The MPCache
+structural pass is functional for dense Qwen2/Qwen3 plans, but the reported
+compiler coverage is currently incomplete, so the example does not perform private
+text generation. Semantic planning, protected runtime execution, model quality,
+benchmark results, privacy evidence, and deployment readiness are separate status
+checks.
 
 Inspect component metadata with `pllm components list`. See
 [runtime](/sdk/pipeline/runtime/),

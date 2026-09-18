@@ -48,9 +48,9 @@
       "required": ["id", "operator", "layer", "state_kind", "inputs", "output_shape", "attributes"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"},
-        "operator": {"enum": ["token_lookup", "reshape", "rms_norm", "linear", "rotary_embedding", "kv_cache_append", "attention_scores", "attention_scale", "causal_mask", "softmax", "attention_values", "residual_add", "silu", "multiply", "last_token", "output_head", "greedy_token_selection", "token_feedback", "attention_importance", "secure_top_k", "secure_gather", "cluster_bounds", "cluster_similarity", "shared_indices", "scale", "slice", "gelu_tanh", "softcap", "cache_suffix", "permute", "sigmoid", "gated_delta_decay", "causal_convolution", "convolution_state_update", "gated_delta_rule", "gated_delta_state_update", "rms_norm_gated"]},
+        "operator": {"enum": ["token_lookup", "reshape", "rms_norm", "linear", "rotary_embedding", "kv_cache_append", "attention_scores", "attention_scale", "causal_mask", "softmax", "attention_values", "residual_add", "silu", "multiply", "last_token", "output_head", "greedy_token_selection", "token_feedback", "attention_importance", "secure_top_k", "secure_gather", "cluster_bounds", "cluster_similarity", "shared_indices", "cache_active_indices", "scale", "slice", "gelu_tanh", "softcap", "cache_suffix", "permute", "sigmoid", "gated_delta_decay", "causal_convolution", "convolution_state_update", "gated_delta_rule", "gated_delta_state_update", "rms_norm_gated"]},
         "layer": {"type": ["integer", "null"], "minimum": 0},
-        "state_kind": {"type": ["string", "null"], "enum": ["key", "value", "recurrent", "convolution", null]},
+        "state_kind": {"type": ["string", "null"], "enum": ["key", "value", "cache_indices", "recurrent", "convolution", null]},
         "inputs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "output_shape": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
         "attributes": {"type": "object"}
@@ -63,7 +63,7 @@
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "layer": {"type": ["integer", "null"], "minimum": 0},
-        "kind": {"enum": ["key", "value", "recurrent", "convolution"]},
+        "kind": {"enum": ["key", "value", "cache_indices", "recurrent", "convolution"]},
         "shape": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
         "maximum_sequence": {"type": "integer", "minimum": 0}
       }

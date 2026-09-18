@@ -327,7 +327,12 @@ impl Q10KvCache {
             query,
             query_shape,
             &self.storage,
-            [self.batch, self.kv_heads, visible_key_capacity, self.head_dim],
+            [
+                self.batch,
+                self.kv_heads,
+                visible_key_capacity,
+                self.head_dim,
+            ],
             positions,
             query_mask,
             &self.valid_lengths,
@@ -802,18 +807,8 @@ mod tests {
 
     #[test]
     fn scores_reject_state_longer_than_visible_view() {
-        let cache = Q10KvCache::initialize(
-            1,
-            1,
-            4,
-            1,
-            &[1, 2],
-            2,
-            &[0, 1],
-            &[true, true],
-            &[2],
-        )
-        .unwrap();
+        let cache =
+            Q10KvCache::initialize(1, 1, 4, 1, &[1, 2], 2, &[0, 1], &[true, true], &[2]).unwrap();
         assert!(matches!(
             cache.attention_scores_q20(
                 &[1],

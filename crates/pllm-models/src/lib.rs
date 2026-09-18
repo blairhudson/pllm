@@ -243,6 +243,7 @@ pub enum ModelOperator {
     ClusterBounds,
     ClusterSimilarity,
     SharedIndices,
+    CacheActiveIndices,
     Scale,
     Slice,
     GeluTanh,
@@ -275,6 +276,7 @@ pub struct ModelOperation {
 pub enum StateKind {
     Key,
     Value,
+    CacheIndices,
     Recurrent,
     Convolution,
 }
@@ -365,6 +367,7 @@ impl DecoderPlan {
         if dense_qwen {
             validate_dense_qwen_semantics(self)?;
         }
+        cache::validate_transformation(self)?;
         Ok(())
     }
 }
@@ -1206,6 +1209,14 @@ fn validate_state(state: &StateTensor) -> Result<(), ModelError> {
             )));
         }
     }
+    if state.kind == StateKind::CacheIndices
+        && (state.shape.len() != 2 || state.maximum_sequence != state.shape[1])
+    {
+        return Err(ModelError::Incomplete(format!(
+            "cache-index state {} must have rank two with a matching keep bound",
+            state.id
+        )));
+    }
     Ok(())
 }
 
@@ -1247,7 +1258,10 @@ fn validate_operation(
         | ModelOperator::Softcap
         | ModelOperator::Permute
         | ModelOperator::Sigmoid
-        | ModelOperator::GatedDeltaDecay => Some(1),
+        | ModelOperator::GatedDeltaDecay
+        | ModelOperator::SecureTopK
+        | ModelOperator::ClusterBounds
+        | ModelOperator::SharedIndices => Some(1),
         ModelOperator::RotaryEmbedding
         | ModelOperator::AttentionScores
         | ModelOperator::AttentionValues
@@ -1255,13 +1269,16 @@ fn validate_operation(
         | ModelOperator::Multiply
         | ModelOperator::CausalConvolution
         | ModelOperator::ConvolutionStateUpdate
-        | ModelOperator::RmsNormGated => Some(2),
+        | ModelOperator::RmsNormGated
+        | ModelOperator::AttentionImportance
+        | ModelOperator::ClusterSimilarity
+        | ModelOperator::SecureGather => Some(2),
+        ModelOperator::CacheActiveIndices => Some(3),
         ModelOperator::GatedDeltaRule | ModelOperator::GatedDeltaStateUpdate => Some(6),
         ModelOperator::LastToken => None,
         ModelOperator::KvCacheAppend | ModelOperator::CausalMask | ModelOperator::CacheSuffix => {
             None
         }
-        _ => None,
     };
     if expected_arity.is_some_and(|arity| operation.inputs.len() != arity) {
         return Err(ModelError::Incomplete(format!(
@@ -1299,6 +1316,12 @@ fn validate_operation(
             &["qk_l2_normalize", "query_scale"][..]
         }
         ModelOperator::RmsNormGated => &["epsilon", "weight", "activation"][..],
+        ModelOperator::CacheActiveIndices => &[
+            "static_keep",
+            "prefill_maximum_sequence",
+            "candidate_bound",
+            "semantics",
+        ][..],
         _ => &[][..],
     };
     if required.iter().any(|key| !attributes.contains_key(*key)) {
@@ -1333,6 +1356,7 @@ fn validate_operation(
         ModelOperator::RotaryEmbedding => validate_rotary_embedding(operation, shapes)?,
         ModelOperator::KvCacheAppend => validate_cache_update(graph_mode, operation, shapes)?,
         ModelOperator::CacheSuffix => validate_cache_suffix(operation, shapes)?,
+        ModelOperator::CacheActiveIndices => validate_cache_active_indices(operation)?,
         ModelOperator::CausalMask => validate_causal_mask(operation)?,
         ModelOperator::AttentionScores | ModelOperator::AttentionValues => {
             validate_attention_operation(operation, shapes)?;
@@ -1888,11 +1912,47 @@ fn validate_cache_suffix(
     Ok(())
 }
 
+fn validate_cache_active_indices(operation: &ModelOperation) -> Result<(), ModelError> {
+    let attributes = operation.attributes.as_object().expect("validated object");
+    if operation.inputs[1] != "input.positions"
+        || operation.inputs[2] != "input.sequence_lengths"
+        || operation.output_shape.len() != 2
+        || attributes.get("semantics").and_then(Value::as_str)
+            != Some("static_plus_generated_global_positions")
+        || attributes.get("candidate_bound").and_then(Value::as_u64)
+            != operation.output_shape.get(1).copied()
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid active cache indices contract",
+            operation.id
+        )));
+    }
+    Ok(())
+}
+
 fn validate_causal_mask(operation: &ModelOperation) -> Result<(), ModelError> {
     if operation.inputs.len() == 2 {
         return Ok(());
     }
     let attributes = operation.attributes.as_object().expect("validated object");
+    if operation.inputs.len() == 3 {
+        if operation.inputs[1] != "input.positions"
+            || attributes
+                .get("cache_positions_input")
+                .and_then(Value::as_str)
+                != operation.inputs.get(2).map(String::as_str)
+            || attributes
+                .get("selection_semantics")
+                .and_then(Value::as_str)
+                != Some("global_token_positions")
+        {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} has invalid selected-position causal mask",
+                operation.id
+            )));
+        }
+        return Ok(());
+    }
     if operation.inputs.len() != 4
         || operation.inputs[1] != "input.positions"
         || operation.inputs[2] != "input.attention_mask"
@@ -1948,6 +2008,23 @@ fn validate_state_transition(plan: &DecoderPlan) -> Result<(), ModelError> {
                     state.id
                 )));
             }
+            if state.kind == StateKind::CacheIndices {
+                let valid_producer = match graph.mode {
+                    DecoderMode::Prefill => producer.operator == ModelOperator::SecureTopK,
+                    DecoderMode::Decode => {
+                        producer.operator == ModelOperator::SharedIndices
+                            && producer.attributes.get("mode").and_then(Value::as_str)
+                                == Some("carry")
+                    }
+                };
+                if !valid_producer {
+                    return Err(ModelError::Incomplete(format!(
+                        "state output {} has invalid cache-index producer",
+                        state.id
+                    )));
+                }
+                continue;
+            }
             let update = if producer.operator == ModelOperator::CacheSuffix {
                 graph
                     .operations
@@ -1975,6 +2052,20 @@ fn validate_state_transition(plan: &DecoderPlan) -> Result<(), ModelError> {
         }
     }
     for state in &plan.decode.state_inputs {
+        if state.kind == StateKind::CacheIndices {
+            if !plan.decode.operations.iter().any(|operation| {
+                operation.operator == ModelOperator::SharedIndices
+                    && operation.state_kind == Some(StateKind::CacheIndices)
+                    && operation.attributes.get("mode").and_then(Value::as_str) == Some("carry")
+                    && operation.inputs.first() == Some(&state.id)
+            }) {
+                return Err(ModelError::Incomplete(format!(
+                    "decode state input {} is not consumed by its carry",
+                    state.id
+                )));
+            }
+            continue;
+        }
         if !plan.decode.operations.iter().any(|operation| {
             operation.operator == ModelOperator::KvCacheAppend
                 && operation.attributes.get("mode").and_then(Value::as_str) == Some("append")
@@ -2297,18 +2388,25 @@ fn dense_qwen_consumer<'a>(
     Ok(operation)
 }
 
+struct DenseQwenCachePath<'a> {
+    attention_input: &'a ModelOperation,
+    view: &'a ModelOperation,
+    append: &'a ModelOperation,
+    selected_positions: Option<&'a str>,
+}
+
 fn validate_dense_qwen_cache_path<'a>(
     graph: &'a DecoderGraph,
     attention: &ModelOperation,
     kind: StateKind,
-) -> Result<(&'a ModelOperation, &'a ModelOperation), ModelError> {
+) -> Result<DenseQwenCachePath<'a>, ModelError> {
     let layer = attention.layer.ok_or_else(|| {
         ModelError::Incomplete(format!(
             "dense Qwen attention {} has no layer",
             attention.id
         ))
     })?;
-    let view = attention
+    let attention_input = attention
         .inputs
         .get(1)
         .and_then(|input| {
@@ -2323,6 +2421,26 @@ fn validate_dense_qwen_cache_path<'a>(
                 attention.id
             ))
         })?;
+    let (view, selected_positions) = if attention_input.operator == ModelOperator::SecureGather {
+        let view = attention_input
+            .inputs
+            .first()
+            .and_then(|input| {
+                graph
+                    .operations
+                    .iter()
+                    .find(|operation| &operation.id == input)
+            })
+            .ok_or_else(|| {
+                ModelError::Incomplete(format!(
+                    "dense Qwen attention {} gather has no cache view",
+                    attention.id
+                ))
+            })?;
+        (view, attention_input.inputs.get(1).map(String::as_str))
+    } else {
+        (attention_input, None)
+    };
     let append = view
         .inputs
         .first()
@@ -2356,6 +2474,19 @@ fn validate_dense_qwen_cache_path<'a>(
         && view.output_shape[0] == append.output_shape[0]
         && view.output_shape[1] == append.output_shape[1]
         && view.output_shape[3] == append.output_shape[3];
+    let gather = selected_positions.is_some();
+    let window = if gather {
+        attention_input.output_shape.get(3).copied().unwrap_or(0)
+    } else {
+        view.output_shape.get(2).copied().unwrap_or(0)
+    };
+    let gather_shape = !gather
+        || (attention_input.output_shape.len() == 5
+            && attention_input.layer == Some(layer)
+            && attention_input.state_kind == Some(kind)
+            && attention_input.inputs.len() == 2
+            && attention_input.output_shape[0] == view.output_shape[0]
+            && attention_input.output_shape[4] == view.output_shape[3]);
     let attention_shape = if kind == StateKind::Key {
         let query = attention.inputs.first().and_then(|input| {
             graph
@@ -2370,10 +2501,13 @@ fn validate_dense_qwen_cache_path<'a>(
                         query.output_shape[0],
                         query.output_shape[1],
                         query.output_shape[2],
-                        view.output_shape[2],
+                        window,
                     ]
                 && view.output_shape[0] == query.output_shape[0]
                 && view.output_shape[3] == query.output_shape[3]
+                && (!gather
+                    || (attention_input.output_shape[1] == query.output_shape[1]
+                        && attention_input.output_shape[2] == query.output_shape[2]))
         })
     } else {
         let probabilities = attention.inputs.first().and_then(|input| {
@@ -2384,7 +2518,7 @@ fn validate_dense_qwen_cache_path<'a>(
         });
         probabilities.is_some_and(|probabilities| {
             probabilities.output_shape.len() == 4
-                && probabilities.output_shape[3] == view.output_shape[2]
+                && probabilities.output_shape[3] == window
                 && view.output_shape[0] == probabilities.output_shape[0]
                 && attention.output_shape
                     == [
@@ -2393,6 +2527,9 @@ fn validate_dense_qwen_cache_path<'a>(
                         probabilities.output_shape[2],
                         view.output_shape[3],
                     ]
+                && (!gather
+                    || (attention_input.output_shape[1] == probabilities.output_shape[1]
+                        && attention_input.output_shape[2] == probabilities.output_shape[2]))
         })
     };
     if view.operator != ModelOperator::CacheSuffix
@@ -2404,6 +2541,7 @@ fn validate_dense_qwen_cache_path<'a>(
         || append.attributes.get("mode").and_then(Value::as_str) != Some(expected_mode)
         || append.attributes.get("state").and_then(Value::as_str) != Some(expected_state.as_str())
         || !common_shape
+        || !gather_shape
         || !attention_shape
     {
         return Err(ModelError::Incomplete(format!(
@@ -2411,7 +2549,12 @@ fn validate_dense_qwen_cache_path<'a>(
             attention.id, kind
         )));
     }
-    Ok((view, append))
+    Ok(DenseQwenCachePath {
+        attention_input,
+        view,
+        append,
+        selected_positions,
+    })
 }
 
 fn validate_dense_qwen_attention_layer<'a>(
@@ -2423,9 +2566,15 @@ fn validate_dense_qwen_attention_layer<'a>(
     epsilon: &str,
     theta: u64,
 ) -> Result<(&'a ModelOperation, &'a ModelOperation), ModelError> {
-    let (key_view, key_append) = validate_dense_qwen_cache_path(graph, scores, StateKind::Key)?;
-    let (value_view, value_append) =
-        validate_dense_qwen_cache_path(graph, values, StateKind::Value)?;
+    let key_path = validate_dense_qwen_cache_path(graph, scores, StateKind::Key)?;
+    let value_path = validate_dense_qwen_cache_path(graph, values, StateKind::Value)?;
+    if key_path.selected_positions != value_path.selected_positions {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} Key and Value gathers select different positions"
+        )));
+    }
+    let (key_view, key_append) = (key_path.view, key_path.append);
+    let (value_view, value_append) = (value_path.view, value_path.append);
     let rope_q = dense_qwen_input(graph, scores, 0)?;
     let current_index = usize::from(graph.mode == DecoderMode::Decode);
     let rope_k = dense_qwen_input(graph, key_append, current_index)?;
@@ -2514,13 +2663,17 @@ fn validate_dense_qwen_attention_layer<'a>(
     let scale = dense_qwen_consumer(graph, layer, &scores.id, ModelOperator::AttentionScale)?;
     let mask = dense_qwen_consumer(graph, layer, &scale.id, ModelOperator::CausalMask)?;
     let softmax = dense_qwen_consumer(graph, layer, &mask.id, ModelOperator::Softmax)?;
+    let mask_inputs: &[&str] = match key_path.selected_positions {
+        Some(selected) => &[scale.id.as_str(), "input.positions", selected],
+        None => &[scale.id.as_str(), "input.positions"],
+    };
     if scale.inputs.as_slice() != [scores.id.as_str()]
         || scale.output_shape != scores.output_shape
-        || mask.inputs.as_slice() != [scale.id.as_str(), "input.positions"]
+        || mask.inputs.as_slice() != mask_inputs
         || mask.output_shape != scale.output_shape
         || softmax.inputs.as_slice() != [mask.id.as_str()]
         || softmax.output_shape != mask.output_shape
-        || values.inputs.as_slice() != [softmax.id.as_str(), value_view.id.as_str()]
+        || values.inputs.as_slice() != [softmax.id.as_str(), value_path.attention_input.id.as_str()]
     {
         return Err(ModelError::Incomplete(format!(
             "dense Qwen layer {layer} has invalid score-to-value dependency chain"

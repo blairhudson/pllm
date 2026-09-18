@@ -6,9 +6,10 @@ description: "Understand the difference between a published method and PLLM's in
 PLLM's MPCache-inspired work lives in
 [`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).
 It is exposed through the `pllm/kv-cache-eviction` capability and Python
-`KvCacheEviction` component. Applying it changes KV-cache structure in a
-[`ModelPlan`](/sdk/plans/); it does not reproduce the paper's protected
-three-party runtime.
+`KvCacheEviction` component. Applying it to a dense Qwen2 or Qwen3
+[`ModelPlan`](/sdk/plans/) preserves fixed-capacity Key/Value state, adds explicit
+static-selection index state, and rewires decode attention through bounded dynamic
+gathers. It does not reproduce the paper's protected three-party runtime.
 
 Use the [component guide](/sdk/components/) and generated
 [component inventory](/sdk/reference/components/) for public parameters and
