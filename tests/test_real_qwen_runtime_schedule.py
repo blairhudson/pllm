@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 
 import pllm
-from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
 from pllm.runtime.transformer_client import ClientBundle
@@ -27,7 +26,7 @@ def test_real_qwen_checkpoint_binds_and_executes_complete_schedule() -> None:
     root = Path(MODEL_PATH).resolve()
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     model_id = "Qwen/Qwen2.5-0.5B-Instruct@runtime-schedule-test"
-    manifest = load_hf_directory(root, model_id=model_id)
+    manifest = pllm.load_model(pllm.Model.path(str(root), model_id=model_id))
     engine = MaskedTransformerEngine(threads=4)
     asyncio.run(engine.load(manifest))
     bundle = ClientBundle.unpack(engine.client_bundle(model_id))
@@ -66,6 +65,8 @@ def test_real_qwen_checkpoint_binds_and_executes_complete_schedule() -> None:
     assert session.completeness_scope == "whole_decoder_runtime"
     assert session.status == "exhausted"
     assert session.position == len(prompt_ids) + 1
+    assert len(manifest.checkpoint_digest or "") == 64
+    assert len(manifest.source_lock_digest or "") == 64
     assert plan.coverage("baseline.masked_linear_cpu").complete is True
     assert plan.coverage("research.single_evaluator").complete is False
     assert schedule.complete is True

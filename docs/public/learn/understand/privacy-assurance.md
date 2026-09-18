@@ -6,7 +6,7 @@ State a specific privacy claim and interpret the evidence that applies to it.
 
 Document ID: `pllm.docs.understand.privacy-assurance`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:f4ba911c9dd49cb8fd9ebb3ad589b9f2cbd0703c283f8bbb103adb4f64a90a00`
 
 Privacy claim must name protected values, observer, roles, corruption and non-collusion assumptions, leakage, workload, implementation, and evidence. “Private” without adjacent scope and evidence is not a valid implementation claim.

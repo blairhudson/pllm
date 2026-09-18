@@ -6,7 +6,7 @@ Understand which live state a PLLM runtime owns and how it differs from a reprod
 
 Document ID: `pllm.docs.runtime`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a`
 
 A runtime session owns changing state such as inventory reservations, connections,

@@ -9,6 +9,7 @@ from dataclasses import dataclass, fields, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping, cast
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -209,15 +210,176 @@ class _Configuration:
         return result
 
 
-@dataclass(frozen=True, slots=True)
+_MODEL_KINDS = frozenset({
+    "huggingface",
+    "safetensors",
+    "vllm",
+    "mlx",
+    "mlx-lm",
+    "gguf",
+    "llama.cpp",
+    "ollama",
+    "tiny",
+})
+_MODEL_PATH_KINDS = _MODEL_KINDS - {"ollama", "tiny"}
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class Model(_Configuration):
     source: str
+    kind: str
+    model_id: str | None
+    revision: str | None
+    local_files_only: bool
+    endpoint: str | None
 
-    def __post_init__(self) -> None:
-        _string(self.source, "model.source")
+    def __init__(
+        self,
+        source: str,
+        *,
+        kind: str = "huggingface",
+        model_id: str | None = None,
+        revision: str | None = None,
+        local_files_only: bool = False,
+        endpoint: str | None = None,
+    ) -> None:
+        source = _string(source, "model.source")
+        kind = _string(kind, "model.kind")
+        if kind not in _MODEL_KINDS:
+            raise ConfigurationError(f"unsupported model kind {kind!r}")
+        if model_id is not None:
+            model_id = _string(model_id, "model.model_id")
+        if revision is not None:
+            revision = _string(revision, "model.revision")
+        if type(local_files_only) is not bool:
+            raise ConfigurationError("model.local_files_only must be a boolean")
+        if endpoint is not None:
+            endpoint = _string(endpoint, "model.endpoint")
+            parsed_endpoint = urlsplit(endpoint)
+            try:
+                port = parsed_endpoint.port
+            except ValueError as exc:
+                raise ConfigurationError("model.endpoint has an invalid port") from exc
+            if (
+                parsed_endpoint.scheme.lower() not in {"http", "https"}
+                or parsed_endpoint.hostname is None
+                or parsed_endpoint.username is not None
+                or parsed_endpoint.password is not None
+                or parsed_endpoint.path not in {"", "/"}
+                or parsed_endpoint.query
+                or parsed_endpoint.fragment
+                or port is not None and not 1 <= port <= 65535
+            ):
+                raise ConfigurationError("model.endpoint must be an HTTP(S) origin without credentials")
+            endpoint = f"{parsed_endpoint.scheme.lower()}://{parsed_endpoint.netloc}"
+        if revision is not None and kind not in {"huggingface", "safetensors", "vllm"}:
+            raise ConfigurationError(
+                "model.revision is supported only for Hugging Face-compatible models"
+            )
+        if local_files_only and kind not in {"huggingface", "safetensors", "vllm"}:
+            raise ConfigurationError(
+                "model.local_files_only is supported only for Hugging Face-compatible models"
+            )
+        if kind == "ollama" and endpoint is None:
+            endpoint = "http://127.0.0.1:11434"
+        if kind != "ollama" and endpoint is not None:
+            raise ConfigurationError("model.endpoint is supported only for ollama models")
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "model_id", model_id)
+        object.__setattr__(self, "revision", revision)
+        object.__setattr__(self, "local_files_only", local_files_only)
+        object.__setattr__(self, "endpoint", endpoint)
+
+    @classmethod
+    def hf(
+        cls,
+        repo_id: str,
+        *,
+        model_id: str | None = None,
+        revision: str | None = None,
+        local_files_only: bool = False,
+    ) -> Model:
+        return cls(
+            repo_id,
+            model_id=model_id,
+            revision=revision,
+            local_files_only=local_files_only,
+        )
+
+    @classmethod
+    def path(
+        cls,
+        path: str,
+        *,
+        format: str = "huggingface",
+        model_id: str | None = None,
+    ) -> Model:
+        if format not in _MODEL_PATH_KINDS:
+            raise ConfigurationError(f"unsupported model path format {format!r}")
+        return cls(
+            path,
+            kind=format,
+            model_id=model_id,
+            local_files_only=format in {"huggingface", "safetensors", "vllm"},
+        )
+
+    @classmethod
+    def tiny(cls, name: str = "qwen2", *, model_id: str | None = None) -> Model:
+        return cls(name, kind="tiny", model_id=model_id)
+
+    @classmethod
+    def ollama(
+        cls,
+        name: str,
+        *,
+        endpoint: str = "http://127.0.0.1:11434",
+        model_id: str | None = None,
+    ) -> Model:
+        return cls(name, kind="ollama", model_id=model_id, endpoint=endpoint)
+
+    @classmethod
+    def from_spec(cls, value: Mapping[str, Any]) -> Model:
+        if not isinstance(value, Mapping):
+            raise ConfigurationError("model must be a mapping")
+        allowed = {
+            "source",
+            "kind",
+            "model_id",
+            "revision",
+            "local_files_only",
+            "endpoint",
+        }
+        unknown = set(value) - allowed
+        if unknown:
+            raise ConfigurationError(f"model has unknown fields: {sorted(unknown)}")
+        if "source" not in value:
+            raise ConfigurationError("model requires source")
+        return cls(
+            value["source"],
+            kind=value.get("kind", "huggingface"),
+            model_id=value.get("model_id"),
+            revision=value.get("revision"),
+            local_files_only=value.get("local_files_only", False),
+            endpoint=value.get("endpoint"),
+        )
 
     def to_spec(self) -> dict[str, Any]:
-        return {"source": self.source}
+        result: dict[str, Any] = {"source": self.source}
+        if self.kind != "huggingface":
+            result["kind"] = self.kind
+        if self.model_id is not None:
+            result["model_id"] = self.model_id
+        if self.revision is not None:
+            result["revision"] = self.revision
+        if self.local_files_only:
+            result["local_files_only"] = True
+        if self.endpoint is not None:
+            result["endpoint"] = self.endpoint
+        return result
+
+    def to_runtime_spec(self) -> dict[str, Any]:
+        return {"kind": self.kind, **self.to_spec()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -719,7 +881,7 @@ def _experiment_from_spec(value: object) -> Experiment:
     if data["schema"] != _EXPERIMENT_SCHEMA:
         raise ConfigurationError(f"unsupported schema: {data['schema']!r}")
     pipeline_data = _fields(data["pipeline"], {"profile", "model", "components"}, "pipeline")
-    model_data = _fields(pipeline_data["model"], {"source"}, "pipeline.model")
+    model_data = pipeline_data["model"]
     raw_components = pipeline_data["components"]
     if not isinstance(raw_components, Mapping):
         raise ConfigurationError("pipeline.components must be a mapping")
@@ -737,7 +899,7 @@ def _experiment_from_spec(value: object) -> Experiment:
         name=data["name"],
         pipeline=Pipeline.from_profile(
             pipeline_data["profile"],
-            model=Model(model_data["source"]),
+            model=Model.from_spec(model_data),
             components=components,
         ),
         deployment=Deployment(kind=deployment_data["kind"], root=deployment_data["root"]),

@@ -6,7 +6,7 @@ Understand which evidence supports fidelity, performance, privacy, and deploymen
 
 Document ID: `pllm.docs.research.evidence`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:1143da9f355941d7d227919abb30be9d25e8915beb18f91a788ae52500e5f2dd`
 
 PLLM records source claims, clean-room fidelity, native implementation agreement,

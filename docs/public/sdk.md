@@ -6,7 +6,7 @@ Plan models, compose research methods, and use supported PLLM runtimes from Pyth
 
 Document ID: `pllm.docs.sdk`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:606373a08d7caf7bf31c9e8e64913fe55cb0c817ce7a035b9acf459cd2af28cd`
 
 PLLM ships one Python package backed by Rust. The public API separates model

@@ -107,7 +107,10 @@ client classes, configuration, response types, semantic model planning,
 application factories and native matrix interface. `pllm.lower_model` accepts
 only model configuration plus workload bounds and returns an immutable
 `ModelPlan`; it does not resolve or load weights, tokenizers, devices or runtime
-state. Public objects are imported on demand. `pllm.runtime` holds the separate
+state. `pllm.Model` is the shared source specification, while `pllm.load_model`
+performs the separate resolver/import step and records actual source-file hashes in
+a path-independent checkpoint lock. Public objects are imported on demand.
+`pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.
 

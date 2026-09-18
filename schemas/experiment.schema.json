@@ -18,7 +18,28 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["source"],
-          "properties": {"source": {"type": "string", "minLength": 1}}
+          "properties": {
+            "source": {"type": "string", "minLength": 1},
+            "kind": {"enum": ["huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "gguf", "llama.cpp", "ollama", "tiny"]},
+            "model_id": {"type": "string", "minLength": 1},
+            "revision": {"type": "string", "minLength": 1},
+            "local_files_only": {"type": "boolean"},
+            "endpoint": {"type": "string", "minLength": 1}
+          },
+          "allOf": [
+            {
+              "if": {"required": ["revision"]},
+              "then": {"properties": {"kind": {"enum": ["huggingface", "safetensors", "vllm"]}}}
+            },
+            {
+              "if": {"properties": {"local_files_only": {"const": true}}, "required": ["local_files_only"]},
+              "then": {"properties": {"kind": {"enum": ["huggingface", "safetensors", "vllm"]}}}
+            },
+            {
+              "if": {"required": ["endpoint"]},
+              "then": {"properties": {"kind": {"const": "ollama"}}, "required": ["kind"]}
+            }
+          ]
         },
         "components": {
           "type": "object",

@@ -5,6 +5,14 @@ description: "Turn model-family configuration into a shared decoder plan."
 
 Current semantic adapters cover dense Qwen2 and Qwen3 configuration contracts plus pinned Qwen3.5-4B, Phi-4-mini-instruct, Gemma 4 E2B, and Gemma 4 E4B text-decoder configurations described by package tests. Lowering reads configuration only. It does not load checkpoints, tokenizers, weights, devices, or runtime state.
 
+## One model source and loader
+
+`pllm.Model` is the typed public source specification used by `Pipeline.model`, SDK loading, runtime model requests, and CLI resolution. `Model(source)` remains the canonical shorthand for an unpinned Hugging Face source. Use `Model.hf(...)` for an explicit revision, `Model.path(...)` for a local Hugging Face, Safetensors, MLX, or GGUF source, and `Model.tiny(...)` only as a source declaration for later synthetic-component workflows.
+
+`pllm.load_model(model)` is the sole public loading entry. For Hugging Face identifiers it calls the canonical resumable resolver; for local sources it validates the selected format. It returns `ModelManifest`, not a live engine. Loading hashes the actual checkpoint/config/tokenizer files, checks resolver-recorded hashes when present, and records path-independent `checkpoint_digest` and `source_lock_digest` values. Tokens, API keys, cache directories, devices, and live handles are operational arguments and never enter the model specification or source lock.
+
+The checked Python example below includes both source loading and configuration-only lowering. Loading can download and hash a checkpoint. It does not quantize weights, allocate private material, start a service, or claim that the model has a complete execution profile.
+
 ## Add an adapter
 
 1. Parse one explicit public model-family configuration and reject unknown variants.
@@ -23,7 +31,14 @@ deployment maturity for these semantic plans: not recorded.
 ```python
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import Model, load_model, lower_model
+
+model = Model.hf(
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    revision="7ae557604adf67be50417f59c2c2f167def9a775",
+)
+manifest = load_model(model)
+assert manifest.checkpoint_digest is not None
 
 fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
 plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)

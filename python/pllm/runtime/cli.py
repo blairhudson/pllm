@@ -18,12 +18,13 @@ from typing import Any
 import httpx
 import uvicorn
 
+from pllm.configuration import Model
+from pllm.model_loader import resolve_model
 from pllm.settings import ClientSettings
 
 from .blinded_engine import BlindedTransformerEngine
 from .config import GatewayConfig
 from .guarded_engine import GuardPolicy, GuardedBlindedTransformerEngine
-from .hf_hub import resolve_huggingface_source
 from .preparation_server import create_preparation_app
 from .privacy import PrivacyMode, ProprietaryProtocol
 from .proprietary_engine import DirectFHETransformerEngine
@@ -298,20 +299,26 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         ids = args.model_id or [None] * len(args.model)
         resolved_models = []
         for source, requested_id in zip(args.model, ids, strict=True):
-            if args.model_kind in {"huggingface", "safetensors", "vllm"}:
-                resolved = resolve_huggingface_source(
-                    source,
-                    model_id=requested_id,
-                    revision=args.revision,
-                    token=args.hf_token,
-                    cache_dir=args.hf_cache_dir,
-                    local_files_only=args.local_files_only,
-                )
-                path = str(resolved.path)
-                public_id = resolved.model_id
-            else:
-                path = source
-                public_id = requested_id
+            model = Model(
+                source,
+                kind=args.model_kind,
+                model_id=requested_id,
+                revision=args.revision,
+                local_files_only=args.local_files_only,
+            )
+            resolved = resolve_model(
+                model,
+                token=args.hf_token,
+                cache_dir=args.hf_cache_dir,
+            )
+            if resolved.path is None:
+                raise RuntimeCLIError(f"model kind {model.kind!r} has no local runtime source")
+            runtime_model = Model(
+                str(resolved.path),
+                kind=model.kind,
+                model_id=resolved.manifest.id,
+                local_files_only=model.kind in {"huggingface", "safetensors", "vllm"},
+            )
             if mode is PrivacyMode.PUBLIC:
                 engine_name = "masked-transformer-w4a4"
             elif proprietary_protocol is ProprietaryProtocol.GUARDED:
@@ -323,12 +330,7 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
             else:
                 raise AssertionError("secure mode must fail before model loading")
             resolved_models.append(
-                {
-                    "engine": engine_name,
-                    "kind": args.model_kind,
-                    "path": path,
-                    **({"model_id": public_id} if public_id else {}),
-                }
+                {"engine": engine_name, **runtime_model.to_runtime_spec()}
             )
         value["engine_models"] = resolved_models
     config = GatewayConfig.from_dict(value)

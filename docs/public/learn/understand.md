@@ -6,7 +6,7 @@ Understand PLLM's architecture, trust boundaries, privacy assumptions, and evide
 
 Document ID: `pllm.docs.understand`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:65cda19398436e043102451e5ab7e08cb91af740af9478a2920e1629c42e2416`
 
 - [Architecture](/learn/understand/architecture/) follows a system from configuration to publication.

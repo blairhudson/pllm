@@ -6,7 +6,7 @@ Validate public experiment data and inspect built-in component records.
 
 Document ID: `pllm.docs.cli.inspect-and-research`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:9b0a5fbfec8bdc3688b22b3b76c90dd117f05b0ec7089fbcb881152c80fb0ea9`
 
 Inspect or export public experiment configuration:

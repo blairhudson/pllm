@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
-Source hash: `sha256:7e5488efc1d8135eb6528a7c28db3dfda8a37c8169ca8181a4e0a3128ae5f979`
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
+Source hash: `sha256:b9062ddabcbb887bf55e6220a6c20012b29205666fc1a1a7110ac495965ca7e1`
 
 Checked 16 September 2026.
 
@@ -65,6 +65,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Capability | Current status |
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
+| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, and synchronous Ollama inspection; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments; `tiny` is declarative only |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
 | Compiler coverage report | Available and profile-scoped; `baseline.masked_linear_cpu` is complete for untransformed dense Qwen2 through the model-aware runtime schedule, while `research.single_evaluator` remains incomplete |

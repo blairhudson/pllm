@@ -21,10 +21,54 @@ class ComponentDescriptor:
 
 class Model:
     source: str
-    def __init__(self, source: str) -> None: ...
+    kind: str
+    model_id: str | None
+    revision: str | None
+    local_files_only: bool
+    endpoint: str | None
+    def __init__(
+        self,
+        source: str,
+        *,
+        kind: str = "huggingface",
+        model_id: str | None = None,
+        revision: str | None = None,
+        local_files_only: bool = False,
+        endpoint: str | None = None,
+    ) -> None: ...
+    @classmethod
+    def hf(
+        cls,
+        repo_id: str,
+        *,
+        model_id: str | None = None,
+        revision: str | None = None,
+        local_files_only: bool = False,
+    ) -> Model: ...
+    @classmethod
+    def path(
+        cls,
+        path: str,
+        *,
+        format: str = "huggingface",
+        model_id: str | None = None,
+    ) -> Model: ...
+    @classmethod
+    def tiny(cls, name: str = "qwen2", *, model_id: str | None = None) -> Model: ...
+    @classmethod
+    def ollama(
+        cls,
+        name: str,
+        *,
+        endpoint: str = "http://127.0.0.1:11434",
+        model_id: str | None = None,
+    ) -> Model: ...
+    @classmethod
+    def from_spec(cls, value: Mapping[str, Any]) -> Model: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> Self: ...
     def to_spec(self) -> dict[str, Any]: ...
+    def to_runtime_spec(self) -> dict[str, Any]: ...
 
 class ComponentRef:
     component: str

@@ -6,7 +6,7 @@ Understand PLLM's native integer matrix kernels, memory costs, and CPU requireme
 
 Document ID: `pllm.docs.kernels`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:32182996dd67509970655fcec9753669b156314e8e1aee10ccb742e796d9a484`
 
 `pllm-core` implements bounded integer matrices, scalar reference code, runtime

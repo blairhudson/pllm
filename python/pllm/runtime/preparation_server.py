@@ -14,13 +14,14 @@ import msgpack
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response as FastAPIResponse
 
+from pllm.model_loader import model_from_runtime_spec, resolve_model
+
 from .config import GatewayConfig
 from .correction_channel import (
     CORRECTION_CHANNEL_PATH,
     CorrectionChannelError,
     CorrectionWebSocketClient,
 )
-from .loaders import load_hf_directory, load_mlx_directory
 from .preparation_protocol import (
     PREPARATION_PROTOCOL_VERSION,
     PreparationAck,
@@ -260,16 +261,13 @@ def create_preparation_app(
     async def lifespan(_: FastAPI):
         for source in config.engine_models:
             body = dict(source)
-            kind = str(body.get("kind", "huggingface"))
-            path = str(body.get("path", ""))
-            model_id = body.get("model_id")
-            if kind in {"huggingface", "safetensors", "vllm"}:
-                manifest = load_hf_directory(path, model_id=model_id)
-            elif kind in {"mlx", "mlx-lm"}:
-                manifest = load_mlx_directory(path, model_id=model_id)
-            else:
-                raise RuntimeError(f"preparation service does not support model kind {kind!r}")
-            await engine.load(manifest)
+            model = model_from_runtime_spec(body)
+            if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm"}:
+                raise RuntimeError(
+                    f"preparation service does not support model kind {model.kind!r}"
+                )
+            resolved = await asyncio.to_thread(resolve_model, model)
+            await engine.load(resolved.manifest)
         try:
             yield
         finally:

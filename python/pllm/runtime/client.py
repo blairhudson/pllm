@@ -82,7 +82,7 @@ from .tokenizer import AlphabetTokenizer
 from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 if TYPE_CHECKING:
-    from pllm.configuration import Experiment, ExperimentProfile
+    from pllm.configuration import Experiment, ExperimentProfile, Model
 
 T = TypeVar("T")
 
@@ -2949,18 +2949,41 @@ class RuntimeResource:
         _raise(response)
         return response.json()
 
-    def inspect_model(self, **source: Any) -> dict[str, Any]:
+    @staticmethod
+    def _model_body(model: "Model | str | None", source: dict[str, Any]) -> dict[str, Any]:
+        if model is None:
+            return source
+        unknown = set(source) - {"token", "cache_dir", "api_key"}
+        if unknown:
+            raise ValueError(f"model cannot be combined with source fields: {sorted(unknown)}")
+        from pllm.model_loader import coerce_model
+
+        return {**coerce_model(model).to_runtime_spec(), **source}
+
+    def inspect_model(
+        self,
+        model: "Model | str | None" = None,
+        **source: Any,
+    ) -> dict[str, Any]:
         response = self.core.http.post(
-            "/v1/runtime/models/inspect", headers=self.core.headers, json=source
+            "/v1/runtime/models/inspect",
+            headers=self.core.headers,
+            json=self._model_body(model, source),
         )
         _raise(response)
         return response.json()
 
-    def load_model(self, *, engine: str, **source: Any) -> dict[str, Any]:
+    def load_model(
+        self,
+        model: "Model | str | None" = None,
+        *,
+        engine: str,
+        **source: Any,
+    ) -> dict[str, Any]:
         response = self.core.http.post(
             "/v1/runtime/models/load",
             headers=self.core.headers,
-            json={"engine": engine, **source},
+            json={"engine": engine, **self._model_body(model, source)},
         )
         _raise(response)
         return response.json()
@@ -3174,11 +3197,26 @@ class AsyncRuntimeResource:
     async def engines(self) -> dict[str, Any]:
         return await asyncio.to_thread(self.resource.engines)
 
-    async def inspect_model(self, **source: Any) -> dict[str, Any]:
-        return await asyncio.to_thread(self.resource.inspect_model, **source)
+    async def inspect_model(
+        self,
+        model: "Model | str | None" = None,
+        **source: Any,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self.resource.inspect_model, model, **source)
 
-    async def load_model(self, *, engine: str, **source: Any) -> dict[str, Any]:
-        return await asyncio.to_thread(self.resource.load_model, engine=engine, **source)
+    async def load_model(
+        self,
+        model: "Model | str | None" = None,
+        *,
+        engine: str,
+        **source: Any,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self.resource.load_model,
+            model,
+            engine=engine,
+            **source,
+        )
 
     async def unload_model(self, model: str) -> dict[str, Any]:
         return await asyncio.to_thread(self.resource.unload_model, model)

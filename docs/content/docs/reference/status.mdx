@@ -65,6 +65,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Capability | Current status |
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
+| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, and synchronous Ollama inspection; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments; `tiny` is declarative only |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
 | Compiler coverage report | Available and profile-scoped; `baseline.masked_linear_cpu` is complete for untransformed dense Qwen2 through the model-aware runtime schedule, while `research.single_evaluator` remains incomplete |

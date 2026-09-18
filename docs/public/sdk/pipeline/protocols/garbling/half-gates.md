@@ -6,7 +6,7 @@ Boolean AND-gate representation and the obligations surrounding free-XOR circuit
 
 Document ID: `pllm.docs.protocols.garbling.half-gates`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:149e42548d78ad08f4d8c22390f3013eb618a1b1af9f8d5165c41aa6e1789f21`
 
 Half-gates reduce encrypted table material for Boolean AND gates under compatible label and hash assumptions. A component contract must bind circuit identity, wire labels, correlation assumptions, evaluator material, one-time use, serialization, and output decoding.

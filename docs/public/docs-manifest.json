@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863",
+  "buildId": "sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -164,7 +164,7 @@
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
       "navigationOrder": 4,
-      "contentHash": "sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8"
+      "contentHash": "sha256:ca2d47f439d2e756dae86cc49d2aa353ba74ccd49e15f1ae137141c512566e13"
     },
     {
       "id": "pllm.docs.sdk.plans",
@@ -296,7 +296,7 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/",
       "navigationOrder": 100,
-      "contentHash": "sha256:1a9602a4ba72d2c6427ebe44a0235709ed924edd3a573ff219e2786d426adc0e"
+      "contentHash": "sha256:c01226ddae8cc9fe8515a5dfa9cc966db484bf328928a08baa63b29841cd0db7"
     },
     {
       "id": "pllm.docs.build.research",
@@ -1406,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:2a230f63f913d47bc6da27d75f000b8deb2ab5644d14c13a98fd585a17fcad6f"
+      "contentHash": "sha256:5f4d7c87ae617f1e7f142173accf46c085a2b19f75e9255f4b07e588de64db1c"
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1483,7 +1483,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:935efca8ea94ceaa7b6b560413944283fce7a9457abc88165792a823bfc38982"
+      "contentHash": "sha256:d4fa3ab4d1294ce4ab3ed247051f481137bec7ffa7dfe7a11e0209a7e93d7cc5"
     },
     {
       "id": "pllm.docs.reference.status",
@@ -1514,7 +1514,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:7e5488efc1d8135eb6528a7c28db3dfda8a37c8169ca8181a4e0a3128ae5f979"
+      "contentHash": "sha256:b9062ddabcbb887bf55e6220a6c20012b29205666fc1a1a7110ac495965ca7e1"
     },
     {
       "id": "pllm.docs.research.sources",

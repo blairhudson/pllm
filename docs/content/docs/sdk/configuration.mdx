@@ -34,6 +34,13 @@ from pllm import Model
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
+
+pinned = Model.hf(
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    revision="7ae557604adf67be50417f59c2c2f167def9a775",
+)
+assert pinned.kind == "huggingface"
+assert pinned.revision is not None
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

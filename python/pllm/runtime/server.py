@@ -17,6 +17,8 @@ import numpy as np
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response as FastAPIResponse, StreamingResponse
 
+from pllm.model_loader import model_from_runtime_spec, resolve_model
+
 from .backends import BackendRegistry
 from .config import GatewayConfig
 from .correction_channel import (
@@ -26,7 +28,6 @@ from .correction_channel import (
 from .correction_rendezvous import CorrectionRendezvous, RendezvousError
 from .engine import InferenceEngine
 from .engine import EngineStageExecutor
-from .hf_hub import resolve_huggingface_source
 from .bfv_correlations import BFVCorrelationServer
 from .masked_runtime import (
     BigramStageExecutor,
@@ -36,7 +37,7 @@ from .masked_runtime import (
     MaskedBigramModel,
     StageBatchScheduler,
 )
-from .loaders import load_gguf, load_hf_directory, load_mlx_directory, load_ollama_model
+from .loaders import load_ollama_model
 from .models import ModelManifest as ImportedModelManifest
 from .protocol import (
     BINARY_MEDIA_TYPE,
@@ -483,41 +484,27 @@ def create_app(
         }
 
     async def inspect_source(body: dict[str, Any]) -> ImportedModelManifest:
-        kind = str(body.get("kind", "huggingface"))
-        model_id = body.get("model_id")
-        if kind in {"huggingface", "safetensors", "vllm"}:
-            source = str(body.get("repo_id") or body.get("path") or "")
-            if not source:
-                raise HTTPException(
-                    status_code=400, detail={"error": {"message": "path or repo_id is required"}}
-                )
-            local_path = Path(source).expanduser()
-            if local_path.exists():
-                # Keep generic engine-plugin support for local, config-only fixtures.
-                # Strict Transformer engines validate their required tensor files at load time.
-                return load_hf_directory(str(local_path.resolve()), model_id=model_id)
-            resolved = resolve_huggingface_source(
-                source,
-                model_id=model_id,
-                revision=body.get("revision"),
-                token=body.get("token"),
-                cache_dir=body.get("cache_dir"),
-                local_files_only=bool(body.get("local_files_only", False)),
-            )
-            return load_hf_directory(str(resolved.path), model_id=resolved.model_id)
-        if kind in {"mlx", "mlx-lm"}:
-            return load_mlx_directory(str(body["path"]), model_id=model_id)
-        if kind in {"gguf", "llama.cpp"}:
-            return load_gguf(str(body["path"]), model_id=model_id)
-        if kind == "ollama":
-            return await load_ollama_model(
-                str(body.get("base_url", "http://127.0.0.1:11434")),
-                str(body["name"]),
+        model = model_from_runtime_spec(body)
+        if model.kind == "ollama":
+            manifest = await load_ollama_model(
+                model.endpoint or "http://127.0.0.1:11434",
+                model.source,
                 api_key=body.get("api_key"),
             )
-        raise HTTPException(
-            status_code=400, detail={"error": {"message": f"Unsupported model source {kind}"}}
+            if model.model_id is not None:
+                manifest.id = model.model_id
+            manifest.metadata["model_spec"] = model.to_spec()
+            return manifest
+        # Keep generic engine-plugin support for local, config-only fixtures.
+        # Strict Transformer engines validate their required tensor files at load time.
+        resolved = await asyncio.to_thread(
+            resolve_model,
+            model,
+            token=body.get("token"),
+            cache_dir=body.get("cache_dir"),
+            allow_config_only=True,
         )
+        return resolved.manifest
 
     async def register_engine_model(
         engine_name: str, manifest: ImportedModelManifest
@@ -629,7 +616,10 @@ def create_app(
     ) -> dict[str, Any]:
         auth_token(authorization)
         body = await request.json()
-        manifest = await inspect_source(body)
+        try:
+            manifest = await inspect_source(body)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": {"message": str(exc)}}) from exc
         if body.get("register", True):
             imported[manifest.id] = manifest
         return manifest.to_dict()

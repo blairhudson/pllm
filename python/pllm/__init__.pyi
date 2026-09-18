@@ -48,7 +48,9 @@ from pllm.configuration import ExperimentProfile as ExperimentProfile
 from pllm.configuration import KvCacheEviction as KvCacheEviction
 from pllm.configuration import MaskedLinear as MaskedLinear
 from pllm.configuration import Model as Model
+from pllm.model_loader import ModelLoadError as ModelLoadError
 from pllm.configuration import ModelAwareCorrections as ModelAwareCorrections
+from pllm.model_loader import ModelManifest as ModelManifest
 from pllm.modeling import DecoderCoverageReport as DecoderCoverageReport
 from pllm.modeling import DecoderRuntimeSchedule as DecoderRuntimeSchedule
 from pllm.modeling import ModelPlan as ModelPlan
@@ -66,6 +68,7 @@ from pllm.runtime.linear_integrity import create_linear_check_key as create_line
 from pllm.runtime.official import create_openai_client as create_openai_client
 from pllm.runtime.sidecar import create_sidecar_app as create_sidecar_app
 from pllm.configuration import load_configuration as load_configuration
+from pllm.model_loader import load_model as load_model
 from pllm.configuration import loads_configuration as loads_configuration
 from pllm.modeling import lower_model as lower_model
 from pllm.runtime.secure_selection import secure_argmax as secure_argmax

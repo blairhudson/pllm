@@ -6,7 +6,7 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:6639b16819b8c850eeda01994a03ce6cd4c75382798ad9351c0912a5f0c932cf`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.

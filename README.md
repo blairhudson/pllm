@@ -174,6 +174,17 @@ print(plan.digest)
 print(coverage.to_dict())
 ```
 
+Checkpoint resolution uses the separate typed loader and can perform network and disk work:
+
+```python
+model = pllm.Model.hf(
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    revision="7ae557604adf67be50417f59c2c2f167def9a775",
+)
+manifest = pllm.load_model(model)
+print(manifest.checkpoint_digest)
+```
+
 Semantic lowering, complete compiler coverage, runtime execution, model quality,
 privacy evidence, and deployment support are separate claims.
 

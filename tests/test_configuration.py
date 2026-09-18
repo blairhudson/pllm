@@ -8,6 +8,7 @@ import runpy
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from pllm import Experiment, Model, Pipeline
 from pllm.components import (
@@ -73,6 +74,70 @@ def test_first_request_example_executes_and_resolves() -> None:
     namespace = runpy.run_path(str(FIRST_REQUEST_EXAMPLE))
     assert namespace["experiment"] == example()
     assert namespace["resolved"].configuration_digest == example().configuration_digest()
+
+
+def test_model_is_one_typed_source_spec_with_legacy_canonical_default() -> None:
+    default = Model("Qwen/Qwen2.5-0.5B-Instruct")
+    assert default == Model.hf("Qwen/Qwen2.5-0.5B-Instruct")
+    assert default.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
+    assert default.to_runtime_spec() == {
+        "kind": "huggingface",
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+    }
+
+    pinned = Model.hf(
+        "Qwen/Qwen2.5-0.5B-Instruct",
+        model_id="qwen-local",
+        revision="7ae5576",
+        local_files_only=True,
+    )
+    assert Model.from_spec(pinned.to_spec()) == pinned
+    assert pinned.to_spec() == {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "model_id": "qwen-local",
+        "revision": "7ae5576",
+        "local_files_only": True,
+    }
+    assert Model.path("/models/qwen", format="safetensors").kind == "safetensors"
+    assert Model.path("/models/qwen.gguf", format="gguf").kind == "gguf"
+    assert Model.tiny().to_spec() == {"source": "qwen2", "kind": "tiny"}
+    ollama = Model.ollama("qwen2:latest")
+    assert ollama.to_spec() == {
+        "source": "qwen2:latest",
+        "kind": "ollama",
+        "endpoint": "http://127.0.0.1:11434",
+    }
+    model_schema = json.loads((ROOT / "schemas/model.schema.json").read_text())
+    for model in (default, pinned, Model.path("/models/qwen.gguf", format="gguf"), ollama):
+        Draft202012Validator(model_schema).validate(model.to_spec())
+
+    for invalid in (
+        {"source": "x", "kind": "unknown"},
+        {"source": "x", "kind": "gguf", "revision": "main"},
+        {"source": "x", "kind": "tiny", "local_files_only": True},
+        {"source": "x", "endpoint": "https://example.invalid"},
+        {"source": "x", "kind": "ollama", "endpoint": "https://user:secret@example.invalid"},
+        {"source": "x", "kind": "ollama", "endpoint": "https://example.invalid/api"},
+        {"kind": "huggingface"},
+        {"source": "x", "extra": True},
+    ):
+        with pytest.raises(ConfigurationError):
+            Model.from_spec(invalid)
+
+
+def test_explicit_model_spec_round_trips_through_experiment_schema() -> None:
+    pinned = example().with_params(
+        pipeline__model=Model.hf(
+            "Qwen/Qwen2.5-0.5B-Instruct",
+            model_id="qwen-pinned",
+            revision="7ae5576",
+            local_files_only=True,
+        )
+    )
+    restored = loads_configuration(json.dumps(pinned.to_spec()))
+    assert restored == pinned
+    schema = json.loads((ROOT / "schemas/experiment.schema.json").read_text())
+    Draft202012Validator(schema).validate(pinned.to_spec())
 
 
 def test_canonical_bytes_and_digest_golden():

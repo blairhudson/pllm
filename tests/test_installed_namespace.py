@@ -39,7 +39,10 @@ def test_public_domain_facades_share_root_identities():
     from pllm.models import (
         DecoderCoverageReport,
         DecoderRuntimeSchedule,
+        ModelLoadError,
+        ModelManifest,
         ModelPlan,
+        load_model,
         lower_model,
     )
     from pllm.plan import CompiledPlan
@@ -48,7 +51,10 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.Experiment is Experiment
     assert pllm.DecoderCoverageReport is DecoderCoverageReport
     assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
+    assert pllm.ModelLoadError is ModelLoadError
+    assert pllm.ModelManifest is ModelManifest
     assert pllm.ModelPlan is ModelPlan
+    assert pllm.load_model is load_model
     assert pllm.lower_model is lower_model
     assert pllm.CompiledPlan is CompiledPlan
 

@@ -53,6 +53,16 @@ class ModelManifest:
     created_at: float = field(default_factory=time.time)
 
     @property
+    def checkpoint_digest(self) -> str | None:
+        value = self.metadata.get("checkpoint_digest")
+        return value if isinstance(value, str) else None
+
+    @property
+    def source_lock_digest(self) -> str | None:
+        value = self.metadata.get("source_lock_digest")
+        return value if isinstance(value, str) else None
+
+    @property
     def fingerprint(self) -> str:
         # Creation time is transport metadata, not model identity. Excluding it
         # keeps manifests stable across repeated inspection/import runs.

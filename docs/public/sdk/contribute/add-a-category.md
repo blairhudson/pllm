@@ -6,7 +6,7 @@ Extend the semantic component graph when an existing category cannot express a r
 
 Document ID: `pllm.docs.contribute.add-a-category`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:a4e76626c0d51636f65b1eec99b365fb8b8c476cfd18990650a678f31fb37dad`
 
 Add a category only when existing operator, representation, protocol, conversion, preparation, kernel, compiler, runtime, deployment, metric, search, or assurance contracts cannot express the new capability without ambiguity.

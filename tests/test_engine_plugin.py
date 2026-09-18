@@ -73,6 +73,7 @@ def test_engine_load_execute_unload_contract(tmp_path: Path):
 
 def test_sdk_runtime_extension_loads_and_executes_engine_stage(tmp_path: Path):
     from conftest import start_gateway
+    from pllm import Model
     from pllm.runtime import OpenAI
 
     config = {
@@ -92,7 +93,8 @@ def test_sdk_runtime_extension_loads_and_executes_engine_stage(tmp_path: Path):
         ) as client:
             assert client.runtime.engines()["data"][0]["id"] == "fake"
             loaded = client.runtime.load_model(
-                engine="fake", kind="huggingface", path=str(tmp_path), model_id="tiny-sdk"
+                Model.path(str(tmp_path), model_id="tiny-sdk"),
+                engine="fake",
             )
             stage = loaded["stages"][0]["id"]
             outputs = client.runtime.execute_stage(

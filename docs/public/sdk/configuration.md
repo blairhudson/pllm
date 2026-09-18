@@ -6,8 +6,8 @@ Load, inspect, and export a reproducible PLLM experiment configuration.
 
 Document ID: `pllm.docs.sdk.configuration`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
-Source hash: `sha256:f2109427fb5a3b204a7fd15b0173c686175aca157c0596687ef5d36b7935a8c8`
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
+Source hash: `sha256:ca2d47f439d2e756dae86cc49d2aa353ba74ccd49e15f1ae137141c512566e13`
 
 PLLM configuration objects describe public intent. Creating one does not download
 a model, contact a service, compile a plan, or create private material.
@@ -40,6 +40,13 @@ from pllm import Model
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
+
+pinned = Model.hf(
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    revision="7ae557604adf67be50417f59c2c2f167def9a775",
+)
+assert pinned.kind == "huggingface"
+assert pinned.revision is not None
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

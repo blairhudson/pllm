@@ -6,7 +6,7 @@ Run the real PLLM roles on one machine and understand what the result does and d
 
 Document ID: `pllm.docs.start.first-local-benchmark`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
 Source hash: `sha256:c277b81019938f48fc33ad027df967873ac7f89044b32d030597da2200c2f1e6`
 
 Run the real local client, preparation, and inference roles:

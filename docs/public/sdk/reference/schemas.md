@@ -6,14 +6,14 @@ Versioned schemas for configurations, plans, evidence, assurance, and research r
 
 Document ID: `pllm.docs.reference.schemas`  
 Release: `0.1.0`  
-Build: `sha256:14dfd6dfb589b89eccacdb134c3034e325dd156876b4d3e1dee4a6f7c4e70863`  
-Source hash: `sha256:935efca8ea94ceaa7b6b560413944283fce7a9457abc88165792a823bfc38982`
+Build: `sha256:25f93731fb643fee39e706e33566ffa98bc3397f98a6a12e261bafd33b06038e`  
+Source hash: `sha256:d4fa3ab4d1294ce4ab3ed247051f481137bec7ffa7dfe7a11e0209a7e93d7cc5`
 
 Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.
 
 Configuration, semantic decoder plans, compile requests, executable plans, component descriptors, benchmark evidence, assurance evidence, research sources, methods, recipes, and publication assessment evolve independently. A schema-valid document can still be unsupported by a selected compiler or runtime profile.
 
-`dense-qwen-runtime-schedule.schema.json` covers the complete batch-one, untransformed Qwen2 schedule emitted for `baseline.masked_linear_cpu`. `runtime-model-binding.schema.json` covers the model-plan, schedule, tokenizer, runtime-configuration, local-tensor, quantized-stage, scale, and preparation commitments checked before that schedule can execute. Both schemas describe the model-aware baseline only; they do not authorize `research.single_evaluator`, MPCache execution, another model family, or protected client-local operators.
+`model.schema.json` covers the typed public model source shared by configuration and runtime requests. `model-source-lock.schema.json` covers path-independent checkpoint/config/tokenizer file hashes produced by the public model loader. `dense-qwen-runtime-schedule.schema.json` covers the complete batch-one, untransformed Qwen2 schedule emitted for `baseline.masked_linear_cpu`. `runtime-model-binding.schema.json` covers the model-plan, schedule, tokenizer, runtime-configuration, local-tensor, quantized-stage, scale, and preparation commitments checked before that schedule can execute. The schedule and binding schemas describe the model-aware baseline only; they do not authorize `research.single_evaluator`, MPCache execution, another model family, or protected client-local operators.
 
 ## Python SDK example
 

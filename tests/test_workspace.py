@@ -89,14 +89,20 @@ from pllm.config import Experiment
 from pllm.models import (
     DecoderCoverageReport,
     DecoderRuntimeSchedule,
+    ModelLoadError,
+    ModelManifest,
     ModelPlan,
+    load_model,
     lower_model,
 )
 from pllm.plan import CompiledPlan
 assert pllm.Experiment is Experiment
 assert pllm.DecoderCoverageReport is DecoderCoverageReport
 assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
+assert pllm.ModelLoadError is ModelLoadError
+assert pllm.ModelManifest is ModelManifest
 assert pllm.ModelPlan is ModelPlan
+assert pllm.load_model is load_model
 assert pllm.lower_model is lower_model
 assert pllm.CompiledPlan is CompiledPlan
 assert 'pllm._native' not in sys.modules
