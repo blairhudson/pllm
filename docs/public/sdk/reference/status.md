@@ -6,8 +6,8 @@ What you can use today, what remains experimental, and what is not yet supported
 
 Document ID: `pllm.docs.reference.status`  
 Release: `0.1.0`  
-Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
-Source hash: `sha256:35c53d59b02d73e266ae4cfc8397d1a3ca933b5dd0a2557d83c65da969e6fdf6`
+Build: `sha256:87cbf81718b764da3fb4871c21f12e5943efd717a5d5854e5a0cecf969808585`  
+Source hash: `sha256:11de08539749976f9e4edccbeb38e6a44824e0a55ec9344be4a3b937b3df39b5`
 
 Checked 16 September 2026.
 
@@ -71,6 +71,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Plan-bound Q10 state regions | Available for RMSNorm, rotary embedding, fixed-capacity KV initialization/append, and visible-prefix cache views; oversized RMSNorm falls back to the explicit FP32 reference and malformed provenance fails closed |
 | Client-local Q10 token lookup | Available for bounded dense-Qwen token tables with typed token IDs, pre-allocation vocabulary checks, borrowed Q10 weights, and zeroized embedding outputs |
 | Graph-derived Q14-to-Q10 transitions | Available for dense-Qwen q/k/v projection-to-head edges and o-projection-to-attention-residual edges; topology-derived matching excludes gate/up/down/output-head paths and rejects incomplete model families |
+| Dense-Qwen2 attention-block oracle | Available as a clear fixed-scale prefill/decode composite covering RMSNorm through attention residual with plan/weight binding, fixed KV state, zeroized intermediates, and poisoned-state failure handling; Qwen3 and MPCache execution remain separate work |
 | Protected Q7 gated-MLP nonlinear region | Available for dense-Qwen SiLU and multiplication as one chunked one-use tensor region up to 4,000,000 elements; oversized tensors remain primitive-only |
 | Decoder tail regions | Available for dense Qwen: prefill last-valid selection, decode physical-last selection, signed-wrap32 greedy selection with lowest-index tie-breaking, and token-id feedback; whole-decoder scheduling remains unavailable |
 | Client-local Softmax region | Available for scaled signed-Q20 attention scores with explicit masking, deterministic Q30 probabilities, and exact active-row sums; cryptographic Softmax alternatives remain research components |

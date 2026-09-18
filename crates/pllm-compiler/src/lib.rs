@@ -19,12 +19,25 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
+mod dense_qwen_attention;
 mod dense_qwen_mlp;
 mod dense_qwen_mlp_protected;
 mod gated_tensor;
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
+pub use dense_qwen_attention::{
+    compile_dense_qwen_attention_block, execute_dense_qwen_attention_decode,
+    execute_dense_qwen_attention_prefill, CompiledDenseQwenAttentionBlock,
+    DenseQwenAttentionComposite, DenseQwenAttentionElementType, DenseQwenAttentionExecutionPolicy,
+    DenseQwenAttentionLayout, DenseQwenAttentionOutputQ10, DenseQwenAttentionRangePolicy,
+    DenseQwenAttentionResourcePolicy, DenseQwenAttentionState, DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightBytes, DenseQwenAttentionWeightManifest, DenseQwenAttentionWeights,
+    DENSE_QWEN_ATTENTION_BLOCK_SCHEMA_VERSION, DENSE_QWEN_ATTENTION_CLEAR_PROFILE,
+    DENSE_QWEN_ATTENTION_HARD_MAX_ACTIVATION_ELEMENTS,
+    DENSE_QWEN_ATTENTION_HARD_MAX_TOTAL_WEIGHT_BYTES,
+    DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_SCHEMA_VERSION,
+};
 pub use dense_qwen_mlp::{
     compile_dense_qwen_mlp_block, execute_dense_qwen_mlp_block, CompiledDenseQwenMlpBlock,
     DenseQwenMlpComposite, DenseQwenMlpElementType, DenseQwenMlpLayout, DenseQwenMlpRangePolicy,
@@ -3171,6 +3184,43 @@ pub fn lower_model_output_head_regions(
         .collect()
 }
 
+pub fn execute_model_linear(
+    region: &ModelLinearRegion,
+    weights: &[u8],
+    input: &[u32],
+    threads: usize,
+    simd: bool,
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::Wrap32
+        || region.operation.output.numeric != NumericType::Wrap32
+        || region.input.shape.len() != 2
+        || region.operation.output.shape.len() != 2
+        || region.input.shape[0] != region.operation.output.shape[0]
+        || region.input.shape.contains(&0)
+        || region.operation.output.shape.contains(&0)
+    {
+        return Err(
+            "semantic linear requires rank-2 wrap32 input and output with matching nonzero rows"
+                .into(),
+        );
+    }
+    let rows = usize::try_from(region.input.shape[0])
+        .map_err(|_| "semantic linear row count exceeds usize")?;
+    let input_width = usize::try_from(region.input.shape[1])
+        .map_err(|_| "semantic linear input width exceeds usize")?;
+    let output_width = usize::try_from(region.operation.output.shape[1])
+        .map_err(|_| "semantic linear output width exceeds usize")?;
+    checked_wrap32_matrix(
+        weights,
+        output_width,
+        input_width,
+        input,
+        rows,
+        threads,
+        simd,
+    )
+}
+
 /// Execute one semantic output head through the wrap32 matrix kernel.
 pub fn execute_model_output_head(
     region: &ModelOutputHeadRegion,
@@ -3201,9 +3251,21 @@ pub fn execute_model_output_head(
         .map_err(|_| "output-head input width exceeds usize")?;
     let rows = usize::try_from(*region.output.shape.last().unwrap())
         .map_err(|_| "output-head output width exceeds usize")?;
-    let matrix = pllm_core::Matrix::new(weights, rows, columns)?;
+    checked_wrap32_matrix(weights, rows, columns, input, batch, threads, simd)
+}
+
+fn checked_wrap32_matrix(
+    weights: &[u8],
+    output_width: usize,
+    input_width: usize,
+    input: &[u32],
+    rows: usize,
+    threads: usize,
+    simd: bool,
+) -> Result<Vec<u32>, String> {
+    let matrix = pllm_core::Matrix::new(weights, output_width, input_width)?;
     let executor = pllm_core::Executor::new(threads, simd)?;
-    matrix.wrap32(&executor, input, batch)
+    matrix.wrap32(&executor, input, rows)
 }
 
 /// Extract physical-last and last-valid token selections.

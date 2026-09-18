@@ -6,7 +6,7 @@ Learn what PLLM protects, what each party can see, and which trust assumptions s
 
 Document ID: `pllm.docs.learn.privacy-and-threat-models`  
 Release: `0.1.0`  
-Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
+Build: `sha256:87cbf81718b764da3fb4871c21f12e5943efd717a5d5854e5a0cecf969808585`  
 Source hash: `sha256:b7a2162a110280a1c987c0c1e4621c5e4e3abb5f0a925f24ee1413e6cd4ae3fb`
 
 To evaluate a private inference system, ask six questions:

@@ -6,7 +6,7 @@ Evaluate a specific privacy, integrity, numeric, implementation, or deployment c
 
 Document ID: `pllm.docs.assurance`  
 Release: `0.1.0`  
-Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
+Build: `sha256:87cbf81718b764da3fb4871c21f12e5943efd717a5d5854e5a0cecf969808585`  
 Source hash: `sha256:13f22bea16c6bc03779bbf5003402ef7eba8dd47d0b615ef73e086341603f93d`
 
 An assurance record identifies the exact plan, component versions, threat model,
