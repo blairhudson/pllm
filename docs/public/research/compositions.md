@@ -6,7 +6,7 @@ Learn how PLLM records research recipes and changes to a model plan.
 
 Document ID: `pllm.docs.research.compositions`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f`
 
 Research workflows describe source acquisition, target model operations,

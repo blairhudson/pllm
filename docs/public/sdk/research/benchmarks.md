@@ -6,7 +6,7 @@ Measure PLLM systems with reproducible records and compare only equivalent runs.
 
 Document ID: `pllm.docs.benchmarks`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns an

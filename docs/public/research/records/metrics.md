@@ -6,7 +6,7 @@ Choose clear performance, resource, quality, and privacy measurements for a PLLM
 
 Document ID: `pllm.docs.metrics`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:193a7b72d5185ed5e1d53cad4f962bbd540874b060b24ac3b628cc01dd041fba`
 
 No single number describes system performance. Report tokens per second, time to

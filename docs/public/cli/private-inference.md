@@ -6,7 +6,7 @@ Run the trusted gateway locally or connect it to independently operated PLLM rol
 
 Document ID: `pllm.docs.cli.private-inference`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:d38d48f9661d3c10599c881dc798f22ea20e556f218f95aca3730f87056c0517`
 
 Applications connect to the trusted loopback gateway. They do not send ordinary

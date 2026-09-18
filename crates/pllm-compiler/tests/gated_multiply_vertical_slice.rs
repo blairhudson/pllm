@@ -5,6 +5,7 @@ use pllm_compiler::{
     CapabilityLevel, GatedMultiplyQ7Evaluator, GatedMultiplyQ7TensorEvaluator,
     TensorResourcePolicy, GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID,
     GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
+    GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS,
     GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
     GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES, GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID,
     GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID, GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
@@ -63,17 +64,31 @@ fn semantic_qwen_gated_multiply_lowers_with_exact_provenance() {
         );
     }
     let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let silu = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == pllm_models::ModelOperator::Silu)
+        .unwrap();
     let multiply = coverage
         .operators
         .iter()
         .find(|coverage| coverage.operator == pllm_models::ModelOperator::Multiply)
         .unwrap();
-    assert_eq!(multiply.level, CapabilityLevel::Primitive);
+    assert_eq!(silu.level, CapabilityLevel::ExecutableRegion);
+    assert_eq!(
+        silu.component.as_deref(),
+        Some("pllm/agc-silu-q7@0.1.0-alpha.1-experimental")
+    );
+    assert!(silu.blocker.contains("chunked"));
+    assert!(silu.blocker.contains("whole-decoder scheduling"));
+    assert_eq!(multiply.level, CapabilityLevel::ExecutableRegion);
     assert_eq!(
         multiply.component.as_deref(),
         Some("pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental")
     );
-    assert!(multiply.blocker.contains("resource-bounded chunked"));
+    assert!(multiply.blocker.contains("chunked"));
+    assert!(multiply.blocker.contains("whole-decoder scheduling"));
+    assert!(!coverage.complete);
 }
 
 #[test]
@@ -625,4 +640,46 @@ fn chunked_tensor_retries_interrupted_authenticated_body_reads() {
     };
     let labels = evaluator.evaluate(&mut reader, &gates, &ups).unwrap();
     assert_eq!(material.decode_tensor(&labels).unwrap().len(), 5);
+}
+
+#[test]
+fn oversized_intermediate_keeps_gated_regions_primitive() {
+    let plan = qwen_plan(GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS as u64 + 1);
+    let region = chunked_region(
+        &plan,
+        DecoderMode::Prefill,
+        GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS,
+    );
+    assert_eq!(
+        prepare_bound_gated_multiply_q7_material(&plan, &region)
+            .err()
+            .unwrap(),
+        format!(
+            "gated Q7 multiply scheduler permits at most {} elements, received {}",
+            GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS,
+            GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS + 1
+        )
+    );
+    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let silu = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == pllm_models::ModelOperator::Silu)
+        .unwrap();
+    let multiply = coverage
+        .operators
+        .iter()
+        .find(|coverage| coverage.operator == pllm_models::ModelOperator::Multiply)
+        .unwrap();
+    assert_eq!(silu.level, CapabilityLevel::Primitive);
+    assert_eq!(
+        silu.component.as_deref(),
+        Some("pllm/agc-silu-q7@0.1.0-alpha.1-experimental")
+    );
+    assert_eq!(multiply.level, CapabilityLevel::Primitive);
+    assert_eq!(
+        multiply.component.as_deref(),
+        Some("pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental")
+    );
+    assert!(!coverage.complete);
 }

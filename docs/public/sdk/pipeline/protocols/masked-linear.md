@@ -6,7 +6,7 @@ Prepared public-weight linear inference with seeded one-time masks and committed
 
 Document ID: `pllm.docs.protocols.masked-linear`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:ba67dc0c5a378cc0c277b5b680695625d31789ebb82b774a63b8ec0768a50da3`
 
 The prepared protocol separates client, trusted preparation, and untrusted inference roles. Offline, preparation computes `W*r-s` from domain-separated client seed batches and pushes committed corrections. Online, inference atomically consumes the ticket matching `x-r` and returns `W*x-s` for client reconstruction.

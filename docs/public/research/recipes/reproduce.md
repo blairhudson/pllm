@@ -6,7 +6,7 @@ Compare an independent PLLM implementation with the published method it follows.
 
 Document ID: `pllm.docs.measure.reproduce`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c`
 
 1. Lock source publication, artifact, license, environment, and workload.

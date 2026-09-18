@@ -6,7 +6,7 @@ Versioned schemas for configurations, plans, evidence, assurance, and research r
 
 Document ID: `pllm.docs.reference.schemas`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:e1cf3d369c6b800eb009362e779c998232e2058bf986b5044f6a25e40cd8d7d7`
 
 Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.

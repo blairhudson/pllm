@@ -6,7 +6,7 @@ Design reproducible experiments with fixed plans, comparable runs, and recorded 
 
 Document ID: `pllm.docs.research.experiments`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:fb74cab7b8065fcba5070e81afb8cf2a9202786a299e63581e2a8cf9027ca5fe`
 
 Before execution, an experiment records its hypothesis, baseline, changed

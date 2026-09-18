@@ -6,7 +6,7 @@ Find the code and records used for implementation, research, and reproduction wo
 
 Document ID: `pllm.docs.agents`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:0a2d9d73c5c1d79f973a8a039973d7d1f927e937ed452afee4ef1cc3aaa622c6`
 
 These maps give coding and research agents stable boundaries without replacing source inspection. They identify canonical files, dependency direction, validation gates, and prohibited shortcuts.

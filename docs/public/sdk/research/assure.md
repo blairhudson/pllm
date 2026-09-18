@@ -6,7 +6,7 @@ Run a defined assurance check and report exactly what its result supports.
 
 Document ID: `pllm.docs.measure.assure`  
 Release: `0.1.0`  
-Build: `sha256:a919906eb7ec6dc3da86474b11b2e5fee671ce20bf3e0b394186df1a41084acd`  
+Build: `sha256:27f84427615190d0e8c08970a963d10d2ec7d1c4bb9a2db6446fba32419c8ada`  
 Source hash: `sha256:026d5431c2c14d5a4f2d88c51e875ff73c403eaaa00f5e9d3872c157da4e79d9`
 
 `pllm.assure()` runs implemented native fixtures, including negative controls, and returns `EvidenceReport`. Report production is not universal privacy proof. Each finding retains model or observed view, assumptions, resource bound, implementation/refinement boundary, and exact outcome.

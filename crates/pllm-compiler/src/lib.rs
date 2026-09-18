@@ -366,6 +366,22 @@ pub struct DecoderCoverageReport {
     pub operators: Vec<OperatorCoverage>,
 }
 
+fn model_gated_multiply_q7_chunked_executable(plan: &DecoderPlan, mode: DecoderMode) -> bool {
+    lower_model_gated_multiply_q7_regions_with_components(
+        plan,
+        mode,
+        GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
+        GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
+        GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS,
+    )
+    .is_ok_and(|regions| {
+        !regions.is_empty()
+            && regions
+                .iter()
+                .all(|region| validate_schedulable_gated_multiply_q7_region(region).is_ok())
+    })
+}
+
 pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageReport {
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
@@ -402,6 +418,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let rms_norm_q10_executable = lower_rms_norm_q10_direct_regions(plan, DecoderMode::Prefill)
         .is_ok()
         && lower_rms_norm_q10_direct_regions(plan, DecoderMode::Decode).is_ok();
+    let gated_multiply_q7_executable =
+        model_gated_multiply_q7_chunked_executable(plan, DecoderMode::Prefill)
+            && model_gated_multiply_q7_chunked_executable(plan, DecoderMode::Decode);
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -437,6 +456,8 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                             | ModelOperator::KvCacheAppend
                             | ModelOperator::CacheSuffix
                     ))
+                || (matches!(operator, ModelOperator::Silu | ModelOperator::Multiply)
+                    && gated_multiply_q7_executable)
                 || (operator == ModelOperator::RmsNorm && rms_norm_q10_executable);
             let primitive = matches!(
                 operator,
@@ -554,8 +575,13 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::Silu {
-                    "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
-                        .to_owned()
+                    if executable {
+                        "bounded Q7 SiLU executes inside the chunked protected gated-MLP region, but whole-decoder scheduling is unavailable"
+                            .to_owned()
+                    } else {
+                        "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
+                            .to_owned()
+                    }
                 } else if operator == ModelOperator::RmsNorm && executable {
                     "plan-bound Q10 RMSNorm executes with direct weights, but whole-decoder scheduling is unavailable"
                         .to_owned()
@@ -563,8 +589,13 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     "a plan-bound clear FP32 reference region executes, but no protected numeric decomposition or distributed executor is available"
                         .to_owned()
                 } else if operator == ModelOperator::Multiply {
-                    "gated-MLP SiLU and multiplication compose without decoding through scalar, four-lane, or resource-bounded chunked independent-lane harnesses; complete numeric scheduling and other multiplication contracts are unavailable"
-                        .to_owned()
+                    if executable {
+                        "Q7 SiLU and multiplication execute as one chunked one-use protected tensor region, but whole-decoder scheduling is unavailable"
+                            .to_owned()
+                    } else {
+                        "gated-MLP SiLU and multiplication compose without decoding through scalar, four-lane, or resource-bounded chunked independent-lane harnesses; complete numeric scheduling and other multiplication contracts are unavailable"
+                            .to_owned()
+                    }
                 } else if operator == ModelOperator::RotaryEmbedding && executable {
                     "plan-bound Q10 rotary embedding executes with exact position provenance, but whole-decoder scheduling is unavailable"
                         .to_owned()
