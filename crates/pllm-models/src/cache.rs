@@ -117,7 +117,18 @@ impl From<ModelError> for MpcacheError {
     }
 }
 
-pub fn optimize(base: &DecoderPlan, policy: MpcachePolicy) -> Result<DecoderPlan, MpcacheError> {
+pub fn optimize(_base: &DecoderPlan, _policy: MpcachePolicy) -> Result<DecoderPlan, MpcacheError> {
+    Err(MpcacheError::InvalidPlan(
+        "fixed-shape attention/state handoff is unimplemented for MPCache".into(),
+    ))
+}
+
+// Retained only to test legacy transformation mechanics. Public application is fail-closed.
+#[allow(dead_code)]
+fn optimize_legacy_unreachable(
+    base: &DecoderPlan,
+    policy: MpcachePolicy,
+) -> Result<DecoderPlan, MpcacheError> {
     policy.validate()?;
     base.validate()?;
     validate_compatibility(base)?;
@@ -358,15 +369,26 @@ fn validate_attention_inputs(
 ) -> Result<(), MpcacheError> {
     let scores = unique_layer_operation(graph, phase, layer, ModelOperator::AttentionScores)?;
     let values = unique_layer_operation(graph, phase, layer, ModelOperator::AttentionValues)?;
-    if scores.inputs.get(1) != Some(&key.id)
+    if !consumes_cache(graph, scores.inputs.get(1), key)
         || values.inputs.first() != Some(&probability.id)
-        || values.inputs.get(1) != Some(&value.id)
+        || !consumes_cache(graph, values.inputs.get(1), value)
     {
         return Err(MpcacheError::InvalidPlan(format!(
             "incompatible cache topology: {phase} layer {layer} attention does not consume its layer-local Key and Value producers"
         )));
     }
     Ok(())
+}
+
+fn consumes_cache(graph: &DecoderGraph, input: Option<&String>, producer: &ModelOperation) -> bool {
+    input.is_some_and(|input| {
+        input == &producer.id
+            || graph.operations.iter().any(|operation| {
+                operation.id == *input
+                    && operation.operator == ModelOperator::CacheSuffix
+                    && operation.inputs.first() == Some(&producer.id)
+            })
+    })
 }
 
 fn unique_layer_operation<'a>(
@@ -741,6 +763,13 @@ fn resize_decode_graph(graph: &mut DecoderGraph, maximum_key_sequence: u64) {
         match operation.operator {
             ModelOperator::KvCacheAppend if operation.output_shape.len() == 4 => {
                 operation.output_shape[2] = maximum_key_sequence;
+                operation.attributes["state_capacity"] = json!(maximum_key_sequence);
+                operation.attributes["attention_domain"]["maximum_sequence"] =
+                    json!(maximum_key_sequence);
+            }
+            ModelOperator::CacheSuffix if operation.output_shape.len() == 4 => {
+                operation.output_shape[2] = maximum_key_sequence;
+                operation.attributes["maximum_sequence"] = json!(maximum_key_sequence);
             }
             ModelOperator::AttentionScores | ModelOperator::CausalMask | ModelOperator::Softmax => {
                 if let Some(last) = operation.output_shape.last_mut() {
@@ -807,9 +836,11 @@ mod tests {
 
     const GEMMA_EXACT_FIXTURE: &str =
         include_str!("../../pllm-models/tests/fixtures/gemma-4-E4B-it-ee0ef602-config.json");
+    const QWEN3_EXACT_FIXTURE: &[u8] =
+        include_bytes!("../../pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json");
 
     fn base() -> DecoderPlan {
-        qwen_plan(4)
+        legacy_plan(4)
     }
 
     fn qwen_plan(layers: u32) -> DecoderPlan {
@@ -831,6 +862,52 @@ mod tests {
         .unwrap()
     }
 
+    fn legacy_plan(layers: u32) -> DecoderPlan {
+        let mut plan = qwen_plan(layers);
+        plan.model_family = "synthetic_legacy_attention".into();
+        plan.adapter = "test.synthetic_legacy_attention.v1".into();
+        let decode_inputs = plan.decode.state_inputs.clone();
+        for graph in [&mut plan.prefill, &mut plan.decode] {
+            if graph.mode == crate::DecoderMode::Prefill {
+                graph.state_inputs = decode_inputs.clone();
+            }
+            let suffixes = graph
+                .operations
+                .iter()
+                .filter(|operation| operation.operator == ModelOperator::CacheSuffix)
+                .map(|operation| (operation.id.clone(), operation.inputs[0].clone()))
+                .collect::<BTreeMap<_, _>>();
+            for operation in &mut graph.operations {
+                if matches!(
+                    operation.operator,
+                    ModelOperator::AttentionScores | ModelOperator::AttentionValues
+                ) {
+                    if let Some(input) = operation.inputs.get_mut(1) {
+                        if let Some(append) = suffixes.get(input) {
+                            *input = append.clone();
+                        }
+                    }
+                }
+                if operation.operator == ModelOperator::KvCacheAppend {
+                    let state = operation.attributes["state"]
+                        .as_str()
+                        .expect("rich cache has state")
+                        .to_owned();
+                    let current = operation.inputs
+                        [usize::from(graph.mode == crate::DecoderMode::Decode)]
+                    .clone();
+                    operation.inputs = vec![state.clone(), current];
+                    operation.attributes = json!({"state": state});
+                }
+            }
+            graph
+                .operations
+                .retain(|operation| operation.operator != ModelOperator::CacheSuffix);
+        }
+        plan.validate().unwrap();
+        plan
+    }
+
     fn relabel_layers(plan: &mut DecoderPlan, relabel: impl Fn(u64) -> u64) {
         for graph in [&mut plan.prefill, &mut plan.decode] {
             for operation in &mut graph.operations {
@@ -848,7 +925,7 @@ mod tests {
 
     #[test]
     fn transforms_prefill_state_and_decode_attention() {
-        let plan = optimize(&base(), MpcachePolicy::paper_profile()).unwrap();
+        let plan = optimize_legacy_unreachable(&base(), MpcachePolicy::paper_profile()).unwrap();
         assert_eq!(plan.transformations[0].method_id, "R23");
         assert!(plan
             .prefill
@@ -897,21 +974,48 @@ mod tests {
     fn transformation_is_deterministic_and_policy_is_bounded() {
         let policy = MpcachePolicy::paper_profile();
         assert_eq!(
-            optimize(&base(), policy.clone()).unwrap().digest(),
-            optimize(&base(), policy).unwrap().digest()
+            optimize_legacy_unreachable(&base(), policy.clone())
+                .unwrap()
+                .digest(),
+            optimize_legacy_unreachable(&base(), policy)
+                .unwrap()
+                .digest()
         );
         let mut invalid = MpcachePolicy::paper_profile();
         invalid.dynamic_keep.numerator = 0;
         assert!(matches!(
-            optimize(&base(), invalid),
+            optimize_legacy_unreachable(&base(), invalid),
             Err(MpcacheError::InvalidPolicy(_))
         ));
         let mut invalid = MpcachePolicy::paper_profile();
         invalid.cluster_sizes = vec![24, 16];
         assert!(matches!(
-            optimize(&base(), invalid),
+            optimize_legacy_unreachable(&base(), invalid),
             Err(MpcacheError::InvalidPolicy(_))
         ));
+    }
+
+    #[test]
+    fn public_application_rejects_all_plans_before_transformation() {
+        let qwen2 = qwen_plan(1);
+        let qwen3 = lower_model_json(
+            QWEN3_EXACT_FIXTURE,
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 2,
+                max_new_tokens: 1,
+            },
+        )
+        .unwrap();
+        for plan in [base(), qwen2, qwen3] {
+            let digest = plan.digest();
+            let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
+            assert_eq!(plan.digest(), digest);
+            assert!(plan.transformations.is_empty());
+            assert!(error
+                .to_string()
+                .contains("fixed-shape attention/state handoff is unimplemented"));
+        }
     }
 
     #[test]
@@ -929,13 +1033,17 @@ mod tests {
 
         let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
-        assert!(error.to_string().contains("incompatible cache topology"));
+        assert!(error
+            .to_string()
+            .contains("fixed-shape attention/state handoff is unimplemented"));
 
         plan.model_family = "renamed_fixture".into();
         plan.adapter = "renamed_adapter".into();
         let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
-        assert!(error.to_string().contains("incompatible cache topology"));
+        assert!(error
+            .to_string()
+            .contains("fixed-shape attention/state handoff is unimplemented"));
     }
 
     #[test]
@@ -948,18 +1056,18 @@ mod tests {
         });
         plan.validate().unwrap();
 
-        let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
+        let error = optimize_legacy_unreachable(&plan, MpcachePolicy::paper_profile()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
         assert!(error.to_string().contains("has no previous selection"));
     }
 
     #[test]
     fn shared_layer_without_previous_index_is_cleanly_rejected() {
-        let mut plan = qwen_plan(1);
+        let mut plan = legacy_plan(1);
         relabel_layers(&mut plan, |_| 3);
         plan.validate().unwrap();
 
-        let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
+        let error = optimize_legacy_unreachable(&plan, MpcachePolicy::paper_profile()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
         assert!(error.to_string().contains("has no previous selection"));
     }

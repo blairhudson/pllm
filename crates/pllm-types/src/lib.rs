@@ -19,6 +19,17 @@ impl Digest {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn from_sha256(value: [u8; 32]) -> Self {
+        encode_digest(value)
+    }
+
+    pub fn try_clone(&self) -> Result<Self, std::collections::TryReserveError> {
+        let mut value = String::new();
+        value.try_reserve_exact(self.0.len())?;
+        value.push_str(&self.0);
+        Ok(Self(value))
+    }
 }
 
 impl fmt::Display for Digest {
@@ -355,6 +366,7 @@ mod tests {
         let valid = format!("\"{}\"", "a".repeat(64));
         let digest: Digest = serde_json::from_str(&valid).unwrap();
         assert_eq!(digest.as_str(), "a".repeat(64));
+        assert_eq!(digest.try_clone().unwrap(), digest);
         assert_eq!(serde_json::to_string(&digest).unwrap(), valid);
         for invalid in [
             format!("\"{}\"", "a".repeat(63)),

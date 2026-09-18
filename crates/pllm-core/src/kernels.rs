@@ -100,7 +100,11 @@ impl Matrix {
         if rows == 0 || cols == 0 || rows.checked_mul(cols) != Some(bytes.len()) {
             return Err("weights must be a nonempty [out,in] int8 matrix".into());
         }
-        let weights: Vec<i8> = bytes.iter().map(|&v| v as i8).collect();
+        let mut weights = Vec::new();
+        weights
+            .try_reserve_exact(bytes.len())
+            .map_err(|_| "matrix weight allocation failed")?;
+        weights.extend(bytes.iter().map(|&value| value as i8));
         let max_weight = weights
             .iter()
             .map(|&x| (x as i16).unsigned_abs() as u64)
@@ -155,7 +159,7 @@ impl Matrix {
         if size == 0 {
             return Ok(Vec::new());
         }
-        let mut transposed = vec![0u32; size];
+        let mut transposed = zeroed_vec(size, "modular matrix output")?;
         let reducer = Reducer::new(p);
         executor.rows(&mut transposed, batch, |row, outputs| {
             let w = &self.weights[row * self.cols..(row + 1) * self.cols];
@@ -165,14 +169,14 @@ impl Matrix {
                 *output = reducer.reduce(total);
             }
         });
-        Ok(transpose_result(transposed, self.rows, batch))
+        transpose_result(transposed, self.rows, batch)
     }
     pub fn wrap32(&self, executor: &Executor, x: &[u32], batch: usize) -> Result<Vec<u32>, String> {
         let size = self.output_size(x.len(), batch)?;
         if size == 0 {
             return Ok(Vec::new());
         }
-        let mut transposed = vec![0u32; size];
+        let mut transposed = zeroed_vec(size, "wrap32 matrix output")?;
         executor.rows(&mut transposed, batch, |row, outputs| {
             let w = &self.weights[row * self.cols..(row + 1) * self.cols];
             for (b, output) in outputs.iter_mut().enumerate() {
@@ -180,14 +184,14 @@ impl Matrix {
                 *output = dot_wrap32(w, input, executor.simd);
             }
         });
-        Ok(transpose_result(transposed, self.rows, batch))
+        transpose_result(transposed, self.rows, batch)
     }
     pub fn wrap64(&self, executor: &Executor, x: &[u64], batch: usize) -> Result<Vec<u64>, String> {
         let size = self.output_size(x.len(), batch)?;
         if size == 0 {
             return Ok(Vec::new());
         }
-        let mut transposed = vec![0u64; size];
+        let mut transposed = zeroed_vec(size, "wrap64 matrix output")?;
         executor.rows(&mut transposed, batch, |row, outputs| {
             let w = &self.weights[row * self.cols..(row + 1) * self.cols];
             for (b, output) in outputs.iter_mut().enumerate() {
@@ -195,7 +199,7 @@ impl Matrix {
                 *output = dot_wrap64(w, input, executor.simd);
             }
         });
-        Ok(transpose_result(transposed, self.rows, batch))
+        transpose_result(transposed, self.rows, batch)
     }
     pub fn clear(&self, executor: &Executor, x: &[i8], batch: usize) -> Result<Vec<i32>, String> {
         let size = self.validate(x.len(), batch, 128)?;
@@ -205,7 +209,7 @@ impl Matrix {
         if size == 0 {
             return Ok(Vec::new());
         }
-        let mut transposed = vec![0i32; size];
+        let mut transposed = zeroed_vec(size, "clear matrix output")?;
         executor.rows(&mut transposed, batch, |row, outputs| {
             let w = &self.weights[row * self.cols..(row + 1) * self.cols];
             for (b, output) in outputs.iter_mut().enumerate() {
@@ -213,7 +217,7 @@ impl Matrix {
                 *output = dot_clear(w, input, executor.simd) as i32;
             }
         });
-        Ok(transpose_result(transposed, self.rows, batch))
+        transpose_result(transposed, self.rows, batch)
     }
     /// Coefficient matrix C = W A mod q. q is a ciphertext modulus, NOT p.
     /// Limb work is tiled to bound memory; all intermediates are integers.
@@ -271,17 +275,30 @@ impl Matrix {
         Ok(out)
     }
 }
-fn transpose_result<T: Copy + Default>(input: Vec<T>, rows: usize, batch: usize) -> Vec<T> {
+fn zeroed_vec<T: Clone + Default>(len: usize, name: &str) -> Result<Vec<T>, String> {
+    let mut values = Vec::new();
+    values
+        .try_reserve_exact(len)
+        .map_err(|_| format!("{name} allocation failed"))?;
+    values.resize(len, T::default());
+    Ok(values)
+}
+
+fn transpose_result<T: Copy + Default>(
+    input: Vec<T>,
+    rows: usize,
+    batch: usize,
+) -> Result<Vec<T>, String> {
     if batch == 1 {
-        return input;
+        return Ok(input);
     }
-    let mut out = vec![T::default(); input.len()];
+    let mut out = zeroed_vec(input.len(), "matrix transpose output")?;
     for i in 0..rows {
         for b in 0..batch {
             out[b * rows + i] = input[i * batch + b];
         }
     }
-    out
+    Ok(out)
 }
 struct Reducer {
     p: u64,

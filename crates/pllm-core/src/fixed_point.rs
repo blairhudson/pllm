@@ -1,6 +1,7 @@
 use std::{error::Error, fmt};
 
 pub const Q14_TO_Q7_PROFILE: &str = "pllm.numeric.rescale.q14_to_q7.v1";
+pub const Q14_TO_Q10_PROFILE: &str = "pllm.numeric.rescale.q14_to_q10.centered_i32_u32.v1";
 pub const Q7_MULTIPLY_PROFILE: &str = "pllm.numeric.multiply.q7.v1";
 pub const GATED_MULTIPLY_Q7_PROFILE: &str = "pllm.numeric.gated_multiply.q7.v1";
 pub const SIGNED_Q7_SCALE: i16 = 128;
@@ -8,10 +9,15 @@ pub const SIGNED_Q7_MIN: i16 = -128;
 pub const SIGNED_Q7_MAX: i16 = 128;
 pub const SIGNED_Q14_MIN: i32 = -16_384;
 pub const SIGNED_Q14_MAX: i32 = 16_384;
+/// Exact declared Q14 input domain: the signed-Q10 i16 endpoints scaled by 16.
+pub const Q14_TO_Q10_INPUT_MIN: i32 = i16::MIN as i32 * 16;
+pub const Q14_TO_Q10_INPUT_MAX: i32 = i16::MAX as i32 * 16;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FixedPointError {
     Q14InputOutOfRange { value: i32 },
+    Q14ToQ10InputOutOfRange { value: i32 },
+    Q10OutputOutOfRange { value: i64 },
     Q7InputOutOfRange { value: i16 },
     LengthMismatch { left: usize, right: usize },
 }
@@ -23,6 +29,13 @@ impl fmt::Display for FixedPointError {
                 formatter,
                 "signed Q14 input {value} is outside [{SIGNED_Q14_MIN}, {SIGNED_Q14_MAX}]"
             ),
+            Self::Q14ToQ10InputOutOfRange { value } => write!(
+                formatter,
+                "signed Q14 input {value} is outside [{Q14_TO_Q10_INPUT_MIN}, {Q14_TO_Q10_INPUT_MAX}]"
+            ),
+            Self::Q10OutputOutOfRange { value } => {
+                write!(formatter, "rescaled Q10 output {value} is outside signed i16")
+            }
             Self::Q7InputOutOfRange { value } => write!(
                 formatter,
                 "signed Q7 input {value} is outside [{SIGNED_Q7_MIN}, {SIGNED_Q7_MAX}]"
@@ -43,6 +56,23 @@ pub fn rescale_q14_to_q7(value: i32) -> Result<i16, FixedPointError> {
         return Err(FixedPointError::Q14InputOutOfRange { value });
     }
     Ok(div_round_ties_even(i64::from(value), i64::from(SIGNED_Q7_SCALE)) as i16)
+}
+
+/// Convert centered signed Q14 to signed Q10 by dividing by 16, ties-to-even.
+///
+/// The accepted domain is exactly [`Q14_TO_Q10_INPUT_MIN`] through
+/// [`Q14_TO_Q10_INPUT_MAX`]. No saturation or wrapping is performed.
+pub fn rescale_q14_to_q10(value: i32) -> Result<i16, FixedPointError> {
+    if !(Q14_TO_Q10_INPUT_MIN..=Q14_TO_Q10_INPUT_MAX).contains(&value) {
+        return Err(FixedPointError::Q14ToQ10InputOutOfRange { value });
+    }
+    let rounded = div_round_ties_even(i64::from(value), 16);
+    i16::try_from(rounded).map_err(|_| FixedPointError::Q10OutputOutOfRange { value: rounded })
+}
+
+/// Decode a centered two's-complement `u32` bit pattern, then rescale Q14 to Q10.
+pub fn rescale_q14_to_q10_centered_u32(value: u32) -> Result<i16, FixedPointError> {
+    rescale_q14_to_q10(i32::from_ne_bytes(value.to_ne_bytes()))
 }
 
 pub fn rescale_q14_to_q7_tensor(input: &[i32]) -> Result<Vec<i16>, FixedPointError> {
@@ -89,10 +119,18 @@ fn validate_q7(value: i16) -> Result<(), FixedPointError> {
 }
 
 pub(crate) fn div_round_ties_even(numerator: i64, denominator: i64) -> i64 {
+    i64::try_from(div_round_ties_even_i128(
+        i128::from(numerator),
+        i128::from(denominator),
+    ))
+    .expect("an i64 numerator divided by a positive i64 denominator fits i64")
+}
+
+pub(crate) fn div_round_ties_even_i128(numerator: i128, denominator: i128) -> i128 {
     debug_assert!(denominator > 0);
     let quotient = numerator.div_euclid(denominator);
     let remainder = numerator.rem_euclid(denominator);
-    match (remainder * 2).cmp(&denominator) {
+    match remainder.cmp(&(denominator - remainder)) {
         std::cmp::Ordering::Less => quotient,
         std::cmp::Ordering::Greater => quotient + 1,
         std::cmp::Ordering::Equal if quotient % 2 == 0 => quotient,
@@ -130,6 +168,46 @@ mod tests {
             rescale_q14_to_q7(16_385),
             Err(FixedPointError::Q14InputOutOfRange { value: 16_385 })
         );
+    }
+
+    #[test]
+    fn q14_to_q10_matches_exhaustive_signed_oracle() {
+        for input in Q14_TO_Q10_INPUT_MIN..=Q14_TO_Q10_INPUT_MAX {
+            let expected = (f64::from(input) / 16.0).round_ties_even() as i16;
+            assert_eq!(rescale_q14_to_q10(input), Ok(expected), "input={input}");
+        }
+    }
+
+    #[test]
+    fn q14_to_q10_locks_boundaries_ties_signs_and_centered_u32() {
+        assert_eq!(
+            Q14_TO_Q10_PROFILE,
+            "pllm.numeric.rescale.q14_to_q10.centered_i32_u32.v1"
+        );
+        assert_eq!(Q14_TO_Q10_INPUT_MIN, -524_288);
+        assert_eq!(Q14_TO_Q10_INPUT_MAX, 524_272);
+        for (input, expected) in [
+            (Q14_TO_Q10_INPUT_MIN, i16::MIN),
+            (-40, -2),
+            (-24, -2),
+            (-8, 0),
+            (8, 0),
+            (24, 2),
+            (40, 2),
+            (Q14_TO_Q10_INPUT_MAX, i16::MAX),
+        ] {
+            assert_eq!(rescale_q14_to_q10(input), Ok(expected));
+            assert_eq!(
+                rescale_q14_to_q10_centered_u32(u32::from_ne_bytes(input.to_ne_bytes())),
+                Ok(expected)
+            );
+        }
+        for input in [Q14_TO_Q10_INPUT_MIN - 1, Q14_TO_Q10_INPUT_MAX + 1] {
+            assert_eq!(
+                rescale_q14_to_q10(input),
+                Err(FixedPointError::Q14ToQ10InputOutOfRange { value: input })
+            );
+        }
     }
 
     #[test]

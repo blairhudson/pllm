@@ -11,6 +11,7 @@ import pytest
 from pllm import Experiment, Model, Pipeline
 from pllm.components import (
     BinaryTableGatedMultiplyQ7,
+    ChunkedIndependentLanesProtectedTensorSchedule,
     ComponentDescriptor,
     ComponentRef,
     IndependentLanesProtectedTensorSchedule,
@@ -293,6 +294,12 @@ def test_builtin_component_descriptors_are_static_and_immutable() -> None:
             "pllm/protected-scheduler",
             {"max_elements": 4},
         ),
+        (
+            ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
+            "pllm/chunked-independent-lanes/v1",
+            "pllm/protected-scheduler",
+            {"max_elements": 4096},
+        ),
     ],
 )
 def test_concrete_components_have_distinct_descriptors_and_roundtrip(
@@ -325,6 +332,7 @@ def test_concrete_components_have_distinct_descriptors_and_roundtrip(
         R03CrtGatedMultiplyQ7(),
         ScalarProtectedTensorSchedule(),
         IndependentLanesProtectedTensorSchedule(),
+        ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
     ],
 )
 def test_concrete_component_identity_cannot_be_switched_by_params(component: ComponentRef) -> None:
@@ -347,6 +355,12 @@ def test_independent_lanes_schedule_rejects_invalid_max_elements(value: object) 
         IndependentLanesProtectedTensorSchedule(max_elements=value)
 
 
+@pytest.mark.parametrize("value", [True, 4, 4.0, "5", 4_000_001])
+def test_chunked_schedule_rejects_invalid_max_elements(value: object) -> None:
+    with pytest.raises(ConfigurationError, match="integer"):
+        ChunkedIndependentLanesProtectedTensorSchedule(max_elements=value)
+
+
 @pytest.mark.parametrize(
     "component, params",
     [
@@ -354,6 +368,7 @@ def test_independent_lanes_schedule_rejects_invalid_max_elements(value: object) 
         ("pllm/r03-crt/v1", {"unexpected": True}),
         ("pllm/scalar/v1", {"max_elements": 1}),
         ("pllm/independent-lanes/v1", {}),
+        ("pllm/chunked-independent-lanes/v1", {}),
         (
             "pllm/independent-lanes/v1",
             {"max_elements": 4, "implementation": "other"},
@@ -382,6 +397,7 @@ def test_component_classes_are_exported_only_from_components_facade() -> None:
         "R03CrtGatedMultiplyQ7",
         "ScalarProtectedTensorSchedule",
         "IndependentLanesProtectedTensorSchedule",
+        "ChunkedIndependentLanesProtectedTensorSchedule",
         "GatedMultiplyQ7",
         "ProtectedTensorSchedule",
     ):
@@ -392,4 +408,8 @@ def test_component_classes_are_exported_only_from_components_facade() -> None:
     assert (
         components.IndependentLanesProtectedTensorSchedule
         is IndependentLanesProtectedTensorSchedule
+    )
+    assert (
+        components.ChunkedIndependentLanesProtectedTensorSchedule
+        is ChunkedIndependentLanesProtectedTensorSchedule
     )

@@ -11,3 +11,5 @@ publish = false
 [dependencies]
 rayon.workspace = true
 getrandom.workspace = true
+libm.workspace = true
+zeroize.workspace = true

@@ -17,6 +17,59 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
+mod dense_qwen_mlp;
+mod dense_qwen_mlp_protected;
+mod gated_tensor;
+mod provenance_primitives;
+mod rms_norm_protected;
+mod rms_norm_stream_protected;
+pub use dense_qwen_mlp::{
+    compile_dense_qwen_mlp_block, execute_dense_qwen_mlp_block, CompiledDenseQwenMlpBlock,
+    DenseQwenMlpComposite, DenseQwenMlpElementType, DenseQwenMlpLayout, DenseQwenMlpRangePolicy,
+    DenseQwenMlpResidualOutputRangePolicy, DenseQwenMlpResidualRefinement,
+    DenseQwenMlpResidualStorage, DenseQwenMlpResourcePolicy, DenseQwenMlpWeightArtifact,
+    DenseQwenMlpWeightBytes, DenseQwenMlpWeightManifest, DenseQwenMlpWeights,
+    DENSE_QWEN_MLP_BLOCK_SCHEMA_VERSION, DENSE_QWEN_MLP_CLEAR_PROFILE,
+    DENSE_QWEN_MLP_HARD_MAX_ACTIVATION_ELEMENTS, DENSE_QWEN_MLP_HARD_MAX_TOTAL_WEIGHT_BYTES,
+    DENSE_QWEN_MLP_WEIGHT_MANIFEST_SCHEMA_VERSION,
+};
+pub use dense_qwen_mlp_protected::{
+    execute_bound_dense_qwen_mlp_protected_nonlinear,
+    prepare_bound_dense_qwen_mlp_protected_nonlinear, BoundDenseQwenMlpProtectedMaterial,
+    DenseQwenMlpProtectedNonlinearBinding, DenseQwenMlpProtectedNonlinearExecution,
+    DenseQwenMlpProtectedResourcePolicy, ExperimentalDenseQwenMlpProtectedNonlinearApproval,
+    DENSE_QWEN_MLP_PROTECTED_HARD_MAX_ROWS, DENSE_QWEN_MLP_PROTECTED_HARD_MAX_TOTAL_BODY_BYTES,
+};
+pub use gated_tensor::{
+    prepare_bound_gated_multiply_q7_tensor_material, BoundGatedMultiplyQ7TensorMaterial,
+    GatedMultiplyQ7TensorEvaluator, GatedMultiplyQ7TensorTicket, TensorResourcePolicy,
+};
+pub use provenance_primitives::{
+    append_model_kv_cache_q10, execute_model_kv_cache_view_q10, execute_model_rope_q10,
+    initialize_model_kv_cache_q10, lower_model_kv_cache_append_q10_regions,
+    lower_model_kv_cache_view_q10_regions, lower_model_rope_q10_regions,
+    provenance_primitives_artifact_digest, BoundedKvCacheViewQ10, KvCacheAppendMode,
+    KvCacheQ10ExecutionInputs, ModelKvCacheAppendQ10Region, ModelKvCacheViewQ10Region,
+    ModelRopeQ10Region, ProvenanceBoundKvCacheQ10, ProvenancePrimitiveResourcePolicy,
+    KV_CACHE_APPEND_Q10_REGION_SCHEMA_VERSION, KV_CACHE_Q10_ACTIVE_POLICY,
+    KV_CACHE_Q10_ZERO_PADDING_POLICY, KV_CACHE_VIEW_Q10_REGION_SCHEMA_VERSION,
+    PROVENANCE_PRIMITIVE_HARD_MAX_CACHE_BYTES, PROVENANCE_PRIMITIVE_HARD_MAX_METADATA_BYTES,
+    PROVENANCE_PRIMITIVE_HARD_MAX_METADATA_DEPTH, PROVENANCE_PRIMITIVE_HARD_MAX_OPERATIONS,
+    PROVENANCE_PRIMITIVE_HARD_MAX_ROPE_ELEMENTS, PROVENANCE_PRIMITIVE_HARD_MAX_STATES,
+    PROVENANCE_PRIMITIVE_HARD_MAX_VIEW_BYTES, ROPE_Q10_POSITION_LAYOUT, ROPE_Q10_RANGE_POLICY,
+    ROPE_Q10_REGION_SCHEMA_VERSION,
+};
+pub use rms_norm_protected::{
+    prepare_bound_rms_norm_q10_row, BoundRmsNormQ10ClientMaterial, BoundRmsNormQ10Decoder,
+    BoundRmsNormQ10Evaluation, BoundRmsNormQ10Outputs, ExperimentalRmsNormQ10Policy,
+};
+pub use rms_norm_stream_protected::{
+    prepare_bound_rms_norm_q10_stream_row, BoundRmsNormQ10StreamDecoder,
+    BoundRmsNormQ10StreamEvaluator, BoundRmsNormQ10StreamInputs, BoundRmsNormQ10StreamMaterial,
+    BoundRmsNormQ10StreamOutputs, ExperimentalRmsNormQ10StreamPolicy,
+    RmsNormQ10StreamResourcePolicy, RmsNormQ10StreamTicket,
+};
+
 pub const REGION_PROGRAM_SCHEMA_VERSION: &str = "pllm.region_program.v1";
 pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v1";
 pub const BASELINE_EXPERIMENT_PROFILE: &str = "baseline.masked_linear_cpu";
@@ -30,6 +83,8 @@ pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
 pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v2";
+pub const RMS_NORM_F32_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_f32_direct_region.v1";
+pub const RMS_NORM_Q10_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_q10_direct_region.v1";
 pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v2";
 pub const GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID: &str =
     pllm_core::fixed_point::GATED_MULTIPLY_Q7_PROFILE;
@@ -44,7 +99,10 @@ pub const GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID: &str =
 pub const GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID: &str = "pllm/scalar/v1";
 pub const GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID: &str =
     "pllm/independent-lanes/v1";
+pub const GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID: &str =
+    "pllm/chunked-independent-lanes/v1";
 pub const GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS: usize = 4;
+pub const GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS: usize = 4_000_000;
 pub const GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 10_000_000;
 const SILU_Q7_ISSUANCE_CAPACITY: usize = 65_536;
 const GATED_MULTIPLY_Q7_ISSUANCE_CAPACITY: usize = 1_024;
@@ -73,7 +131,145 @@ pub fn silu_q7_kernel_artifact_digest() -> Digest {
 }
 
 pub fn silu_q7_compiler_artifact_digest() -> Digest {
-    digest_bytes("pllm.artifact.rust-source.v1", include_bytes!("lib.rs"))
+    canonical_digest(
+        "pllm.artifact.rust-source-set.v1",
+        &[
+            digest_bytes("pllm.artifact.rust-source.v1", include_bytes!("lib.rs")),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("gated_tensor.rs"),
+            ),
+        ],
+    )
+}
+
+pub fn rms_norm_kernel_artifact_digest() -> Digest {
+    canonical_digest(
+        "pllm.artifact.rust-source-set.v1",
+        &[
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/rms_norm.rs"),
+            ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/fixed_point.rs"),
+            ),
+        ],
+    )
+}
+
+pub fn protected_rms_norm_q10_artifact_digest() -> Digest {
+    #[derive(Serialize)]
+    struct ArtifactFile<'a> {
+        path: &'a str,
+        digest: Digest,
+    }
+
+    let file = |path, bytes: &[u8]| ArtifactFile {
+        path,
+        digest: digest_bytes("pllm.artifact.file.v1", bytes),
+    };
+    canonical_digest(
+        "pllm.artifact.rms_norm_q10.complete_source_set.v1",
+        &[
+            file(
+                "crates/pllm-garble/src/boolean.rs",
+                include_bytes!("../../pllm-garble/src/boolean.rs"),
+            ),
+            file(
+                "crates/pllm-garble/src/lib.rs",
+                include_bytes!("../../pllm-garble/src/lib.rs"),
+            ),
+            file(
+                "crates/pllm-garble/src/boolean_stream.rs",
+                include_bytes!("../../pllm-garble/src/boolean_stream.rs"),
+            ),
+            file(
+                "crates/pllm-core/src/lib.rs",
+                include_bytes!("../../pllm-core/src/lib.rs"),
+            ),
+            file(
+                "crates/pllm-core/src/rms_norm.rs",
+                include_bytes!("../../pllm-core/src/rms_norm.rs"),
+            ),
+            file(
+                "crates/pllm-core/src/fixed_point.rs",
+                include_bytes!("../../pllm-core/src/fixed_point.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/lib.rs",
+                include_bytes!("../../pllm-models/src/lib.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/cache.rs",
+                include_bytes!("../../pllm-models/src/cache.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/gemma4.rs",
+                include_bytes!("../../pllm-models/src/gemma4.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/phi4.rs",
+                include_bytes!("../../pllm-models/src/phi4.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/qwen35.rs",
+                include_bytes!("../../pllm-models/src/qwen35.rs"),
+            ),
+            file(
+                "crates/pllm-types/src/lib.rs",
+                include_bytes!("../../pllm-types/src/lib.rs"),
+            ),
+            file("crates/pllm-compiler/src/lib.rs", include_bytes!("lib.rs")),
+            file(
+                "crates/pllm-compiler/src/rms_norm_protected.rs",
+                include_bytes!("rms_norm_protected.rs"),
+            ),
+            file(
+                "crates/pllm-compiler/src/rms_norm_stream_protected.rs",
+                include_bytes!("rms_norm_stream_protected.rs"),
+            ),
+            file("Cargo.lock", include_bytes!("../../../Cargo.lock")),
+            file("Cargo.toml", include_bytes!("../../../Cargo.toml")),
+            file(
+                "crates/pllm-assurance/Cargo.toml",
+                include_bytes!("../../pllm-assurance/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-bench/Cargo.toml",
+                include_bytes!("../../pllm-bench/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-compiler/Cargo.toml",
+                include_bytes!("../Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-core/Cargo.toml",
+                include_bytes!("../../pllm-core/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-garble/Cargo.toml",
+                include_bytes!("../../pllm-garble/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-models/Cargo.toml",
+                include_bytes!("../../pllm-models/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-python/Cargo.toml",
+                include_bytes!("../../pllm-python/Cargo.toml"),
+            ),
+            file(
+                "crates/pllm-types/Cargo.toml",
+                include_bytes!("../../pllm-types/Cargo.toml"),
+            ),
+            file(
+                "rust-toolchain.toml",
+                include_bytes!("../../../rust-toolchain.toml"),
+            ),
+        ],
+    )
 }
 
 #[derive(Serialize)]
@@ -187,6 +383,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
         && lower_model_output_head_regions(plan, DecoderMode::Decode).is_ok();
     let last_token_executable = lower_model_last_token_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_model_last_token_regions(plan, DecoderMode::Decode).is_ok();
+    let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
+        && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
+    let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
     let operators = occurrences
         .into_iter()
         .map(|(operator, occurrences)| {
@@ -195,13 +394,19 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
                 || (operator == ModelOperator::LastToken && last_token_executable)
                 || (operator == ModelOperator::OutputHead && output_head_executable);
-            let primitive = matches!(
+            let descriptor_coverage = match operator {
+                ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
+                ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
+                ModelOperator::CacheSuffix => Some(&provenance_q10_coverage.cache_view),
+                _ => None,
+            };
+            let descriptor_primitive = descriptor_coverage.is_some_and(Result::is_ok);
+            let primitive = descriptor_primitive
+                || matches!(
                 operator,
                 ModelOperator::TokenLookup
                     | ModelOperator::Reshape
                     | ModelOperator::Linear
-                    | ModelOperator::RotaryEmbedding
-                    | ModelOperator::KvCacheAppend
                     | ModelOperator::AttentionScores
                     | ModelOperator::AttentionScale
                     | ModelOperator::CausalMask
@@ -217,7 +422,7 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 occurrences,
                 level: if executable {
                     CapabilityLevel::ExecutableRegion
-                } else if primitive {
+                } else if primitive || (operator == ModelOperator::RmsNorm && rms_norm_reference) {
                     CapabilityLevel::Primitive
                 } else {
                     CapabilityLevel::Missing
@@ -234,10 +439,14 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
                     Some("pllm/agc-silu-q7@0.1.0-alpha.1-experimental".to_owned())
+                } else if operator == ModelOperator::RmsNorm && rms_norm_reference {
+                    Some("pllm/core-rms-norm-f32-reference@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Multiply {
                     Some(
                         "pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental".to_owned(),
                     )
+                } else if descriptor_primitive {
+                    Some("pllm/core-provenance-primitives@0.1.0-alpha.1-reference".to_owned())
                 } else if primitive {
                     Some("pllm/agc-project@0.1.0-alpha.1-reference".to_owned())
                 } else {
@@ -252,18 +461,30 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 } else if operator == ModelOperator::ResidualAdd && executable {
                     "semantic residual additions execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
-                } else if operator == ModelOperator::LastToken && executable {
-                    "physical-last selections execute, but length-aware selection and whole-decoder scheduling are unavailable"
-                        .to_owned()
+                } else if operator == ModelOperator::LastToken {
+                    if executable {
+                        "physical-last selections execute, but length-aware selection and whole-decoder scheduling are unavailable"
+                            .to_owned()
+                    } else {
+                        "length-aware selection for last token is not executable; whole-decoder scheduling is unavailable"
+                            .to_owned()
+                    }
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::Silu {
                     "bounded one-use Q7 SiLU regions execute, but tensor composition and whole-decoder scheduling are unavailable"
                         .to_owned()
-                } else if operator == ModelOperator::Multiply {
-                    "gated-MLP SiLU and multiplication compose without decoding for at most four independently garbled Q7 elements; real-model tensor scheduling and other multiplication contracts are unavailable"
+                } else if operator == ModelOperator::RmsNorm && rms_norm_reference {
+                    "a plan-bound clear FP32 reference region executes, but no protected numeric decomposition or distributed executor is available"
                         .to_owned()
+                } else if operator == ModelOperator::Multiply {
+                    "gated-MLP SiLU and multiplication compose without decoding through scalar, four-lane, or resource-bounded chunked independent-lane harnesses; complete numeric scheduling and other multiplication contracts are unavailable"
+                        .to_owned()
+                } else if let Some(Err(error)) = descriptor_coverage {
+                    format!(
+                        "exact provenance-bound Q10 reference primitive is unavailable: {error}"
+                    )
                 } else if primitive {
                     "reference primitive exists but no compiled distributed executor is available"
                         .to_owned()
@@ -390,6 +611,62 @@ pub struct ModelLastTokenRegion {
     pub axis: usize,
     pub input: TensorType,
     pub output: TensorType,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RmsNormWeightPolicy {
+    Direct,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RmsNormReductionOrder {
+    LastAxisScalarLeftToRight,
+}
+
+/// Plan-bound clear reference for direct-weight FP32 RMSNorm semantics.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelRmsNormF32Region {
+    pub schema_version: String,
+    pub model_plan_digest: Digest,
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub weight_id: String,
+    pub epsilon: String,
+    pub shape: Vec<u64>,
+    pub kernel_artifact_digest: Digest,
+    pub numeric_profile: String,
+    pub weight_policy: RmsNormWeightPolicy,
+    pub reduction_order: RmsNormReductionOrder,
+}
+
+/// Plan-bound bounded-integer profile for direct-weight RMSNorm semantics.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelRmsNormQ10DirectRegion {
+    pub schema_version: String,
+    pub model_plan_digest: Digest,
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub weight_id: String,
+    pub epsilon_numerator: u64,
+    pub epsilon_denominator: u64,
+    pub shape: Vec<u64>,
+    pub kernel_artifact_digest: Digest,
+    pub numeric_profile: String,
+    pub input_fractional_bits: u8,
+    pub weight_fractional_bits: u8,
+    pub reciprocal_fractional_bits: u8,
+    pub output_fractional_bits: u8,
+    pub maximum_width: usize,
+    pub maximum_encoded_error: u32,
+    pub weight_policy: RmsNormWeightPolicy,
+    pub reduction_order: RmsNormReductionOrder,
+    pub rounding: FixedPointRounding,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -940,6 +1217,18 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             if component.params.len() != 1 || !matches!(max_elements, Some(2..=4)) {
                 return Err(format!(
                     "configuration component {slot} requires max_elements between 2 and 4"
+                ));
+            }
+        }
+        if component.component == GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID
+        {
+            let max_elements = component
+                .params
+                .get("max_elements")
+                .and_then(serde_json::Value::as_u64);
+            if component.params.len() != 1 || !matches!(max_elements, Some(5..=4_000_000)) {
+                return Err(format!(
+                    "configuration component {slot} requires max_elements between 5 and 4000000"
                 ));
             }
         }
@@ -2727,6 +3016,143 @@ pub fn execute_model_last_token(
     Ok(output)
 }
 
+/// Extract direct-weight FP32 RMSNorm operations into plan-bound clear reference regions.
+pub fn lower_rms_norm_f32_direct_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelRmsNormF32Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let plan_digest = plan.digest();
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::RmsNorm)
+        .map(|operation| lower_rms_norm_f32_direct_region(&plan_digest, graph, mode, operation))
+        .collect()
+}
+
+/// Execute one clear FP32 reference region after revalidating exact plan provenance.
+pub fn execute_rms_norm_f32_direct(
+    plan: &DecoderPlan,
+    region: &ModelRmsNormF32Region,
+    input: &[f32],
+    weight: &[f32],
+) -> Result<Vec<f32>, String> {
+    if region.schema_version != RMS_NORM_F32_DIRECT_REGION_SCHEMA_VERSION
+        || region.numeric_profile != pllm_core::rms_norm::RMS_NORM_F32_DIRECT_PROFILE
+        || region.kernel_artifact_digest != rms_norm_kernel_artifact_digest()
+        || region.weight_policy != RmsNormWeightPolicy::Direct
+        || region.reduction_order != RmsNormReductionOrder::LastAxisScalarLeftToRight
+    {
+        return Err("direct-weight FP32 RMSNorm region contract is unsupported".into());
+    }
+    let authentic = lower_rms_norm_f32_direct_regions(plan, region.mode)?
+        .into_iter()
+        .find(|candidate| candidate.operation_id == region.operation_id)
+        .ok_or("direct-weight FP32 RMSNorm region is absent from its decoder plan")?;
+    if authentic != *region {
+        return Err("direct-weight FP32 RMSNorm region differs from its decoder plan".into());
+    }
+    let width = usize::try_from(*region.shape.last().ok_or("RMSNorm shape is empty")?)
+        .map_err(|_| "RMSNorm width exceeds usize")?;
+    if weight.len() != width {
+        return Err(format!(
+            "direct-weight FP32 RMSNorm requires {width} weights, received {}",
+            weight.len()
+        ));
+    }
+    let elements = tensor_elements(&region.shape)?;
+    if input.len() != elements {
+        return Err(format!(
+            "direct-weight FP32 RMSNorm requires {elements} input elements, received {}",
+            input.len()
+        ));
+    }
+    let epsilon = region
+        .epsilon
+        .parse::<f32>()
+        .map_err(|_| "direct-weight FP32 RMSNorm epsilon is not an FP32 decimal")?;
+    pllm_core::rms_norm_f32_direct(input, weight, epsilon).map_err(|error| error.to_string())
+}
+
+/// Extract exact-epsilon direct-weight RMSNorm operations into bounded Q10 regions.
+pub fn lower_rms_norm_q10_direct_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelRmsNormQ10DirectRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let plan_digest = plan.digest();
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::RmsNorm)
+        .map(|operation| lower_rms_norm_q10_direct_region(&plan_digest, graph, mode, operation))
+        .collect()
+}
+
+/// Execute the bounded Q10 arithmetic profile after exact plan revalidation.
+pub fn execute_rms_norm_q10_direct(
+    plan: &DecoderPlan,
+    region: &ModelRmsNormQ10DirectRegion,
+    input: &[i16],
+    weight: &[i16],
+) -> Result<Vec<i32>, String> {
+    let (_, width) = validate_rms_norm_q10_direct_region(plan, region)?;
+    if weight.len() != width {
+        return Err(format!(
+            "direct-weight Q10 RMSNorm requires {width} weights, received {}",
+            weight.len()
+        ));
+    }
+    let elements = tensor_elements(&region.shape)?;
+    if input.len() != elements {
+        return Err(format!(
+            "direct-weight Q10 RMSNorm requires {elements} input elements, received {}",
+            input.len()
+        ));
+    }
+    pllm_core::rms_norm_q10_direct(input, weight).map_err(|error| error.to_string())
+}
+
+pub(crate) fn validate_rms_norm_q10_direct_region(
+    plan: &DecoderPlan,
+    region: &ModelRmsNormQ10DirectRegion,
+) -> Result<(usize, usize), String> {
+    if region.schema_version != RMS_NORM_Q10_DIRECT_REGION_SCHEMA_VERSION
+        || region.numeric_profile != pllm_core::rms_norm::RMS_NORM_Q10_DIRECT_PROFILE
+        || region.kernel_artifact_digest != rms_norm_kernel_artifact_digest()
+        || region.epsilon_numerator != pllm_core::rms_norm::RMS_NORM_EPSILON_NUMERATOR
+        || region.epsilon_denominator != pllm_core::rms_norm::RMS_NORM_EPSILON_DENOMINATOR
+        || region.input_fractional_bits != 10
+        || region.weight_fractional_bits != 10
+        || region.reciprocal_fractional_bits != 30
+        || region.output_fractional_bits != 10
+        || region.maximum_width != pllm_core::rms_norm::RMS_NORM_Q10_MAX_WIDTH
+        || region.maximum_encoded_error != 1
+        || region.weight_policy != RmsNormWeightPolicy::Direct
+        || region.reduction_order != RmsNormReductionOrder::LastAxisScalarLeftToRight
+        || region.rounding != FixedPointRounding::TiesToEven
+    {
+        return Err("direct-weight Q10 RMSNorm region contract is unsupported".into());
+    }
+    let authentic = lower_rms_norm_q10_direct_regions(plan, region.mode)?
+        .into_iter()
+        .find(|candidate| candidate.operation_id == region.operation_id)
+        .ok_or("direct-weight Q10 RMSNorm region is absent from its decoder plan")?;
+    if authentic != *region {
+        return Err("direct-weight Q10 RMSNorm region differs from its decoder plan".into());
+    }
+    let width = usize::try_from(*region.shape.last().ok_or("RMSNorm shape is empty")?)
+        .map_err(|_| "RMSNorm width exceeds usize")?;
+    let elements = tensor_elements(&region.shape)?;
+    let rows = elements
+        .checked_div(width)
+        .ok_or("direct-weight Q10 RMSNorm width is zero")?;
+    Ok((rows, width))
+}
+
 /// Define the exact centered-wrap32 Q14 to bounded signed-Q7 conversion contract.
 pub fn define_q14_to_q7_rescale_region(
     source_operation_id: &str,
@@ -2860,10 +3286,15 @@ pub fn execute_q14_to_q7_rescale(
             input.len()
         ));
     }
-    input
-        .iter()
-        .map(|value| pllm_core::rescale_q14_to_q7(*value as i32).map_err(|error| error.to_string()))
-        .collect()
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(input.len())
+        .map_err(|_| "Q14-to-Q7 output allocation failed")?;
+    for value in input {
+        output
+            .push(pllm_core::rescale_q14_to_q7(*value as i32).map_err(|error| error.to_string())?);
+    }
+    Ok(output)
 }
 
 fn validate_q14_to_q7_rescale_region(region: &Q14ToQ7RescaleRegion) -> Result<(), String> {
@@ -3127,6 +3558,15 @@ fn validate_gated_multiply_q7_components(
         GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID => Err(format!(
             "independent-lane gated Q7 multiply scheduling supports 2..={GATED_MULTIPLY_Q7_MAX_TENSOR_ELEMENTS} elements"
         )),
+        GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID
+            if (1..=GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS)
+                .contains(&max_tensor_elements) =>
+        {
+            Ok(())
+        }
+        GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID => Err(format!(
+            "chunked independent-lane gated Q7 multiply scheduling supports 1..={GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS} elements"
+        )),
         _ => Err("unsupported gated Q7 multiply schedule implementation".into()),
     }
 }
@@ -3219,6 +3659,163 @@ fn lower_model_linear_region(
             output_representation: Representation::MaskedRing,
         },
     })
+}
+
+fn lower_rms_norm_f32_direct_region(
+    plan_digest: &Digest,
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelRmsNormF32Region, String> {
+    let operation_id = operation.id.as_str();
+    let [input_id] = operation.inputs.as_slice() else {
+        return Err(format!(
+            "semantic RMSNorm operation {operation_id} must have exactly one input"
+        ));
+    };
+    let input = graph
+        .operations
+        .iter()
+        .find(|candidate| candidate.id == *input_id)
+        .ok_or_else(|| {
+            format!("semantic RMSNorm operation {operation_id} references missing input {input_id}")
+        })?;
+    if operation.operator != ModelOperator::RmsNorm
+        || input.output_shape != operation.output_shape
+        || operation.output_shape.is_empty()
+        || operation.output_shape.contains(&0)
+    {
+        return Err(format!(
+            "semantic RMSNorm operation {operation_id} requires equal nonempty input and output shapes"
+        ));
+    }
+    tensor_elements(&operation.output_shape)?;
+    let weight_id = operation
+        .attributes
+        .get("weight")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("semantic RMSNorm operation {operation_id} has no weight identity"))?
+        .to_owned();
+    let weight_offset = operation
+        .attributes
+        .get("weight_offset")
+        .and_then(serde_json::Value::as_i64)
+        .ok_or_else(|| {
+            format!("semantic RMSNorm operation {operation_id} has no integer weight offset")
+        })?;
+    if weight_offset != 0 {
+        return Err(format!(
+            "semantic RMSNorm operation {operation_id} uses unsupported weight offset {weight_offset}"
+        ));
+    }
+    let epsilon = operation
+        .attributes
+        .get("epsilon")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| {
+            value
+                .parse::<f32>()
+                .is_ok_and(|epsilon| epsilon.is_finite() && epsilon > 0.0)
+        })
+        .ok_or_else(|| format!("semantic RMSNorm operation {operation_id} has invalid epsilon"))?
+        .to_owned();
+    Ok(ModelRmsNormF32Region {
+        schema_version: RMS_NORM_F32_DIRECT_REGION_SCHEMA_VERSION.into(),
+        model_plan_digest: plan_digest.clone(),
+        mode,
+        layer: operation.layer,
+        operation_id: operation.id.clone(),
+        input_id: input_id.clone(),
+        weight_id,
+        epsilon,
+        shape: operation.output_shape.clone(),
+        kernel_artifact_digest: rms_norm_kernel_artifact_digest(),
+        numeric_profile: pllm_core::rms_norm::RMS_NORM_F32_DIRECT_PROFILE.into(),
+        weight_policy: RmsNormWeightPolicy::Direct,
+        reduction_order: RmsNormReductionOrder::LastAxisScalarLeftToRight,
+    })
+}
+
+fn lower_rms_norm_q10_direct_region(
+    plan_digest: &Digest,
+    graph: &DecoderGraph,
+    mode: DecoderMode,
+    operation: &ModelOperation,
+) -> Result<ModelRmsNormQ10DirectRegion, String> {
+    let reference = lower_rms_norm_f32_direct_region(plan_digest, graph, mode, operation)?;
+    if !decimal_equals_one_millionth(&reference.epsilon) {
+        return Err(format!(
+            "semantic RMSNorm operation {} epsilon {} is unsupported by the exact 1/1000000 Q10 profile",
+            reference.operation_id, reference.epsilon
+        ));
+    }
+    let width = usize::try_from(*reference.shape.last().ok_or("RMSNorm shape is empty")?)
+        .map_err(|_| "RMSNorm width exceeds usize")?;
+    if width > pllm_core::rms_norm::RMS_NORM_Q10_MAX_WIDTH {
+        return Err(format!(
+            "semantic RMSNorm operation {} width {width} exceeds Q10 profile maximum {}",
+            reference.operation_id,
+            pllm_core::rms_norm::RMS_NORM_Q10_MAX_WIDTH
+        ));
+    }
+    Ok(ModelRmsNormQ10DirectRegion {
+        schema_version: RMS_NORM_Q10_DIRECT_REGION_SCHEMA_VERSION.into(),
+        model_plan_digest: reference.model_plan_digest,
+        mode: reference.mode,
+        layer: reference.layer,
+        operation_id: reference.operation_id,
+        input_id: reference.input_id,
+        weight_id: reference.weight_id,
+        epsilon_numerator: pllm_core::rms_norm::RMS_NORM_EPSILON_NUMERATOR,
+        epsilon_denominator: pllm_core::rms_norm::RMS_NORM_EPSILON_DENOMINATOR,
+        shape: reference.shape,
+        kernel_artifact_digest: rms_norm_kernel_artifact_digest(),
+        numeric_profile: pllm_core::rms_norm::RMS_NORM_Q10_DIRECT_PROFILE.into(),
+        input_fractional_bits: 10,
+        weight_fractional_bits: 10,
+        reciprocal_fractional_bits: 30,
+        output_fractional_bits: 10,
+        maximum_width: pllm_core::rms_norm::RMS_NORM_Q10_MAX_WIDTH,
+        maximum_encoded_error: 1,
+        weight_policy: RmsNormWeightPolicy::Direct,
+        reduction_order: RmsNormReductionOrder::LastAxisScalarLeftToRight,
+        rounding: FixedPointRounding::TiesToEven,
+    })
+}
+
+fn decimal_equals_one_millionth(value: &str) -> bool {
+    let (coefficient, exponent) = value
+        .split_once(['e', 'E'])
+        .map_or((value, "0"), |parts| parts);
+    let Ok(exponent) = exponent.parse::<i32>() else {
+        return false;
+    };
+    let (integer, fraction) = coefficient
+        .split_once('.')
+        .map_or((coefficient, ""), |parts| parts);
+    if integer.starts_with('-')
+        || integer.starts_with('+')
+        || !integer.bytes().all(|byte| byte.is_ascii_digit())
+        || !fraction.bytes().all(|byte| byte.is_ascii_digit())
+        || integer.is_empty()
+        || integer.len() + fraction.len() > 38
+    {
+        return false;
+    }
+    let digits = format!("{integer}{fraction}");
+    let Ok(numerator) = digits.parse::<u128>() else {
+        return false;
+    };
+    let Ok(fraction_digits) = i32::try_from(fraction.len()) else {
+        return false;
+    };
+    let scale = fraction_digits - exponent;
+    if !(0..=38).contains(&scale) {
+        return false;
+    }
+    numerator.checked_mul(1_000_000)
+        == 10_u128.checked_pow(u32::try_from(scale).expect("nonnegative bounded scale"))
 }
 
 fn lower_model_residual_region(

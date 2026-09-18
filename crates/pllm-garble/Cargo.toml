@@ -9,7 +9,9 @@ description = "Reference mixed-modulus arithmetic garbling for PLLM research"
 publish = false
 
 [dependencies]
+aes.workspace = true
 getrandom.workspace = true
 pllm-core.workspace = true
 sha2.workspace = true
+subtle.workspace = true
 zeroize.workspace = true

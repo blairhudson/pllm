@@ -28,6 +28,7 @@ license = "Apache-2.0"
 authors = ["Blair Hudson"]
 
 [workspace.dependencies]
+aes = "0.8.4"
 pllm-core = { path = "crates/pllm-core" }
 pllm-compiler = { path = "crates/pllm-compiler" }
 pllm-types = { path = "crates/pllm-types" }
@@ -38,9 +39,12 @@ pllm-models = { path = "crates/pllm-models" }
 pyo3 = { version = "=0.26.0", features = ["abi3-py311"] }
 rayon = "=1.11.0"
 getrandom = "=0.3.3"
+libm = "=0.2.16"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+subtle = "2.6"
+tempfile = "3.22"
 zeroize = "1.8"
 
 [profile.release]

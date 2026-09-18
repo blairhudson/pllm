@@ -84,6 +84,11 @@ class IndependentLanesProtectedTensorSchedule(ComponentRef):
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 
+class ChunkedIndependentLanesProtectedTensorSchedule(ComponentRef):
+    def __init__(self, *, max_elements: int) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
 class Pipeline:
     profile: str
     model: Model

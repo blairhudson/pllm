@@ -358,8 +358,12 @@ impl DecoderPlan {
                 ));
             }
         }
-        if self.model_family == "gemma4_text" {
+        let dense_qwen = matches!(self.model_family.as_str(), "qwen2" | "qwen3");
+        if self.model_family == "gemma4_text" || dense_qwen {
             validate_state_transition(self)?;
+        }
+        if dense_qwen {
+            validate_dense_qwen_semantics(self)?;
         }
         Ok(())
     }
@@ -471,6 +475,7 @@ fn lower_dense_decoder(
             config.max_position_embeddings
         )));
     }
+    let state_capacity = total - 1;
     let plan = DecoderPlan {
         schema_version: DECODER_PLAN_SCHEMA_VERSION.into(),
         model_family: config.model_family.into(),
@@ -483,8 +488,16 @@ fn lower_dense_decoder(
             workload.batch,
             workload.max_input_tokens,
             workload.max_input_tokens,
+            state_capacity,
         ),
-        decode: lower_graph(config, DecoderMode::Decode, workload.batch, 1, total - 1),
+        decode: lower_graph(
+            config,
+            DecoderMode::Decode,
+            workload.batch,
+            1,
+            state_capacity,
+            state_capacity,
+        ),
         token_feedback: true,
     };
     plan.validate()?;
@@ -497,6 +510,7 @@ fn lower_graph(
     batch: u64,
     query_sequence: u64,
     maximum_key_sequence: u64,
+    state_capacity: u64,
 ) -> DecoderGraph {
     let hidden = config.hidden_size;
     let heads = u64::from(config.num_attention_heads);
@@ -507,7 +521,8 @@ fn lower_graph(
     let attention_hidden_shape = vec![batch, query_sequence, attention_width];
     let q_shape = vec![batch, heads, query_sequence, head_dim];
     let kv_query_shape = vec![batch, kv_heads, query_sequence, head_dim];
-    let kv_state_shape = vec![batch, kv_heads, maximum_key_sequence, head_dim];
+    let kv_state_shape = vec![batch, kv_heads, state_capacity, head_dim];
+    let kv_view_shape = vec![batch, kv_heads, maximum_key_sequence, head_dim];
     let score_shape = vec![batch, heads, query_sequence, maximum_key_sequence];
     let mut operations = Vec::new();
     push(
@@ -531,7 +546,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&hidden_input],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.input_layernorm.weight")}),
+            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.input_layernorm.weight"), "weight_offset": 0}),
         );
         let q_linear = format!("{prefix}.q_linear");
         let k_linear = format!("{prefix}.k_linear");
@@ -598,7 +613,7 @@ fn lower_graph(
                 ModelOperator::RmsNorm,
                 &[&q],
                 q_shape.clone(),
-                json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.self_attn.q_norm.weight")}),
+                json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.self_attn.q_norm.weight"), "weight_offset": 0}),
             );
             q_norm
         } else {
@@ -612,7 +627,7 @@ fn lower_graph(
                 ModelOperator::RmsNorm,
                 &[&k],
                 kv_query_shape.clone(),
-                json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.self_attn.k_norm.weight")}),
+                json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.self_attn.k_norm.weight"), "weight_offset": 0}),
             );
             k_norm
         } else {
@@ -626,7 +641,7 @@ fn lower_graph(
             ModelOperator::RotaryEmbedding,
             &[&q_rope_input, "input.positions"],
             q_shape.clone(),
-            json!({"theta": config.rope_theta}),
+            dense_qwen_rope_attributes(config.rope_theta, head_dim),
         );
         push(
             &mut operations,
@@ -634,64 +649,82 @@ fn lower_graph(
             ModelOperator::RotaryEmbedding,
             &[&k_rope_input, "input.positions"],
             kv_query_shape.clone(),
-            json!({"theta": config.rope_theta}),
+            dense_qwen_rope_attributes(config.rope_theta, head_dim),
         );
         let key_state = format!("state.layer.{layer}.key");
         let value_state = format!("state.layer.{layer}.value");
-        state_inputs.push(StateTensor {
-            id: key_state.clone(),
-            layer: Some(u64::from(layer)),
-            kind: StateKind::Key,
-            shape: kv_state_shape.clone(),
-            maximum_sequence: maximum_key_sequence,
-        });
-        state_inputs.push(StateTensor {
-            id: value_state.clone(),
-            layer: Some(u64::from(layer)),
-            kind: StateKind::Value,
-            shape: kv_state_shape.clone(),
-            maximum_sequence: maximum_key_sequence,
-        });
+        if mode == DecoderMode::Decode {
+            state_inputs.push(StateTensor {
+                id: key_state.clone(),
+                layer: Some(u64::from(layer)),
+                kind: StateKind::Key,
+                shape: kv_state_shape.clone(),
+                maximum_sequence: state_capacity,
+            });
+            state_inputs.push(StateTensor {
+                id: value_state.clone(),
+                layer: Some(u64::from(layer)),
+                kind: StateKind::Value,
+                shape: kv_state_shape.clone(),
+                maximum_sequence: state_capacity,
+            });
+        }
         let key_append = format!("{prefix}.key_append");
         let value_append = format!("{prefix}.value_append");
-        push(
+        dense_qwen_cache_update(
             &mut operations,
             &key_append,
-            ModelOperator::KvCacheAppend,
-            &[&key_state, &rope_k],
+            &key_state,
+            &rope_k,
             kv_state_shape.clone(),
-            json!({"state": key_state}),
+            state_capacity,
+            maximum_key_sequence,
+            mode,
+            StateKind::Key,
         );
-        operations
-            .last_mut()
-            .expect("key append was pushed")
-            .state_kind = Some(StateKind::Key);
-        push(
+        dense_qwen_cache_update(
             &mut operations,
             &value_append,
-            ModelOperator::KvCacheAppend,
-            &[&value_state, &v],
+            &value_state,
+            &v,
             kv_state_shape.clone(),
-            json!({"state": value_state}),
+            state_capacity,
+            maximum_key_sequence,
+            mode,
+            StateKind::Value,
         );
-        operations
-            .last_mut()
-            .expect("value append was pushed")
-            .state_kind = Some(StateKind::Value);
         state_outputs.push(StateTensor {
             id: key_append.clone(),
             layer: Some(u64::from(layer)),
             kind: StateKind::Key,
             shape: kv_state_shape.clone(),
-            maximum_sequence: maximum_key_sequence,
+            maximum_sequence: state_capacity,
         });
         state_outputs.push(StateTensor {
             id: value_append.clone(),
             layer: Some(u64::from(layer)),
             kind: StateKind::Value,
             shape: kv_state_shape.clone(),
-            maximum_sequence: maximum_key_sequence,
+            maximum_sequence: state_capacity,
         });
+        let key_view = format!("{prefix}.key_view");
+        let value_view = format!("{prefix}.value_view");
+        dense_qwen_cache_view(
+            &mut operations,
+            &key_view,
+            &key_append,
+            kv_view_shape.clone(),
+            maximum_key_sequence,
+            StateKind::Key,
+        );
+        dense_qwen_cache_view(
+            &mut operations,
+            &value_view,
+            &value_append,
+            kv_view_shape.clone(),
+            maximum_key_sequence,
+            StateKind::Value,
+        );
         let scores = format!("{prefix}.attention_scores");
         let scaled = format!("{prefix}.attention_scale");
         let masked = format!("{prefix}.causal_mask");
@@ -702,7 +735,7 @@ fn lower_graph(
             &mut operations,
             &scores,
             ModelOperator::AttentionScores,
-            &[&rope_q, &key_append],
+            &[&rope_q, &key_view],
             score_shape.clone(),
             json!({"group_size": heads / kv_heads}),
         );
@@ -734,7 +767,7 @@ fn lower_graph(
             &mut operations,
             &values,
             ModelOperator::AttentionValues,
-            &[&probabilities, &value_append],
+            &[&probabilities, &value_view],
             q_shape.clone(),
             json!({"group_size": heads / kv_heads}),
         );
@@ -772,7 +805,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&attention_residual],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.post_attention_layernorm.weight")}),
+            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.post_attention_layernorm.weight"), "weight_offset": 0}),
         );
         let gate = format!("{prefix}.gate_proj");
         let up = format!("{prefix}.up_proj");
@@ -840,15 +873,19 @@ fn lower_graph(
         ModelOperator::RmsNorm,
         &[&hidden_input],
         hidden_shape,
-        json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight"}),
+        json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight", "weight_offset": 0}),
     );
     push(
         &mut operations,
         "last_hidden",
         ModelOperator::LastToken,
-        &["final_norm"],
+        &["final_norm", "input.sequence_lengths"],
         vec![batch, config.hidden_size],
-        json!({"axis": 1}),
+        json!({
+            "axis": 1,
+            "selection": "last_valid",
+            "valid_lengths_input": "input.sequence_lengths"
+        }),
     );
     push(
         &mut operations,
@@ -856,7 +893,14 @@ fn lower_graph(
         ModelOperator::OutputHead,
         &["last_hidden"],
         vec![batch, config.vocab_size],
-        json!({"weight": if config.tie_word_embeddings { "model.embed_tokens.weight" } else { "lm_head.weight" }}),
+        json!({
+            "weight": if config.tie_word_embeddings { "model.embed_tokens.weight" } else { "lm_head.weight" },
+            "tied": config.tie_word_embeddings,
+            "input_layout": "batch_hidden",
+            "output_layout": "batch_vocabulary",
+            "compute_dtype": "model_native",
+            "output_dtype": "model_native"
+        }),
     );
     push(
         &mut operations,
@@ -884,6 +928,115 @@ fn lower_graph(
         state_outputs,
         output: "token_feedback".into(),
     }
+}
+
+fn dense_qwen_rope_attributes(theta: u64, head_dim: u64) -> Value {
+    json!({
+        "theta": theta,
+        "rotary_dimensions": head_dim,
+        "pairing": "split_half",
+        "position_policy": "sequential_absolute",
+        "coefficient_profile": "pllm.numeric.rope.q30.libm.v1",
+        "input_layout": "batch_heads_sequence_feature",
+        "output_layout": "batch_heads_sequence_feature",
+        "tail_policy": "unchanged"
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn dense_qwen_cache_update(
+    operations: &mut Vec<ModelOperation>,
+    id: &str,
+    state: &str,
+    current: &str,
+    shape: Vec<u64>,
+    state_capacity: u64,
+    maximum_sequence: u64,
+    mode: DecoderMode,
+    kind: StateKind,
+) {
+    let attributes = json!({
+        "state": state,
+        "mode": if mode == DecoderMode::Prefill { "initialize" } else { "append" },
+        "state_capacity": state_capacity,
+        "state_layout": "batch_kv_heads_sequence_feature",
+        "absolute_write_positions_input": "input.positions",
+        "padding_mask_input": "input.attention_mask",
+        "valid_lengths_input": "input.sequence_lengths",
+        "attention_domain": {
+            "layout": "batch_kv_heads_sequence_feature",
+            "maximum_sequence": maximum_sequence,
+            "includes_current": true
+        }
+    });
+    if mode == DecoderMode::Prefill {
+        push(
+            operations,
+            id,
+            ModelOperator::KvCacheAppend,
+            &[
+                current,
+                "input.positions",
+                "input.attention_mask",
+                "input.sequence_lengths",
+            ],
+            shape,
+            attributes,
+        );
+    } else {
+        push(
+            operations,
+            id,
+            ModelOperator::KvCacheAppend,
+            &[
+                state,
+                current,
+                "input.positions",
+                "input.attention_mask",
+                "input.sequence_lengths",
+            ],
+            shape,
+            attributes,
+        );
+    }
+    operations
+        .last_mut()
+        .expect("cache update was pushed")
+        .state_kind = Some(kind);
+}
+
+fn dense_qwen_cache_view(
+    operations: &mut Vec<ModelOperation>,
+    id: &str,
+    input: &str,
+    shape: Vec<u64>,
+    maximum_sequence: u64,
+    kind: StateKind,
+) {
+    push(
+        operations,
+        id,
+        ModelOperator::CacheSuffix,
+        &[
+            input,
+            "input.positions",
+            "input.attention_mask",
+            "input.sequence_lengths",
+        ],
+        shape,
+        json!({
+            "axis": 2,
+            "maximum_sequence": maximum_sequence,
+            "semantics": "visible_valid_prefix",
+            "absolute_write_positions_input": "input.positions",
+            "padding_mask_input": "input.attention_mask",
+            "valid_lengths_input": "input.sequence_lengths"
+        }),
+    );
+    operations
+        .last_mut()
+        .expect("cache view was pushed")
+        .state_kind = Some(kind);
 }
 
 fn linear(
@@ -1046,9 +1199,9 @@ fn validate_state(state: &StateTensor) -> Result<(), ModelError> {
                 state.id
             )));
         }
-        if state.maximum_sequence > state.shape[2] {
+        if state.maximum_sequence != state.shape[2] {
             return Err(ModelError::Incomplete(format!(
-                "state {} maximum_sequence exceeds its sequence dimension",
+                "state {} maximum_sequence differs from its sequence dimension",
                 state.id
             )));
         }
@@ -1118,7 +1271,7 @@ fn validate_operation(
     }
     let attributes = operation.attributes.as_object().expect("checked above");
     let required = match operation.operator {
-        ModelOperator::RmsNorm => &["epsilon"][..],
+        ModelOperator::RmsNorm => &["epsilon", "weight", "weight_offset"][..],
         ModelOperator::Linear | ModelOperator::TokenLookup | ModelOperator::OutputHead => {
             &["weight"][..]
         }
@@ -1177,6 +1330,7 @@ fn validate_operation(
     match operation.operator {
         ModelOperator::Reshape => validate_reshape(operation, shapes)?,
         ModelOperator::Permute => validate_permute(operation, shapes)?,
+        ModelOperator::RotaryEmbedding => validate_rotary_embedding(operation, shapes)?,
         ModelOperator::KvCacheAppend => validate_cache_update(graph_mode, operation, shapes)?,
         ModelOperator::CacheSuffix => validate_cache_suffix(operation, shapes)?,
         ModelOperator::CausalMask => validate_causal_mask(operation)?,
@@ -1230,6 +1384,83 @@ fn validate_operation(
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid softcap",
+            operation.id
+        )));
+    }
+    Ok(())
+}
+
+fn validate_rotary_embedding(
+    operation: &ModelOperation,
+    shapes: &BTreeMap<String, Vec<u64>>,
+) -> Result<(), ModelError> {
+    let attributes = operation.attributes.as_object().expect("validated object");
+    let input_shape = operation
+        .inputs
+        .first()
+        .and_then(|input| shapes.get(input))
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "operation {} rotary input shape is unavailable",
+                operation.id
+            ))
+        })?;
+    if operation.inputs.get(1).map(String::as_str) != Some("input.positions")
+        || input_shape.len() != 4
+        || operation.output_shape != *input_shape
+        || attributes
+            .get("theta")
+            .and_then(Value::as_u64)
+            .is_none_or(|theta| theta == 0)
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid rotary shape or dependencies",
+            operation.id
+        )));
+    }
+    if let Some(rotary_dimensions) = attributes.get("rotary_dimensions") {
+        let rotary_dimensions = rotary_dimensions.as_u64().ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "operation {} has invalid rotary dimensions",
+                operation.id
+            ))
+        })?;
+        if rotary_dimensions == 0
+            || rotary_dimensions % 2 != 0
+            || rotary_dimensions > input_shape[3]
+        {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} has invalid rotary dimensions",
+                operation.id
+            )));
+        }
+    }
+    let descriptor_keys = [
+        "pairing",
+        "position_policy",
+        "coefficient_profile",
+        "input_layout",
+        "output_layout",
+        "tail_policy",
+    ];
+    if descriptor_keys
+        .iter()
+        .any(|key| attributes.contains_key(*key))
+        && (attributes.get("pairing").and_then(Value::as_str) != Some("split_half")
+            || attributes.get("position_policy").and_then(Value::as_str)
+                != Some("sequential_absolute")
+            || attributes
+                .get("coefficient_profile")
+                .and_then(Value::as_str)
+                != Some("pllm.numeric.rope.q30.libm.v1")
+            || attributes.get("input_layout").and_then(Value::as_str)
+                != Some("batch_heads_sequence_feature")
+            || attributes.get("output_layout").and_then(Value::as_str)
+                != Some("batch_heads_sequence_feature")
+            || attributes.get("tail_policy").and_then(Value::as_str) != Some("unchanged"))
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid rotary descriptors",
             operation.id
         )));
     }
@@ -1494,15 +1725,90 @@ fn validate_cache_update(
             operation.id
         )));
     }
-    for key in [
-        "absolute_write_positions_input",
-        "padding_mask_input",
-        "valid_lengths_input",
-        "attention_domain",
-    ] {
-        if !attributes.contains_key(key) {
+    let attention_domain = attributes
+        .get("attention_domain")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "operation {} has invalid attention domain",
+                operation.id
+            ))
+        })?;
+    let attention_maximum = attention_domain
+        .get("maximum_sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    if attributes.get("state_layout").and_then(Value::as_str)
+        != Some("batch_kv_heads_sequence_feature")
+        || attributes
+            .get("absolute_write_positions_input")
+            .and_then(Value::as_str)
+            != Some("input.positions")
+        || attributes.get("padding_mask_input").and_then(Value::as_str)
+            != Some("input.attention_mask")
+        || attributes
+            .get("valid_lengths_input")
+            .and_then(Value::as_str)
+            != Some("input.sequence_lengths")
+        || attention_maximum == 0
+        || attention_domain
+            .get("includes_current")
+            .and_then(Value::as_bool)
+            != Some(true)
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid cache descriptors",
+            operation.id
+        )));
+    }
+    if operation.output_shape.len() == 4 {
+        if attention_domain.get("layout").and_then(Value::as_str)
+            != Some("batch_kv_heads_sequence_feature")
+            || attention_maximum > state_capacity
+            || operation.output_shape
+                != [
+                    current_shape[0],
+                    current_shape[1],
+                    state_capacity,
+                    current_shape[3],
+                ]
+        {
             return Err(ModelError::Incomplete(format!(
-                "operation {} omits cache descriptor {key}",
+                "operation {} has invalid sequence cache shape",
+                operation.id
+            )));
+        }
+    } else if attention_domain.get("layout").and_then(Value::as_str)
+        != Some("batch_kv_heads_query_window_feature")
+        || operation.output_shape[0] != current_shape[0]
+        || operation.output_shape[1] != current_shape[1]
+        || operation.output_shape[2] != current_shape[2]
+        || operation.output_shape[3] != attention_maximum
+        || operation.output_shape[4] != current_shape[3]
+    {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid window cache shape",
+            operation.id
+        )));
+    }
+    if graph_mode == DecoderMode::Decode {
+        let state_shape = shapes.get(state).ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "operation {} state shape is unavailable",
+                operation.id
+            ))
+        })?;
+        if state_shape.len() != 4
+            || state_shape
+                != &[
+                    current_shape[0],
+                    current_shape[1],
+                    state_capacity,
+                    current_shape[3],
+                ]
+        {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} state shape differs from its capacity",
                 operation.id
             )));
         }
@@ -1520,13 +1826,6 @@ fn validate_cache_suffix(
         || operation.inputs[2] != "input.attention_mask"
         || operation.inputs[3] != "input.sequence_lengths"
         || operation.output_shape.len() != 4
-        || operation
-            .inputs
-            .first()
-            .and_then(|input| shapes.get(input))
-            .is_none_or(|shape| shape.len() != 5)
-        || attributes.get("axis").and_then(Value::as_u64) != Some(3)
-        || attributes.get("output_axis").and_then(Value::as_u64) != Some(2)
         || attributes
             .get("absolute_write_positions_input")
             .and_then(Value::as_str)
@@ -1537,9 +1836,52 @@ fn validate_cache_suffix(
             .get("valid_lengths_input")
             .and_then(Value::as_str)
             != Some("input.sequence_lengths")
+        || operation
+            .inputs
+            .first()
+            .and_then(|input| shapes.get(input))
+            .is_none()
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid cache suffix contract",
+            operation.id
+        )));
+    }
+    let input_shape = shapes.get(&operation.inputs[0]).expect("validated above");
+    let maximum_sequence = attributes
+        .get("maximum_sequence")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let valid_shape = if input_shape.len() == 4 {
+        attributes.get("axis").and_then(Value::as_u64) == Some(2)
+            && attributes.get("semantics").and_then(Value::as_str) == Some("visible_valid_prefix")
+            && operation.output_shape
+                == [
+                    input_shape[0],
+                    input_shape[1],
+                    maximum_sequence,
+                    input_shape[3],
+                ]
+            && maximum_sequence <= input_shape[2]
+    } else if input_shape.len() == 5 {
+        attributes.get("axis").and_then(Value::as_u64) == Some(3)
+            && attributes.get("output_axis").and_then(Value::as_u64) == Some(2)
+            && attributes.get("semantics").and_then(Value::as_str)
+                == Some("persist_last_valid_past_tokens")
+            && operation.output_shape
+                == [
+                    input_shape[0],
+                    input_shape[1],
+                    maximum_sequence,
+                    input_shape[4],
+                ]
+            && maximum_sequence <= input_shape[3]
+    } else {
+        false
+    };
+    if maximum_sequence == 0 || !valid_shape {
+        return Err(ModelError::Incomplete(format!(
+            "operation {} has invalid cache suffix shape",
             operation.id
         )));
     }
@@ -1585,7 +1927,7 @@ fn validate_state_transition(plan: &DecoderPlan) -> Result<(), ModelError> {
     }
     if !plan.prefill.state_inputs.is_empty() {
         return Err(ModelError::Incomplete(
-            "Gemma prefill must initialize caches without state inputs".into(),
+            "prefill must initialize caches without state inputs".into(),
         ));
     }
     for (graph, producer_mode) in [(&plan.prefill, "initialize"), (&plan.decode, "append")] {
@@ -1619,6 +1961,11 @@ fn validate_state_transition(plan: &DecoderPlan) -> Result<(), ModelError> {
             })?;
             if update.operator != ModelOperator::KvCacheAppend
                 || update.attributes.get("mode").and_then(Value::as_str) != Some(producer_mode)
+                || update
+                    .attributes
+                    .get("state_capacity")
+                    .and_then(Value::as_u64)
+                    != Some(state.maximum_sequence)
             {
                 return Err(ModelError::Incomplete(format!(
                     "state output {} has invalid cache producer mode",
@@ -1641,6 +1988,841 @@ fn validate_state_transition(plan: &DecoderPlan) -> Result<(), ModelError> {
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct DenseQwenOutputContract {
+    head_attributes: Value,
+    input_shape: Vec<u64>,
+    output_shape: Vec<u64>,
+    selection_attributes: Value,
+    selection_shape: Vec<u64>,
+    feedback_attributes: Value,
+    feedback_shape: Vec<u64>,
+}
+
+fn validate_dense_qwen_semantics(plan: &DecoderPlan) -> Result<(), ModelError> {
+    let qwen3 = plan.model_family == "qwen3";
+    let epsilon = validate_dense_qwen_epsilon(plan)?;
+    let theta = validate_dense_qwen_theta(plan)?;
+    let mut output_contract = None;
+    for graph in [&plan.prefill, &plan.decode] {
+        let layers = graph
+            .operations
+            .iter()
+            .filter_map(|operation| operation.layer)
+            .collect::<BTreeSet<_>>();
+        if layers.iter().copied().ne(0..layers.len() as u64) {
+            return Err(ModelError::Incomplete(
+                "dense Qwen layers must be contiguous from zero".into(),
+            ));
+        }
+        let expected_norms = if qwen3 {
+            layers.len() * 4 + 1
+        } else {
+            layers.len() * 2 + 1
+        };
+        if graph
+            .operations
+            .iter()
+            .filter(|operation| operation.operator == ModelOperator::AttentionScores)
+            .count()
+            != layers.len()
+            || graph
+                .operations
+                .iter()
+                .filter(|operation| operation.operator == ModelOperator::AttentionValues)
+                .count()
+                != layers.len()
+            || graph
+                .operations
+                .iter()
+                .filter(|operation| operation.operator == ModelOperator::RotaryEmbedding)
+                .count()
+                != layers.len() * 2
+            || graph
+                .operations
+                .iter()
+                .filter(|operation| operation.operator == ModelOperator::RmsNorm)
+                .count()
+                != expected_norms
+        {
+            return Err(ModelError::Incomplete(
+                "dense Qwen graph has incomplete attention or RMSNorm topology".into(),
+            ));
+        }
+        let mut previous_residual = None;
+        for layer in &layers {
+            let scores = dense_qwen_layer_operation(graph, *layer, ModelOperator::AttentionScores)?;
+            let values = dense_qwen_layer_operation(graph, *layer, ModelOperator::AttentionValues)?;
+            let (input_norm, mlp_residual) = validate_dense_qwen_attention_layer(
+                graph, *layer, scores, values, qwen3, &epsilon, theta,
+            )?;
+            let source = dense_qwen_input(graph, input_norm, 0)?;
+            if let Some(previous) = previous_residual {
+                if source.id != previous {
+                    return Err(ModelError::Incomplete(format!(
+                        "dense Qwen layer {layer} bypasses previous MLP residual"
+                    )));
+                }
+            } else if source.operator != ModelOperator::TokenLookup
+                || source.inputs.as_slice() != ["input.tokens"]
+                || source.attributes.get("weight").and_then(Value::as_str)
+                    != Some("model.embed_tokens.weight")
+            {
+                return Err(ModelError::Incomplete(
+                    "dense Qwen first layer does not consume token lookup".into(),
+                ));
+            }
+            previous_residual = Some(mlp_residual.id.as_str());
+        }
+        let final_residual = previous_residual.ok_or_else(|| {
+            ModelError::Incomplete("dense Qwen graph has no decoder layers".into())
+        })?;
+        let graph_output_contract =
+            validate_dense_qwen_graph_tail(graph, final_residual, &epsilon)?;
+        if output_contract
+            .as_ref()
+            .is_some_and(|expected| expected != &graph_output_contract)
+        {
+            return Err(ModelError::Incomplete(
+                "dense Qwen prefill and decode output-head contracts differ".into(),
+            ));
+        }
+        output_contract = Some(graph_output_contract);
+        if !qwen3
+            && graph.operations.iter().any(|operation| {
+                operation.id.ends_with(".q_norm") || operation.id.ends_with(".k_norm")
+            })
+        {
+            return Err(ModelError::Incomplete(
+                "Qwen2 must not contain per-head q_norm or k_norm operations".into(),
+            ));
+        }
+        for operation in &graph.operations {
+            match operation.operator {
+                ModelOperator::RotaryEmbedding => {
+                    let attributes = operation.attributes.as_object().expect("validated object");
+                    if attributes.get("rotary_dimensions").and_then(Value::as_u64)
+                        != operation.output_shape.last().copied()
+                        || attributes.get("pairing").and_then(Value::as_str) != Some("split_half")
+                        || attributes.get("position_policy").and_then(Value::as_str)
+                            != Some("sequential_absolute")
+                        || attributes
+                            .get("coefficient_profile")
+                            .and_then(Value::as_str)
+                            != Some("pllm.numeric.rope.q30.libm.v1")
+                        || attributes.get("input_layout").and_then(Value::as_str)
+                            != Some("batch_heads_sequence_feature")
+                        || attributes.get("output_layout").and_then(Value::as_str)
+                            != Some("batch_heads_sequence_feature")
+                        || attributes.get("tail_policy").and_then(Value::as_str)
+                            != Some("unchanged")
+                    {
+                        return Err(ModelError::Incomplete(format!(
+                            "dense Qwen operation {} omits exact rotary semantics",
+                            operation.id
+                        )));
+                    }
+                }
+                ModelOperator::KvCacheAppend => {
+                    if operation
+                        .attributes
+                        .get("attention_domain")
+                        .and_then(|domain| domain.get("maximum_sequence"))
+                        .and_then(Value::as_u64)
+                        != Some(graph.maximum_key_sequence)
+                    {
+                        return Err(ModelError::Incomplete(format!(
+                            "dense Qwen operation {} has wrong visible cache bound",
+                            operation.id
+                        )));
+                    }
+                }
+                ModelOperator::CacheSuffix => {
+                    if operation
+                        .attributes
+                        .get("maximum_sequence")
+                        .and_then(Value::as_u64)
+                        != Some(graph.maximum_key_sequence)
+                        || operation
+                            .attributes
+                            .get("semantics")
+                            .and_then(Value::as_str)
+                            != Some("visible_valid_prefix")
+                    {
+                        return Err(ModelError::Incomplete(format!(
+                            "dense Qwen operation {} has wrong cache view semantics",
+                            operation.id
+                        )));
+                    }
+                    let update = graph
+                        .operations
+                        .iter()
+                        .find(|candidate| operation.inputs.first() == Some(&candidate.id));
+                    if update.is_none_or(|update| {
+                        update.operator != ModelOperator::KvCacheAppend
+                            || update.state_kind != operation.state_kind
+                    }) {
+                        return Err(ModelError::Incomplete(format!(
+                            "dense Qwen operation {} does not view its cache update",
+                            operation.id
+                        )));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_dense_qwen_epsilon(plan: &DecoderPlan) -> Result<String, ModelError> {
+    let mut norms = plan
+        .prefill
+        .operations
+        .iter()
+        .chain(&plan.decode.operations)
+        .filter(|operation| operation.operator == ModelOperator::RmsNorm);
+    let epsilon = norms
+        .next()
+        .and_then(|operation| operation.attributes.get("epsilon"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| ModelError::Incomplete("dense Qwen RMSNorm epsilon is missing".into()))?
+        .to_owned();
+    let parsed = epsilon.parse::<f64>().map_err(|_| {
+        ModelError::Incomplete("dense Qwen RMSNorm epsilon is not a positive decimal".into())
+    })?;
+    if !parsed.is_finite()
+        || parsed <= 0.0
+        || norms.any(|operation| {
+            operation.attributes.get("epsilon").and_then(Value::as_str) != Some(epsilon.as_str())
+        })
+    {
+        return Err(ModelError::Incomplete(
+            "dense Qwen RMSNorm epsilon differs across layers or phases".into(),
+        ));
+    }
+    Ok(epsilon)
+}
+
+fn validate_dense_qwen_theta(plan: &DecoderPlan) -> Result<u64, ModelError> {
+    let mut rotary = plan
+        .prefill
+        .operations
+        .iter()
+        .chain(&plan.decode.operations)
+        .filter(|operation| operation.operator == ModelOperator::RotaryEmbedding);
+    let theta = rotary
+        .next()
+        .and_then(|operation| operation.attributes.get("theta"))
+        .and_then(Value::as_u64)
+        .filter(|theta| *theta > 0)
+        .ok_or_else(|| ModelError::Incomplete("dense Qwen RoPE theta is invalid".into()))?;
+    if rotary
+        .any(|operation| operation.attributes.get("theta").and_then(Value::as_u64) != Some(theta))
+    {
+        return Err(ModelError::Incomplete(
+            "dense Qwen RoPE theta differs across q/k, layers, or phases".into(),
+        ));
+    }
+    Ok(theta)
+}
+
+fn dense_qwen_layer_operation(
+    graph: &DecoderGraph,
+    layer: u64,
+    operator: ModelOperator,
+) -> Result<&ModelOperation, ModelError> {
+    let mut matching = graph
+        .operations
+        .iter()
+        .filter(|operation| operation.layer == Some(layer) && operation.operator == operator);
+    let operation = matching.next().ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has no {operator:?} operation"
+        ))
+    })?;
+    if matching.next().is_some() {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has multiple {operator:?} operations"
+        )));
+    }
+    Ok(operation)
+}
+
+fn dense_qwen_input<'a>(
+    graph: &'a DecoderGraph,
+    operation: &ModelOperation,
+    index: usize,
+) -> Result<&'a ModelOperation, ModelError> {
+    operation
+        .inputs
+        .get(index)
+        .and_then(|input| {
+            graph
+                .operations
+                .iter()
+                .find(|candidate| &candidate.id == input)
+        })
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "dense Qwen operation {} has missing producer at input {index}",
+                operation.id
+            ))
+        })
+}
+
+fn dense_qwen_consumer<'a>(
+    graph: &'a DecoderGraph,
+    layer: u64,
+    input: &str,
+    operator: ModelOperator,
+) -> Result<&'a ModelOperation, ModelError> {
+    let mut matching = graph.operations.iter().filter(|operation| {
+        operation.layer == Some(layer)
+            && operation.operator == operator
+            && operation.inputs.iter().any(|candidate| candidate == input)
+    });
+    let operation = matching.next().ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has no {operator:?} consumer for {input}"
+        ))
+    })?;
+    if matching.next().is_some() {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has multiple {operator:?} consumers for {input}"
+        )));
+    }
+    Ok(operation)
+}
+
+fn validate_dense_qwen_cache_path<'a>(
+    graph: &'a DecoderGraph,
+    attention: &ModelOperation,
+    kind: StateKind,
+) -> Result<(&'a ModelOperation, &'a ModelOperation), ModelError> {
+    let layer = attention.layer.ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen attention {} has no layer",
+            attention.id
+        ))
+    })?;
+    let view = attention
+        .inputs
+        .get(1)
+        .and_then(|input| {
+            graph
+                .operations
+                .iter()
+                .find(|operation| &operation.id == input)
+        })
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "dense Qwen attention {} has no cache view",
+                attention.id
+            ))
+        })?;
+    let append = view
+        .inputs
+        .first()
+        .and_then(|input| {
+            graph
+                .operations
+                .iter()
+                .find(|operation| &operation.id == input)
+        })
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "dense Qwen attention {} has no cache append",
+                attention.id
+            ))
+        })?;
+    let expected_mode = if graph.mode == DecoderMode::Prefill {
+        "initialize"
+    } else {
+        "append"
+    };
+    let expected_state = format!(
+        "state.layer.{layer}.{}",
+        if kind == StateKind::Key {
+            "key"
+        } else {
+            "value"
+        }
+    );
+    let common_shape = view.output_shape.len() == 4
+        && append.output_shape.len() == 4
+        && view.output_shape[0] == append.output_shape[0]
+        && view.output_shape[1] == append.output_shape[1]
+        && view.output_shape[3] == append.output_shape[3];
+    let attention_shape = if kind == StateKind::Key {
+        let query = attention.inputs.first().and_then(|input| {
+            graph
+                .operations
+                .iter()
+                .find(|operation| &operation.id == input)
+        });
+        query.is_some_and(|query| {
+            query.output_shape.len() == 4
+                && attention.output_shape
+                    == [
+                        query.output_shape[0],
+                        query.output_shape[1],
+                        query.output_shape[2],
+                        view.output_shape[2],
+                    ]
+                && view.output_shape[0] == query.output_shape[0]
+                && view.output_shape[3] == query.output_shape[3]
+        })
+    } else {
+        let probabilities = attention.inputs.first().and_then(|input| {
+            graph
+                .operations
+                .iter()
+                .find(|operation| &operation.id == input)
+        });
+        probabilities.is_some_and(|probabilities| {
+            probabilities.output_shape.len() == 4
+                && probabilities.output_shape[3] == view.output_shape[2]
+                && view.output_shape[0] == probabilities.output_shape[0]
+                && attention.output_shape
+                    == [
+                        probabilities.output_shape[0],
+                        probabilities.output_shape[1],
+                        probabilities.output_shape[2],
+                        view.output_shape[3],
+                    ]
+        })
+    };
+    if view.operator != ModelOperator::CacheSuffix
+        || view.layer != Some(layer)
+        || view.state_kind != Some(kind)
+        || append.operator != ModelOperator::KvCacheAppend
+        || append.layer != Some(layer)
+        || append.state_kind != Some(kind)
+        || append.attributes.get("mode").and_then(Value::as_str) != Some(expected_mode)
+        || append.attributes.get("state").and_then(Value::as_str) != Some(expected_state.as_str())
+        || !common_shape
+        || !attention_shape
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen attention {} has invalid {:?} cache path",
+            attention.id, kind
+        )));
+    }
+    Ok((view, append))
+}
+
+fn validate_dense_qwen_attention_layer<'a>(
+    graph: &'a DecoderGraph,
+    layer: u64,
+    scores: &ModelOperation,
+    values: &ModelOperation,
+    qwen3: bool,
+    epsilon: &str,
+    theta: u64,
+) -> Result<(&'a ModelOperation, &'a ModelOperation), ModelError> {
+    let (key_view, key_append) = validate_dense_qwen_cache_path(graph, scores, StateKind::Key)?;
+    let (value_view, value_append) =
+        validate_dense_qwen_cache_path(graph, values, StateKind::Value)?;
+    let rope_q = dense_qwen_input(graph, scores, 0)?;
+    let current_index = usize::from(graph.mode == DecoderMode::Decode);
+    let rope_k = dense_qwen_input(graph, key_append, current_index)?;
+    let v_heads = dense_qwen_input(graph, value_append, current_index)?;
+    if rope_q.operator != ModelOperator::RotaryEmbedding
+        || rope_k.operator != ModelOperator::RotaryEmbedding
+        || rope_q.layer != Some(layer)
+        || rope_k.layer != Some(layer)
+        || rope_q.attributes.get("theta").and_then(Value::as_u64) != Some(theta)
+        || rope_k.attributes.get("theta").and_then(Value::as_u64) != Some(theta)
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid rotary producers"
+        )));
+    }
+
+    let q_source = dense_qwen_input(graph, rope_q, 0)?;
+    let k_source = dense_qwen_input(graph, rope_k, 0)?;
+    let (q_heads, k_heads) = if qwen3 {
+        let q_heads = dense_qwen_input(graph, q_source, 0)?;
+        let k_heads = dense_qwen_input(graph, k_source, 0)?;
+        validate_qwen3_qk_norm(q_source, q_heads, rope_q, layer, "q", epsilon)?;
+        validate_qwen3_qk_norm(k_source, k_heads, rope_k, layer, "k", epsilon)?;
+        (q_heads, k_heads)
+    } else {
+        (q_source, k_source)
+    };
+    for heads in [q_heads, k_heads, v_heads] {
+        if heads.operator != ModelOperator::Reshape
+            || heads.layer != Some(layer)
+            || heads.attributes.get("layout").and_then(Value::as_str)
+                != Some("batch_heads_sequence_feature")
+        {
+            return Err(ModelError::Incomplete(format!(
+                "dense Qwen layer {layer} has invalid attention reshape"
+            )));
+        }
+    }
+    if rope_q.output_shape != q_heads.output_shape
+        || rope_k.output_shape != k_heads.output_shape
+        || key_view.inputs.first() != Some(&key_append.id)
+        || value_view.inputs.first() != Some(&value_append.id)
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid rotary or cache-view dependencies"
+        )));
+    }
+
+    let q_linear = dense_qwen_input(graph, q_heads, 0)?;
+    let k_linear = dense_qwen_input(graph, k_heads, 0)?;
+    let v_linear = dense_qwen_input(graph, v_heads, 0)?;
+    let norm_id = q_linear.inputs.first().ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} q projection has no input"
+        ))
+    })?;
+    if k_linear.inputs.as_slice() != [norm_id.as_str()]
+        || v_linear.inputs.as_slice() != [norm_id.as_str()]
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} projections do not share input norm"
+        )));
+    }
+    let input_norm = dense_qwen_input(graph, q_linear, 0)?;
+    validate_dense_qwen_projection(q_linear, q_heads, input_norm, layer, "q_proj", qwen3)?;
+    validate_dense_qwen_projection(k_linear, k_heads, input_norm, layer, "k_proj", qwen3)?;
+    validate_dense_qwen_projection(v_linear, v_heads, input_norm, layer, "v_proj", qwen3)?;
+    let expected_input_norm_weight = format!("model.layers.{layer}.input_layernorm.weight");
+    if input_norm.operator != ModelOperator::RmsNorm
+        || input_norm.layer != Some(layer)
+        || input_norm.output_shape.len() != 3
+        || input_norm.attributes.get("epsilon").and_then(Value::as_str) != Some(epsilon)
+        || input_norm
+            .attributes
+            .get("weight_offset")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || input_norm.attributes.get("weight").and_then(Value::as_str)
+            != Some(expected_input_norm_weight.as_str())
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid attention input norm"
+        )));
+    }
+
+    let scale = dense_qwen_consumer(graph, layer, &scores.id, ModelOperator::AttentionScale)?;
+    let mask = dense_qwen_consumer(graph, layer, &scale.id, ModelOperator::CausalMask)?;
+    let softmax = dense_qwen_consumer(graph, layer, &mask.id, ModelOperator::Softmax)?;
+    if scale.inputs.as_slice() != [scores.id.as_str()]
+        || scale.output_shape != scores.output_shape
+        || mask.inputs.as_slice() != [scale.id.as_str(), "input.positions"]
+        || mask.output_shape != scale.output_shape
+        || softmax.inputs.as_slice() != [mask.id.as_str()]
+        || softmax.output_shape != mask.output_shape
+        || values.inputs.as_slice() != [softmax.id.as_str(), value_view.id.as_str()]
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid score-to-value dependency chain"
+        )));
+    }
+
+    let attention_hidden = dense_qwen_consumer(graph, layer, &values.id, ModelOperator::Reshape)?;
+    let o_proj = dense_qwen_consumer(graph, layer, &attention_hidden.id, ModelOperator::Linear)?;
+    let residual = dense_qwen_consumer(graph, layer, &o_proj.id, ModelOperator::ResidualAdd)?;
+    let residual_source = dense_qwen_input(graph, input_norm, 0)?;
+    let attention_width = values.output_shape[1]
+        .checked_mul(values.output_shape[3])
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "dense Qwen layer {layer} attention width overflowed"
+            ))
+        })?;
+    let expected_hidden = [
+        values.output_shape[0],
+        values.output_shape[2],
+        attention_width,
+    ];
+    let expected_o_weight = format!("model.layers.{layer}.self_attn.o_proj.weight");
+    if attention_hidden.inputs.as_slice() != [values.id.as_str()]
+        || attention_hidden.output_shape != expected_hidden
+        || attention_hidden
+            .attributes
+            .get("layout")
+            .and_then(Value::as_str)
+            != Some("batch_sequence_hidden")
+        || o_proj.inputs.as_slice() != [attention_hidden.id.as_str()]
+        || o_proj.output_shape != residual_source.output_shape
+        || o_proj.attributes.get("weight").and_then(Value::as_str)
+            != Some(expected_o_weight.as_str())
+        || !o_proj.attributes.get("bias").is_some_and(Value::is_null)
+        || residual.inputs.as_slice() != [residual_source.id.as_str(), o_proj.id.as_str()]
+        || residual.output_shape != residual_source.output_shape
+        || input_norm.output_shape != residual_source.output_shape
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid attention output or residual chain"
+        )));
+    }
+    let post_norm = dense_qwen_consumer(graph, layer, &residual.id, ModelOperator::RmsNorm)?;
+    let linears = graph
+        .operations
+        .iter()
+        .filter(|operation| {
+            operation.layer == Some(layer)
+                && operation.operator == ModelOperator::Linear
+                && operation.inputs.as_slice() == [post_norm.id.as_str()]
+        })
+        .collect::<Vec<_>>();
+    if linears.len() != 2 {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} must have gate and up projections"
+        )));
+    }
+    let expected_gate_weight = format!("model.layers.{layer}.mlp.gate_proj.weight");
+    let expected_up_weight = format!("model.layers.{layer}.mlp.up_proj.weight");
+    let gate = linears
+        .iter()
+        .find(|operation| {
+            operation.attributes.get("weight").and_then(Value::as_str)
+                == Some(expected_gate_weight.as_str())
+        })
+        .copied()
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "dense Qwen layer {layer} has invalid gate projection"
+            ))
+        })?;
+    let up = linears.iter().find(|operation| {
+        operation.attributes.get("weight").and_then(Value::as_str)
+            == Some(expected_up_weight.as_str())
+    });
+    let up = up.copied().ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid up projection"
+        ))
+    })?;
+    let silu = dense_qwen_consumer(graph, layer, &gate.id, ModelOperator::Silu)?;
+    let multiplied = dense_qwen_consumer(graph, layer, &silu.id, ModelOperator::Multiply)?;
+    let down = dense_qwen_consumer(graph, layer, &multiplied.id, ModelOperator::Linear)?;
+    let mlp_residual = dense_qwen_consumer(graph, layer, &down.id, ModelOperator::ResidualAdd)?;
+    let expected_post_weight = format!("model.layers.{layer}.post_attention_layernorm.weight");
+    let expected_down_weight = format!("model.layers.{layer}.mlp.down_proj.weight");
+    if post_norm.inputs.as_slice() != [residual.id.as_str()]
+        || post_norm.output_shape != residual.output_shape
+        || post_norm.attributes.get("epsilon").and_then(Value::as_str) != Some(epsilon)
+        || post_norm.attributes.get("weight").and_then(Value::as_str)
+            != Some(expected_post_weight.as_str())
+        || post_norm
+            .attributes
+            .get("weight_offset")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || gate.inputs.as_slice() != [post_norm.id.as_str()]
+        || gate.output_shape != up.output_shape
+        || gate.attributes.get("weight").and_then(Value::as_str)
+            != Some(expected_gate_weight.as_str())
+        || !gate.attributes.get("bias").is_some_and(Value::is_null)
+        || up.inputs.as_slice() != [post_norm.id.as_str()]
+        || !up.attributes.get("bias").is_some_and(Value::is_null)
+        || silu.inputs.as_slice() != [gate.id.as_str()]
+        || silu.output_shape != gate.output_shape
+        || multiplied.inputs.as_slice() != [silu.id.as_str(), up.id.as_str()]
+        || multiplied.output_shape != gate.output_shape
+        || down.inputs.as_slice() != [multiplied.id.as_str()]
+        || down.output_shape != residual.output_shape
+        || down.attributes.get("weight").and_then(Value::as_str)
+            != Some(expected_down_weight.as_str())
+        || !down.attributes.get("bias").is_some_and(Value::is_null)
+        || mlp_residual.inputs.as_slice() != [residual.id.as_str(), down.id.as_str()]
+        || mlp_residual.output_shape != residual.output_shape
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid MLP weight, bias, or residual topology"
+        )));
+    }
+    Ok((input_norm, mlp_residual))
+}
+
+fn validate_qwen3_qk_norm(
+    norm: &ModelOperation,
+    heads: &ModelOperation,
+    rope: &ModelOperation,
+    layer: u64,
+    projection: &str,
+    epsilon: &str,
+) -> Result<(), ModelError> {
+    let expected_weight = format!("model.layers.{layer}.self_attn.{projection}_norm.weight");
+    if norm.operator != ModelOperator::RmsNorm
+        || norm.layer != Some(layer)
+        || norm.inputs.as_slice() != [heads.id.as_str()]
+        || norm.output_shape != heads.output_shape
+        || norm.attributes.get("weight").and_then(Value::as_str) != Some(expected_weight.as_str())
+        || norm.attributes.get("weight_offset").and_then(Value::as_u64) != Some(0)
+        || norm.attributes.get("epsilon").and_then(Value::as_str) != Some(epsilon)
+        || rope.inputs.first() != Some(&norm.id)
+        || rope.output_shape != norm.output_shape
+    {
+        return Err(ModelError::Incomplete(format!(
+            "Qwen3 layer {layer} has invalid {projection}_norm semantics"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_dense_qwen_projection(
+    linear: &ModelOperation,
+    heads: &ModelOperation,
+    input_norm: &ModelOperation,
+    layer: u64,
+    projection: &str,
+    qwen3: bool,
+) -> Result<(), ModelError> {
+    let expected_weight = format!("model.layers.{layer}.self_attn.{projection}.weight");
+    let expected_bias = format!("model.layers.{layer}.self_attn.{projection}.bias");
+    let valid_bias = if qwen3 {
+        linear.attributes.get("bias").is_some_and(Value::is_null)
+    } else {
+        linear.attributes.get("bias").and_then(Value::as_str) == Some(expected_bias.as_str())
+    };
+    let shape_matches = linear.output_shape.len() == 3
+        && heads.output_shape.len() == 4
+        && heads.output_shape[0] == linear.output_shape[0]
+        && heads.output_shape[2] == linear.output_shape[1]
+        && u128::from(heads.output_shape[1]) * u128::from(heads.output_shape[3])
+            == u128::from(linear.output_shape[2]);
+    if linear.operator != ModelOperator::Linear
+        || linear.layer != Some(layer)
+        || linear.inputs.as_slice() != [input_norm.id.as_str()]
+        || linear.attributes.get("weight").and_then(Value::as_str) != Some(expected_weight.as_str())
+        || !valid_bias
+        || heads.inputs.as_slice() != [linear.id.as_str()]
+        || !shape_matches
+    {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen layer {layer} has invalid {projection} linear-to-reshape weight or bias semantics"
+        )));
+    }
+    Ok(())
+}
+
+fn dense_qwen_unlayered_consumer<'a>(
+    graph: &'a DecoderGraph,
+    input: &str,
+    operator: ModelOperator,
+) -> Result<&'a ModelOperation, ModelError> {
+    let mut matching = graph.operations.iter().filter(|operation| {
+        operation.layer.is_none()
+            && operation.operator == operator
+            && operation.inputs.iter().any(|candidate| candidate == input)
+    });
+    let operation = matching.next().ok_or_else(|| {
+        ModelError::Incomplete(format!(
+            "dense Qwen graph has no unlayered {operator:?} consumer for {input}"
+        ))
+    })?;
+    if matching.next().is_some() {
+        return Err(ModelError::Incomplete(format!(
+            "dense Qwen graph has multiple unlayered {operator:?} consumers for {input}"
+        )));
+    }
+    Ok(operation)
+}
+
+fn validate_dense_qwen_graph_tail(
+    graph: &DecoderGraph,
+    final_residual_id: &str,
+    epsilon: &str,
+) -> Result<DenseQwenOutputContract, ModelError> {
+    let final_residual = graph
+        .operations
+        .iter()
+        .find(|operation| operation.id == final_residual_id)
+        .expect("validated final residual");
+    let final_norm =
+        dense_qwen_unlayered_consumer(graph, final_residual_id, ModelOperator::RmsNorm)?;
+    let last_token =
+        dense_qwen_unlayered_consumer(graph, &final_norm.id, ModelOperator::LastToken)?;
+    let output_head =
+        dense_qwen_unlayered_consumer(graph, &last_token.id, ModelOperator::OutputHead)?;
+    let selection =
+        dense_qwen_unlayered_consumer(graph, &output_head.id, ModelOperator::GreedyTokenSelection)?;
+    let feedback =
+        dense_qwen_unlayered_consumer(graph, &selection.id, ModelOperator::TokenFeedback)?;
+    let length_aware = last_token.inputs.as_slice()
+        == [final_norm.id.as_str(), "input.sequence_lengths"]
+        && last_token
+            .attributes
+            .get("selection")
+            .and_then(Value::as_str)
+            == Some("last_valid")
+        && last_token
+            .attributes
+            .get("valid_lengths_input")
+            .and_then(Value::as_str)
+            == Some("input.sequence_lengths");
+    let physical_decode = graph.mode == DecoderMode::Decode
+        && graph.query_sequence == 1
+        && final_norm.output_shape.get(1) == Some(&1)
+        && last_token.inputs.as_slice() == [final_norm.id.as_str()]
+        && last_token.attributes.get("selection").is_none()
+        && last_token.attributes.get("valid_lengths_input").is_none();
+    let output_weight = output_head.attributes.get("weight").and_then(Value::as_str);
+    let tied = output_head.attributes.get("tied").and_then(Value::as_bool);
+    let valid_weight_policy = matches!(
+        (output_weight, tied),
+        (Some("model.embed_tokens.weight"), Some(true)) | (Some("lm_head.weight"), Some(false))
+    );
+    let expected_head_attributes = output_weight.zip(tied).map(|(weight, tied)| {
+        json!({
+            "weight": weight,
+            "tied": tied,
+            "input_layout": "batch_hidden",
+            "output_layout": "batch_vocabulary",
+            "compute_dtype": "model_native",
+            "output_dtype": "model_native"
+        })
+    });
+    if final_norm.inputs.as_slice() != [final_residual.id.as_str()]
+        || final_norm.output_shape != final_residual.output_shape
+        || final_norm.attributes.get("epsilon").and_then(Value::as_str) != Some(epsilon)
+        || final_norm.attributes.get("weight").and_then(Value::as_str) != Some("model.norm.weight")
+        || final_norm
+            .attributes
+            .get("weight_offset")
+            .and_then(Value::as_u64)
+            != Some(0)
+        || last_token.attributes.get("axis").and_then(Value::as_i64) != Some(1)
+        || (graph.mode == DecoderMode::Prefill && !length_aware)
+        || (graph.mode == DecoderMode::Decode && !length_aware && !physical_decode)
+        || last_token.output_shape != [final_norm.output_shape[0], final_norm.output_shape[2]]
+        || output_head.inputs.as_slice() != [last_token.id.as_str()]
+        || output_head.output_shape.len() != 2
+        || output_head.output_shape[0] != last_token.output_shape[0]
+        || output_head.output_shape[1] == 0
+        || !valid_weight_policy
+        || expected_head_attributes.as_ref() != Some(&output_head.attributes)
+        || selection.inputs.as_slice() != [output_head.id.as_str()]
+        || selection.output_shape != [graph.batch]
+        || selection.attributes != json!({})
+        || feedback.inputs.as_slice() != [selection.id.as_str()]
+        || feedback.output_shape != [graph.batch, 1]
+        || feedback.attributes != json!({})
+        || graph.output != feedback.id
+    {
+        return Err(ModelError::Incomplete(
+            "dense Qwen graph tail has invalid norm, token selection, or feedback topology".into(),
+        ));
+    }
+    Ok(DenseQwenOutputContract {
+        head_attributes: output_head.attributes.clone(),
+        input_shape: last_token.output_shape.clone(),
+        output_shape: output_head.output_shape.clone(),
+        selection_attributes: selection.attributes.clone(),
+        selection_shape: selection.output_shape.clone(),
+        feedback_attributes: feedback.attributes.clone(),
+        feedback_shape: feedback.output_shape.clone(),
+    })
 }
 
 type StateSlotMap = BTreeMap<(Option<u64>, StateKind), (Vec<u64>, u64)>;
@@ -1768,6 +2950,46 @@ mod tests {
         }
     }
 
+    fn qwen2_plan(max_input_tokens: u64, max_new_tokens: u64) -> DecoderPlan {
+        lower_qwen_decoder(
+            &config(),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens,
+                max_new_tokens,
+            },
+        )
+        .unwrap()
+    }
+
+    fn qwen3_plan(max_input_tokens: u64, max_new_tokens: u64) -> DecoderPlan {
+        lower_model_json(
+            MINI_CODER_4B_CONFIG,
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens,
+                max_new_tokens,
+            },
+        )
+        .unwrap()
+    }
+
+    fn operation<'a>(graph: &'a DecoderGraph, id: &str) -> &'a ModelOperation {
+        graph
+            .operations
+            .iter()
+            .find(|operation| operation.id == id)
+            .unwrap()
+    }
+
+    fn operation_mut<'a>(graph: &'a mut DecoderGraph, id: &str) -> &'a mut ModelOperation {
+        graph
+            .operations
+            .iter_mut()
+            .find(|operation| operation.id == id)
+            .unwrap()
+    }
+
     #[test]
     fn lowers_complete_bounded_prefill_and_decode_graphs() {
         let plan = lower_qwen_decoder(
@@ -1780,7 +3002,7 @@ mod tests {
         )
         .unwrap();
         plan.validate().unwrap();
-        assert_eq!(plan.prefill.operations.len(), 26 * 24 + 6);
+        assert_eq!(plan.prefill.operations.len(), 28 * 24 + 6);
         assert_eq!(plan.decode.operations.len(), plan.prefill.operations.len());
         assert_eq!(plan.prefill.state_outputs.len(), 48);
         assert_eq!(plan.decode.output, "token_feedback");
@@ -1799,6 +3021,98 @@ mod tests {
             .operations
             .iter()
             .any(|operation| operation.operator == ModelOperator::OutputHead));
+    }
+
+    #[test]
+    fn dense_qwen_rope_and_cache_contracts_are_explicit() {
+        let plan = qwen2_plan(128, 32);
+        let rope = operation(&plan.prefill, "layer.0.rope_k");
+        assert_eq!(rope.inputs, ["layer.0.k_heads", "input.positions"]);
+        assert_eq!(
+            rope.attributes,
+            json!({
+                "theta": 1_000_000,
+                "rotary_dimensions": 64,
+                "pairing": "split_half",
+                "position_policy": "sequential_absolute",
+                "coefficient_profile": "pllm.numeric.rope.q30.libm.v1",
+                "input_layout": "batch_heads_sequence_feature",
+                "output_layout": "batch_heads_sequence_feature",
+                "tail_policy": "unchanged"
+            })
+        );
+
+        assert!(plan.prefill.state_inputs.is_empty());
+        assert_eq!(plan.decode.state_inputs.len(), 48);
+        for output in &plan.prefill.state_outputs {
+            let input = plan
+                .decode
+                .state_inputs
+                .iter()
+                .find(|input| input.layer == output.layer && input.kind == output.kind)
+                .unwrap();
+            assert_eq!(output.shape, input.shape);
+            assert_eq!(output.maximum_sequence, 159);
+            assert_eq!(input.maximum_sequence, 159);
+        }
+
+        let prefill_append = operation(&plan.prefill, "layer.0.key_append");
+        assert_eq!(
+            prefill_append.inputs,
+            [
+                "layer.0.rope_k",
+                "input.positions",
+                "input.attention_mask",
+                "input.sequence_lengths"
+            ]
+        );
+        assert_eq!(prefill_append.output_shape, [1, 2, 159, 64]);
+        assert_eq!(prefill_append.attributes["mode"], "initialize");
+        assert_eq!(prefill_append.attributes["state_capacity"], 159);
+        assert_eq!(
+            prefill_append.attributes["state_layout"],
+            "batch_kv_heads_sequence_feature"
+        );
+        assert_eq!(
+            prefill_append.attributes["attention_domain"],
+            json!({
+                "layout": "batch_kv_heads_sequence_feature",
+                "maximum_sequence": 128,
+                "includes_current": true
+            })
+        );
+        let decode_append = operation(&plan.decode, "layer.0.key_append");
+        assert_eq!(decode_append.inputs[0], "state.layer.0.key");
+        assert_eq!(decode_append.inputs[1], "layer.0.rope_k");
+        assert_eq!(decode_append.attributes["mode"], "append");
+        assert_eq!(decode_append.attributes["state_capacity"], 159);
+
+        let key_view = operation(&plan.prefill, "layer.0.key_view");
+        assert_eq!(key_view.output_shape, [1, 2, 128, 64]);
+        assert_eq!(key_view.attributes["axis"], 2);
+        assert_eq!(key_view.attributes["maximum_sequence"], 128);
+        assert_eq!(key_view.attributes["semantics"], "visible_valid_prefix");
+        assert_eq!(
+            operation(&plan.prefill, "layer.0.attention_scores").inputs[1],
+            "layer.0.key_view"
+        );
+        assert_eq!(
+            operation(&plan.prefill, "layer.0.attention_values").inputs[1],
+            "layer.0.value_view"
+        );
+        assert_eq!(plan.prefill.state_outputs[0].id, "layer.0.key_append");
+        assert_eq!(
+            operation(&plan.prefill, "last_hidden").inputs,
+            ["final_norm", "input.sequence_lengths"]
+        );
+        assert_eq!(
+            operation(&plan.prefill, "last_hidden").attributes,
+            json!({
+                "axis": 1,
+                "selection": "last_valid",
+                "valid_lengths_input": "input.sequence_lengths"
+            })
+        );
     }
 
     #[test]
@@ -1876,6 +3190,7 @@ mod tests {
         assert_eq!(plan.adapter, "pllm.qwen3.v1");
         assert_eq!(plan.model_family, "qwen3");
         assert_eq!(plan.prefill.state_outputs.len(), 72);
+        assert_eq!(plan.prefill.operations.len(), 30 * 36 + 6);
         let operation = |id: &str| {
             plan.prefill
                 .operations
@@ -1889,6 +3204,35 @@ mod tests {
             [1, 128, 4096]
         );
         assert_eq!(operation("layer.0.q_norm").operator, ModelOperator::RmsNorm);
+        assert_eq!(operation("layer.0.q_norm").inputs, ["layer.0.q_heads"]);
+        assert_eq!(operation("layer.0.q_norm").output_shape, [1, 32, 128, 128]);
+        assert_eq!(
+            operation("layer.0.q_norm").attributes,
+            json!({
+                "epsilon": "1e-6",
+                "weight": "model.layers.0.self_attn.q_norm.weight",
+                "weight_offset": 0
+            })
+        );
+        assert_eq!(operation("layer.0.k_norm").inputs, ["layer.0.k_heads"]);
+        assert_eq!(operation("layer.0.k_norm").output_shape, [1, 8, 128, 128]);
+        assert_eq!(
+            operation("layer.0.rope_k").inputs,
+            ["layer.0.k_norm", "input.positions"]
+        );
+        assert_eq!(
+            operation("layer.0.rope_k").attributes,
+            json!({
+                "theta": 5_000_000,
+                "rotary_dimensions": 128,
+                "pairing": "split_half",
+                "position_policy": "sequential_absolute",
+                "coefficient_profile": "pllm.numeric.rope.q30.libm.v1",
+                "input_layout": "batch_heads_sequence_feature",
+                "output_layout": "batch_heads_sequence_feature",
+                "tail_policy": "unchanged"
+            })
+        );
         assert_eq!(
             operation("layer.0.q_linear").attributes["bias"],
             Value::Null
@@ -1947,7 +3291,7 @@ mod tests {
             },
         )
         .unwrap();
-        plan.prefill.state_inputs[1].id = plan.prefill.state_inputs[0].id.clone();
+        plan.decode.state_inputs[1].id = plan.decode.state_inputs[0].id.clone();
         assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
 
         let mut plan = lower_qwen_decoder(
@@ -2012,5 +3356,280 @@ mod tests {
             .unwrap()
             .output_shape = vec![1, 8];
         assert!(plan.validate().is_err());
+    }
+
+    #[test]
+    fn dense_qwen_validation_rejects_tampered_semantics_and_shapes() {
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").attributes["rotary_dimensions"] =
+            json!(63);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").attributes["rotary_dimensions"] =
+            json!(62);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").attributes["pairing"] =
+            json!("interleaved");
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").inputs[1] = "input.tokens".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.key_append").attributes["state_capacity"] =
+            json!(8);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.key_view").output_shape[2] = 7;
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.decode, "layer.0.attention_scores").inputs[1] =
+            "layer.0.key_append".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        plan.decode.state_inputs[0].shape[2] = 8;
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.attention_scores").inputs[1] =
+            "layer.0.value_view".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.attention_values").inputs[1] =
+            "layer.0.key_view".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        let digest = plan.config_digest.clone();
+        plan.transformations.push(AppliedMethod {
+            component: "unknown/component".into(),
+            implementation: "unknown/implementation".into(),
+            method_id: "unknown".into(),
+            input_digest: digest.clone(),
+            configuration_digest: digest,
+        });
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").attributes["pairing"] =
+            json!("interleaved");
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+    }
+
+    #[test]
+    fn dense_qwen_validation_enforces_family_specific_qk_norms() {
+        let mut plan = qwen3_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.q_norm").attributes["weight"] =
+            json!("wrong.weight");
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen3_plan(8, 2);
+        operation_mut(&mut plan.decode, "layer.0.k_norm").attributes["weight_offset"] = json!(1);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen3_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.q_norm").attributes["epsilon"] =
+            json!("0.000002");
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen3_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.k_norm").inputs[0] = "layer.0.q_heads".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        let rope_index = plan
+            .prefill
+            .operations
+            .iter()
+            .position(|operation| operation.id == "layer.0.rope_q")
+            .unwrap();
+        let shape = operation(&plan.prefill, "layer.0.q_heads")
+            .output_shape
+            .clone();
+        plan.prefill.operations.insert(
+            rope_index,
+            ModelOperation {
+                id: "layer.0.q_norm".into(),
+                operator: ModelOperator::RmsNorm,
+                layer: Some(0),
+                state_kind: None,
+                inputs: vec!["layer.0.q_heads".into()],
+                output_shape: shape,
+                attributes: json!({
+                    "epsilon": "0.000001",
+                    "weight": "model.layers.0.self_attn.q_norm.weight",
+                    "weight_offset": 0
+                }),
+            },
+        );
+        operation_mut(&mut plan.prefill, "layer.0.rope_q").inputs[0] = "layer.0.q_norm".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+    }
+
+    #[test]
+    fn dense_qwen_validation_rejects_same_shape_attention_rewires() {
+        for (operation_id, input_index, replacement) in [
+            ("layer.0.k_heads", 0, "layer.0.v_linear"),
+            ("layer.0.key_append", 0, "layer.0.v_heads"),
+            ("layer.0.value_append", 0, "layer.0.rope_k"),
+            ("layer.0.causal_mask", 0, "layer.0.attention_scores"),
+            ("layer.0.softmax", 0, "layer.0.attention_scale"),
+            ("layer.0.attention_values", 0, "layer.0.causal_mask"),
+            ("layer.0.attention_hidden", 0, "layer.0.rope_q"),
+            ("layer.0.o_proj", 0, "layer.0.q_linear"),
+            ("layer.0.attention_residual", 1, "layer.0.input_norm"),
+        ] {
+            let mut plan = qwen2_plan(8, 2);
+            operation_mut(&mut plan.prefill, operation_id).inputs[input_index] = replacement.into();
+            assert!(
+                matches!(plan.validate(), Err(ModelError::Incomplete(_))),
+                "accepted rewire {operation_id}[{input_index}] -> {replacement}"
+            );
+        }
+
+        let mut equal_heads = config();
+        equal_heads.num_key_value_heads = equal_heads.num_attention_heads;
+        let mut plan = lower_qwen_decoder(
+            &equal_heads,
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 8,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap();
+        operation_mut(&mut plan.prefill, "layer.0.attention_scores").inputs[0] =
+            "layer.0.rope_k".into();
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+    }
+
+    #[test]
+    fn qwen3_qk_norm_epsilon_tracks_configured_direct_norm_epsilon() {
+        let mut document: Value = serde_json::from_slice(MINI_CODER_4B_CONFIG).unwrap();
+        document["rms_norm_eps"] = json!("0.000002");
+        let mut plan = lower_model_json(
+            &serde_json::to_vec(&document).unwrap(),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 8,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            operation(&plan.prefill, "layer.0.input_norm").attributes["epsilon"],
+            "0.000002"
+        );
+        assert_eq!(
+            operation(&plan.prefill, "layer.0.q_norm").attributes["epsilon"],
+            "0.000002"
+        );
+        plan.validate().unwrap();
+
+        operation_mut(&mut plan.prefill, "layer.0.q_norm").attributes["epsilon"] = json!("2e-6");
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+    }
+
+    #[test]
+    fn dense_qwen_validation_rejects_mlp_interlayer_and_tail_bypasses() {
+        for (operation_id, input_index, replacement) in [
+            ("layer.0.post_norm", 0, "layer.0.input_norm"),
+            ("layer.0.gate_proj", 0, "layer.0.attention_residual"),
+            ("layer.0.silu", 0, "layer.0.up_proj"),
+            ("layer.0.gated_multiply", 0, "layer.0.up_proj"),
+            ("layer.0.down_proj", 0, "layer.0.up_proj"),
+            ("layer.0.mlp_residual", 0, "layer.0.input_norm"),
+            ("layer.1.input_norm", 0, "layer.0.attention_residual"),
+            ("final_norm", 0, "layer.23.attention_residual"),
+            ("last_hidden", 0, "layer.23.mlp_residual"),
+            ("token_feedback", 0, "output_head"),
+        ] {
+            let mut plan = qwen2_plan(8, 2);
+            operation_mut(&mut plan.prefill, operation_id).inputs[input_index] = replacement.into();
+            assert!(
+                matches!(plan.validate(), Err(ModelError::Incomplete(_))),
+                "accepted rewire {operation_id}[{input_index}] -> {replacement}"
+            );
+        }
+
+        let mut plan = qwen2_plan(8, 2);
+        let last = operation_mut(&mut plan.prefill, "last_hidden");
+        last.inputs = vec!["final_norm".into()];
+        last.attributes = json!({"axis": 1});
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        let last = operation_mut(&mut plan.decode, "last_hidden");
+        last.inputs = vec!["final_norm".into()];
+        last.attributes = json!({"axis": 1});
+        plan.validate().unwrap();
+    }
+
+    #[test]
+    fn dense_qwen_validation_rejects_cross_phase_epsilon_and_theta_drift() {
+        let mut plan = qwen2_plan(8, 2);
+        for operation in &mut plan.decode.operations {
+            if operation.operator == ModelOperator::RmsNorm {
+                operation.attributes["epsilon"] = json!("0.000002");
+            }
+        }
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        operation_mut(&mut plan.prefill, "layer.0.rope_k").attributes["theta"] = json!(1_000_001);
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+
+        let mut plan = qwen2_plan(8, 2);
+        for operation in &mut plan.decode.operations {
+            if operation.operator == ModelOperator::RotaryEmbedding {
+                operation.attributes["theta"] = json!(1_000_001);
+            }
+        }
+        assert!(matches!(plan.validate(), Err(ModelError::Incomplete(_))));
+    }
+
+    #[test]
+    fn dense_qwen_validation_rejects_cross_phase_output_head_drift() {
+        let plan = qwen2_plan(8, 2);
+        assert_eq!(
+            operation(&plan.prefill, "output_head").attributes,
+            json!({
+                "weight": "model.embed_tokens.weight",
+                "tied": true,
+                "input_layout": "batch_hidden",
+                "output_layout": "batch_vocabulary",
+                "compute_dtype": "model_native",
+                "output_dtype": "model_native"
+            })
+        );
+
+        let mut tampered = plan.clone();
+        let output = operation_mut(&mut tampered.prefill, "output_head");
+        output.attributes["weight"] = json!("lm_head.weight");
+        output.attributes["tied"] = json!(false);
+        assert!(matches!(
+            tampered.validate(),
+            Err(ModelError::Incomplete(_))
+        ));
+
+        let mut tampered = plan.clone();
+        operation_mut(&mut tampered.prefill, "output_head").output_shape[1] -= 1;
+        assert!(matches!(
+            tampered.validate(),
+            Err(ModelError::Incomplete(_))
+        ));
+
+        let mut tampered = plan;
+        operation_mut(&mut tampered.decode, "output_head").attributes["output_layout"] =
+            json!("batch_hidden");
+        assert!(matches!(
+            tampered.validate(),
+            Err(ModelError::Incomplete(_))
+        ));
     }
 }

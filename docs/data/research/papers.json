@@ -141,8 +141,8 @@
         "David Evans"
       ],
       "primary_url": "https://eprint.iacr.org/2014/756",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "source_access": "primary_pdf_verified",
+      "verified_on": "2026-09-17",
       "track": "single_evaluator",
       "family": "primitive",
       "source_summary": "Half-gates reduce AND-gate communication while remaining compatible with free XOR.",
@@ -157,16 +157,16 @@
       "security_boundary": "Free-XOR-compatible correlation assumptions, domain separation and circuit freshness are mandatory. Malicious garbler defenses are a separate construction.",
       "prior_evidence": "Python SHA-based half-gates in tenx references are adaptations; not a native audited implementation.",
       "source_lock": {
-        "paper_sha256": null,
+        "paper_sha256": "d8afce7e749cb5db8e7324630098a0c3fd0de7b920d3303821a6ce62014068c0",
         "artifact_commit": null,
         "license_review": "required_before_vendoring"
       },
-      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "implementation_status": "native_primitive_in_progress",
       "assurance_status": "not_reviewed",
       "eligible_default": false,
       "native_owner": "Rust",
       "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "fulltext_gate": false,
       "card": "notes/R04-half_gates.md"
     },
     {

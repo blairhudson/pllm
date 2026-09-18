@@ -227,7 +227,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&hidden_input],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.input_layernorm.weight")}),
+            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.input_layernorm.weight"), "weight_offset": 0}),
         );
         let qkv_linear = format!("{prefix}.qkv_linear");
         push(
@@ -414,7 +414,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&attention_residual],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.post_attention_layernorm.weight")}),
+            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.post_attention_layernorm.weight"), "weight_offset": 0}),
         );
         let gate_up = format!("{prefix}.gate_up_proj");
         push(
@@ -487,7 +487,7 @@ fn lower_graph(
         ModelOperator::RmsNorm,
         &[&hidden_input],
         hidden_shape,
-        json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight"}),
+        json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight", "weight_offset": 0}),
     );
     push(
         &mut operations,

@@ -1,7 +1,9 @@
 //! Clean-room reference arithmetic garbling based on PLLM's cited public
-//! protocol descriptions. This unreviewed research crate is disabled in all
-//! production profiles and makes no cryptographic assurance claim.
+//! protocol descriptions. No production profile selects this unreviewed
+//! research crate, and it makes no cryptographic assurance claim.
 
+pub mod boolean;
+pub mod boolean_stream;
 pub mod gated_multiply_q7;
 
 pub use gated_multiply_q7::{
@@ -18,6 +20,10 @@ const SECURITY_BITS: f64 = 128.0;
 const MAX_MODULUS: u16 = 512;
 const TAG_BYTES: usize = 16;
 const MAX_PROJECTION_ROWS: usize = 1_000_000;
+/// Conservative decoded-program working storage relative to wire bytes.
+/// One-bit packed residues expand to two-byte values (16x); row/vector metadata and the
+/// retained encoded buffer remain below another 16x for every validated gate shape.
+pub const PROGRAM_DECODE_WORKING_BYTES_PER_WIRE_BYTE: u64 = 32;
 const MAX_PROGRAM_INPUTS: usize = 8;
 const MAX_PROGRAM_INSTRUCTIONS: usize = 128;
 const GATE_MAGIC: &[u8; 8] = b"PLLMAGC2";
@@ -130,6 +136,26 @@ impl fmt::Debug for WireEncoding {
 impl WireEncoding {
     pub fn modulus(&self) -> Modulus {
         self.modulus
+    }
+
+    fn heap_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            .checked_add(
+                self.base
+                    .components
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<u16>())
+                    .unwrap_or(usize::MAX),
+            )
+            .and_then(|bytes| {
+                bytes.checked_add(
+                    self.offset
+                        .components
+                        .capacity()
+                        .checked_mul(std::mem::size_of::<u16>())?,
+                )
+            })
+            .unwrap_or(usize::MAX)
     }
 
     pub fn encode(&self, value: u16) -> Result<Label, GarbleError> {
@@ -512,7 +538,9 @@ impl GarbledProjection {
             return Err(GarbleError::InvalidGate);
         }
         let packed_body_bytes = packed_residue_bytes(width, output_modulus)?;
-        let mut rows = Vec::with_capacity(row_count);
+        let mut rows = Vec::new();
+        rows.try_reserve_exact(row_count)
+            .map_err(|_| GarbleError::InvalidGate)?;
         for _ in 0..row_count {
             let body = unpack_residues(cursor.slice(packed_body_bytes)?, width, output_modulus)?;
             rows.push(CipherRow {
@@ -1115,13 +1143,91 @@ pub struct GatedMultiplyQ7Material {
     output: WireEncoding,
 }
 
+/// Client-only encodings after evaluator program bytes have been detached.
+pub struct GatedMultiplyQ7ClientMaterial {
+    gate_input: WireEncoding,
+    up_input: WireEncoding,
+    output: WireEncoding,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GatedMultiplyQ7ResourceEstimate {
+    pub evaluator_program_bytes: usize,
+    pub client_material_bytes: usize,
+    pub output_label_bytes: usize,
+}
+
 impl GatedMultiplyQ7Material {
+    /// Deterministic sizes for this method/context. Label contents vary, but their encodings do not.
+    pub fn resource_estimate(&self) -> Result<GatedMultiplyQ7ResourceEstimate, GarbleError> {
+        let output_label_bytes = 4_usize
+            .checked_add(
+                self.output
+                    .base
+                    .components
+                    .len()
+                    .checked_mul(2)
+                    .ok_or(GarbleError::InvalidProgram)?,
+            )
+            .ok_or(GarbleError::InvalidProgram)?;
+        Ok(GatedMultiplyQ7ResourceEstimate {
+            evaluator_program_bytes: self.program.to_bytes().len(),
+            client_material_bytes: self
+                .gate_input
+                .heap_bytes()
+                .checked_add(self.up_input.heap_bytes())
+                .and_then(|bytes| bytes.checked_add(self.output.heap_bytes()))
+                .ok_or(GarbleError::InvalidProgram)?,
+            output_label_bytes,
+        })
+    }
+
     pub fn program_bytes(&self) -> Vec<u8> {
         self.program.to_bytes()
     }
 
     pub fn material_id(&self) -> [u8; 32] {
         self.program.material_id()
+    }
+
+    pub fn encode_gate(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
+        Ok(self.gate_input.encode(q7_residue(value)?)?.to_bytes())
+    }
+
+    pub fn encode_up(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
+        Ok(self.up_input.encode(q7_residue(value)?)?.to_bytes())
+    }
+
+    pub fn decode(&self, label_bytes: &[u8]) -> Result<i16, GarbleError> {
+        let label = Label::from_bytes(label_bytes)?;
+        Ok(q7_centered(self.output.decode(&label)?))
+    }
+
+    pub fn into_client_material(self) -> (GatedMultiplyQ7ClientMaterial, Vec<u8>, [u8; 32]) {
+        let program = self.program.to_bytes();
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.garble.program.material.v1\0");
+        hash.update(&program);
+        let material_id = hash.finalize().into();
+        (
+            GatedMultiplyQ7ClientMaterial {
+                gate_input: self.gate_input,
+                up_input: self.up_input,
+                output: self.output,
+            },
+            program,
+            material_id,
+        )
+    }
+}
+
+impl GatedMultiplyQ7ClientMaterial {
+    pub fn heap_bytes(&self) -> usize {
+        self.gate_input
+            .heap_bytes()
+            .checked_add(self.up_input.heap_bytes())
+            .and_then(|bytes| bytes.checked_add(self.output.heap_bytes()))
+            .unwrap_or(usize::MAX)
     }
 
     pub fn encode_gate(&self, value: i16) -> Result<Vec<u8>, GarbleError> {
@@ -1547,7 +1653,10 @@ fn unpack_residues(packed: &[u8], count: usize, modulus: Modulus) -> Result<Vec<
             return Err(GarbleError::InvalidGate);
         }
     }
-    let mut residues = Vec::with_capacity(count);
+    let mut residues = Vec::new();
+    residues
+        .try_reserve_exact(count)
+        .map_err(|_| GarbleError::InvalidGate)?;
     for index in 0..count {
         let start = index * bits;
         let mut residue = 0_u16;
@@ -2155,6 +2264,23 @@ mod tests {
                 pllm_core::multiply_q7(pllm_core::silu_quadratic_q7(gate).unwrap(), up).unwrap();
             assert_eq!(material.decode(&output).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn gated_multiply_q7_resource_estimate_matches_prepared_material() {
+        let material = prepare_gated_multiply_q7_with_method_and_context(
+            GatedMultiplyQ7Method::R03Crt,
+            [19_u8; 32],
+        )
+        .unwrap();
+        let estimate = material.resource_estimate().unwrap();
+        assert_eq!(
+            estimate.evaluator_program_bytes,
+            material.program_bytes().len()
+        );
+        assert!(estimate.output_label_bytes > 0);
+        let (client, _, _) = material.into_client_material();
+        assert_eq!(estimate.client_material_bytes, client.heap_bytes());
     }
 
     #[test]

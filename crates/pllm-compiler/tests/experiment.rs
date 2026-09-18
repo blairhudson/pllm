@@ -105,6 +105,20 @@ fn validates_and_rejects_unexecuted_gated_component_selections() {
         .unwrap_err()
         .contains("baseline profile requires exactly"));
 
+    unused["pipeline"]["components"]["nonlinear_schedule"] = json!({
+        "component": "pllm/chunked-independent-lanes/v1",
+        "params": {"max_elements": 4096}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&unused))
+        .unwrap_err()
+        .contains("baseline profile requires exactly"));
+
+    unused["pipeline"]["components"]["nonlinear_schedule"]["params"]["max_elements"] =
+        json!(4_000_001);
+    assert!(resolve_experiment(&canonical_bytes(&unused))
+        .unwrap_err()
+        .contains("between 5 and 4000000"));
+
     let mut unknown = experiment();
     unknown["pipeline"]["components"]["unused"] = json!({
         "component": "example/unused",

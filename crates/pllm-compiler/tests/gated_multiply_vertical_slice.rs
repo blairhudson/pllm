@@ -1,13 +1,16 @@
 use pllm_compiler::{
     decoder_coverage, define_q14_to_q7_rescale_region, lower_model_gated_multiply_q7_regions,
     lower_model_gated_multiply_q7_regions_with_components,
-    prepare_bound_gated_multiply_q7_material, CapabilityLevel, GatedMultiplyQ7Evaluator,
-    GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID,
+    prepare_bound_gated_multiply_q7_material, prepare_bound_gated_multiply_q7_tensor_material,
+    CapabilityLevel, GatedMultiplyQ7Evaluator, GatedMultiplyQ7TensorEvaluator,
+    TensorResourcePolicy, GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID,
+    GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
     GATED_MULTIPLY_Q7_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
     GATED_MULTIPLY_Q7_MAX_EVALUATOR_PAYLOAD_BYTES, GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID,
     GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID, GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderPlan, DecoderWorkload};
+use std::io::{Cursor, Read};
 
 fn qwen_plan(intermediate_size: u64) -> DecoderPlan {
     let config = format!(
@@ -70,7 +73,7 @@ fn semantic_qwen_gated_multiply_lowers_with_exact_provenance() {
         multiply.component.as_deref(),
         Some("pllm/agc-gated-multiply-q7@0.1.0-alpha.1-experimental")
     );
-    assert!(multiply.blocker.contains("at most four"));
+    assert!(multiply.blocker.contains("resource-bounded chunked"));
 }
 
 #[test]
@@ -423,4 +426,203 @@ fn component_lowering_rejects_unknown_or_invalid_combinations() {
             expected
         );
     }
+}
+
+fn tensor_policy(elements: u64) -> TensorResourcePolicy {
+    TensorResourcePolicy {
+        max_elements: elements,
+        max_chunk_elements: 2,
+        max_chunk_bytes: 600_000,
+        max_body_bytes: 2_000_000,
+        max_output_bytes: elements * 1_024,
+        max_client_material_bytes: 2_000_000,
+        max_working_bytes: 40_000_000,
+    }
+}
+
+fn chunked_region(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    elements: usize,
+) -> pllm_compiler::ModelGatedMultiplyQ7Region {
+    lower_model_gated_multiply_q7_regions_with_components(
+        plan,
+        mode,
+        GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID,
+        GATED_MULTIPLY_Q7_CHUNKED_INDEPENDENT_LANES_SCHEDULE_COMPONENT_ID,
+        elements,
+    )
+    .unwrap()
+    .remove(0)
+}
+
+#[test]
+fn chunked_tensor_schedule_streams_more_than_four_lanes_atomically() {
+    let plan = qwen_plan(5);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 5);
+    let policy = tensor_policy(5);
+    let mut body = Vec::new();
+    let material =
+        prepare_bound_gated_multiply_q7_tensor_material(&plan, &region, policy.clone(), &mut body)
+            .unwrap();
+    assert_eq!(material.element_count(), 5);
+    assert_eq!(material.ticket().chunk_count(), 3);
+    assert_eq!(material.ticket().body_bytes() as usize, body.len());
+    assert!(body.len() > 1_000_000);
+
+    let gates = [-128, -65, 0, 64, 128];
+    let ups = [128, 127, -96, -65, 64];
+    let gate_labels = material.encode_gates(&gates).unwrap();
+    let up_labels = material.encode_ups(&ups).unwrap();
+    let mut evaluator =
+        GatedMultiplyQ7TensorEvaluator::claim(&region, material.ticket(), &policy).unwrap();
+    let output = evaluator
+        .evaluate(&mut Cursor::new(body), &gate_labels, &up_labels)
+        .unwrap();
+    assert_eq!(
+        material.decode_tensor(&output).unwrap(),
+        gates
+            .iter()
+            .zip(ups)
+            .map(|(gate, up)| pllm_core::gated_multiply_q7(*gate, up).unwrap())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        evaluator
+            .evaluate(&mut Cursor::new(Vec::new()), &gate_labels, &up_labels)
+            .unwrap_err(),
+        "gated Q7 tensor evaluator material was already consumed"
+    );
+}
+
+#[test]
+fn authentic_wrong_region_claim_burns_whole_tensor() {
+    let plan = qwen_plan(1);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 1);
+    let other = chunked_region(&plan, DecoderMode::Decode, 1);
+    let policy = tensor_policy(1);
+    let mut body = Vec::new();
+    let material =
+        prepare_bound_gated_multiply_q7_tensor_material(&plan, &region, policy.clone(), &mut body)
+            .unwrap();
+    assert!(GatedMultiplyQ7TensorEvaluator::claim(&other, material.ticket(), &policy).is_err());
+    assert_eq!(
+        GatedMultiplyQ7TensorEvaluator::claim(&region, material.ticket(), &policy)
+            .err()
+            .unwrap(),
+        "gated Q7 tensor material was not issued or was already claimed"
+    );
+}
+
+struct ObservedReader<'a> {
+    source: Cursor<Vec<u8>>,
+    observed: &'a std::cell::Cell<bool>,
+}
+
+struct InterruptOnceReader<R> {
+    inner: R,
+    interrupted: bool,
+}
+
+impl<R: Read> Read for InterruptOnceReader<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        if !self.interrupted {
+            self.interrupted = true;
+            return Err(std::io::Error::from(std::io::ErrorKind::Interrupted));
+        }
+        self.inner.read(buffer)
+    }
+}
+
+impl Read for ObservedReader<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        self.observed.set(true);
+        self.source.read(buffer)
+    }
+}
+
+#[test]
+fn tensor_claim_burns_before_reader_callbacks_and_corruption_releases_nothing() {
+    let plan = qwen_plan(1);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 1);
+    let policy = tensor_policy(1);
+    let mut body = Vec::new();
+    let material =
+        prepare_bound_gated_multiply_q7_tensor_material(&plan, &region, policy.clone(), &mut body)
+            .unwrap();
+    let gates = material.encode_gates(&[5]).unwrap();
+    let ups = material.encode_ups(&[7]).unwrap();
+    let observed = std::cell::Cell::new(false);
+    let mut evaluator =
+        GatedMultiplyQ7TensorEvaluator::claim(&region, material.ticket(), &policy).unwrap();
+    assert!(!observed.get());
+    *body.last_mut().unwrap() ^= 1;
+    let mut reader = ObservedReader {
+        source: Cursor::new(body),
+        observed: &observed,
+    };
+    let error = evaluator.evaluate(&mut reader, &gates, &ups).unwrap_err();
+    assert!(error.contains("body commitment"));
+    assert!(observed.get());
+    assert_eq!(
+        evaluator.evaluate(&mut reader, &gates, &ups).unwrap_err(),
+        "gated Q7 tensor evaluator material was already consumed"
+    );
+}
+
+#[test]
+fn chunked_tensor_preflights_body_capacity_before_writing() {
+    let plan = qwen_plan(1);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 1);
+    let mut policy = tensor_policy(1);
+    policy.max_body_bytes = 1;
+    let mut body = Vec::new();
+    let error =
+        match prepare_bound_gated_multiply_q7_tensor_material(&plan, &region, policy, &mut body) {
+            Ok(_) => panic!("undersized body policy was accepted"),
+            Err(error) => error,
+        };
+    assert!(error.contains("resource policy"));
+    assert!(body.is_empty());
+}
+
+#[test]
+fn chunked_tensor_preflights_client_capacity_before_allocating_or_writing() {
+    let plan = qwen_plan(5);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 5);
+    let mut policy = tensor_policy(5);
+    policy.max_client_material_bytes = 1;
+    let mut body = Vec::new();
+    let error =
+        match prepare_bound_gated_multiply_q7_tensor_material(&plan, &region, policy, &mut body) {
+            Ok(_) => panic!("undersized client policy was accepted"),
+            Err(error) => error,
+        };
+    assert!(error.contains("resource policy"));
+    assert!(body.is_empty());
+}
+
+#[test]
+fn chunked_tensor_retries_interrupted_authenticated_body_reads() {
+    let plan = qwen_plan(5);
+    let region = chunked_region(&plan, DecoderMode::Prefill, 5);
+    let mut body = Vec::new();
+    let material = prepare_bound_gated_multiply_q7_tensor_material(
+        &plan,
+        &region,
+        tensor_policy(5),
+        &mut body,
+    )
+    .unwrap();
+    let gates = material.encode_gates(&[1, 2, 3, 4, 5]).unwrap();
+    let ups = material.encode_ups(&[5, 4, 3, 2, 1]).unwrap();
+    let policy = tensor_policy(5);
+    let mut evaluator =
+        GatedMultiplyQ7TensorEvaluator::claim(&region, material.ticket(), &policy).unwrap();
+    let mut reader = InterruptOnceReader {
+        inner: Cursor::new(body),
+        interrupted: false,
+    };
+    let labels = evaluator.evaluate(&mut reader, &gates, &ups).unwrap();
+    assert_eq!(material.decode_tensor(&labels).unwrap().len(), 5);
 }

@@ -404,6 +404,28 @@ class IndependentLanesProtectedTensorSchedule(ComponentRef):
         return _BUILTIN_DESCRIPTORS["pllm/independent-lanes/v1"]
 
 
+class ChunkedIndependentLanesProtectedTensorSchedule(ComponentRef):
+    """Authenticated bounded streaming schedule for larger protected tensors."""
+
+    __slots__ = ()
+
+    def __init__(self, *, max_elements: int) -> None:
+        max_elements = _integer(max_elements, "max_elements", minimum=5)
+        if max_elements > 4_000_000:
+            raise ConfigurationError("max_elements must be an integer <= 4000000")
+        super().__init__(
+            "pllm/chunked-independent-lanes/v1",
+            {"max_elements": max_elements},
+        )
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        return {"max_elements": self.params["max_elements"]}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return _BUILTIN_DESCRIPTORS["pllm/chunked-independent-lanes/v1"]
+
+
 def _ratio(value: object, path: str) -> dict[str, int]:
     if isinstance(value, Mapping):
         data = _fields(value, {"numerator", "denominator"}, path)
@@ -684,6 +706,11 @@ def _component_from_spec(value: object, path: str) -> ComponentRef:
     if component == "pllm/independent-lanes/v1":
         exact = _fields(params, {"max_elements"}, f"{path}.params")
         return IndependentLanesProtectedTensorSchedule(max_elements=exact["max_elements"])
+    if component == "pllm/chunked-independent-lanes/v1":
+        exact = _fields(params, {"max_elements"}, f"{path}.params")
+        return ChunkedIndependentLanesProtectedTensorSchedule(
+            max_elements=exact["max_elements"]
+        )
     return ComponentRef(component, params)
 
 
@@ -943,6 +970,29 @@ _BUILTIN_DESCRIPTORS = {
         },
         capabilities=("one-use-protected-tensor-scheduling",),
         required_host_features=("authenticated-one-use-material",),
+        role_eligibility=("client", "inference"),
+    ),
+    "pllm/chunked-independent-lanes/v1": ComponentDescriptor(
+        component="pllm/chunked-independent-lanes/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/protected-scheduler",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "max_elements": {"type": "integer", "minimum": 5, "maximum": 4_000_000},
+            },
+            "required": ["max_elements"],
+            "additionalProperties": False,
+        },
+        capabilities=("one-use-protected-tensor-scheduling",),
+        required_host_features=(
+            "authenticated-one-use-material",
+            "bounded-streaming-spool",
+        ),
         role_eligibility=("client", "inference"),
     ),
 }

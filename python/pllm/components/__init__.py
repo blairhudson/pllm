@@ -5,6 +5,7 @@ from typing import Mapping, cast
 import pllm.configuration as _configuration
 from pllm.configuration import (
     BinaryTableGatedMultiplyQ7,
+    ChunkedIndependentLanesProtectedTensorSchedule,
     ComponentDescriptor,
     ComponentRef,
     IndependentLanesProtectedTensorSchedule,
@@ -19,6 +20,7 @@ _BUILTIN_DESCRIPTORS = cast(
 
 __all__ = [
     "BinaryTableGatedMultiplyQ7",
+    "ChunkedIndependentLanesProtectedTensorSchedule",
     "ComponentDescriptor",
     "ComponentRef",
     "IndependentLanesProtectedTensorSchedule",

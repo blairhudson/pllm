@@ -2,6 +2,9 @@ from pllm.configuration import BinaryTableGatedMultiplyQ7 as BinaryTableGatedMul
 from pllm.configuration import ComponentDescriptor as ComponentDescriptor
 from pllm.configuration import ComponentRef as ComponentRef
 from pllm.configuration import (
+    ChunkedIndependentLanesProtectedTensorSchedule as ChunkedIndependentLanesProtectedTensorSchedule,
+)
+from pllm.configuration import (
     IndependentLanesProtectedTensorSchedule as IndependentLanesProtectedTensorSchedule,
 )
 from pllm.configuration import KvCacheEviction as KvCacheEviction

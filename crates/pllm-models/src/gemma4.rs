@@ -1286,7 +1286,7 @@ fn rms_norm(
         ModelOperator::RmsNorm,
         &[input],
         shape,
-        json!({"epsilon": "1/1000000", "weight": weight, "with_scale": weight.is_some(), "compute_dtype": "float32", "output_dtype": "bfloat16"}),
+        json!({"epsilon": "1/1000000", "weight": weight, "weight_offset": 1, "with_scale": weight.is_some(), "compute_dtype": "float32", "output_dtype": "bfloat16"}),
     );
 }
 

@@ -1,13 +1,13 @@
 use pllm_compiler::{
     compile, compile_document, decoder_coverage, define_q14_to_q7_rescale_region, diagnostics_json,
-    execute_model_last_token, execute_model_output_head, execute_model_reshape,
-    execute_model_residual, execute_q14_to_q7_rescale, execute_wrap32,
-    lower_model_last_token_regions, lower_model_linear_operation, lower_model_linear_regions,
-    lower_model_output_head_regions, lower_model_reshape_regions, lower_model_residual_regions,
-    q14_to_q7_rescale_region_digest, CandidateEvidence, CapabilityLevel, CompileRequest,
-    Diagnostic, DiagnosticCode, KernelDescriptor, KernelImplementation, LogicalOperation,
-    MethodDescriptor, ModelReshapeLayout, NumericType, Operator, Representation,
-    SecurityProperties, TensorType, COMPILE_REQUEST_SCHEMA_VERSION,
+    execute_model_output_head, execute_model_reshape, execute_model_residual,
+    execute_q14_to_q7_rescale, execute_wrap32, lower_model_last_token_regions,
+    lower_model_linear_operation, lower_model_linear_regions, lower_model_output_head_regions,
+    lower_model_reshape_regions, lower_model_residual_regions, q14_to_q7_rescale_region_digest,
+    CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic, DiagnosticCode,
+    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor, ModelReshapeLayout,
+    NumericType, Operator, Representation, SecurityProperties, TensorType,
+    COMPILE_REQUEST_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
@@ -363,37 +363,21 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
         .unwrap();
     assert_eq!(residual_coverage.occurrences, 4);
     assert_eq!(residual_coverage.level, CapabilityLevel::ExecutableRegion);
-    let last_tokens = lower_model_last_token_regions(&plan, DecoderMode::Prefill).unwrap();
-    assert_eq!(last_tokens.len(), 1);
-    let last_token = &last_tokens[0];
-    assert_eq!(last_token.mode, DecoderMode::Prefill);
-    assert_eq!(last_token.layer, None);
-    assert_eq!(last_token.input_id, "final_norm");
-    assert_eq!(last_token.axis, 1);
-    assert_eq!(last_token.input.shape, vec![1, 2, 8]);
-    assert_eq!(last_token.output.shape, vec![1, 8]);
-    assert_eq!(
-        execute_model_last_token(last_token, &(1_u32..=16).collect::<Vec<_>>()).unwrap(),
-        (9_u32..=16).collect::<Vec<_>>()
-    );
-    assert!(execute_model_last_token(last_token, &[1; 15]).is_err());
-    let mut malformed_last_token = last_token.clone();
-    malformed_last_token.output.shape = vec![1, 2, 8];
-    assert!(execute_model_last_token(&malformed_last_token, &[1; 16]).is_err());
-    let decode_last_tokens = lower_model_last_token_regions(&plan, DecoderMode::Decode).unwrap();
-    assert_eq!(decode_last_tokens.len(), 1);
-    assert_eq!(decode_last_tokens[0].input.shape, vec![1, 1, 8]);
-    assert_eq!(
-        execute_model_last_token(&decode_last_tokens[0], &(1_u32..=8).collect::<Vec<_>>()).unwrap(),
-        (1_u32..=8).collect::<Vec<_>>()
-    );
+    for mode in [DecoderMode::Prefill, DecoderMode::Decode] {
+        assert!(lower_model_last_token_regions(&plan, mode)
+            .unwrap_err()
+            .contains("length-aware selection"));
+    }
     let last_token_coverage = coverage
         .operators
         .iter()
         .find(|coverage| coverage.operator == ModelOperator::LastToken)
         .unwrap();
     assert_eq!(last_token_coverage.occurrences, 2);
-    assert_eq!(last_token_coverage.level, CapabilityLevel::ExecutableRegion);
+    assert_eq!(last_token_coverage.level, CapabilityLevel::Primitive);
+    assert!(last_token_coverage
+        .blocker
+        .contains("length-aware selection"));
     let output_heads = lower_model_output_head_regions(&plan, DecoderMode::Prefill).unwrap();
     assert_eq!(output_heads.len(), 1);
     let output_head = &output_heads[0];
