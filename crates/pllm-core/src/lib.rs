@@ -16,8 +16,9 @@ mod softmax;
 pub mod tensor;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use attention::{
-    attention_scale_q30, attention_scores_q20, AttentionScoreQ20Error, AttentionScoreQ20Policy,
-    AttentionScoresQ20, ATTENTION_Q20_MAX_DECODED_ERROR, ATTENTION_Q20_MAX_ENCODED_ERROR_RAW,
+    attention_scale_q30, attention_scores_q20, attention_scores_window_q20, AttentionScoreQ20Error,
+    AttentionScoreQ20Layout, AttentionScoreQ20Policy, AttentionScoresQ20,
+    ATTENTION_Q20_MAX_DECODED_ERROR, ATTENTION_Q20_MAX_ENCODED_ERROR_RAW,
     ATTENTION_Q20_MAX_HEAD_DIM, ATTENTION_Q20_MAX_MULTIPLY_ACCUMULATES,
     ATTENTION_Q20_MAX_SCORE_ELEMENTS, ATTENTION_Q30_COEFFICIENT_MAX_ERROR_RAW, ATTENTION_SCALE_Q30,
     ATTENTION_SCORE_Q20_LAYOUT, ATTENTION_SCORE_Q20_PROFILE,

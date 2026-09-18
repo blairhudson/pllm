@@ -396,6 +396,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
     let attention_values_executable =
         lower_model_attention_values_q10_regions(plan, DecoderMode::Prefill).is_ok()
             && lower_model_attention_values_q10_regions(plan, DecoderMode::Decode).is_ok();
+    let attention_scores_executable =
+        lower_model_attention_scores_q20_regions(plan, DecoderMode::Prefill).is_ok()
+            && lower_model_attention_scores_q20_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -410,7 +413,13 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 || (operator == ModelOperator::GreedyTokenSelection && greedy_executable)
                 || (operator == ModelOperator::TokenFeedback && feedback_executable)
                 || (operator == ModelOperator::Softmax && softmax_executable)
-                || (operator == ModelOperator::AttentionValues && attention_values_executable);
+                || (operator == ModelOperator::AttentionValues && attention_values_executable)
+                || (matches!(
+                    operator,
+                    ModelOperator::AttentionScores
+                        | ModelOperator::AttentionScale
+                        | ModelOperator::CausalMask
+                ) && attention_scores_executable);
             let descriptor_coverage = match operator {
                 ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
                 ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
@@ -460,6 +469,14 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/client-softmax-q30@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::AttentionValues && executable {
                     Some("pllm/client-attention-values-q10@0.1.0-alpha.1".to_owned())
+                } else if matches!(
+                    operator,
+                    ModelOperator::AttentionScores
+                        | ModelOperator::AttentionScale
+                        | ModelOperator::CausalMask
+                ) && executable
+                {
+                    Some("pllm/client-attention-scores-q20@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
@@ -505,6 +522,15 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::AttentionValues && executable {
                     "client-local Q30-probability by Q10-value attention contraction executes, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::AttentionScores && executable {
+                    "client-local Q10 attention scoring executes with exact Q20 scaling and masking, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::AttentionScale && executable {
+                    "attention scaling is fused into the plan-bound Q20 score region, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::CausalMask && executable {
+                    "causal and validity masking is fused into the plan-bound Q20 score region, but whole-decoder scheduling is unavailable"
                         .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
@@ -706,6 +732,23 @@ pub struct ModelAttentionValuesQ10Region {
     pub layout: pllm_core::AttentionValueQ10Layout,
     pub probabilities: TensorType,
     pub values: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelAttentionScoresQ20Region {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub score_operation_id: String,
+    pub scale_operation_id: String,
+    pub mask_operation_id: String,
+    pub query_input_id: String,
+    pub key_input_id: String,
+    pub selected_positions_input_id: Option<String>,
+    pub numeric_profile: String,
+    pub layout: pllm_core::AttentionScoreQ20Layout,
+    pub query: TensorType,
+    pub key: TensorType,
     pub output: TensorType,
 }
 
@@ -3713,6 +3756,370 @@ pub fn execute_model_attention_values_q10(
         policy,
     )
     .map_err(|error| error.to_string())
+}
+
+pub fn lower_model_attention_scores_q20_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelAttentionScoresQ20Region>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::AttentionScores)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            let [query_id, key_id] = operation.inputs.as_slice() else {
+                return Err(format!(
+                    "semantic attention-scores operation {operation_id} must have exactly two inputs"
+                ));
+            };
+            let producer = |id: &str| {
+                graph
+                    .operations
+                    .iter()
+                    .find(|candidate| candidate.id == id)
+                    .ok_or_else(|| {
+                        format!(
+                            "semantic attention-scores operation {operation_id} references missing input {id}"
+                        )
+                    })
+            };
+            let query = producer(query_id)?;
+            if query.operator != ModelOperator::RotaryEmbedding {
+                return Err(format!(
+                    "semantic attention-scores operation {operation_id} must consume a rotary-embedded query"
+                ));
+            }
+            let key = producer(key_id)?;
+            let (layout, selected_positions_input_id) = match key.operator {
+                ModelOperator::CacheSuffix => {
+                    if key.state_kind != Some(StateKind::Key) {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} must consume the key cache view"
+                        ));
+                    }
+                    (pllm_core::AttentionScoreQ20Layout::GroupedQueryCache, None)
+                }
+                ModelOperator::SecureGather => {
+                    if key.state_kind != Some(StateKind::Key)
+                        || key
+                            .attributes
+                            .get("output_semantics")
+                            .and_then(serde_json::Value::as_str)
+                            != Some("per_query_head_cache_window")
+                    {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} must consume a per-query-head key gather"
+                        ));
+                    }
+                    let selected = key.inputs.get(1).ok_or_else(|| {
+                        format!(
+                            "semantic attention-scores operation {operation_id} key gather has no selected-positions input"
+                        )
+                    })?;
+                    (
+                        pllm_core::AttentionScoreQ20Layout::PerQueryHeadWindow,
+                        Some(selected.clone()),
+                    )
+                }
+                _ => {
+                    return Err(format!(
+                        "semantic attention-scores operation {operation_id} must consume a key cache view or key gather"
+                    ))
+                }
+            };
+            if query.output_shape.len() != 4 || query.output_shape.contains(&0) {
+                return Err(format!(
+                    "semantic attention-scores operation {operation_id} requires a nonzero rank-four query shape"
+                ));
+            }
+            let (batch, heads, queries, head_dim) = (
+                query.output_shape[0],
+                query.output_shape[1],
+                query.output_shape[2],
+                query.output_shape[3],
+            );
+            let group_size = operation
+                .attributes
+                .get("group_size")
+                .and_then(serde_json::Value::as_u64)
+                .filter(|group_size| *group_size > 0)
+                .ok_or_else(|| {
+                    format!(
+                        "semantic attention-scores operation {operation_id} has invalid group_size"
+                    )
+                })?;
+            match layout {
+                pllm_core::AttentionScoreQ20Layout::GroupedQueryCache => {
+                    if key.output_shape.len() != 4
+                        || key.output_shape.contains(&0)
+                        || key.output_shape[0] != batch
+                        || key.output_shape[3] != head_dim
+                        || heads % key.output_shape[1] != 0
+                        || group_size != heads / key.output_shape[1]
+                    {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} requires a [batch, kv_heads, keys, depth] grouped-query key view"
+                        ));
+                    }
+                    if operation.output_shape != [batch, heads, queries, key.output_shape[2]] {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} output shape does not match the grouped-query contraction"
+                        ));
+                    }
+                }
+                pllm_core::AttentionScoreQ20Layout::PerQueryHeadWindow => {
+                    if key.output_shape.len() != 5
+                        || key.output_shape.contains(&0)
+                        || key.output_shape[..3] != [batch, heads, queries]
+                        || key.output_shape[4] != head_dim
+                    {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} requires a [batch, heads, query, keys, depth] per-query-head key window"
+                        ));
+                    }
+                    if operation.output_shape != [batch, heads, queries, key.output_shape[3]] {
+                        return Err(format!(
+                            "semantic attention-scores operation {operation_id} output shape does not match the per-query-head contraction"
+                        ));
+                    }
+                }
+            }
+            let scales: Vec<&ModelOperation> = graph
+                .operations
+                .iter()
+                .filter(|candidate| {
+                    candidate.operator == ModelOperator::AttentionScale
+                        && candidate.layer == operation.layer
+                        && candidate.inputs.as_slice() == [operation.id.as_str()]
+                })
+                .collect();
+            let [scale] = scales.as_slice() else {
+                return Err(format!(
+                    "semantic attention-scores operation {operation_id} requires exactly one same-layer attention scale"
+                ));
+            };
+            if scale.output_shape != operation.output_shape {
+                return Err(format!(
+                    "semantic attention scale {} must preserve the score shape",
+                    scale.id
+                ));
+            }
+            let scale_head_dim = scale
+                .attributes
+                .get("head_dim")
+                .and_then(serde_json::Value::as_u64)
+                .ok_or_else(|| {
+                    format!("semantic attention scale {} has invalid head_dim", scale.id)
+                })?;
+            if scale_head_dim != head_dim {
+                return Err(format!(
+                    "semantic attention scale {} head_dim does not match the query depth",
+                    scale.id
+                ));
+            }
+            let masks: Vec<&ModelOperation> = graph
+                .operations
+                .iter()
+                .filter(|candidate| {
+                    candidate.operator == ModelOperator::CausalMask
+                        && candidate.layer == operation.layer
+                        && candidate.inputs.first().map(String::as_str)
+                            == Some(scale.id.as_str())
+                })
+                .collect();
+            let [mask] = masks.as_slice() else {
+                return Err(format!(
+                    "semantic attention scale {} requires exactly one same-layer causal mask",
+                    scale.id
+                ));
+            };
+            if mask.output_shape != operation.output_shape {
+                return Err(format!(
+                    "semantic causal mask {} must preserve the score shape",
+                    mask.id
+                ));
+            }
+            let expected_mask_inputs: Vec<String> = match &selected_positions_input_id {
+                None => vec![scale.id.clone(), "input.positions".to_owned()],
+                Some(selected) => vec![
+                    scale.id.clone(),
+                    "input.positions".to_owned(),
+                    selected.clone(),
+                ],
+            };
+            if mask.inputs != expected_mask_inputs {
+                return Err(format!(
+                    "semantic causal mask {} has invalid attention-mask inputs",
+                    mask.id
+                ));
+            }
+            tensor_elements(&query.output_shape)?;
+            tensor_elements(&key.output_shape)?;
+            tensor_elements(&operation.output_shape)?;
+            Ok(ModelAttentionScoresQ20Region {
+                mode,
+                layer: operation.layer,
+                score_operation_id: operation.id.clone(),
+                scale_operation_id: scale.id.clone(),
+                mask_operation_id: mask.id.clone(),
+                query_input_id: query_id.clone(),
+                key_input_id: key_id.clone(),
+                selected_positions_input_id,
+                numeric_profile: pllm_core::ATTENTION_SCORE_Q20_PROFILE.to_owned(),
+                layout,
+                query: TensorType {
+                    numeric: NumericType::SignedFixedQ10,
+                    shape: query.output_shape.clone(),
+                },
+                key: TensorType {
+                    numeric: NumericType::SignedFixedQ10,
+                    shape: key.output_shape.clone(),
+                },
+                output: TensorType {
+                    numeric: NumericType::SignedFixedQ20,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn execute_model_attention_scores_q20(
+    region: &ModelAttentionScoresQ20Region,
+    query: &[i16],
+    key: &[i16],
+    selected_positions: Option<&[u32]>,
+    positions: &[u32],
+    query_mask: &[u8],
+    valid_lengths: Option<&[usize]>,
+    policy: pllm_core::AttentionScoreQ20Policy,
+) -> Result<pllm_core::AttentionScoresQ20, String> {
+    if region.numeric_profile != pllm_core::ATTENTION_SCORE_Q20_PROFILE
+        || region.query.numeric != NumericType::SignedFixedQ10
+        || region.key.numeric != NumericType::SignedFixedQ10
+        || region.output.numeric != NumericType::SignedFixedQ20
+        || region.query.shape.len() != 4
+        || region.query.shape.contains(&0)
+        || region.output.shape.len() != 4
+        || region.output.shape.contains(&0)
+    {
+        return Err(
+            "semantic attention-scores requires the q10-dot-q20 profile and nonzero rank-four query/output shapes"
+                .into(),
+        );
+    }
+    let (batch, heads, queries, head_dim) = (
+        region.query.shape[0],
+        region.query.shape[1],
+        region.query.shape[2],
+        region.query.shape[3],
+    );
+    let query_shape: [usize; 4] = region
+        .query
+        .shape
+        .iter()
+        .map(|dimension| {
+            usize::try_from(*dimension)
+                .map_err(|_| "attention-scores dimension exceeds usize".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into()
+        .map_err(|_| "attention-scores query shape must have rank four".to_owned())?;
+    match region.layout {
+        pllm_core::AttentionScoreQ20Layout::GroupedQueryCache => {
+            if selected_positions.is_some()
+                || valid_lengths.is_none()
+                || region.selected_positions_input_id.is_some()
+            {
+                return Err(
+                    "semantic grouped-query attention-scores requires valid lengths and no selected positions"
+                        .into(),
+                );
+            }
+            if region.key.shape.len() != 4
+                || region.key.shape.contains(&0)
+                || region.key.shape[0] != batch
+                || region.key.shape[3] != head_dim
+                || heads % region.key.shape[1] != 0
+                || region.output.shape != [batch, heads, queries, region.key.shape[2]]
+            {
+                return Err(
+                    "semantic grouped-query attention-scores shapes do not form a valid contraction"
+                        .into(),
+                );
+            }
+            let key_shape: [usize; 4] = region
+                .key
+                .shape
+                .iter()
+                .map(|dimension| {
+                    usize::try_from(*dimension)
+                        .map_err(|_| "attention-scores dimension exceeds usize".to_owned())
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .try_into()
+                .map_err(|_| "attention-scores key shape must have rank four".to_owned())?;
+            pllm_core::attention_scores_q20(
+                query,
+                query_shape,
+                key,
+                key_shape,
+                positions,
+                query_mask,
+                valid_lengths.expect("checked above"),
+                policy,
+            )
+            .map_err(|error| error.to_string())
+        }
+        pllm_core::AttentionScoreQ20Layout::PerQueryHeadWindow => {
+            if selected_positions.is_none()
+                || valid_lengths.is_some()
+                || region.selected_positions_input_id.is_none()
+            {
+                return Err(
+                    "semantic per-query-head attention-scores requires selected positions and no valid lengths"
+                        .into(),
+                );
+            }
+            if region.key.shape.len() != 5
+                || region.key.shape.contains(&0)
+                || region.key.shape[..3] != [batch, heads, queries]
+                || region.key.shape[4] != head_dim
+                || region.output.shape != [batch, heads, queries, region.key.shape[3]]
+            {
+                return Err(
+                    "semantic per-query-head attention-scores shapes do not form a valid window"
+                        .into(),
+                );
+            }
+            let key_shape: [usize; 5] = region
+                .key
+                .shape
+                .iter()
+                .map(|dimension| {
+                    usize::try_from(*dimension)
+                        .map_err(|_| "attention-scores dimension exceeds usize".to_owned())
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .try_into()
+                .map_err(|_| "attention-scores key shape must have rank five".to_owned())?;
+            pllm_core::attention_scores_window_q20(
+                query,
+                query_shape,
+                key,
+                key_shape,
+                selected_positions.expect("checked above"),
+                positions,
+                query_mask,
+                policy,
+            )
+            .map_err(|error| error.to_string())
+        }
+    }
 }
 
 /// Extract direct-weight FP32 RMSNorm operations into plan-bound clear reference regions.

@@ -1,5 +1,6 @@
 use std::{error::Error, fmt};
 
+use serde::Serialize;
 use zeroize::Zeroize;
 
 #[cfg(test)]
@@ -63,6 +64,13 @@ impl AttentionScoreQ20Policy {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttentionScoreQ20Layout {
+    GroupedQueryCache,
+    PerQueryHeadWindow,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AttentionScoreQ20Error {
     InvalidDimension {
@@ -108,6 +116,17 @@ pub enum AttentionScoreQ20Error {
     ActiveQueryAfterPadding {
         batch: usize,
         query: usize,
+    },
+    InvalidWindowRank,
+    SelectedPositionAfterPadding {
+        row: usize,
+        index: usize,
+    },
+    SelectedPositionsNotSorted {
+        row: usize,
+        index: usize,
+        previous: u32,
+        current: u32,
     },
     InvalidPolicyLimit {
         limit: &'static str,
@@ -186,6 +205,23 @@ impl fmt::Display for AttentionScoreQ20Error {
             Self::ActiveQueryAfterPadding { batch, query } => write!(
                 formatter,
                 "attention batch {batch} query {query} is active after padding"
+            ),
+            Self::InvalidWindowRank => write!(
+                formatter,
+                "attention key window must align with the query batch, heads, and queries"
+            ),
+            Self::SelectedPositionAfterPadding { row, index } => write!(
+                formatter,
+                "attention selected position at row {row} index {index} follows padding"
+            ),
+            Self::SelectedPositionsNotSorted {
+                row,
+                index,
+                previous,
+                current,
+            } => write!(
+                formatter,
+                "attention selected position {current} at row {row} index {index} is below {previous}"
             ),
             Self::InvalidPolicyLimit { limit } => {
                 write!(formatter, "attention policy {limit} must be positive")
@@ -532,6 +568,206 @@ fn attention_scores_q20_inner(
                             return Err(AttentionScoreQ20Error::ArithmeticOverflow);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    Ok(output)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn attention_scores_window_q20(
+    query: &[i16],
+    query_shape: [usize; 4],
+    key: &[i16],
+    key_shape: [usize; 5],
+    selected_positions: &[u32],
+    positions: &[u32],
+    query_mask: &[u8],
+    policy: AttentionScoreQ20Policy,
+) -> Result<AttentionScoresQ20, AttentionScoreQ20Error> {
+    let [batch, query_heads, query_length, head_dim] = query_shape;
+    let [key_batch, key_heads, key_queries, window, key_head_dim] = key_shape;
+    validate_shape(query_shape, "query")?;
+    for (axis, value) in ["batch", "heads", "query", "sequence", "head_dim"]
+        .into_iter()
+        .zip(key_shape)
+    {
+        if value == 0 {
+            return Err(AttentionScoreQ20Error::InvalidDimension {
+                tensor: "key",
+                axis,
+            });
+        }
+    }
+    if key_batch != batch {
+        return Err(AttentionScoreQ20Error::BatchMismatch {
+            query: batch,
+            key: key_batch,
+        });
+    }
+    if key_heads != query_heads || key_queries != query_length {
+        return Err(AttentionScoreQ20Error::InvalidWindowRank);
+    }
+    if head_dim != key_head_dim {
+        return Err(AttentionScoreQ20Error::HeadDimensionMismatch {
+            query: head_dim,
+            key: key_head_dim,
+        });
+    }
+    validate_head_dim(head_dim)?;
+
+    let score_elements = batch
+        .checked_mul(query_heads)
+        .and_then(|value| value.checked_mul(query_length))
+        .and_then(|value| value.checked_mul(window))
+        .ok_or(AttentionScoreQ20Error::ShapeOverflow)?;
+    if score_elements > policy.max_score_elements {
+        return Err(AttentionScoreQ20Error::ResourceLimitExceeded {
+            score_elements,
+            maximum: policy.max_score_elements,
+        });
+    }
+
+    let query_elements = checked_product(&query_shape)?;
+    let key_elements = checked_product(&key_shape)?;
+    let position_elements = batch
+        .checked_mul(query_length)
+        .ok_or(AttentionScoreQ20Error::ShapeOverflow)?;
+    validate_length("positions", position_elements, positions.len())?;
+    validate_length("query_mask", position_elements, query_mask.len())?;
+    validate_length(
+        "selected_positions",
+        score_elements,
+        selected_positions.len(),
+    )?;
+
+    let head_dim_u64 =
+        u64::try_from(head_dim).map_err(|_| AttentionScoreQ20Error::ShapeOverflow)?;
+    let mut multiply_accumulates = 0_u64;
+    for batch_index in 0..batch {
+        let mut saw_padding = false;
+        for query_index in 0..query_length {
+            let index = batch_index * query_length + query_index;
+            match query_mask[index] {
+                0 => saw_padding = true,
+                1 if saw_padding => {
+                    return Err(AttentionScoreQ20Error::ActiveQueryAfterPadding {
+                        batch: batch_index,
+                        query: query_index,
+                    });
+                }
+                1 => {
+                    let position = positions[index];
+                    for head in 0..query_heads {
+                        let row = (batch_index * query_heads + head) * query_length + query_index;
+                        let row_base = row * window;
+                        let mut padded = false;
+                        let mut previous = None;
+                        let mut allowed_keys = 0_u64;
+                        for (key_index, &selected) in selected_positions
+                            [row_base..row_base + window]
+                            .iter()
+                            .enumerate()
+                        {
+                            if selected == u32::MAX {
+                                padded = true;
+                                continue;
+                            }
+                            if padded {
+                                return Err(AttentionScoreQ20Error::SelectedPositionAfterPadding {
+                                    row,
+                                    index: key_index,
+                                });
+                            }
+                            if let Some(previous) = previous {
+                                if selected < previous {
+                                    return Err(
+                                        AttentionScoreQ20Error::SelectedPositionsNotSorted {
+                                            row,
+                                            index: key_index,
+                                            previous,
+                                            current: selected,
+                                        },
+                                    );
+                                }
+                            }
+                            previous = Some(selected);
+                            if selected <= position {
+                                allowed_keys += 1;
+                            }
+                        }
+                        multiply_accumulates = multiply_accumulates
+                            .checked_add(
+                                allowed_keys
+                                    .checked_mul(head_dim_u64)
+                                    .ok_or(AttentionScoreQ20Error::ShapeOverflow)?,
+                            )
+                            .ok_or(AttentionScoreQ20Error::ShapeOverflow)?;
+                    }
+                }
+                value => {
+                    return Err(AttentionScoreQ20Error::NonCanonicalQueryMask { index, value });
+                }
+            }
+        }
+    }
+    if multiply_accumulates > policy.max_multiply_accumulates {
+        return Err(AttentionScoreQ20Error::MultiplyAccumulatesLimitExceeded {
+            multiply_accumulates,
+            maximum: policy.max_multiply_accumulates,
+        });
+    }
+
+    validate_length("query", query_elements, query.len())?;
+    validate_length("key", key_elements, key.len())?;
+
+    let scale = i128::from(attention_scale_q30(head_dim)?);
+
+    let mut output = AttentionScoresQ20 {
+        scores: try_zeroed(score_elements)?,
+        allowed: Vec::new(),
+        shape: [batch, query_heads, query_length, window],
+    };
+    output
+        .allowed
+        .try_reserve_exact(score_elements)
+        .map_err(|_| AttentionScoreQ20Error::AllocationFailed)?;
+    output.allowed.resize(score_elements, false);
+    for batch_index in 0..batch {
+        for query_index in 0..query_length {
+            let metadata_index = batch_index * query_length + query_index;
+            if query_mask[metadata_index] == 0 {
+                continue;
+            }
+            let position = positions[metadata_index];
+            for query_head in 0..query_heads {
+                let row = (batch_index * query_heads + query_head) * query_length + query_index;
+                let row_base = row * window;
+                let query_base = row * head_dim;
+                for (key_index, &selected) in selected_positions[row_base..row_base + window]
+                    .iter()
+                    .enumerate()
+                {
+                    if selected == u32::MAX || selected > position {
+                        continue;
+                    }
+                    let key_base = (row_base + key_index) * head_dim;
+                    let dot = query[query_base..query_base + head_dim]
+                        .iter()
+                        .zip(&key[key_base..key_base + head_dim])
+                        .try_fold(0_i64, |sum, (&query_value, &key_value)| {
+                            sum.checked_add(i64::from(query_value) * i64::from(key_value))
+                                .ok_or(AttentionScoreQ20Error::ArithmeticOverflow)
+                        })?;
+                    let scaled = i128::from(dot)
+                        .checked_mul(scale)
+                        .ok_or(AttentionScoreQ20Error::ArithmeticOverflow)?;
+                    let score = div_round_ties_even_i128(scaled, i128::from(ATTENTION_SCALE_Q30));
+                    output.scores[row_base + key_index] = i64::try_from(score)
+                        .map_err(|_| AttentionScoreQ20Error::ArithmeticOverflow)?;
+                    output.allowed[row_base + key_index] = true;
                 }
             }
         }
@@ -1070,5 +1306,424 @@ mod tests {
             Err(AttentionScoreQ20Error::ArithmeticOverflow)
         ));
         assert!(ATTENTION_OUTPUT_DROPS.load(AtomicOrdering::SeqCst) > drops_before);
+    }
+
+    fn scaled_score(dot: i64, head_dim: usize) -> i64 {
+        div_round_ties_even_i128(
+            i128::from(dot) * i128::from(attention_scale_q30(head_dim).unwrap()),
+            i128::from(ATTENTION_SCALE_Q30),
+        ) as i64
+    }
+
+    #[test]
+    fn window_matches_base_for_equivalent_contiguous_selection() {
+        let query = [1, 2, 10, 20, 100, 200, 1000, 2000];
+        let key = [3, 4, 5, 6, 30, 40, 50, 60];
+        let base = attention_scores_q20(
+            &query,
+            [1, 4, 1, 2],
+            &key,
+            [1, 2, 2, 2],
+            &[1],
+            &[1],
+            &[2],
+            policy(),
+        )
+        .unwrap();
+        let mut window_key = [0_i16; 16];
+        for head in 0..4 {
+            window_key[head * 4..head * 4 + 2]
+                .copy_from_slice(&key[(head / 2) * 4..(head / 2) * 4 + 2]);
+            window_key[head * 4 + 2..head * 4 + 4]
+                .copy_from_slice(&key[(head / 2) * 4 + 2..(head / 2) * 4 + 4]);
+        }
+        let window = attention_scores_window_q20(
+            &query,
+            [1, 4, 1, 2],
+            &window_key,
+            [1, 4, 1, 2, 2],
+            &[0, 1, 0, 1, 0, 1, 0, 1],
+            &[1],
+            &[1],
+            policy(),
+        )
+        .unwrap();
+        assert_eq!(window.shape(), base.shape());
+        assert_eq!(window.scores(), base.scores());
+        assert_eq!(window.allowed(), base.allowed());
+    }
+
+    #[test]
+    fn window_scores_use_exact_strides_and_scaling() {
+        let query: Vec<i16> = (0..16).map(|index| (index % 5) as i16 - 2).collect();
+        let key: Vec<i16> = (0..48).map(|index| (index % 7) as i16 - 3).collect();
+        let selected = [
+            0,
+            u32::MAX,
+            u32::MAX,
+            0,
+            1,
+            2,
+            0,
+            u32::MAX,
+            u32::MAX,
+            0,
+            1,
+            2,
+            0,
+            1,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+            0,
+            1,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+            u32::MAX,
+        ];
+        let positions = [0, 2, 1, 0];
+        let query_mask = [1, 1, 1, 0];
+        let output = attention_scores_window_q20(
+            &query,
+            [2, 2, 2, 2],
+            &key,
+            [2, 2, 2, 3, 2],
+            &selected,
+            &positions,
+            &query_mask,
+            policy(),
+        )
+        .unwrap();
+        assert_eq!(output.shape(), [2, 2, 2, 3]);
+        let expected_allowed = [
+            [true, false, false],
+            [true, true, true],
+            [true, false, false],
+            [true, true, true],
+            [true, true, false],
+            [false, false, false],
+            [true, true, false],
+            [false, false, false],
+        ];
+        for row in 0..8 {
+            for key_index in 0..3 {
+                let index = row * 3 + key_index;
+                assert_eq!(output.allowed()[index], expected_allowed[row][key_index]);
+                if expected_allowed[row][key_index] {
+                    let dot: i64 = (0..2)
+                        .map(|dimension| {
+                            i64::from(query[row * 2 + dimension])
+                                * i64::from(key[index * 2 + dimension])
+                        })
+                        .sum();
+                    assert_eq!(output.scores()[index], scaled_score(dot, 2));
+                } else {
+                    assert_eq!(output.scores()[index], 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn window_ignores_disallowed_and_inactive_values() {
+        let selected = [0, u32::MAX, u32::MAX, 0, 1, 2];
+        let positions = [0, 2];
+        let query_mask = [1, 1];
+        let clean = attention_scores_window_q20(
+            &[4, 0, 0, 4],
+            [1, 1, 2, 2],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            [1, 1, 2, 3, 2],
+            &selected,
+            &positions,
+            &query_mask,
+            policy(),
+        )
+        .unwrap();
+        let poison = attention_scores_window_q20(
+            &[4, 0, 0, 4],
+            [1, 1, 2, 2],
+            &[
+                1,
+                2,
+                i16::MIN,
+                i16::MAX,
+                i16::MIN,
+                i16::MAX,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+            ],
+            [1, 1, 2, 3, 2],
+            &selected,
+            &positions,
+            &query_mask,
+            policy(),
+        )
+        .unwrap();
+        assert_eq!(clean.scores(), poison.scores());
+        assert_eq!(clean.allowed(), poison.allowed());
+        assert_eq!(poison.allowed(), &[true, false, false, true, true, true]);
+        assert_eq!(poison.scores()[0], scaled_score(4, 2));
+        assert_eq!(poison.scores()[3], scaled_score(32, 2));
+    }
+
+    #[test]
+    fn window_inactive_rows_skip_metadata_and_values() {
+        let selected = [0, 1, 7, 3, u32::MAX, 0];
+        let output = attention_scores_window_q20(
+            &[5, 6, i16::MIN, i16::MAX],
+            [1, 1, 2, 2],
+            &[
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                i16::MIN,
+                i16::MAX,
+                i16::MAX,
+                i16::MIN,
+                11,
+                12,
+            ],
+            [1, 1, 2, 3, 2],
+            &selected,
+            &[1, u32::MAX],
+            &[1, 0],
+            policy(),
+        )
+        .unwrap();
+        assert_eq!(output.allowed()[3..6], [false, false, false]);
+        assert_eq!(output.scores()[3..6], [0, 0, 0]);
+        assert_eq!(output.allowed(), &[true, true, false, false, false, false]);
+    }
+
+    #[test]
+    fn window_rejects_unsorted_and_post_padding_selection() {
+        let valid = attention_scores_window_q20(
+            &[1, 2],
+            [1, 1, 1, 2],
+            &[3, 4, 5, 6],
+            [1, 1, 1, 2, 2],
+            &[0, 1],
+            &[1],
+            &[1],
+            policy(),
+        );
+        assert!(valid.is_ok());
+        assert_eq!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 2],
+                &[1, 0],
+                &[1],
+                &[1],
+                policy(),
+            )
+            .err(),
+            Some(AttentionScoreQ20Error::SelectedPositionsNotSorted {
+                row: 0,
+                index: 1,
+                previous: 1,
+                current: 0,
+            })
+        );
+        assert!(attention_scores_window_q20(
+            &[1, 2],
+            [1, 1, 1, 2],
+            &[3, 4, 5, 6],
+            [1, 1, 1, 2, 2],
+            &[0, u32::MAX],
+            &[1],
+            &[1],
+            policy(),
+        )
+        .is_ok());
+        assert_eq!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 2],
+                &[u32::MAX, 0],
+                &[1],
+                &[1],
+                policy(),
+            )
+            .err(),
+            Some(AttentionScoreQ20Error::SelectedPositionAfterPadding { row: 0, index: 1 })
+        );
+        assert_eq!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6, 7, 8],
+                [1, 1, 1, 3, 2],
+                &[0, u32::MAX, 1],
+                &[1],
+                &[1],
+                policy(),
+            )
+            .err(),
+            Some(AttentionScoreQ20Error::SelectedPositionAfterPadding { row: 0, index: 2 })
+        );
+    }
+
+    #[test]
+    fn window_rejects_bad_shapes_lengths_masks_and_resources() {
+        let base_args = |selected: &[u32], positions: &[u32], mask: &[u8]| {
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 2],
+                selected,
+                positions,
+                mask,
+                policy(),
+            )
+        };
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 2, 1, 2, 2],
+                &[0, 1],
+                &[1],
+                &[1],
+                policy(),
+            ),
+            Err(AttentionScoreQ20Error::InvalidWindowRank)
+        ));
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [2, 1, 1, 2, 2],
+                &[0, 1],
+                &[1],
+                &[1],
+                policy(),
+            ),
+            Err(AttentionScoreQ20Error::BatchMismatch { .. })
+        ));
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 3],
+                &[0, 1],
+                &[1],
+                &[1],
+                policy(),
+            ),
+            Err(AttentionScoreQ20Error::HeadDimensionMismatch { .. })
+        ));
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 2],
+                &[0, 1],
+                &[1],
+                &[1],
+                policy(),
+            ),
+            Err(AttentionScoreQ20Error::LengthMismatch {
+                tensor: "query",
+                ..
+            })
+        ));
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5],
+                [1, 1, 1, 2, 2],
+                &[0, 1],
+                &[1],
+                &[1],
+                policy(),
+            ),
+            Err(AttentionScoreQ20Error::LengthMismatch { tensor: "key", .. })
+        ));
+        assert!(matches!(
+            base_args(&[0, 1], &[1, 1], &[1]),
+            Err(AttentionScoreQ20Error::LengthMismatch {
+                tensor: "positions",
+                ..
+            })
+        ));
+        assert!(matches!(
+            base_args(&[0, 1], &[1], &[1, 1]),
+            Err(AttentionScoreQ20Error::LengthMismatch {
+                tensor: "query_mask",
+                ..
+            })
+        ));
+        assert!(matches!(
+            base_args(&[0], &[1], &[1]),
+            Err(AttentionScoreQ20Error::LengthMismatch {
+                tensor: "selected_positions",
+                ..
+            })
+        ));
+        assert_eq!(
+            base_args(&[0, 1], &[1], &[2]).err(),
+            Some(AttentionScoreQ20Error::NonCanonicalQueryMask { index: 0, value: 2 })
+        );
+        assert_eq!(
+            attention_scores_window_q20(
+                &[1, 2, 3, 4],
+                [1, 1, 2, 2],
+                &[0; 12],
+                [1, 1, 2, 3, 2],
+                &[0, 1, 2, 0, 1, 2],
+                &[0, 1],
+                &[0, 1],
+                policy(),
+            )
+            .err(),
+            Some(AttentionScoreQ20Error::ActiveQueryAfterPadding { batch: 0, query: 1 })
+        );
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[0; 4],
+                [1, 1, 1, 4],
+                &[0; 8],
+                [1, 1, 1, 2, 4],
+                &[0, 1],
+                &[1],
+                &[1],
+                AttentionScoreQ20Policy::new(1, ATTENTION_Q20_MAX_MULTIPLY_ACCUMULATES).unwrap(),
+            ),
+            Err(AttentionScoreQ20Error::ResourceLimitExceeded { .. })
+        ));
+        assert!(matches!(
+            attention_scores_window_q20(
+                &[1, 2],
+                [1, 1, 1, 2],
+                &[3, 4, 5, 6],
+                [1, 1, 1, 2, 2],
+                &[0, 1],
+                &[1],
+                &[1],
+                AttentionScoreQ20Policy::new(ATTENTION_Q20_MAX_SCORE_ELEMENTS, 1).unwrap(),
+            ),
+            Err(AttentionScoreQ20Error::MultiplyAccumulatesLimitExceeded { .. })
+        ));
     }
 }
