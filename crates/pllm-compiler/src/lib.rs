@@ -20,6 +20,7 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod dense_qwen_attention;
+mod dense_qwen_layer;
 mod dense_qwen_mlp;
 mod dense_qwen_mlp_protected;
 mod gated_tensor;
@@ -37,6 +38,12 @@ pub use dense_qwen_attention::{
     DENSE_QWEN_ATTENTION_HARD_MAX_ACTIVATION_ELEMENTS,
     DENSE_QWEN_ATTENTION_HARD_MAX_TOTAL_WEIGHT_BYTES,
     DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_SCHEMA_VERSION,
+};
+pub use dense_qwen_layer::{
+    compose_dense_qwen_layer_block, execute_dense_qwen_layer_decode,
+    execute_dense_qwen_layer_prefill, CompiledDenseQwenLayerBlock, DenseQwenLayerComposite,
+    DenseQwenLayerExecutionPolicy, DenseQwenLayerOutputQ10, DenseQwenLayerState,
+    DENSE_QWEN_LAYER_CLEAR_PROFILE, DENSE_QWEN_LAYER_SCHEMA_VERSION,
 };
 pub use dense_qwen_mlp::{
     compile_dense_qwen_mlp_block, execute_dense_qwen_mlp_block, CompiledDenseQwenMlpBlock,

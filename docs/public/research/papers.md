@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:87cbf81718b764da3fb4871c21f12e5943efd717a5d5854e5a0cecf969808585`  
-Source hash: `sha256:a77f1f359e11241dbef3203e75499461938933e210d544e7c35f545870724336`
+Build: `sha256:2e8eacabaf27e4c40f6b41814c3af934ab5186546825b569c6c9c1cb0a7b4db4`  
+Source hash: `sha256:8f495dfe2de4455be30f4f4bdbe6fba6cfc723314a72ee5bc44b695ee42f7670`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ R03 has a scoped clean-room component adaptation in the compact Q7 implementatio
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. All semantic operators in the bounded dense-Qwen2/Qwen3 plan have executable-region coverage. Graph-derived centered-wrap32 Q14-to-Q10 conversion regions cover dense-Qwen q/k/v projection-to-head and o-projection-to-residual edges. A clear fixed-scale dense-Qwen2 attention composite now binds Q10 RMSNorm, Q4 q/k/v/o projections, Q14-to-Q10 transitions, head reshapes, RoPE, fixed-capacity KV state, score/scale/mask, Softmax, value contraction, output projection, and residual addition into executable prefill and stateful decode blocks with immutable plan/weight digests, zeroized intermediates, and poisoned-state failure semantics. The clear and protected-nonlinear MLP composites also execute independently. This is not yet a complete executable profile: attention and MLP blocks are not chained across every layer, model weight quantization/loading is not bound to these fixed-scale manifests, MPCache selection operators lack execution, and whole-decoder scheduling remains unavailable, so coverage.complete remains false. Oversized tensors and incompatible model families continue to fall back or fail closed explicitly.
+1. Complete one executable Qwen profile without hidden fallback regions. All semantic operators in the bounded dense-Qwen2/Qwen3 plan have executable-region coverage, and graph-derived Q14-to-Q10 conversions bind the dense-Qwen attention edges. A clear fixed-scale dense-Qwen2 attention composite executes prefill and stateful decode from RMSNorm through attention residual. That attention block now composes with the existing clear MLP composite into a complete executable layer whose signed-Q10 edge, plan and weight-manifest digests, and prefill-to-decode state are checked; attention or post-attention MLP failures poison advanced state. This is not yet a complete executable profile: layer blocks are not compiled/shared across all model layers, model weight quantization/loading is not bound to fixed-scale manifests, Qwen3 and MPCache selection execution remain separate, the final model norm/output head are not attached to the layer schedule, and whole-decoder scheduling remains unavailable, so coverage.complete remains false. Oversized tensors and incompatible model families continue to fall back or fail closed explicitly.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 
