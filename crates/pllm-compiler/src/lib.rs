@@ -85,6 +85,7 @@ pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
 pub const SILU_Q7_MAX_EVALUATOR_PAYLOAD_BYTES: usize = 16_384;
 pub const SILU_Q7_MAX_LABEL_BYTES: usize = 1_024;
 pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v2";
+pub const Q14_TO_Q10_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_q14_to_q10_region.v1";
 pub const RMS_NORM_F32_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_f32_direct_region.v1";
 pub const RMS_NORM_Q10_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_q10_direct_region.v1";
 pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v2";
@@ -918,6 +919,29 @@ pub struct Q14ToQ7RescaleRegion {
     pub divisor: u32,
     pub rounding: FixedPointRounding,
     pub range_policy: FixedPointRangePolicy,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Q14ToQ10RangePolicy {
+    RejectOutsideSignedI16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct Q14ToQ10RescaleRegion {
+    pub schema_version: String,
+    pub operation_id: String,
+    pub source_operation_id: String,
+    pub target_operation_id: String,
+    pub target_input_index: u32,
+    pub numeric_profile: String,
+    pub input: TensorType,
+    pub output: TensorType,
+    pub input_fractional_bits: u8,
+    pub output_fractional_bits: u8,
+    pub divisor: u32,
+    pub rounding: FixedPointRounding,
+    pub range_policy: Q14ToQ10RangePolicy,
 }
 
 /// Exact semantic and installed-component binding for one gated Q7 MLP region.
@@ -4655,6 +4679,268 @@ fn q14_to_q7_rescale_operation_id(
     target_input_index: u32,
 ) -> String {
     format!("{target_operation_id}.input.{target_input_index}.from.{source_operation_id}.q14_to_q7")
+}
+
+pub fn define_q14_to_q10_rescale_region(
+    source_operation_id: &str,
+    target_operation_id: &str,
+    target_input_index: u32,
+    shape: Vec<u64>,
+) -> Result<Q14ToQ10RescaleRegion, String> {
+    if !valid_identity(source_operation_id) || !valid_identity(target_operation_id) {
+        return Err("Q14-to-Q10 source or target operation ID is invalid".into());
+    }
+    if shape.is_empty() || shape.contains(&0) {
+        return Err("Q14-to-Q10 conversion requires a non-empty tensor shape".into());
+    }
+    tensor_elements(&shape)?;
+    Ok(Q14ToQ10RescaleRegion {
+        schema_version: Q14_TO_Q10_REGION_SCHEMA_VERSION.into(),
+        operation_id: q14_to_q10_rescale_operation_id(
+            source_operation_id,
+            target_operation_id,
+            target_input_index,
+        ),
+        source_operation_id: source_operation_id.into(),
+        target_operation_id: target_operation_id.into(),
+        target_input_index,
+        numeric_profile: pllm_core::fixed_point::Q14_TO_Q10_PROFILE.into(),
+        input: TensorType {
+            numeric: NumericType::Wrap32,
+            shape: shape.clone(),
+        },
+        output: TensorType {
+            numeric: NumericType::SignedFixedQ10,
+            shape,
+        },
+        input_fractional_bits: 14,
+        output_fractional_bits: 10,
+        divisor: 16,
+        rounding: FixedPointRounding::TiesToEven,
+        range_policy: Q14ToQ10RangePolicy::RejectOutsideSignedI16,
+    })
+}
+
+pub fn lower_model_q14_to_q10_rescale_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<Q14ToQ10RescaleRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    let operations = graph
+        .operations
+        .iter()
+        .map(|operation| (operation.id.as_str(), operation))
+        .collect::<BTreeMap<_, _>>();
+    let mut attention_layers = BTreeSet::new();
+    for operation in &graph.operations {
+        if operation.operator == ModelOperator::AttentionValues {
+            let layer = operation.layer.ok_or_else(|| {
+                format!(
+                    "attention values operation {} must belong to a decoder layer",
+                    operation.id
+                )
+            })?;
+            attention_layers.insert(layer);
+        }
+    }
+    let mut regions = Vec::new();
+    let mut operation_ids = BTreeSet::new();
+    let mut selected_layers: BTreeMap<u64, (usize, usize)> = BTreeMap::new();
+
+    for source in graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::Linear)
+    {
+        let mut head_reshapes = Vec::new();
+        let mut attention_residuals = Vec::new();
+        for target in &graph.operations {
+            for (input_index, input_id) in target.inputs.iter().enumerate() {
+                if input_id != &source.id {
+                    continue;
+                }
+                let Ok(input_index) = u32::try_from(input_index) else {
+                    return Err(format!(
+                        "operation {} has too many inputs for a Q14-to-Q10 edge index",
+                        target.id
+                    ));
+                };
+                let head_layout_reshape = target.operator == ModelOperator::Reshape
+                    && input_index == 0
+                    && target
+                        .attributes
+                        .get("layout")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("batch_heads_sequence_feature")
+                    && tensor_elements(&source.output_shape)?
+                        == tensor_elements(&target.output_shape)?;
+                if head_layout_reshape {
+                    head_reshapes.push((target, input_index));
+                    continue;
+                }
+                if target.operator == ModelOperator::ResidualAdd
+                    && input_index == 1
+                    && linear_input_is_attention_values_reshape(source, &operations)?
+                {
+                    attention_residuals.push((target, input_index));
+                }
+            }
+        }
+        if head_reshapes.len() > 1 {
+            return Err(format!(
+                "linear operation {} feeds {} head-layout reshapes; the Q14-to-Q10 contract requires exactly one",
+                source.id,
+                head_reshapes.len()
+            ));
+        }
+        if attention_residuals.len() > 1 {
+            return Err(format!(
+                "linear operation {} feeds {} attention residuals; the Q14-to-Q10 contract requires exactly one",
+                source.id,
+                attention_residuals.len()
+            ));
+        }
+        if head_reshapes.is_empty() && attention_residuals.is_empty() {
+            continue;
+        }
+        let layer = source.layer.ok_or_else(|| {
+            format!(
+                "Q14-to-Q10 edge source {} must belong to a decoder layer",
+                source.id
+            )
+        })?;
+        for (target, target_input_index) in head_reshapes {
+            let region = define_q14_to_q10_rescale_region(
+                &source.id,
+                &target.id,
+                target_input_index,
+                source.output_shape.clone(),
+            )?;
+            if !operation_ids.insert(region.operation_id.clone()) {
+                return Err(format!(
+                    "duplicate Q14-to-Q10 conversion region {}",
+                    region.operation_id
+                ));
+            }
+            selected_layers.entry(layer).or_insert((0, 0)).0 += 1;
+            regions.push(region);
+        }
+        for (target, target_input_index) in attention_residuals {
+            let region = define_q14_to_q10_rescale_region(
+                &source.id,
+                &target.id,
+                target_input_index,
+                source.output_shape.clone(),
+            )?;
+            if !operation_ids.insert(region.operation_id.clone()) {
+                return Err(format!(
+                    "duplicate Q14-to-Q10 conversion region {}",
+                    region.operation_id
+                ));
+            }
+            selected_layers.entry(layer).or_insert((0, 0)).1 += 1;
+            regions.push(region);
+        }
+    }
+    if selected_layers.keys().copied().collect::<BTreeSet<_>>() != attention_layers {
+        return Err("Q14-to-Q10 conversion does not cover every attention layer exactly".into());
+    }
+    for (layer, (head_reshapes, attention_residuals)) in &selected_layers {
+        if *head_reshapes != 3 || *attention_residuals != 1 {
+            return Err(format!(
+                "attention layer {layer} requires three projection rescales and one output rescale, found {head_reshapes} and {attention_residuals}"
+            ));
+        }
+    }
+    Ok(regions)
+}
+
+fn linear_input_is_attention_values_reshape(
+    source: &ModelOperation,
+    operations: &BTreeMap<&str, &ModelOperation>,
+) -> Result<bool, String> {
+    let [input_id] = source.inputs.as_slice() else {
+        return Ok(false);
+    };
+    let reshape = operations.get(input_id.as_str()).ok_or_else(|| {
+        format!(
+            "linear operation {} references missing input {input_id}",
+            source.id
+        )
+    })?;
+    if reshape.operator != ModelOperator::Reshape {
+        return Ok(false);
+    }
+    let [values_id] = reshape.inputs.as_slice() else {
+        return Ok(false);
+    };
+    let values = operations.get(values_id.as_str()).ok_or_else(|| {
+        format!(
+            "reshape operation {} references missing input {values_id}",
+            reshape.id
+        )
+    })?;
+    Ok(values.operator == ModelOperator::AttentionValues)
+}
+
+pub fn q14_to_q10_rescale_region_digest(region: &Q14ToQ10RescaleRegion) -> Digest {
+    canonical_digest(Q14_TO_Q10_REGION_SCHEMA_VERSION, region)
+}
+
+pub fn execute_q14_to_q10_rescale(
+    region: &Q14ToQ10RescaleRegion,
+    input: &[u32],
+) -> Result<Vec<i16>, String> {
+    validate_q14_to_q10_rescale_region(region)?;
+    let elements = tensor_elements(&region.input.shape)?;
+    if input.len() != elements {
+        return Err(format!(
+            "Q14-to-Q10 conversion requires {elements} elements, received {}",
+            input.len()
+        ));
+    }
+    pllm_core::rescale_q14_to_q10_centered_u32_tensor(input).map_err(|error| error.to_string())
+}
+
+fn validate_q14_to_q10_rescale_region(region: &Q14ToQ10RescaleRegion) -> Result<(), String> {
+    if region.schema_version != Q14_TO_Q10_REGION_SCHEMA_VERSION
+        || !valid_identity(&region.source_operation_id)
+        || !valid_identity(&region.target_operation_id)
+        || region.operation_id
+            != q14_to_q10_rescale_operation_id(
+                &region.source_operation_id,
+                &region.target_operation_id,
+                region.target_input_index,
+            )
+        || region.numeric_profile != pllm_core::fixed_point::Q14_TO_Q10_PROFILE
+        || region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::SignedFixedQ10
+        || region.input.shape != region.output.shape
+        || region.input.shape.is_empty()
+        || region.input.shape.contains(&0)
+        || region.input_fractional_bits != 14
+        || region.output_fractional_bits != 10
+        || region.divisor != 16
+        || region.rounding != FixedPointRounding::TiesToEven
+        || region.range_policy != Q14ToQ10RangePolicy::RejectOutsideSignedI16
+    {
+        return Err(
+            "Q14-to-Q10 conversion region does not match the locked numeric contract".into(),
+        );
+    }
+    tensor_elements(&region.input.shape)?;
+    Ok(())
+}
+
+fn q14_to_q10_rescale_operation_id(
+    source_operation_id: &str,
+    target_operation_id: &str,
+    target_input_index: u32,
+) -> String {
+    format!(
+        "{target_operation_id}.input.{target_input_index}.from.{source_operation_id}.q14_to_q10"
+    )
 }
 
 /// Lower dense gated-MLP `SiLU(gate_proj) * up_proj` regions without name parsing.

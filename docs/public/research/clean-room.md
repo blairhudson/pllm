@@ -6,7 +6,7 @@ Add an independent PLLM implementation with clear provenance, tests, evidence, a
 
 Document ID: `pllm.docs.research.clean-room`  
 Release: `0.1.0`  
-Build: `sha256:96b6d9446e37113d9d2892113cefbcf72b64f5f3fc8eeb331b7caddd36ad60a0`  
+Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
 Source hash: `sha256:d4e56f432856ff6a9766a7e2bb8bd1367507e5523cfaa6986de76904a33753b7`
 
 1. Add a source record with a stable ID and URL, exact version or digest, authors, citation, access method, and license review.

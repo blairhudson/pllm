@@ -6,8 +6,8 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 
 Document ID: `pllm.docs.research.papers`  
 Release: `0.1.0`  
-Build: `sha256:96b6d9446e37113d9d2892113cefbcf72b64f5f3fc8eeb331b7caddd36ad60a0`  
-Source hash: `sha256:408b8082131cfce0bdd3bf8d762089602cba865c92e29e08431a55e46c542bef`
+Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
+Source hash: `sha256:4d09178ba0a457009af5cabc5abf422583a4c9e547e2746673160fbb1d7da6b5`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -17,7 +17,7 @@ R03 has a scoped clean-room component adaptation in the compact Q7 implementatio
 
 The execution order is dependency-driven rather than paper-number order. Work starts only after these prerequisites:
 
-1. Complete one executable Qwen profile without hidden fallback regions. All semantic operators in the bounded dense-Qwen2/Qwen3 plan now have executable-region coverage: client-local Q10 token lookup; plan-bound Q10 RMSNorm, rotary embedding, fixed-capacity KV updates, and visible-prefix cache views; wrap32 linear/output-head, reshape, and residual regions; client-local Q10 attention scoring with exact Q20 scaling/causal masking, Q20-to-Q30 Softmax, and Q30-probability by Q10-value contraction for grouped-query caches and MPCache per-query windows; bounded chunked one-use Q7 SiLU/multiplication; and checked last-valid/physical-last, signed-greedy, and token-feedback regions. This is not yet a complete executable profile: cross-region numeric representation transitions, full attention/MLP block composition, stateful prefill-to-decode orchestration, and whole-decoder scheduling remain unavailable, so coverage.complete remains false. Oversized tensors and incompatible model families continue to fall back or fail closed explicitly.
+1. Complete one executable Qwen profile without hidden fallback regions. All semantic operators in the bounded dense-Qwen2/Qwen3 plan have executable-region coverage: client-local Q10 token lookup; plan-bound Q10 RMSNorm, rotary embedding, fixed-capacity KV updates, and visible-prefix cache views; wrap32 linear/output-head, reshape, and residual regions; client-local Q10 attention scoring with exact Q20 scaling/causal masking, Q20-to-Q30 Softmax, and Q30-probability by Q10-value contraction for grouped-query caches and MPCache per-query windows; bounded chunked one-use Q7 SiLU/multiplication; and checked last-valid/physical-last, signed-greedy, and token-feedback regions. Graph-derived centered-wrap32 Q14-to-Q10 conversion regions now cover each dense-Qwen q/k/v projection-to-head edge and o-projection-to-attention-residual edge without parameter-name parsing. This is not yet a complete executable profile: the regions are not assembled into full attention/MLP blocks, stateful prefill-to-decode orchestration and weight binding are incomplete, and whole-decoder scheduling remains unavailable, so coverage.complete remains false. Oversized tensors and incompatible model families continue to fall back or fail closed explicitly.
 2. Current prepared-runtime comparison complete: the matched four-thread experiment measured 5.229 s median full latency versus 7.886 s with one thread on the recorded loopback host.
 3. Bounded Q7 SiLU review complete: exact profile authorization, process-local issued-payload binding, and single-pass Python copying are enforced; cryptographic review and cross-process replay protection remain unavailable.
 

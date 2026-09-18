@@ -32,8 +32,8 @@ pub use attention_values::{
 };
 pub use fixed_point::{
     gated_multiply_q7, multiply_q7, multiply_q7_tensor, rescale_q14_to_q10,
-    rescale_q14_to_q10_centered_u32, rescale_q14_to_q7, rescale_q14_to_q7_tensor,
-    Q14_TO_Q10_INPUT_MAX, Q14_TO_Q10_INPUT_MIN, Q14_TO_Q10_PROFILE,
+    rescale_q14_to_q10_centered_u32, rescale_q14_to_q10_centered_u32_tensor, rescale_q14_to_q7,
+    rescale_q14_to_q7_tensor, Q14_TO_Q10_INPUT_MAX, Q14_TO_Q10_INPUT_MIN, Q14_TO_Q10_PROFILE,
 };
 pub use kernels::{Executor, Matrix};
 pub use kv_cache::{BoundedKvCacheQ10, KvCacheError, Q10KvCache};

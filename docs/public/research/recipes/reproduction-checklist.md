@@ -6,7 +6,7 @@ A checklist for obtaining a source, reproducing a method, and producing comparab
 
 Document ID: `pllm.docs.agents.reproduction-checklist`  
 Release: `0.1.0`  
-Build: `sha256:96b6d9446e37113d9d2892113cefbcf72b64f5f3fc8eeb331b7caddd36ad60a0`  
+Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
 Source hash: `sha256:2eab3e1105ed23d135a0cc281a16c34066635d9eb162df73041ef66b9eb5d32f`
 
 1. Lock paper, revision, artifact metadata, licenses, and hashes.

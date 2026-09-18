@@ -6,7 +6,7 @@ Compare runs with matching inputs and report every relevant cost and uncertainty
 
 Document ID: `pllm.docs.measure.compare`  
 Release: `0.1.0`  
-Build: `sha256:96b6d9446e37113d9d2892113cefbcf72b64f5f3fc8eeb331b7caddd36ad60a0`  
+Build: `sha256:fa1208fc732ce6403c8c82d95417818355eb7253231b6d031bfc704a15c0a95f`  
 Source hash: `sha256:a602c74ba70adde296d62e32165b2c058f5a3a472ad847124318fcb7a50a1d52`
 
 Matched comparison freezes model/tokenizer, workload, numeric semantics, quality acceptance, privacy contract, roles/topology, hardware, software, preparation/freshness, cache, warmups, repetitions, failure accounting, and metrics.

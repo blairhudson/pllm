@@ -79,6 +79,14 @@ pub fn rescale_q14_to_q7_tensor(input: &[i32]) -> Result<Vec<i16>, FixedPointErr
     input.iter().copied().map(rescale_q14_to_q7).collect()
 }
 
+pub fn rescale_q14_to_q10_centered_u32_tensor(input: &[u32]) -> Result<Vec<i16>, FixedPointError> {
+    input
+        .iter()
+        .copied()
+        .map(rescale_q14_to_q10_centered_u32)
+        .collect()
+}
+
 /// Multiply signed Q7 values and return signed Q7 with ties-to-even rescaling.
 pub fn multiply_q7(left: i16, right: i16) -> Result<i16, FixedPointError> {
     validate_q7(left)?;
@@ -208,6 +216,38 @@ mod tests {
                 Err(FixedPointError::Q14ToQ10InputOutOfRange { value: input })
             );
         }
+    }
+
+    #[test]
+    fn q14_to_q10_centered_u32_tensor_preserves_order_and_bounds() {
+        let centered = |value: i32| u32::from_ne_bytes(value.to_ne_bytes());
+        let input = [
+            centered(0),
+            centered(8),
+            centered(-8),
+            centered(24),
+            centered(-24),
+            centered(Q14_TO_Q10_INPUT_MIN),
+            centered(Q14_TO_Q10_INPUT_MAX),
+        ];
+        assert_eq!(
+            rescale_q14_to_q10_centered_u32_tensor(&input),
+            Ok(vec![0, 0, 0, 2, -2, i16::MIN, i16::MAX])
+        );
+        assert_eq!(
+            rescale_q14_to_q10_centered_u32_tensor(&[centered(40), centered(-40)]),
+            Ok(vec![2, -2])
+        );
+        for value in [Q14_TO_Q10_INPUT_MIN - 1, Q14_TO_Q10_INPUT_MAX + 1, i32::MAX] {
+            assert_eq!(
+                rescale_q14_to_q10_centered_u32_tensor(&[centered(value)]),
+                Err(FixedPointError::Q14ToQ10InputOutOfRange { value })
+            );
+        }
+        assert_eq!(
+            rescale_q14_to_q10_centered_u32_tensor(&[centered(0), centered(i32::MAX)]),
+            Err(FixedPointError::Q14ToQ10InputOutOfRange { value: i32::MAX })
+        );
     }
 
     #[test]
