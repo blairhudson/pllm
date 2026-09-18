@@ -51,7 +51,8 @@ def test_runtime_facade_is_intentionally_narrow():
     import pllm.runtime as runtime
 
     assert set(runtime.__all__) == {
-        'AsyncOpenAI', 'AsyncPLLMTransport', 'ExecutionBudget', 'GatewayConfig', 'OpenAI',
-        'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol', 'create_app',
-        'create_sidecar_app', '__version__',
+        'AsyncOpenAI', 'AsyncPLLMTransport', 'CompiledRuntimeModel', 'ExecutionBudget',
+        'GatewayConfig', 'OpenAI', 'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol',
+        'RuntimeBindingError', 'RuntimeStageBinding', 'compile_runtime_model',
+        'create_app', 'create_sidecar_app', '__version__',
     }

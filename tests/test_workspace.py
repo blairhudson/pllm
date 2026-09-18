@@ -119,9 +119,10 @@ def test_root_and_runtime_stubs_match_runtime_exports():
 
     import pllm.runtime as runtime
     assert set(runtime.__all__) == {
-        'AsyncOpenAI', 'AsyncPLLMTransport', 'ExecutionBudget', 'GatewayConfig', 'OpenAI',
-        'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol', 'create_app',
-        'create_sidecar_app', '__version__',
+        'AsyncOpenAI', 'AsyncPLLMTransport', 'CompiledRuntimeModel', 'ExecutionBudget',
+        'GatewayConfig', 'OpenAI', 'PLLMTransport', 'PrivacyMode', 'ProprietaryProtocol',
+        'RuntimeBindingError', 'RuntimeStageBinding', 'compile_runtime_model',
+        'create_app', 'create_sidecar_app', '__version__',
     }
     runtime_stub = ast.parse((ROOT / 'python/pllm/runtime/__init__.pyi').read_text())
     runtime_stub_exports = {

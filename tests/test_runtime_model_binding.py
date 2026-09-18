@@ -12,6 +12,7 @@ import pllm
 from pllm.modeling import ModelPlan
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import (
+    CompiledRuntimeModel,
     RuntimeBindingError,
     compile_runtime_model,
 )
@@ -373,3 +374,546 @@ def test_embed_tokens_alias_excluded_and_cannot_duplicate(tmp_path: Path):
     tampered = dataclasses.replace(bundle, stages=stages)
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, tampered)
+
+
+def _edited_plan(config: dict, edit) -> ModelPlan:
+    document = _plan(config).to_dict()
+    edit(document)
+    return ModelPlan(
+        json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    )
+
+
+def _operation(document: dict, phase: str, operation_id: str) -> dict:
+    return next(
+        operation
+        for operation in document[phase]["operations"]
+        if operation["id"] == operation_id
+    )
+
+
+def test_completeness_scope_and_private_constructor(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compiled = compile_runtime_model(plan, bundle)
+
+    assert compiled.complete is True
+    assert compiled.completeness_scope == "runtime_binding"
+    assert compiled.to_spec()["completeness_scope"] == "runtime_binding"
+    assert plan.coverage().complete is False
+
+    message = "CompiledRuntimeModel must be created by compile_runtime_model"
+    with pytest.raises(RuntimeBindingError, match=message):
+        CompiledRuntimeModel()
+    with pytest.raises(TypeError):
+        CompiledRuntimeModel(
+            plan=plan,
+            bundle=bundle,
+            canonical=b"{}",
+            digest="0" * 64,
+            fingerprint="0" * 64,
+            stages=(),
+            local_operations=(),
+            runtime_config_digest="0" * 64,
+            tokenizer_digest="0" * 64,
+        )
+
+
+def test_portable_manifest_identity_across_paths(tmp_path: Path):
+    bundles = []
+    for name in ("first", "second"):
+        root = create_tiny_llama_checkpoint(tmp_path / name / "model")
+        manifest = load_hf_directory(root, model_id="tiny-portable")
+        engine = MaskedTransformerEngine(threads=1)
+        asyncio.run(engine.load(manifest))
+        bundles.append(ClientBundle.unpack(engine.client_bundle("tiny-portable")))
+    config = json.loads(
+        (tmp_path / "first" / "model" / "config.json").read_text()
+    )
+    plan = _plan(config)
+
+    assert bundles[0].manifest["source"] != bundles[1].manifest["source"]
+    assert bundles[0].manifest["fingerprint"] != bundles[1].manifest["fingerprint"]
+
+    first = compile_runtime_model(plan, bundles[0])
+    second = compile_runtime_model(plan, bundles[1])
+    assert first.bundle_fingerprint == second.bundle_fingerprint
+    assert first.digest == second.digest
+    assert first.canonical_bytes() == second.canonical_bytes()
+
+
+def test_stale_manifest_fingerprint_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compile_runtime_model(plan, bundle)
+
+    moved = dataclasses.replace(
+        bundle, manifest={**bundle.manifest, "source": "/elsewhere/model"}
+    )
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, moved)
+
+    edited = dataclasses.replace(
+        bundle,
+        manifest={**bundle.manifest, "architecture": "tampered-architecture"},
+    )
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, edited)
+
+    bad_type = dataclasses.replace(
+        bundle, manifest={**bundle.manifest, "fingerprint": 12}
+    )
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, bad_type)
+
+
+def test_cfg_and_manifest_dimension_mismatch_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+
+    for key, wrong in (
+        ("hidden_size", 48),
+        ("intermediate_size", 96),
+        ("num_hidden_layers", 3),
+        ("num_attention_heads", 8),
+        ("num_key_value_heads", 4),
+        ("head_dim", 4),
+        ("vocab_size", 512),
+        ("model_type", "qwen3"),
+        ("max_position_embeddings", 16),
+    ):
+        tampered = dataclasses.replace(bundle, cfg={**bundle.cfg, key: wrong})
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+    for key, wrong in (
+        ("hidden_size", 48),
+        ("num_hidden_layers", 3),
+        ("context_length", 16),
+    ):
+        tampered = dataclasses.replace(
+            bundle, manifest={**bundle.manifest, key: wrong}
+        )
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+
+def test_stage_spec_drift_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    rows = bundle.manifest["stages"]
+    by_id = {row["id"]: row for row in rows}
+    qkv_row = by_id["layers.0.self_attn.qkv_proj"]
+
+    def with_row(stage_id: str, **changes):
+        replaced = [
+            {**row, **changes} if row["id"] == stage_id else dict(row)
+            for row in rows
+        ]
+        return dataclasses.replace(
+            bundle, manifest={**bundle.manifest, "stages": replaced}
+        )
+
+    tampered = [
+        with_row("layers.0.self_attn.qkv_proj", fused_from=["q_proj", "k_proj"]),
+        with_row("layers.0.self_attn.qkv_proj", fused_from=["q_proj", "k_proj", "v_proj"], role="attention_output"),
+        with_row("layers.0.self_attn.qkv_proj", layer_index=1),
+        with_row("layers.0.self_attn.qkv_proj", op="embedding"),
+        with_row("layers.0.self_attn.qkv_proj", weight_keys=list(qkv_row["weight_keys"][:2])),
+        with_row("layers.0.mlp.gate_up_proj", fused_from=["gate_proj", "down_proj"]),
+        with_row("layers.0.mlp.down_proj", weight_keys=["extra.weight", *by_id["layers.0.mlp.down_proj"]["weight_keys"]]),
+        with_row("token_lookup", op="linear"),
+        with_row("token_lookup", fused_from=["embed_tokens"]),
+        with_row("token_lookup", layer_index=0),
+        with_row("token_lookup", weight_keys=["model.other.weight"]),
+        with_row("lm_head", op="linear"),
+        with_row("lm_head", weight_keys=["model.other.weight"]),
+    ]
+    tampered.append(dataclasses.replace(
+        bundle,
+        manifest={**bundle.manifest, "stages": [dict(row) for row in rows[:-1]]},
+    ))
+    extra = [dict(row) for row in rows]
+    extra.append({**dict(rows[-1]), "id": "extra_stage"})
+    tampered.append(dataclasses.replace(
+        bundle, manifest={**bundle.manifest, "stages": extra}
+    ))
+
+    for candidate in tampered:
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, candidate)
+
+
+def test_topology_geometry_and_weight_ownership(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compiled = compile_runtime_model(plan, bundle)
+    assert compiled.complete is True
+
+    def rename_weight(document):
+        for phase in ("prefill", "decode"):
+            _operation(document, phase, "layer.0.q_linear")["attributes"]["weight"] = (
+                "renamed.projection.weight"
+            )
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, rename_weight), bundle)
+
+    def skip_rotary(document):
+        _operation(document, "prefill", "layer.0.attention_scores")["inputs"][0] = (
+            "layer.0.q_heads"
+        )
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, skip_rotary), bundle)
+
+    def wrong_key_state(document):
+        _operation(document, "prefill", "layer.0.key_append")["state_kind"] = "value"
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, wrong_key_state), bundle)
+
+
+def test_phase_accounting_and_parity_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+
+    def decode_output_drift(document):
+        operation = _operation(document, "decode", "layer.0.q_linear")
+        shape = list(operation["output_shape"])
+        shape[-1] += 1
+        operation["output_shape"] = shape
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, decode_output_drift), bundle)
+
+    def decode_input_drift(document):
+        _operation(document, "decode", "layer.0.q_linear")["inputs"][0] = (
+            "layer.0.post_norm"
+        )
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, decode_input_drift), bundle)
+
+    def decode_weight_swap(document):
+        _operation(document, "decode", "layer.0.q_linear")["attributes"]["weight"] = (
+            "model.layers.0.self_attn.o_proj.weight"
+        )
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, decode_weight_swap), bundle)
+
+
+def test_modulus_policy_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    metadata = dict(bundle.manifest["metadata"])
+    stage = bundle.stages["layers.0.self_attn.qkv_proj"]
+
+    def with_metadata(**changes):
+        return dataclasses.replace(
+            bundle,
+            manifest={
+                **bundle.manifest,
+                "metadata": {**metadata, **changes},
+            },
+        )
+
+    dropped = {key: value for key, value in metadata.items() if key != "stage_specific_moduli"}
+    cases = [
+        dataclasses.replace(
+            bundle, manifest={**bundle.manifest, "metadata": dropped}
+        ),
+        with_metadata(stage_specific_moduli="yes"),
+        with_metadata(stage_specific_moduli=None),
+        with_metadata(stage_specific_moduli=False),
+        with_metadata(plain_moduli="65537"),
+        with_metadata(plain_moduli=[65537.0]),
+        with_metadata(plain_moduli=[]),
+        _replace_stage(bundle, "layers.0.self_attn.qkv_proj", modulus=65539),
+        _replace_stage(bundle, "layers.0.self_attn.qkv_proj", modulus=131071),
+    ]
+    for candidate in cases:
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, candidate)
+
+
+def test_boundary_client_weight_tamper_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    token = bundle.stages["token_lookup"]
+    head = bundle.stages["lm_head"]
+
+    cases = [
+        _replace_stage(bundle, "token_lookup", client_weight=None),
+        _replace_stage(bundle, "token_lookup", client_weight_scales=None),
+        _replace_stage(
+            bundle,
+            "token_lookup",
+            client_weight=np.zeros_like(token.client_weight),
+        ),
+        _replace_stage(
+            bundle,
+            "token_lookup",
+            client_weight_scales=np.zeros_like(token.client_weight_scales),
+        ),
+        _replace_stage(
+            bundle,
+            "token_lookup",
+            client_weight_scales=token.client_weight_scales * 2,
+        ),
+        _replace_stage(bundle, "token_lookup", client_weight_layout="linear"),
+        _replace_stage(bundle, "token_lookup", client_weight_layout="transposed_embedding"),
+        _replace_stage(
+            bundle,
+            "token_lookup",
+            client_aux_weight=np.zeros((4, token.in_features), np.int8),
+        ),
+        _replace_stage(
+            bundle,
+            "token_lookup",
+            client_aux_weight=np.zeros((4, token.in_features), np.int8),
+            client_aux_scales=np.full(4, np.nan, np.float32),
+        ),
+        _replace_stage(bundle, "lm_head", client_weight=None),
+        _replace_stage(bundle, "lm_head", client_weight_scales=None),
+        _replace_stage(
+            bundle,
+            "lm_head",
+            client_weight=np.zeros_like(head.client_weight),
+        ),
+        _replace_stage(bundle, "lm_head", client_weight_layout="embedding"),
+        _replace_stage(
+            bundle,
+            "layers.0.self_attn.qkv_proj",
+            client_weight=np.zeros((4, 4), np.int8),
+            client_weight_scales=np.ones(4, np.float32),
+        ),
+    ]
+    for candidate in cases:
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, candidate)
+
+
+def test_boundary_client_mutation_rejected_at_runtime(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    remote = _remote(engine, bundle.model_id, bundle)
+    token = bundle.stages["token_lookup"]
+
+    compiled = compile_runtime_model(plan, bundle)
+    saved = token.client_weight[0, 0]
+    token.client_weight[0, 0] = np.int8(int(saved) + 1)
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)
+    token.client_weight[0, 0] = saved
+
+    compiled = compile_runtime_model(plan, bundle)
+    saved_scale = token.client_weight_scales[0]
+    token.client_weight_scales[0] = np.float32(saved_scale * 2)
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)
+    token.client_weight_scales[0] = saved_scale
+
+    compiled = compile_runtime_model(plan, bundle)
+    original_stage = bundle.stages["token_lookup"]
+    bundle.stages["token_lookup"] = dataclasses.replace(
+        original_stage,
+        client_aux_weight=np.zeros((2, original_stage.in_features), np.int8),
+        client_aux_scales=np.ones(2, np.float32),
+    )
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)
+    bundle.stages["token_lookup"] = original_stage
+
+    assert compile_runtime_model(plan, bundle).runtime(remote).bundle is bundle
+
+
+def test_config_reconstruction_binds_native_fields(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compiled = compile_runtime_model(plan, bundle)
+    assert compiled.complete is True
+
+    for key, wrong in (
+        ("rms_norm_eps", 1e-4),
+        ("rope_theta", 500000.0),
+        ("hidden_act", "gelu"),
+        ("tie_word_embeddings", False),
+    ):
+        tampered = dataclasses.replace(bundle, cfg={**bundle.cfg, key: wrong})
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+    for key, wrong in (
+        ("block_style", "gemma4"),
+        ("model_family", "gemma"),
+        ("norm_offset", 1.0),
+        ("embedding_multiplier", 2.0),
+        ("qk_norm", True),
+        ("v_norm", True),
+        ("layer_types", ["full_attention", "sliding_attention"]),
+        ("sliding_window", 4096),
+        ("num_kv_shared_layers", 1),
+        ("attention_k_eq_v", True),
+        ("hidden_size_per_layer_input", 16),
+        ("output_multiplier", 2.0),
+        ("final_logit_softcapping", 30.0),
+        ("attention_scaling", 0.5),
+        ("rope_parameters", {"rope_theta": 500000.0}),
+        ("per_layer_config", {"0": {}}),
+        ("hidden_activation", "gelu"),
+        ("token_lookup_batch", "many"),
+    ):
+        tampered = dataclasses.replace(bundle, cfg={**bundle.cfg, key: wrong})
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+
+def test_runtime_config_and_tokenizer_digests(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compiled = compile_runtime_model(plan, bundle)
+    spec = compiled.to_spec()
+    assert len(compiled.runtime_config_digest) == 64
+    assert len(compiled.tokenizer_digest) == 64
+    assert spec["runtime_config_digest"] == compiled.runtime_config_digest
+    assert spec["tokenizer_digest"] == compiled.tokenizer_digest
+    serialized = json.dumps(spec)
+    assert "chat_template" not in serialized
+    assert "tokenizer" not in serialized.replace("tokenizer_digest", "")
+
+    for key, wrong in (
+        ("vocab_size", 512),
+        ("bos_token_id", 9),
+        ("eos_token_id", 9),
+        ("type", "alphabet"),
+    ):
+        descriptor = {**bundle.tokenizer_descriptor, key: wrong}
+        tampered = dataclasses.replace(bundle, tokenizer_descriptor=descriptor)
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+    remote = _remote(engine, bundle.model_id, bundle)
+    compiled = compile_runtime_model(plan, bundle)
+    bundle.cfg["rope_theta"] = 500000.0
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)
+    bundle.cfg["rope_theta"] = 10000.0
+
+    compiled = compile_runtime_model(plan, bundle)
+    saved = bundle.tokenizer_descriptor["chat_template"]
+    bundle.tokenizer_descriptor["chat_template"] = "tampered {{"
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)
+    bundle.tokenizer_descriptor["chat_template"] = saved
+
+    assert compile_runtime_model(plan, bundle).runtime(remote).bundle is bundle
+
+
+def test_lm_head_weight_keys_and_aux_rejected(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    rows = bundle.manifest["stages"]
+
+    def with_row(stage_id: str, **changes):
+        replaced = [
+            {**row, **changes} if row["id"] == stage_id else dict(row)
+            for row in rows
+        ]
+        return dataclasses.replace(
+            bundle, manifest={**bundle.manifest, "stages": replaced}
+        )
+
+    head_row = next(row for row in rows if row["id"] == "lm_head")
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(
+            plan,
+            with_row("lm_head", weight_keys=[*head_row["weight_keys"], "model.extra.weight"]),
+        )
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, with_row("lm_head", weight_keys=[]))
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(
+            plan, with_row("lm_head", weight_keys=["model.other.weight"])
+        )
+
+    head = bundle.stages["lm_head"]
+    auxed = _replace_stage(
+        bundle,
+        "lm_head",
+        client_aux_weight=np.zeros((2, head.in_features), np.int8),
+        client_aux_scales=np.ones(2, np.float32),
+    )
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, auxed)
+
+
+def test_rope_scaling_and_semantic_bias_contract(tmp_path: Path):
+    engine, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    compiled = compile_runtime_model(plan, bundle)
+
+    for key, wrong in (
+        ("rope_scaling", {"type": "linear", "factor": 2.0}),
+        ("rope_scaling", {"rope_type": "yarn"}),
+        ("rope_scaling", {"type": "default", "factor": 2.0}),
+        ("rope_scaling", {"rope_type": "default", "factor": 2.0}),
+        ("rope_scaling", {"type": "default", "rope_type": "linear"}),
+        ("rope_scaling", "linear"),
+        ("use_sliding_window", True),
+        ("attention_bias", False),
+    ):
+        tampered = dataclasses.replace(bundle, cfg={**bundle.cfg, key: wrong})
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, tampered)
+
+    for accepted in (None, {}, {"type": "default"}, {"rope_type": "default"}):
+        accepted_bundle = dataclasses.replace(
+            bundle, cfg={**bundle.cfg, "rope_scaling": accepted}
+        )
+        assert compile_runtime_model(plan, accepted_bundle).digest == compiled.digest
+
+    _, unbiased_bundle, _ = _bundle(tmp_path / "unbiased", with_qkv_bias=False)
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, unbiased_bundle)
+
+    qkv_id = "layers.0.self_attn.qkv_proj"
+    o_id = "layers.0.self_attn.o_proj"
+    down_id = "layers.0.mlp.down_proj"
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, _replace_stage(bundle, qkv_id, bias=None))
+    for stage_id in (o_id, down_id, "lm_head"):
+        stage = bundle.stages[stage_id]
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(
+                plan,
+                _replace_stage(
+                    bundle,
+                    stage_id,
+                    bias=np.zeros(stage.out_features, np.float32),
+                ),
+            )
+
+    def drop_q_bias(document):
+        for phase in ("prefill", "decode"):
+            _operation(document, phase, "layer.0.q_linear")["attributes"]["bias"] = None
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, drop_q_bias), bundle)
+
+    def add_o_bias(document):
+        for phase in ("prefill", "decode"):
+            _operation(document, phase, "layer.0.o_proj")["attributes"]["bias"] = (
+                "model.layers.0.self_attn.o_proj.bias"
+            )
+
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(_edited_plan(config, add_o_bias), bundle)
+
+    remote = _remote(engine, bundle.model_id, bundle)
+    compiled = compile_runtime_model(plan, bundle)
+    qkv_stage = bundle.stages[qkv_id]
+    qkv_stage.bias[0] = np.float32(qkv_stage.bias[0] + 1.0)
+    with pytest.raises(RuntimeBindingError):
+        compiled.runtime(remote)

@@ -6,7 +6,7 @@ Locate model planning, compiler contracts, native execution, Python APIs, CLI co
 
 Document ID: `pllm.docs.agents.implementation-map`  
 Release: `0.1.0`  
-Build: `sha256:2e8eacabaf27e4c40f6b41814c3af934ab5186546825b569c6c9c1cb0a7b4db4`  
+Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
 Source hash: `sha256:5da2bf5b4ec123fd8020decc043a08e8b1b0651ca0c9f8f340aaf9f83b70695d`
 
 - `crates/pllm-models`: model-neutral semantic decoder IR and family adapters.

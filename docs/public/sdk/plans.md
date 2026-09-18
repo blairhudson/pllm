@@ -6,7 +6,7 @@ Lower a model configuration, apply a compiler component, and inspect execution c
 
 Document ID: `pllm.docs.sdk.plans`  
 Release: `0.1.0`  
-Build: `sha256:2e8eacabaf27e4c40f6b41814c3af934ab5186546825b569c6c9c1cb0a7b4db4`  
+Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
 Source hash: `sha256:ca573de30b839639a16e1fa927ef801b9496c39566ef0db5af7143cca802bbe1`
 
 `pllm.lower_model(...)` turns a supported model configuration and workload limits

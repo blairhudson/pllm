@@ -6,7 +6,7 @@ Define a reproducible PLLM system from configuration, models, components, and re
 
 Document ID: `pllm.docs.build`  
 Release: `0.1.0`  
-Build: `sha256:2e8eacabaf27e4c40f6b41814c3af934ab5186546825b569c6c9c1cb0a7b4db4`  
+Build: `sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76`  
 Source hash: `sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860`
 
 - [SDK configuration](/sdk/configuration/) records what you intend to build.

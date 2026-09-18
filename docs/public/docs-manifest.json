@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:2e8eacabaf27e4c40f6b41814c3af934ab5186546825b569c6c9c1cb0a7b4db4",
+  "buildId": "sha256:e5e20904c12dfdeeed24c72fdb072c93f4be72953e9293c63a83ddce3d871d76",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -1406,7 +1406,7 @@
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
       "navigationOrder": 400,
-      "contentHash": "sha256:6397ee24d26d462b91ae2bce644d10fc1c6d31fa6fd4adf0bac196f23a58893b"
+      "contentHash": "sha256:86f4ed17d1377671e80a78e7cc351858fff4fd0e6190354b019db4f6517ac4b1"
     },
     {
       "id": "pllm.docs.reference.components",
