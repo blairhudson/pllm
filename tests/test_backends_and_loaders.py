@@ -205,4 +205,11 @@ def test_transformer_stage_plan_fuses_qkv_and_gate_up():
     assert [stage.id for stage in stages[:4]] == [
         "layers.0.self_attn.qkv_proj", "layers.0.self_attn.o_proj", "layers.0.mlp.gate_up_proj", "layers.0.mlp.down_proj"
     ]
+    assert [stage.role for stage in stages[:4]] == [
+        "qkv_projection", "attention_output", "mlp_gate_up", "mlp_down"
+    ]
+    assert all(stage.layer_index == 0 for stage in stages[:4])
+    assert all(stage.layer_index == 1 for stage in stages[4:8])
     assert stages[-1].id == "lm_head"
+    assert stages[-1].role == "lm_head"
+    assert stages[-1].layer_index is None

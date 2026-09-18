@@ -292,6 +292,7 @@ def transformer_stage_plan(
             out_features=hidden_size,
             weight_keys=("embed_tokens.weight",),
             transpose_weight=True,
+            role="token_lookup",
             local_after=("embedding_scale",),
         ))
     q_width = num_attention_heads * head_dim
@@ -310,13 +311,15 @@ def transformer_stage_plan(
                     f"{prefix}.self_attn.k_proj.weight",
                     f"{prefix}.self_attn.v_proj.weight",
                 ),
+                layer_index=layer,
+                role="qkv_projection",
                 local_after=("qk_norm", "rope", "attention"),
             ))
         else:
             stages.extend([
-                StageSpec(f"{prefix}.self_attn.q_proj", "linear", hidden_size, q_width, weight_keys=(f"{prefix}.self_attn.q_proj.weight",)),
-                StageSpec(f"{prefix}.self_attn.k_proj", "linear", hidden_size, kv_width, weight_keys=(f"{prefix}.self_attn.k_proj.weight",)),
-                StageSpec(f"{prefix}.self_attn.v_proj", "linear", hidden_size, kv_width, weight_keys=(f"{prefix}.self_attn.v_proj.weight",)),
+                StageSpec(f"{prefix}.self_attn.q_proj", "linear", hidden_size, q_width, weight_keys=(f"{prefix}.self_attn.q_proj.weight",), layer_index=layer, role="query_projection"),
+                StageSpec(f"{prefix}.self_attn.k_proj", "linear", hidden_size, kv_width, weight_keys=(f"{prefix}.self_attn.k_proj.weight",), layer_index=layer, role="key_projection"),
+                StageSpec(f"{prefix}.self_attn.v_proj", "linear", hidden_size, kv_width, weight_keys=(f"{prefix}.self_attn.v_proj.weight",), layer_index=layer, role="value_projection"),
             ])
         stages.append(StageSpec(
             id=f"{prefix}.self_attn.o_proj",
@@ -324,6 +327,8 @@ def transformer_stage_plan(
             in_features=q_width,
             out_features=hidden_size,
             weight_keys=(f"{prefix}.self_attn.o_proj.weight",),
+            layer_index=layer,
+            role="attention_output",
             local_after=("residual", "rms_norm"),
         ))
         if fuse_gate_up:
@@ -337,12 +342,14 @@ def transformer_stage_plan(
                     f"{prefix}.mlp.gate_proj.weight",
                     f"{prefix}.mlp.up_proj.weight",
                 ),
+                layer_index=layer,
+                role="mlp_gate_up",
                 local_after=("activation", "multiply"),
             ))
         else:
             stages.extend([
-                StageSpec(f"{prefix}.mlp.gate_proj", "linear", hidden_size, intermediate_size, weight_keys=(f"{prefix}.mlp.gate_proj.weight",)),
-                StageSpec(f"{prefix}.mlp.up_proj", "linear", hidden_size, intermediate_size, weight_keys=(f"{prefix}.mlp.up_proj.weight",)),
+                StageSpec(f"{prefix}.mlp.gate_proj", "linear", hidden_size, intermediate_size, weight_keys=(f"{prefix}.mlp.gate_proj.weight",), layer_index=layer, role="mlp_gate"),
+                StageSpec(f"{prefix}.mlp.up_proj", "linear", hidden_size, intermediate_size, weight_keys=(f"{prefix}.mlp.up_proj.weight",), layer_index=layer, role="mlp_up"),
             ])
         stages.append(StageSpec(
             id=f"{prefix}.mlp.down_proj",
@@ -350,11 +357,14 @@ def transformer_stage_plan(
             in_features=intermediate_size,
             out_features=hidden_size,
             weight_keys=(f"{prefix}.mlp.down_proj.weight",),
+            layer_index=layer,
+            role="mlp_down",
             local_after=("residual",),
         ))
     if include_lm_head:
         stages.append(StageSpec(
             "lm_head", "lm_head", hidden_size, vocab_size,
             weight_keys=("lm_head.weight", "embed_tokens.weight"),
+            role="lm_head",
         ))
     return stages

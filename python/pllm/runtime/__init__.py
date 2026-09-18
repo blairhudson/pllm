@@ -10,12 +10,16 @@ from pllm._version import __version__
 _EXPORTS = {
     "AsyncOpenAI": ("pllm.runtime.client", "AsyncOpenAI"),
     "AsyncPLLMTransport": ("pllm.runtime.transport", "AsyncPLLMTransport"),
+    "CompiledRuntimeModel": ("pllm.runtime.model_binding", "CompiledRuntimeModel"),
     "ExecutionBudget": ("pllm.configuration", "ExecutionBudget"),
     "GatewayConfig": ("pllm.runtime.config", "GatewayConfig"),
     "OpenAI": ("pllm.runtime.client", "OpenAI"),
     "PLLMTransport": ("pllm.runtime.transport", "PLLMTransport"),
     "PrivacyMode": ("pllm.runtime.privacy", "PrivacyMode"),
     "ProprietaryProtocol": ("pllm.runtime.privacy", "ProprietaryProtocol"),
+    "RuntimeBindingError": ("pllm.runtime.model_binding", "RuntimeBindingError"),
+    "RuntimeStageBinding": ("pllm.runtime.model_binding", "RuntimeStageBinding"),
+    "compile_runtime_model": ("pllm.runtime.model_binding", "compile_runtime_model"),
     "create_app": ("pllm.runtime.server", "create_app"),
     "create_sidecar_app": ("pllm.runtime.sidecar", "create_sidecar_app"),
 }

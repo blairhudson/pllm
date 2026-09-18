@@ -6,6 +6,10 @@ from pllm.runtime.client import OpenAI as OpenAI
 from pllm.runtime.transport import PLLMTransport as PLLMTransport
 from pllm.runtime.privacy import PrivacyMode as PrivacyMode
 from pllm.runtime.privacy import ProprietaryProtocol as ProprietaryProtocol
+from pllm.runtime.model_binding import RuntimeBindingError as RuntimeBindingError
+from pllm.runtime.model_binding import RuntimeStageBinding as RuntimeStageBinding
+from pllm.runtime.model_binding import CompiledRuntimeModel as CompiledRuntimeModel
+from pllm.runtime.model_binding import compile_runtime_model as compile_runtime_model
 from pllm.runtime.server import create_app as create_app
 from pllm.runtime.sidecar import create_sidecar_app as create_sidecar_app
 from pllm import __version__ as __version__

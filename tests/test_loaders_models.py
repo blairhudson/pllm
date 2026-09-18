@@ -39,6 +39,10 @@ def test_hf_and_mlx_manifest_loading(tmp_path: Path):
     assert hf.quantization["bits"] == 4
     assert len(hf.stages) == 4 * 4 + 1
     assert hf.stages[0].fused_from == ("q_proj", "k_proj", "v_proj")
+    assert hf.stages[0].role == "qkv_projection"
+    assert hf.stages[0].layer_index == 0
+    assert hf.stages[-1].role == "lm_head"
+    assert hf.stages[-1].layer_index is None
     assert mlx.source_format == "mlx-lm"
     assert mlx.metadata["mlx_weight_files"] == ["model.safetensors"]
 
@@ -149,6 +153,17 @@ def test_manifest_roundtrip_and_fingerprint(tmp_path: Path):
     assert restored.fingerprint == manifest.fingerprint
     assert restored.stages[-1].op == "lm_head"
     assert len(restored.stages) == 9
+    for original, restored_stage in zip(manifest.stages, restored.stages):
+        assert restored_stage.role == original.role
+        assert restored_stage.layer_index == original.layer_index
+    assert {(stage.role, stage.layer_index) for stage in restored.stages} == {
+        ("lm_head", None),
+        *{
+            (role, layer)
+            for layer in range(2)
+            for role in ("qkv_projection", "attention_output", "mlp_gate_up", "mlp_down")
+        },
+    }
 
 
 def test_stage_plan_unfused_counts():
@@ -159,6 +174,42 @@ def test_stage_plan_unfused_counts():
     )
     assert len(stages) == 2 * 7
     assert not any(stage.fused_from for stage in stages)
+    expected_roles = (
+        "query_projection",
+        "key_projection",
+        "value_projection",
+        "attention_output",
+        "mlp_gate",
+        "mlp_up",
+        "mlp_down",
+    )
+    for layer in range(2):
+        layer_stages = stages[layer * 7 : (layer + 1) * 7]
+        assert [stage.role for stage in layer_stages] == list(expected_roles)
+        assert all(stage.layer_index == layer for stage in layer_stages)
+
+
+def test_stage_plan_fused_roles_and_embedding():
+    stages = transformer_stage_plan(
+        hidden_size=64, intermediate_size=128, num_hidden_layers=2,
+        num_attention_heads=4, num_key_value_heads=2, head_dim=16, vocab_size=100,
+        include_embedding=True,
+    )
+    assert stages[0].id == "embed_tokens"
+    assert stages[0].role == "token_lookup"
+    assert stages[0].layer_index is None
+    by_id = {stage.id: stage for stage in stages}
+    for layer in range(2):
+        assert (by_id[f"layers.{layer}.self_attn.qkv_proj"].role,
+                by_id[f"layers.{layer}.self_attn.qkv_proj"].layer_index) == ("qkv_projection", layer)
+        assert (by_id[f"layers.{layer}.self_attn.o_proj"].role,
+                by_id[f"layers.{layer}.self_attn.o_proj"].layer_index) == ("attention_output", layer)
+        assert (by_id[f"layers.{layer}.mlp.gate_up_proj"].role,
+                by_id[f"layers.{layer}.mlp.gate_up_proj"].layer_index) == ("mlp_gate_up", layer)
+        assert (by_id[f"layers.{layer}.mlp.down_proj"].role,
+                by_id[f"layers.{layer}.mlp.down_proj"].layer_index) == ("mlp_down", layer)
+    assert by_id["lm_head"].role == "lm_head"
+    assert by_id["lm_head"].layer_index is None
 
 
 def test_manifest_fingerprint_excludes_creation_time():
