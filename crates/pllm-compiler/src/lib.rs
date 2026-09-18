@@ -383,6 +383,12 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
         && lower_model_output_head_regions(plan, DecoderMode::Decode).is_ok();
     let last_token_executable = lower_model_last_token_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_model_last_token_regions(plan, DecoderMode::Decode).is_ok();
+    let greedy_executable = lower_model_greedy_token_selection_regions(plan, DecoderMode::Prefill)
+        .is_ok()
+        && lower_model_greedy_token_selection_regions(plan, DecoderMode::Decode).is_ok();
+    let feedback_executable = lower_model_token_feedback_regions(plan, DecoderMode::Prefill)
+        .is_ok()
+        && lower_model_token_feedback_regions(plan, DecoderMode::Decode).is_ok();
     let rms_norm_reference = lower_rms_norm_f32_direct_regions(plan, DecoderMode::Prefill).is_ok()
         && lower_rms_norm_f32_direct_regions(plan, DecoderMode::Decode).is_ok();
     let provenance_q10_coverage = provenance_primitives::model_provenance_q10_coverage(plan);
@@ -393,7 +399,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                 || (operator == ModelOperator::Reshape && reshape_executable)
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
                 || (operator == ModelOperator::LastToken && last_token_executable)
-                || (operator == ModelOperator::OutputHead && output_head_executable);
+                || (operator == ModelOperator::OutputHead && output_head_executable)
+                || (operator == ModelOperator::GreedyTokenSelection && greedy_executable)
+                || (operator == ModelOperator::TokenFeedback && feedback_executable);
             let descriptor_coverage = match operator {
                 ModelOperator::RotaryEmbedding => Some(&provenance_q10_coverage.rope),
                 ModelOperator::KvCacheAppend => Some(&provenance_q10_coverage.cache_append),
@@ -435,6 +443,10 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                     Some("pllm/core-tensor@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::LastToken && executable {
                     Some("pllm/compiler-layout@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::GreedyTokenSelection && executable {
+                    Some("pllm/core-greedy-signed-wrap32@0.1.0-alpha.1".to_owned())
+                } else if operator == ModelOperator::TokenFeedback && executable {
+                    Some("pllm/core-token-feedback@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::OutputHead && executable {
                     Some("pllm/compiler-wrap32@0.1.0-alpha.1".to_owned())
                 } else if operator == ModelOperator::Silu {
@@ -463,12 +475,18 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         .to_owned()
                 } else if operator == ModelOperator::LastToken {
                     if executable {
-                        "physical-last selections execute, but length-aware selection and whole-decoder scheduling are unavailable"
+                        "semantic last-valid/physical-last selections execute, but whole-decoder scheduling is unavailable"
                             .to_owned()
                     } else {
                         "length-aware selection for last token is not executable; whole-decoder scheduling is unavailable"
                             .to_owned()
                     }
+                } else if operator == ModelOperator::GreedyTokenSelection && executable {
+                    "signed wrap32 greedy token selection executes with lowest-index tie-breaking, but whole-decoder scheduling is unavailable"
+                        .to_owned()
+                } else if operator == ModelOperator::TokenFeedback && executable {
+                    "token-id feedback layout executes, but whole-decoder scheduling is unavailable"
+                        .to_owned()
                 } else if operator == ModelOperator::OutputHead && executable {
                     "semantic output heads execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
@@ -523,6 +541,7 @@ pub enum NumericType {
     Wrap32,
     SignedFixed16,
     SignedFixedQ7,
+    TokenIdU32,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -602,13 +621,42 @@ pub struct ModelOutputHeadRegion {
     pub output: TensorType,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelLastTokenSelection {
+    PhysicalLast,
+    LastValid,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ModelLastTokenRegion {
     pub mode: DecoderMode,
     pub layer: Option<u64>,
     pub operation_id: String,
     pub input_id: String,
+    pub sequence_lengths_input_id: Option<String>,
+    pub selection: ModelLastTokenSelection,
     pub axis: usize,
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelGreedyTokenSelectionRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
+    pub input: TensorType,
+    pub output: TensorType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelTokenFeedbackRegion {
+    pub mode: DecoderMode,
+    pub layer: Option<u64>,
+    pub operation_id: String,
+    pub input_id: String,
     pub input: TensorType,
     pub output: TensorType,
 }
@@ -2960,7 +3008,7 @@ pub fn execute_model_output_head(
     matrix.wrap32(&executor, input, batch)
 }
 
-/// Extract fixed physical-last selections while rejecting length-aware forms.
+/// Extract physical-last and last-valid token selections.
 pub fn lower_model_last_token_regions(
     plan: &DecoderPlan,
     mode: DecoderMode,
@@ -2975,10 +3023,12 @@ pub fn lower_model_last_token_regions(
         .collect()
 }
 
-/// Select the final physical element on the semantic sequence axis.
+/// Select the last token on the semantic sequence axis — physically or by
+/// valid length depending on the region's selection mode.
 pub fn execute_model_last_token(
     region: &ModelLastTokenRegion,
     input: &[u32],
+    sequence_lengths: Option<&[u64]>,
 ) -> Result<Vec<u32>, String> {
     if region.input.numeric != NumericType::Wrap32
         || region.output.numeric != NumericType::Wrap32
@@ -2997,23 +3047,277 @@ pub fn execute_model_last_token(
     if input.len() != input_elements {
         return Err("last-token input length does not match its semantic shape".into());
     }
-    let outer = tensor_elements(&region.input.shape[..region.axis])?;
-    let axis = usize::try_from(region.input.shape[region.axis])
-        .map_err(|_| "last-token axis extent exceeds usize")?;
-    let inner = tensor_elements(&region.input.shape[region.axis + 1..])?;
-    let output_elements = outer
-        .checked_mul(inner)
-        .ok_or("last-token output element count overflows usize")?;
-    let mut output = Vec::with_capacity(output_elements);
-    for outer_index in 0..outer {
-        let start = outer_index
-            .checked_mul(axis)
-            .and_then(|offset| offset.checked_add(axis - 1))
-            .and_then(|offset| offset.checked_mul(inner))
-            .ok_or("last-token source offset overflows usize")?;
-        output.extend_from_slice(&input[start..start + inner]);
+    match region.selection {
+        ModelLastTokenSelection::PhysicalLast => {
+            if sequence_lengths.is_some() || region.sequence_lengths_input_id.is_some() {
+                return Err("physical-last selection does not accept sequence lengths".into());
+            }
+            let outer = tensor_elements(&region.input.shape[..region.axis])?;
+            let axis = usize::try_from(region.input.shape[region.axis])
+                .map_err(|_| "last-token axis extent exceeds usize")?;
+            let inner = tensor_elements(&region.input.shape[region.axis + 1..])?;
+            let output_elements = outer
+                .checked_mul(inner)
+                .ok_or("last-token output element count overflows usize")?;
+            let mut output = Vec::with_capacity(output_elements);
+            for outer_index in 0..outer {
+                let start = outer_index
+                    .checked_mul(axis)
+                    .and_then(|offset| offset.checked_add(axis - 1))
+                    .and_then(|offset| offset.checked_mul(inner))
+                    .ok_or("last-token source offset overflows usize")?;
+                output.extend_from_slice(&input[start..start + inner]);
+            }
+            Ok(output)
+        }
+        ModelLastTokenSelection::LastValid => {
+            if region.sequence_lengths_input_id.as_deref() != Some("input.sequence_lengths")
+                || region.axis != 1
+                || region.input.shape.len() < 2
+            {
+                return Err(
+                    "last-valid selection requires the input.sequence_lengths input on axis 1"
+                        .into(),
+                );
+            }
+            let lengths = sequence_lengths
+                .ok_or("last-valid selection requires the sequence lengths input")?;
+            let batch = usize::try_from(region.input.shape[0])
+                .map_err(|_| "last-token batch exceeds usize")?;
+            if lengths.len() != batch {
+                return Err(
+                    "last-token sequence lengths must provide exactly one length per batch".into(),
+                );
+            }
+            let axis = usize::try_from(region.input.shape[1])
+                .map_err(|_| "last-token axis extent exceeds usize")?;
+            if lengths
+                .iter()
+                .any(|length| *length < 1 || *length > region.input.shape[1])
+            {
+                return Err(
+                    "last-token sequence lengths must be within 1 and the sequence extent".into(),
+                );
+            }
+            let inner = tensor_elements(&region.input.shape[2..])?;
+            let mut output = Vec::with_capacity(
+                batch
+                    .checked_mul(inner)
+                    .ok_or("last-token output element count overflows usize")?,
+            );
+            for (batch_index, &length) in lengths.iter().enumerate() {
+                let row = usize::try_from(length - 1)
+                    .map_err(|_| "last-token sequence length exceeds usize")?;
+                let start = batch_index
+                    .checked_mul(axis)
+                    .and_then(|offset| offset.checked_add(row))
+                    .and_then(|offset| offset.checked_mul(inner))
+                    .ok_or("last-token source offset overflows usize")?;
+                output.extend_from_slice(&input[start..start + inner]);
+            }
+            Ok(output)
+        }
+    }
+}
+
+pub fn lower_model_greedy_token_selection_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelGreedyTokenSelectionRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::GreedyTokenSelection)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            let [input_id] = operation.inputs.as_slice() else {
+                return Err(format!(
+                    "semantic greedy selection operation {operation_id} must have exactly one input"
+                ));
+            };
+            let input = graph
+                .operations
+                .iter()
+                .find(|candidate| candidate.id == *input_id)
+                .ok_or_else(|| {
+                    format!(
+                        "semantic greedy selection operation {operation_id} references missing input {input_id}"
+                    )
+                })?;
+            if input.operator != ModelOperator::OutputHead {
+                return Err(format!(
+                    "semantic greedy selection operation {operation_id} must consume an output head"
+                ));
+            }
+            if operation.attributes
+                != serde_json::json!({"policy": "pllm.greedy.v1", "source": "execution_policy"})
+            {
+                return Err(format!(
+                    "semantic greedy selection operation {operation_id} does not carry the pllm.greedy.v1 execution policy"
+                ));
+            }
+            if input.output_shape.len() != 2
+                || input.output_shape.contains(&0)
+                || operation.output_shape != [input.output_shape[0]]
+            {
+                return Err(format!(
+                    "semantic greedy selection operation {operation_id} requires a rank-two [batch, vocabulary] input and a [batch] output"
+                ));
+            }
+            tensor_elements(&input.output_shape)?;
+            tensor_elements(&operation.output_shape)?;
+            Ok(ModelGreedyTokenSelectionRegion {
+                mode,
+                layer: operation.layer,
+                operation_id: operation.id.clone(),
+                input_id: input_id.clone(),
+                input: TensorType {
+                    numeric: NumericType::Wrap32,
+                    shape: input.output_shape.clone(),
+                },
+                output: TensorType {
+                    numeric: NumericType::TokenIdU32,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+pub fn execute_model_greedy_token_selection(
+    region: &ModelGreedyTokenSelectionRegion,
+    logits: &[u32],
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::Wrap32
+        || region.output.numeric != NumericType::TokenIdU32
+        || region.input.shape.len() != 2
+        || region.input.shape.contains(&0)
+        || region.output.shape != [region.input.shape[0]]
+    {
+        return Err(
+            "semantic greedy selection requires a wrap32 [batch, vocabulary] input and a token-id [batch] output"
+                .into(),
+        );
+    }
+    let batch = usize::try_from(region.input.shape[0])
+        .map_err(|_| "greedy selection batch exceeds usize")?;
+    let vocabulary = usize::try_from(region.input.shape[1])
+        .map_err(|_| "greedy selection vocabulary exceeds usize")?;
+    let elements = batch
+        .checked_mul(vocabulary)
+        .ok_or("greedy selection element count overflows usize")?;
+    if logits.len() != elements {
+        return Err("greedy selection logits length does not match its semantic shape".into());
+    }
+    let mut output = Vec::with_capacity(batch);
+    for row in logits.chunks_exact(vocabulary) {
+        let mut best_index = 0_usize;
+        let mut best_value = row[0] as i32;
+        for (index, &value) in row.iter().enumerate().skip(1) {
+            let value = value as i32;
+            if value > best_value {
+                best_value = value;
+                best_index = index;
+            }
+        }
+        output.push(
+            u32::try_from(best_index)
+                .map_err(|_| "greedy selection vocabulary index exceeds u32")?,
+        );
     }
     Ok(output)
+}
+
+pub fn lower_model_token_feedback_regions(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+) -> Result<Vec<ModelTokenFeedbackRegion>, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    let graph = model_graph(plan, mode);
+    graph
+        .operations
+        .iter()
+        .filter(|operation| operation.operator == ModelOperator::TokenFeedback)
+        .map(|operation| {
+            let operation_id = operation.id.as_str();
+            let [input_id] = operation.inputs.as_slice() else {
+                return Err(format!(
+                    "semantic token-feedback operation {operation_id} must have exactly one input"
+                ));
+            };
+            let input = graph
+                .operations
+                .iter()
+                .find(|candidate| candidate.id == *input_id)
+                .ok_or_else(|| {
+                    format!(
+                        "semantic token-feedback operation {operation_id} references missing input {input_id}"
+                    )
+                })?;
+            if operation.operator != ModelOperator::TokenFeedback
+                || input.operator != ModelOperator::GreedyTokenSelection
+            {
+                return Err(format!(
+                    "semantic token-feedback operation {operation_id} must consume a greedy token selection"
+                ));
+            }
+            if operation.attributes
+                != serde_json::json!({"policy": "pllm.greedy.v1", "source": "execution_policy"})
+            {
+                return Err(format!(
+                    "semantic token-feedback operation {operation_id} does not carry the pllm.greedy.v1 execution policy"
+                ));
+            }
+            if input.output_shape != [graph.batch]
+                || operation.output_shape != [graph.batch, 1]
+            {
+                return Err(format!(
+                    "semantic token-feedback operation {operation_id} requires a [batch] selection input and a [batch, 1] output"
+                ));
+            }
+            tensor_elements(&input.output_shape)?;
+            tensor_elements(&operation.output_shape)?;
+            Ok(ModelTokenFeedbackRegion {
+                mode,
+                layer: operation.layer,
+                operation_id: operation.id.clone(),
+                input_id: input_id.clone(),
+                input: TensorType {
+                    numeric: NumericType::TokenIdU32,
+                    shape: input.output_shape.clone(),
+                },
+                output: TensorType {
+                    numeric: NumericType::TokenIdU32,
+                    shape: operation.output_shape.clone(),
+                },
+            })
+        })
+        .collect()
+}
+
+pub fn execute_model_token_feedback(
+    region: &ModelTokenFeedbackRegion,
+    token_ids: &[u32],
+) -> Result<Vec<u32>, String> {
+    if region.input.numeric != NumericType::TokenIdU32
+        || region.output.numeric != NumericType::TokenIdU32
+        || region.input.shape.len() != 1
+        || region.output.shape != [region.input.shape[0], 1]
+        || region.input.shape.contains(&0)
+    {
+        return Err(
+            "semantic token feedback requires a token-id [batch] input and a token-id [batch, 1] output"
+                .into(),
+        );
+    }
+    let batch =
+        usize::try_from(region.input.shape[0]).map_err(|_| "token-feedback batch exceeds usize")?;
+    if token_ids.len() != batch {
+        return Err("token-feedback input length does not match its semantic shape".into());
+    }
+    Ok(token_ids.to_vec())
 }
 
 /// Extract direct-weight FP32 RMSNorm operations into plan-bound clear reference regions.
@@ -3930,10 +4234,34 @@ fn lower_model_last_token_region(
     operation: &ModelOperation,
 ) -> Result<ModelLastTokenRegion, String> {
     let operation_id = operation.id.as_str();
-    let [input_id] = operation.inputs.as_slice() else {
-        return Err(format!(
-            "semantic last-token operation {operation_id} uses length-aware selection, which is not executable"
-        ));
+    let selection = operation
+        .attributes
+        .get("selection")
+        .and_then(serde_json::Value::as_str);
+    let valid_lengths_input = operation
+        .attributes
+        .get("valid_lengths_input")
+        .and_then(serde_json::Value::as_str);
+    let (input_id, selection_kind, sequence_lengths_input_id) = match operation.inputs.as_slice() {
+        [input_id] if selection.is_none() && valid_lengths_input.is_none() => {
+            (input_id, ModelLastTokenSelection::PhysicalLast, None)
+        }
+        [input_id, lengths]
+            if lengths == "input.sequence_lengths"
+                && selection == Some("last_valid")
+                && valid_lengths_input == Some("input.sequence_lengths") =>
+        {
+            (
+                input_id,
+                ModelLastTokenSelection::LastValid,
+                Some("input.sequence_lengths".to_owned()),
+            )
+        }
+        _ => {
+            return Err(format!(
+                "semantic last-token operation {operation_id} has contradictory selection metadata"
+            ))
+        }
     };
     let input = graph
         .operations
@@ -3972,6 +4300,8 @@ fn lower_model_last_token_region(
         layer: operation.layer,
         operation_id: operation.id.clone(),
         input_id: input_id.clone(),
+        sequence_lengths_input_id,
+        selection: selection_kind,
         axis,
         input: TensorType {
             numeric: NumericType::Wrap32,

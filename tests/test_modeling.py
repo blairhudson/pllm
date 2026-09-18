@@ -76,7 +76,9 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
     assert levels["silu"] == "primitive"
     assert levels["rms_norm"] == "primitive"
     assert levels["softmax"] == "missing"
-    assert levels["greedy_token_selection"] == "missing"
+    assert levels["last_token"] == "executable_region"
+    assert levels["greedy_token_selection"] == "executable_region"
+    assert levels["token_feedback"] == "executable_region"
     with pytest.raises(TypeError):
         first.prefill["output"] = "changed"
 

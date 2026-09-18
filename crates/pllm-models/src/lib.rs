@@ -878,18 +878,29 @@ fn lower_graph(
         hidden_shape,
         json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight", "weight_offset": 0}),
     );
-    push(
-        &mut operations,
-        "last_hidden",
-        ModelOperator::LastToken,
-        &["final_norm", "input.sequence_lengths"],
-        vec![batch, config.hidden_size],
-        json!({
-            "axis": 1,
-            "selection": "last_valid",
-            "valid_lengths_input": "input.sequence_lengths"
-        }),
-    );
+    if mode == DecoderMode::Prefill {
+        push(
+            &mut operations,
+            "last_hidden",
+            ModelOperator::LastToken,
+            &["final_norm", "input.sequence_lengths"],
+            vec![batch, config.hidden_size],
+            json!({
+                "axis": 1,
+                "selection": "last_valid",
+                "valid_lengths_input": "input.sequence_lengths"
+            }),
+        );
+    } else {
+        push(
+            &mut operations,
+            "last_hidden",
+            ModelOperator::LastToken,
+            &["final_norm"],
+            vec![batch, config.hidden_size],
+            json!({"axis": 1}),
+        );
+    }
     push(
         &mut operations,
         "output_head",
@@ -911,7 +922,7 @@ fn lower_graph(
         ModelOperator::GreedyTokenSelection,
         &["output_head"],
         vec![batch],
-        json!({}),
+        json!({"policy": "pllm.greedy.v1", "source": "execution_policy"}),
     );
     push(
         &mut operations,
@@ -919,7 +930,7 @@ fn lower_graph(
         ModelOperator::TokenFeedback,
         &["token_selection"],
         vec![batch, 1],
-        json!({}),
+        json!({"policy": "pllm.greedy.v1", "source": "execution_policy"}),
     );
     DecoderGraph {
         mode,
@@ -2957,10 +2968,10 @@ fn validate_dense_qwen_graph_tail(
         || expected_head_attributes.as_ref() != Some(&output_head.attributes)
         || selection.inputs.as_slice() != [output_head.id.as_str()]
         || selection.output_shape != [graph.batch]
-        || selection.attributes != json!({})
+        || selection.attributes != json!({"policy": "pllm.greedy.v1", "source": "execution_policy"})
         || feedback.inputs.as_slice() != [selection.id.as_str()]
         || feedback.output_shape != [graph.batch, 1]
-        || feedback.attributes != json!({})
+        || feedback.attributes != json!({"policy": "pllm.greedy.v1", "source": "execution_policy"})
         || graph.output != feedback.id
     {
         return Err(ModelError::Incomplete(
@@ -3266,6 +3277,19 @@ mod tests {
                 "valid_lengths_input": "input.sequence_lengths"
             })
         );
+        assert_eq!(
+            operation(&plan.decode, "last_hidden").inputs,
+            ["final_norm"]
+        );
+        assert_eq!(
+            operation(&plan.decode, "last_hidden").attributes,
+            json!({"axis": 1})
+        );
+        let policy = json!({"policy": "pllm.greedy.v1", "source": "execution_policy"});
+        for graph in [&plan.prefill, &plan.decode] {
+            assert_eq!(operation(graph, "token_selection").attributes, policy);
+            assert_eq!(operation(graph, "token_feedback").attributes, policy);
+        }
     }
 
     #[test]

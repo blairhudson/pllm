@@ -1,13 +1,14 @@
 use pllm_compiler::{
     compile, compile_document, decoder_coverage, define_q14_to_q7_rescale_region, diagnostics_json,
-    execute_model_output_head, execute_model_reshape, execute_model_residual,
-    execute_q14_to_q7_rescale, execute_wrap32, lower_model_last_token_regions,
+    execute_model_last_token, execute_model_output_head, execute_model_reshape,
+    execute_model_residual, execute_q14_to_q7_rescale, execute_wrap32,
+    lower_model_greedy_token_selection_regions, lower_model_last_token_regions,
     lower_model_linear_operation, lower_model_linear_regions, lower_model_output_head_regions,
     lower_model_reshape_regions, lower_model_residual_regions, q14_to_q7_rescale_region_digest,
     CandidateEvidence, CapabilityLevel, CompileRequest, Diagnostic, DiagnosticCode,
-    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor, ModelReshapeLayout,
-    NumericType, Operator, Representation, SecurityProperties, TensorType,
-    COMPILE_REQUEST_SCHEMA_VERSION,
+    KernelDescriptor, KernelImplementation, LogicalOperation, MethodDescriptor,
+    ModelLastTokenSelection, ModelReshapeLayout, NumericType, Operator, Representation,
+    SecurityProperties, TensorType, COMPILE_REQUEST_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
@@ -364,9 +365,10 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
     assert_eq!(residual_coverage.occurrences, 4);
     assert_eq!(residual_coverage.level, CapabilityLevel::ExecutableRegion);
     for mode in [DecoderMode::Prefill, DecoderMode::Decode] {
-        assert!(lower_model_last_token_regions(&plan, mode)
-            .unwrap_err()
-            .contains("length-aware selection"));
+        assert_eq!(
+            lower_model_last_token_regions(&plan, mode).unwrap().len(),
+            1
+        );
     }
     let last_token_coverage = coverage
         .operators
@@ -374,10 +376,10 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
         .find(|coverage| coverage.operator == ModelOperator::LastToken)
         .unwrap();
     assert_eq!(last_token_coverage.occurrences, 2);
-    assert_eq!(last_token_coverage.level, CapabilityLevel::Primitive);
+    assert_eq!(last_token_coverage.level, CapabilityLevel::ExecutableRegion);
     assert!(last_token_coverage
         .blocker
-        .contains("length-aware selection"));
+        .contains("whole-decoder scheduling is unavailable"));
     let output_heads = lower_model_output_head_regions(&plan, DecoderMode::Prefill).unwrap();
     assert_eq!(output_heads.len(), 1);
     let output_head = &output_heads[0];
@@ -465,7 +467,7 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
 }
 
 #[test]
-fn length_aware_last_token_remains_fail_closed() {
+fn gemma_last_token_executes_length_aware_selection() {
     let plan = lower_model_json(
         include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json"),
         DecoderWorkload {
@@ -476,17 +478,26 @@ fn length_aware_last_token_remains_fail_closed() {
     )
     .unwrap();
     for mode in [DecoderMode::Prefill, DecoderMode::Decode] {
-        assert!(lower_model_last_token_regions(&plan, mode)
-            .unwrap_err()
-            .contains("length-aware selection"));
+        assert_eq!(
+            lower_model_last_token_regions(&plan, mode).unwrap().len(),
+            1
+        );
     }
+    let prefill = &lower_model_last_token_regions(&plan, DecoderMode::Prefill).unwrap()[0];
+    assert_eq!(prefill.selection, ModelLastTokenSelection::LastValid);
+    let elements: usize = prefill.input.shape.iter().product::<u64>() as usize;
+    let inner = prefill.output.shape.iter().product::<u64>() as usize;
+    let input: Vec<u32> = (0..elements as u32).collect();
+    let output = execute_model_last_token(prefill, &input, Some(&[1])).unwrap();
+    assert_eq!(output, input[..inner]);
+    assert!(lower_model_greedy_token_selection_regions(&plan, DecoderMode::Prefill).is_err());
     let coverage = decoder_coverage(&plan, "research.single_evaluator");
     let last_token = coverage
         .operators
         .iter()
         .find(|coverage| coverage.operator == ModelOperator::LastToken)
         .unwrap();
-    assert_eq!(last_token.level, CapabilityLevel::Primitive);
+    assert_eq!(last_token.level, CapabilityLevel::ExecutableRegion);
 }
 
 fn assert_json_fixture(actual: &[u8], fixture: &str) {

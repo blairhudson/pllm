@@ -6,7 +6,7 @@ Connect text and local function-tool clients through PLLM's Chat Completions API
 
 Document ID: `pllm.docs.learn.integrations.chat-completions`  
 Release: `0.1.0`  
-Build: `sha256:23218ecbd35c340db15bd0ba1f93cbbfd63de8702dd79d9c787388dbb3dc0e85`  
+Build: `sha256:4358d00f593125ffb699b8a2329c69e607727783bf40149859925cbfa47327b5`  
 Source hash: `sha256:3e9f8e2b306538cd423838c727dbd741ccc2d9b0da5fe9ab4b623f998b99a570`
 
 `POST /v1/chat/completions` maps OpenAI-compatible chat messages onto the trusted
