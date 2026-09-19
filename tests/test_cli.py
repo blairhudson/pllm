@@ -73,7 +73,7 @@ try:
 except SystemExit as exc:
     assert exc.code == 0
 banned = {{
-    'numpy', 'fastapi', 'httpx', 'cryptography', 'pllm._native', 'pllm.provider',
+    'numpy', 'fastapi', 'httpx', 'cryptography', 'pllm._native',
     'pllm.runtime.dashboard', 'pllm.runtime.server'
 }}
 assert not banned.intersection(sys.modules), banned.intersection(sys.modules)

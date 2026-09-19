@@ -21,6 +21,7 @@ def main() -> None:
         assert any(n.startswith("pllm/_native") and n.endswith((".so", ".pyd")) for n in names), "Compiled Rust module missing"
         assert not any(n.startswith(("he_openai/", "python/", "docs/", "paper/")) for n in names)
         assert "pllm/runtime/client.py" in names
+        assert not {"pllm/market.py", "pllm/market_server.py", "pllm/provider.py"} & set(names)
         assert "pllm/__main__.py" in names
         assert "pllm/py.typed" in names
         assert "pllm/_native.pyi" in names
@@ -43,6 +44,14 @@ def main() -> None:
         assert any(n.endswith("/crates/pllm-python/Cargo.toml") for n in names)
         assert any(n.endswith("/crates/pllm-core/Cargo.toml") for n in names)
         assert any(n.endswith("/python/pllm/__init__.py") for n in names)
+        assert not any(
+            name.endswith((
+                "/python/pllm/market.py",
+                "/python/pllm/market_server.py",
+                "/python/pllm/provider.py",
+            ))
+            for name in names
+        )
         assert any(n.endswith("/crates/pllm-core/src/kernels.rs") for n in names)
         assert any(n.endswith("/tests/test_protocol.py") for n in names)
         assert any(n.endswith("/python/pllm/dashboard/index.html") for n in names)
