@@ -7,6 +7,7 @@ pub mod activation;
 mod attention;
 mod attention_values;
 pub mod codec;
+mod delegated_linear;
 pub mod fixed_point;
 pub mod kernels;
 pub mod kv_cache;
@@ -29,6 +30,11 @@ pub use attention_values::{
     AttentionValuesQ10, ATTENTION_VALUE_Q10_MAX_MULTIPLY_ACCUMULATES,
     ATTENTION_VALUE_Q10_MAX_OUTPUT_ELEMENTS, ATTENTION_VALUE_Q10_MAX_ROUNDING_ERROR_RAW,
     ATTENTION_VALUE_Q30_Q10_PROFILE,
+};
+pub use delegated_linear::{
+    slalom_evaluate_masked, DelegatedLinearError, MaskedFieldVector, SlalomPreparedMatVec,
+    VerifiedFieldVector, SLALOM_CHALLENGE_REPETITIONS, SLALOM_FIELD_MODULUS,
+    SLALOM_MAX_MATRIX_ELEMENTS,
 };
 pub use fixed_point::{
     gated_multiply_q7, multiply_q7, multiply_q7_tensor, rescale_q14_to_q10,
