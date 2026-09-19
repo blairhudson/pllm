@@ -231,6 +231,7 @@ def _benchmark_document(document: object) -> dict[str, Any]:
         "model",
         "plan_lock_digest",
         "configuration_digest",
+        "workload_digest",
         "privacy_cohort",
         "numeric_cohort",
         "environment",
@@ -280,6 +281,7 @@ def _benchmark_document(document: object) -> dict[str, Any]:
     value["model"] = model
     _digest(value["plan_lock_digest"], "plan_lock_digest", nullable=True)
     _digest(value["configuration_digest"], "configuration_digest", nullable=True)
+    _digest(value["workload_digest"], "workload_digest")
     environment = dict(
         _keys(value["environment"], {"digest", "attributes"}, "environment")
     )

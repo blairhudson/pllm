@@ -3,17 +3,25 @@ title: "Search"
 description: "Compare compatible system designs against explicit resource, quality, and assurance limits."
 ---
 
-Search uses component records and evidence instead of importing provider code.
-Each candidate combines model coverage, operator support, value formats,
-conversions, protocols, preparation, kernels, party placement, and numeric policy.
+Search uses immutable `Experiment` parameters and evidence instead of importing provider code. `SearchSpace` validates every discrete value through typed `with_params()` before execution. `GridSearch` enumerates every compatible combination; `RandomSearch` samples without replacement from the same finite space under an explicit seed. Constraints filter named public parameter paths. Invalid combined substitutions fail before an evaluator runs.
 
-You can limit memory, CPU, network traffic, disk use, latency, throughput, quality
-loss, trust assumptions, and evidence maturity. Tradeoffs remain visible; PLLM
-does not declare one plan best for every deployment.
+`evaluate_search` requires each `BenchmarkResult` to match its trial ID, configuration digest, profile, model, and component set. `ParetoFrontier` accepts explicit `min`/`max` directions and compares only records with identical scope, model, workload, environment, privacy cohort, numeric cohort, warmups, repetitions, and objective semantics. Failed or unavailable records are retained but excluded from the frontier. There is no implicit scalar score or universal “best” candidate.
 
-Finding a candidate is not proof that it works. A selected plan must compile, run
-in its stated environment, and produce matching benchmark and assurance records.
+## Python SDK example
 
-No public Python API currently executes plan search or applies resource constraints
-to candidate designs. See [current Python support](/sdk/reference/status/). Static
-component discovery is not a search result.
+```python
+from pllm import Constraint, GridSearch, SearchSpace
+from examples.composition import experiment
+
+space = SearchSpace(
+    experiment,
+    {"pipeline__kernels__threads": [1, 2, 4]},
+    constraints=[Constraint("pipeline__kernels__threads", "ge", 2)],
+)
+candidates = GridSearch("cpu-grid", space).candidates()
+assert [candidate.experiment.pipeline.kernels.params["threads"] for candidate in candidates] == [2, 4]
+```
+
+Finding a candidate is not proof that it works. A selected experiment must run in its stated environment and produce matching benchmark and assurance records. Bayesian search and the CLI `benchmark search`/`compare` commands remain unavailable.
+
+API: [`pllm.search`](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -52,6 +52,7 @@ PUBLIC_MODULES = (
     "pllm.preparation",
     "pllm.roles",
     "pllm.schedulers",
+    "pllm.search",
     "pllm.sources",
     "pllm.state",
     "pllm.verification",

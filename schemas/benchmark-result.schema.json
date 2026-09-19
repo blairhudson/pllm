@@ -14,6 +14,7 @@
     "model",
     "plan_lock_digest",
     "configuration_digest",
+    "workload_digest",
     "privacy_cohort",
     "numeric_cohort",
     "environment",
@@ -47,6 +48,7 @@
     },
     "plan_lock_digest": {"$ref": "#/$defs/nullableDigest"},
     "configuration_digest": {"$ref": "#/$defs/nullableDigest"},
+    "workload_digest": {"$ref": "#/$defs/digest"},
     "privacy_cohort": {"$ref": "#/$defs/identity"},
     "numeric_cohort": {"$ref": "#/$defs/identity"},
     "environment": {

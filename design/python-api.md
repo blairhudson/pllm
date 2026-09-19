@@ -139,6 +139,18 @@ refinement.
 Source claims, implementation coverage, measurements, assurance findings, and deployment
 assumptions MUST remain separate records even when presented together.
 
+## Search
+
+`SearchSpace` binds discrete public parameter paths and typed constraints to one immutable base
+`Experiment`. `GridSearch` enumerates every compatible combination; `RandomSearch` samples without
+replacement under an explicit seed. Candidate configuration digests and trial IDs bind evaluator
+results. Invalid individual or combined substitutions fail before evaluation.
+
+`ParetoFrontier` requires exact scope, model, workload, environment, privacy cohort, numeric cohort,
+warmup/repetition count, and objective semantics. Each objective declares `min` or `max`; no implicit
+scalarization is provided. Failed and unavailable records remain available but are excluded from the
+frontier. Bayesian search and CLI orchestration remain unavailable.
+
 ## Errors and compatibility
 
 Public validation uses typed exceptions rooted in `ValueError` or `TypeError` as documented. Error
@@ -164,6 +176,8 @@ As inspected on 19 September 2026:
 - `benchmark`, `deployment_benchmark`, `assure`, immutable `EvidenceReport`, canonical
   `BenchmarkResult`, and `EvidenceRegistry` are implemented in `python/pllm/evidence.py` for their
   documented scopes.
+- Typed exhaustive/seeded search, constraints, evaluator binding, and explicit Pareto filtering are
+  implemented in `python/pllm/search`; Bayesian and CLI search orchestration are unavailable.
 - Public capability families and the class-derived registry expose the installed protocol, kernel,
   preparation, role, pass, scheduler, state, verification, correlation, and benchmark-metric
   components; approved external provider descriptors can extend the same registry explicitly.

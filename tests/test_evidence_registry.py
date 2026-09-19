@@ -39,6 +39,7 @@ def result_document(identity: str = "run-1") -> dict:
         },
         "plan_lock_digest": "3" * 64,
         "configuration_digest": "4" * 64,
+        "workload_digest": "5" * 64,
         "privacy_cohort": "masked-linear",
         "numeric_cohort": "wrap32",
         "environment": {

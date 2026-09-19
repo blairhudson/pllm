@@ -75,6 +75,7 @@ pllm.correlation         correlation-source components
 pllm.roles               role components
 pllm.nonlinear           nonlinear-protocol components
 pllm.schedulers          protected-scheduler components
+pllm.search              typed experiment search and Pareto filtering
 pllm.state               persistent-state protocol components
 pllm.passes              compiler-pass components
 pllm.verification        verification-scheme components and checks
@@ -83,8 +84,8 @@ pllm.deployment          placement declarations
 pllm.runtime             intentionally public runtime/client contracts only
 ```
 
-Future domain facades MAY add operators, numerics, representations, conversions, search,
-assurance, integrations, or testing when stable public objects exist. They MUST NOT be created
+Future domain facades MAY add operators, numerics, representations, conversions, assurance,
+integrations, or testing when stable public objects exist. They MUST NOT be created
 empty merely to match a conceptual tree.
 
 Implementation modules use a leading underscore or live behind a facade. `_native`, `_cli`, and

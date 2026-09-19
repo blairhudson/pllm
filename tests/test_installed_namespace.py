@@ -55,9 +55,12 @@ def test_public_domain_facades_share_root_identities():
     from pllm.plan import CompiledPlan
     from pllm.providers import ProviderDescriptor, discover_providers
     from pllm.runtime import serve_local
+    from pllm.search import GridSearch, SearchSpace
 
     assert pllm.BenchmarkResult is BenchmarkResult
     assert pllm.EvidenceRegistry is EvidenceRegistry
+    assert pllm.GridSearch is GridSearch
+    assert pllm.SearchSpace is SearchSpace
     assert pllm.ExecutionBudget is ExecutionBudget
     assert pllm.Experiment is Experiment
     assert pllm.DecoderCoverageReport is DecoderCoverageReport

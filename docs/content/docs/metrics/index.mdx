@@ -24,6 +24,7 @@ result = BenchmarkResult.from_dict({
     "model": {"id": "org/model", "checkpoint_digest": None, "source_lock_digest": None},
     "plan_lock_digest": None,
     "configuration_digest": None,
+    "workload_digest": "0" * 64,
     "privacy_cohort": "masked-linear",
     "numeric_cohort": "wrap32",
     "environment": {"digest": environment_digest(attributes), "attributes": attributes},

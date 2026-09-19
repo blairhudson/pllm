@@ -9,7 +9,9 @@ from pllm.compiler import CompilationError as CompilationError
 from pllm.plan import CompiledPlan as CompiledPlan
 from pllm.profiles import DirectFHEProfile as DirectFHEProfile
 from pllm.runtime.proprietary_engine import DirectFHETransformerEngine as DirectFHETransformerEngine
+from pllm.search import Constraint as Constraint
 from pllm.runtime.config import GatewayConfig as GatewayConfig
+from pllm.search import GridSearch as GridSearch
 from pllm.runtime.guarded_engine import GuardPolicy as GuardPolicy
 from pllm.runtime.guarded_engine import (
     GuardedBlindedTransformerEngine as GuardedBlindedTransformerEngine,
@@ -24,6 +26,7 @@ from pllm.runtime.transformer_client import (
 )
 from pllm.runtime.transformer_engine import MaskedTransformerEngine as MaskedTransformerEngine
 from pllm.runtime.client import OpenAI as OpenAI
+from pllm.search import ParetoFrontier as ParetoFrontier
 from pllm.runtime.formal_security import PROFILES as PROFILES
 from pllm.runtime.preprocessing_inventory import PreparedInventory as PreparedInventory
 from pllm.profiles import ProprietaryBlinded as ProprietaryBlinded
@@ -34,6 +37,7 @@ from pllm.providers import ProviderResource as ProviderResource
 from pllm.runtime.preprocessing_inventory import PreprocessingPlan as PreprocessingPlan
 from pllm.runtime.privacy import PrivacyMode as PrivacyMode
 from pllm.runtime.privacy import ProprietaryProtocol as ProprietaryProtocol
+from pllm.search import RandomSearch as RandomSearch
 from pllm.runtime.preprocessing_inventory import RecordingPreprocessor as RecordingPreprocessor
 from pllm.runtime.types import Response as Response
 from pllm.runtime.types import ResponseEvent as ResponseEvent
@@ -42,6 +46,10 @@ from pllm.runtime.formal_security import SECURE_PREVIEW as SECURE_PREVIEW
 from pllm.runtime.secure_transformer import SecureDecoder as SecureDecoder
 from pllm.runtime.secure_transformer import SecureDecoderConfig as SecureDecoderConfig
 from pllm.runtime.secure_transformer import SecureDecoderWeights as SecureDecoderWeights
+from pllm.search import SearchCandidate as SearchCandidate
+from pllm.search import SearchError as SearchError
+from pllm.search import SearchEvaluation as SearchEvaluation
+from pllm.search import SearchSpace as SearchSpace
 from pllm.runtime.formal_security import SecurityClaim as SecurityClaim
 from pllm.sources import TinyModel as TinyModel
 from pllm.runtime.authenticated_mpc import TrustedPreprocessor as TrustedPreprocessor
@@ -74,6 +82,7 @@ from pllm.evidence import benchmark as benchmark
 from pllm.evidence import deployment_benchmark as deployment_benchmark
 from pllm.providers import discover_providers as discover_providers
 from pllm.evidence import environment_digest as environment_digest
+from pllm.search import evaluate_search as evaluate_search
 from pllm.providers import load_component_factory as load_component_factory
 from pllm.runtime.server import create_app as create_app
 from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app
