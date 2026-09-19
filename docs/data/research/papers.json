@@ -262,9 +262,9 @@
         "Florian Tramèr",
         "Dan Boneh"
       ],
-      "primary_url": "https://arxiv.org/abs/1806.03287",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "primary_url": "https://arxiv.org/abs/1806.03287v2",
+      "source_access": "primary_full_text_pdf",
+      "verified_on": "2026-09-19",
       "track": "client_heavy_baseline",
       "family": "masked_linear",
       "source_summary": "Slalom outsources masked linear work and uses local verification within a trusted execution partition.",
@@ -276,9 +276,9 @@
       "depends_on": [],
       "benchmark_contract": "Original representative layers; archived PLLM partition; same clear integer graph, unmasked remote partition and optimized native model as separate baselines.",
       "security_boundary": "A trusted client is not a reproduced TEE deployment. Static non-collusion, integrity and later compromise require distinct claims.",
-      "prior_evidence": "Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom.",
+      "prior_evidence": "The full Slalom paper is acquired and digest-locked. Original PLLM manuscript runs remain an adaptation, not a fresh reproduction of Slalom; no upstream artifact is acquired or executed.",
       "source_lock": {
-        "paper_sha256": null,
+        "paper_sha256": "ffdccc42057482eada2ca836e93dafbc35832fb3670e0bce0524b3412f7ef536",
         "artifact_commit": null,
         "license_review": "required_before_vendoring"
       },
@@ -287,7 +287,7 @@
       "eligible_default": false,
       "native_owner": "Rust",
       "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "fulltext_gate": false,
       "card": "notes/R07-slalom.md"
     },
     {

@@ -1,10 +1,10 @@
 # R07 · Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware
 
-**Priority 7 · 2019 · client_heavy_baseline · source checked 2026-09-14**
+**Priority 7 · 2019 · client_heavy_baseline · source checked 2026-09-19**
 
 Authors: Florian Tramèr, Dan Boneh.  
-Primary source: https://arxiv.org/abs/1806.03287  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Primary source: https://arxiv.org/abs/1806.03287v2
+Access in this handoff: `primary_full_text_pdf`. Paper SHA-256: `ffdccc42057482eada2ca836e93dafbc35832fb3670e0bce0524b3412f7ef536`. No upstream implementation artifact is acquired or executed.
 
 ## What the source contributes
 

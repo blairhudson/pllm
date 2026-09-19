@@ -5687,7 +5687,7 @@ Release: `0.1.0`
 **Status:** `tracked`
 **Year:** 2019
 **Authors:** Florian Tramèr, Dan Boneh
-**External source:** [Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware](https://arxiv.org/abs/1806.03287)
+**External source:** [Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware](https://arxiv.org/abs/1806.03287v2)
 
 ## Source contribution
 
@@ -5697,7 +5697,7 @@ Slalom outsources masked linear work and uses local verification within a truste
 
 Reproduce the original blinding and verification boundary. Register PLLM trusted-client/dealer adaptation separately; port modular kernels and verification state without changing the numerical graph silently.
 
-Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom.
+The full Slalom paper is acquired and digest-locked. Original PLLM manuscript runs remain an adaptation, not a fresh reproduction of Slalom; no upstream artifact is acquired or executed.
 
 This paper remains tracked. Named modules below are implementation targets, not finished PLLM components; no reproduction, integration, assurance, or matched benchmark is claimed.
 

@@ -1,0 +1,30 @@
+{
+  "schema_version": "pllm.method_record.v1",
+  "id": "pllm.method.slalom-masked-linear",
+  "version": "1",
+  "registry_aliases": ["R07"],
+  "source_record_ids": ["R07"],
+  "upstream_artifact_lock_ids": [],
+  "classification": "source_method",
+  "semantic_scope": "masked and verifiable delegated matrix multiplication under the published Slalom trusted-component boundary",
+  "input_representations": ["prime-field-vector", "fresh-additive-mask"],
+  "output_representations": ["prime-field-vector", "verification-transcript"],
+  "online_roles": ["trusted-component", "untrusted-evaluator"],
+  "preparation_phase": "offline",
+  "native_owner": "Rust",
+  "implementation_status": "planned",
+  "assurance_obligations": [
+    "fresh masks are never reused",
+    "verification challenges remain secret from the evaluator",
+    "field and no-wrap bounds match the numeric graph",
+    "the trusted-client adaptation is not described as a reproduced TEE deployment"
+  ],
+  "lifecycle_status": {
+    "fidelity": "blocked",
+    "protected_execution": "blocked",
+    "assurance": "blocked",
+    "benchmark": "blocked",
+    "promotion": "blocked"
+  },
+  "eligible_profiles": []
+}

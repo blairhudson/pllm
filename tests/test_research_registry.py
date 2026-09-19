@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -85,10 +86,24 @@ def test_existing_source_records_validate_canonically_and_keep_attribution() -> 
         "R01",
         "R02",
         "R03",
+        "R07",
         "R21",
         "R22",
         "pllm.source.mpcache.arxiv-2501.06807v2",
     }
+
+
+def test_slalom_full_text_lock_matches_the_quarantined_pdf() -> None:
+    document = json.loads((SOURCES / "R07.json").read_text())
+    paper = ROOT / document["local_path"]
+    if paper.exists():
+        assert hashlib.sha256(paper.read_bytes()).hexdigest() == document["paper_digest"]
+    assert (
+        document["paper_digest"]
+        == "ffdccc42057482eada2ca836e93dafbc35832fb3670e0bce0524b3412f7ef536"
+    )
+    assert document["access"] == "primary_full_text_pdf"
+    assert document.get("artifact_commit") is None
 
 
 @pytest.mark.parametrize(
@@ -237,6 +252,22 @@ def test_required_before_vendoring_stays_external_without_blocking_clean_room_pr
     assert decision.eligible is True
     assert decision.blockers == ()
     assert lock.isolation == "external_process"
+
+
+def test_tracked_slalom_method_remains_blocked_and_unpromoted() -> None:
+    source = pllm.SourceRecord.from_dict(
+        json.loads((SOURCES / "R07.json").read_text())
+    )
+    path = ROOT / "docs/data/research/methods/R07-masked-linear.json"
+    document = json.loads(path.read_text())
+    schema = json.loads((ROOT / "schemas/method-record.schema.json").read_text())
+    Draft202012Validator(schema).validate(document)
+    method = pllm.MethodRecord.from_dict(document)
+    decision = pllm.ResearchRegistry(sources=[source], methods=[method]).promotion(method.id)
+    assert decision.eligible is False
+    assert "method:native_implementation" in decision.blockers
+    assert "gate:fidelity:blocked" in decision.blockers
+    assert "method:no_eligible_profile" in decision.blockers
 
 
 def test_method_records_are_canonical_and_lifecycle_fields_do_not_conflate() -> None:

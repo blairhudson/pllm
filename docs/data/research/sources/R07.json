@@ -1,0 +1,14 @@
+{
+  "schema_version": "pllm.source_record.v1",
+  "id": "R07",
+  "title": "Slalom: Fast, Verifiable and Private Execution of Neural Networks in Trusted Hardware",
+  "authors": ["Florian Tramèr", "Dan Boneh"],
+  "year": 2019,
+  "primary_url": "https://arxiv.org/abs/1806.03287v2",
+  "access": "primary_full_text_pdf",
+  "verified_on": "2026-09-19",
+  "paper_digest": "ffdccc42057482eada2ca836e93dafbc35832fb3670e0bce0524b3412f7ef536",
+  "local_path": "papers/r07-slalom.pdf",
+  "license_review": "required_before_vendoring",
+  "notes": "The full paper is locked for specification review. No upstream implementation artifact is acquired, vendored, imported, or treated as reproduced."
+}
