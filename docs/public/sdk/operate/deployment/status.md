@@ -5,9 +5,7 @@ Understand current deployment support, local role orchestration, and production 
 [View canonical HTML](https://pllm.run/sdk/operate/deployment/status/)
 
 Document ID: `pllm.docs.operate.deployment`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e3f8165255071a381d02ff498b1f07c796a76e47d6795692f537de50045c1e83`
+Release: `0.1.0`
 
 Deployment declarations currently support local public configuration. `pllm.serve_local` and `pllm.runtime.build_roles` accept a typed `Model`, `Pipeline`, or `Experiment` and provide one bounded loopback topology for the local gateway, dashboard, and benchmark driver while keeping inference and preparation in separate operating-system processes. The handle owns environment-only role credentials, distinct ports, health checks, client routing, and deterministic shutdown. Generic remote `Deployment`, plan-locked multi-host orchestration, operator identity provisioning, and production recovery are not established.
 

@@ -7,7 +7,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 import pllm
-from pllm.components import KvCacheEviction
+from pllm.passes import KvCacheEviction
 
 
 CONFIG = {

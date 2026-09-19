@@ -10,17 +10,8 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from pllm import Experiment, Model, Pipeline
-from pllm.components import (
-    BinaryTableGatedMultiplyQ7,
-    ChunkedIndependentLanesProtectedTensorSchedule,
-    ComponentDescriptor,
-    ComponentRef,
-    IndependentLanesProtectedTensorSchedule,
-    KvCacheEviction,
-    R03CrtGatedMultiplyQ7,
-    ScalarProtectedTensorSchedule,
-)
+from pllm import BundleModel, Experiment, Model, Pipeline, TinyModel
+from pllm.components import ComponentDescriptor, ComponentRef
 from pllm.config import (
     ConfigurationError,
     ExecutionBudget,
@@ -31,8 +22,16 @@ from pllm.config import (
 )
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
+from pllm.passes import KvCacheEviction
 from pllm.preparation import ModelAwareCorrections
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.roles import Inference
+from pllm.schedulers import (
+    ChunkedIndependentLanesProtectedTensorSchedule,
+    IndependentLanesProtectedTensorSchedule,
+    ScalarProtectedTensorSchedule,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 YAML_EXAMPLE = ROOT / "examples/pllm.yaml"
@@ -49,7 +48,7 @@ def example() -> Experiment:
             components={
                 "linear": MaskedLinear(),
                 "preparation": ModelAwareCorrections(),
-                "inference": ComponentRef("pllm/inference"),
+                "inference": Inference(),
                 "kernels": Cpu(threads=4),
             },
         ),
@@ -98,9 +97,13 @@ def test_model_is_one_typed_source_spec_with_legacy_canonical_default() -> None:
         "revision": "7ae5576",
         "local_files_only": True,
     }
-    assert Model.path("/models/qwen", format="safetensors").kind == "safetensors"
+    bundle = Model.path("/models/qwen", format="safetensors")
+    tiny = Model.tiny()
+    assert isinstance(bundle, BundleModel)
+    assert bundle.kind == "safetensors"
     assert Model.path("/models/qwen.gguf", format="gguf").kind == "gguf"
-    assert Model.tiny().to_spec() == {"source": "qwen2", "kind": "tiny"}
+    assert isinstance(tiny, TinyModel)
+    assert tiny.to_spec() == {"source": "qwen2", "kind": "tiny"}
     ollama = Model.ollama("qwen2:latest")
     assert ollama.to_spec() == {
         "source": "qwen2:latest",
@@ -318,7 +321,7 @@ def test_kv_cache_eviction_clones_and_loads_as_builtin() -> None:
 
 
 def test_builtin_component_descriptors_are_static_and_immutable() -> None:
-    from pllm.components import get_component, list_components
+    from pllm.components import get, get_component, list_component_classes, list_components
     from pllm.configuration import ComponentDescriptor as ConfigurationComponentDescriptor
 
     descriptor = KvCacheEviction.describe()
@@ -334,7 +337,10 @@ def test_builtin_component_descriptors_are_static_and_immutable() -> None:
     with pytest.raises(dataclasses.FrozenInstanceError):
         descriptor.version = "2"
     descriptors = list_components()
+    classes = list_component_classes()
     assert descriptors == tuple(sorted(descriptors, key=lambda item: item.component))
+    assert tuple(item.describe() for item in classes) == descriptors
+    assert get("pllm/kv-cache-eviction") is KvCacheEviction
     assert get_component("pllm/kv-cache-eviction") is descriptor
     with pytest.raises(KeyError, match="built-in component not found"):
         get_component("missing")
@@ -461,7 +467,7 @@ def test_concrete_component_deserialization_rejects_inexact_params(
         Experiment.from_spec(spec)
 
 
-def test_component_classes_are_exported_only_from_components_facade() -> None:
+def test_component_classes_live_in_capability_families() -> None:
     import pllm
     import pllm.components as components
 
@@ -475,14 +481,9 @@ def test_component_classes_are_exported_only_from_components_facade() -> None:
         "ProtectedTensorSchedule",
     ):
         assert not hasattr(pllm, name)
-    assert components.BinaryTableGatedMultiplyQ7 is BinaryTableGatedMultiplyQ7
-    assert components.R03CrtGatedMultiplyQ7 is R03CrtGatedMultiplyQ7
-    assert components.ScalarProtectedTensorSchedule is ScalarProtectedTensorSchedule
-    assert (
-        components.IndependentLanesProtectedTensorSchedule
-        is IndependentLanesProtectedTensorSchedule
-    )
-    assert (
-        components.ChunkedIndependentLanesProtectedTensorSchedule
-        is ChunkedIndependentLanesProtectedTensorSchedule
-    )
+        assert not hasattr(components, name)
+    assert BinaryTableGatedMultiplyQ7.__module__ == "pllm.nonlinear"
+    assert R03CrtGatedMultiplyQ7.__module__ == "pllm.nonlinear"
+    assert ScalarProtectedTensorSchedule.__module__ == "pllm.schedulers"
+    assert IndependentLanesProtectedTensorSchedule.__module__ == "pllm.schedulers"
+    assert ChunkedIndependentLanesProtectedTensorSchedule.__module__ == "pllm.schedulers"

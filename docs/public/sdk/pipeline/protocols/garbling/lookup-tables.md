@@ -5,9 +5,7 @@ Bounded function tables with explicit domains, indexing, leakage, and material s
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/lookup-tables/)
 
 Document ID: `pllm.docs.protocols.garbling.lookup-tables`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b4de26e167a6b5b6538882089e360fdb8610b0bf90dc40bf3fd0cae0476354fa`
+Release: `0.1.0`
 
 A lookup-table component maps a finite encoded domain to an encoded range. Its contract records signed interpretation, table cardinality, invalid indices, material ownership, one-time use, communication, and whether selection is data-oblivious under the stated threat model.
 

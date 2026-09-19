@@ -30,7 +30,7 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 ## Python SDK example
 
 ```python
-from pllm import Model
+from pllm import Model, TinyModel
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
@@ -41,6 +41,7 @@ pinned = Model.hf(
 )
 assert pinned.kind == "huggingface"
 assert pinned.revision is not None
+assert isinstance(Model.tiny(), TinyModel)
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

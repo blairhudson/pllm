@@ -1,0 +1,9 @@
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class StateProtocol(ComponentRef): ...
+
+class ClientLocalKv(StateProtocol):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

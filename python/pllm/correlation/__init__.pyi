@@ -1,0 +1,9 @@
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class CorrelationSource(ComponentRef): ...
+
+class SeededExpansion(CorrelationSource):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

@@ -5,18 +5,17 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 [View canonical HTML](https://pllm.run/learn/start/first-private-request/)
 
 Document ID: `pllm.docs.start.first-private-request`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:86cb6ae6861c17f2747863f96cf66d6794a44c741794d7be5090b3a07eab1e17`
+Release: `0.1.0`
 
 ## Define the experiment
 
 ```python
-from pllm import ComponentRef, Experiment, Model, Pipeline
+from pllm import Experiment, Model, Pipeline
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.preparation import ModelAwareCorrections
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.roles import Inference
 from pllm.runtime import ExecutionBudget
 
 experiment = Experiment(
@@ -27,7 +26,7 @@ experiment = Experiment(
         components={
             "linear": MaskedLinear(),
             "preparation": ModelAwareCorrections(),
-            "inference": ComponentRef("pllm/inference"),
+            "inference": Inference(),
             "kernels": Cpu(threads=4),
         },
     ),
@@ -63,7 +62,7 @@ load weights:
 
 ```python
 import pllm
-from pllm.components import KvCacheEviction
+from pllm.passes import KvCacheEviction
 
 config = {
     "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,

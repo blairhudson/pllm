@@ -5,9 +5,7 @@ Load, inspect, and export a reproducible PLLM experiment configuration.
 [View canonical HTML](https://pllm.run/sdk/configuration/)
 
 Document ID: `pllm.docs.sdk.configuration`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ca2d47f439d2e756dae86cc49d2aa353ba74ccd49e15f1ae137141c512566e13`
+Release: `0.1.0`
 
 PLLM configuration objects describe public intent. Creating one does not download
 a model, contact a service, compile a plan, or create private material.
@@ -36,7 +34,7 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 ## Python SDK example
 
 ```python
-from pllm import Model
+from pllm import Model, TinyModel
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
@@ -47,6 +45,7 @@ pinned = Model.hf(
 )
 assert pinned.kind == "huggingface"
 assert pinned.revision is not None
+assert isinstance(Model.tiny(), TinyModel)
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -6,7 +6,6 @@ import httpx
 import pytest
 
 from pllm import (
-    ComponentRef,
     Cpu,
     Deployment,
     ExecutionBudget,
@@ -19,6 +18,7 @@ from pllm import (
     Pipeline,
     _native,
 )
+from pllm.roles import Inference
 from pllm.runtime.client import ProtocolError, RuntimeClient
 
 
@@ -34,7 +34,7 @@ def baseline_experiment(model: str = "model-a") -> Experiment:
             components={
                 "linear": MaskedLinear(),
                 "preparation": ModelAwareCorrections(),
-                "inference": ComponentRef("pllm/inference"),
+                "inference": Inference(),
                 "kernels": Cpu(threads=4),
             },
         ),

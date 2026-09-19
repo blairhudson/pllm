@@ -300,7 +300,7 @@ class Model(_Configuration):
         revision: str | None = None,
         local_files_only: bool = False,
     ) -> Model:
-        return cls(
+        return Model(
             repo_id,
             model_id=model_id,
             revision=revision,
@@ -317,16 +317,15 @@ class Model(_Configuration):
     ) -> Model:
         if format not in _MODEL_PATH_KINDS:
             raise ConfigurationError(f"unsupported model path format {format!r}")
-        return cls(
-            path,
-            kind=format,
-            model_id=model_id,
-            local_files_only=format in {"huggingface", "safetensors", "vllm"},
-        )
+        from pllm.sources import BundleModel
+
+        return BundleModel(path, format=format, model_id=model_id)
 
     @classmethod
     def tiny(cls, name: str = "qwen2", *, model_id: str | None = None) -> Model:
-        return cls(name, kind="tiny", model_id=model_id)
+        from pllm.sources import TinyModel
+
+        return TinyModel(name, model_id=model_id)
 
     @classmethod
     def ollama(
@@ -336,7 +335,7 @@ class Model(_Configuration):
         endpoint: str = "http://127.0.0.1:11434",
         model_id: str | None = None,
     ) -> Model:
-        return cls(name, kind="ollama", model_id=model_id, endpoint=endpoint)
+        return Model(name, kind="ollama", model_id=model_id, endpoint=endpoint)
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> Model:
@@ -355,14 +354,32 @@ class Model(_Configuration):
             raise ConfigurationError(f"model has unknown fields: {sorted(unknown)}")
         if "source" not in value:
             raise ConfigurationError("model requires source")
-        return cls(
+        kind = value.get("kind", "huggingface")
+        local_files_only = value.get("local_files_only", False)
+        validated = Model(
             value["source"],
-            kind=value.get("kind", "huggingface"),
+            kind=kind,
             model_id=value.get("model_id"),
             revision=value.get("revision"),
-            local_files_only=value.get("local_files_only", False),
+            local_files_only=local_files_only,
             endpoint=value.get("endpoint"),
         )
+        if kind == "tiny":
+            from pllm.sources import TinyModel
+
+            return TinyModel(value["source"], model_id=value.get("model_id"))
+        if (
+            (local_files_only and value.get("revision") is None)
+            or kind in {"mlx", "mlx-lm", "gguf", "llama.cpp"}
+        ):
+            from pllm.sources import BundleModel
+
+            return BundleModel(
+                value["source"],
+                format=kind,
+                model_id=value.get("model_id"),
+            )
+        return validated
 
     def to_spec(self) -> dict[str, Any]:
         result: dict[str, Any] = {"source": self.source}
@@ -381,6 +398,23 @@ class Model(_Configuration):
     def to_runtime_spec(self) -> dict[str, Any]:
         return {"kind": self.kind, **self.to_spec()}
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Model):
+            return NotImplemented
+        return self.to_spec() == other.to_spec()
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.source,
+                self.kind,
+                self.model_id,
+                self.revision,
+                self.local_files_only,
+                self.endpoint,
+            )
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ComponentRef(_Configuration):
@@ -394,6 +428,15 @@ class ComponentRef(_Configuration):
             raise ConfigurationError("component parameter names cannot be 'component' or 'params'")
         object.__setattr__(self, "params", frozen)
 
+    @classmethod
+    def from_params(cls, params: Mapping[str, Any]) -> ComponentRef:
+        if not isinstance(params, Mapping):
+            raise ConfigurationError("component params must be a mapping")
+        try:
+            return cls(**dict(params))
+        except TypeError as exc:
+            raise ConfigurationError(f"invalid parameters for {cls.__name__}: {exc}") from exc
+
     def get_params(self, deep: bool = True) -> dict[str, Any]:
         output = {"component": self.component, **self.params}
         if deep:
@@ -405,202 +448,13 @@ class ComponentRef(_Configuration):
     def to_spec(self) -> dict[str, Any]:
         return {"component": self.component, "params": _thaw_json(self.params)}
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ComponentRef):
+            return NotImplemented
+        return self.component == other.component and self.params == other.params
+
     def __hash__(self) -> int:
         return hash((self.component, _hashable_json(self.params)))
-
-
-class Cpu(ComponentRef):
-    __slots__ = ()
-
-    def __init__(self, *, threads: int = 1) -> None:
-        super().__init__("pllm/cpu", {"threads": _integer(threads, "cpu.threads")})
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {"threads": self.params["threads"]}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/cpu"]
-
-
-class ModelAwareCorrections(ComponentRef):
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        super().__init__("pllm/model-aware-corrections")
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/model-aware-corrections"]
-
-
-class MaskedLinear(ComponentRef):
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        super().__init__("pllm/masked-linear")
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/masked-linear"]
-
-
-class KvCacheEviction(ComponentRef):
-    """Bounded KV-cache eviction component backed by a named implementation."""
-
-    __slots__ = ()
-
-    def __init__(
-        self,
-        *,
-        implementation: str = "pllm/mpcache/v1",
-        observation_window: tuple[int, int] = (1, 5),
-        static_keep: tuple[int, int] = (3, 10),
-        dynamic_keep: tuple[int, int] = (1, 4),
-        alpha: tuple[int, int] = (3, 5),
-        cluster_sizes: tuple[int, ...] = (32, 16),
-        share_adjacent_layers: bool = True,
-    ) -> None:
-        sizes = tuple(
-            _integer(size, f"cluster_sizes[{index}]") for index, size in enumerate(cluster_sizes)
-        )
-        if not sizes:
-            raise ConfigurationError("cluster_sizes must be non-empty")
-        if any(left <= right or left % right for left, right in zip(sizes, sizes[1:])):
-            raise ConfigurationError(
-                "cluster_sizes must be a strictly descending divisible hierarchy"
-            )
-        if type(share_adjacent_layers) is not bool:
-            raise ConfigurationError("share_adjacent_layers must be a bool")
-        super().__init__(
-            "pllm/kv-cache-eviction",
-            {
-                "implementation": _string(implementation, "implementation"),
-                "observation_window": _ratio(observation_window, "observation_window"),
-                "static_keep": _ratio(static_keep, "static_keep"),
-                "dynamic_keep": _ratio(dynamic_keep, "dynamic_keep"),
-                "alpha": _ratio(alpha, "alpha"),
-                "cluster_sizes": sizes,
-                "share_adjacent_layers": share_adjacent_layers,
-            },
-        )
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/kv-cache-eviction"]
-
-
-class BinaryTableGatedMultiplyQ7(ComponentRef):
-    """Binary-table implementation of protected Q7 ``SiLU(gate) * up``."""
-
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        super().__init__("pllm/binary-table/v1")
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/binary-table/v1"]
-
-
-class R03CrtGatedMultiplyQ7(ComponentRef):
-    """R03 CRT implementation of protected Q7 ``SiLU(gate) * up``."""
-
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        super().__init__("pllm/r03-crt/v1")
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/r03-crt/v1"]
-
-
-class ScalarProtectedTensorSchedule(ComponentRef):
-    """Scalar one-use scheduling for protected tensor elements."""
-
-    __slots__ = ()
-
-    def __init__(self) -> None:
-        super().__init__("pllm/scalar/v1")
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/scalar/v1"]
-
-
-class IndependentLanesProtectedTensorSchedule(ComponentRef):
-    """Independent-lane one-use scheduling for protected tensor elements."""
-
-    __slots__ = ()
-
-    def __init__(self, *, max_elements: int = 4) -> None:
-        max_elements = _integer(max_elements, "max_elements", minimum=2)
-        if max_elements > 4:
-            raise ConfigurationError("max_elements must be an integer <= 4")
-        super().__init__(
-            "pllm/independent-lanes/v1",
-            {"max_elements": max_elements},
-        )
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {"max_elements": self.params["max_elements"]}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/independent-lanes/v1"]
-
-
-class ChunkedIndependentLanesProtectedTensorSchedule(ComponentRef):
-    """Authenticated bounded streaming schedule for larger protected tensors."""
-
-    __slots__ = ()
-
-    def __init__(self, *, max_elements: int) -> None:
-        max_elements = _integer(max_elements, "max_elements", minimum=5)
-        if max_elements > 4_000_000:
-            raise ConfigurationError("max_elements must be an integer <= 4000000")
-        super().__init__(
-            "pllm/chunked-independent-lanes/v1",
-            {"max_elements": max_elements},
-        )
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        return {"max_elements": self.params["max_elements"]}
-
-    @classmethod
-    def describe(cls) -> ComponentDescriptor:
-        return _BUILTIN_DESCRIPTORS["pllm/chunked-independent-lanes/v1"]
-
-
-def _ratio(value: object, path: str) -> dict[str, int]:
-    if isinstance(value, Mapping):
-        data = _fields(value, {"numerator", "denominator"}, path)
-        numerator = _integer(data["numerator"], f"{path}.numerator")
-        denominator = _integer(data["denominator"], f"{path}.denominator")
-    elif type(value) is tuple and len(value) == 2:
-        numerator = _integer(value[0], f"{path}.numerator")
-        denominator = _integer(value[1], f"{path}.denominator")
-    else:
-        raise ConfigurationError(f"{path} must be a (numerator, denominator) tuple")
-    if numerator > denominator:
-        raise ConfigurationError(f"{path} must be in (0, 1]")
-    return {"numerator": numerator, "denominator": denominator}
 
 
 @dataclass(frozen=True, slots=True)
@@ -824,56 +678,9 @@ def _component_from_spec(value: object, path: str) -> ComponentRef:
     params = data["params"]
     if not isinstance(params, Mapping):
         raise ConfigurationError(f"{path}.params must be a mapping")
-    if component == "pllm/cpu":
-        exact = _fields(params, {"threads"}, f"{path}.params")
-        return Cpu(threads=exact["threads"])
-    if component == "pllm/model-aware-corrections":
-        _fields(params, set(), f"{path}.params")
-        return ModelAwareCorrections()
-    if component == "pllm/masked-linear":
-        _fields(params, set(), f"{path}.params")
-        return MaskedLinear()
-    if component == "pllm/kv-cache-eviction":
-        exact = _fields(
-            params,
-            {
-                "implementation",
-                "observation_window",
-                "static_keep",
-                "dynamic_keep",
-                "alpha",
-                "cluster_sizes",
-                "share_adjacent_layers",
-            },
-            f"{path}.params",
-        )
-        return KvCacheEviction(
-            implementation=exact["implementation"],
-            observation_window=exact["observation_window"],
-            static_keep=exact["static_keep"],
-            dynamic_keep=exact["dynamic_keep"],
-            alpha=exact["alpha"],
-            cluster_sizes=exact["cluster_sizes"],
-            share_adjacent_layers=exact["share_adjacent_layers"],
-        )
-    if component == "pllm/binary-table/v1":
-        _fields(params, set(), f"{path}.params")
-        return BinaryTableGatedMultiplyQ7()
-    if component == "pllm/r03-crt/v1":
-        _fields(params, set(), f"{path}.params")
-        return R03CrtGatedMultiplyQ7()
-    if component == "pllm/scalar/v1":
-        _fields(params, set(), f"{path}.params")
-        return ScalarProtectedTensorSchedule()
-    if component == "pllm/independent-lanes/v1":
-        exact = _fields(params, {"max_elements"}, f"{path}.params")
-        return IndependentLanesProtectedTensorSchedule(max_elements=exact["max_elements"])
-    if component == "pllm/chunked-independent-lanes/v1":
-        exact = _fields(params, {"max_elements"}, f"{path}.params")
-        return ChunkedIndependentLanesProtectedTensorSchedule(
-            max_elements=exact["max_elements"]
-        )
-    return ComponentRef(component, params)
+    from pllm.components import create_component
+
+    return create_component(component, params)
 
 
 def _experiment_from_spec(value: object) -> Experiment:
@@ -1010,153 +817,22 @@ def configuration_digest(configuration: Experiment | Mapping[str, Any]) -> str:
     return hashlib.sha256(_DIGEST_DOMAIN + canonical_bytes(configuration)).hexdigest()
 
 
-_BUILTIN_DESCRIPTORS = {
-    "pllm/cpu": ComponentDescriptor(
-        component="pllm/cpu",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/kernel-backend",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={
-            "type": "object",
-            "properties": {"threads": {"type": "integer", "minimum": 1}},
-            "required": ["threads"],
-            "additionalProperties": False,
-        },
-        capabilities=("cpu",),
-        role_eligibility=("inference",),
+_CONCRETE_EXPORTS = {
+    "BinaryTableGatedMultiplyQ7": ("pllm.nonlinear", "BinaryTableGatedMultiplyQ7"),
+    "ChunkedIndependentLanesProtectedTensorSchedule": (
+        "pllm.schedulers",
+        "ChunkedIndependentLanesProtectedTensorSchedule",
     ),
-    "pllm/model-aware-corrections": ComponentDescriptor(
-        component="pllm/model-aware-corrections",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/preparation-provider",
-        category_version="1",
-        lifecycle_phase="preparation",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        role_eligibility=("preparation",),
+    "Cpu": ("pllm.kernels", "Cpu"),
+    "IndependentLanesProtectedTensorSchedule": (
+        "pllm.schedulers",
+        "IndependentLanesProtectedTensorSchedule",
     ),
-    "pllm/masked-linear": ComponentDescriptor(
-        component="pllm/masked-linear",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/protocol-method",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        capabilities=("masked-linear",),
-        role_eligibility=("client", "preparation", "inference"),
-    ),
-    "pllm/kv-cache-eviction": ComponentDescriptor(
-        component="pllm/kv-cache-eviction",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/compiler-pass",
-        category_version="1",
-        lifecycle_phase="model-lowering",
-        parameter_schema={
-            "type": "object",
-            "required": [
-                "implementation",
-                "observation_window",
-                "static_keep",
-                "dynamic_keep",
-                "alpha",
-                "cluster_sizes",
-                "share_adjacent_layers",
-            ],
-            "additionalProperties": False,
-        },
-        capabilities=("bounded-kv-cache-eviction",),
-        required_host_features=("decoder-plan-v1",),
-    ),
-    "pllm/binary-table/v1": ComponentDescriptor(
-        component="pllm/binary-table/v1",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/nonlinear-protocol",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        capabilities=("protected-gated-multiply-q7",),
-        required_host_features=("decoder-plan-v1", "signed-q7"),
-        role_eligibility=("client", "inference"),
-    ),
-    "pllm/r03-crt/v1": ComponentDescriptor(
-        component="pllm/r03-crt/v1",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/nonlinear-protocol",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        capabilities=("protected-gated-multiply-q7",),
-        required_host_features=("decoder-plan-v1", "signed-q7"),
-        role_eligibility=("client", "inference"),
-    ),
-    "pllm/scalar/v1": ComponentDescriptor(
-        component="pllm/scalar/v1",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/protected-scheduler",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={"type": "object", "additionalProperties": False},
-        capabilities=("one-use-protected-tensor-scheduling",),
-        required_host_features=("authenticated-one-use-material",),
-        role_eligibility=("client", "inference"),
-    ),
-    "pllm/independent-lanes/v1": ComponentDescriptor(
-        component="pllm/independent-lanes/v1",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/protected-scheduler",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={
-            "type": "object",
-            "properties": {
-                "max_elements": {"type": "integer", "minimum": 2, "maximum": 4},
-            },
-            "required": ["max_elements"],
-            "additionalProperties": False,
-        },
-        capabilities=("one-use-protected-tensor-scheduling",),
-        required_host_features=("authenticated-one-use-material",),
-        role_eligibility=("client", "inference"),
-    ),
-    "pllm/chunked-independent-lanes/v1": ComponentDescriptor(
-        component="pllm/chunked-independent-lanes/v1",
-        provider="pllm",
-        distribution="pllm",
-        version="1",
-        category="pllm/protected-scheduler",
-        category_version="1",
-        lifecycle_phase="compilation",
-        parameter_schema={
-            "type": "object",
-            "properties": {
-                "max_elements": {"type": "integer", "minimum": 5, "maximum": 4_000_000},
-            },
-            "required": ["max_elements"],
-            "additionalProperties": False,
-        },
-        capabilities=("one-use-protected-tensor-scheduling",),
-        required_host_features=(
-            "authenticated-one-use-material",
-            "bounded-streaming-spool",
-        ),
-        role_eligibility=("client", "inference"),
-    ),
+    "KvCacheEviction": ("pllm.passes", "KvCacheEviction"),
+    "MaskedLinear": ("pllm.protocols", "MaskedLinear"),
+    "ModelAwareCorrections": ("pllm.preparation", "ModelAwareCorrections"),
+    "R03CrtGatedMultiplyQ7": ("pllm.nonlinear", "R03CrtGatedMultiplyQ7"),
+    "ScalarProtectedTensorSchedule": ("pllm.schedulers", "ScalarProtectedTensorSchedule"),
 }
 
 
@@ -1164,18 +840,25 @@ __all__ = [
     "ComponentDescriptor",
     "ComponentRef",
     "ConfigurationError",
-    "Cpu",
     "Deployment",
     "ExecutionBudget",
     "Experiment",
     "ExperimentProfile",
-    "KvCacheEviction",
-    "MaskedLinear",
     "Model",
-    "ModelAwareCorrections",
     "Pipeline",
     "canonical_bytes",
     "configuration_digest",
     "load_configuration",
     "loads_configuration",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _CONCRETE_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+
+    module, attribute = _CONCRETE_EXPORTS[name]
+    value = getattr(import_module(module), attribute)
+    globals()[name] = value
+    return value

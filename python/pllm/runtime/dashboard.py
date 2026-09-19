@@ -29,9 +29,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
-from safetensors.numpy import save_file
-
 from pllm.configuration import Model
+from pllm.sources import TinyModel
 from pllm.runtime.client import OpenAI
 from pllm.runtime.servers import LocalTopology, build_roles
 from pllm.runtime.benchmark_history import (
@@ -48,74 +47,6 @@ _RUN_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 def _http_origin(host: str, port: int) -> str:
     rendered_host = f"[{host}]" if ":" in host else host
     return f"http://{rendered_host}:{port}"
-
-
-def _create_demo_checkpoint(path: Path) -> Path:
-    path.mkdir(parents=True)
-    hidden, intermediate, heads, kv_heads, head_dim, vocab = 32, 64, 4, 2, 8, 258
-    config = {
-        "architectures": ["Gemma4ForCausalLM"],
-        "model_type": "gemma4_text",
-        "name_or_path": "pllm-otel-demo",
-        "vocab_size": vocab,
-        "hidden_size": hidden,
-        "intermediate_size": intermediate,
-        "num_hidden_layers": 1,
-        "num_attention_heads": heads,
-        "num_key_value_heads": kv_heads,
-        "head_dim": head_dim,
-        "max_position_embeddings": 1024,
-        "sliding_window": 64,
-        "layer_types": ["full_attention"],
-        "hidden_activation": "silu",
-        "rms_norm_eps": 1e-6,
-        "tie_word_embeddings": True,
-        "bos_token_id": 0,
-        "eos_token_id": 1,
-        "pad_token_id": 1,
-        "rope_parameters": {"full_attention": {"rope_type": "default", "rope_theta": 10000.0}},
-        "pllm_test_tokenizer": "byte",
-    }
-    (path / "config.json").write_text(json.dumps(config), encoding="utf-8")
-    (path / "tokenizer_config.json").write_text(
-        json.dumps(
-            {
-                "bos_token": "<bos>",
-                "eos_token": "<eos>",
-                "model_max_length": 1024,
-                "chat_template": (
-                    "{% for message in messages %}{{ message['role'] }}: "
-                    "{{ message['content'] }}\\n{% endfor %}assistant: "
-                ),
-            }
-        ),
-        encoding="utf-8",
-    )
-    rng = np.random.default_rng(17)
-
-    def matrix(rows: int, columns: int, scale: float = 0.08) -> np.ndarray:
-        return (rng.standard_normal((rows, columns), dtype=np.float32) * scale).astype(np.float32)
-
-    prefix = "model.layers.0"
-    tensors = {
-        "model.embed_tokens.weight": matrix(vocab, hidden, 0.12),
-        "model.norm.weight": np.ones(hidden, dtype=np.float32),
-        f"{prefix}.self_attn.q_proj.weight": matrix(heads * head_dim, hidden),
-        f"{prefix}.self_attn.k_proj.weight": matrix(kv_heads * head_dim, hidden),
-        f"{prefix}.self_attn.v_proj.weight": matrix(kv_heads * head_dim, hidden),
-        f"{prefix}.self_attn.o_proj.weight": matrix(hidden, heads * head_dim),
-        f"{prefix}.self_attn.q_norm.weight": np.ones(head_dim, dtype=np.float32),
-        f"{prefix}.self_attn.k_norm.weight": np.ones(head_dim, dtype=np.float32),
-        f"{prefix}.mlp.gate_proj.weight": matrix(intermediate, hidden),
-        f"{prefix}.mlp.up_proj.weight": matrix(intermediate, hidden),
-        f"{prefix}.mlp.down_proj.weight": matrix(hidden, intermediate),
-        f"{prefix}.input_layernorm.weight": np.ones(hidden, dtype=np.float32),
-        f"{prefix}.post_attention_layernorm.weight": np.ones(hidden, dtype=np.float32),
-        f"{prefix}.pre_feedforward_layernorm.weight": np.ones(hidden, dtype=np.float32),
-        f"{prefix}.post_feedforward_layernorm.weight": np.ones(hidden, dtype=np.float32),
-    }
-    save_file(tensors, path / "model.safetensors", metadata={"format": "pt"})
-    return path
 
 
 def _attribute_value(value: Any) -> Any:
@@ -553,24 +484,27 @@ class DashboardRuntime:
         try:
             self._temporary = tempfile.TemporaryDirectory(prefix="pllm-dashboard-")
             root = Path(self._temporary.name)
-            source = self.config.model_path
-            if source is None and self.config.experiment is not None:
-                source = self.config.experiment.pipeline.model.source
-            if source is None:
-                source = _create_demo_checkpoint(root / "model")
-            candidate = Path(source).expanduser()
-            model = (
-                Model.path(str(candidate.resolve()), model_id=self.config.model_id)
-                if candidate.exists()
-                else Model.hf(str(source), model_id=self.config.model_id)
-            )
+            experiment = self.config.experiment
+            tiny = self.config.model_path is None and experiment is None
+            if experiment is not None:
+                topology_source = experiment
+            elif tiny:
+                topology_source = TinyModel(model_id=self.config.model_id)
+            else:
+                candidate = Path(self.config.model_path).expanduser()
+                topology_source = (
+                    Model.path(str(candidate.resolve()), model_id=self.config.model_id)
+                    if candidate.exists()
+                    else Model.hf(str(self.config.model_path), model_id=self.config.model_id)
+                )
             if self._stopping.is_set():
                 return
             self._topology = build_roles(
-                self.config.experiment or model,
+                topology_source,
                 model_id=self.config.model_id,
                 rendezvous_capacity=131_072,
                 rendezvous_max_bytes=1_073_741_824,
+                hf_cache_dir=str(root / "model-cache") if tiny else None,
                 log_dir=root,
                 telemetry_endpoint=_http_origin(self.config.host, self.config.port),
                 telemetry_token=self.config.otel_token,

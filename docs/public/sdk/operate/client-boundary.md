@@ -5,9 +5,7 @@ Understand which data and runtime state must stay with the client.
 [View canonical HTML](https://pllm.run/sdk/operate/client-boundary/)
 
 Document ID: `pllm.docs.operate.client-boundary`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5`
+Release: `0.1.0`
 
 `pllm.runtime` exposes clients, transport code, privacy declarations, gateways,
 and application factories. The [Python API inventory](/sdk/reference/python/pllm/)

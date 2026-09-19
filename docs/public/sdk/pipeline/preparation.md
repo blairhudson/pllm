@@ -5,9 +5,7 @@ Prepare one-time masked material before a private inference request starts.
 [View canonical HTML](https://pllm.run/sdk/pipeline/preparation/)
 
 Document ID: `pllm.docs.preparation`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:5b7483893fd1b386f018e4e615558233140714467317a5a63dbb7c6931e82cc9`
+Release: `0.1.0`
 
 Preparation components define how one-time material is created, batched, committed,
 transferred, confirmed, erased, expired, and invalidated. They also identify who

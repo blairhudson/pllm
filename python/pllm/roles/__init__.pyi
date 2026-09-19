@@ -1,0 +1,9 @@
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class InferenceRole(ComponentRef): ...
+
+class Inference(InferenceRole):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

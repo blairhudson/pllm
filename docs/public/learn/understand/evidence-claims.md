@@ -5,9 +5,7 @@ Separate a design contract, an implementation, its evidence, and a publication c
 [View canonical HTML](https://pllm.run/learn/understand/evidence-claims/)
 
 Document ID: `pllm.docs.understand.evidence-claims`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa`
+Release: `0.1.0`
 
 | Axis | Meaning |
 | --- | --- |

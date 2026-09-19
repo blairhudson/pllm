@@ -37,8 +37,11 @@ public declarations. They support strict `to_spec()` serialization. Configuratio
 `get_params(deep=True)` and immutable `with_params(**changes)` using `__`-separated paths.
 
 `ComponentRef` identifies a registry component and public parameters; it is not an import path and
-does not imply provider trust, availability, compatibility, or coverage. Named entries in
-`Pipeline.components` bind slots in a semantic graph. They are not sequential transformers.
+does not imply provider trust, availability, compatibility, or coverage. Concrete classes live in
+their capability families, and each class's `describe()` method is the source for its registered
+descriptor. `pllm.components.get(identity)` resolves a class; descriptor discovery is derived from
+that registry. Named entries in `Pipeline.components` bind slots in a semantic graph. They are not
+sequential transformers.
 
 JSON and safe YAML loading MUST reject duplicate keys, unknown required fields, non-finite values,
 unsupported types, oversized documents, and executable tags. Python objects, JSON, YAML, and CLI
@@ -134,10 +137,12 @@ Public facades, signatures, type stubs, docs, and tests MUST change together. Im
 
 ## Implementation status
 
-As inspected on 14 September 2026:
+As inspected on 19 September 2026:
 
-- Immutable configuration, strict JSON/YAML loading, canonical digests, nested `with_params()`, and
-  local `Deployment` declarations are implemented in `python/pllm/configuration.py`.
+- Immutable generic configuration, strict JSON/YAML loading, canonical digests, nested
+  `with_params()`, and local `Deployment` declarations are implemented in
+  `python/pllm/configuration.py`; concrete component classes live in their public capability
+  families and feed the class-derived registry.
 - `lower_model`, immutable `ModelPlan`, component application, and coverage reports are implemented
   through PyO3 in `python/pllm/modeling.py`.
 - `compile` accepts mapping/bytes/string compile requests and returns native `CompiledPlan` in

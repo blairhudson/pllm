@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import navigation from '../navigation.json' with { type: 'json' };
@@ -53,16 +52,25 @@ test('publication identities, canonical routes, and Markdown twins are unique', 
   }
 });
 
-test('manifest is complete, versioned, and hashes exact source', () => {
-  assert.match(manifest.buildId, /^sha256:[a-f0-9]{64}$/);
+test('manifest is complete and versioned without generated hashes', () => {
+  assert.equal(manifest.schemaVersion, '2.0.0');
+  assert.ok(!Object.hasOwn(graph, 'buildId'));
+  assert.ok(!Object.hasOwn(manifest, 'buildId'));
   assert.equal(manifest.pages.length, graph.pages.length);
   for (const record of manifest.pages) {
-    for (const field of ['id', 'title', 'summary', 'sourcePath', 'canonicalUrl', 'markdownUrl', 'kind', 'status', 'release', 'aliases', 'markdownAliases', 'parent', 'children', 'prerequisites', 'related', 'publicModules', 'publicSymbols', 'componentIds', 'sourcePaths', 'testPaths', 'navigationGroup', 'navigationGroupTitle', 'navigationRoot', 'navigationOrder', 'contentHash']) assert.ok(Object.hasOwn(record, field), `${record.id}.${field}`);
-    const digest = createHash('sha256').update(fs.readFileSync(generatedPath(record.sourcePath))).digest('hex');
-    assert.equal(record.contentHash, `sha256:${digest}`);
+    for (const field of ['id', 'title', 'summary', 'sourcePath', 'canonicalUrl', 'markdownUrl', 'kind', 'status', 'release', 'aliases', 'markdownAliases', 'parent', 'children', 'prerequisites', 'related', 'publicModules', 'publicSymbols', 'componentIds', 'sourcePaths', 'testPaths', 'navigationGroup', 'navigationGroupTitle', 'navigationRoot', 'navigationOrder']) assert.ok(Object.hasOwn(record, field), `${record.id}.${field}`);
+    assert.ok(!Object.hasOwn(record, 'contentHash'));
+    assert.ok(fs.existsSync(generatedPath(record.sourcePath)));
+  }
+  assert.ok(graph.pages.every((page) => !Object.hasOwn(page, 'contentHash')));
+  const search = JSON.parse(outputs.get('public/search-index.json'));
+  assert.ok(search.every((record) => !Object.hasOwn(record, 'contentHash')));
+  for (const [relative, content] of outputs) {
+    if (!relative.endsWith('.md') && !relative.endsWith('.txt')) continue;
+    assert.doesNotMatch(content, /^(?:Build|Source hash):/m, relative);
   }
   assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
-  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/cpu', 'pllm/gated-multiply-q7', 'pllm/kv-cache-eviction', 'pllm/masked-linear', 'pllm/model-aware-corrections', 'pllm/protected-tensor-schedule']);
+  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/bfv-correlations/v1', 'pllm/binary-table/v1', 'pllm/blinded-linear/v1', 'pllm/chunked-independent-lanes/v1', 'pllm/cleartext-linear', 'pllm/client-local-kv', 'pllm/cpu', 'pllm/direct-fhe', 'pllm/guarded-linear/v1', 'pllm/he-authenticated-preprocessing', 'pllm/independent-lanes/v1', 'pllm/inference', 'pllm/kv-cache-eviction', 'pllm/linear-integrity', 'pllm/masked-linear', 'pllm/model-aware-corrections', 'pllm/r03-crt/v1', 'pllm/scalar/v1', 'pllm/secure-linear/v1', 'pllm/seeded-expansion']);
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl.startsWith('/cli/reference/research/')));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl === '/research/records/method-catalog/'));
   assert.ok(!manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));

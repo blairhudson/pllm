@@ -1,16 +1,10 @@
 """SDK-defined Experiment pipelines for matched local benchmarking."""
 
-from pllm import (
-    Cpu,
-    ComponentRef,
-    Deployment,
-    ExecutionBudget,
-    Experiment,
-    MaskedLinear,
-    Model,
-    ModelAwareCorrections,
-    Pipeline,
-)
+from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
+from pllm.kernels import Cpu
+from pllm.preparation import ModelAwareCorrections
+from pllm.protocols import MaskedLinear
+from pllm.roles import Inference
 
 
 def prepared_cpu(model: str, *, threads: int) -> Pipeline:
@@ -20,7 +14,7 @@ def prepared_cpu(model: str, *, threads: int) -> Pipeline:
         model=Model(model),
         components={
             "preparation": ModelAwareCorrections(),
-            "inference": ComponentRef("pllm/inference"),
+            "inference": Inference(),
             "linear": MaskedLinear(),
             "kernels": Cpu(threads=threads),
         },

@@ -5,9 +5,7 @@ Look up exact CLI commands, Python APIs, schemas, components, and current suppor
 [View canonical HTML](https://pllm.run/sdk/reference/)
 
 Document ID: `pllm.docs.reference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:aed35cbf2bee61f34a5c3ee7cb85d2b39bbe142538ba69401a466d34dfe60806`
+Release: `0.1.0`
 
 - [Python API](/sdk/reference/python/pllm/) lists the public package exports.
 - [Native API](/sdk/reference/native/) describes the Rust and PyO3 boundaries.

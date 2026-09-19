@@ -5,9 +5,7 @@ Design reproducible experiments with fixed plans, comparable runs, and recorded 
 [View canonical HTML](https://pllm.run/research/recipes/experiments/)
 
 Document ID: `pllm.docs.research.experiments`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fb74cab7b8065fcba5070e81afb8cf2a9202786a299e63581e2a8cf9027ca5fe`
+Release: `0.1.0`
 
 Before execution, an experiment records its hypothesis, baseline, changed
 component, model and workload limits, plan digests, environment, metrics, quality

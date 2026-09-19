@@ -5,9 +5,7 @@ Connect text and local function-tool clients through PLLM's Chat Completions API
 [View canonical HTML](https://pllm.run/learn/integrations/chat-completions/)
 
 Document ID: `pllm.docs.learn.integrations.chat-completions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3e9f8e2b306538cd423838c727dbd741ccc2d9b0da5fe9ab4b623f998b99a570`
+Release: `0.1.0`
 
 `POST /v1/chat/completions` maps OpenAI-compatible chat messages onto the trusted
 gateway's Responses API path. It supports non-streaming and SSE streaming text,

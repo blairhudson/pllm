@@ -74,64 +74,25 @@ class ComponentRef:
     component: str
     params: Mapping[str, Any]
     def __init__(self, component: str, params: Mapping[str, Any] | None = None) -> None: ...
+    @classmethod
+    def from_params(cls, params: Mapping[str, Any]) -> ComponentRef: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> Self: ...
     def to_spec(self) -> dict[str, Any]: ...
 
-class Cpu(ComponentRef):
-    def __init__(self, *, threads: int = 1) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class ModelAwareCorrections(ComponentRef):
-    def __init__(self) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class MaskedLinear(ComponentRef):
-    def __init__(self) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class KvCacheEviction(ComponentRef):
-    def __init__(
-        self,
-        *,
-        implementation: str = "pllm/mpcache/v1",
-        observation_window: tuple[int, int] = (1, 5),
-        static_keep: tuple[int, int] = (3, 10),
-        dynamic_keep: tuple[int, int] = (1, 4),
-        alpha: tuple[int, int] = (3, 5),
-        cluster_sizes: tuple[int, ...] = (32, 16),
-        share_adjacent_layers: bool = True,
-    ) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class BinaryTableGatedMultiplyQ7(ComponentRef):
-    def __init__(self) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class R03CrtGatedMultiplyQ7(ComponentRef):
-    def __init__(self) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class ScalarProtectedTensorSchedule(ComponentRef):
-    def __init__(self) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class IndependentLanesProtectedTensorSchedule(ComponentRef):
-    def __init__(self, *, max_elements: int = 4) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
-
-class ChunkedIndependentLanesProtectedTensorSchedule(ComponentRef):
-    def __init__(self, *, max_elements: int) -> None: ...
-    @classmethod
-    def describe(cls) -> ComponentDescriptor: ...
+from pllm.kernels import Cpu as Cpu
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7 as BinaryTableGatedMultiplyQ7
+from pllm.nonlinear import R03CrtGatedMultiplyQ7 as R03CrtGatedMultiplyQ7
+from pllm.passes import KvCacheEviction as KvCacheEviction
+from pllm.preparation import ModelAwareCorrections as ModelAwareCorrections
+from pllm.protocols import MaskedLinear as MaskedLinear
+from pllm.schedulers import (
+    ChunkedIndependentLanesProtectedTensorSchedule as ChunkedIndependentLanesProtectedTensorSchedule,
+)
+from pllm.schedulers import (
+    IndependentLanesProtectedTensorSchedule as IndependentLanesProtectedTensorSchedule,
+)
+from pllm.schedulers import ScalarProtectedTensorSchedule as ScalarProtectedTensorSchedule
 
 class Pipeline:
     profile: str

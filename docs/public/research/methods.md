@@ -5,9 +5,7 @@ Understand the difference between a published method and PLLM's independent impl
 [View canonical HTML](https://pllm.run/research/methods/)
 
 Document ID: `pllm.docs.research.methods`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bade14cd2b0d57d95384fd8eb9fbb288e2109dd7a8dae416db987d94d2545bba`
+Release: `0.1.0`
 
 PLLM's MPCache-inspired work lives in
 [`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).

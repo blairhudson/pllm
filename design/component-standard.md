@@ -34,7 +34,8 @@ fetches provider dependencies.
 
 Every component exposes immutable JSON-safe public parameters and supports these semantics:
 
-- `describe()` returns a static descriptor without device or secret state.
+- One concrete class lives in the capability family; that class is the registry entry and descriptor source.
+- `describe()` returns its static descriptor without device or secret state.
 - `get_params(deep=True)` returns named public parameters.
 - `with_params(**changes)` returns a new configuration and rejects unknown paths.
 - `to_spec()` emits a canonical public reference.

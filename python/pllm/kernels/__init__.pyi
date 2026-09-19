@@ -1,2 +1,9 @@
-from pllm.configuration import ComponentDescriptor as ComponentDescriptor
-from pllm.configuration import Cpu as Cpu
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class KernelBackend(ComponentRef): ...
+
+class Cpu(KernelBackend):
+    descriptor: ComponentDescriptor
+    def __init__(self, *, threads: int = 1) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

@@ -5,9 +5,7 @@ Understand the responsibilities of deployment operators, preparation services, a
 [View canonical HTML](https://pllm.run/sdk/operate/provider-roles/)
 
 Document ID: `pllm.docs.operate.provider-roles`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872`
+Release: `0.1.0`
 
 Provider supplies static component metadata and implementation artifacts. Operator supplies process placement, authenticated identity, authorization, storage, and operational policy. Preparation creates or installs method-specific material. Inference consumes assigned plan work. A deployment may combine processes, but cannot erase semantic role boundaries or establish non-collusion.
 
@@ -16,13 +14,16 @@ Metadata discovery through `pllm components` never loads providers or native lib
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.roles import Inference
 
+role_class = get("pllm/inference")
 method = get_component("pllm/masked-linear")
-assert method.lifecycle_phase == "compilation"
+assert role_class is Inference
+assert role_class.describe().role_eligibility == ("inference",)
 assert method.role_eligibility == ("client", "preparation", "inference")
 ```
 
-API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.components.get` and `get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Role metadata does not establish operator identity, authentication, or non-collusion.

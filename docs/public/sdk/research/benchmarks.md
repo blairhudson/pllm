@@ -5,9 +5,7 @@ Measure PLLM systems with reproducible records and compare only equivalent runs.
 [View canonical HTML](https://pllm.run/sdk/research/benchmarks/)
 
 Document ID: `pllm.docs.benchmarks`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a`
+Release: `0.1.0`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns an
 immutable `EvidenceReport`. `pllm.deployment_benchmark(request)` validates

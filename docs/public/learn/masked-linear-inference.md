@@ -5,9 +5,7 @@ Follow seeded one-time masks through offline correction and online matrix evalua
 [View canonical HTML](https://pllm.run/learn/masked-linear-inference/)
 
 Document ID: `pllm.docs.learn.masked-linear-inference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e307761e359142bb900f5669aa48f929f4ca412891c019495ec5f235a93129c2`
+Release: `0.1.0`
 
 For public matrix `W`, preparation material binds a one-time input mask `r`, output mask `s`, and ticket. Preparation computes `W*r-s` and installs it at inference. Online, the client sends `x-r`; inference combines it with the correction and returns `W*x-s`; the client adds `s`.
 

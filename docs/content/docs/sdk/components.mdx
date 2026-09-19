@@ -21,18 +21,19 @@ Inspect one record as JSON with
 uv run pllm --format json components show pllm/kv-cache-eviction
 ```
 
-Python users select a component with `ComponentRef` and apply it to a compatible
-`ModelPlan`. Compatibility alone does not prove compiler coverage, runtime support,
-performance, privacy, or generation quality.
+Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
 
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.passes import KvCacheEviction
 
-component = get_component("pllm/kv-cache-eviction")
-assert component.lifecycle_phase == "model-lowering"
-assert "bounded-kv-cache-eviction" in component.capabilities
+component_class = get("pllm/kv-cache-eviction")
+descriptor = get_component("pllm/kv-cache-eviction")
+assert component_class is KvCacheEviction
+assert component_class.describe() is descriptor
+assert descriptor.lifecycle_phase == "model-lowering"
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

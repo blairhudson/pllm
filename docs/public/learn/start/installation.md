@@ -5,9 +5,7 @@ Install the Python package and verify the CLI without loading a model or contact
 [View canonical HTML](https://pllm.run/learn/start/installation/)
 
 Document ID: `pllm.docs.start.installation`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bc8da7896bdfc0868f416717d585fe986e9f8042271812477bb16b6684f1fef5`
+Release: `0.1.0`
 
 PLLM supports Python 3.11 through 3.13. Install the command from
 [PyPI](https://pypi.org/project/pllm/) with [uv](https://docs.astral.sh/uv/):

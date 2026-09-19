@@ -5,7 +5,6 @@ import ipaddress
 import os
 import socket
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ import uvicorn
 
 from pllm.configuration import Model
 from pllm.model_loader import resolve_model
+from pllm.sources import TinyModel
 from pllm.settings import ClientSettings
 
 from .blinded_engine import BlindedTransformerEngine
@@ -501,55 +501,46 @@ def _is_loopback_host(host: str) -> bool:
 
 def run_local_gateway(args: argparse.Namespace) -> None:
     """Run local inference/preparation process groups and gateway foreground."""
-    temporary: tempfile.TemporaryDirectory[str] | None = None
-    try:
-        source = str(args.model)
-        model_id = getattr(args, "model_id", None) or source
-        if getattr(args, "tiny", False):
-            from .dashboard import _create_demo_checkpoint
-
-            temporary = tempfile.TemporaryDirectory(prefix="pllm-gateway-")
-            source = str(_create_demo_checkpoint(Path(temporary.name) / "model"))
-            model_id = getattr(args, "model_id", None) or "pllm-gateway-tiny"
-            model = Model.path(source, model_id=model_id)
-        else:
-            model = Model.hf(
-                source,
-                model_id=model_id,
-                revision=getattr(args, "revision", None),
-                local_files_only=getattr(args, "local_files_only", False),
-            )
-        with build_roles(
-            model,
+    source = str(args.model)
+    model_id = getattr(args, "model_id", None) or source
+    if getattr(args, "tiny", False):
+        model_id = getattr(args, "model_id", None) or "pllm-gateway-tiny"
+        model = TinyModel(model_id=model_id)
+    else:
+        model = Model.hf(
+            source,
             model_id=model_id,
-            weight_bits=getattr(args, "weight_bits", 8),
-            activation_bits=getattr(args, "activation_bits", 8),
-            correlation_mode=args.correlation_mode,
-            tenseal_path=getattr(args, "tenseal_path", None),
-            hf_cache_dir=getattr(args, "hf_cache_dir", None),
-            reserved_ports=(args.port,),
-        ) as topology:
-            app = topology.gateway_app(
-                local_api_key=getattr(args, "api_key", None)
-                or _env("PLLM_GATEWAY_API_KEY", "local"),
-                tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
-                session_transport=getattr(args, "transport", "websocket"),
-                correlation_prefetch=getattr(args, "correlation_prefetch", 4),
-                prepared_inventory_rows=getattr(args, "prepared_inventory_rows", 64),
-                token_cache_size=getattr(args, "token_cache_size", 512),
-                bundle_cache_mode=getattr(args, "bundle_cache_mode", "read-write"),
-                bundle_cache_dir=getattr(args, "bundle_cache_dir", None),
-                timeout=getattr(args, "timeout", 300.0),
-            )
-            uvicorn.run(
-                app,
-                host=getattr(args, "host", "127.0.0.1"),
-                port=getattr(args, "port", 8080),
-                access_log=False,
-            )
-    finally:
-        if temporary is not None:
-            temporary.cleanup()
+            revision=getattr(args, "revision", None),
+            local_files_only=getattr(args, "local_files_only", False),
+        )
+    with build_roles(
+        model,
+        model_id=model_id,
+        weight_bits=getattr(args, "weight_bits", 8),
+        activation_bits=getattr(args, "activation_bits", 8),
+        correlation_mode=args.correlation_mode,
+        tenseal_path=getattr(args, "tenseal_path", None),
+        hf_cache_dir=getattr(args, "hf_cache_dir", None),
+        reserved_ports=(args.port,),
+    ) as topology:
+        app = topology.gateway_app(
+            local_api_key=getattr(args, "api_key", None)
+            or _env("PLLM_GATEWAY_API_KEY", "local"),
+            tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
+            session_transport=getattr(args, "transport", "websocket"),
+            correlation_prefetch=getattr(args, "correlation_prefetch", 4),
+            prepared_inventory_rows=getattr(args, "prepared_inventory_rows", 64),
+            token_cache_size=getattr(args, "token_cache_size", 512),
+            bundle_cache_mode=getattr(args, "bundle_cache_mode", "read-write"),
+            bundle_cache_dir=getattr(args, "bundle_cache_dir", None),
+            timeout=getattr(args, "timeout", 300.0),
+        )
+        uvicorn.run(
+            app,
+            host=getattr(args, "host", "127.0.0.1"),
+            port=getattr(args, "port", 8080),
+            access_log=False,
+        )
 
 
 def sidecar_main(argv: list[str] | None = None) -> None:

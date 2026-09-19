@@ -3,10 +3,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+
+from filelock import FileLock
 
 from pllm.configuration import ConfigurationError, Model
 from pllm.runtime.hf_hub import ResolvedModelSource, resolve_huggingface_source
@@ -283,6 +286,26 @@ def _resolve_model(
     elif model.kind in {"gguf", "llama.cpp"}:
         path = Path(model.source).expanduser().resolve()
         manifest = load_gguf(path, model_id=model.model_id)
+    elif model.kind == "tiny":
+        if model.source != "qwen2":
+            raise ModelLoadError(f"unsupported tiny model family {model.source!r}")
+        cache_root = (
+            Path(cache_dir).expanduser()
+            if cache_dir is not None
+            else Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "pllm"
+        )
+        path = (cache_root / "pllm-tiny-qwen2-v1").resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with FileLock(f"{path}.lock"):
+            if not (path / "config.json").is_file() or not (path / "model.safetensors").is_file():
+                from pllm.sources import _materialize_tiny_model
+
+                _materialize_tiny_model(path)
+        manifest = load_hf_directory(
+            path,
+            model_id=model.model_id or "pllm-tiny-qwen2",
+            source_format="tiny",
+        )
     elif model.kind == "ollama":
         try:
             asyncio.get_running_loop()

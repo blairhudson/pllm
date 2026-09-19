@@ -18,6 +18,7 @@ from pllm.model_loader import (
 )
 from pllm.runtime.hf_hub import ResolvedModelSource
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+from pllm.sources import TinyModel
 
 
 def test_public_loader_locks_checkpoint_contents_without_path_identity(tmp_path: Path) -> None:
@@ -187,6 +188,23 @@ def test_synchronous_ollama_loader_keeps_credentials_operational(monkeypatch) ->
     asyncio.run(nested())
 
 
+def test_tiny_model_is_a_deterministic_public_source(tmp_path: Path) -> None:
+    model = TinyModel(model_id="tiny-public")
+    first = pllm.load_model(model, cache_dir=tmp_path / "cache")
+    second = pllm.load_model(
+        pllm.Model.tiny(model_id="tiny-public"),
+        cache_dir=tmp_path / "other-cache",
+    )
+    assert first.id == "tiny-public"
+    assert first.architecture == "Qwen2ForCausalLM"
+    assert first.source_format == "tiny"
+    assert first.checkpoint_digest == second.checkpoint_digest
+    assert first.source_lock_digest == second.source_lock_digest
+    assert first.metadata["model_spec"] == model.to_spec()
+    with pytest.raises(ModelLoadError, match="unsupported tiny model family"):
+        pllm.load_model(pllm.Model("other", kind="tiny"), cache_dir=tmp_path / "cache")
+
+
 def test_config_only_sources_are_explicitly_internal(tmp_path: Path) -> None:
     config = {
         "model_type": "llama",
@@ -251,7 +269,5 @@ def test_recorded_source_digest_mismatch_and_unsupported_kind_fail_closed(tmp_pa
     )
     with pytest.raises(ModelLoadError, match="missing recorded files"):
         pllm.load_model(pllm.Model.path(str(root)))
-    with pytest.raises(ModelLoadError, match="no public loader"):
-        pllm.load_model(pllm.Model.tiny())
     with pytest.raises(TypeError):
         coerce_model(object())

@@ -10,13 +10,16 @@ Metadata discovery through `pllm components` never loads providers or native lib
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.roles import Inference
 
+role_class = get("pllm/inference")
 method = get_component("pllm/masked-linear")
-assert method.lifecycle_phase == "compilation"
+assert role_class is Inference
+assert role_class.describe().role_eligibility == ("inference",)
 assert method.role_eligibility == ("client", "preparation", "inference")
 ```
 
-API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.components.get` and `get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Role metadata does not establish operator identity, authentication, or non-collusion.

@@ -5,9 +5,7 @@ Inspect PLLM records and run local benchmarks from the terminal.
 [View canonical HTML](https://pllm.run/cli/)
 
 Document ID: `pllm.docs.cli`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3`
+Release: `0.1.0`
 
 The PLLM command-line interface inspects public metadata, runs bounded local
 benchmarks, and starts the gateway, inference, and preparation service roles.

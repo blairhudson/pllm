@@ -332,6 +332,16 @@ class LocalTopology:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
+            if self._model.kind == "tiny":
+                from pllm.model_loader import resolve_model
+
+                resolved = resolve_model(self._model, cache_dir=self._hf_cache_dir)
+                if resolved.path is None:
+                    raise TopologyError("tiny model did not produce a local source")
+                self._model = Model.path(
+                    str(resolved.path),
+                    model_id=self._model_id,
+                )
             excluded = set(self._reserved_ports)
             inference_port = self._free_port(excluded)
             excluded.add(inference_port)
@@ -560,9 +570,9 @@ def build_roles(
         model = pipeline.model
     if type(model) is str:
         model = Model(model)
-    if type(model) is not Model:
+    if not isinstance(model, Model):
         raise TypeError("model must be a Model, Pipeline, Experiment, or source string")
-    if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm"}:
+    if model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "tiny"}:
         raise ValueError(f"local topology does not support model kind {model.kind!r}")
     resolved_id = model_id if model_id is not None else model.model_id or model.source
     if (

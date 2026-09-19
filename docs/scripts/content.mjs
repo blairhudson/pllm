@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,10 +9,6 @@ export const siteRoot = fileURLToPath(new URL('../', import.meta.url));
 export function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
-}
-
-function sha256(value) {
-  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 function parseMdx(raw, file) {
@@ -206,27 +201,11 @@ export function buildPublicationGraph(root = siteRoot) {
       raw,
       ...parsed,
       bodyMarkdown,
-      contentHash: sha256(raw),
     };
   });
   for (const page of pages) page.parent = nearestParent(page, pages);
   for (const page of pages) page.children = pages.filter((candidate) => candidate.parent === page.id).map((candidate) => candidate.id);
-  const buildId = sha256(JSON.stringify({
-    schemaVersion: publicationRegistry.schemaVersion,
-    release: publicationRegistry.release,
-    pages: pages.map(({
-      id, sourcePath, canonicalUrl, markdownUrl, kind, aliases, markdownAliases, parent, children,
-       prerequisites, related, publicModules, publicSymbols, componentIds, sourcePaths, testPaths,
-       navigationGroup, navigationGroupTitle, navigationRoot, navigationOrder,
-      contentHash,
-    }) => ({
-      id, sourcePath, canonicalUrl, markdownUrl, kind, aliases, markdownAliases, parent, children,
-       prerequisites, related, publicModules, publicSymbols, componentIds, sourcePaths, testPaths,
-       navigationGroup, navigationGroupTitle, navigationRoot, navigationOrder,
-      contentHash,
-    })),
-  }));
-  return { ...publicationRegistry, buildId, pages };
+  return { ...publicationRegistry, pages };
 }
 
 export function readPages(root = siteRoot) {

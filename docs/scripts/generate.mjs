@@ -19,9 +19,7 @@ function pageMarkdown(graph, page) {
     `[View canonical HTML](${absolute(graph, page.canonicalUrl)})`,
     '',
     `Document ID: \`${page.id}\`  `,
-    `Release: \`${page.release}\`  `,
-    `Build: \`${graph.buildId}\`  `,
-    `Source hash: \`${page.contentHash}\``,
+    `Release: \`${page.release}\``,
     '',
     page.bodyMarkdown.trim(),
     '',
@@ -32,7 +30,6 @@ function manifestFor(graph) {
   return {
     schemaVersion: graph.schemaVersion,
     release: graph.release,
-    buildId: graph.buildId,
     canonicalOrigin: graph.canonicalOrigin,
     pages: graph.pages.map((page) => {
       const record = {
@@ -60,7 +57,6 @@ function manifestFor(graph) {
         navigationGroupTitle: page.navigationGroupTitle,
         navigationRoot: page.navigationRoot,
         navigationOrder: page.navigationOrder,
-        contentHash: page.contentHash,
       };
       if (page.citationLinks) record.citationLinks = page.citationLinks;
       if (page.evidenceLinks) record.evidenceLinks = page.evidenceLinks;
@@ -74,7 +70,6 @@ function llmsIndex(graph, pages = graph.pages) {
     '# PLLM',
     '',
     `Release: ${graph.release}`,
-    `Build: ${graph.buildId}`,
     '',
     'Private LLM inference documentation. Public weights; provider follows the protocol.',
     '',
@@ -97,7 +92,6 @@ export function renderPublicationOutputs(graph = buildPublicationGraph()) {
     markdownUrl: page.markdownUrl,
     section: page.navigationGroup ?? (page.canonicalUrl.split('/')[1] || 'home'),
     release: page.release,
-    contentHash: page.contentHash,
     text: plain(page.bodyMarkdown),
   }));
   const sitemap = [
@@ -170,7 +164,7 @@ export function writePublicationOutputs(root = siteRoot) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
   }
-  console.log(`Generated ${graph.pages.length} publication records for release ${graph.release} (${graph.buildId}).`);
+  console.log(`Generated ${graph.pages.length} publication records for release ${graph.release}.`);
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) writePublicationOutputs();

@@ -5,9 +5,7 @@ Reference arithmetic and Boolean garbling components with explicit maturity and 
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/)
 
 Document ID: `pllm.docs.protocols.garbling`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e15bacdb7ac3166d7522e886b0b3ecf3c9b5c68fc40354f61fc4579da3a80ce2`
+Release: `0.1.0`
 
 Garbling is a family of representations and protocols, not one interchangeable backend. PLLM records arithmetic projection gates, Boolean half-gates, lookup tables, and weighted paths separately because their domains, costs, proofs, and conversion obligations differ.
 

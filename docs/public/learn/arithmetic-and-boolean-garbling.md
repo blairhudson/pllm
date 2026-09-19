@@ -5,9 +5,7 @@ Compare arithmetic and Boolean garbling without treating one primitive as a comp
 [View canonical HTML](https://pllm.run/learn/arithmetic-and-boolean-garbling/)
 
 Document ID: `pllm.docs.learn.arithmetic-and-boolean-garbling`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2f1b7dae3f98797d91052ff1b0a42c16c417ab6b186e55dcfe52dd1f25029f19`
+Release: `0.1.0`
 
 Arithmetic garbling works with modular integer values. Boolean garbling works
 with bit-level circuits, often using half-gates and free-XOR-compatible labels.

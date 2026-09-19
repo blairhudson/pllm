@@ -5,14 +5,12 @@ Required identity, lifecycle, representation, role, capability, evidence, and li
 [View canonical HTML](https://pllm.run/sdk/contribute/component-standard/)
 
 Document ID: `pllm.docs.contribute.component-standard`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4`
+Release: `0.1.0`
 
 1. Choose a semantic category and stable authority-owned identity.
 2. Define versioned parameters, lifecycle phase, input and output representations, host requirements, roles, artifacts, and evidence pointers.
-3. Implement in the semantic owner, not a paper-named runtime path.
-4. Add static discovery and identity tests without importing provider or native runtime code.
+3. Implement one concrete class in the semantic family, not in `configuration.py` or a paper-named runtime path; `describe()` on that class is the descriptor source of truth.
+4. Register the class and add static discovery and identity tests without importing provider or native runtime code.
 5. Add compatibility and operator-coverage tests.
 6. Add runtime, benchmark, quality, assurance, and deployment evidence independently when each exists.
 
@@ -21,11 +19,14 @@ The canonical contract is [`design/component-standard.md`](https://github.com/bl
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.kernels import Cpu
 
+component_class = get("pllm/cpu")
 descriptor = get_component("pllm/cpu")
 record = descriptor.to_dict()
-assert record["component"] == "pllm/cpu"
+assert component_class is Cpu
+assert component_class.describe() is descriptor
 assert {"provider", "version", "category", "capabilities"} <= record.keys()
 ```
 

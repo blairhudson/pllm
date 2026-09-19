@@ -5,9 +5,7 @@ Build, reproduce, compare, and review private-inference research with explicit s
 [View canonical HTML](https://pllm.run/research/recipes/)
 
 Document ID: `pllm.docs.recipes`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:534dab86e03973791ceafb51bcff973c9d3946dfd9a66f6fd2417ab1b1df78ca`
+Release: `0.1.0`
 
 A recipe records exact sources, method and component versions, model and workload
 limits, environment requirements, steps, expected files, evidence, and failure

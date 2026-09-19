@@ -506,6 +506,39 @@ def test_local_gateway_uses_shared_topology_and_closes_it(
     assert captured["gateway"]["local_api_key"] == "local"
 
 
+def test_local_gateway_tiny_flag_selects_typed_tiny_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pllm.runtime import cli
+    from pllm.sources import TinyModel
+
+    args = build_parser().parse_args(["gateway", "--local", "--tiny"])
+    captured: dict[str, Any] = {}
+
+    class Topology:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @staticmethod
+        def gateway_app(**_kwargs):
+            return object()
+
+    def roles(model, **kwargs):
+        captured["model"] = model
+        captured["model_id"] = kwargs["model_id"]
+        return Topology()
+
+    monkeypatch.setattr(cli, "build_roles", roles)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *_args, **_kwargs: None)
+    cli.run_local_gateway(args)
+
+    assert isinstance(captured["model"], TinyModel)
+    assert captured["model_id"] == "pllm-gateway-tiny"
+
+
 def test_local_gateway_propagates_bfv_and_local_correlation_options(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -5,9 +5,7 @@ Define a reproducible PLLM system from configuration, models, components, and re
 [View canonical HTML](https://pllm.run/sdk/build/)
 
 Document ID: `pllm.docs.build`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860`
+Release: `0.1.0`
 
 - [SDK configuration](/sdk/configuration/) records what you intend to build.
 - [Models](/sdk/build/model-adapters/) translate model-family settings into shared operations.

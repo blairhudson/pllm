@@ -5,9 +5,7 @@ Configure OpenCode to use PLLM through its Chat Completions API gateway.
 [View canonical HTML](https://pllm.run/learn/integrations/opencode/)
 
 Document ID: `pllm.docs.learn.integrations.opencode`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fb55e1f8607bb63db0b9973fd416541d07445c1a83613672187f815d4b74985f`
+Release: `0.1.0`
 
 Add `opencode.json` to the project:
 

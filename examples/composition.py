@@ -1,10 +1,11 @@
 """Side-effect-free PLLM configuration example."""
 
-from pllm import ComponentRef, Experiment, Model, Pipeline
+from pllm import Experiment, Model, Pipeline
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.preparation import ModelAwareCorrections
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.roles import Inference
 from pllm.runtime import ExecutionBudget
 
 experiment = Experiment(
@@ -15,7 +16,7 @@ experiment = Experiment(
         components={
             "linear": MaskedLinear(),
             "preparation": ModelAwareCorrections(),
-            "inference": ComponentRef("pllm/inference"),
+            "inference": Inference(),
             "kernels": Cpu(threads=4),
         },
     ),

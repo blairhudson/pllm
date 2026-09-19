@@ -7,7 +7,7 @@
   "required": ["schema", "kind", "repo_id", "revision", "commit", "files", "checkpoint_digest"],
   "properties": {
     "schema": {"const": "pllm.model_source_lock.v1"},
-    "kind": {"enum": ["huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "gguf", "llama.cpp"]},
+    "kind": {"enum": ["huggingface", "safetensors", "vllm", "mlx", "mlx-lm", "gguf", "llama.cpp", "tiny"]},
     "repo_id": {"type": ["string", "null"]},
     "revision": {"type": ["string", "null"]},
     "commit": {"type": ["string", "null"]},

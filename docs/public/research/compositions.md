@@ -5,9 +5,7 @@ Learn how PLLM records research recipes and changes to a model plan.
 [View canonical HTML](https://pllm.run/research/compositions/)
 
 Document ID: `pllm.docs.research.compositions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f`
+Release: `0.1.0`
 
 Research workflows describe source acquisition, target model operations,
 required evidence, review gates, and failure policy. They are documentation, not
@@ -31,10 +29,8 @@ Method and lifecycle choices remain separate, so research configurations can
 declare and later recombine them:
 
 ```python
-from pllm.components import (
-    IndependentLanesProtectedTensorSchedule,
-    R03CrtGatedMultiplyQ7,
-)
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
 
 method = R03CrtGatedMultiplyQ7()
 schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)

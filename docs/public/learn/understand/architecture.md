@@ -5,9 +5,7 @@ Understand PLLM's plans, runtime stages, role ownership, and side effects.
 [View canonical HTML](https://pllm.run/learn/understand/architecture/)
 
 Document ID: `pllm.docs.understand.architecture`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:7fb0e3fb1eb830d498b29238555a6fa4ebffdb042e9c0f1e154f746cb0a73133`
+Release: `0.1.0`
 
 ```text
 Experiment -> resolved public configuration

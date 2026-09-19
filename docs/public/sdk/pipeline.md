@@ -5,9 +5,7 @@ Combine model, privacy protocol, preparation, runtime, and deployment choices in
 [View canonical HTML](https://pllm.run/sdk/pipeline/)
 
 Document ID: `pllm.docs.pipeline`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:0aa653548a4251764aa395f5171ec48d98d5aea590cde612107eef0b8a99d83a`
+Release: `0.1.0`
 
 A `Pipeline` records what you intend to run. Profiles provide visible defaults,
 and component overrides keep their versions. The configuration digest covers

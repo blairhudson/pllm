@@ -61,17 +61,26 @@ Public APIs are exported from `pllm` or stable domain facades. Current canonical
 
 ```text
 pllm                     configuration, ModelPlan, compile, benchmark, assure, client APIs
-pllm.components          component configuration contracts
+pllm.components          component generics and class-derived registry
 pllm.config              configuration facade
+pllm.models              model loading and semantic-plan contracts
 pllm.pipeline            Pipeline and Experiment declarations
-pllm.protocols           protocol component declarations
-pllm.kernels             kernel selectors
-pllm.preparation         preparation declarations
+pllm.protocols           protocol-method components
+pllm.kernels             kernel-backend components
+pllm.preparation         preparation-provider components
+pllm.correlation         correlation-source components
+pllm.roles               role components
+pllm.nonlinear           nonlinear-protocol components
+pllm.schedulers          protected-scheduler components
+pllm.state               persistent-state protocol components
+pllm.passes              compiler-pass components
+pllm.verification        verification-scheme components and checks
+pllm.sources             model-source specializations
 pllm.deployment          placement declarations
 pllm.runtime             intentionally public runtime/client contracts only
 ```
 
-Future domain facades MAY add models, operators, numerics, representations, conversions, metrics,
+Future domain facades MAY add operators, numerics, representations, conversions, metrics,
 search, assurance, integrations, or testing when stable public objects exist. They MUST NOT be
 created empty merely to match a conceptual tree.
 
@@ -81,9 +90,10 @@ module or generated extension. Every public export requires a type stub or typed
 documentation, and a compatibility test. Root exports remain curated; do not turn `pllm.__init__`
 into an export of every implementation class.
 
-`pllm.components.list_components()` and `pllm.components.get_component()` are the only built-in
-descriptor discovery APIs. Discovery reads the static descriptor registry and MUST NOT import
-runtime, provider, or native implementation modules. Paper metadata and implementation status are
+`pllm.components.get()` and `list_component_classes()` resolve built-in classes;
+`get_component()` and `list_components()` expose the descriptors returned by those classes.
+Discovery reads the class registry and MUST NOT import runtime, provider, or native implementation
+modules. Paper metadata and implementation status are
 documentation data, not a Python runtime API.
 
 Configuration is immutable, JSON-safe, and side-effect-free to construct. Model-data scans,

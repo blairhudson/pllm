@@ -5,9 +5,7 @@ What you can use today, what remains experimental, and what is not yet supported
 [View canonical HTML](https://pllm.run/sdk/reference/status/)
 
 Document ID: `pllm.docs.reference.status`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9f1d9628ae32605cd820c8d75b3b1742935a9f802accb99e7e63d6816f9e6098`
+Release: `0.1.0`
 
 Checked 16 September 2026.
 
@@ -65,7 +63,8 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Capability | Current status |
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
-| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, and synchronous Ollama inspection; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments; `tiny` is declarative only |
+| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, synchronous Ollama inspection, and deterministic tiny Qwen2 materialization; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments |
+| Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived, while typed profile composition of every arm remains separate work |
 | Local role topology | Available through `build_roles`/`serve_local` for typed `Model`, `Pipeline`, or `Experiment` inputs; inference and preparation remain separate child processes, credentials stay out of argv/status, health and client routing are bound, and close is deterministic; this is loopback development orchestration, not operator separation |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |

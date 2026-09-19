@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 
 from pllm import Cpu, Experiment, Model, Pipeline
-from pllm.runtime.dashboard import _create_demo_checkpoint
 from pllm.runtime.servers import LocalTopology, TopologyError, build_roles, serve_local
+from pllm.sources import TinyModel
 
 
 def test_role_process_construction_has_one_implementation() -> None:
@@ -74,7 +74,7 @@ def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> No
     assert from_experiment._engine_threads == 2
 
     invalid = (
-        {"model": Model.tiny()},
+        {"model": Model.ollama("qwen")},
         {"model": Model("x"), "model_id": ""},
         {"model": Model("x"), "engine_threads": 0},
         {"model": Model("x"), "weight_bits": 7},
@@ -382,10 +382,10 @@ def test_startup_failure_rolls_back_and_redacts_credentials(monkeypatch, tmp_pat
 
 @pytest.mark.integration
 def test_actual_tiny_local_topology_starts_and_stops(tmp_path: Path) -> None:
-    model = _create_demo_checkpoint(tmp_path / "model")
     topology = serve_local(
-        Model.path(str(model), model_id="topology-tiny"),
+        TinyModel(model_id="topology-tiny"),
         correlation_mode="local-test",
+        hf_cache_dir=str(tmp_path / "models"),
         log_dir=tmp_path / "logs",
         startup_timeout=60,
     )

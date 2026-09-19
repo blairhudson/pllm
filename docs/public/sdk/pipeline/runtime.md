@@ -5,9 +5,7 @@ Understand which live state a PLLM runtime owns and how it differs from a reprod
 [View canonical HTML](https://pllm.run/sdk/pipeline/runtime/)
 
 Document ID: `pllm.docs.runtime`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a`
+Release: `0.1.0`
 
 A runtime session owns changing state such as inventory reservations, connections,
 scheduling, the KV cache, native executors, and cancellation. This state is not

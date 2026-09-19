@@ -25,10 +25,8 @@ Method and lifecycle choices remain separate, so research configurations can
 declare and later recombine them:
 
 ```python
-from pllm.components import (
-    IndependentLanesProtectedTensorSchedule,
-    R03CrtGatedMultiplyQ7,
-)
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
 
 method = R03CrtGatedMultiplyQ7()
 schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)

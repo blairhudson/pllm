@@ -5,9 +5,7 @@ Private language model inference. Client and server guides, the protocol, and re
 [View canonical HTML](https://pllm.run/)
 
 Document ID: `pllm.home`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8e4a8e12314eff4ae182cecc488c67484e8358825edc7cfdf5b6a03f2ef77285`
+Release: `0.1.0`
 
 # Keep your data private. Open compute to the world.
 
@@ -226,9 +224,7 @@ Install PLLM, inspect a private inference plan, and run the local development be
 [View canonical HTML](https://pllm.run/learn/start/)
 
 Document ID: `pllm.docs.start`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:db6bff62bf12c5a9077a2acd49221129fdf9098bfc5f614ddd3980ef60cfe5f3`
+Release: `0.1.0`
 
 1. [Install PLLM](/learn/start/installation/) with a supported Python version.
 2. [Inspect a private inference plan](/learn/start/first-private-request/) without starting a service or downloading model weights.
@@ -250,9 +246,7 @@ Install the Python package and verify the CLI without loading a model or contact
 [View canonical HTML](https://pllm.run/learn/start/installation/)
 
 Document ID: `pllm.docs.start.installation`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bc8da7896bdfc0868f416717d585fe986e9f8042271812477bb16b6684f1fef5`
+Release: `0.1.0`
 
 PLLM supports Python 3.11 through 3.13. Install the command from
 [PyPI](https://pypi.org/project/pllm/) with [uv](https://docs.astral.sh/uv/):
@@ -286,18 +280,17 @@ Define a reproducible experiment, lower a semantic model plan, and check its exe
 [View canonical HTML](https://pllm.run/learn/start/first-private-request/)
 
 Document ID: `pllm.docs.start.first-private-request`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:86cb6ae6861c17f2747863f96cf66d6794a44c741794d7be5090b3a07eab1e17`
+Release: `0.1.0`
 
 ## Define the experiment
 
 ```python
-from pllm import ComponentRef, Experiment, Model, Pipeline
+from pllm import Experiment, Model, Pipeline
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.preparation import ModelAwareCorrections
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.roles import Inference
 from pllm.runtime import ExecutionBudget
 
 experiment = Experiment(
@@ -308,7 +301,7 @@ experiment = Experiment(
         components={
             "linear": MaskedLinear(),
             "preparation": ModelAwareCorrections(),
-            "inference": ComponentRef("pllm/inference"),
+            "inference": Inference(),
             "kernels": Cpu(threads=4),
         },
     ),
@@ -344,7 +337,7 @@ load weights:
 
 ```python
 import pllm
-from pllm.components import KvCacheEviction
+from pllm.passes import KvCacheEviction
 
 config = {
     "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,
@@ -384,9 +377,7 @@ Load, inspect, and export a reproducible PLLM experiment configuration.
 [View canonical HTML](https://pllm.run/sdk/configuration/)
 
 Document ID: `pllm.docs.sdk.configuration`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ca2d47f439d2e756dae86cc49d2aa353ba74ccd49e15f1ae137141c512566e13`
+Release: `0.1.0`
 
 PLLM configuration objects describe public intent. Creating one does not download
 a model, contact a service, compile a plan, or create private material.
@@ -415,7 +406,7 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 ## Python SDK example
 
 ```python
-from pllm import Model
+from pllm import Model, TinyModel
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
@@ -426,6 +417,7 @@ pinned = Model.hf(
 )
 assert pinned.kind == "huggingface"
 assert pinned.revision is not None
+assert isinstance(Model.tiny(), TinyModel)
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
@@ -439,9 +431,7 @@ Lower a model configuration, apply a compiler component, and inspect execution c
 [View canonical HTML](https://pllm.run/sdk/plans/)
 
 Document ID: `pllm.docs.sdk.plans`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ca573de30b839639a16e1fa927ef801b9496c39566ef0db5af7143cca802bbe1`
+Release: `0.1.0`
 
 `pllm.lower_model(...)` turns a supported model configuration and workload limits
 into a `ModelPlan`. Lowering records model operations and state; it does not load
@@ -488,9 +478,7 @@ Inspect versioned capabilities and apply compatible components to a model plan.
 [View canonical HTML](https://pllm.run/sdk/components/)
 
 Document ID: `pllm.docs.sdk.components`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce`
+Release: `0.1.0`
 
 A component identifies one versioned capability and its public parameters. The
 record also states its implementation status, compatible value formats, roles,
@@ -510,18 +498,19 @@ Inspect one record as JSON with
 uv run pllm --format json components show pllm/kv-cache-eviction
 ```
 
-Python users select a component with `ComponentRef` and apply it to a compatible
-`ModelPlan`. Compatibility alone does not prove compiler coverage, runtime support,
-performance, privacy, or generation quality.
+Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
 
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.passes import KvCacheEviction
 
-component = get_component("pllm/kv-cache-eviction")
-assert component.lifecycle_phase == "model-lowering"
-assert "bounded-kv-cache-eviction" in component.capabilities
+component_class = get("pllm/kv-cache-eviction")
+descriptor = get_component("pllm/kv-cache-eviction")
+assert component_class is KvCacheEviction
+assert component_class.describe() is descriptor
+assert descriptor.lifecycle_phase == "model-lowering"
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
@@ -539,9 +528,7 @@ Define a reproducible PLLM system from configuration, models, components, and re
 [View canonical HTML](https://pllm.run/sdk/build/)
 
 Document ID: `pllm.docs.build`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860`
+Release: `0.1.0`
 
 - [SDK configuration](/sdk/configuration/) records what you intend to build.
 - [Models](/sdk/build/model-adapters/) translate model-family settings into shared operations.
@@ -573,19 +560,17 @@ Turn model-family configuration into a shared decoder plan.
 [View canonical HTML](https://pllm.run/sdk/build/model-adapters/)
 
 Document ID: `pllm.docs.build.models`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c01226ddae8cc9fe8515a5dfa9cc966db484bf328928a08baa63b29841cd0db7`
+Release: `0.1.0`
 
 Current semantic adapters cover dense Qwen2 and Qwen3 configuration contracts plus pinned Qwen3.5-4B, Phi-4-mini-instruct, Gemma 4 E2B, and Gemma 4 E4B text-decoder configurations described by package tests. Lowering reads configuration only. It does not load checkpoints, tokenizers, weights, devices, or runtime state.
 
 ## One model source and loader
 
-`pllm.Model` is the typed public source specification used by `Pipeline.model`, SDK loading, runtime model requests, and CLI resolution. `Model(source)` remains the canonical shorthand for an unpinned Hugging Face source. Use `Model.hf(...)` for an explicit revision, `Model.path(...)` for a local Hugging Face, Safetensors, MLX, or GGUF source, and `Model.tiny(...)` only as a source declaration for later synthetic-component workflows.
+`pllm.Model` is the typed public source specification used by `Pipeline.model`, SDK loading, runtime model requests, and CLI resolution. `Model(source)` remains the canonical shorthand for an unpinned Hugging Face source. Use `Model.hf(...)` for an explicit revision, `Model.path(...)`/`BundleModel(...)` for a local Hugging Face, Safetensors, MLX, or GGUF source, and `Model.tiny()`/`TinyModel()` for the deterministic tiny Qwen2 fixture used by local functional tests.
 
 `pllm.load_model(model)` is the sole public loading entry. For Hugging Face identifiers it calls the canonical resumable resolver; for local sources it validates the selected format. It returns `ModelManifest`, not a live engine. Loading hashes the actual checkpoint/config/tokenizer files, checks resolver-recorded hashes when present, and records path-independent `checkpoint_digest` and `source_lock_digest` values. Tokens, API keys, cache directories, devices, and live handles are operational arguments and never enter the model specification or source lock.
 
-The checked Python example below includes both source loading and configuration-only lowering. Loading can download and hash a checkpoint. It does not quantize weights, allocate private material, start a service, or claim that the model has a complete execution profile.
+The checked Python example below includes both source loading and configuration-only lowering. Loading can download and hash a checkpoint; `TinyModel` instead materializes deterministic local files under the selected cache without network access. It does not quantize weights, allocate private material, start a service, or claim that the model has a complete execution profile.
 
 ## Add an adapter
 
@@ -605,12 +590,9 @@ deployment maturity for these semantic plans: not recorded.
 ```python
 from pathlib import Path
 
-from pllm import Model, load_model, lower_model
+from pllm import TinyModel, load_model, lower_model
 
-model = Model.hf(
-    "Qwen/Qwen2.5-0.5B-Instruct",
-    revision="7ae557604adf67be50417f59c2c2f167def9a775",
-)
+model = TinyModel()
 manifest = load_model(model)
 assert manifest.checkpoint_digest is not None
 
@@ -634,9 +616,7 @@ Turn a published method into a versioned component and a recorded plan change.
 [View canonical HTML](https://pllm.run/research/recipes/build-method/)
 
 Document ID: `pllm.docs.build.research`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:43933f6c157772344c1058a9a1e8464a94a2588d891748c282a9da61c5849a93`
+Release: `0.1.0`
 
 A new reimplementation follows distinct identities:
 
@@ -660,9 +640,7 @@ Understand PLLM's architecture, trust boundaries, privacy assumptions, and evide
 [View canonical HTML](https://pllm.run/learn/understand/)
 
 Document ID: `pllm.docs.understand`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:65cda19398436e043102451e5ab7e08cb91af740af9478a2920e1629c42e2416`
+Release: `0.1.0`
 
 - [Architecture](/learn/understand/architecture/) follows a system from configuration to publication.
 - [Trust boundaries](/learn/understand/trust-boundary/) explain which party can see each value.
@@ -678,9 +656,7 @@ Understand PLLM's plans, runtime stages, role ownership, and side effects.
 [View canonical HTML](https://pllm.run/learn/understand/architecture/)
 
 Document ID: `pllm.docs.understand.architecture`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:7fb0e3fb1eb830d498b29238555a6fa4ebffdb042e9c0f1e154f746cb0a73133`
+Release: `0.1.0`
 
 ```text
 Experiment -> resolved public configuration
@@ -705,9 +681,7 @@ Understand what the client, preparation service, inference service, and operator
 [View canonical HTML](https://pllm.run/learn/understand/trust-boundary/)
 
 Document ID: `pllm.docs.understand.trust-boundary`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fef1568144f0f8f9a318f91dd19b04b81e8baf86b003617ab8f5d5754c7fdcac`
+Release: `0.1.0`
 
 Client owns plaintext prompts, token identities, decoded output, and authorization decisions. Preparation and inference are distinct roles in protected methods that require them; co-location tests protocol wiring but does not prove non-collusion. Provider describes component implementation. Operator controls deployed process, credentials, storage, and policy. These names are not interchangeable.
 
@@ -726,9 +700,7 @@ State a specific privacy claim and interpret the evidence that applies to it.
 [View canonical HTML](https://pllm.run/learn/understand/privacy-assurance/)
 
 Document ID: `pllm.docs.understand.privacy-assurance`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:f4ba911c9dd49cb8fd9ebb3ad589b9f2cbd0703c283f8bbb103adb4f64a90a00`
+Release: `0.1.0`
 
 Privacy claim must name protected values, observer, roles, corruption and non-collusion assumptions, leakage, workload, implementation, and evidence. “Private” without adjacent scope and evidence is not a valid implementation claim.
 
@@ -745,9 +717,7 @@ Separate a design contract, an implementation, its evidence, and a publication c
 [View canonical HTML](https://pllm.run/learn/understand/evidence-claims/)
 
 Document ID: `pllm.docs.understand.evidence-claims`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa`
+Release: `0.1.0`
 
 | Axis | Meaning |
 | --- | --- |
@@ -775,9 +745,7 @@ Use the Python SDK to benchmark plans, run scoped assurance checks, and produce 
 [View canonical HTML](https://pllm.run/sdk/research/)
 
 Document ID: `pllm.docs.measure`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:dd7e5035522877c46fd0b86b7fc5146db157fdfad877e1e26e12de3b67f143fa`
+Release: `0.1.0`
 
 - [Benchmark](/sdk/research/benchmark/) documents `pllm.benchmark(...)` and
 `pllm.deployment_benchmark(...)`.
@@ -818,9 +786,7 @@ Run scoped Python benchmarks and understand what the development dashboard does 
 [View canonical HTML](https://pllm.run/sdk/research/benchmark/)
 
 Document ID: `pllm.docs.measure.benchmark`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:662d0c074f84cef4751f69f07f5050d18a4b2ac2ea1c67c4d034704dc0327120`
+Release: `0.1.0`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns immutable `EvidenceReport`. It requires explicit plan, immutable weights/input bytes, IDs, privacy/numeric cohorts, and environment. Warmups, repetitions, threads, SIMD, failures, and oracle comparison remain report data.
 
@@ -893,9 +859,7 @@ Compare runs with matching inputs and report every relevant cost and uncertainty
 [View canonical HTML](https://pllm.run/research/recipes/compare/)
 
 Document ID: `pllm.docs.measure.compare`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a602c74ba70adde296d62e32165b2c058f5a3a472ad847124318fcb7a50a1d52`
+Release: `0.1.0`
 
 Matched comparison freezes model/tokenizer, workload, numeric semantics, quality acceptance, privacy contract, roles/topology, hardware, software, preparation/freshness, cache, warmups, repetitions, failure accounting, and metrics.
 
@@ -928,9 +892,7 @@ Compare an independent PLLM implementation with the published method it follows.
 [View canonical HTML](https://pllm.run/research/recipes/reproduce/)
 
 Document ID: `pllm.docs.measure.reproduce`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c`
+Release: `0.1.0`
 
 1. Lock source publication, artifact, license, environment, and workload.
 2. Implement reference from publication specification and approved vectors without upstream code.
@@ -953,9 +915,7 @@ Run a defined assurance check and report exactly what its result supports.
 [View canonical HTML](https://pllm.run/sdk/research/assure/)
 
 Document ID: `pllm.docs.measure.assure`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:026d5431c2c14d5a4f2d88c51e875ff73c403eaaa00f5e9d3872c157da4e79d9`
+Release: `0.1.0`
 
 `pllm.assure()` runs implemented native fixtures, including negative controls, and returns `EvidenceReport`. Report production is not universal privacy proof. Each finding retains model or observed view, assumptions, resource bound, implementation/refinement boundary, and exact outcome.
 
@@ -986,9 +946,7 @@ Assign client, preparation, and inference responsibilities without weakening the
 [View canonical HTML](https://pllm.run/sdk/operate/)
 
 Document ID: `pllm.docs.operate`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:6c6ea2aa33ae622e505697268d99b11df4ecd03aa7e728e52b180f260ac7d2be`
+Release: `0.1.0`
 
 - [Client boundary](/sdk/operate/client-boundary/) keeps plaintext application data with the user.
 - [Provider roles](/sdk/operate/provider-roles/) separate preparation and inference responsibilities.
@@ -1017,9 +975,7 @@ Understand which data and runtime state must stay with the client.
 [View canonical HTML](https://pllm.run/sdk/operate/client-boundary/)
 
 Document ID: `pllm.docs.operate.client-boundary`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5`
+Release: `0.1.0`
 
 `pllm.runtime` exposes clients, transport code, privacy declarations, gateways,
 and application factories. The [Python API inventory](/sdk/reference/python/pllm/)
@@ -1056,9 +1012,7 @@ Understand the responsibilities of deployment operators, preparation services, a
 [View canonical HTML](https://pllm.run/sdk/operate/provider-roles/)
 
 Document ID: `pllm.docs.operate.provider-roles`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872`
+Release: `0.1.0`
 
 Provider supplies static component metadata and implementation artifacts. Operator supplies process placement, authenticated identity, authorization, storage, and operational policy. Preparation creates or installs method-specific material. Inference consumes assigned plan work. A deployment may combine processes, but cannot erase semantic role boundaries or establish non-collusion.
 
@@ -1067,14 +1021,17 @@ Metadata discovery through `pllm components` never loads providers or native lib
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.roles import Inference
 
+role_class = get("pllm/inference")
 method = get_component("pllm/masked-linear")
-assert method.lifecycle_phase == "compilation"
+assert role_class is Inference
+assert role_class.describe().role_eligibility == ("inference",)
 assert method.role_eligibility == ("client", "preparation", "inference")
 ```
 
-API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.components.get` and `get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Role metadata does not establish operator identity, authentication, or non-collusion.
 
@@ -1087,9 +1044,7 @@ Understand current deployment support, local role orchestration, and production 
 [View canonical HTML](https://pllm.run/sdk/operate/deployment/status/)
 
 Document ID: `pllm.docs.operate.deployment`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e3f8165255071a381d02ff498b1f07c796a76e47d6795692f537de50045c1e83`
+Release: `0.1.0`
 
 Deployment declarations currently support local public configuration. `pllm.serve_local` and `pllm.runtime.build_roles` accept a typed `Model`, `Pipeline`, or `Experiment` and provide one bounded loopback topology for the local gateway, dashboard, and benchmark driver while keeping inference and preparation in separate operating-system processes. The handle owns environment-only role credentials, distinct ports, health checks, client routing, and deterministic shutdown. Generic remote `Deployment`, plan-locked multi-host orchestration, operator identity provisioning, and production recovery are not established.
 
@@ -1127,9 +1082,7 @@ Look up exact CLI commands, Python APIs, schemas, components, and current suppor
 [View canonical HTML](https://pllm.run/sdk/reference/)
 
 Document ID: `pllm.docs.reference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:aed35cbf2bee61f34a5c3ee7cb85d2b39bbe142538ba69401a466d34dfe60806`
+Release: `0.1.0`
 
 - [Python API](/sdk/reference/python/pllm/) lists the public package exports.
 - [Native API](/sdk/reference/native/) describes the Rust and PyO3 boundaries.
@@ -1165,9 +1118,7 @@ Exact commands, arguments, and help text from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/)
 
 Document ID: `pllm.docs.reference.cli`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:530ebf85d9f771075b42dcd1573180522750d7c1f0e660de67778b259a454b78`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1230,9 +1181,7 @@ Exact pllm config help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/config/)
 
 Document ID: `pllm.docs.reference.cli.config`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e3ab232d2c7c77bf7197287f380c1b5e62c4afa5bffb92058dcf2ba0239a0031`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1270,9 +1219,7 @@ Exact pllm components help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/components/)
 
 Document ID: `pllm.docs.reference.cli.components`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e6acf4380c600a61a42158ee77b759debc1640fe2a53f00dc535cf12aabc38cc`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1310,9 +1257,7 @@ Exact pllm benchmark help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/benchmark/)
 
 Document ID: `pllm.docs.reference.cli.benchmark`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:69e847abbf74ab4d1440574aa893dd675cede337b7a32b3c8595061af4beb5de`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1350,9 +1295,7 @@ Exact pllm dev help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/dev/)
 
 Document ID: `pllm.docs.reference.cli.dev`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2b39dfc27a5c3f5401a882f43ac014c98b5441139bb6b50bfc7d7b6f1fe2f2ca`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1389,9 +1332,7 @@ Exact pllm config show help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/config/show/)
 
 Document ID: `pllm.docs.reference.cli.config.show`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:771cfaa411ad8d24d6963bf420a319a51d260753637b2b74edd83ddd316e73e2`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1435,9 +1376,7 @@ Exact pllm config export help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/config/export/)
 
 Document ID: `pllm.docs.reference.cli.config.export`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b4ebb105af384251d48525471c0f6f91da1f2295b26ce92fbedbad7608ddcf5b`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1483,9 +1422,7 @@ Exact pllm components list help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/components/list/)
 
 Document ID: `pllm.docs.reference.cli.components.list`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:150eee9d05158e8dbed0cc3690954ff3739ec425f5c515fbb66e6b8411c9f273`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1521,9 +1458,7 @@ Exact pllm components show help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/components/show/)
 
 Document ID: `pllm.docs.reference.cli.components.show`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ad669cde7352e3c96f7bc83c65be5fb15af9018841ed761b3f2873b973fa529c`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1563,9 +1498,7 @@ Exact pllm benchmark run help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/benchmark/run/)
 
 Document ID: `pllm.docs.reference.cli.benchmark.run`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:0c63b7ca944661028d7ff7ac3ee8a47ddd7fce0069e6678414556f21b5535a9f`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1632,9 +1565,7 @@ Exact pllm gateway help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/gateway/)
 
 Document ID: `pllm.docs.reference.cli.gateway`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c689bb9829a41f105876f3730c8a76f9e90a293175e6cdef1ec892262f069364`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1713,9 +1644,7 @@ Exact pllm serve help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/serve/)
 
 Document ID: `pllm.docs.reference.cli.serve`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:090690592c1f339a12f56fa2ca5f842dbfd42efc08a26830127e1fa3284e43d2`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1753,9 +1682,7 @@ Exact pllm serve inference help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/serve/inference/)
 
 Document ID: `pllm.docs.reference.cli.serve.inference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8ea71a3e7646e448f7769608adbde3072528f84ef8bcebc77099edceb9e73e6e`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1859,9 +1786,7 @@ Exact pllm serve preparation help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/serve/preparation/)
 
 Document ID: `pllm.docs.reference.cli.serve.preparation`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:048d6e2df5da9514398c29c0c6237b81ec28b176b2516d7aaf21cb544ae60d2e`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -1966,9 +1891,7 @@ Exact pllm dev dashboard help from the installed PLLM CLI.
 [View canonical HTML](https://pllm.run/cli/reference/dev/dashboard/)
 
 Document ID: `pllm.docs.reference.cli.dev.dashboard`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e4900d6edb2ae174e60f8c790ac2f76c5e736181cff3e7e83968fbdce0a84397`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -2017,9 +1940,7 @@ Public Python classes, functions, and evidence APIs in the installed package.
 [View canonical HTML](https://pllm.run/sdk/reference/python/pllm/)
 
 Document ID: `pllm.docs.reference.python.pllm`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:314777e9e72d65a6662b649c426130b33ba41821304bd66309ede86bb9d64c74`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -2038,15 +1959,23 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 ## Facades
 
-- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BlindedTransformerEngine`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryProtocol`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
+- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BlindedTransformerEngine`, `pllm.BundleModel`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryProtocol`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TinyModel`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
 - `pllm.config`: `pllm.config.ComponentRef`, `pllm.config.ConfigurationError`, `pllm.config.Deployment`, `pllm.config.ExecutionBudget`, `pllm.config.Experiment`, `pllm.config.ExperimentProfile`, `pllm.config.Model`, `pllm.config.Pipeline`, `pllm.config.canonical_bytes`, `pllm.config.configuration_digest`, `pllm.config.load_configuration`, `pllm.config.loads_configuration`
 - `pllm.models`: `pllm.models.DecoderCoverageReport`, `pllm.models.DecoderRuntimeSchedule`, `pllm.models.ModelLoadError`, `pllm.models.ModelManifest`, `pllm.models.ModelPlan`, `pllm.models.load_model`, `pllm.models.lower_model`
 - `pllm.plan`: `pllm.plan.CompiledPlan`
-- `pllm.components`: `pllm.components.BinaryTableGatedMultiplyQ7`, `pllm.components.ChunkedIndependentLanesProtectedTensorSchedule`, `pllm.components.ComponentDescriptor`, `pllm.components.ComponentRef`, `pllm.components.IndependentLanesProtectedTensorSchedule`, `pllm.components.KvCacheEviction`, `pllm.components.R03CrtGatedMultiplyQ7`, `pllm.components.ScalarProtectedTensorSchedule`, `pllm.components.get_component`, `pllm.components.list_components`
-- `pllm.kernels`: `pllm.kernels.ComponentDescriptor`, `pllm.kernels.Cpu`
-- `pllm.protocols`: no public exports recorded
-- `pllm.protocols.masked_linear`: `pllm.protocols.masked_linear.ComponentDescriptor`, `pllm.protocols.masked_linear.MaskedLinear`
-- `pllm.preparation`: `pllm.preparation.ComponentDescriptor`, `pllm.preparation.ModelAwareCorrections`, `pllm.preparation.create_preparation_app`
+- `pllm.components`: `pllm.components.ComponentDescriptor`, `pllm.components.ComponentRef`, `pllm.components.create_component`, `pllm.components.get`, `pllm.components.get_component`, `pllm.components.list_component_classes`, `pllm.components.list_components`
+- `pllm.correlation`: `pllm.correlation.CorrelationSource`, `pllm.correlation.SeededExpansion`
+- `pllm.kernels`: `pllm.kernels.Cpu`, `pllm.kernels.KernelBackend`
+- `pllm.nonlinear`: `pllm.nonlinear.BinaryTableGatedMultiplyQ7`, `pllm.nonlinear.NonlinearProtocol`, `pllm.nonlinear.R03CrtGatedMultiplyQ7`
+- `pllm.passes`: `pllm.passes.KvCacheEviction`, `pllm.passes.PlanPass`
+- `pllm.protocols`: `pllm.protocols.BlindedLinear`, `pllm.protocols.CleartextLinear`, `pllm.protocols.DirectFHE`, `pllm.protocols.GuardedLinear`, `pllm.protocols.MaskedLinear`, `pllm.protocols.ProtocolMethod`, `pllm.protocols.SecureLinear`
+- `pllm.protocols.masked_linear`: `pllm.protocols.masked_linear.MaskedLinear`
+- `pllm.preparation`: `pllm.preparation.BFVCorrelations`, `pllm.preparation.HEAuthenticatedPreprocessing`, `pllm.preparation.ModelAwareCorrections`, `pllm.preparation.PreparationProvider`, `pllm.preparation.create_preparation_app`
+- `pllm.roles`: `pllm.roles.Inference`, `pllm.roles.InferenceRole`
+- `pllm.schedulers`: `pllm.schedulers.ChunkedIndependentLanesProtectedTensorSchedule`, `pllm.schedulers.IndependentLanesProtectedTensorSchedule`, `pllm.schedulers.ProtectedScheduler`, `pllm.schedulers.ScalarProtectedTensorSchedule`
+- `pllm.sources`: `pllm.sources.BundleModel`, `pllm.sources.ModelSource`, `pllm.sources.TinyModel`
+- `pllm.state`: `pllm.state.ClientLocalKv`, `pllm.state.StateProtocol`
+- `pllm.verification`: `pllm.verification.LinearCheckKey`, `pllm.verification.LinearCheckResult`, `pllm.verification.LinearIntegrity`, `pllm.verification.LinearIntegrityError`, `pllm.verification.VerificationScheme`, `pllm.verification.check_linear_result`, `pllm.verification.create_linear_check_key`
 - `pllm.pipeline`: `pllm.pipeline.Experiment`, `pllm.pipeline.Pipeline`
 - `pllm.deployment`: `pllm.deployment.Deployment`
 - `pllm.runtime`: `pllm.runtime.AsyncOpenAI`, `pllm.runtime.AsyncPLLMTransport`, `pllm.runtime.CompiledRuntimeModel`, `pllm.runtime.CompiledRuntimeSession`, `pllm.runtime.ExecutionBudget`, `pllm.runtime.GatewayConfig`, `pllm.runtime.LocalTopology`, `pllm.runtime.OpenAI`, `pllm.runtime.PLLMTransport`, `pllm.runtime.PrivacyMode`, `pllm.runtime.ProprietaryProtocol`, `pllm.runtime.RoleStatus`, `pllm.runtime.RuntimeBindingError`, `pllm.runtime.RuntimeExecutionError`, `pllm.runtime.RuntimeStageBinding`, `pllm.runtime.TopologyError`, `pllm.runtime.__version__`, `pllm.runtime.build_roles`, `pllm.runtime.compile_runtime_model`, `pllm.runtime.create_app`, `pllm.runtime.create_sidecar_app`, `pllm.runtime.serve_local`
@@ -2061,40 +1990,56 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.__version__` | str | `str` | not recorded | `pllm.__version__`, `pllm.runtime.__version__` |
 | `pllm.compiler.CompilationError` | class | `signature not exposed` | not recorded | `pllm.CompilationError`, `pllm.compiler.CompilationError` |
 | `pllm.compiler.compile` | function | `(request: 'Mapping[str, Any] \| bytes \| str') -> 'CompiledPlan'` | not recorded | `pllm.compile`, `pllm.compiler.compile` |
+| `pllm.components.create_component` | function | `create_component(identity: str, params: Mapping[str, Any]) -> ComponentRef` | not recorded | `pllm.components.create_component` |
+| `pllm.components.get` | function | `get(identity: str) -> type[ComponentRef]` | not recorded | `pllm.components.get` |
 | `pllm.components.get_component` | function | `get_component(identity: str) -> ComponentDescriptor` | not recorded | `pllm.components.get_component` |
+| `pllm.components.list_component_classes` | function | `list_component_classes() -> tuple[type[ComponentRef], ...]` | not recorded | `pllm.components.list_component_classes` |
 | `pllm.components.list_components` | function | `list_components() -> tuple[ComponentDescriptor, ...]` | not recorded | `pllm.components.list_components` |
-| `pllm.configuration.BinaryTableGatedMultiplyQ7` | class | `__init__(self) -> None` | `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.components.BinaryTableGatedMultiplyQ7` |
-| `pllm.configuration.ChunkedIndependentLanesProtectedTensorSchedule` | class | `__init__(self, *, max_elements: int) -> None` | `__init__(self, *, max_elements: int) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.components.ChunkedIndependentLanesProtectedTensorSchedule` |
-| `pllm.configuration.ComponentDescriptor` | class | `constructor not exposed` | `component: str`; `provider: str`; `distribution: str`; `version: str`; `category: str`; `category_version: str`; `lifecycle_phase: str`; `parameter_schema: Mapping[str, Any]`; `capabilities: tuple[str, ...]`; `required_host_features: tuple[str, ...]`; `role_eligibility: tuple[str, ...]`; `artifacts: tuple[Mapping[str, Any], ...]`; `evidence: tuple[Mapping[str, Any], ...]`; `to_dict(self) -> dict[str, Any]` | `pllm.components.ComponentDescriptor`, `pllm.kernels.ComponentDescriptor`, `pllm.preparation.ComponentDescriptor`, `pllm.protocols.masked_linear.ComponentDescriptor` |
-| `pllm.configuration.ComponentRef` | class | `__init__(self, component: str, params: Mapping[str, Any] \| None=None) -> None` | `component: str`; `params: Mapping[str, Any]`; `__init__(self, component: str, params: Mapping[str, Any] \| None=None) -> None`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.ComponentRef`, `pllm.components.ComponentRef`, `pllm.config.ComponentRef` |
+| `pllm.configuration.ComponentDescriptor` | class | `constructor not exposed` | `component: str`; `provider: str`; `distribution: str`; `version: str`; `category: str`; `category_version: str`; `lifecycle_phase: str`; `parameter_schema: Mapping[str, Any]`; `capabilities: tuple[str, ...]`; `required_host_features: tuple[str, ...]`; `role_eligibility: tuple[str, ...]`; `artifacts: tuple[Mapping[str, Any], ...]`; `evidence: tuple[Mapping[str, Any], ...]`; `to_dict(self) -> dict[str, Any]` | `pllm.components.ComponentDescriptor` |
+| `pllm.configuration.ComponentRef` | class | `__init__(self, component: str, params: Mapping[str, Any] \| None=None) -> None` | `component: str`; `params: Mapping[str, Any]`; `__init__(self, component: str, params: Mapping[str, Any] \| None=None) -> None`; `classmethod from_params(cls, params: Mapping[str, Any]) -> ComponentRef`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.ComponentRef`, `pllm.components.ComponentRef`, `pllm.config.ComponentRef` |
 | `pllm.configuration.ConfigurationError` | class | `constructor not exposed` | not recorded | `pllm.ConfigurationError`, `pllm.config.ConfigurationError` |
-| `pllm.configuration.Cpu` | class | `__init__(self, *, threads: int=1) -> None` | `__init__(self, *, threads: int=1) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.Cpu`, `pllm.kernels.Cpu` |
 | `pllm.configuration.Deployment` | class | `__init__(self, kind: str, root: str) -> None` | `kind: str`; `root: str`; `__init__(self, kind: str, root: str) -> None`; `classmethod local(cls, *, root: str) -> Self`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.Deployment`, `pllm.config.Deployment`, `pllm.deployment.Deployment` |
 | `pllm.configuration.ExecutionBudget` | class | `__init__(self, requests: int, max_input_tokens: int, max_new_tokens: int) -> None` | `requests: int`; `max_input_tokens: int`; `max_new_tokens: int`; `__init__(self, requests: int, max_input_tokens: int, max_new_tokens: int) -> None`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.ExecutionBudget`, `pllm.config.ExecutionBudget`, `pllm.runtime.ExecutionBudget` |
 | `pllm.configuration.Experiment` | class | `__init__(self, name: str, pipeline: Pipeline, deployment: Deployment, budget: ExecutionBudget) -> None` | `name: str`; `pipeline: Pipeline`; `deployment: Deployment`; `budget: ExecutionBudget`; `__init__(self, name: str, pipeline: Pipeline, deployment: Deployment, budget: ExecutionBudget) -> None`; `classmethod from_spec(cls, spec: Mapping[str, Any]) -> Self`; `classmethod from_file(cls, path: str \| Path) -> Self`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]`; `canonical_bytes(self) -> bytes`; `configuration_digest(self) -> str`; `resolve(self) -> ExperimentProfile` | `pllm.Experiment`, `pllm.config.Experiment`, `pllm.pipeline.Experiment` |
 | `pllm.configuration.ExperimentProfile` | class | `__init__(self, experiment: Experiment) -> None` | `model: str`; `canonical_profile: bytes`; `configuration_digest: str`; `__init__(self, experiment: Experiment) -> None` | `pllm.ExperimentProfile`, `pllm.config.ExperimentProfile` |
-| `pllm.configuration.IndependentLanesProtectedTensorSchedule` | class | `__init__(self, *, max_elements: int=4) -> None` | `__init__(self, *, max_elements: int=4) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.components.IndependentLanesProtectedTensorSchedule` |
-| `pllm.configuration.KvCacheEviction` | class | `__init__(self, *, implementation: str='pllm/mpcache/v1', observation_window: tuple[int, int]=(1, 5), static_keep: tuple[int, int]=(3, 10), dynamic_keep: tuple[int, int]=(1, 4), alpha: tuple[int, int]=(3, 5), cluster_sizes: tuple[int, ...]=(32, 16), share_adjacent_layers: bool=True) -> None` | `__init__(self, *, implementation: str='pllm/mpcache/v1', observation_window: tuple[int, int]=(1, 5), static_keep: tuple[int, int]=(3, 10), dynamic_keep: tuple[int, int]=(1, 4), alpha: tuple[int, int]=(3, 5), cluster_sizes: tuple[int, ...]=(32, 16), share_adjacent_layers: bool=True) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.KvCacheEviction`, `pllm.components.KvCacheEviction` |
-| `pllm.configuration.MaskedLinear` | class | `__init__(self) -> None` | `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.MaskedLinear`, `pllm.protocols.masked_linear.MaskedLinear` |
 | `pllm.configuration.Model` | class | `__init__(self, source: str, *, kind: str='huggingface', model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False, endpoint: str \| None=None) -> None` | `source: str`; `kind: str`; `model_id: str \| None`; `revision: str \| None`; `local_files_only: bool`; `endpoint: str \| None`; `__init__(self, source: str, *, kind: str='huggingface', model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False, endpoint: str \| None=None) -> None`; `classmethod hf(cls, repo_id: str, *, model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False) -> Model`; `classmethod path(cls, path: str, *, format: str='huggingface', model_id: str \| None=None) -> Model`; `classmethod tiny(cls, name: str='qwen2', *, model_id: str \| None=None) -> Model`; `classmethod ollama(cls, name: str, *, endpoint: str='http://127.0.0.1:11434', model_id: str \| None=None) -> Model`; `classmethod from_spec(cls, value: Mapping[str, Any]) -> Model`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]`; `to_runtime_spec(self) -> dict[str, Any]` | `pllm.Model`, `pllm.config.Model` |
-| `pllm.configuration.ModelAwareCorrections` | class | `__init__(self) -> None` | `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.ModelAwareCorrections`, `pllm.preparation.ModelAwareCorrections` |
 | `pllm.configuration.Pipeline` | class | `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None` | `profile: str`; `model: Model`; `components: Mapping[str, ComponentRef]`; `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None`; `classmethod from_profile(cls, profile: str, *, model: Model, components: Mapping[str, ComponentRef]) -> Self`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.Pipeline`, `pllm.config.Pipeline`, `pllm.pipeline.Pipeline` |
-| `pllm.configuration.R03CrtGatedMultiplyQ7` | class | `__init__(self) -> None` | `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.components.R03CrtGatedMultiplyQ7` |
-| `pllm.configuration.ScalarProtectedTensorSchedule` | class | `__init__(self) -> None` | `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.components.ScalarProtectedTensorSchedule` |
 | `pllm.configuration.canonical_bytes` | function | `canonical_bytes(configuration: Experiment \| Mapping[str, Any]) -> bytes` | not recorded | `pllm.canonical_bytes`, `pllm.config.canonical_bytes` |
 | `pllm.configuration.configuration_digest` | function | `configuration_digest(configuration: Experiment \| Mapping[str, Any]) -> str` | not recorded | `pllm.config.configuration_digest`, `pllm.configuration_digest` |
 | `pllm.configuration.load_configuration` | function | `load_configuration(path: str \| Path) -> Experiment` | not recorded | `pllm.config.load_configuration`, `pllm.load_configuration` |
 | `pllm.configuration.loads_configuration` | function | `loads_configuration(text: str, *, format: str \| None=None) -> Experiment` | not recorded | `pllm.config.loads_configuration`, `pllm.loads_configuration` |
+| `pllm.correlation.CorrelationSource` | class | `constructor not exposed` | not recorded | `pllm.correlation.CorrelationSource` |
+| `pllm.correlation.SeededExpansion` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.correlation.SeededExpansion` |
 | `pllm.evidence.EvidenceReport` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property data: 'Mapping[str, Any]'`; `property schema_version: 'str'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.EvidenceReport`, `pllm.evidence.EvidenceReport` |
 | `pllm.evidence.assure` | function | `() -> 'EvidenceReport'` | not recorded | `pllm.assure`, `pllm.evidence.assure` |
 | `pllm.evidence.benchmark` | function | `(plan: 'CompiledPlan', *, weights: 'bytes', input: 'bytes', id: 'str', privacy_cohort: 'str', numeric_cohort: 'str', environment: 'Mapping[str, Any]', warmups: 'int' = 3, repetitions: 'int' = 10, threads: 'int' = 1, simd: 'bool' = True) -> 'EvidenceReport'` | not recorded | `pllm.benchmark`, `pllm.evidence.benchmark` |
 | `pllm.evidence.deployment_benchmark` | function | `(request: 'Mapping[str, Any]') -> 'EvidenceReport'` | not recorded | `pllm.deployment_benchmark`, `pllm.evidence.deployment_benchmark` |
+| `pllm.kernels.Cpu` | class | `__init__(self, *, threads: int=1) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, threads: int=1) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.Cpu`, `pllm.kernels.Cpu` |
+| `pllm.kernels.KernelBackend` | class | `constructor not exposed` | not recorded | `pllm.kernels.KernelBackend` |
 | `pllm.model_loader.load_model` | function | `load_model(value: Model \| str \| Mapping[str, Any], *, token: str \| bool \| None=None, cache_dir: str \| Path \| None=None, api_key: str \| None=None) -> ModelManifest` | not recorded | `pllm.load_model`, `pllm.models.load_model` |
 | `pllm.modeling.DecoderCoverageReport` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property complete: 'bool'`; `property operators: 'tuple[Mapping[str, Any], ...]'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.DecoderCoverageReport`, `pllm.models.DecoderCoverageReport` |
 | `pllm.modeling.DecoderRuntimeSchedule` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property complete: 'bool'`; `property decode: 'Mapping[str, Any]'`; `property digest: 'str'`; `property prefill: 'Mapping[str, Any]'`; `property profile: 'str'`; `property protected_execution: 'bool'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.DecoderRuntimeSchedule`, `pllm.models.DecoderRuntimeSchedule` |
 | `pllm.modeling.ModelPlan` | class | `(_canonical_bytes: 'bytes') -> None` | `apply(self, component: "'ComponentRef'") -> "'ModelPlan'"`; `canonical_bytes(self) -> 'bytes'`; `coverage(self, profile: 'str' = 'research.single_evaluator') -> "'DecoderCoverageReport'"`; `property decode: 'Mapping[str, Any]'`; `property digest: 'str'`; `property prefill: 'Mapping[str, Any]'`; `runtime_schedule(self, profile: 'str' = 'baseline.masked_linear_cpu') -> "'DecoderRuntimeSchedule'"`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.ModelPlan`, `pllm.models.ModelPlan` |
 | `pllm.modeling.lower_model` | function | `(config: 'Mapping[str, Any] \| bytes \| str', *, batch: 'int', max_input_tokens: 'int', max_new_tokens: 'int') -> 'ModelPlan'` | not recorded | `pllm.lower_model`, `pllm.models.lower_model` |
+| `pllm.nonlinear.BinaryTableGatedMultiplyQ7` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.nonlinear.BinaryTableGatedMultiplyQ7` |
+| `pllm.nonlinear.NonlinearProtocol` | class | `constructor not exposed` | not recorded | `pllm.nonlinear.NonlinearProtocol` |
+| `pllm.nonlinear.R03CrtGatedMultiplyQ7` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.nonlinear.R03CrtGatedMultiplyQ7` |
+| `pllm.passes.KvCacheEviction` | class | `__init__(self, *, implementation: str='pllm/mpcache/v1', observation_window: tuple[int, int] \| Mapping[str, int]=(1, 5), static_keep: tuple[int, int] \| Mapping[str, int]=(3, 10), dynamic_keep: tuple[int, int] \| Mapping[str, int]=(1, 4), alpha: tuple[int, int] \| Mapping[str, int]=(3, 5), cluster_sizes: Sequence[int]=(32, 16), share_adjacent_layers: bool=True) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, implementation: str='pllm/mpcache/v1', observation_window: tuple[int, int] \| Mapping[str, int]=(1, 5), static_keep: tuple[int, int] \| Mapping[str, int]=(3, 10), dynamic_keep: tuple[int, int] \| Mapping[str, int]=(1, 4), alpha: tuple[int, int] \| Mapping[str, int]=(3, 5), cluster_sizes: Sequence[int]=(32, 16), share_adjacent_layers: bool=True) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.KvCacheEviction`, `pllm.passes.KvCacheEviction` |
+| `pllm.passes.PlanPass` | class | `constructor not exposed` | not recorded | `pllm.passes.PlanPass` |
 | `pllm.plan.CompiledPlan` | class | `not publicly constructible` | `__new__(cls) -> Never`; `property logical_plan: bytes`; `property execution_plan: bytes`; `property plan_lock: bytes`; `property region_program: bytes`; `property configuration_digest: str`; `property logical_plan_digest: str`; `property execution_plan_digest: str`; `property plan_lock_digest: str`; `property input_shape: tuple[int, ...]`; `property output_shape: tuple[int, ...]` | `pllm.CompiledPlan`, `pllm.plan.CompiledPlan` |
+| `pllm.preparation.BFVCorrelations` | class | `__init__(self, *, poly_modulus_degree: int=4096) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, poly_modulus_degree: int=4096) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.preparation.BFVCorrelations` |
+| `pllm.preparation.HEAuthenticatedPreprocessing` | class | `__init__(self, *, poly_modulus_degree: int=4096, threads: int=1, enable_linear_correlations: bool=True) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, poly_modulus_degree: int=4096, threads: int=1, enable_linear_correlations: bool=True) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.preparation.HEAuthenticatedPreprocessing` |
+| `pllm.preparation.ModelAwareCorrections` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.ModelAwareCorrections`, `pllm.preparation.ModelAwareCorrections` |
+| `pllm.preparation.PreparationProvider` | class | `constructor not exposed` | not recorded | `pllm.preparation.PreparationProvider` |
+| `pllm.protocols.base.ProtocolMethod` | class | `constructor not exposed` | not recorded | `pllm.protocols.ProtocolMethod` |
+| `pllm.protocols.masked_linear.MaskedLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.MaskedLinear`, `pllm.protocols.MaskedLinear`, `pllm.protocols.masked_linear.MaskedLinear` |
+| `pllm.protocols.runtime_arms.BlindedLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.BlindedLinear` |
+| `pllm.protocols.runtime_arms.CleartextLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.CleartextLinear` |
+| `pllm.protocols.runtime_arms.DirectFHE` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.DirectFHE` |
+| `pllm.protocols.runtime_arms.GuardedLinear` | class | `__init__(self, *, max_rows_per_request: int=4096, max_rows_per_owner_stage: int=16384, max_requests_per_minute: int=4096, output_dither_bound: int=0) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, max_rows_per_request: int=4096, max_rows_per_owner_stage: int=16384, max_requests_per_minute: int=4096, output_dither_bound: int=0) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.GuardedLinear` |
+| `pllm.protocols.runtime_arms.SecureLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.SecureLinear` |
+| `pllm.roles.Inference` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.roles.Inference` |
+| `pllm.roles.InferenceRole` | class | `constructor not exposed` | not recorded | `pllm.roles.InferenceRole` |
 | `pllm.runtime.authenticated_mpc.AuthenticatedMPC` | class | `(preprocessor: 'TrustedPreprocessor') -> 'None'` | `add(self, left: 'AuthenticatedValue', right: 'AuthenticatedValue') -> 'AuthenticatedValue'`; `add_public(self, value: 'AuthenticatedValue', clear: 'int \| np.ndarray') -> 'AuthenticatedValue'`; `broadcast_to(self, value: 'AuthenticatedValue', shape: 'Sequence[int]') -> 'AuthenticatedValue'`; `centered(self, value: 'np.ndarray') -> 'np.ndarray'`; `concatenate(self, values: 'Sequence[AuthenticatedValue]', axis: 'int' = 0) -> 'AuthenticatedValue'`; `input(self, clear: 'np.ndarray', mask: 'InputMask') -> 'AuthenticatedValue'`; `linear(self, value: 'AuthenticatedValue', weight: 'np.ndarray', correlation: 'LinearCorrelation') -> 'AuthenticatedValue'`; `linear_many(self, values: 'Sequence[AuthenticatedValue]', weights: 'Sequence[np.ndarray]', correlations: 'Sequence[LinearCorrelation]') -> 'list[AuthenticatedValue]'`; `linear_public(self, value: 'AuthenticatedValue', weight: 'np.ndarray') -> 'AuthenticatedValue'`; `mul_public(self, value: 'AuthenticatedValue', clear: 'int \| np.ndarray') -> 'AuthenticatedValue'`; `multiply(self, left: 'AuthenticatedValue', right: 'AuthenticatedValue', triple: 'MultiplicationTriple') -> 'AuthenticatedValue'`; `multiply_many(self, left_values: 'Sequence[AuthenticatedValue]', right_values: 'Sequence[AuthenticatedValue]', triples: 'Sequence[MultiplicationTriple]') -> 'list[AuthenticatedValue]'`; `open(self, value: 'AuthenticatedValue', *, to_client: 'bool' = True) -> 'np.ndarray'`; `open_many(self, values: 'Sequence[AuthenticatedValue]', *, to_client: 'bool' = True, count_round: 'bool' = True) -> 'list[np.ndarray]'`; `polynomial(self, value: 'AuthenticatedValue', coefficients: 'Sequence[int]', triples: 'Iterable[MultiplicationTriple]') -> 'AuthenticatedValue'`; `public_value(self, clear: 'int \| np.ndarray', shape: 'Sequence[int] \| None' = None) -> 'AuthenticatedValue'`; `reshape(self, value: 'AuthenticatedValue', shape: 'Sequence[int]') -> 'AuthenticatedValue'`; `square(self, value: 'AuthenticatedValue', triple: 'MultiplicationTriple') -> 'AuthenticatedValue'`; `sub(self, left: 'AuthenticatedValue', right: 'AuthenticatedValue') -> 'AuthenticatedValue'`; `sum(self, value: 'AuthenticatedValue', axis=None, keepdims: 'bool' = False) -> 'AuthenticatedValue'`; `take(self, value: 'AuthenticatedValue', key) -> 'AuthenticatedValue'`; `transpose(self, value: 'AuthenticatedValue', axes: 'Sequence[int]') -> 'AuthenticatedValue'` | `pllm.AuthenticatedMPC` |
 | `pllm.runtime.authenticated_mpc.AuthenticationError` | class | `signature not exposed` | not recorded | `pllm.AuthenticationError` |
 | `pllm.runtime.authenticated_mpc.TrustedPreprocessor` | class | `(*, modulus: 'int' = 65537, alpha: 'int \| None' = None, seed: 'int \| None' = None) -> 'None'` | `bit_mask(self, shape: 'Sequence[int]', bit_width: 'int \| None' = None) -> 'BitDecompositionMask'`; `input_mask(self, shape: 'Sequence[int]') -> 'InputMask'`; `linear_correlation(self, weight: 'np.ndarray', input_shape: 'Sequence[int]') -> 'LinearCorrelation'`; `multiplication_triple(self, shape: 'Sequence[int]') -> 'MultiplicationTriple'`; `random(self, shape: 'Sequence[int]') -> 'np.ndarray'`; `share(self, clear: 'np.ndarray \| Sequence[int] \| int') -> 'AuthenticatedValue'` | `pllm.TrustedPreprocessor` |
@@ -2108,8 +2053,11 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.runtime.guarded_engine.GuardPolicy` | class | `(max_rows_per_request: 'int' = 4096, max_rows_per_owner_stage: 'int' = 16384, max_requests_per_owner_minute: 'int' = 4096, output_dither_bound: 'int' = 0) -> None` | not recorded | `pllm.GuardPolicy` |
 | `pllm.runtime.guarded_engine.GuardedBlindedTransformerEngine` | class | `(*args: 'Any', guard_policy: 'GuardPolicy \| None' = None, **kwargs: 'Any') -> 'None'` | `client_bundle(self, model_id: 'str') -> 'bytes'`; `execute_stage(self, model_id: 'str', stage: 'StageSpec', payloads: 'list[bytes]') -> 'list[bytes]'`; `guard_stats(self) -> 'dict[str, int]'`; `load(self, manifest: 'ModelManifest') -> 'None'` | `pllm.GuardedBlindedTransformerEngine` |
 | `pllm.runtime.he_authenticated_preprocessing.HEAuthenticatedPreprocessor` | class | `(*, modulus: 'int' = 65537, poly_modulus_degree: 'int' = 4096, alpha: 'int \| None' = None, seed: 'int \| None' = None, threads: 'int' = 1, tenseal_path: 'str \| Path \| None' = None, enable_linear_correlations: 'bool' = True) -> 'None'` | `bit_mask(self, shape: 'Sequence[int]', bit_width: 'int \| None' = None) -> 'BitDecompositionMask'`; `input_mask(self, shape: 'Sequence[int]') -> 'InputMask'`; `linear_correlation(self, weight: 'np.ndarray', input_shape: 'Sequence[int]') -> 'LinearCorrelation'`; `multiplication_triple(self, shape: 'Sequence[int]') -> 'MultiplicationTriple'`; `random(self, shape: 'Sequence[int]') -> 'np.ndarray'`; `share(self, clear: 'np.ndarray \| Sequence[int] \| int') -> 'AuthenticatedValue'`; `summary(self) -> 'dict[str, int \| float]'` | `pllm.HEAuthenticatedPreprocessor` |
-| `pllm.runtime.linear_integrity.check_linear_result` | function | `(input_value: 'np.ndarray', output_value: 'np.ndarray', key: 'LinearCheckKey', *, raise_on_failure: 'bool' = True) -> 'LinearCheckResult'` | not recorded | `pllm.check_linear_result` |
-| `pllm.runtime.linear_integrity.create_linear_check_key` | function | `(weight: 'np.ndarray', *, modulus: 'int', checks: 'int' = 2, seed: 'int \| None' = None, model_fingerprint: 'str' = '', stage_id: 'str' = '') -> 'LinearCheckKey'` | not recorded | `pllm.create_linear_check_key` |
+| `pllm.runtime.linear_integrity.LinearCheckKey` | class | `(challenge: 'np.ndarray', input_projection: 'np.ndarray', modulus: 'int', model_fingerprint: 'str' = '', stage_id: 'str' = '') -> None` | `property check_count: 'int'` | `pllm.verification.LinearCheckKey` |
+| `pllm.runtime.linear_integrity.LinearCheckResult` | class | `(valid: 'bool', expected: 'np.ndarray', observed: 'np.ndarray') -> None` | not recorded | `pllm.verification.LinearCheckResult` |
+| `pllm.runtime.linear_integrity.LinearIntegrityError` | class | `signature not exposed` | not recorded | `pllm.verification.LinearIntegrityError` |
+| `pllm.runtime.linear_integrity.check_linear_result` | function | `(input_value: 'np.ndarray', output_value: 'np.ndarray', key: 'LinearCheckKey', *, raise_on_failure: 'bool' = True) -> 'LinearCheckResult'` | not recorded | `pllm.check_linear_result`, `pllm.verification.check_linear_result` |
+| `pllm.runtime.linear_integrity.create_linear_check_key` | function | `(weight: 'np.ndarray', *, modulus: 'int', checks: 'int' = 2, seed: 'int \| None' = None, model_fingerprint: 'str' = '', stage_id: 'str' = '') -> 'LinearCheckKey'` | not recorded | `pllm.create_linear_check_key`, `pllm.verification.create_linear_check_key` |
 | `pllm.runtime.loaders.ModelLoadError` | class | `signature not exposed` | not recorded | `pllm.ModelLoadError`, `pllm.models.ModelLoadError` |
 | `pllm.runtime.model_binding.CompiledRuntimeModel` | class | `() -> 'None'` | `canonical_bytes(self) -> 'bytes'`; `property bundle_fingerprint: 'str'`; `property complete: 'bool'`; `property completeness_scope: 'str'`; `property digest: 'str'`; `property local_operations: 'tuple[str, ...]'`; `property model_plan_digest: 'str'`; `property runtime_config_digest: 'str'`; `property runtime_schedule_digest: 'str'`; `property stage_bindings: 'tuple[RuntimeStageBinding, ...]'`; `property tokenizer_digest: 'str'`; `runtime(self, remote: 'Callable[[str, np.ndarray], np.ndarray]') -> 'MaskedTransformerClientRuntime'`; `session(self, remote: 'Callable[[str, np.ndarray], np.ndarray]') -> "'CompiledRuntimeSession'"`; `to_spec(self) -> 'dict[str, Any]'`; `validate(self) -> 'None'` | `pllm.runtime.CompiledRuntimeModel` |
 | `pllm.runtime.model_binding.RuntimeBindingError` | class | `signature not exposed` | not recorded | `pllm.runtime.RuntimeBindingError` |
@@ -2145,6 +2093,17 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.runtime.transport.PLLMTransport` | class | `(*, gateway_url: 'str', api_key: 'str' = 'pllm-local', preparation_url: 'str \| None' = None, preparation_api_key: 'str \| None' = None, session_transport: 'str' = 'http', correlation_mode: 'str' = 'bfv', correlation_prefetch: 'int' = 4, prepared_inventory_rows: 'int' = 64, token_cache_size: 'int' = 512, bundle_cache_mode: 'str' = 'read-write', bundle_cache_dir: 'str \| None' = None, tenseal_path: 'str \| None' = None) -> 'None'` | `close(self) -> 'None'`; `handle_request(self, request: 'Any') -> 'Any'`; `preprocess(self, model: 'str', *, count: 'int \| None' = None) -> 'dict[str, Any]'` | `pllm.PLLMTransport`, `pllm.runtime.PLLMTransport` |
 | `pllm.runtime.types.Response` | class | `(id: 'str', model: 'str', output: 'list[dict[str, Any]]', created_at: 'int' = , object: "Literal['response']" = 'response', status: 'str' = 'completed', error: 'dict[str, Any] \| None' = None, incomplete_details: 'dict[str, Any] \| None' = None, instructions: 'Any' = None, metadata: 'dict[str, str] \| None' = None, parallel_tool_calls: 'bool' = True, frequency_penalty: 'float' = 0.0, presence_penalty: 'float' = 0.0, top_logprobs: 'int' = 0, max_tool_calls: 'int \| None' = None, reasoning: 'dict[str, Any] \| None' = None, prompt: 'dict[str, Any] \| None' = None, safety_identifier: 'str \| None' = None, prompt_cache_key: 'str \| None' = None, temperature: 'float \| None' = None, top_p: 'float \| None' = None, tools: 'list[dict[str, Any]]' = , tool_choice: 'str \| dict[str, Any]' = 'auto', truncation: 'str' = 'disabled', max_output_tokens: 'int \| None' = None, previous_response_id: 'str \| None' = None, background: 'bool' = False, completed_at: 'int \| None' = None, service_tier: 'str' = 'default', store: 'bool' = True, text: 'dict[str, Any]' = , usage: 'ResponseUsage \| None' = None) -> None` | `classmethod from_dict(cls, value: 'dict[str, Any]') -> "'Response'"`; `classmethod text_response(cls, *, model: 'str', text: 'str', input_tokens: 'int', output_tokens: 'int', response_id: 'str \| None' = None, instructions: 'Any' = None, metadata: 'dict[str, str] \| None' = None, temperature: 'float \| None' = None, top_p: 'float \| None' = None) -> "'Response'"`; `model_dump(self, **_: 'Any') -> 'dict[str, Any]'`; `model_dump_json(self, **_: 'Any') -> 'str'`; `property output_text: 'str'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.Response` |
 | `pllm.runtime.types.ResponseEvent` | class | `(type: 'str', sequence_number: 'int', data: 'dict[str, Any]') -> None` | `classmethod from_dict(cls, value: 'dict[str, Any]') -> "'ResponseEvent'"`; `model_dump(self, **_: 'Any') -> 'dict[str, Any]'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.ResponseEvent` |
+| `pllm.schedulers.ChunkedIndependentLanesProtectedTensorSchedule` | class | `__init__(self, *, max_elements: int) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, max_elements: int) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.schedulers.ChunkedIndependentLanesProtectedTensorSchedule` |
+| `pllm.schedulers.IndependentLanesProtectedTensorSchedule` | class | `__init__(self, *, max_elements: int=4) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, max_elements: int=4) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.schedulers.IndependentLanesProtectedTensorSchedule` |
+| `pllm.schedulers.ProtectedScheduler` | class | `constructor not exposed` | not recorded | `pllm.schedulers.ProtectedScheduler` |
+| `pllm.schedulers.ScalarProtectedTensorSchedule` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.schedulers.ScalarProtectedTensorSchedule` |
+| `pllm.sources.BundleModel` | class | `__init__(self, path: str, *, format: str='huggingface', model_id: str \| None=None) -> None` | `__init__(self, path: str, *, format: str='huggingface', model_id: str \| None=None) -> None` | `pllm.BundleModel`, `pllm.sources.BundleModel` |
+| `pllm.sources.ModelSource` | class | `constructor not exposed` | `source: str`; `kind: str`; `model_id: str \| None`; `to_spec(self) -> dict[str, Any]` | `pllm.sources.ModelSource` |
+| `pllm.sources.TinyModel` | class | `__init__(self, family: str='qwen2', *, model_id: str \| None=None) -> None` | `__init__(self, family: str='qwen2', *, model_id: str \| None=None) -> None` | `pllm.TinyModel`, `pllm.sources.TinyModel` |
+| `pllm.state.ClientLocalKv` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.state.ClientLocalKv` |
+| `pllm.state.StateProtocol` | class | `constructor not exposed` | not recorded | `pllm.state.StateProtocol` |
+| `pllm.verification.LinearIntegrity` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.verification.LinearIntegrity` |
+| `pllm.verification.VerificationScheme` | class | `constructor not exposed` | not recorded | `pllm.verification.VerificationScheme` |
 
 ---
 
@@ -2155,9 +2114,7 @@ Built-in component records with implementation, coverage, and evidence status.
 [View canonical HTML](https://pllm.run/sdk/reference/components/)
 
 Document ID: `pllm.docs.reference.components`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d8f90eb55256786da91cf5c7907bc32faf245d0512d3b9c5adb54a69eff67b1f`
+Release: `0.1.0`
 
 > Generated by `scripts/generate_developer_reference.py`; do not edit.
 
@@ -2166,26 +2123,38 @@ Catalog reflects `pllm.components.list_components()` only. Empty descriptor evid
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
 
+component_class = get("pllm/cpu")
 component = get_component("pllm/cpu")
-assert component.component == "pllm/cpu"
+assert component_class.describe() is component
 assert "cpu" in component.capabilities
 ```
 
-API: [`pllm.components.get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.components.get`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 | Identity/version | Lifecycle | Implementation maturity | Provenance | Input/output representation | Roles/topology | Privacy/assurance | Model/operator coverage | Evidence/cohort | Known limitations |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `pllm/bfv-correlations/v1` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["bfv-correlation-generation"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
 | `pllm/binary-table/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["protected-gated-multiply-q7"]`; host features: `["decoder-plan-v1","signed-q7"]` | no applicable evidence | not recorded |
+| `pllm/blinded-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["blinded-proprietary-linear"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/chunked-independent-lanes/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material","bounded-streaming-spool"]` | no applicable evidence | not recorded |
-| `pllm/cpu` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["cpu"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/cleartext-linear` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["plaintext-reference-linear"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/client-local-kv` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client"]` | assurance status not recorded; privacy status not recorded | capabilities: `["fixed-capacity-client-kv"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/cpu` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["cpu"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/direct-fhe` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["direct-bfv-transformer-linear"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
+| `pllm/guarded-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["guarded-proprietary-linear"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/he-authenticated-preprocessing` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["he-authenticated-preprocessing"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
 | `pllm/independent-lanes/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material"]` | no applicable evidence | not recorded |
+| `pllm/inference` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["remote-linear-stage-execution"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/kv-cache-eviction` / `1` | model-lowering | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["bounded-kv-cache-eviction"]`; host features: `["decoder-plan-v1"]` | no applicable evidence | not recorded |
+| `pllm/linear-integrity` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client"]` | assurance status not recorded; privacy status not recorded | capabilities: `["hidden-linear-integrity-check"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/masked-linear` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["masked-linear"]`; host features: not recorded | no applicable evidence | not recorded |
-| `pllm/model-aware-corrections` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: not recorded; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/model-aware-corrections` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-masked-linear-corrections"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/r03-crt/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["protected-gated-multiply-q7"]`; host features: `["decoder-plan-v1","signed-q7"]` | no applicable evidence | not recorded |
 | `pllm/scalar/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material"]` | no applicable evidence | not recorded |
+| `pllm/secure-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["bounded-authenticated-linear-preview"]`; host features: `["synthetic-fixed-shape-only"]` | no applicable evidence | not recorded |
+| `pllm/seeded-expansion` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["domain-separated-mask-expansion"]`; host features: not recorded | no applicable evidence | not recorded |
 
 ---
 
@@ -2196,9 +2165,7 @@ Versioned schemas for configurations, plans, evidence, assurance, and research r
 [View canonical HTML](https://pllm.run/sdk/reference/schemas/)
 
 Document ID: `pllm.docs.reference.schemas`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d4fa3ab4d1294ce4ab3ed247051f481137bec7ffa7dfe7a11e0209a7e93d7cc5`
+Release: `0.1.0`
 
 Schemas under root `schemas/` define serialized document contracts. Rust and Python validators must agree on identity, required fields, bounds, unknown-field policy, and canonical digest construction.
 
@@ -2228,9 +2195,7 @@ What you can use today, what remains experimental, and what is not yet supported
 [View canonical HTML](https://pllm.run/sdk/reference/status/)
 
 Document ID: `pllm.docs.reference.status`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9f1d9628ae32605cd820c8d75b3b1742935a9f802accb99e7e63d6816f9e6098`
+Release: `0.1.0`
 
 Checked 16 September 2026.
 
@@ -2288,7 +2253,8 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Capability | Current status |
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
-| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, and synchronous Ollama inspection; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments; `tiny` is declarative only |
+| Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, synchronous Ollama inspection, and deterministic tiny Qwen2 materialization; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments |
+| Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived, while typed profile composition of every arm remains separate work |
 | Local role topology | Available through `build_roles`/`serve_local` for typed `Model`, `Pipeline`, or `Experiment` inputs; inference and preparation remain separate child processes, credentials stay out of argv/status, health and client routing are bound, and close is deterministic; this is loopback development orchestration, not operator separation |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
@@ -2356,9 +2322,7 @@ See how PLLM records original papers, source artifacts, citations, and licenses.
 [View canonical HTML](https://pllm.run/research/sources/)
 
 Document ID: `pllm.docs.research.sources`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:902608904e08ca42456b95de3796aa60480c40feaaf8984a511c0e22016f21be`
+Release: `0.1.0`
 
 Every [research paper page](/research/papers/) identifies its original source with
 a stable paper ID and external URL. Missing publication, artifact, license, or
@@ -2381,9 +2345,7 @@ Understand the difference between a published method and PLLM's independent impl
 [View canonical HTML](https://pllm.run/research/methods/)
 
 Document ID: `pllm.docs.research.methods`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bade14cd2b0d57d95384fd8eb9fbb288e2109dd7a8dae416db987d94d2545bba`
+Release: `0.1.0`
 
 PLLM's MPCache-inspired work lives in
 [`crates/pllm-models/src/cache.rs`](https://github.com/blairhudson/pllm/blob/main/crates/pllm-models/src/cache.rs).
@@ -2419,9 +2381,7 @@ Learn how PLLM records research recipes and changes to a model plan.
 [View canonical HTML](https://pllm.run/research/compositions/)
 
 Document ID: `pllm.docs.research.compositions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f`
+Release: `0.1.0`
 
 Research workflows describe source acquisition, target model operations,
 required evidence, review gates, and failure policy. They are documentation, not
@@ -2445,10 +2405,8 @@ Method and lifecycle choices remain separate, so research configurations can
 declare and later recombine them:
 
 ```python
-from pllm.components import (
-    IndependentLanesProtectedTensorSchedule,
-    R03CrtGatedMultiplyQ7,
-)
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
 
 method = R03CrtGatedMultiplyQ7()
 schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
@@ -2472,9 +2430,7 @@ Understand which evidence supports fidelity, performance, privacy, and deploymen
 [View canonical HTML](https://pllm.run/research/evidence/)
 
 Document ID: `pllm.docs.research.evidence`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:1143da9f355941d7d227919abb30be9d25e8915beb18f91a788ae52500e5f2dd`
+Release: `0.1.0`
 
 PLLM records source claims, clean-room fidelity, native implementation agreement,
 compiler coverage, runtime support, generation quality,
@@ -2499,9 +2455,7 @@ Learn which evidence and review a PLLM research claim needs before publication.
 [View canonical HTML](https://pllm.run/research/publications/)
 
 Document ID: `pllm.docs.research.publications`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fa16c1fbe2aefc7795dd8295365e02cba1e53a90bdf9123af6becc25ea3a4b88`
+Release: `0.1.0`
 
 PLLM distinguishes a reproduction, an engineering improvement, and a scientific
 contribution. Reproducing prior work, cleaning code, moving code to Rust, reporting
@@ -2527,9 +2481,7 @@ Add an independent PLLM implementation with clear provenance, tests, evidence, a
 [View canonical HTML](https://pllm.run/research/clean-room/)
 
 Document ID: `pllm.docs.research.clean-room`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d4e56f432856ff6a9766a7e2bb8bd1367507e5523cfaa6986de76904a33753b7`
+Release: `0.1.0`
 
 1. Add a source record with a stable ID and URL, exact version or digest, authors, citation, access method, and license review.
 2. When lawful, preserve the original artifact outside the runtime. Never vendor or import it as a PLLM dependency.
@@ -2552,9 +2504,7 @@ PLLM original research, technical paper, tracked papers, and implementation back
 [View canonical HTML](https://pllm.run/research/)
 
 Document ID: `pllm.research`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3a6c188317f497b69d71c7046e87e765ba05105799dc8eae573a1d9cd34981ec`
+Release: `0.1.0`
 
 # Research for high-performance private LLM inference.
 
@@ -2598,9 +2548,7 @@ Private multi-party LLM inference and evidence-driven research-component composi
 [View canonical HTML](https://pllm.run/research/paper/)
 
 Document ID: `pllm.research.paper`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b30e1c92b912f0751bf2e706ce88f661f725a0a9e707876447f4a34860d03294`
+Release: `0.1.0`
 
 [Download PDF ↗](/downloads/paper.pdf)
 
@@ -2739,9 +2687,7 @@ A concise guide to PLLM’s private multi-party runtime and autonomous research 
 [View canonical HTML](https://pllm.run/research/whitepaper/)
 
 Document ID: `pllm.research.whitepaper`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bb82da13da8f01181220f54683f0f04f8bb3d0a18b75dbf850aae15f5220c4d5`
+Release: `0.1.0`
 
 [Download PDF ↗](/downloads/whitepaper.pdf)
 
@@ -2823,9 +2769,7 @@ Locate model planning, compiler contracts, native execution, Python APIs, CLI co
 [View canonical HTML](https://pllm.run/sdk/contribute/agents/implementation-map/)
 
 Document ID: `pllm.docs.agents.implementation-map`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:5da2bf5b4ec123fd8020decc043a08e8b1b0651ca0c9f8f340aaf9f83b70695d`
+Release: `0.1.0`
 
 - `crates/pllm-models`: model-neutral semantic decoder IR and family adapters.
 - `crates/pllm-models::cache`: model-state and cache-policy transforms over semantic plans.
@@ -2852,9 +2796,7 @@ Find the code and records used for implementation, research, and reproduction wo
 [View canonical HTML](https://pllm.run/sdk/contribute/agents/)
 
 Document ID: `pllm.docs.agents`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:0a2d9d73c5c1d79f973a8a039973d7d1f927e937ed452afee4ef1cc3aaa622c6`
+Release: `0.1.0`
 
 These maps give coding and research agents stable boundaries without replacing source inspection. They identify canonical files, dependency direction, validation gates, and prohibited shortcuts.
 
@@ -2879,9 +2821,7 @@ A checklist for obtaining a source, reproducing a method, and producing comparab
 [View canonical HTML](https://pllm.run/research/recipes/reproduction-checklist/)
 
 Document ID: `pllm.docs.agents.reproduction-checklist`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2eab3e1105ed23d135a0cc281a16c34066635d9eb162df73041ef66b9eb5d32f`
+Release: `0.1.0`
 
 1. Lock paper, revision, artifact metadata, licenses, and hashes.
 2. Record claims and assumptions without importing implementation semantics.
@@ -2902,9 +2842,7 @@ Trace a source through clean-room code, plans, evidence, and publication review.
 [View canonical HTML](https://pllm.run/research/recipes/agent-map/)
 
 Document ID: `pllm.docs.agents.research-map`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:12200e4e83b9c4fcc95eb51d4001c69282216cb1b360beffbcd098b5ccac04c4`
+Release: `0.1.0`
 
 - `docs/data/research/papers.json`: canonical source identities and implementation status.
 - `docs/data/research/notes`: concise source notes and PLLM relevance.
@@ -2924,9 +2862,7 @@ Evaluate a specific privacy, integrity, numeric, implementation, or deployment c
 [View canonical HTML](https://pllm.run/sdk/research/assurance/)
 
 Document ID: `pllm.docs.assurance`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:13f22bea16c6bc03779bbf5003402ef7eba8dd47d0b615ef73e086341603f93d`
+Release: `0.1.0`
 
 An assurance record identifies the exact plan, component versions, threat model,
 protected values, visible information, corruption and collusion assumptions,
@@ -2967,9 +2903,7 @@ Measure PLLM systems with reproducible records and compare only equivalent runs.
 [View canonical HTML](https://pllm.run/sdk/research/benchmarks/)
 
 Document ID: `pllm.docs.benchmarks`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a`
+Release: `0.1.0`
 
 `pllm.benchmark(...)` measures supported native compiled regions and returns an
 immutable `EvidenceReport`. `pllm.deployment_benchmark(request)` validates
@@ -3042,9 +2976,7 @@ Run the headless transport benchmark or open the diagnostic dashboard.
 [View canonical HTML](https://pllm.run/cli/benchmarking/)
 
 Document ID: `pllm.docs.cli.benchmarking`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e6a9254b5ee1cc3476bbb88678124ba2eedbdd93afb87fb6375602216410b86a`
+Release: `0.1.0`
 
 Use the headless runner for repeatable local measurements:
 
@@ -3131,9 +3063,7 @@ Inspect PLLM records and run local benchmarks from the terminal.
 [View canonical HTML](https://pllm.run/cli/)
 
 Document ID: `pllm.docs.cli`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3`
+Release: `0.1.0`
 
 The PLLM command-line interface inspects public metadata, runs bounded local
 benchmarks, and starts the gateway, inference, and preparation service roles.
@@ -3252,9 +3182,7 @@ Validate public experiment data and inspect built-in component records.
 [View canonical HTML](https://pllm.run/cli/inspect-and-research/)
 
 Document ID: `pllm.docs.cli.inspect-and-research`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9b0a5fbfec8bdc3688b22b3b76c90dd117f05b0ec7089fbcb881152c80fb0ea9`
+Release: `0.1.0`
 
 Inspect or export public experiment configuration:
 
@@ -3287,9 +3215,7 @@ Run the trusted gateway locally or connect it to independently operated PLLM rol
 [View canonical HTML](https://pllm.run/cli/private-inference/)
 
 Document ID: `pllm.docs.cli.private-inference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d38d48f9661d3c10599c881dc798f22ea20e556f218f95aca3730f87056c0517`
+Release: `0.1.0`
 
 Applications connect to the trusted loopback gateway. They do not send ordinary
 Responses API or Chat Completions API requests to an inference provider.
@@ -3327,9 +3253,7 @@ Start authenticated inference and preparation services without exposing applicat
 [View canonical HTML](https://pllm.run/cli/provider-roles/)
 
 Document ID: `pllm.docs.cli.provider-roles`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bfbd013d5e76b35ca98c7b602570ab9e55b90650e78453cd3c2c44e40e6be155`
+Release: `0.1.0`
 
 Provider operators run separate computation roles:
 
@@ -3362,9 +3286,7 @@ Learn how PLLM turns a model plan and component choices into a checked execution
 [View canonical HTML](https://pllm.run/sdk/pipeline/compiler/)
 
 Document ID: `pllm.docs.compiler`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c0d3ee32135e041d2e3501df584823d60b898062ef00819484113f15f9084ffb`
+Release: `0.1.0`
 
 Compilation combines a model plan, component choices, workload limits, and policy.
 It checks operator support, value formats, conversions, numeric settings, party
@@ -3411,9 +3333,7 @@ Extend the semantic component graph when an existing category cannot express a r
 [View canonical HTML](https://pllm.run/sdk/contribute/add-a-category/)
 
 Document ID: `pllm.docs.contribute.add-a-category`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a4e76626c0d51636f65b1eec99b365fb8b8c476cfd18990650a678f31fb37dad`
+Release: `0.1.0`
 
 Add a category only when existing operator, representation, protocol, conversion, preparation, kernel, compiler, runtime, deployment, metric, search, or assurance contracts cannot express the new capability without ambiguity.
 
@@ -3434,14 +3354,12 @@ Required identity, lifecycle, representation, role, capability, evidence, and li
 [View canonical HTML](https://pllm.run/sdk/contribute/component-standard/)
 
 Document ID: `pllm.docs.contribute.component-standard`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4`
+Release: `0.1.0`
 
 1. Choose a semantic category and stable authority-owned identity.
 2. Define versioned parameters, lifecycle phase, input and output representations, host requirements, roles, artifacts, and evidence pointers.
-3. Implement in the semantic owner, not a paper-named runtime path.
-4. Add static discovery and identity tests without importing provider or native runtime code.
+3. Implement one concrete class in the semantic family, not in `configuration.py` or a paper-named runtime path; `describe()` on that class is the descriptor source of truth.
+4. Register the class and add static discovery and identity tests without importing provider or native runtime code.
 5. Add compatibility and operator-coverage tests.
 6. Add runtime, benchmark, quality, assurance, and deployment evidence independently when each exists.
 
@@ -3450,11 +3368,14 @@ The canonical contract is [`design/component-standard.md`](https://github.com/bl
 ## Python SDK example
 
 ```python
-from pllm.components import get_component
+from pllm.components import get, get_component
+from pllm.kernels import Cpu
 
+component_class = get("pllm/cpu")
 descriptor = get_component("pllm/cpu")
 record = descriptor.to_dict()
-assert record["component"] == "pllm/cpu"
+assert component_class is Cpu
+assert component_class.describe() is descriptor
 assert {"provider", "version", "category", "capabilities"} <= record.keys()
 ```
 
@@ -3471,9 +3392,7 @@ Add a model, component, research method, or evidence record without creating a o
 [View canonical HTML](https://pllm.run/sdk/contribute/)
 
 Document ID: `pllm.docs.contribute`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:98ce588d8e9bd4293d8c6169dccf6c7ea5726b616ae0234f34df06b0b8433d9b`
+Release: `0.1.0`
 
 Start with the [component standard](/sdk/contribute/component-standard/). Model
 families use shared operations, research methods transform plans, providers expose
@@ -3495,9 +3414,7 @@ Boundary requirements for future independently distributed native capability pro
 [View canonical HTML](https://pllm.run/sdk/contribute/native-plugin-abi/)
 
 Document ID: `pllm.docs.contribute.native-plugin-abi`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:18ab487287c0c85bacbb36f1101ad6d418351edc3235b1e2d75f046c387ca673`
+Release: `0.1.0`
 
 The installed native module is currently built with PLLM. A stable third-party native plugin ABI is not published.
 
@@ -3515,9 +3432,7 @@ Expose a component implementation without importing it during core discovery.
 [View canonical HTML](https://pllm.run/sdk/contribute/publish-a-provider/)
 
 Document ID: `pllm.docs.contribute.publish-a-provider`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:28cc67df58ecba3cbf725acd0f36daaffa145628bd30b496c0188c9d22656cca`
+Release: `0.1.0`
 
 A provider package publishes signed or digest-addressed descriptor metadata, implementation artifacts, host requirements, supported component versions, representations, roles, and evidence references. Discovery reads static metadata before any trusted code executes.
 
@@ -3535,9 +3450,7 @@ Move validated research work into maintained semantic and runtime components.
 [View canonical HTML](https://pllm.run/sdk/contribute/upstreaming/)
 
 Document ID: `pllm.docs.contribute.upstreaming`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:42a06a5f9f97eec9672f7df6e4bb91c6b0f938db5722de5daefde543a4fc8ba9`
+Release: `0.1.0`
 
 Upstreaming requires locked sources, a clean-room implementation record where applicable, fidelity tests, model-neutral semantics, component identity, compiler coverage, numeric analysis, matched benchmark evidence, scoped assurance, quality evaluation, limitations, and maintenance ownership.
 
@@ -3557,9 +3470,7 @@ Learn how values move between numeric formats, layouts, and owners.
 [View canonical HTML](https://pllm.run/sdk/build/conversions/)
 
 Document ID: `pllm.docs.conversions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2173ca48fae6a3abd98f4461c47b8cb46e38b543495c57ceafbe2765297f2f9a`
+Release: `0.1.0`
 
 Conversions connect components that use different formats. Examples include a
 quantized tensor to ring values, arithmetic shares to bits, residues to signed
@@ -3584,9 +3495,7 @@ Learn how to assign PLLM roles to authenticated services without changing privac
 [View canonical HTML](https://pllm.run/sdk/operate/deployment/)
 
 Document ID: `pllm.docs.deployment`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ed02e65f51ae641c76f4e46fb24192ab873ab2807c994325afb77df69915a1e4`
+Release: `0.1.0`
 
 A deployment assigns each protocol role to a process and operator. It records
 endpoints, authentication, separate credentials, provider identity, storage,
@@ -3627,9 +3536,7 @@ Understand PLLM's native integer matrix kernels, memory costs, and CPU requireme
 [View canonical HTML](https://pllm.run/sdk/pipeline/kernels/)
 
 Document ID: `pllm.docs.kernels`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:32182996dd67509970655fcec9753669b156314e8e1aee10ccb742e796d9a484`
+Release: `0.1.0`
 
 `pllm-core` implements bounded integer matrices, scalar reference code, runtime
 AVX2 and NEON selection, codecs, quantization, masking, subtraction, and operating
@@ -3669,9 +3576,7 @@ Compare arithmetic and Boolean garbling without treating one primitive as a comp
 [View canonical HTML](https://pllm.run/learn/arithmetic-and-boolean-garbling/)
 
 Document ID: `pllm.docs.learn.arithmetic-and-boolean-garbling`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2f1b7dae3f98797d91052ff1b0a42c16c417ab6b186e55dcfe52dd1f25029f19`
+Release: `0.1.0`
 
 Arithmetic garbling works with modular integer values. Boolean garbling works
 with bit-level circuits, often using half-gates and free-XOR-compatible labels.
@@ -3695,9 +3600,7 @@ Understand PLLM's private inference runtime, research harness, trust assumptions
 [View canonical HTML](https://pllm.run/learn/)
 
 Document ID: `pllm.docs.learn`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:acc4f065b47dc1a39090ff541e2e4fceef219c3f7fd071539604a7139b5fb3a5`
+Release: `0.1.0`
 
 PLLM is a Rust-first, Python-friendly runtime and research harness for private
 large language model inference across multiple parties. Its goal is to let a
@@ -3742,9 +3645,7 @@ Connect text and local function-tool clients through PLLM's Chat Completions API
 [View canonical HTML](https://pllm.run/learn/integrations/chat-completions/)
 
 Document ID: `pllm.docs.learn.integrations.chat-completions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3e9f8e2b306538cd423838c727dbd741ccc2d9b0da5fe9ab4b623f998b99a570`
+Release: `0.1.0`
 
 `POST /v1/chat/completions` maps OpenAI-compatible chat messages onto the trusted
 gateway's Responses API path. It supports non-streaming and SSE streaming text,
@@ -3772,9 +3673,7 @@ Configure Codex CLI to use PLLM as a custom Responses API provider.
 [View canonical HTML](https://pllm.run/learn/integrations/codex/)
 
 Document ID: `pllm.docs.learn.integrations.codex`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d7daaed526a26cefacfbcfd5219a1d21a5e6ccadaa4aa4727ffb420da5b1c49f`
+Release: `0.1.0`
 
 Add this provider to user-level `~/.codex/config.toml`:
 
@@ -3810,9 +3709,7 @@ Connect OpenAI-compatible SDKs and coding agents to the trusted local PLLM gatew
 [View canonical HTML](https://pllm.run/learn/integrations/)
 
 Document ID: `pllm.docs.learn.integrations`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:67e583054b763f0a58823eb8151468ce268b4953749f688088b29ffb181e0277`
+Release: `0.1.0`
 
 PLLM puts a client-controlled gateway between an application and the preparation
 and inference services. The gateway binds to loopback, holds plaintext application
@@ -3852,9 +3749,7 @@ Start the trusted loopback gateway locally or connect it to separate PLLM servic
 [View canonical HTML](https://pllm.run/learn/integrations/local-gateway/)
 
 Document ID: `pllm.docs.learn.integrations.local-gateway`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e1ad2b7ef4325d09f45085a5da35d4145b45f48b5a631c5ebd14b45218339e07`
+Release: `0.1.0`
 
 The gateway is client-controlled and trusted. It binds to `127.0.0.1:8080` by
 default and uses the local API key `local` unless configured otherwise.
@@ -3946,9 +3841,7 @@ Run an OpenAI Agents SDK text agent through PLLM's Responses API gateway.
 [View canonical HTML](https://pllm.run/learn/integrations/openai-agents/)
 
 Document ID: `pllm.docs.learn.integrations.openai-agents`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d9ffadd9be6ca996d8195ab59a362ec8f32b0d4121a5d0b31da39e93bf6f8919`
+Release: `0.1.0`
 
 Use the Agents SDK Responses API adapter with an `AsyncOpenAI` client that targets
 the local gateway:
@@ -4000,9 +3893,7 @@ Point the official OpenAI Python SDK at the trusted PLLM gateway.
 [View canonical HTML](https://pllm.run/learn/integrations/openai-python/)
 
 Document ID: `pllm.docs.learn.integrations.openai-python`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:97dc3e67264a940b248ea2a3005ea77da1dbff2ed9fb9dad3a2aa96adfca8ef9`
+Release: `0.1.0`
 
 Start the [local gateway](/learn/integrations/local-gateway/), then give the
 official `openai` client the gateway base URL and local credential:
@@ -4044,9 +3935,7 @@ Configure OpenCode to use PLLM through its Chat Completions API gateway.
 [View canonical HTML](https://pllm.run/learn/integrations/opencode/)
 
 Document ID: `pllm.docs.learn.integrations.opencode`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fb55e1f8607bb63db0b9973fd416541d07445c1a83613672187f815d4b74985f`
+Release: `0.1.0`
 
 Add `opencode.json` to the project:
 
@@ -4093,9 +3982,7 @@ Use PLLM's Responses API surface and understand its tested conformance scope.
 [View canonical HTML](https://pllm.run/learn/integrations/responses-api/)
 
 Document ID: `pllm.docs.learn.integrations.responses-api`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b5c26a66a5b12c51c0db6694ebd66c0925fbb95c68b8048928cf4745a1775861`
+Release: `0.1.0`
 
 Send Responses API requests to `http://127.0.0.1:8080/v1/responses` with a bearer
 token for the local gateway. The endpoint supports non-streaming and SSE
@@ -4132,9 +4019,7 @@ Follow seeded one-time masks through offline correction and online matrix evalua
 [View canonical HTML](https://pllm.run/learn/masked-linear-inference/)
 
 Document ID: `pllm.docs.learn.masked-linear-inference`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e307761e359142bb900f5669aa48f929f4ca412891c019495ec5f235a93129c2`
+Release: `0.1.0`
 
 For public matrix `W`, preparation material binds a one-time input mask `r`, output mask `s`, and ticket. Preparation computes `W*r-s` and installs it at inference. Online, the client sends `x-r`; inference combines it with the correction and returns `W*x-s`; the client adds `s`.
 
@@ -4151,9 +4036,7 @@ Understand how integer arithmetic affects correctness and model output quality.
 [View canonical HTML](https://pllm.run/learn/numeric-semantics-and-model-quality/)
 
 Document ID: `pllm.docs.learn.numeric-semantics-and-model-quality`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9f1b3503c3cceb728d1897b5348bd424f0227f147ee7539fd46f0f8c0914eb03`
+Release: `0.1.0`
 
 A model description defines the intended operators. An executable plan must also
 choose integer representations, quantization scales, ring widths, nonlinear
@@ -4177,9 +4060,7 @@ Learn what each party does before and during a private inference request.
 [View canonical HTML](https://pllm.run/learn/parties-and-offline-work/)
 
 Document ID: `pllm.docs.learn.parties-and-offline-work`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:53abc51659043bf19e250a922629dbc0049f9196a8f95d35f217ea8fe996ce92`
+Release: `0.1.0`
 
 The **client** holds plaintext and authorizes each request. The **preparation
 service** creates one-time protocol material before a request. The **inference
@@ -4205,9 +4086,7 @@ Learn what PLLM protects, what each party can see, and which trust assumptions s
 [View canonical HTML](https://pllm.run/learn/privacy-and-threat-models/)
 
 Document ID: `pllm.docs.learn.privacy-and-threat-models`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b7a2162a110280a1c987c0c1e4621c5e4e3abb5f0a925f24ee1413e6cd4ae3fb`
+Release: `0.1.0`
 
 To evaluate a private inference system, ask six questions:
 
@@ -4244,9 +4123,7 @@ Learn how PLLM connects papers, clean-room implementations, measurements, and pu
 [View canonical HTML](https://pllm.run/learn/reading-research-and-evidence/)
 
 Document ID: `pllm.docs.learn.reading-research-and-evidence`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a770dedfe7ec4916dcab45a771035927a905186a407da23e9f8afd45f744aacd`
+Release: `0.1.0`
 
 PLLM records each step from a paper to a published result. It keeps the original
 source, clean-room method, component version, plan history, benchmark evidence,
@@ -4271,9 +4148,7 @@ Choose clear performance, resource, quality, and privacy measurements for a PLLM
 [View canonical HTML](https://pllm.run/research/records/metrics/)
 
 Document ID: `pllm.docs.metrics`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:193a7b72d5185ed5e1d53cad4f962bbd540874b060b24ac3b628cc01dd041fba`
+Release: `0.1.0`
 
 No single number describes system performance. Report tokens per second, time to
 first token, per-token latency, peak and retained memory, CPU time and use,
@@ -4297,9 +4172,7 @@ Variant-parameterized text-decoder lowering for exact Gemma 4 E2B and E4B config
 [View canonical HTML](https://pllm.run/sdk/build/models/gemma4/)
 
 Document ID: `pllm.docs.models.gemma4`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d809eed88ec2a6edc9fbc7db316f64bdf2be0b8938560123fb75b952afb1d59b`
+Release: `0.1.0`
 
 The Gemma 4 adapter validates exact outer text-decoder contracts for:
 
@@ -4339,9 +4212,7 @@ See which model configurations PLLM can describe and what model support does not
 [View canonical HTML](https://pllm.run/sdk/build/models/)
 
 Document ID: `pllm.docs.models`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c58488cb493d34240f862736596c41a4a8a768566a1d46189c75e11cbfb4204e`
+Release: `0.1.0`
 
 `pllm.lower_model(config, batch=..., max_input_tokens=..., max_new_tokens=...)`
 turns model configuration and workload limits into a `ModelPlan`. It does not
@@ -4393,9 +4264,7 @@ Fused-projection and LongRoPE semantic lowering for Phi-4-mini-instruct.
 [View canonical HTML](https://pllm.run/sdk/build/models/phi4-mini/)
 
 Document ID: `pllm.docs.models.phi4-mini`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:609c000ac37d303000ede1113bc5a1df62f30e50836530ba3aec1704cf438d23`
+Release: `0.1.0`
 
 `pllm.phi4_mini.v1` recognizes the `phi3` remote-code configuration used by `microsoft/Phi-4-mini-instruct` revision `cfbefacb99257ffa30c83adab238a50856ac3083`. The raw configuration SHA-256 is `ac65d86061d3d0d704ee2511fd0eb8713ef19eb6eedba17c3080a4165d5b933b`.
 
@@ -4431,9 +4300,7 @@ Dense Qwen2 semantic lowering and its present execution boundary.
 [View canonical HTML](https://pllm.run/sdk/build/models/qwen2/)
 
 Document ID: `pllm.docs.models.qwen2`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b1c1998bca36bbce31e74429cafda255e67506c72e9628160cc84ad109879521`
+Release: `0.1.0`
 
 `pllm.qwen2.v1` lowers bounded prefill and decode graphs for dense `qwen2` configurations. It records grouped-query attention, rotary positions, QKV bias, bias-free output and MLP projections, gated SiLU, KV-cache transitions, last-token output-head evaluation, greedy selection, and feedback.
 
@@ -4478,9 +4345,7 @@ Dense Qwen3 lowering with explicit head width and Q/K normalization.
 [View canonical HTML](https://pllm.run/sdk/build/models/qwen3/)
 
 Document ID: `pllm.docs.models.qwen3`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d882f01bf4d87fc7c158c3a5acc2aeea3f04956d19f9693dfc77932510860767`
+Release: `0.1.0`
 
 `pllm.qwen3.v1` extends dense lowering with explicit `head_dim`, per-head Q/K RMS normalization, and configuration-controlled attention bias. Attention projection width is `num_attention_heads * head_dim`; it is not assumed equal to hidden width.
 
@@ -4514,9 +4379,7 @@ Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B.
 [View canonical HTML](https://pllm.run/sdk/build/models/qwen35/)
 
 Document ID: `pllm.docs.models.qwen35`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c67f04c7a1e3cb4b24f299929fd1de3dbcf179bfb6fa5040c7e3d854c344093c`
+Release: `0.1.0`
 
 `pllm.qwen3_5_text.v1` lowers the text decoder in `Qwen/Qwen3.5-4B` revision `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. The upstream configuration SHA-256 is `ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670`; the checked fixture adds one repository newline and is verified against both representations.
 
@@ -4552,9 +4415,7 @@ Understand PLLM's integer arithmetic, quantization, rounding, approximation, and
 [View canonical HTML](https://pllm.run/sdk/build/numerics/)
 
 Document ID: `pllm.docs.numerics`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2e014e5465ccb49dd79b3f2a1515bc952953f5eebeca817dcc5652cd61a42cb5`
+Release: `0.1.0`
 
 A numeric policy records the number domain, scales, rounding, signed decoding,
 modulus, wire width, coefficient limits, approximation method, and allowed error.
@@ -4602,9 +4463,7 @@ Compile and evaluate PLLM's bounded experimental Q7 SiLU component.
 [View canonical HTML](https://pllm.run/sdk/build/operators/activation-silu/)
 
 Document ID: `pllm.docs.operators.activation-silu`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:17d5ae9315fe707c62863428522610fb863b1e386fa04ab43f8c10fec33ba339`
+Release: `0.1.0`
 
 PLLM implements one executable SiLU profile:
 `research.single_evaluator`, using numeric graph
@@ -4659,9 +4518,7 @@ Learn how PLLM describes model operations independently of model family and runt
 [View canonical HTML](https://pllm.run/sdk/build/operators/)
 
 Document ID: `pllm.docs.operators`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:3d87761d2810281ac4ca355c0f20135e88606387dd28a64e116b41075dd9e567`
+Release: `0.1.0`
 
 Operators describe what a model does without depending on model-family names or a
 specific runtime. Plans represent projections, normalization, rotary embeddings,
@@ -4713,9 +4570,7 @@ Represent fused projections, tensor slices, head widths, and rotary position rul
 [View canonical HTML](https://pllm.run/sdk/build/operators/projection-rotary/)
 
 Document ID: `pllm.docs.operators.projection-rotary`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:98f1404a999a6c764780981c84be7b83d9221bae4534d56adc7b18df104bb81e`
+Release: `0.1.0`
 
 A fused checkpoint tensor remains one `linear` operation followed by semantic `slice` operations. This preserves storage identity without teaching a compiler model-specific tensor names. Query width, KV width, head count, and head width are independent shape facts.
 
@@ -4751,9 +4606,7 @@ Represent convolution and recurrent state in a hybrid decoder plan.
 [View canonical HTML](https://pllm.run/sdk/build/operators/stateful-recurrence/)
 
 Document ID: `pllm.docs.operators.stateful-recurrence`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:64d8181dacf3d471063ffc1be64deddbb01f023f0afa1bf7161beeeace345da6`
+Release: `0.1.0`
 
 Hybrid decoders declare convolution and recurrent state separately from key/value cache state. `causal_convolution` consumes prior convolution state while `convolution_state_update` produces the next bounded state. `gated_delta_rule` consumes normalized Q/K, value, decay, beta, and prior recurrent state; `gated_delta_state_update` records the corresponding state transition.
 
@@ -4790,9 +4643,7 @@ Combine model, privacy protocol, preparation, runtime, and deployment choices in
 [View canonical HTML](https://pllm.run/sdk/pipeline/)
 
 Document ID: `pllm.docs.pipeline`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:0aa653548a4251764aa395f5171ec48d98d5aea590cde612107eef0b8a99d83a`
+Release: `0.1.0`
 
 A `Pipeline` records what you intend to run. Profiles provide visible defaults,
 and component overrides keep their versions. The configuration digest covers
@@ -4835,9 +4686,7 @@ Prepare one-time masked material before a private inference request starts.
 [View canonical HTML](https://pllm.run/sdk/pipeline/preparation/)
 
 Document ID: `pllm.docs.preparation`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:5b7483893fd1b386f018e4e615558233140714467317a5a63dbb7c6931e82cc9`
+Release: `0.1.0`
 
 Preparation components define how one-time material is created, batched, committed,
 transferred, confirmed, erased, expired, and invalidated. They also identify who
@@ -4881,9 +4730,7 @@ Mixed-modulus labels and projection gates over bounded arithmetic values.
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/arithmetic/)
 
 Document ID: `pllm.docs.protocols.garbling.arithmetic`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:5d8e8cd921ebfd04bf47b410e73c52dbaa629702ba30cfa0582ef136aa064247`
+Release: `0.1.0`
 
 Arithmetic garbling represents values with labels per modulus. Free compatible arithmetic can avoid tables; nonlinear projection reconstructs signed values jointly from a coprime residue bundle and emits output labels. Gate material is shape-bound, strictly serialized, and consumed once.
 
@@ -4907,9 +4754,7 @@ Boolean AND-gate representation and the obligations surrounding free-XOR circuit
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/half-gates/)
 
 Document ID: `pllm.docs.protocols.garbling.half-gates`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:149e42548d78ad08f4d8c22390f3013eb618a1b1af9f8d5165c41aa6e1789f21`
+Release: `0.1.0`
 
 Half-gates reduce encrypted table material for Boolean AND gates under compatible label and hash assumptions. A component contract must bind circuit identity, wire labels, correlation assumptions, evaluator material, one-time use, serialization, and output decoding.
 
@@ -4928,9 +4773,7 @@ Reference arithmetic and Boolean garbling components with explicit maturity and 
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/)
 
 Document ID: `pllm.docs.protocols.garbling`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:e15bacdb7ac3166d7522e886b0b3ecf3c9b5c68fc40354f61fc4579da3a80ce2`
+Release: `0.1.0`
 
 Garbling is a family of representations and protocols, not one interchangeable backend. PLLM records arithmetic projection gates, Boolean half-gates, lookup tables, and weighted paths separately because their domains, costs, proofs, and conversion obligations differ.
 
@@ -4949,9 +4792,7 @@ Bounded function tables with explicit domains, indexing, leakage, and material s
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/lookup-tables/)
 
 Document ID: `pllm.docs.protocols.garbling.lookup-tables`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:b4de26e167a6b5b6538882089e360fdb8610b0bf90dc40bf3fd0cae0476354fa`
+Release: `0.1.0`
 
 A lookup-table component maps a finite encoded domain to an encoded range. Its contract records signed interpretation, table cardinality, invalid indices, material ownership, one-time use, communication, and whether selection is data-oblivious under the stated threat model.
 
@@ -4970,9 +4811,7 @@ Decision-path representations for bounded piecewise or tree-structured secure ev
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/garbling/weighted-path/)
 
 Document ID: `pllm.docs.protocols.garbling.weighted-path`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:0e3a43bbae8b1bba9a47f12fd170c44cbc1e4c5ae3fa6629f501de693122e05c`
+Release: `0.1.0`
 
 Weighted paths encode a sequence of predicates and selected contributions rather than a dense table. A component must state path topology, hidden and public structure, comparison semantics, branching leakage, numeric bounds, and worst-case work.
 
@@ -4991,9 +4830,7 @@ See how PLLM defines parties, messages, privacy assumptions, and failure behavio
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/)
 
 Document ID: `pllm.docs.protocols`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bc5ed0e0d4d053194e1dd12b98569bfd7e1a97a4bdad39bb09416ec7ecae5887`
+Release: `0.1.0`
 
 A protocol defines its parties, offline and online phases, inputs, outputs,
 messages, authentication, replay behavior, one-time material, visible information,
@@ -5040,9 +4877,7 @@ Prepared public-weight linear inference with seeded one-time masks and committed
 [View canonical HTML](https://pllm.run/sdk/pipeline/protocols/masked-linear/)
 
 Document ID: `pllm.docs.protocols.masked-linear`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ba67dc0c5a378cc0c277b5b680695625d31789ebb82b774a63b8ec0768a50da3`
+Release: `0.1.0`
 
 The prepared protocol separates client, trusted preparation, and untrusted inference roles. Offline, preparation computes `W*r-s` from domain-separated client seed batches and pushes committed corrections. Online, inference atomically consumes the ticket matching `x-r` and returns `W*x-s` for client reconstruction.
 
@@ -5082,9 +4917,7 @@ Build, reproduce, compare, and review private-inference research with explicit s
 [View canonical HTML](https://pllm.run/research/recipes/)
 
 Document ID: `pllm.docs.recipes`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:534dab86e03973791ceafb51bcff973c9d3946dfd9a66f6fd2417ab1b1df78ca`
+Release: `0.1.0`
 
 A recipe records exact sources, method and component versions, model and workload
 limits, environment requirements, steps, expected files, evidence, and failure
@@ -5111,9 +4944,7 @@ Rust crates, the Python binding, data ownership, threading, and ABI support.
 [View canonical HTML](https://pllm.run/sdk/reference/native/)
 
 Document ID: `pllm.docs.reference.native`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9e528d54619b53c606bc73facfc49add51941b67a4e98bf13e995edc666de3cd`
+Release: `0.1.0`
 
 `pllm-core` owns validated integer matrices and native execution. `pllm-models` owns model-neutral semantic lowering. Research-method crates transform semantic plans. `pllm-types` owns canonical records; `pllm-compiler` validates executable plans. `pllm-python` contains only the PyO3 boundary exposed as `pllm._native`.
 
@@ -5144,9 +4975,7 @@ The installed pllm namespace and its generated public API inventory.
 [View canonical HTML](https://pllm.run/sdk/reference/python/)
 
 Document ID: `pllm.docs.reference.python`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:783bba56b0a47ef52112173d60c5a36c9520e1f1fc492a16c10a9648fb071011`
+Release: `0.1.0`
 
 `python/pllm` is the only installed namespace. Public objects are imported on demand so metadata discovery does not load model weights, devices, providers, or runtime state.
 
@@ -5172,9 +5001,7 @@ Understand how PLLM records a value's format, owner, bounds, and encoding.
 [View canonical HTML](https://pllm.run/sdk/build/representations/)
 
 Document ID: `pllm.docs.representations`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:d415167b9bc0ead406e2487a40c9c6a37d401e4decf523ad43c4fe7e9981532b`
+Release: `0.1.0`
 
 A representation states a value's number domain, shape, memory layout, owner,
 bounds, encoding, and wire format. PLLM uses representations for quantized tensors,
@@ -5199,9 +5026,7 @@ What PLLM will reproduce, implement, review, and measure next.
 [View canonical HTML](https://pllm.run/research/backlog/)
 
 Document ID: `pllm.docs.research.backlog`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2a35235ab25647875e7e70eda42ffb73a22aad537b9167a48e2b2580b88e8b2d`
+Release: `0.1.0`
 
 PLLM tracks papers because they may improve a concrete protocol, compiler pass,
 numeric primitive, or state-management boundary. A tracked paper is not a PLLM
@@ -5294,9 +5119,7 @@ Design reproducible experiments with fixed plans, comparable runs, and recorded 
 [View canonical HTML](https://pllm.run/research/recipes/experiments/)
 
 Document ID: `pllm.docs.research.experiments`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:fb74cab7b8065fcba5070e81afb8cf2a9202786a299e63581e2a8cf9027ca5fe`
+Release: `0.1.0`
 
 Before execution, an experiment records its hypothesis, baseline, changed
 component, model and workload limits, plan digests, environment, metrics, quality
@@ -5318,9 +5141,7 @@ Prioritized paper reimplementation plan, source status, contribution summaries, 
 [View canonical HTML](https://pllm.run/research/papers/)
 
 Document ID: `pllm.docs.research.papers`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:6639b16819b8c850eeda01994a03ce6cd4c75382798ad9351c0912a5f0c932cf`
+Release: `0.1.0`
 
 This catalog is generated from the canonical research registry as of 2026-09-16. A tracked source, target module, or similar data flow is not evidence of implementation, reproduction, security, or benchmark parity.
 
@@ -5499,9 +5320,7 @@ Arithmetic garbling and LabelTensors provide the foundation for offline preparat
 [View canonical HTML](https://pllm.run/research/papers/r01-dash/)
 
 Document ID: `pllm.docs.research.papers.r01-dash`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:094756837e207bf9ad8a47adc2252823f3d129e0e49429fcc5cb52cfac13682f`
+Release: `0.1.0`
 
 **Status:** `reference primitive only`
 **Year:** 2024
@@ -5545,9 +5364,7 @@ ReDASH generalizes residue-number-system scaling and uses ScaleQuant+ to reduce 
 [View canonical HTML](https://pllm.run/research/papers/r02-redash/)
 
 Document ID: `pllm.docs.research.papers.r02-redash`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:182b96d0bda074110cc07a8387afe5298aefa2f814f55805c9c8d90bbac6a126`
+Release: `0.1.0`
 
 **Status:** `reference primitive only`
 **Year:** 2025
@@ -5591,9 +5408,7 @@ Arithmetic garbling provides free additions and specialized gadgets, with a stat
 [View canonical HTML](https://pllm.run/research/papers/r03-garbling-gadgets/)
 
 Document ID: `pllm.docs.research.papers.r03-garbling-gadgets`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:23a38b64e6a2e38612bc8c3df7321f90397a46b0f2c7adead4ed76c31f31d84c`
+Release: `0.1.0`
 
 **Status:** `PLLM component adaptation`
 **Year:** 2016
@@ -5637,9 +5452,7 @@ Half-gates reduce AND-gate communication while remaining compatible with free XO
 [View canonical HTML](https://pllm.run/research/papers/r04-half-gates/)
 
 Document ID: `pllm.docs.research.papers.r04-half-gates`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:15546819e7215688c0073df341ca664b610036a5eeb469ea5afd811c5fa2553a`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2015
@@ -5681,9 +5494,7 @@ The lookup construction reduces the number of security-parameter-sized ciphertex
 [View canonical HTML](https://pllm.run/research/papers/r05-logrow/)
 
 Document ID: `pllm.docs.research.papers.r05-logrow`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:6aee4597b56f85ece9d9ffdea833f271ed2deeffd32cdadde2e1bfd6f28636a5`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2024
@@ -5725,9 +5536,7 @@ This work studies projective conversion from Yao-style bit labels into affine en
 [View canonical HTML](https://pllm.run/research/papers/r06-duty-free-bits/)
 
 Document ID: `pllm.docs.research.papers.r06-duty-free-bits`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:f3f59c04dad3a67ff0911b11cb18dbc1fac4423fa61189a7f355fcb7bb06b5d2`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2026
@@ -5769,9 +5578,7 @@ Slalom outsources masked linear work and uses local verification within a truste
 [View canonical HTML](https://pllm.run/research/papers/r07-slalom/)
 
 Document ID: `pllm.docs.research.papers.r07-slalom`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:4c3202a5af4e553ac3b4ca0a886fa29183693749626860efe827fdb36029fa8b`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2019
@@ -5813,9 +5620,7 @@ Carnival uses subset-sum-based masks to accelerate preprocessing for linear outs
 [View canonical HTML](https://pllm.run/research/papers/r08-carnival/)
 
 Document ID: `pllm.docs.research.papers.r08-carnival`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a0b5f99260f021cf9e7b99ade66d380120b8ebbde90176b31eb831f132ad5c9a`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2024
@@ -5857,9 +5662,7 @@ HyCC compiles high-level programs into hybrid secure-computation protocols. PLLM
 [View canonical HTML](https://pllm.run/research/papers/r09-hycc/)
 
 Document ID: `pllm.docs.research.papers.r09-hycc`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:ce6eb2213026e9bb804d8cc94258ad6e3efaed6fda1c146b5030902ecb29d7a5`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2018
@@ -5901,9 +5704,7 @@ Oblivious decision-program protocols evaluate protected decision structures usin
 [View canonical HTML](https://pllm.run/research/papers/r10-oblivious-decision-programs/)
 
 Document ID: `pllm.docs.research.papers.r10-oblivious-decision-programs`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c8f15874ea7661b07d87227e68d175b291a61df972c4726d072a10a61b56f695`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2013
@@ -5945,9 +5746,7 @@ Factored edge-valued diagrams share subfunctions through additive and multiplica
 [View canonical HTML](https://pllm.run/research/papers/r11-fevbdd/)
 
 Document ID: `pllm.docs.research.papers.r11-fevbdd`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c16d881a6d1e021a3c70f0196d6dfc3732237cf476e1469dc588d7999b1b3e37`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 1997
@@ -5989,9 +5788,7 @@ Piranha separates device, protocol and application layers for GPU-accelerated se
 [View canonical HTML](https://pllm.run/research/papers/r12-piranha/)
 
 Document ID: `pllm.docs.research.papers.r12-piranha`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:63e9a1f88baa35c7f8a34293f4a429931392b4018f03a087fce322bf534ba032`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2022
@@ -6033,9 +5830,7 @@ SIGMA provides FSS-based secure transformer operations and GPU-backed inference 
 [View canonical HTML](https://pllm.run/research/papers/r13-sigma/)
 
 Document ID: `pllm.docs.research.papers.r13-sigma`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:bcfa6b18e34a0b00dde0761dbb0168f0e06f65f4edcaa75f9ab9c5b66c061e23`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2024
@@ -6077,9 +5872,7 @@ FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in F
 [View canonical HTML](https://pllm.run/research/papers/r14-fusefss/)
 
 Document ID: `pllm.docs.research.papers.r14-fusefss`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:5d4e46cf0dac139ffbaf3e9a201e4d1e37a9295b0d6aa5999bd4609ce1e45787`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2026
@@ -6121,9 +5914,7 @@ Galois-ring constructions extend pseudorandom correlation generation to integer 
 [View canonical HTML](https://pllm.run/research/papers/r15-ring-pcg/)
 
 Document ID: `pllm.docs.research.papers.r15-ring-pcg`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8472506708e9b1edacfff851d559354d7d42d902d3ad2bec9903e267d06bb716`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2025
@@ -6165,9 +5956,7 @@ This work uses trapdoored pseudorandom matrices for efficient delegated linear a
 [View canonical HTML](https://pllm.run/research/papers/r16-trapdoored-matrices/)
 
 Document ID: `pllm.docs.research.papers.r16-trapdoored-matrices`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:2aa71666977f2f88a5281ba53fa03885d6b39cce0b57bd5a0a70c6d0059a7b74`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2025
@@ -6209,9 +5998,7 @@ Curl uses wavelet-encoded lookup tables for private nonlinear operations and dis
 [View canonical HTML](https://pllm.run/research/papers/r17-curl/)
 
 Document ID: `pllm.docs.research.papers.r17-curl`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:076c5be16ca060e5de39896474bbee22028578016488705e44225f164f3b5324`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2024
@@ -6253,9 +6040,7 @@ Compact builds input-density-aware piecewise polynomial approximations for compl
 [View canonical HTML](https://pllm.run/research/papers/r18-compact/)
 
 Document ID: `pllm.docs.research.papers.r18-compact`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:9158c72a120ce57d37c7f98e1e693838e9dcdca040e78c29ae3aee7ffd2bff25`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2024
@@ -6297,9 +6082,7 @@ The abstract describes private and verifiable open-weight inference with two mal
 [View canonical HTML](https://pllm.run/research/papers/r19-open-weight-verifiable/)
 
 Document ID: `pllm.docs.research.papers.r19-open-weight-verifiable`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:511ac0a84624156b4622f1d97ed7b5aa21c1bee2dc865b7020e6fa67cd78898e`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2026
@@ -6341,9 +6124,7 @@ This work develops oblivious ciphertext compression using linear codes and syndr
 [View canonical HTML](https://pllm.run/research/papers/r20-oblivious-compression/)
 
 Document ID: `pllm.docs.research.papers.r20-oblivious-compression`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a79d2671be4dcccf62dcf11d8b07f73f5fc1968b31e207016ea4ce45761ad7fa`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2026
@@ -6385,9 +6166,7 @@ NEXUS combines approximate HE with lightweight garbled circuits for non-interact
 [View canonical HTML](https://pllm.run/research/papers/r21-nexus/)
 
 Document ID: `pllm.docs.research.papers.r21-nexus`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:75b4d048ef9c1281d0d2da1b8eedfa0469bbde032b1465d11e63e9f0f61caca2`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2025
@@ -6429,9 +6208,7 @@ BumbleBee implements secure two-party transformer inference with specialized non
 [View canonical HTML](https://pllm.run/research/papers/r22-openbumblebee/)
 
 Document ID: `pllm.docs.research.papers.r22-openbumblebee`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8dd19596f2b46bb08c9159882f087b922196aa5da5221ac910aa431d216793f3`
+Release: `0.1.0`
 
 **Status:** `tracked`
 **Year:** 2025
@@ -6473,9 +6250,7 @@ MPCache evaluates MPC-friendly static and dynamic KV-cache eviction in a three-p
 [View canonical HTML](https://pllm.run/research/papers/r23-mpcache/)
 
 Document ID: `pllm.docs.research.papers.r23-mpcache`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:7cf4288ed443a9f40331a709e2f143f1d35ae9422ef5ee4f934e16a74d4297ee`
+Release: `0.1.0`
 
 **Status:** `PLLM reimplementation`
 **Year:** 2025
@@ -6520,9 +6295,7 @@ Maverick delegates matrix-vector multiplication with transparent preprocessing, 
 [View canonical HTML](https://pllm.run/research/papers/r24-maverick/)
 
 Document ID: `pllm.docs.research.papers.r24-maverick`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:7258e6ba301518570a97f05c659f6b2aafdb70692d8827c57cef90c1911bb3f4`
+Release: `0.1.0`
 
 **Status:** `planned`
 **Year:** 2026
@@ -6565,9 +6338,7 @@ Keep sources, methods, implementations, plans, evidence, assurance, and claims i
 [View canonical HTML](https://pllm.run/research/records/)
 
 Document ID: `pllm.docs.research.records`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:765e0aea01659953c8acb8f99e705e6e862837995d54fe3d2d3fdde57150bf7e`
+Release: `0.1.0`
 
 PLLM research uses immutable, linked records rather than one undifferentiated
 success status. A paper can be acquired without being reproduced. A component can
@@ -6588,9 +6359,7 @@ Reimplement published methods independently in PLLM's Python and Rust stack.
 [View canonical HTML](https://pllm.run/research/recipes/reproductions/)
 
 Document ID: `pllm.docs.research.reproductions`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:7167607cf89aed85798c795e8985fc237397ba706f82a11639f8840fbf7de08e`
+Release: `0.1.0`
 
 PLLM reproductions begin with public papers and locked source records. Contributors
 then implement the method independently in PLLM. Upstream repositories can help
@@ -6613,9 +6382,7 @@ Understand which live state a PLLM runtime owns and how it differs from a reprod
 [View canonical HTML](https://pllm.run/sdk/pipeline/runtime/)
 
 Document ID: `pllm.docs.runtime`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a`
+Release: `0.1.0`
 
 A runtime session owns changing state such as inventory reservations, connections,
 scheduling, the KV cache, native executors, and cancellation. This state is not
@@ -6658,9 +6425,7 @@ Plan models, compose research methods, and use supported PLLM runtimes from Pyth
 [View canonical HTML](https://pllm.run/sdk/)
 
 Document ID: `pllm.docs.sdk`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:606373a08d7caf7bf31c9e8e64913fe55cb0c817ce7a035b9acf459cd2af28cd`
+Release: `0.1.0`
 
 PLLM ships one Python package backed by Rust. The public API separates model
 planning from live runtime state so you can inspect and reproduce a plan without
@@ -6728,9 +6493,7 @@ Compare compatible system designs against explicit resource, quality, and assura
 [View canonical HTML](https://pllm.run/sdk/build/search/)
 
 Document ID: `pllm.docs.search`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:616f28abf575c90674994df850708a0bd878789c19a46851046da13d450d12bd`
+Release: `0.1.0`
 
 Search uses component records and evidence instead of importing provider code.
 Each candidate combines model coverage, operator support, value formats,
@@ -6756,9 +6519,7 @@ Run the real PLLM roles on one machine and understand what the result does and d
 [View canonical HTML](https://pllm.run/learn/start/first-local-benchmark/)
 
 Document ID: `pllm.docs.start.first-local-benchmark`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:c277b81019938f48fc33ad027df967873ac7f89044b32d030597da2200c2f1e6`
+Release: `0.1.0`
 
 Run the real local client, preparation, and inference roles:
 

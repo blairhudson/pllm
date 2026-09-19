@@ -7,11 +7,11 @@ Current semantic adapters cover dense Qwen2 and Qwen3 configuration contracts pl
 
 ## One model source and loader
 
-`pllm.Model` is the typed public source specification used by `Pipeline.model`, SDK loading, runtime model requests, and CLI resolution. `Model(source)` remains the canonical shorthand for an unpinned Hugging Face source. Use `Model.hf(...)` for an explicit revision, `Model.path(...)` for a local Hugging Face, Safetensors, MLX, or GGUF source, and `Model.tiny(...)` only as a source declaration for later synthetic-component workflows.
+`pllm.Model` is the typed public source specification used by `Pipeline.model`, SDK loading, runtime model requests, and CLI resolution. `Model(source)` remains the canonical shorthand for an unpinned Hugging Face source. Use `Model.hf(...)` for an explicit revision, `Model.path(...)`/`BundleModel(...)` for a local Hugging Face, Safetensors, MLX, or GGUF source, and `Model.tiny()`/`TinyModel()` for the deterministic tiny Qwen2 fixture used by local functional tests.
 
 `pllm.load_model(model)` is the sole public loading entry. For Hugging Face identifiers it calls the canonical resumable resolver; for local sources it validates the selected format. It returns `ModelManifest`, not a live engine. Loading hashes the actual checkpoint/config/tokenizer files, checks resolver-recorded hashes when present, and records path-independent `checkpoint_digest` and `source_lock_digest` values. Tokens, API keys, cache directories, devices, and live handles are operational arguments and never enter the model specification or source lock.
 
-The checked Python example below includes both source loading and configuration-only lowering. Loading can download and hash a checkpoint. It does not quantize weights, allocate private material, start a service, or claim that the model has a complete execution profile.
+The checked Python example below includes both source loading and configuration-only lowering. Loading can download and hash a checkpoint; `TinyModel` instead materializes deterministic local files under the selected cache without network access. It does not quantize weights, allocate private material, start a service, or claim that the model has a complete execution profile.
 
 ## Add an adapter
 
@@ -31,12 +31,9 @@ deployment maturity for these semantic plans: not recorded.
 ```python
 from pathlib import Path
 
-from pllm import Model, load_model, lower_model
+from pllm import TinyModel, load_model, lower_model
 
-model = Model.hf(
-    "Qwen/Qwen2.5-0.5B-Instruct",
-    revision="7ae557604adf67be50417f59c2c2f167def9a775",
-)
+model = TinyModel()
 manifest = load_model(model)
 assert manifest.checkpoint_digest is not None
 

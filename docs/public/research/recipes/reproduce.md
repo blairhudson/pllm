@@ -5,9 +5,7 @@ Compare an independent PLLM implementation with the published method it follows.
 [View canonical HTML](https://pllm.run/research/recipes/reproduce/)
 
 Document ID: `pllm.docs.measure.reproduce`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c`
+Release: `0.1.0`
 
 1. Lock source publication, artifact, license, environment, and workload.
 2. Implement reference from publication specification and approved vectors without upstream code.

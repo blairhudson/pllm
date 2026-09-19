@@ -1,7 +1,6 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "2.0.0",
   "release": "0.1.0",
-  "buildId": "sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4",
   "canonicalOrigin": "https://pllm.run",
   "pages": [
     {
@@ -35,8 +34,7 @@
       "navigationGroup": null,
       "navigationGroupTitle": null,
       "navigationRoot": null,
-      "navigationOrder": null,
-      "contentHash": "sha256:8e4a8e12314eff4ae182cecc488c67484e8358825edc7cfdf5b6a03f2ef77285"
+      "navigationOrder": null
     },
     {
       "id": "pllm.docs.start",
@@ -70,8 +68,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
-      "navigationOrder": 0,
-      "contentHash": "sha256:db6bff62bf12c5a9077a2acd49221129fdf9098bfc5f614ddd3980ef60cfe5f3"
+      "navigationOrder": 0
     },
     {
       "id": "pllm.docs.start.installation",
@@ -101,8 +98,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
-      "navigationOrder": 0,
-      "contentHash": "sha256:bc8da7896bdfc0868f416717d585fe986e9f8042271812477bb16b6684f1fef5"
+      "navigationOrder": 0
     },
     {
       "id": "pllm.docs.start.first-private-request",
@@ -132,8 +128,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
-      "navigationOrder": 0,
-      "contentHash": "sha256:86cb6ae6861c17f2747863f96cf66d6794a44c741794d7be5090b3a07eab1e17"
+      "navigationOrder": 0
     },
     {
       "id": "pllm.docs.sdk.configuration",
@@ -163,8 +158,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 4,
-      "contentHash": "sha256:ca2d47f439d2e756dae86cc49d2aa353ba74ccd49e15f1ae137141c512566e13"
+      "navigationOrder": 4
     },
     {
       "id": "pllm.docs.sdk.plans",
@@ -194,8 +188,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 4,
-      "contentHash": "sha256:ca573de30b839639a16e1fa927ef801b9496c39566ef0db5af7143cca802bbe1"
+      "navigationOrder": 4
     },
     {
       "id": "pllm.docs.sdk.components",
@@ -225,8 +218,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 4,
-      "contentHash": "sha256:332d39c20ae8b0e8576995e6d06b0acb7f23f55a341c9ca698c3ecc14b651dce"
+      "navigationOrder": 4
     },
     {
       "id": "pllm.docs.build",
@@ -264,8 +256,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/",
-      "navigationOrder": 100,
-      "contentHash": "sha256:2ec7b240cfeedc5313d59b889fce38bc1698ca68a0597207203e763335f1c860"
+      "navigationOrder": 100
     },
     {
       "id": "pllm.docs.build.models",
@@ -295,8 +286,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/",
-      "navigationOrder": 100,
-      "contentHash": "sha256:c01226ddae8cc9fe8515a5dfa9cc966db484bf328928a08baa63b29841cd0db7"
+      "navigationOrder": 100
     },
     {
       "id": "pllm.docs.build.research",
@@ -326,8 +316,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:43933f6c157772344c1058a9a1e8464a94a2588d891748c282a9da61c5849a93"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.understand",
@@ -362,8 +351,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 5,
-      "contentHash": "sha256:65cda19398436e043102451e5ab7e08cb91af740af9478a2920e1629c42e2416"
+      "navigationOrder": 5
     },
     {
       "id": "pllm.docs.understand.architecture",
@@ -393,8 +381,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 5,
-      "contentHash": "sha256:7fb0e3fb1eb830d498b29238555a6fa4ebffdb042e9c0f1e154f746cb0a73133"
+      "navigationOrder": 5
     },
     {
       "id": "pllm.docs.understand.trust-boundary",
@@ -424,8 +411,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 5,
-      "contentHash": "sha256:fef1568144f0f8f9a318f91dd19b04b81e8baf86b003617ab8f5d5754c7fdcac"
+      "navigationOrder": 5
     },
     {
       "id": "pllm.docs.understand.privacy-assurance",
@@ -455,8 +441,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 5,
-      "contentHash": "sha256:f4ba911c9dd49cb8fd9ebb3ad589b9f2cbd0703c283f8bbb103adb4f64a90a00"
+      "navigationOrder": 5
     },
     {
       "id": "pllm.docs.understand.evidence-claims",
@@ -486,8 +471,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/understand/",
-      "navigationOrder": 5,
-      "contentHash": "sha256:d85eff4abeb651d36958355963b7168aa1ad261e56ed6f5630e6e25054a4e9aa"
+      "navigationOrder": 5
     },
     {
       "id": "pllm.docs.measure",
@@ -522,8 +506,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
-      "navigationOrder": 307,
-      "contentHash": "sha256:dd7e5035522877c46fd0b86b7fc5146db157fdfad877e1e26e12de3b67f143fa"
+      "navigationOrder": 307
     },
     {
       "id": "pllm.docs.measure.benchmark",
@@ -553,8 +536,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
-      "navigationOrder": 307,
-      "contentHash": "sha256:662d0c074f84cef4751f69f07f5050d18a4b2ac2ea1c67c4d034704dc0327120"
+      "navigationOrder": 307
     },
     {
       "id": "pllm.docs.measure.compare",
@@ -584,8 +566,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:a602c74ba70adde296d62e32165b2c058f5a3a472ad847124318fcb7a50a1d52"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.measure.reproduce",
@@ -615,8 +596,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:8fff2091003e53f5abd9eb61aee5e287a8c4594870da152977f1415b034d343c"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.measure.assure",
@@ -646,8 +626,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/",
-      "navigationOrder": 307,
-      "contentHash": "sha256:026d5431c2c14d5a4f2d88c51e875ff73c403eaaa00f5e9d3872c157da4e79d9"
+      "navigationOrder": 307
     },
     {
       "id": "pllm.docs.operate",
@@ -681,8 +660,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
-      "navigationOrder": 206,
-      "contentHash": "sha256:6c6ea2aa33ae622e505697268d99b11df4ecd03aa7e728e52b180f260ac7d2be"
+      "navigationOrder": 206
     },
     {
       "id": "pllm.docs.operate.client-boundary",
@@ -712,8 +690,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
-      "navigationOrder": 206,
-      "contentHash": "sha256:61f75639fd02b152d6deea7dfcfc40ce69a56e14ba8e5e5bd44edd963bccfcb5"
+      "navigationOrder": 206
     },
     {
       "id": "pllm.docs.operate.provider-roles",
@@ -743,8 +720,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/",
-      "navigationOrder": 206,
-      "contentHash": "sha256:a50a07c33083d4790c19b3645ea7d0b2f09692426aaf7e2446fccaa0f2803872"
+      "navigationOrder": 206
     },
     {
       "id": "pllm.docs.operate.deployment",
@@ -774,8 +750,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
-      "navigationOrder": 205,
-      "contentHash": "sha256:e3f8165255071a381d02ff498b1f07c796a76e47d6795692f537de50045c1e83"
+      "navigationOrder": 205
     },
     {
       "id": "pllm.docs.reference",
@@ -811,8 +786,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:aed35cbf2bee61f34a5c3ee7cb85d2b39bbe142538ba69401a466d34dfe60806"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.reference.cli",
@@ -853,8 +827,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:530ebf85d9f771075b42dcd1573180522750d7c1f0e660de67778b259a454b78"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.config",
@@ -891,8 +864,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:e3ab232d2c7c77bf7197287f380c1b5e62c4afa5bffb92058dcf2ba0239a0031"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.components",
@@ -929,8 +901,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:e6acf4380c600a61a42158ee77b759debc1640fe2a53f00dc535cf12aabc38cc"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.benchmark",
@@ -966,8 +937,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:69e847abbf74ab4d1440574aa893dd675cede337b7a32b3c8595061af4beb5de"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.dev",
@@ -1003,8 +973,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:2b39dfc27a5c3f5401a882f43ac014c98b5441139bb6b50bfc7d7b6f1fe2f2ca"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.config.show",
@@ -1038,8 +1007,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:771cfaa411ad8d24d6963bf420a319a51d260753637b2b74edd83ddd316e73e2"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.config.export",
@@ -1073,8 +1041,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:b4ebb105af384251d48525471c0f6f91da1f2295b26ce92fbedbad7608ddcf5b"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.components.list",
@@ -1108,8 +1075,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:150eee9d05158e8dbed0cc3690954ff3739ec425f5c515fbb66e6b8411c9f273"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.components.show",
@@ -1143,8 +1109,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:ad669cde7352e3c96f7bc83c65be5fb15af9018841ed761b3f2873b973fa529c"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.benchmark.run",
@@ -1178,8 +1143,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:0c63b7ca944661028d7ff7ac3ee8a47ddd7fce0069e6678414556f21b5535a9f"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.gateway",
@@ -1213,8 +1177,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:c689bb9829a41f105876f3730c8a76f9e90a293175e6cdef1ec892262f069364"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.serve",
@@ -1251,8 +1214,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:090690592c1f339a12f56fa2ca5f842dbfd42efc08a26830127e1fa3284e43d2"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.serve.inference",
@@ -1286,8 +1248,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:8ea71a3e7646e448f7769608adbde3072528f84ef8bcebc77099edceb9e73e6e"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.serve.preparation",
@@ -1321,8 +1282,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:048d6e2df5da9514398c29c0c6237b81ec28b176b2516d7aaf21cb544ae60d2e"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.cli.dev.dashboard",
@@ -1356,8 +1316,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:e4900d6edb2ae174e60f8c790ac2f76c5e736181cff3e7e83968fbdce0a84397"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.reference.python.pllm",
@@ -1383,10 +1342,18 @@
         "pllm.models",
         "pllm.plan",
         "pllm.components",
+        "pllm.correlation",
         "pllm.kernels",
+        "pllm.nonlinear",
+        "pllm.passes",
         "pllm.protocols",
         "pllm.protocols.masked_linear",
         "pllm.preparation",
+        "pllm.roles",
+        "pllm.schedulers",
+        "pllm.sources",
+        "pllm.state",
+        "pllm.verification",
         "pllm.pipeline",
         "pllm.deployment",
         "pllm.runtime",
@@ -1405,8 +1372,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:314777e9e72d65a6662b649c426130b33ba41821304bd66309ede86bb9d64c74"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.reference.components",
@@ -1427,32 +1393,58 @@
       "prerequisites": [],
       "related": [],
       "publicModules": [
-        "pllm.components"
+        "pllm.components",
+        "pllm.correlation",
+        "pllm.kernels",
+        "pllm.nonlinear",
+        "pllm.passes",
+        "pllm.preparation",
+        "pllm.protocols",
+        "pllm.roles",
+        "pllm.schedulers",
+        "pllm.state",
+        "pllm.verification"
       ],
       "publicSymbols": [
-        "list_components",
-        "get_component"
+        "get",
+        "get_component",
+        "list_component_classes",
+        "list_components"
       ],
       "componentIds": [
+        "pllm/bfv-correlations/v1",
+        "pllm/binary-table/v1",
+        "pllm/blinded-linear/v1",
+        "pllm/chunked-independent-lanes/v1",
+        "pllm/cleartext-linear",
+        "pllm/client-local-kv",
         "pllm/cpu",
-        "pllm/gated-multiply-q7",
+        "pllm/direct-fhe",
+        "pllm/guarded-linear/v1",
+        "pllm/he-authenticated-preprocessing",
+        "pllm/independent-lanes/v1",
+        "pllm/inference",
         "pllm/kv-cache-eviction",
+        "pllm/linear-integrity",
         "pllm/masked-linear",
         "pllm/model-aware-corrections",
-        "pllm/protected-tensor-schedule"
+        "pllm/r03-crt/v1",
+        "pllm/scalar/v1",
+        "pllm/secure-linear/v1",
+        "pllm/seeded-expansion"
       ],
       "sourcePaths": [
         "content/docs/reference/components.mdx",
         "../python/pllm/components/__init__.py"
       ],
       "testPaths": [
+        "../tests/test_component_families.py",
         "../tests/test_developer_reference.py"
       ],
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:d8f90eb55256786da91cf5c7907bc32faf245d0512d3b9c5adb54a69eff67b1f"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.reference.schemas",
@@ -1482,8 +1474,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:d4fa3ab4d1294ce4ab3ed247051f481137bec7ffa7dfe7a11e0209a7e93d7cc5"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.reference.status",
@@ -1513,8 +1504,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:9f1d9628ae32605cd820c8d75b3b1742935a9f802accb99e7e63d6816f9e6098"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.research.sources",
@@ -1544,8 +1534,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:902608904e08ca42456b95de3796aa60480c40feaaf8984a511c0e22016f21be"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.methods",
@@ -1575,8 +1564,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:bade14cd2b0d57d95384fd8eb9fbb288e2109dd7a8dae416db987d94d2545bba"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.compositions",
@@ -1606,8 +1594,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:855a770f860f8566718697ac5e1811aa1582524b5d82afd78b425920f9ba865f"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.evidence",
@@ -1637,8 +1624,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:1143da9f355941d7d227919abb30be9d25e8915beb18f91a788ae52500e5f2dd"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.publications",
@@ -1668,8 +1654,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:fa16c1fbe2aefc7795dd8295365e02cba1e53a90bdf9123af6becc25ea3a4b88"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.clean-room",
@@ -1699,8 +1684,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:d4e56f432856ff6a9766a7e2bb8bd1367507e5523cfaa6986de76904a33753b7"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.research",
@@ -1743,8 +1727,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:3a6c188317f497b69d71c7046e87e765ba05105799dc8eae573a1d9cd34981ec"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.research.paper",
@@ -1774,8 +1757,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:b30e1c92b912f0751bf2e706ce88f661f725a0a9e707876447f4a34860d03294"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.research.whitepaper",
@@ -1806,7 +1788,6 @@
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
       "navigationOrder": 304,
-      "contentHash": "sha256:bb82da13da8f01181220f54683f0f04f8bb3d0a18b75dbf850aae15f5220c4d5",
       "citationLinks": [
         "/learn/understand/architecture/",
         "/learn/understand/privacy-assurance/"
@@ -1843,8 +1824,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
-      "navigationOrder": 402,
-      "contentHash": "sha256:5da2bf5b4ec123fd8020decc043a08e8b1b0651ca0c9f8f340aaf9f83b70695d"
+      "navigationOrder": 402
     },
     {
       "id": "pllm.docs.agents",
@@ -1876,8 +1856,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/agents/",
-      "navigationOrder": 402,
-      "contentHash": "sha256:0a2d9d73c5c1d79f973a8a039973d7d1f927e937ed452afee4ef1cc3aaa622c6"
+      "navigationOrder": 402
     },
     {
       "id": "pllm.docs.agents.reproduction-checklist",
@@ -1907,8 +1886,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:2eab3e1105ed23d135a0cc281a16c34066635d9eb162df73041ef66b9eb5d32f"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.agents.research-map",
@@ -1938,8 +1916,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:12200e4e83b9c4fcc95eb51d4001c69282216cb1b360beffbcd098b5ccac04c4"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.assurance",
@@ -1969,8 +1946,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/assurance/",
-      "navigationOrder": 303,
-      "contentHash": "sha256:13f22bea16c6bc03779bbf5003402ef7eba8dd47d0b615ef73e086341603f93d"
+      "navigationOrder": 303
     },
     {
       "id": "pllm.docs.benchmarks",
@@ -2000,8 +1976,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/research/benchmarks/",
-      "navigationOrder": 300,
-      "contentHash": "sha256:d27ea7f28d2654287fed98258151eed265ddc263ce1d076a7821857edfc7776a"
+      "navigationOrder": 300
     },
     {
       "id": "pllm.docs.cli.benchmarking",
@@ -2031,8 +2006,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:e6a9254b5ee1cc3476bbb88678124ba2eedbdd93afb87fb6375602216410b86a"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.cli",
@@ -2068,8 +2042,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:3d5aa8861a0179a01eaa09ff63d72f52a1aada96b0a8e83979b9608fbd0679e3"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.cli.inspect-and-research",
@@ -2099,8 +2072,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:9b0a5fbfec8bdc3688b22b3b76c90dd117f05b0ec7089fbcb881152c80fb0ea9"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.cli.private-inference",
@@ -2130,8 +2102,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:d38d48f9661d3c10599c881dc798f22ea20e556f218f95aca3730f87056c0517"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.cli.provider-roles",
@@ -2161,8 +2132,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/cli/",
-      "navigationOrder": 3,
-      "contentHash": "sha256:bfbd013d5e76b35ca98c7b602570ab9e55b90650e78453cd3c2c44e40e6be155"
+      "navigationOrder": 3
     },
     {
       "id": "pllm.docs.compiler",
@@ -2192,8 +2162,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/compiler/",
-      "navigationOrder": 202,
-      "contentHash": "sha256:c0d3ee32135e041d2e3501df584823d60b898062ef00819484113f15f9084ffb"
+      "navigationOrder": 202
     },
     {
       "id": "pllm.docs.contribute.add-a-category",
@@ -2223,8 +2192,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:a4e76626c0d51636f65b1eec99b365fb8b8c476cfd18990650a678f31fb37dad"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.contribute.component-standard",
@@ -2254,8 +2222,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:f326459a3dbff7422c16892470d161e7f5d4b42a195957baf701aef71e696de4"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.contribute",
@@ -2292,8 +2259,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:98ce588d8e9bd4293d8c6169dccf6c7ea5726b616ae0234f34df06b0b8433d9b"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.contribute.native-plugin-abi",
@@ -2323,8 +2289,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:18ab487287c0c85bacbb36f1101ad6d418351edc3235b1e2d75f046c387ca673"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.contribute.publish-a-provider",
@@ -2354,8 +2319,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:28cc67df58ecba3cbf725acd0f36daaffa145628bd30b496c0188c9d22656cca"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.contribute.upstreaming",
@@ -2385,8 +2349,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/contribute/",
-      "navigationOrder": 401,
-      "contentHash": "sha256:42a06a5f9f97eec9672f7df6e4bb91c6b0f938db5722de5daefde543a4fc8ba9"
+      "navigationOrder": 401
     },
     {
       "id": "pllm.docs.conversions",
@@ -2416,8 +2379,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/conversions/",
-      "navigationOrder": 106,
-      "contentHash": "sha256:2173ca48fae6a3abd98f4461c47b8cb46e38b543495c57ceafbe2765297f2f9a"
+      "navigationOrder": 106
     },
     {
       "id": "pllm.docs.deployment",
@@ -2449,8 +2411,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/operate/deployment/",
-      "navigationOrder": 205,
-      "contentHash": "sha256:ed02e65f51ae641c76f4e46fb24192ab873ab2807c994325afb77df69915a1e4"
+      "navigationOrder": 205
     },
     {
       "id": "pllm.docs.kernels",
@@ -2480,8 +2441,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/kernels/",
-      "navigationOrder": 201,
-      "contentHash": "sha256:32182996dd67509970655fcec9753669b156314e8e1aee10ccb742e796d9a484"
+      "navigationOrder": 201
     },
     {
       "id": "pllm.docs.learn.arithmetic-and-boolean-garbling",
@@ -2511,8 +2471,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:2f1b7dae3f98797d91052ff1b0a42c16c417ab6b186e55dcfe52dd1f25029f19"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn",
@@ -2552,8 +2511,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:acc4f065b47dc1a39090ff541e2e4fceef219c3f7fd071539604a7139b5fb3a5"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn.integrations.chat-completions",
@@ -2583,8 +2541,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:3e9f8e2b306538cd423838c727dbd741ccc2d9b0da5fe9ab4b623f998b99a570"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.codex",
@@ -2614,8 +2571,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:d7daaed526a26cefacfbcfd5219a1d21a5e6ccadaa4aa4727ffb420da5b1c49f"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations",
@@ -2653,8 +2609,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:67e583054b763f0a58823eb8151468ce268b4953749f688088b29ffb181e0277"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.local-gateway",
@@ -2684,8 +2639,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:e1ad2b7ef4325d09f45085a5da35d4145b45f48b5a631c5ebd14b45218339e07"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.openai-agents",
@@ -2715,8 +2669,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:d9ffadd9be6ca996d8195ab59a362ec8f32b0d4121a5d0b31da39e93bf6f8919"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.openai-python",
@@ -2746,8 +2699,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:97dc3e67264a940b248ea2a3005ea77da1dbff2ed9fb9dad3a2aa96adfca8ef9"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.opencode",
@@ -2777,8 +2729,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:fb55e1f8607bb63db0b9973fd416541d07445c1a83613672187f815d4b74985f"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.integrations.responses-api",
@@ -2808,8 +2759,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/integrations/",
-      "navigationOrder": 2,
-      "contentHash": "sha256:b5c26a66a5b12c51c0db6694ebd66c0925fbb95c68b8048928cf4745a1775861"
+      "navigationOrder": 2
     },
     {
       "id": "pllm.docs.learn.masked-linear-inference",
@@ -2839,8 +2789,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:e307761e359142bb900f5669aa48f929f4ca412891c019495ec5f235a93129c2"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn.numeric-semantics-and-model-quality",
@@ -2870,8 +2819,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:9f1b3503c3cceb728d1897b5348bd424f0227f147ee7539fd46f0f8c0914eb03"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn.parties-and-offline-work",
@@ -2901,8 +2849,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:53abc51659043bf19e250a922629dbc0049f9196a8f95d35f217ea8fe996ce92"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn.privacy-and-threat-models",
@@ -2932,8 +2879,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:b7a2162a110280a1c987c0c1e4621c5e4e3abb5f0a925f24ee1413e6cd4ae3fb"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.learn.reading-research-and-evidence",
@@ -2963,8 +2909,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/",
-      "navigationOrder": 1,
-      "contentHash": "sha256:a770dedfe7ec4916dcab45a771035927a905186a407da23e9f8afd45f744aacd"
+      "navigationOrder": 1
     },
     {
       "id": "pllm.docs.metrics",
@@ -2994,8 +2939,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/records/metrics/",
-      "navigationOrder": 301,
-      "contentHash": "sha256:193a7b72d5185ed5e1d53cad4f962bbd540874b060b24ac3b628cc01dd041fba"
+      "navigationOrder": 301
     },
     {
       "id": "pllm.docs.models.gemma4",
@@ -3025,8 +2969,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:d809eed88ec2a6edc9fbc7db316f64bdf2be0b8938560123fb75b952afb1d59b"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.models",
@@ -3062,8 +3005,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:c58488cb493d34240f862736596c41a4a8a768566a1d46189c75e11cbfb4204e"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.models.phi4-mini",
@@ -3093,8 +3035,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:609c000ac37d303000ede1113bc5a1df62f30e50836530ba3aec1704cf438d23"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.models.qwen2",
@@ -3124,8 +3065,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:b1c1998bca36bbce31e74429cafda255e67506c72e9628160cc84ad109879521"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.models.qwen3",
@@ -3155,8 +3095,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:d882f01bf4d87fc7c158c3a5acc2aeea3f04956d19f9693dfc77932510860767"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.models.qwen35",
@@ -3186,8 +3125,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/models/",
-      "navigationOrder": 101,
-      "contentHash": "sha256:c67f04c7a1e3cb4b24f299929fd1de3dbcf179bfb6fa5040c7e3d854c344093c"
+      "navigationOrder": 101
     },
     {
       "id": "pllm.docs.numerics",
@@ -3217,8 +3155,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/numerics/",
-      "navigationOrder": 103,
-      "contentHash": "sha256:2e014e5465ccb49dd79b3f2a1515bc952953f5eebeca817dcc5652cd61a42cb5"
+      "navigationOrder": 103
     },
     {
       "id": "pllm.docs.operators.activation-silu",
@@ -3248,8 +3185,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
-      "navigationOrder": 102,
-      "contentHash": "sha256:17d5ae9315fe707c62863428522610fb863b1e386fa04ab43f8c10fec33ba339"
+      "navigationOrder": 102
     },
     {
       "id": "pllm.docs.operators",
@@ -3283,8 +3219,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
-      "navigationOrder": 102,
-      "contentHash": "sha256:3d87761d2810281ac4ca355c0f20135e88606387dd28a64e116b41075dd9e567"
+      "navigationOrder": 102
     },
     {
       "id": "pllm.docs.operators.projection-rotary",
@@ -3314,8 +3249,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
-      "navigationOrder": 102,
-      "contentHash": "sha256:98f1404a999a6c764780981c84be7b83d9221bae4534d56adc7b18df104bb81e"
+      "navigationOrder": 102
     },
     {
       "id": "pllm.docs.operators.stateful-recurrence",
@@ -3345,8 +3279,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/operators/",
-      "navigationOrder": 102,
-      "contentHash": "sha256:64d8181dacf3d471063ffc1be64deddbb01f023f0afa1bf7161beeeace345da6"
+      "navigationOrder": 102
     },
     {
       "id": "pllm.docs.pipeline",
@@ -3382,8 +3315,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/",
-      "navigationOrder": 203,
-      "contentHash": "sha256:0aa653548a4251764aa395f5171ec48d98d5aea590cde612107eef0b8a99d83a"
+      "navigationOrder": 203
     },
     {
       "id": "pllm.docs.preparation",
@@ -3413,8 +3345,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/preparation/",
-      "navigationOrder": 200,
-      "contentHash": "sha256:5b7483893fd1b386f018e4e615558233140714467317a5a63dbb7c6931e82cc9"
+      "navigationOrder": 200
     },
     {
       "id": "pllm.docs.protocols.garbling.arithmetic",
@@ -3444,8 +3375,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:5d8e8cd921ebfd04bf47b410e73c52dbaa629702ba30cfa0582ef136aa064247"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols.garbling.half-gates",
@@ -3475,8 +3405,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:149e42548d78ad08f4d8c22390f3013eb618a1b1af9f8d5165c41aa6e1789f21"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols.garbling",
@@ -3511,8 +3440,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:e15bacdb7ac3166d7522e886b0b3ecf3c9b5c68fc40354f61fc4579da3a80ce2"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols.garbling.lookup-tables",
@@ -3542,8 +3470,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:b4de26e167a6b5b6538882089e360fdb8610b0bf90dc40bf3fd0cae0476354fa"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols.garbling.weighted-path",
@@ -3573,8 +3500,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:0e3a43bbae8b1bba9a47f12fd170c44cbc1e4c5ae3fa6629f501de693122e05c"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols",
@@ -3607,8 +3533,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:bc5ed0e0d4d053194e1dd12b98569bfd7e1a97a4bdad39bb09416ec7ecae5887"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.protocols.masked-linear",
@@ -3638,8 +3563,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/pipeline/protocols/",
-      "navigationOrder": 105,
-      "contentHash": "sha256:ba67dc0c5a378cc0c277b5b680695625d31789ebb82b774a63b8ec0768a50da3"
+      "navigationOrder": 105
     },
     {
       "id": "pllm.docs.recipes",
@@ -3677,8 +3601,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:534dab86e03973791ceafb51bcff973c9d3946dfd9a66f6fd2417ab1b1df78ca"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.reference.native",
@@ -3708,8 +3631,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:9e528d54619b53c606bc73facfc49add51941b67a4e98bf13e995edc666de3cd"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.reference.python",
@@ -3741,8 +3663,7 @@
       "navigationGroup": "reference",
       "navigationGroupTitle": "Reference",
       "navigationRoot": "/sdk/reference/",
-      "navigationOrder": 400,
-      "contentHash": "sha256:783bba56b0a47ef52112173d60c5a36c9520e1f1fc492a16c10a9648fb071011"
+      "navigationOrder": 400
     },
     {
       "id": "pllm.docs.representations",
@@ -3772,8 +3693,7 @@
       "navigationGroup": "define",
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/representations/",
-      "navigationOrder": 104,
-      "contentHash": "sha256:d415167b9bc0ead406e2487a40c9c6a37d401e4decf523ad43c4fe7e9981532b"
+      "navigationOrder": 104
     },
     {
       "id": "pllm.docs.research.backlog",
@@ -3803,8 +3723,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:2a35235ab25647875e7e70eda42ffb73a22aad537b9167a48e2b2580b88e8b2d"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.experiments",
@@ -3834,8 +3753,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:fb74cab7b8065fcba5070e81afb8cf2a9202786a299e63581e2a8cf9027ca5fe"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.research.papers",
@@ -3890,8 +3808,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:6639b16819b8c850eeda01994a03ce6cd4c75382798ad9351c0912a5f0c932cf"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r01-dash",
@@ -3921,8 +3838,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:094756837e207bf9ad8a47adc2252823f3d129e0e49429fcc5cb52cfac13682f"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r02-redash",
@@ -3952,8 +3868,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:182b96d0bda074110cc07a8387afe5298aefa2f814f55805c9c8d90bbac6a126"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r03-garbling-gadgets",
@@ -3983,8 +3898,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:23a38b64e6a2e38612bc8c3df7321f90397a46b0f2c7adead4ed76c31f31d84c"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r04-half-gates",
@@ -4014,8 +3928,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:15546819e7215688c0073df341ca664b610036a5eeb469ea5afd811c5fa2553a"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r05-logrow",
@@ -4045,8 +3958,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:6aee4597b56f85ece9d9ffdea833f271ed2deeffd32cdadde2e1bfd6f28636a5"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r06-duty-free-bits",
@@ -4076,8 +3988,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:f3f59c04dad3a67ff0911b11cb18dbc1fac4423fa61189a7f355fcb7bb06b5d2"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r07-slalom",
@@ -4107,8 +4018,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:4c3202a5af4e553ac3b4ca0a886fa29183693749626860efe827fdb36029fa8b"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r08-carnival",
@@ -4138,8 +4048,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:a0b5f99260f021cf9e7b99ade66d380120b8ebbde90176b31eb831f132ad5c9a"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r09-hycc",
@@ -4169,8 +4078,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:ce6eb2213026e9bb804d8cc94258ad6e3efaed6fda1c146b5030902ecb29d7a5"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r10-oblivious-decision-programs",
@@ -4200,8 +4108,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:c8f15874ea7661b07d87227e68d175b291a61df972c4726d072a10a61b56f695"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r11-fevbdd",
@@ -4231,8 +4138,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:c16d881a6d1e021a3c70f0196d6dfc3732237cf476e1469dc588d7999b1b3e37"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r12-piranha",
@@ -4262,8 +4168,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:63e9a1f88baa35c7f8a34293f4a429931392b4018f03a087fce322bf534ba032"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r13-sigma",
@@ -4293,8 +4198,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:bcfa6b18e34a0b00dde0761dbb0168f0e06f65f4edcaa75f9ab9c5b66c061e23"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r14-fusefss",
@@ -4324,8 +4228,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:5d4e46cf0dac139ffbaf3e9a201e4d1e37a9295b0d6aa5999bd4609ce1e45787"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r15-ring-pcg",
@@ -4355,8 +4258,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:8472506708e9b1edacfff851d559354d7d42d902d3ad2bec9903e267d06bb716"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r16-trapdoored-matrices",
@@ -4386,8 +4288,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:2aa71666977f2f88a5281ba53fa03885d6b39cce0b57bd5a0a70c6d0059a7b74"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r17-curl",
@@ -4417,8 +4318,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:076c5be16ca060e5de39896474bbee22028578016488705e44225f164f3b5324"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r18-compact",
@@ -4448,8 +4348,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:9158c72a120ce57d37c7f98e1e693838e9dcdca040e78c29ae3aee7ffd2bff25"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r19-open-weight-verifiable",
@@ -4479,8 +4378,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:511ac0a84624156b4622f1d97ed7b5aa21c1bee2dc865b7020e6fa67cd78898e"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r20-oblivious-compression",
@@ -4510,8 +4408,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:a79d2671be4dcccf62dcf11d8b07f73f5fc1968b31e207016ea4ce45761ad7fa"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r21-nexus",
@@ -4541,8 +4438,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:75b4d048ef9c1281d0d2da1b8eedfa0469bbde032b1465d11e63e9f0f61caca2"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r22-openbumblebee",
@@ -4572,8 +4468,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:8dd19596f2b46bb08c9159882f087b922196aa5da5221ac910aa431d216793f3"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r23-mpcache",
@@ -4603,8 +4498,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:7cf4288ed443a9f40331a709e2f143f1d35ae9422ef5ee4f934e16a74d4297ee"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.papers.r24-maverick",
@@ -4634,8 +4528,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/",
-      "navigationOrder": 304,
-      "contentHash": "sha256:7258e6ba301518570a97f05c659f6b2aafdb70692d8827c57cef90c1911bb3f4"
+      "navigationOrder": 304
     },
     {
       "id": "pllm.docs.research.records",
@@ -4667,8 +4560,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/records/",
-      "navigationOrder": 305,
-      "contentHash": "sha256:765e0aea01659953c8acb8f99e705e6e862837995d54fe3d2d3fdde57150bf7e"
+      "navigationOrder": 305
     },
     {
       "id": "pllm.docs.research.reproductions",
@@ -4698,8 +4590,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/research/recipes/",
-      "navigationOrder": 306,
-      "contentHash": "sha256:7167607cf89aed85798c795e8985fc237397ba706f82a11639f8840fbf7de08e"
+      "navigationOrder": 306
     },
     {
       "id": "pllm.docs.runtime",
@@ -4729,8 +4620,7 @@
       "navigationGroup": "execute",
       "navigationGroupTitle": "Execute",
       "navigationRoot": "/sdk/pipeline/runtime/",
-      "navigationOrder": 204,
-      "contentHash": "sha256:a52d372d8d7c272ac7b753f8d4e3e37bc6de7fd73126cc3e0a75d8543cf76c3a"
+      "navigationOrder": 204
     },
     {
       "id": "pllm.docs.sdk",
@@ -4770,8 +4660,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/sdk/",
-      "navigationOrder": 4,
-      "contentHash": "sha256:606373a08d7caf7bf31c9e8e64913fe55cb0c817ce7a035b9acf459cd2af28cd"
+      "navigationOrder": 4
     },
     {
       "id": "pllm.docs.search",
@@ -4801,8 +4690,7 @@
       "navigationGroup": "evaluate",
       "navigationGroupTitle": "Evaluate",
       "navigationRoot": "/sdk/build/search/",
-      "navigationOrder": 302,
-      "contentHash": "sha256:616f28abf575c90674994df850708a0bd878789c19a46851046da13d450d12bd"
+      "navigationOrder": 302
     },
     {
       "id": "pllm.docs.start.first-local-benchmark",
@@ -4832,8 +4720,7 @@
       "navigationGroup": "get-started",
       "navigationGroupTitle": "Get started",
       "navigationRoot": "/learn/start/",
-      "navigationOrder": 0,
-      "contentHash": "sha256:c277b81019938f48fc33ad027df967873ac7f89044b32d030597da2200c2f1e6"
+      "navigationOrder": 0
     }
   ]
 }

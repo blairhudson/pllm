@@ -6,11 +6,12 @@ description: "Define a reproducible experiment, lower a semantic model plan, and
 ## Define the experiment
 
 ```python
-from pllm import ComponentRef, Experiment, Model, Pipeline
+from pllm import Experiment, Model, Pipeline
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.preparation import ModelAwareCorrections
 from pllm.protocols.masked_linear import MaskedLinear
+from pllm.roles import Inference
 from pllm.runtime import ExecutionBudget
 
 experiment = Experiment(
@@ -21,7 +22,7 @@ experiment = Experiment(
         components={
             "linear": MaskedLinear(),
             "preparation": ModelAwareCorrections(),
-            "inference": ComponentRef("pllm/inference"),
+            "inference": Inference(),
             "kernels": Cpu(threads=4),
         },
     ),
@@ -57,7 +58,7 @@ load weights:
 
 ```python
 import pllm
-from pllm.components import KvCacheEviction
+from pllm.passes import KvCacheEviction
 
 config = {
     "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,

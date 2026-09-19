@@ -1,7 +1,6 @@
 # PLLM
 
 Release: 0.1.0
-Build: sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4
 
 Private LLM inference documentation. Public weights; provider follows the protocol.
 

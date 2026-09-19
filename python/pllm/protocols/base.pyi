@@ -1,0 +1,3 @@
+from pllm.configuration import ComponentRef
+
+class ProtocolMethod(ComponentRef): ...

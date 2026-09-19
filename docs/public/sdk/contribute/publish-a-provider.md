@@ -5,9 +5,7 @@ Expose a component implementation without importing it during core discovery.
 [View canonical HTML](https://pllm.run/sdk/contribute/publish-a-provider/)
 
 Document ID: `pllm.docs.contribute.publish-a-provider`  
-Release: `0.1.0`  
-Build: `sha256:d19e46409d656eb3dd08fdadbb8ef6a9e8ca4c33fb48893359235fe855b4a7c4`  
-Source hash: `sha256:28cc67df58ecba3cbf725acd0f36daaffa145628bd30b496c0188c9d22656cca`
+Release: `0.1.0`
 
 A provider package publishes signed or digest-addressed descriptor metadata, implementation artifacts, host requirements, supported component versions, representations, roles, and evidence references. Discovery reads static metadata before any trusted code executes.
 
