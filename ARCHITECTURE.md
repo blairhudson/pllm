@@ -124,8 +124,9 @@ discovers static external manifests and package-confined resources without impor
 provider code; factory import is a separate approved operation. `pllm.metrics` owns
 typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact
 evidence cohorts without implicit ranking. `pllm.search` generates validated
-immutable candidates and applies explicit cohort-safe Pareto directions. Public
-objects are imported on demand.
+immutable candidates and applies explicit cohort-safe Pareto directions.
+`pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
+and promotion gates static and non-executable. Public objects are imported on demand.
 `pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.

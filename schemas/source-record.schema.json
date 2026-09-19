@@ -12,7 +12,7 @@
     "authors": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
     "year": {"type": "integer", "minimum": 1900},
     "primary_url": {"type": "string", "format": "uri"},
-    "access": {"enum": ["primary_full_text", "primary_full_text_html", "primary_abstract", "primary_author_metadata", "primary_author_search_excerpt", "unavailable"]},
+    "access": {"enum": ["primary_full_text", "primary_full_text_html", "primary_full_text_pdf", "primary_abstract", "primary_author_metadata", "primary_author_search_excerpt", "unavailable"]},
     "verified_on": {"type": "string", "format": "date"},
     "paper_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "local_path": {"type": "string", "pattern": "^papers/[^/]+\\.pdf$"},

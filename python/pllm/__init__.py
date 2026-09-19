@@ -5,6 +5,7 @@ from importlib import import_module
 from ._version import __version__
 
 _EXPORTS = {
+    "ArtifactLock": ("pllm.research", "ArtifactLock"),
     "AsyncOpenAI": ("pllm.runtime.client", "AsyncOpenAI"),
     "AuthenticatedMPC": ("pllm.runtime.authenticated_mpc", "AuthenticatedMPC"),
     "AuthenticationError": ("pllm.runtime.authenticated_mpc", "AuthenticationError"),
@@ -45,12 +46,14 @@ _EXPORTS = {
     "ProviderDiscoveryError": ("pllm.providers", "ProviderDiscoveryError"),
     "ProviderResource": ("pllm.providers", "ProviderResource"),
     "PreprocessingPlan": ("pllm.runtime.preprocessing_inventory", "PreprocessingPlan"),
+    "PromotionDecision": ("pllm.research", "PromotionDecision"),
     "PrivacyMode": ("pllm.runtime.privacy", "PrivacyMode"),
     "ProprietaryProtocol": ("pllm.runtime.privacy", "ProprietaryProtocol"),
     "RandomSearch": ("pllm.search", "RandomSearch"),
     "RecordingPreprocessor": ("pllm.runtime.preprocessing_inventory", "RecordingPreprocessor"),
     "Response": ("pllm.runtime.types", "Response"),
     "ResponseEvent": ("pllm.runtime.types", "ResponseEvent"),
+    "ResearchRegistry": ("pllm.research", "ResearchRegistry"),
     "ResponseStream": ("pllm.runtime.client", "ResponseStream"),
     "SECURE_PREVIEW": ("pllm.runtime.formal_security", "SECURE_PREVIEW"),
     "SecureDecoder": ("pllm.runtime.secure_transformer", "SecureDecoder"),
@@ -61,6 +64,7 @@ _EXPORTS = {
     "SearchEvaluation": ("pllm.search", "SearchEvaluation"),
     "SearchSpace": ("pllm.search", "SearchSpace"),
     "SecurityClaim": ("pllm.runtime.formal_security", "SecurityClaim"),
+    "SourceRecord": ("pllm.research", "SourceRecord"),
     "TinyModel": ("pllm.sources", "TinyModel"),
     "TrustedPreprocessor": ("pllm.runtime.authenticated_mpc", "TrustedPreprocessor"),
     "check_linear_result": ("pllm.verification", "check_linear_result"),
@@ -76,6 +80,7 @@ _EXPORTS = {
     "KvCacheEviction": ("pllm.passes", "KvCacheEviction"),
     "MaskedLinear": ("pllm.protocols", "MaskedLinear"),
     "MaskedLinearCpu": ("pllm.profiles", "MaskedLinearCpu"),
+    "MethodRecord": ("pllm.research", "MethodRecord"),
     "Model": ("pllm.configuration", "Model"),
     "ModelLoadError": ("pllm.model_loader", "ModelLoadError"),
     "ModelAwareCorrections": ("pllm.preparation", "ModelAwareCorrections"),

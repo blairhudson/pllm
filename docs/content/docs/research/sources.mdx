@@ -8,9 +8,7 @@ a stable paper ID and external URL. Missing publication, artifact, license, or
 acquisition information remains explicit rather than being guessed.
 
 An original source is not a PLLM method, component, recipe, implementation, or
-evidence record. Downloading a source does not mean that PLLM built, ran, or
-reproduced it. Claims from a source remain attributed to that source and limited
-to its stated workload and assumptions.
+evidence record. Downloading a source does not mean that PLLM built, ran, or reproduced it. `SourceRecord` validates canonical paper attribution independently from `ArtifactLock`. Upstream locks begin quarantined, remain external-process/oracle-only when restricted, and cannot become reproduction-verified without pinned artifact and evidence digests. The registry performs no network, import, subprocess, or execution operation. Claims from a source remain attributed to that source and limited to its stated workload and assumptions.
 
 Use the [research backlog](/research/backlog/) to distinguish tracked sources,
-planned work, reference primitives, and structural adaptations.
+planned work, reference primitives, and structural adaptations. API: [`pllm.research`](/sdk/reference/python/pllm/#objects-and-signatures).

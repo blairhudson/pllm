@@ -76,7 +76,7 @@ test('manifest is complete and versioned without generated hashes', () => {
   for (const identity of ['pllm/cpu', 'pllm/latency', 'pllm/masked-linear', 'pllm/throughput']) assert.ok(componentIds.includes(identity));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl.startsWith('/cli/reference/research/')));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl === '/research/records/method-catalog/'));
-  assert.ok(!manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));
+  assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));
   assert.deepEqual(JSON.parse(outputs.get(`public/releases/${graph.release}/docs-manifest.json`)), manifest);
 });
 

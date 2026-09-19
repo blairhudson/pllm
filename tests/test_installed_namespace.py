@@ -54,9 +54,11 @@ def test_public_domain_facades_share_root_identities():
     )
     from pllm.plan import CompiledPlan
     from pllm.providers import ProviderDescriptor, discover_providers
+    from pllm.research import ArtifactLock, MethodRecord, ResearchRegistry, SourceRecord
     from pllm.runtime import serve_local
     from pllm.search import GridSearch, SearchSpace
 
+    assert pllm.ArtifactLock is ArtifactLock
     assert pllm.BenchmarkResult is BenchmarkResult
     assert pllm.EvidenceRegistry is EvidenceRegistry
     assert pllm.GridSearch is GridSearch
@@ -66,6 +68,9 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.DecoderCoverageReport is DecoderCoverageReport
     assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
     assert pllm.ModelLoadError is ModelLoadError
+    assert pllm.MethodRecord is MethodRecord
+    assert pllm.ResearchRegistry is ResearchRegistry
+    assert pllm.SourceRecord is SourceRecord
     assert pllm.DirectFHEProfile is DirectFHEProfile
     assert pllm.MaskedLinearCpu is MaskedLinearCpu
     assert pllm.ProprietaryBlinded is ProprietaryBlinded

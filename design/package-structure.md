@@ -76,6 +76,7 @@ pllm.roles               role components
 pllm.nonlinear           nonlinear-protocol components
 pllm.schedulers          protected-scheduler components
 pllm.search              typed experiment search and Pareto filtering
+pllm.research            static source/method records and quarantine gates
 pllm.state               persistent-state protocol components
 pllm.passes              compiler-pass components
 pllm.verification        verification-scheme components and checks

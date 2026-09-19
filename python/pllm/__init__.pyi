@@ -1,3 +1,4 @@
+from pllm.research import ArtifactLock as ArtifactLock
 from pllm.runtime.client import AsyncOpenAI as AsyncOpenAI
 from pllm.runtime.authenticated_mpc import AuthenticatedMPC as AuthenticatedMPC
 from pllm.runtime.authenticated_mpc import AuthenticationError as AuthenticationError
@@ -35,12 +36,14 @@ from pllm.providers import ProviderDescriptor as ProviderDescriptor
 from pllm.providers import ProviderDiscoveryError as ProviderDiscoveryError
 from pllm.providers import ProviderResource as ProviderResource
 from pllm.runtime.preprocessing_inventory import PreprocessingPlan as PreprocessingPlan
+from pllm.research import PromotionDecision as PromotionDecision
 from pllm.runtime.privacy import PrivacyMode as PrivacyMode
 from pllm.runtime.privacy import ProprietaryProtocol as ProprietaryProtocol
 from pllm.search import RandomSearch as RandomSearch
 from pllm.runtime.preprocessing_inventory import RecordingPreprocessor as RecordingPreprocessor
 from pllm.runtime.types import Response as Response
 from pllm.runtime.types import ResponseEvent as ResponseEvent
+from pllm.research import ResearchRegistry as ResearchRegistry
 from pllm.runtime.client import ResponseStream as ResponseStream
 from pllm.runtime.formal_security import SECURE_PREVIEW as SECURE_PREVIEW
 from pllm.runtime.secure_transformer import SecureDecoder as SecureDecoder
@@ -51,6 +54,7 @@ from pllm.search import SearchError as SearchError
 from pllm.search import SearchEvaluation as SearchEvaluation
 from pllm.search import SearchSpace as SearchSpace
 from pllm.runtime.formal_security import SecurityClaim as SecurityClaim
+from pllm.research import SourceRecord as SourceRecord
 from pllm.sources import TinyModel as TinyModel
 from pllm.runtime.authenticated_mpc import TrustedPreprocessor as TrustedPreprocessor
 from pllm.verification import check_linear_result as check_linear_result
@@ -66,6 +70,7 @@ from pllm.configuration import ExperimentProfile as ExperimentProfile
 from pllm.passes import KvCacheEviction as KvCacheEviction
 from pllm.protocols import MaskedLinear as MaskedLinear
 from pllm.profiles import MaskedLinearCpu as MaskedLinearCpu
+from pllm.research import MethodRecord as MethodRecord
 from pllm.configuration import Model as Model
 from pllm.model_loader import ModelLoadError as ModelLoadError
 from pllm.preparation import ModelAwareCorrections as ModelAwareCorrections

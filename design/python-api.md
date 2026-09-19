@@ -151,6 +151,19 @@ warmup/repetition count, and objective semantics. Each objective declares `min` 
 scalarization is provided. Failed and unavailable records remain available but are excluded from the
 frontier. Bayesian search and CLI orchestration remain unavailable.
 
+## Research ingestion
+
+`SourceRecord`, `ArtifactLock`, and `MethodRecord` keep publication attribution, upstream artifact
+quarantine, PLLM adaptation, and lifecycle evidence separate. `ResearchRegistry` resolves all
+references and computes fail-closed promotion blockers. Restricted upstream code stays
+external-process/oracle-only, and reproduction verification requires pinned artifact and evidence
+digests. The registry performs no acquisition, import, build, subprocess, network, or execution.
+
+Promotion requires a native operator, region, or full model; source and artifact locks; fidelity and
+benchmark passes; protected-execution and assurance passes or explicit non-applicability; an explicit
+promotion pass; and at least one eligible profile. Planned, reference-only, and structural adaptations
+remain in the registry without becoming runtime methods.
+
 ## Errors and compatibility
 
 Public validation uses typed exceptions rooted in `ValueError` or `TypeError` as documented. Error
@@ -178,6 +191,8 @@ As inspected on 19 September 2026:
   documented scopes.
 - Typed exhaustive/seeded search, constraints, evaluator binding, and explicit Pareto filtering are
   implemented in `python/pllm/search`; Bayesian and CLI search orchestration are unavailable.
+- Static research attribution, upstream quarantine, lifecycle separation, and promotion decisions are
+  implemented in `python/pllm/research`; artifact acquisition and execution stay outside this API.
 - Public capability families and the class-derived registry expose the installed protocol, kernel,
   preparation, role, pass, scheduler, state, verification, correlation, and benchmark-metric
   components; approved external provider descriptors can extend the same registry explicitly.
