@@ -66,6 +66,7 @@ pllm.config              configuration facade
 pllm.models              model loading and semantic-plan contracts
 pllm.pipeline            Pipeline and Experiment declarations
 pllm.profiles            typed built-in Pipeline profiles
+pllm.providers           inert external-provider discovery and approved loading
 pllm.protocols           protocol-method components
 pllm.kernels             kernel-backend components
 pllm.preparation         preparation-provider components
@@ -166,13 +167,17 @@ manifest:      pllm_acme_lut/pllm-plugin.json
 
 They MUST NOT install into `python/pllm`, monkey-patch private modules, or win by import order.
 Static manifests, schemas, docs, and native artifacts remain package-relative and are enumerated by
-distribution metadata. Executable plugin code stays in its provider package. Native dynamic
-providers use the component standard's C ABI; they do not link to `pllm._native` internals.
+distribution metadata. Executable plugin code stays in its provider package. `pllm.providers`
+discovers the versioned entry-point metadata without imports, verifies package-confined resources,
+and generates inert external component classes. Python factory loading is a separate explicit
+approval boundary. Native dynamic providers use the component standard's C ABI; they do not link to
+`pllm._native` internals.
 
 ## Schemas, docs, and research
 
-Canonical JSON Schema draft 2020-12 files live only in `schemas/`. Filenames use
-`<record>.schema.json`; `$id` and in-document `schema_version` identities are stable and versioned.
+Canonical JSON Schema draft 2020-12 sources live in `schemas/`; a byte-identical package-data copy
+MAY be shipped when installed runtime validation requires it. Filenames use `<record>.schema.json`;
+`$id` and in-document `schema_version` identities are stable and versioned.
 Fixtures live under `schemas/fixtures/`. Generated copies MAY be shipped to documentation or package
 resources only when CI verifies byte or semantic parity and identifies `schemas/` as source.
 

@@ -7,9 +7,20 @@ Expose a component implementation without importing it during core discovery.
 Document ID: `pllm.docs.contribute.publish-a-provider`  
 Release: `0.1.0`
 
-A provider package publishes signed or digest-addressed descriptor metadata, implementation artifacts, host requirements, supported component versions, representations, roles, and evidence references. Discovery reads static metadata before any trusted code executes.
+A provider distribution registers one `pllm.providers.v1` entry point whose top-level package contains `pllm-plugin.json`. The manifest records provider, distribution, component, category, resource, tested-build, and factory identities under independently versioned contracts. Discovery reads installed distribution metadata and static JSON only: it does not call the entry point, import provider code, load native libraries, fetch dependencies, or contact a service.
 
-Provider identity does not imply operator identity or trust. Loading requires explicit policy, compatibility validation, and artifact verification. Distribution, component, provider, deployment, and evidence versions remain separate.
+Manifest resource paths are package-relative and digest-checked. Paths that escape the package, files absent from distribution metadata, changed files, duplicate component identities, unsupported host/category versions, and malformed manifests fail closed. Editable installations require `allow_editable=True` and do not silently count as release-conformant artifacts.
 
-No public Python API publishes or registers provider packages. See [current support](/sdk/reference/status/)
-for the static built-in discovery boundary.
+## Python SDK example
+
+```python
+from pllm import discover_providers
+
+providers = discover_providers()
+assert all(provider.entry_point for provider in providers)
+assert all(provider.manifest_digest for provider in providers)
+```
+
+Discovery is not a sandbox or a trust decision. `load_component_factory(...)` imports code only when the provider is named in the caller's explicit approval set. An imported in-process factory joins that role's trusted computing base. The native plugin ABI remains unavailable.
+
+API: [`pllm.providers`](/sdk/reference/python/pllm/#objects-and-signatures)

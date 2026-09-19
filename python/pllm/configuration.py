@@ -8,10 +8,13 @@ import math
 from dataclasses import dataclass, fields, replace
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, cast
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, cast
 from urllib.parse import urlsplit
 
 import yaml
+
+if TYPE_CHECKING:
+    from pllm.providers import ProviderDescriptor
 
 _DIGEST_DOMAIN = b"pllm.configuration.v1\0"
 _PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v1\0"
@@ -505,7 +508,12 @@ class Pipeline(_Configuration):
         return cls(profile=profile, model=model, components=components)
 
     @classmethod
-    def from_spec(cls, value: Mapping[str, Any]) -> Pipeline:
+    def from_spec(
+        cls,
+        value: Mapping[str, Any],
+        *,
+        providers: Iterable[ProviderDescriptor] = (),
+    ) -> Pipeline:
         if cls is not Pipeline:
             raise TypeError("Pipeline.from_spec must be called on Pipeline")
         data = _fields(value, {"profile", "model", "components"}, "pipeline")
@@ -513,10 +521,12 @@ class Pipeline(_Configuration):
         raw_components = data["components"]
         if not isinstance(raw_components, Mapping):
             raise ConfigurationError("pipeline.components must be a mapping")
+        providers = tuple(providers)
         components = {
             _string(name, "pipeline component name"): _component_from_spec(
                 component,
                 f"pipeline.components.{name}",
+                providers=providers,
             )
             for name, component in raw_components.items()
         }
@@ -625,12 +635,22 @@ class Experiment(_Configuration):
             raise ConfigurationError("experiment.budget must be an ExecutionBudget")
 
     @classmethod
-    def from_spec(cls, spec: Mapping[str, Any]) -> Experiment:
-        return _experiment_from_spec(spec)
+    def from_spec(
+        cls,
+        spec: Mapping[str, Any],
+        *,
+        providers: Iterable[ProviderDescriptor] = (),
+    ) -> Experiment:
+        return _experiment_from_spec(spec, providers=providers)
 
     @classmethod
-    def from_file(cls, path: str | Path) -> Experiment:
-        return load_configuration(path)
+    def from_file(
+        cls,
+        path: str | Path,
+        *,
+        providers: Iterable[ProviderDescriptor] = (),
+    ) -> Experiment:
+        return load_configuration(path, providers=providers)
 
     def to_spec(self) -> dict[str, Any]:
         return {
@@ -691,10 +711,7 @@ def _replace_path(target: Any, path: list[str], value: object) -> Any:
             return ComponentRef(cast(str, component), params)
         params = dict(target.params)
         params[name] = changed
-        return _component_from_spec(
-            {"component": target.component, "params": params},
-            "component",
-        )
+        return type(target).from_params(params)
     if isinstance(target, Pipeline) and type(target) is not Pipeline:
         return target.with_params(**{"__".join(path): value})
     if isinstance(target, _Configuration):
@@ -731,7 +748,12 @@ def _fields(value: object, expected: set[str], path: str) -> Mapping[str, Any]:
     return value
 
 
-def _component_from_spec(value: object, path: str) -> ComponentRef:
+def _component_from_spec(
+    value: object,
+    path: str,
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> ComponentRef:
     data = _fields(value, {"component", "params"}, path)
     component = _string(data["component"], f"{path}.component")
     params = data["params"]
@@ -739,14 +761,18 @@ def _component_from_spec(value: object, path: str) -> ComponentRef:
         raise ConfigurationError(f"{path}.params must be a mapping")
     from pllm.components import create_component
 
-    return create_component(component, params)
+    return create_component(component, params, providers=providers)
 
 
-def _experiment_from_spec(value: object) -> Experiment:
+def _experiment_from_spec(
+    value: object,
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> Experiment:
     data = _fields(value, {"schema", "name", "pipeline", "deployment", "budget"}, "experiment")
     if data["schema"] != _EXPERIMENT_SCHEMA:
         raise ConfigurationError(f"unsupported schema: {data['schema']!r}")
-    pipeline = Pipeline.from_spec(data["pipeline"])
+    pipeline = Pipeline.from_spec(data["pipeline"], providers=providers)
     deployment_data = _fields(data["deployment"], {"kind", "root"}, "deployment")
     budget_data = _fields(
         data["budget"], {"requests", "max_input_tokens", "max_new_tokens"}, "budget"
@@ -794,10 +820,16 @@ def _json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def loads_configuration(text: str, *, format: str | None = None) -> Experiment:
+def loads_configuration(
+    text: str,
+    *,
+    format: str | None = None,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> Experiment:
     """Parse one strict JSON or safe YAML experiment document."""
     if type(text) is not str:
         raise TypeError("configuration text must be a string")
+    providers = tuple(providers)
     try:
         document_bytes = len(text.encode("utf-8"))
     except UnicodeError as exc:
@@ -818,7 +850,7 @@ def loads_configuration(text: str, *, format: str | None = None) -> Experiment:
             value = yaml.load(text, Loader=_UniqueKeyLoader)
         else:
             raise ConfigurationError("format must be 'json' or 'yaml'")
-        return _experiment_from_spec(value)
+        return _experiment_from_spec(value, providers=providers)
     except ConfigurationError:
         raise
     except json.JSONDecodeError as exc:
@@ -829,7 +861,11 @@ def loads_configuration(text: str, *, format: str | None = None) -> Experiment:
         raise ConfigurationError(f"invalid {selected} document structure") from exc
 
 
-def load_configuration(path: str | Path) -> Experiment:
+def load_configuration(
+    path: str | Path,
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> Experiment:
     """Read and parse one experiment file; constructors themselves perform no I/O."""
     source = Path(path)
     suffix = source.suffix.lower()
@@ -841,15 +877,19 @@ def load_configuration(path: str | Path) -> Experiment:
         text = source.read_text(encoding="utf-8")
     except UnicodeError as exc:
         raise ConfigurationError("configuration must be valid UTF-8") from exc
-    return loads_configuration(text, format=suffix[1:])
+    return loads_configuration(text, format=suffix[1:], providers=providers)
 
 
-def canonical_bytes(configuration: Experiment | Mapping[str, Any]) -> bytes:
+def canonical_bytes(
+    configuration: Experiment | Mapping[str, Any],
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> bytes:
     """Return deterministic UTF-8 JSON bytes for a supported public specification."""
     if isinstance(configuration, Experiment):
         spec = configuration.to_spec()
     elif isinstance(configuration, Mapping):
-        spec = _experiment_from_spec(configuration).to_spec()
+        spec = _experiment_from_spec(configuration, providers=providers).to_spec()
     else:
         raise TypeError("configuration must be an Experiment or experiment mapping")
     return json.dumps(
@@ -857,9 +897,15 @@ def canonical_bytes(configuration: Experiment | Mapping[str, Any]) -> bytes:
     ).encode("utf-8")
 
 
-def configuration_digest(configuration: Experiment | Mapping[str, Any]) -> str:
+def configuration_digest(
+    configuration: Experiment | Mapping[str, Any],
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> str:
     """Return domain-separated SHA-256 identity for public configuration."""
-    return hashlib.sha256(_DIGEST_DOMAIN + canonical_bytes(configuration)).hexdigest()
+    return hashlib.sha256(
+        _DIGEST_DOMAIN + canonical_bytes(configuration, providers=providers)
+    ).hexdigest()
 
 
 _CONCRETE_EXPORTS = {

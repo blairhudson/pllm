@@ -28,7 +28,8 @@ categories and components. Its package-relative `pllm-plugin.json` lists descrip
 native artifacts, supported host/category versions, and tested build combinations. Paths MUST be
 normalized and confined to the distribution. Editable installs require explicit development policy
 and MUST NOT silently count as release-conformant artifacts. Discovery never auto-installs or
-fetches provider dependencies.
+fetches provider dependencies. The host implementation validates these manifests and resources
+inertly; importing a declared Python factory requires a separate explicit provider approval.
 
 ## Configuration contract
 

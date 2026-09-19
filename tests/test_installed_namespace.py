@@ -47,6 +47,7 @@ def test_public_domain_facades_share_root_identities():
     )
     from pllm.pipeline import MaskedLinearCpu
     from pllm.plan import CompiledPlan
+    from pllm.providers import ProviderDescriptor, discover_providers
     from pllm.runtime import serve_local
 
     assert pllm.ExecutionBudget is ExecutionBudget
@@ -57,6 +58,8 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.MaskedLinearCpu is MaskedLinearCpu
     assert pllm.ModelManifest is ModelManifest
     assert pllm.ModelPlan is ModelPlan
+    assert pllm.ProviderDescriptor is ProviderDescriptor
+    assert pllm.discover_providers is discover_providers
     assert pllm.load_model is load_model
     assert pllm.lower_model is lower_model
     assert pllm.serve_local is serve_local

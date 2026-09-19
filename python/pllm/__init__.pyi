@@ -24,6 +24,9 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine as MaskedTra
 from pllm.runtime.client import OpenAI as OpenAI
 from pllm.runtime.formal_security import PROFILES as PROFILES
 from pllm.runtime.preprocessing_inventory import PreparedInventory as PreparedInventory
+from pllm.providers import ProviderDescriptor as ProviderDescriptor
+from pllm.providers import ProviderDiscoveryError as ProviderDiscoveryError
+from pllm.providers import ProviderResource as ProviderResource
 from pllm.runtime.preprocessing_inventory import PreprocessingPlan as PreprocessingPlan
 from pllm.runtime.privacy import PrivacyMode as PrivacyMode
 from pllm.runtime.privacy import ProprietaryProtocol as ProprietaryProtocol
@@ -64,6 +67,8 @@ from pllm.compiler import compile as compile
 from pllm.evidence import assure as assure
 from pllm.evidence import benchmark as benchmark
 from pllm.evidence import deployment_benchmark as deployment_benchmark
+from pllm.providers import discover_providers as discover_providers
+from pllm.providers import load_component_factory as load_component_factory
 from pllm.runtime.server import create_app as create_app
 from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app
 from pllm.runtime.official import create_async_openai_client as create_async_openai_client

@@ -115,7 +115,9 @@ a path-independent checkpoint lock. Generic immutable configuration stays in
 `schedulers`, `state`, `passes`, and `verification`), and `pllm.components`
 derives descriptor discovery from those classes. `pllm.profiles.MaskedLinearCpu`
 provides the typed slot contract for the complete current baseline while generic
-serialized pipelines remain available. Public objects are imported on demand.
+serialized pipelines remain available. `pllm.providers` discovers static external
+manifests and package-confined resources without importing provider code; factory
+import is a separate approved operation. Public objects are imported on demand.
 `pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.

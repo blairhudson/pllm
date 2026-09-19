@@ -27,6 +27,12 @@ def main() -> None:
         assert "pllm/_native.pyi" in names
         assert "pllm/config/__init__.py" in names
         assert "pllm/config/__init__.pyi" in names
+        assert "pllm/providers/__init__.py" in names
+        assert "pllm/providers/__init__.pyi" in names
+        assert "pllm/providers/provider-manifest.schema.json" in names
+        assert wheel.read("pllm/providers/provider-manifest.schema.json") == Path(
+            "schemas/provider-manifest.schema.json"
+        ).read_bytes()
         assert "pllm/models.py" in names
         assert "pllm/models.pyi" in names
         assert "pllm/plan.py" in names
@@ -44,6 +50,16 @@ def main() -> None:
         assert any(n.endswith("/crates/pllm-python/Cargo.toml") for n in names)
         assert any(n.endswith("/crates/pllm-core/Cargo.toml") for n in names)
         assert any(n.endswith("/python/pllm/__init__.py") for n in names)
+        assert any(n.endswith("/schemas/provider-manifest.schema.json") for n in names)
+        source_schema = next(
+            n for n in names if n.endswith("/schemas/provider-manifest.schema.json")
+        )
+        package_schema = next(
+            n
+            for n in names
+            if n.endswith("/python/pllm/providers/provider-manifest.schema.json")
+        )
+        assert archive.extractfile(source_schema).read() == archive.extractfile(package_schema).read()
         assert not any(
             name.endswith((
                 "/python/pllm/market.py",

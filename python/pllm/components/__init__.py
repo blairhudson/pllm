@@ -1,7 +1,9 @@
 """Public component configuration and built-in discovery contracts."""
 
-from collections.abc import Mapping
-from typing import Any
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.correlation import SeededExpansion as _SeededExpansion
@@ -32,6 +34,9 @@ from pllm.schedulers import (
 )
 from pllm.state import ClientLocalKv as _ClientLocalKv
 from pllm.verification import LinearIntegrity as _LinearIntegrity
+
+if TYPE_CHECKING:
+    from pllm.providers import ProviderDescriptor
 
 _BUILTIN_CLASSES: tuple[type[ComponentRef], ...] = (
     _BFVCorrelations,
@@ -70,44 +75,75 @@ __all__ = [
 ]
 
 
-def list_component_classes() -> tuple[type[ComponentRef], ...]:
-    return tuple(_BUILTINS[identity] for identity in sorted(_BUILTINS))
+def list_component_classes(
+    *, providers: Iterable[ProviderDescriptor] = ()
+) -> tuple[type[ComponentRef], ...]:
+    classes = list(_BUILTIN_CLASSES)
+    providers = tuple(providers)
+    if providers:
+        from pllm.providers import provider_component_classes
+
+        classes.extend(provider_component_classes(providers))
+    by_identity = {component.describe().component: component for component in classes}
+    if len(by_identity) != len(classes):
+        raise ConfigurationError("component identities must be unique")
+    return tuple(by_identity[identity] for identity in sorted(by_identity))
 
 
-def list_components() -> tuple[ComponentDescriptor, ...]:
-    """Return built-in descriptors in stable component-identity order."""
-    return tuple(component.describe() for component in list_component_classes())
+def list_components(
+    *, providers: Iterable[ProviderDescriptor] = ()
+) -> tuple[ComponentDescriptor, ...]:
+    """Return descriptors in stable component-identity order."""
+    return tuple(
+        component.describe() for component in list_component_classes(providers=providers)
+    )
 
 
-def get(identity: str) -> type[ComponentRef]:
+def get(
+    identity: str, *, providers: Iterable[ProviderDescriptor] = ()
+) -> type[ComponentRef]:
     if type(identity) is not str:
         raise TypeError("component identity must be a string")
+    providers = tuple(providers)
+    by_identity = {
+        component.describe().component: component
+        for component in list_component_classes(providers=providers)
+    }
     try:
-        return _BUILTINS[identity]
+        return by_identity[identity]
     except KeyError:
-        raise KeyError("built-in component not found") from None
+        message = "component not found" if providers else "built-in component not found"
+        raise KeyError(message) from None
 
 
-def get_component(identity: str) -> ComponentDescriptor:
-    """Return one built-in descriptor by canonical component identity."""
-    return get(identity).describe()
+def get_component(
+    identity: str, *, providers: Iterable[ProviderDescriptor] = ()
+) -> ComponentDescriptor:
+    """Return one descriptor by canonical component identity."""
+    return get(identity, providers=providers).describe()
 
 
-def create_component(identity: str, params: Mapping[str, Any]) -> ComponentRef:
+def create_component(
+    identity: str,
+    params: Mapping[str, Any],
+    *,
+    providers: Iterable[ProviderDescriptor] = (),
+) -> ComponentRef:
     if not isinstance(params, Mapping):
         raise TypeError("component params must be a mapping")
     try:
-        component = get(identity)
+        component = get(identity, providers=providers)
     except KeyError:
         return ComponentRef(identity, params)
     schema = component.describe().parameter_schema
-    properties = set(schema.get("properties", {}))
-    required = set(schema.get("required", ()))
-    allowed = properties | required
-    unknown = set(params) - allowed
-    missing = required - set(params)
-    if unknown:
-        raise ConfigurationError(f"component params have unknown fields: {sorted(unknown)}")
-    if missing:
-        raise ConfigurationError(f"component params have missing fields: {sorted(missing)}")
+    if isinstance(schema, Mapping):
+        properties = set(schema.get("properties", {}))
+        required = set(schema.get("required", ()))
+        allowed = properties | required
+        unknown = set(params) - allowed
+        missing = required - set(params)
+        if unknown:
+            raise ConfigurationError(f"component params have unknown fields: {sorted(unknown)}")
+        if missing:
+            raise ConfigurationError(f"component params have missing fields: {sorted(missing)}")
     return component.from_params(params)
