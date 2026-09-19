@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pllm import Cpu, Experiment, Model, Pipeline
+from pllm import Cpu, Experiment, MaskedLinearCpu, Model
 from pllm.runtime.servers import LocalTopology, TopologyError, build_roles, serve_local
 from pllm.sources import TinyModel
 
@@ -39,10 +39,9 @@ def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> No
     with pytest.raises(TopologyError, match="has not started"):
         _ = topology.inference_url
 
-    pipeline = Pipeline.from_profile(
-        "baseline.masked_linear_cpu",
-        model=Model("org/pipeline"),
-        components={"kernels": Cpu(threads=3)},
+    pipeline = MaskedLinearCpu(
+        Model("org/pipeline"),
+        kernels=Cpu(threads=3),
     )
     from_pipeline = build_roles(pipeline)
     assert from_pipeline.model_id == "org/pipeline"
@@ -186,6 +185,8 @@ def test_topology_builds_secret_free_commands_and_closes_processes(monkeypatch, 
     assert topology.preparation_url == "http://127.0.0.1:9102"
     assert progress == ["inference", "preparation"]
     assert len(spawned) == 2
+    assert spawned[0].command[1:5] == ["-m", "pllm", "serve", "inference"]
+    assert spawned[1].command[1:5] == ["-m", "pllm", "serve", "preparation"]
     assert all(process.kwargs["start_new_session"] for process in spawned)
     arguments = [item for process in spawned for item in process.command]
     secret_values = {

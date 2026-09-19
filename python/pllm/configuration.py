@@ -398,6 +398,21 @@ class Model(_Configuration):
     def to_runtime_spec(self) -> dict[str, Any]:
         return {"kind": self.kind, **self.to_spec()}
 
+    def with_params(self, **changes: object) -> Model:
+        fields = {
+            "source": self.source,
+            "kind": self.kind,
+            "model_id": self.model_id,
+            "revision": self.revision,
+            "local_files_only": self.local_files_only,
+            "endpoint": self.endpoint,
+        }
+        for name, value in changes.items():
+            if "__" in name or name not in fields:
+                raise ConfigurationError(f"unknown parameter path: {name}")
+            fields[name] = value
+        return Model.from_spec(fields)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Model):
             return NotImplemented
@@ -489,6 +504,43 @@ class Pipeline(_Configuration):
     ) -> Pipeline:
         return cls(profile=profile, model=model, components=components)
 
+    @classmethod
+    def from_spec(cls, value: Mapping[str, Any]) -> Pipeline:
+        if cls is not Pipeline:
+            raise TypeError("Pipeline.from_spec must be called on Pipeline")
+        data = _fields(value, {"profile", "model", "components"}, "pipeline")
+        model = Model.from_spec(data["model"])
+        raw_components = data["components"]
+        if not isinstance(raw_components, Mapping):
+            raise ConfigurationError("pipeline.components must be a mapping")
+        components = {
+            _string(name, "pipeline component name"): _component_from_spec(
+                component,
+                f"pipeline.components.{name}",
+            )
+            for name, component in raw_components.items()
+        }
+        if data["profile"] == "baseline.masked_linear_cpu" and set(components) == {
+            "linear",
+            "preparation",
+            "inference",
+            "kernels",
+        }:
+            from pllm.profiles import MaskedLinearCpu
+
+            return MaskedLinearCpu(
+                model,
+                linear=components["linear"],
+                preparation=components["preparation"],
+                inference=components["inference"],
+                kernels=components["kernels"],
+            )
+        return cls(
+            profile=data["profile"],
+            model=model,
+            components=components,
+        )
+
     def to_spec(self) -> dict[str, Any]:
         return {
             "profile": self.profile,
@@ -509,6 +561,11 @@ class Pipeline(_Configuration):
 
     def digest(self) -> str:
         return hashlib.sha256(_PIPELINE_DIGEST_DOMAIN + self.canonical_bytes()).hexdigest()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Pipeline):
+            return NotImplemented
+        return self.to_spec() == other.to_spec()
 
     def __hash__(self) -> int:
         return hash((self.profile, self.model, tuple(sorted(self.components.items()))))
@@ -638,6 +695,8 @@ def _replace_path(target: Any, path: list[str], value: object) -> Any:
             {"component": target.component, "params": params},
             "component",
         )
+    if isinstance(target, Pipeline) and type(target) is not Pipeline:
+        return target.with_params(**{"__".join(path): value})
     if isinstance(target, _Configuration):
         field_names = {field.name for field in fields(cast(Any, target))}
         if name not in field_names:
@@ -687,28 +746,14 @@ def _experiment_from_spec(value: object) -> Experiment:
     data = _fields(value, {"schema", "name", "pipeline", "deployment", "budget"}, "experiment")
     if data["schema"] != _EXPERIMENT_SCHEMA:
         raise ConfigurationError(f"unsupported schema: {data['schema']!r}")
-    pipeline_data = _fields(data["pipeline"], {"profile", "model", "components"}, "pipeline")
-    model_data = pipeline_data["model"]
-    raw_components = pipeline_data["components"]
-    if not isinstance(raw_components, Mapping):
-        raise ConfigurationError("pipeline.components must be a mapping")
-    components = {
-        _string(name, "pipeline component name"): _component_from_spec(
-            component, f"pipeline.components.{name}"
-        )
-        for name, component in raw_components.items()
-    }
+    pipeline = Pipeline.from_spec(data["pipeline"])
     deployment_data = _fields(data["deployment"], {"kind", "root"}, "deployment")
     budget_data = _fields(
         data["budget"], {"requests", "max_input_tokens", "max_new_tokens"}, "budget"
     )
     return Experiment(
         name=data["name"],
-        pipeline=Pipeline.from_profile(
-            pipeline_data["profile"],
-            model=Model.from_spec(model_data),
-            components=components,
-        ),
+        pipeline=pipeline,
         deployment=Deployment(kind=deployment_data["kind"], root=deployment_data["root"]),
         budget=ExecutionBudget(
             requests=budget_data["requests"],

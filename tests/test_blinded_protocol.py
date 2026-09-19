@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import sys
 from pathlib import Path
 
 import httpx
@@ -246,16 +245,17 @@ def test_public_and_fast_proprietary_responses_match(tmp_path: Path):
     ],
 )
 def test_proprietary_cli_default_and_direct_reference(tmp_path: Path, monkeypatch, extra, expected):
+    from pllm._cli.app import build_parser
     from pllm.runtime import cli
 
     root = tiny_model(tmp_path / expected)
     captured = {}
     monkeypatch.setattr(cli.uvicorn, "run", lambda app, **kwargs: captured.update(app=app))
-    monkeypatch.setattr(sys, "argv", [
-        "pllm serve", "--mode", "proprietary", "--api-key", "test",
+    args = build_parser().parse_args([
+        "serve", "inference", "--mode", "proprietary", "--api-key", "test",
         "--model", str(root), "--model-id", "tiny", "--local-files-only", *extra,
     ])
-    cli.server_main()
+    cli.run_server(args)
     assert expected in captured["app"].state.engines
 
 

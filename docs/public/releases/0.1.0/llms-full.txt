@@ -285,25 +285,16 @@ Release: `0.1.0`
 ## Define the experiment
 
 ```python
-from pllm import Experiment, Model, Pipeline
+from pllm import Experiment, MaskedLinearCpu, Model
 from pllm.deployment import Deployment
 from pllm.kernels import Cpu
-from pllm.preparation import ModelAwareCorrections
-from pllm.protocols.masked_linear import MaskedLinear
-from pllm.roles import Inference
 from pllm.runtime import ExecutionBudget
 
 experiment = Experiment(
     name="qwen-local",
-    pipeline=Pipeline.from_profile(
-        "baseline.masked_linear_cpu",
-        model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
-        components={
-            "linear": MaskedLinear(),
-            "preparation": ModelAwareCorrections(),
-            "inference": Inference(),
-            "kernels": Cpu(threads=4),
-        },
+    pipeline=MaskedLinearCpu(
+        Model("Qwen/Qwen2.5-0.5B-Instruct"),
+        kernels=Cpu(threads=4),
     ),
     deployment=Deployment.local(root=".pllm/qwen-local"),
     budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
@@ -406,7 +397,8 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 ## Python SDK example
 
 ```python
-from pllm import Model, TinyModel
+from pllm import MaskedLinearCpu, Model, TinyModel
+from pllm.kernels import Cpu
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
@@ -418,6 +410,10 @@ pinned = Model.hf(
 assert pinned.kind == "huggingface"
 assert pinned.revision is not None
 assert isinstance(Model.tiny(), TinyModel)
+
+pipeline = MaskedLinearCpu(model, kernels=Cpu(threads=4))
+assert pipeline.profile == "baseline.masked_linear_cpu"
+assert pipeline.with_params(kernels__threads=8).kernels.params["threads"] == 8
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
@@ -1959,7 +1955,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 ## Facades
 
-- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BlindedTransformerEngine`, `pllm.BundleModel`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryProtocol`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TinyModel`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
+- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BlindedTransformerEngine`, `pllm.BundleModel`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedLinearCpu`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryProtocol`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TinyModel`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
 - `pllm.config`: `pllm.config.ComponentRef`, `pllm.config.ConfigurationError`, `pllm.config.Deployment`, `pllm.config.ExecutionBudget`, `pllm.config.Experiment`, `pllm.config.ExperimentProfile`, `pllm.config.Model`, `pllm.config.Pipeline`, `pllm.config.canonical_bytes`, `pllm.config.configuration_digest`, `pllm.config.load_configuration`, `pllm.config.loads_configuration`
 - `pllm.models`: `pllm.models.DecoderCoverageReport`, `pllm.models.DecoderRuntimeSchedule`, `pllm.models.ModelLoadError`, `pllm.models.ModelManifest`, `pllm.models.ModelPlan`, `pllm.models.load_model`, `pllm.models.lower_model`
 - `pllm.plan`: `pllm.plan.CompiledPlan`
@@ -1968,6 +1964,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 - `pllm.kernels`: `pllm.kernels.Cpu`, `pllm.kernels.KernelBackend`
 - `pllm.nonlinear`: `pllm.nonlinear.BinaryTableGatedMultiplyQ7`, `pllm.nonlinear.NonlinearProtocol`, `pllm.nonlinear.R03CrtGatedMultiplyQ7`
 - `pllm.passes`: `pllm.passes.KvCacheEviction`, `pllm.passes.PlanPass`
+- `pllm.profiles`: `pllm.profiles.MaskedLinearCpu`
 - `pllm.protocols`: `pllm.protocols.BlindedLinear`, `pllm.protocols.CleartextLinear`, `pllm.protocols.DirectFHE`, `pllm.protocols.GuardedLinear`, `pllm.protocols.MaskedLinear`, `pllm.protocols.ProtocolMethod`, `pllm.protocols.SecureLinear`
 - `pllm.protocols.masked_linear`: `pllm.protocols.masked_linear.MaskedLinear`
 - `pllm.preparation`: `pllm.preparation.BFVCorrelations`, `pllm.preparation.HEAuthenticatedPreprocessing`, `pllm.preparation.ModelAwareCorrections`, `pllm.preparation.PreparationProvider`, `pllm.preparation.create_preparation_app`
@@ -1976,7 +1973,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 - `pllm.sources`: `pllm.sources.BundleModel`, `pllm.sources.ModelSource`, `pllm.sources.TinyModel`
 - `pllm.state`: `pllm.state.ClientLocalKv`, `pllm.state.StateProtocol`
 - `pllm.verification`: `pllm.verification.LinearCheckKey`, `pllm.verification.LinearCheckResult`, `pllm.verification.LinearIntegrity`, `pllm.verification.LinearIntegrityError`, `pllm.verification.VerificationScheme`, `pllm.verification.check_linear_result`, `pllm.verification.create_linear_check_key`
-- `pllm.pipeline`: `pllm.pipeline.Experiment`, `pllm.pipeline.Pipeline`
+- `pllm.pipeline`: `pllm.pipeline.Experiment`, `pllm.pipeline.MaskedLinearCpu`, `pllm.pipeline.Pipeline`
 - `pllm.deployment`: `pllm.deployment.Deployment`
 - `pllm.runtime`: `pllm.runtime.AsyncOpenAI`, `pllm.runtime.AsyncPLLMTransport`, `pllm.runtime.CompiledRuntimeModel`, `pllm.runtime.CompiledRuntimeSession`, `pllm.runtime.ExecutionBudget`, `pllm.runtime.GatewayConfig`, `pllm.runtime.LocalTopology`, `pllm.runtime.OpenAI`, `pllm.runtime.PLLMTransport`, `pllm.runtime.PrivacyMode`, `pllm.runtime.ProprietaryProtocol`, `pllm.runtime.RoleStatus`, `pllm.runtime.RuntimeBindingError`, `pllm.runtime.RuntimeExecutionError`, `pllm.runtime.RuntimeStageBinding`, `pllm.runtime.TopologyError`, `pllm.runtime.__version__`, `pllm.runtime.build_roles`, `pllm.runtime.compile_runtime_model`, `pllm.runtime.create_app`, `pllm.runtime.create_sidecar_app`, `pllm.runtime.serve_local`
 - `pllm.compiler`: `pllm.compiler.CompilationError`, `pllm.compiler.compile`
@@ -2003,7 +2000,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.configuration.Experiment` | class | `__init__(self, name: str, pipeline: Pipeline, deployment: Deployment, budget: ExecutionBudget) -> None` | `name: str`; `pipeline: Pipeline`; `deployment: Deployment`; `budget: ExecutionBudget`; `__init__(self, name: str, pipeline: Pipeline, deployment: Deployment, budget: ExecutionBudget) -> None`; `classmethod from_spec(cls, spec: Mapping[str, Any]) -> Self`; `classmethod from_file(cls, path: str \| Path) -> Self`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]`; `canonical_bytes(self) -> bytes`; `configuration_digest(self) -> str`; `resolve(self) -> ExperimentProfile` | `pllm.Experiment`, `pllm.config.Experiment`, `pllm.pipeline.Experiment` |
 | `pllm.configuration.ExperimentProfile` | class | `__init__(self, experiment: Experiment) -> None` | `model: str`; `canonical_profile: bytes`; `configuration_digest: str`; `__init__(self, experiment: Experiment) -> None` | `pllm.ExperimentProfile`, `pllm.config.ExperimentProfile` |
 | `pllm.configuration.Model` | class | `__init__(self, source: str, *, kind: str='huggingface', model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False, endpoint: str \| None=None) -> None` | `source: str`; `kind: str`; `model_id: str \| None`; `revision: str \| None`; `local_files_only: bool`; `endpoint: str \| None`; `__init__(self, source: str, *, kind: str='huggingface', model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False, endpoint: str \| None=None) -> None`; `classmethod hf(cls, repo_id: str, *, model_id: str \| None=None, revision: str \| None=None, local_files_only: bool=False) -> Model`; `classmethod path(cls, path: str, *, format: str='huggingface', model_id: str \| None=None) -> Model`; `classmethod tiny(cls, name: str='qwen2', *, model_id: str \| None=None) -> Model`; `classmethod ollama(cls, name: str, *, endpoint: str='http://127.0.0.1:11434', model_id: str \| None=None) -> Model`; `classmethod from_spec(cls, value: Mapping[str, Any]) -> Model`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]`; `to_runtime_spec(self) -> dict[str, Any]` | `pllm.Model`, `pllm.config.Model` |
-| `pllm.configuration.Pipeline` | class | `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None` | `profile: str`; `model: Model`; `components: Mapping[str, ComponentRef]`; `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None`; `classmethod from_profile(cls, profile: str, *, model: Model, components: Mapping[str, ComponentRef]) -> Self`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.Pipeline`, `pllm.config.Pipeline`, `pllm.pipeline.Pipeline` |
+| `pllm.configuration.Pipeline` | class | `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None` | `profile: str`; `model: Model`; `components: Mapping[str, ComponentRef]`; `__init__(self, profile: str, model: Model, components: Mapping[str, ComponentRef]) -> None`; `classmethod from_profile(cls, profile: str, *, model: Model, components: Mapping[str, ComponentRef]) -> Self`; `classmethod from_spec(cls, value: Mapping[str, Any]) -> Pipeline`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> Self`; `to_spec(self) -> dict[str, Any]` | `pllm.Pipeline`, `pllm.config.Pipeline`, `pllm.pipeline.Pipeline` |
 | `pllm.configuration.canonical_bytes` | function | `canonical_bytes(configuration: Experiment \| Mapping[str, Any]) -> bytes` | not recorded | `pllm.canonical_bytes`, `pllm.config.canonical_bytes` |
 | `pllm.configuration.configuration_digest` | function | `configuration_digest(configuration: Experiment \| Mapping[str, Any]) -> str` | not recorded | `pllm.config.configuration_digest`, `pllm.configuration_digest` |
 | `pllm.configuration.load_configuration` | function | `load_configuration(path: str \| Path) -> Experiment` | not recorded | `pllm.config.load_configuration`, `pllm.load_configuration` |
@@ -2031,6 +2028,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.preparation.HEAuthenticatedPreprocessing` | class | `__init__(self, *, poly_modulus_degree: int=4096, threads: int=1, enable_linear_correlations: bool=True) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, poly_modulus_degree: int=4096, threads: int=1, enable_linear_correlations: bool=True) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.preparation.HEAuthenticatedPreprocessing` |
 | `pllm.preparation.ModelAwareCorrections` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.ModelAwareCorrections`, `pllm.preparation.ModelAwareCorrections` |
 | `pllm.preparation.PreparationProvider` | class | `constructor not exposed` | not recorded | `pllm.preparation.PreparationProvider` |
+| `pllm.profiles.MaskedLinearCpu` | class | `__init__(self, model: ModelSource, *, linear: ProtocolMethod=..., preparation: PreparationProvider=..., inference: InferenceRole=..., kernels: KernelBackend=...) -> None` | `PROFILE: str`; `__init__(self, model: ModelSource, *, linear: ProtocolMethod=..., preparation: PreparationProvider=..., inference: InferenceRole=..., kernels: KernelBackend=...) -> None`; `property linear: ProtocolMethod`; `property preparation: PreparationProvider`; `property inference: InferenceRole`; `property kernels: KernelBackend`; `get_params(self, deep: bool=True) -> dict[str, Any]`; `with_params(self, **changes: object) -> MaskedLinearCpu` | `pllm.MaskedLinearCpu`, `pllm.pipeline.MaskedLinearCpu`, `pllm.profiles.MaskedLinearCpu` |
 | `pllm.protocols.base.ProtocolMethod` | class | `constructor not exposed` | not recorded | `pllm.protocols.ProtocolMethod` |
 | `pllm.protocols.masked_linear.MaskedLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.MaskedLinear`, `pllm.protocols.MaskedLinear`, `pllm.protocols.masked_linear.MaskedLinear` |
 | `pllm.protocols.runtime_arms.BlindedLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.BlindedLinear` |
@@ -2254,7 +2252,8 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | --- | --- |
 | Immutable `Experiment` configuration | Available for the documented schema |
 | Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, synchronous Ollama inspection, and deterministic tiny Qwen2 materialization; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments |
-| Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived, while typed profile composition of every arm remains separate work |
+| Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived |
+| Typed pipeline profiles | `MaskedLinearCpu` is available as the category-checked `baseline.masked_linear_cpu` slot contract with immutable whole-slot/nested updates; unresolved same-category alternatives remain rejected by native resolution and local serving until their full profiles are composed |
 | Local role topology | Available through `build_roles`/`serve_local` for typed `Model`, `Pipeline`, or `Experiment` inputs; inference and preparation remain separate child processes, credentials stay out of argv/status, health and client routing are bound, and close is deterministic; this is loopback development orchestration, not operator separation |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |

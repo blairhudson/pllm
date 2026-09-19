@@ -1,23 +1,14 @@
 """SDK-defined Experiment pipelines for matched local benchmarking."""
 
-from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
+from pllm import Deployment, ExecutionBudget, Experiment, MaskedLinearCpu, Model, Pipeline
 from pllm.kernels import Cpu
-from pllm.preparation import ModelAwareCorrections
-from pllm.protocols import MaskedLinear
-from pllm.roles import Inference
 
 
 def prepared_cpu(model: str, *, threads: int) -> Pipeline:
     """Build the reusable pipeline for any supported public-weight model."""
-    return Pipeline.from_profile(
-        "baseline.masked_linear_cpu",
-        model=Model(model),
-        components={
-            "preparation": ModelAwareCorrections(),
-            "inference": Inference(),
-            "linear": MaskedLinear(),
-            "kernels": Cpu(threads=threads),
-        },
+    return MaskedLinearCpu(
+        Model(model),
+        kernels=Cpu(threads=threads),
     )
 
 

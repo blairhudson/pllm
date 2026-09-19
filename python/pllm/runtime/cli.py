@@ -4,7 +4,6 @@ import argparse
 import ipaddress
 import os
 import socket
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -34,117 +33,6 @@ class RuntimeCLIError(ValueError):
 def _env(name: str, default: Any = None) -> Any:
     value = os.getenv(name)
     return default if value is None else value
-
-
-def _server_parser(*, preparation: bool = False) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Run the PLLM trusted preparation service"
-            if preparation
-            else "Run the PLLM remote private-inference service"
-        )
-    )
-    parser.add_argument("--config", help="JSON GatewayConfig file")
-    parser.add_argument(
-        "--privacy-mode",
-        "--mode",
-        dest="privacy_mode",
-        choices=[item.value for item in PrivacyMode],
-        default=_env("PLLM_PRIVACY_MODE"),
-        help="public: open weights; proprietary: protect server-owned weights",
-    )
-    parser.add_argument(
-        "--protocol",
-        "--proprietary-protocol",
-        dest="proprietary_protocol",
-        choices=[item.value for item in ProprietaryProtocol],
-        default=_env("PLLM_PROPRIETARY_PROTOCOL"),
-    )
-    parser.add_argument(
-        "--guard-max-rows-per-request",
-        type=int,
-        default=int(_env("PLLM_GUARD_MAX_ROWS", "4096")),
-    )
-    parser.add_argument(
-        "--guard-max-rows-per-stage",
-        type=int,
-        default=int(_env("PLLM_GUARD_STAGE_BUDGET", "16384")),
-    )
-    parser.add_argument(
-        "--guard-max-requests-per-minute",
-        type=int,
-        default=int(_env("PLLM_GUARD_RATE", "4096")),
-    )
-    parser.add_argument(
-        "--guard-output-dither", type=int, default=int(_env("PLLM_GUARD_DITHER", "0"))
-    )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--api-key", default=_env("PLLM_API_KEY"))
-    parser.add_argument("--provider-push-api-key", default=_env("PLLM_PROVIDER_PUSH_API_KEY"))
-    parser.add_argument(
-        "--rendezvous-timeout",
-        type=float,
-        default=float(value) if (value := _env("PLLM_RENDEZVOUS_TIMEOUT")) else None,
-    )
-    parser.add_argument(
-        "--rendezvous-capacity",
-        type=int,
-        default=int(value) if (value := _env("PLLM_RENDEZVOUS_CAPACITY")) else None,
-    )
-    parser.add_argument(
-        "--rendezvous-max-bytes",
-        type=int,
-        default=int(value) if (value := _env("PLLM_RENDEZVOUS_MAX_BYTES")) else None,
-    )
-    parser.add_argument(
-        "--prepared-session-capacity",
-        type=int,
-        default=int(value) if (value := _env("PLLM_PREPARED_SESSION_CAPACITY")) else None,
-    )
-    parser.add_argument(
-        "--prepared-session-idle",
-        type=float,
-        default=float(value) if (value := _env("PLLM_PREPARED_SESSION_IDLE")) else None,
-    )
-    parser.add_argument("--inference-url", default=_env("PLLM_INFERENCE_URL"))
-    parser.add_argument("--push-api-key", default=_env("PLLM_PUSH_API_KEY"))
-    parser.add_argument(
-        "--push-timeout",
-        type=float,
-        default=float(value) if (value := _env("PLLM_PUSH_TIMEOUT")) else None,
-    )
-    parser.add_argument("--tenseal-path", default=_env("PLLM_PYDEPS"))
-    parser.add_argument("--max-batch-size", type=int)
-    parser.add_argument("--max-wait-ms", type=float)
-    parser.add_argument("--fixed-batch-wait", action="store_true")
-    parser.add_argument("--allow-insecure-local-correlations", action="store_true")
-    parser.add_argument(
-        "--engine-threads", type=int, default=int(_env("PLLM_ENGINE_THREADS", "0") or 0)
-    )
-    parser.add_argument("--native-library", default=_env("PLLM_NATIVE_LIBRARY"))
-    parser.add_argument("--compiled-cache-dir", default=_env("PLLM_COMPILED_CACHE"))
-    parser.add_argument("--streaming-threshold-elements", type=int, default=50_000_000)
-    parser.add_argument("--quantization-chunk-rows", type=int, default=64)
-    parser.add_argument("--weight-bits", type=int, choices=(4, 8), default=8)
-    parser.add_argument("--activation-bits", type=int, choices=(4, 8), default=8)
-    parser.add_argument(
-        "--model",
-        action="append",
-        default=[],
-        help="Hugging Face repository ID or local HF/Safetensors/MLX model directory",
-    )
-    parser.add_argument("--model-id", action="append", default=[])
-    parser.add_argument(
-        "--model-kind",
-        default="huggingface",
-        choices=["huggingface", "safetensors", "vllm", "mlx", "mlx-lm"],
-    )
-    parser.add_argument("--revision", default=_env("PLLM_HF_REVISION"))
-    parser.add_argument("--hf-token", default=_env("HF_TOKEN"))
-    parser.add_argument("--hf-cache-dir", default=_env("HF_HUB_CACHE"))
-    parser.add_argument("--local-files-only", action="store_true")
-    return parser
 
 
 def _apply_server_defaults(args: argparse.Namespace) -> None:
@@ -382,60 +270,6 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
     )
 
 
-def _server_main(argv: list[str] | None = None, *, preparation: bool = False) -> None:
-    parser = _server_parser(preparation=preparation)
-    args = parser.parse_args(argv)
-    try:
-        run_server(args, preparation=preparation)
-    except RuntimeCLIError as exc:
-        parser.error(str(exc))
-
-
-def server_main(argv: list[str] | None = None) -> None:
-    _server_main(argv)
-
-
-def preparation_main(argv: list[str] | None = None) -> None:
-    _server_main(argv, preparation=True)
-
-
-def _sidecar_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the local PLLM OpenAI Responses sidecar")
-    parser.add_argument("--config", help="client TOML file")
-    parser.add_argument(
-        "--inference-url",
-        "--remote-base-url",
-        dest="inference_url",
-        default="http://127.0.0.1:8000",
-    )
-    parser.add_argument(
-        "--inference-key",
-        "--remote-api-key",
-        dest="inference_key",
-        default=_env("PLLM_API_KEY", "pllm-local"),
-    )
-    parser.add_argument("--api-key", "--local-api-key", dest="api_key", default="local")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--tenseal-path", default=_env("PLLM_PYDEPS"))
-    parser.add_argument("--correlation-mode", choices=["bfv", "local-test"], default="bfv")
-    parser.add_argument("--preparation-url", "--preparation-base-url", dest="preparation_url")
-    parser.add_argument("--preparation-key", "--preparation-api-key", dest="preparation_key")
-    parser.add_argument("--transport", choices=["auto", "http", "websocket"], default="websocket")
-    parser.add_argument("--correlation-prefetch", type=int, default=4)
-    parser.add_argument("--prepared-inventory-rows", type=int, default=64)
-    parser.add_argument("--model", "--default-model", dest="model")
-    parser.add_argument("--token-cache-size", type=int, default=512)
-    parser.add_argument(
-        "--bundle-cache-mode",
-        choices=["read-write", "read-only", "refresh", "off"],
-        default="read-write",
-    )
-    parser.add_argument("--bundle-cache-dir")
-    parser.add_argument("--timeout", type=float, default=300.0)
-    return parser
-
-
 def run_sidecar(args: argparse.Namespace) -> None:
     """Run gateway from already-parsed options."""
     config = getattr(args, "config", None)
@@ -541,19 +375,3 @@ def run_local_gateway(args: argparse.Namespace) -> None:
             port=getattr(args, "port", 8080),
             access_log=False,
         )
-
-
-def sidecar_main(argv: list[str] | None = None) -> None:
-    run_sidecar(_sidecar_parser().parse_args(argv))
-
-
-def main(argv: list[str] | None = None) -> None:
-    arguments = list(argv) if argv is not None else sys.argv[1:]
-    if not arguments or arguments[0] not in {"inference", "preparation"}:
-        raise SystemExit("usage: python -m pllm.runtime.cli {inference,preparation} [options]")
-    role = arguments.pop(0)
-    _server_main(arguments, preparation=role == "preparation")
-
-
-if __name__ == "__main__":
-    main()

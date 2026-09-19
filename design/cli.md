@@ -308,7 +308,8 @@ These are acceptance requirements, not claims that they currently pass.
 
 Only rows marked **Shipped** are parser-visible. This table records the exact parser
 surface checked by the generated CLI reference; target rows marked **Unavailable** are
-intentionally not placeholder commands.
+intentionally not placeholder commands. `pllm._cli` owns the sole parser; local child roles invoke
+`python -m pllm serve inference|preparation` rather than a second runtime parser.
 
 | Command | Status | Current boundary |
 | --- | --- | --- |

@@ -113,8 +113,10 @@ a path-independent checkpoint lock. Generic immutable configuration stays in
 `pllm.configuration`; concrete implementation classes live in capability families
 (`protocols`, `preparation`, `correlation`, `kernels`, `roles`, `nonlinear`,
 `schedulers`, `state`, `passes`, and `verification`), and `pllm.components`
-derives descriptor discovery from those classes. Public objects are imported on
-demand. `pllm.runtime` holds the separate
+derives descriptor discovery from those classes. `pllm.profiles.MaskedLinearCpu`
+provides the typed slot contract for the complete current baseline while generic
+serialized pipelines remain available. Public objects are imported on demand.
+`pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.
 

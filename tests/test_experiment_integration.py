@@ -11,14 +11,11 @@ from pllm import (
     ExecutionBudget,
     Experiment,
     ExperimentProfile,
+    MaskedLinearCpu,
     Model,
-    ModelAwareCorrections,
-    MaskedLinear,
     OpenAI,
-    Pipeline,
     _native,
 )
-from pllm.roles import Inference
 from pllm.runtime.client import ProtocolError, RuntimeClient
 
 
@@ -28,15 +25,9 @@ pytestmark = pytest.mark.rust
 def baseline_experiment(model: str = "model-a") -> Experiment:
     return Experiment(
         name="baseline",
-        pipeline=Pipeline.from_profile(
-            "baseline.masked_linear_cpu",
-            model=Model(model),
-            components={
-                "linear": MaskedLinear(),
-                "preparation": ModelAwareCorrections(),
-                "inference": Inference(),
-                "kernels": Cpu(threads=4),
-            },
+        pipeline=MaskedLinearCpu(
+            Model(model),
+            kernels=Cpu(threads=4),
         ),
         deployment=Deployment.local(root=".pllm/baseline"),
         budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=4),

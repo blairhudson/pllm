@@ -44,6 +44,7 @@ PUBLIC_MODULES = (
     "pllm.kernels",
     "pllm.nonlinear",
     "pllm.passes",
+    "pllm.profiles",
     "pllm.protocols",
     "pllm.protocols.masked_linear",
     "pllm.preparation",

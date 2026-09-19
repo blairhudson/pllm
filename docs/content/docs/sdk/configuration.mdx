@@ -30,7 +30,8 @@ Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 ## Python SDK example
 
 ```python
-from pllm import Model, TinyModel
+from pllm import MaskedLinearCpu, Model, TinyModel
+from pllm.kernels import Cpu
 
 model = Model("Qwen/Qwen2.5-0.5B-Instruct")
 assert model.to_spec() == {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
@@ -42,6 +43,10 @@ pinned = Model.hf(
 assert pinned.kind == "huggingface"
 assert pinned.revision is not None
 assert isinstance(Model.tiny(), TinyModel)
+
+pipeline = MaskedLinearCpu(model, kernels=Cpu(threads=4))
+assert pipeline.profile == "baseline.masked_linear_cpu"
+assert pipeline.with_params(kernels__threads=8).kernels.params["threads"] == 8
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -367,6 +367,21 @@ def test_gateway_dry_run_rejects_public_bind_and_never_prints_keys(
     assert "GATEWAY_HOST" in capsys.readouterr().err
 
 
+def test_runtime_runners_do_not_define_competing_cli_parsers() -> None:
+    from pllm.runtime import cli
+
+    for name in (
+        "_server_parser",
+        "_sidecar_parser",
+        "_server_main",
+        "server_main",
+        "preparation_main",
+        "sidecar_main",
+        "main",
+    ):
+        assert not hasattr(cli, name)
+
+
 def test_public_dispatch_passes_parsed_namespace_to_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -379,8 +394,6 @@ def test_public_dispatch_passes_parsed_namespace_to_runtime(
         "run_server",
         lambda args, *, preparation=False: calls.append((args, preparation)),
     )
-    monkeypatch.setattr(cli, "_server_main", lambda *_args, **_kwargs: pytest.fail("reparsed argv"))
-
     app.main(["serve", "preparation", "--port", "8123", "--api-key", "secret"])
 
     assert len(calls) == 1
@@ -407,7 +420,6 @@ def test_public_dispatch_passes_parsed_namespace_to_runtime(
 
     gateway_calls: list[argparse.Namespace] = []
     monkeypatch.setattr(cli, "run_sidecar", gateway_calls.append)
-    monkeypatch.setattr(cli, "sidecar_main", lambda *_args: pytest.fail("reparsed argv"))
 
     app.main(["gateway", "--port", "8124", "--inference-url", "http://127.0.0.1:9000"])
 

@@ -49,6 +49,7 @@ from pllm.configuration import Experiment as Experiment
 from pllm.configuration import ExperimentProfile as ExperimentProfile
 from pllm.passes import KvCacheEviction as KvCacheEviction
 from pllm.protocols import MaskedLinear as MaskedLinear
+from pllm.profiles import MaskedLinearCpu as MaskedLinearCpu
 from pllm.configuration import Model as Model
 from pllm.model_loader import ModelLoadError as ModelLoadError
 from pllm.preparation import ModelAwareCorrections as ModelAwareCorrections

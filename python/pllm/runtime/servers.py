@@ -202,7 +202,7 @@ class LocalTopology:
         return options
 
     def _commands(self, inference_port: int, preparation_port: int) -> dict[str, list[str]]:
-        common = [sys.executable, "-m", "pllm.runtime.cli"]
+        common = [sys.executable, "-m", "pllm", "serve"]
         model = self._model_options()
         inference = [
             *common,
@@ -560,6 +560,23 @@ def build_roles(
     elif isinstance(model, Pipeline):
         pipeline = model
     if pipeline is not None:
+        required = {
+            "linear": "pllm/masked-linear",
+            "preparation": "pllm/model-aware-corrections",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+        }
+        if (
+            pipeline.profile != "baseline.masked_linear_cpu"
+            or set(pipeline.components) != set(required)
+            or any(
+                pipeline.components[slot].component != identity
+                for slot, identity in required.items()
+            )
+            or any(pipeline.components[slot].params for slot in required if slot != "kernels")
+            or set(pipeline.components["kernels"].params) != {"threads"}
+        ):
+            raise ValueError("local topology supports only the complete MaskedLinearCpu profile")
         kernels = pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             configured_threads = kernels.params.get("threads")

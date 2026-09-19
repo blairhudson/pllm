@@ -45,6 +45,7 @@ def test_public_domain_facades_share_root_identities():
         load_model,
         lower_model,
     )
+    from pllm.pipeline import MaskedLinearCpu
     from pllm.plan import CompiledPlan
     from pllm.runtime import serve_local
 
@@ -53,6 +54,7 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.DecoderCoverageReport is DecoderCoverageReport
     assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
     assert pllm.ModelLoadError is ModelLoadError
+    assert pllm.MaskedLinearCpu is MaskedLinearCpu
     assert pllm.ModelManifest is ModelManifest
     assert pllm.ModelPlan is ModelPlan
     assert pllm.load_model is load_model

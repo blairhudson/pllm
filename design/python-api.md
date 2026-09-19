@@ -43,6 +43,12 @@ descriptor. `pllm.components.get(identity)` resolves a class; descriptor discove
 that registry. Named entries in `Pipeline.components` bind slots in a semantic graph. They are not
 sequential transformers.
 
+A built-in profile is a `Pipeline` subclass whose constructor signature is its slot contract.
+`MaskedLinearCpu(model, *, linear, preparation, inference, kernels)` is the complete current
+baseline; category ABCs reject a component in the wrong slot. Generic serialized pipelines remain
+available through `Pipeline.from_spec()`, which promotes the exact baseline shape back to the typed
+class. Whole-slot and nested `with_params()` changes remain immutable.
+
 JSON and safe YAML loading MUST reject duplicate keys, unknown required fields, non-finite values,
 unsupported types, oversized documents, and executable tags. Python objects, JSON, YAML, and CLI
 overrides MUST converge on identical canonical bytes and configuration digests.

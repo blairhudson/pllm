@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from pathlib import Path
 
 import msgpack
@@ -177,16 +176,16 @@ def test_authenticated_mpc_polynomial_graph():
 
 
 def test_cli_defaults_to_guarded_proprietary(tmp_path: Path, monkeypatch):
+    from pllm._cli.app import build_parser
     from pllm.runtime import cli
 
     root = tiny_model(tmp_path / "cli")
     captured = {}
     monkeypatch.setattr(cli.uvicorn, "run", lambda app, **kwargs: captured.update(app=app))
-    monkeypatch.setattr(
-        sys,
-        "argv",
+    args = build_parser().parse_args(
         [
-            "pllm serve",
+            "serve",
+            "inference",
             "--mode",
             "proprietary",
             "--api-key",
@@ -196,9 +195,9 @@ def test_cli_defaults_to_guarded_proprietary(tmp_path: Path, monkeypatch):
             "--model-id",
             "tiny",
             "--local-files-only",
-        ],
+        ]
     )
-    cli.server_main()
+    cli.run_server(args)
     assert "guarded-transformer-proprietary" in captured["app"].state.engines
 
 

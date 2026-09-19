@@ -277,7 +277,7 @@ def test_server_cli_mode_selects_engine_and_hf_model(
     mode: str,
     expected_engine: str,
 ):
-    import sys
+    from pllm._cli.app import build_parser
     from pllm.runtime import cli
 
     root = create_tiny_gemma4_checkpoint(tmp_path / mode, num_hidden_layers=1)
@@ -288,8 +288,9 @@ def test_server_cli_mode_selects_engine_and_hf_model(
         captured["kwargs"] = kwargs
 
     monkeypatch.setattr(cli.uvicorn, "run", fake_run)
-    monkeypatch.setattr(sys, "argv", [
-        "pllm serve",
+    args = build_parser().parse_args([
+        "serve",
+        "inference",
         "--mode", mode,
         "--api-key", "test",
         "--provider-push-api-key", "push-test",
@@ -297,7 +298,7 @@ def test_server_cli_mode_selects_engine_and_hf_model(
         "--model-id", f"tiny-{mode}",
         "--local-files-only",
     ])
-    cli.server_main()
+    cli.run_server(args)
     app = captured["app"]
     assert app.state.config.privacy_mode == mode
     assert expected_engine in app.state.engines

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from pllm import BundleModel, Experiment, Model, Pipeline, TinyModel
+from pllm import BundleModel, Experiment, MaskedLinearCpu, Model, Pipeline, TinyModel
 from pllm.components import ComponentDescriptor, ComponentRef
 from pllm.config import (
     ConfigurationError,
@@ -24,9 +24,6 @@ from pllm.deployment import Deployment
 from pllm.kernels import Cpu
 from pllm.nonlinear import BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
 from pllm.passes import KvCacheEviction
-from pllm.preparation import ModelAwareCorrections
-from pllm.protocols.masked_linear import MaskedLinear
-from pllm.roles import Inference
 from pllm.schedulers import (
     ChunkedIndependentLanesProtectedTensorSchedule,
     IndependentLanesProtectedTensorSchedule,
@@ -42,15 +39,9 @@ FIRST_REQUEST_EXAMPLE = ROOT / "examples/first_request.py"
 def example() -> Experiment:
     return Experiment(
         name="qwen-local",
-        pipeline=Pipeline.from_profile(
-            "baseline.masked_linear_cpu",
-            model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
-            components={
-                "linear": MaskedLinear(),
-                "preparation": ModelAwareCorrections(),
-                "inference": Inference(),
-                "kernels": Cpu(threads=4),
-            },
+        pipeline=MaskedLinearCpu(
+            Model("Qwen/Qwen2.5-0.5B-Instruct"),
+            kernels=Cpu(threads=4),
         ),
         deployment=Deployment.local(root=".pllm/qwen-local"),
         budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
@@ -203,11 +194,11 @@ def test_inputs_and_nested_values_are_deeply_immutable():
 def test_get_params_and_with_params_are_nested_and_immutable():
     original = example()
     params = original.get_params(deep=True)
-    assert params["pipeline__components__kernels__threads"] == 4
+    assert params["pipeline__kernels__threads"] == 4
     assert params["budget__requests"] == 1
 
     changed = original.with_params(
-        pipeline__components__kernels__threads=8,
+        pipeline__kernels__threads=8,
         budget__requests=6,
     )
     assert original.pipeline.components["kernels"].params["threads"] == 4
@@ -215,6 +206,8 @@ def test_get_params_and_with_params_are_nested_and_immutable():
     assert changed.budget.requests == 6
     with pytest.raises(ConfigurationError, match="unknown parameter path"):
         original.with_params(budget__unknown=2)
+    with pytest.raises(ConfigurationError, match="unknown parameter path"):
+        original.with_params(pipeline__components__kernels__threads=8)
     with pytest.raises(ConfigurationError, match="overlapping"):
         original.with_params(budget=original.budget, budget__requests=2)
 

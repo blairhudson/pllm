@@ -65,6 +65,7 @@ pllm.components          component generics and class-derived registry
 pllm.config              configuration facade
 pllm.models              model loading and semantic-plan contracts
 pllm.pipeline            Pipeline and Experiment declarations
+pllm.profiles            typed built-in Pipeline profiles
 pllm.protocols           protocol-method components
 pllm.kernels             kernel-backend components
 pllm.preparation         preparation-provider components
