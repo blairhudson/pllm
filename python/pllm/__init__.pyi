@@ -6,6 +6,7 @@ from pllm.sources import BundleModel as BundleModel
 from pllm.runtime.transformer_client import ClientBundle as ClientBundle
 from pllm.compiler import CompilationError as CompilationError
 from pllm.plan import CompiledPlan as CompiledPlan
+from pllm.profiles import DirectFHEProfile as DirectFHEProfile
 from pllm.runtime.proprietary_engine import DirectFHETransformerEngine as DirectFHETransformerEngine
 from pllm.runtime.config import GatewayConfig as GatewayConfig
 from pllm.runtime.guarded_engine import GuardPolicy as GuardPolicy
@@ -24,6 +25,8 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine as MaskedTra
 from pllm.runtime.client import OpenAI as OpenAI
 from pllm.runtime.formal_security import PROFILES as PROFILES
 from pllm.runtime.preprocessing_inventory import PreparedInventory as PreparedInventory
+from pllm.profiles import ProprietaryBlinded as ProprietaryBlinded
+from pllm.profiles import ProprietaryGuarded as ProprietaryGuarded
 from pllm.providers import ProviderDescriptor as ProviderDescriptor
 from pllm.providers import ProviderDiscoveryError as ProviderDiscoveryError
 from pllm.providers import ProviderResource as ProviderResource

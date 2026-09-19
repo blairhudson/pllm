@@ -520,19 +520,20 @@ class DashboardRuntime:
             )
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
+            endpoints = {"inference": self._topology.inference_url}
+            if self._topology.requires_preparation:
+                endpoints["preparation"] = self._topology.preparation_url
             self._set(
                 phase="preparing",
-                startup_step="inventory",
-                endpoints={
-                    "preparation": self._topology.preparation_url,
-                    "inference": self._topology.inference_url,
-                },
+                startup_step="inventory" if self._topology.requires_preparation else "inference",
+                endpoints=endpoints,
             )
-            await self._background_call(
-                self._client.preprocess,
-                self.config.model_id,
-                count=self._inventory_rows,
-            )
+            if self._topology.requires_preparation:
+                await self._background_call(
+                    self._client.preprocess,
+                    self.config.model_id,
+                    count=self._inventory_rows,
+                )
             self._model_fingerprint = await self._background_call(self._discover_model_fingerprint)
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
@@ -540,7 +541,11 @@ class DashboardRuntime:
             self._set(
                 phase="ready",
                 startup_step="ready",
-                inventory=self._client.prepared_inventory_status(self.config.model_id),
+                inventory=(
+                    self._client.prepared_inventory_status(self.config.model_id)
+                    if self._topology.requires_preparation
+                    else {"required": False}
+                ),
             )
         except Exception as exc:
             self._set(phase="error", error=f"startup failed: {type(exc).__name__}: {exc}")
@@ -594,7 +599,7 @@ class DashboardRuntime:
             self._preparation_online_operations = 0
             self._last_privacy_delta = {}
             worker = threading.Thread(
-                target=self._prepare_then_run,
+                target=self._execute_run,
                 args=(run_id, prompt, max_output_tokens),
                 daemon=True,
                 name="pllm-dashboard-chat",
@@ -603,46 +608,55 @@ class DashboardRuntime:
             worker.start()
         return run_id
 
-    def _prepare_then_run(self, run_id: str, prompt: str, max_output_tokens: int) -> None:
+    def _execute_run(self, run_id: str, prompt: str, max_output_tokens: int) -> None:
         assert self._client is not None
         capture = self._active_run
         if capture is None or capture.run_id != run_id:
             return
-        capture.preparation_started_at_ns = time.time_ns()
-        capture.preparation_started_monotonic_ns = time.monotonic_ns()
-        self._set(preparation_started_at=capture.preparation_started_at_ns / 1_000_000_000)
         try:
-            previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
-            (
-                capture.inventory_consumed_before,
-                capture.inventory_burned_before,
-            ) = self._inventory_totals(previous_inventory)
-            required = self._client.prepared_rows_for_response(
-                prompt,
-                max_output_tokens,
-                model=self.config.model_id,
-            )
-            capture.inventory_required = int(required)
-            capture.input_tokens = max(0, required - max(0, max_output_tokens - 1))
-            preparation = self._client.preprocess(self.config.model_id, count=required) or {}
-            capture.inventory_generated = max(0, int(preparation.get("generated", 0)))
-            current_inventory = self._client.prepared_inventory_status(self.config.model_id)
-            same_inventory = current_inventory.get("id") == previous_inventory.get("id")
-            if not same_inventory:
-                self._inventory_burned_total += int(previous_inventory.get("burned", 0))
-                self._inventory_consumed_total += int(previous_inventory.get("consumed", 0))
-            if same_inventory:
-                capture.inventory_reused = min(
-                    required,
-                    max(0, int(previous_inventory.get("available", 0))),
+            if self._topology is not None and self._topology.requires_preparation:
+                capture.preparation_started_at_ns = time.time_ns()
+                capture.preparation_started_monotonic_ns = time.monotonic_ns()
+                self._set(
+                    preparation_started_at=capture.preparation_started_at_ns / 1_000_000_000
                 )
-            (
-                capture.inventory_consumed_before,
-                capture.inventory_burned_before,
-            ) = self._inventory_totals(current_inventory)
-            capture.preparation_finished_at_ns = time.time_ns()
-            capture.preparation_finished_monotonic_ns = time.monotonic_ns()
-            self._set(preparation_finished_at=(capture.preparation_finished_at_ns / 1_000_000_000))
+                previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
+                (
+                    capture.inventory_consumed_before,
+                    capture.inventory_burned_before,
+                ) = self._inventory_totals(previous_inventory)
+                required = self._client.prepared_rows_for_response(
+                    prompt,
+                    max_output_tokens,
+                    model=self.config.model_id,
+                )
+                capture.inventory_required = int(required)
+                capture.input_tokens = max(0, required - max(0, max_output_tokens - 1))
+                preparation = self._client.preprocess(self.config.model_id, count=required) or {}
+                capture.inventory_generated = max(0, int(preparation.get("generated", 0)))
+                current_inventory = self._client.prepared_inventory_status(self.config.model_id)
+                same_inventory = current_inventory.get("id") == previous_inventory.get("id")
+                if not same_inventory:
+                    self._inventory_burned_total += int(previous_inventory.get("burned", 0))
+                    self._inventory_consumed_total += int(previous_inventory.get("consumed", 0))
+                if same_inventory:
+                    capture.inventory_reused = min(
+                        required,
+                        max(0, int(previous_inventory.get("available", 0))),
+                    )
+                (
+                    capture.inventory_consumed_before,
+                    capture.inventory_burned_before,
+                ) = self._inventory_totals(current_inventory)
+                capture.preparation_finished_at_ns = time.time_ns()
+                capture.preparation_finished_monotonic_ns = time.monotonic_ns()
+                self._set(
+                    preparation_finished_at=(
+                        capture.preparation_finished_at_ns / 1_000_000_000
+                    )
+                )
+            else:
+                current_inventory = {"required": False}
 
             time.sleep(0.6)
             telemetry = self.store.snapshot()
@@ -859,13 +873,17 @@ class DashboardRuntime:
 
         try:
             capture.process_metrics = self.store.finish_run_window(capture.run_id)
+            if self._topology is not None and not self._topology.requires_preparation:
+                capture.process_metrics.pop("preparation", None)
         except Exception as telemetry_error:
             capture.process_metrics = {}
             if display_error is None:
                 display_error = f"telemetry failed: {type(telemetry_error).__name__}"
         inventory: dict[str, Any] = {}
         client = self._client
-        if client is not None:
+        if client is not None and (
+            self._topology is None or self._topology.requires_preparation
+        ):
             try:
                 inventory = client.prepared_inventory_status(self.config.model_id)
             except Exception:

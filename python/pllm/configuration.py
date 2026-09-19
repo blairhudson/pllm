@@ -545,6 +545,21 @@ class Pipeline(_Configuration):
                 inference=components["inference"],
                 kernels=components["kernels"],
             )
+        if set(components) == {"linear", "inference", "kernels"}:
+            from pllm.profiles import DirectFHEProfile, ProprietaryBlinded, ProprietaryGuarded
+
+            profile_types = {
+                "runtime.proprietary_guarded": ProprietaryGuarded,
+                "runtime.proprietary_blinded": ProprietaryBlinded,
+                "runtime.direct_fhe": DirectFHEProfile,
+            }
+            if profile_type := profile_types.get(data["profile"]):
+                return profile_type(
+                    model,
+                    linear=components["linear"],
+                    inference=components["inference"],
+                    kernels=components["kernels"],
+                )
         return cls(
             profile=data["profile"],
             model=model,
@@ -673,15 +688,41 @@ class Experiment(_Configuration):
 
 @dataclass(frozen=True, slots=True, init=False)
 class ExperimentProfile:
-    """Immutable native resolution of one supported Experiment profile."""
+    """Immutable resolution of one supported Experiment profile."""
 
     model: str
     canonical_profile: bytes
     configuration_digest: str
+    profile: str
+    privacy_mode: str
+    proprietary_protocol: str
+    requires_preparation: bool
+    client_runtime: str
+    privacy_protocol: str | None
 
     def __init__(self, experiment: Experiment) -> None:
         if not isinstance(experiment, Experiment):
             raise TypeError("experiment must be an Experiment")
+        from pllm.profiles import _runtime_profile_options
+
+        runtime_options = _runtime_profile_options(experiment.pipeline)
+        if experiment.pipeline.profile.startswith("runtime."):
+            if runtime_options is None or runtime_options.requires_preparation:
+                raise ConfigurationError("runtime profile does not match its typed component contract")
+            object.__setattr__(
+                self,
+                "model",
+                experiment.pipeline.model.model_id or experiment.pipeline.model.source,
+            )
+            object.__setattr__(self, "canonical_profile", experiment.pipeline.canonical_bytes())
+            object.__setattr__(self, "configuration_digest", experiment.configuration_digest())
+            object.__setattr__(self, "profile", experiment.pipeline.profile)
+            object.__setattr__(self, "privacy_mode", runtime_options.privacy_mode)
+            object.__setattr__(self, "proprietary_protocol", runtime_options.proprietary_protocol)
+            object.__setattr__(self, "requires_preparation", runtime_options.requires_preparation)
+            object.__setattr__(self, "client_runtime", runtime_options.client_runtime)
+            object.__setattr__(self, "privacy_protocol", runtime_options.privacy_protocol)
+            return
         from pllm import _native
 
         try:
@@ -691,6 +732,14 @@ class ExperimentProfile:
         object.__setattr__(self, "model", resolved.model)
         object.__setattr__(self, "canonical_profile", resolved.canonical_profile)
         object.__setattr__(self, "configuration_digest", resolved.configuration_digest)
+        if runtime_options is None:
+            raise ConfigurationError("resolved profile has no runtime contract")
+        object.__setattr__(self, "profile", experiment.pipeline.profile)
+        object.__setattr__(self, "privacy_mode", runtime_options.privacy_mode)
+        object.__setattr__(self, "proprietary_protocol", runtime_options.proprietary_protocol)
+        object.__setattr__(self, "requires_preparation", runtime_options.requires_preparation)
+        object.__setattr__(self, "client_runtime", runtime_options.client_runtime)
+        object.__setattr__(self, "privacy_protocol", runtime_options.privacy_protocol)
 
 
 def _replace_path(target: Any, path: list[str], value: object) -> Any:

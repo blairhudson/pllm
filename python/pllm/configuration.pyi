@@ -159,6 +159,12 @@ class ExperimentProfile:
     model: str
     canonical_profile: bytes
     configuration_digest: str
+    profile: str
+    privacy_mode: str
+    proprietary_protocol: str
+    requires_preparation: bool
+    client_runtime: str
+    privacy_protocol: str | None
     def __init__(self, experiment: Experiment) -> None: ...
 
 def loads_configuration(

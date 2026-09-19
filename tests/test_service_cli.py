@@ -367,6 +367,66 @@ def test_gateway_dry_run_rejects_public_bind_and_never_prints_keys(
     assert "GATEWAY_HOST" in capsys.readouterr().err
 
 
+def test_proprietary_experiment_maps_serve_contract_and_rejects_preparation(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from types import SimpleNamespace
+
+    import pllm
+    import pllm._cli.app as app
+    from pllm.profiles import ProprietaryGuarded
+    from pllm.protocols import GuardedLinear
+
+    experiment = pllm.Experiment(
+        name="guarded",
+        pipeline=ProprietaryGuarded(
+            pllm.Model("org/model"),
+            linear=GuardedLinear(
+                max_rows_per_request=7,
+                max_rows_per_owner_stage=13,
+                max_requests_per_minute=17,
+                output_dither_bound=2,
+            ),
+        ),
+        deployment=pllm.Deployment.local(root="local://guarded"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    )
+    monkeypatch.setattr(
+        "pllm._cli.targets.resolve_target",
+        lambda *args, **kwargs: SimpleNamespace(configuration=experiment),
+    )
+    app.main([
+        "--format",
+        "json",
+        "--no-input",
+        "--dry-run",
+        "serve",
+        "inference",
+        "--experiment",
+        "guarded",
+    ])
+    data = json.loads(capsys.readouterr().out)["data"]
+    assert data["privacy_mode"] == "proprietary"
+    assert data["protocol"] == "guarded"
+    assert data["guard_policy"] == {
+        "max_rows_per_request": 7,
+        "max_rows_per_owner_stage": 13,
+        "max_requests_per_minute": 17,
+        "output_dither_bound": 2,
+    }
+    with pytest.raises(SystemExit, match="3"):
+        app.main([
+            "--no-input",
+            "--dry-run",
+            "serve",
+            "preparation",
+            "--experiment",
+            "guarded",
+        ])
+    assert "no preparation role" in capsys.readouterr().err
+
+
 def test_runtime_runners_do_not_define_competing_cli_parsers() -> None:
     from pllm.runtime import cli
 

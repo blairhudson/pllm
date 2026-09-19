@@ -164,6 +164,7 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
     class Topology:
         inference_url = "http://127.0.0.1:9101"
         preparation_url = "http://127.0.0.1:9102"
+        requires_preparation = True
 
         def start(self):
             captured["started"] = True
@@ -277,6 +278,7 @@ def test_completed_dashboard_run_does_not_eagerly_refill(monkeypatch) -> None:
     runtime._topology = SimpleNamespace(
         started=True,
         closed=False,
+        requires_preparation=True,
         statuses=(SimpleNamespace(running=True),),
     )
     runtime.config = SimpleNamespace(model_id="model")

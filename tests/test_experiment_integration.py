@@ -109,7 +109,7 @@ def test_experiment_rejects_nonpublic_transformer_runtime():
         },
     }
     try:
-        with pytest.raises(ProtocolError, match="public masked_transformer_v1"):
+        with pytest.raises(ProtocolError, match="runtime contract"):
             core._transformer_state("model-a")
     finally:
         core.close()

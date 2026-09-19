@@ -41,6 +41,10 @@ class LocalTopology:
         "_credential_prefix",
         "_engine_threads",
         "_experiment",
+        "_guard_max_requests_per_minute",
+        "_guard_max_rows_per_owner_stage",
+        "_guard_max_rows_per_request",
+        "_guard_output_dither",
         "_hf_cache_dir",
         "_inference_key",
         "_inference_url",
@@ -51,8 +55,11 @@ class LocalTopology:
         "_preparation_key",
         "_preparation_url",
         "_process_lock",
+        "_privacy_mode",
         "_processes",
         "_progress",
+        "_proprietary_protocol",
+        "_requires_preparation",
         "_push_key",
         "_rendezvous_capacity",
         "_rendezvous_max_bytes",
@@ -77,6 +84,13 @@ class LocalTopology:
         weight_bits: int,
         activation_bits: int,
         correlation_mode: str,
+        privacy_mode: str,
+        proprietary_protocol: str,
+        requires_preparation: bool,
+        guard_max_rows_per_request: int,
+        guard_max_rows_per_owner_stage: int,
+        guard_max_requests_per_minute: int,
+        guard_output_dither: int,
         tenseal_path: str | None,
         hf_cache_dir: str | None,
         reserved_ports: tuple[int, ...],
@@ -96,6 +110,13 @@ class LocalTopology:
         self._weight_bits = weight_bits
         self._activation_bits = activation_bits
         self._correlation_mode = correlation_mode
+        self._privacy_mode = privacy_mode
+        self._proprietary_protocol = proprietary_protocol
+        self._requires_preparation = requires_preparation
+        self._guard_max_rows_per_request = guard_max_rows_per_request
+        self._guard_max_rows_per_owner_stage = guard_max_rows_per_owner_stage
+        self._guard_max_requests_per_minute = guard_max_requests_per_minute
+        self._guard_output_dither = guard_output_dither
         self._tenseal_path = tenseal_path
         self._hf_cache_dir = hf_cache_dir
         self._reserved_ports = reserved_ports
@@ -132,6 +153,8 @@ class LocalTopology:
 
     @property
     def preparation_url(self) -> str:
+        if not self._requires_preparation:
+            raise TopologyError("local topology has no preparation role")
         if not self._started:
             raise TopologyError("local topology has not started")
         return self._preparation_url
@@ -145,9 +168,14 @@ class LocalTopology:
         return self._closed
 
     @property
+    def requires_preparation(self) -> bool:
+        return self._requires_preparation
+
+    @property
     def statuses(self) -> tuple[RoleStatus, ...]:
         with self._process_lock:
             processes = dict(self._processes)
+        roles = ("inference", "preparation") if self._requires_preparation else ("inference",)
         return tuple(
             RoleStatus(
                 role=role,
@@ -155,7 +183,7 @@ class LocalTopology:
                 pid=None if process is None else process.pid,
                 running=process is not None and process.poll() is None,
             )
-            for role in ("inference", "preparation")
+            for role in roles
             for process in (processes.get(role),)
         )
 
@@ -208,9 +236,9 @@ class LocalTopology:
             *common,
             "inference",
             "--privacy-mode",
-            "public",
+            self._privacy_mode,
             "--protocol",
-            "guarded",
+            self._proprietary_protocol,
             "--host",
             "127.0.0.1",
             "--port",
@@ -221,8 +249,21 @@ class LocalTopology:
             str(self._rendezvous_max_bytes),
             *model,
         ]
-        if self._correlation_mode == "local-test":
+        if self._privacy_mode == "proprietary" and self._proprietary_protocol == "guarded":
+            inference.extend((
+                "--guard-max-rows-per-request",
+                str(self._guard_max_rows_per_request),
+                "--guard-max-rows-per-stage",
+                str(self._guard_max_rows_per_owner_stage),
+                "--guard-max-requests-per-minute",
+                str(self._guard_max_requests_per_minute),
+                "--guard-output-dither",
+                str(self._guard_output_dither),
+            ))
+        if self._privacy_mode == "public" and self._correlation_mode == "local-test":
             inference.append("--allow-insecure-local-correlations")
+        if not self._requires_preparation:
+            return {"inference": inference}
         preparation = [
             *common,
             "preparation",
@@ -241,10 +282,11 @@ class LocalTopology:
     def _environment(self, role: str) -> dict[str, str]:
         environment = os.environ.copy()
         if role == "inference":
-            environment.update({
-                "PLLM_API_KEY": self._inference_key,
-                "PLLM_PROVIDER_PUSH_API_KEY": self._push_key,
-            })
+            environment["PLLM_API_KEY"] = self._inference_key
+            if self._push_key:
+                environment["PLLM_PROVIDER_PUSH_API_KEY"] = self._push_key
+            else:
+                environment.pop("PLLM_PROVIDER_PUSH_API_KEY", None)
         else:
             environment.update({
                 "PLLM_API_KEY": self._preparation_key,
@@ -345,22 +387,25 @@ class LocalTopology:
             excluded = set(self._reserved_ports)
             inference_port = self._free_port(excluded)
             excluded.add(inference_port)
-            preparation_port = self._free_port(excluded)
+            preparation_port = self._free_port(excluded) if self._requires_preparation else 0
             self._inference_url = f"http://127.0.0.1:{inference_port}"
-            self._preparation_url = f"http://127.0.0.1:{preparation_port}"
+            self._preparation_url = (
+                f"http://127.0.0.1:{preparation_port}" if self._requires_preparation else ""
+            )
             used: set[str] = set()
             self._inference_key = self._credential(used)
-            self._preparation_key = self._credential(used)
-            self._push_key = self._credential(used)
+            self._preparation_key = self._credential(used) if self._requires_preparation else ""
+            self._push_key = self._credential(used) if self._requires_preparation else ""
             commands = self._commands(inference_port, preparation_port)
             if self._progress is not None:
                 self._progress("inference")
             self._spawn("inference", commands["inference"])
             self._wait("inference", "inference", self._inference_url)
-            if self._progress is not None:
-                self._progress("preparation")
-            self._spawn("preparation", commands["preparation"])
-            self._wait("preparation", "trusted-preparation", self._preparation_url)
+            if self._requires_preparation:
+                if self._progress is not None:
+                    self._progress("preparation")
+                self._spawn("preparation", commands["preparation"])
+                self._wait("preparation", "trusted-preparation", self._preparation_url)
             with self._process_lock:
                 if self._closed or self._stopping.is_set():
                     raise TopologyError("local topology stopped during startup")
@@ -385,11 +430,12 @@ class LocalTopology:
     def is_healthy(self) -> bool:
         if not self._started or self._closed:
             return False
-        for status, expected in zip(
-            self.statuses,
-            ("inference", "trusted-preparation"),
-            strict=True,
-        ):
+        expected_roles = (
+            ("inference", "trusted-preparation")
+            if self._requires_preparation
+            else ("inference",)
+        )
+        for status, expected in zip(self.statuses, expected_roles, strict=True):
             if not status.running:
                 return False
             try:
@@ -426,16 +472,19 @@ class LocalTopology:
         )
         from pllm.runtime.client import OpenAI
 
-        return OpenAI(
-            base_url=self._inference_url,
-            api_key=self._inference_key,
-            default_model=self._model_id,
-            preparation_base_url=self._preparation_url,
-            preparation_api_key=self._preparation_key,
-            correlation_mode=self._correlation_mode,
-            experiment=self._experiment,
-            **overrides,
-        )
+        options: dict[str, Any] = {
+            "base_url": self._inference_url,
+            "api_key": self._inference_key,
+            "default_model": self._model_id,
+            "correlation_mode": self._correlation_mode,
+            "experiment": self._experiment,
+        }
+        if self._requires_preparation:
+            options.update({
+                "preparation_base_url": self._preparation_url,
+                "preparation_api_key": self._preparation_key,
+            })
+        return OpenAI(**options, **overrides)
 
     def gateway_app(self, *, local_api_key: str, **overrides: Any) -> Any:
         if not self.is_healthy():
@@ -460,17 +509,20 @@ class LocalTopology:
         )
         from pllm.runtime.sidecar import create_sidecar_app
 
-        return create_sidecar_app(
-            remote_base_url=self._inference_url,
-            remote_api_key=self._inference_key,
-            preparation_base_url=self._preparation_url,
-            preparation_api_key=self._preparation_key,
-            default_model=self._model_id,
-            correlation_mode=self._correlation_mode,
-            experiment=self._experiment,
-            local_api_key=local_api_key,
-            **overrides,
-        )
+        options: dict[str, Any] = {
+            "remote_base_url": self._inference_url,
+            "remote_api_key": self._inference_key,
+            "default_model": self._model_id,
+            "correlation_mode": self._correlation_mode,
+            "experiment": self._experiment,
+            "local_api_key": local_api_key,
+        }
+        if self._requires_preparation:
+            options.update({
+                "preparation_base_url": self._preparation_url,
+                "preparation_api_key": self._preparation_key,
+            })
+        return create_sidecar_app(**options, **overrides)
 
     @staticmethod
     def _stop(process: subprocess.Popen[Any]) -> None:
@@ -559,24 +611,16 @@ def build_roles(
         pipeline = experiment.pipeline
     elif isinstance(model, Pipeline):
         pipeline = model
+    from pllm.profiles import _RuntimeProfileOptions, _runtime_profile_options
+
+    runtime_options = _RuntimeProfileOptions(
+        "public", "guarded", True, "bfv", "masked_transformer_v1", None
+    )
     if pipeline is not None:
-        required = {
-            "linear": "pllm/masked-linear",
-            "preparation": "pllm/model-aware-corrections",
-            "inference": "pllm/inference",
-            "kernels": "pllm/cpu",
-        }
-        if (
-            pipeline.profile != "baseline.masked_linear_cpu"
-            or set(pipeline.components) != set(required)
-            or any(
-                pipeline.components[slot].component != identity
-                for slot, identity in required.items()
-            )
-            or any(pipeline.components[slot].params for slot in required if slot != "kernels")
-            or set(pipeline.components["kernels"].params) != {"threads"}
-        ):
-            raise ValueError("local topology supports only the complete MaskedLinearCpu profile")
+        resolved_options = _runtime_profile_options(pipeline)
+        if resolved_options is None:
+            raise ValueError("local topology does not support this pipeline profile")
+        runtime_options = resolved_options
         kernels = pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             configured_threads = kernels.params.get("threads")
@@ -657,6 +701,13 @@ def build_roles(
         weight_bits=weight_bits,
         activation_bits=activation_bits,
         correlation_mode=correlation_mode,
+        privacy_mode=runtime_options.privacy_mode,
+        proprietary_protocol=runtime_options.proprietary_protocol,
+        requires_preparation=runtime_options.requires_preparation,
+        guard_max_rows_per_request=runtime_options.guard_max_rows_per_request,
+        guard_max_rows_per_owner_stage=runtime_options.guard_max_rows_per_owner_stage,
+        guard_max_requests_per_minute=runtime_options.guard_max_requests_per_minute,
+        guard_output_dither=runtime_options.output_dither_bound,
         tenseal_path=tenseal_path,
         hf_cache_dir=hf_cache_dir,
         reserved_ports=reserved,

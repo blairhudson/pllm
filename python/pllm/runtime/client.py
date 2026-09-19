@@ -1293,7 +1293,11 @@ class RuntimeClient:
             raise ValueError("request model conflicts with Experiment model")
         with self._transformer_state_lock:
             descriptor = self._client_bundle_descriptor(model_id)
+            expected_runtime = None
+            expected_protocol = None
             if self.experiment is not None:
+                expected_runtime = self.experiment.client_runtime
+                expected_protocol = self.experiment.privacy_protocol
                 metadata = descriptor.get("metadata") or {}
                 if not metadata:
                     manifest = self._model_manifest(model_id)
@@ -1301,13 +1305,18 @@ class RuntimeClient:
                     metadata = {
                         "client_runtime": runtime.get("client_runtime"),
                         "privacy_mode": runtime.get("privacy_mode"),
+                        "privacy_protocol": runtime.get("privacy_protocol"),
                     }
                 if (
-                    metadata.get("client_runtime") != "masked_transformer_v1"
-                    or metadata.get("privacy_mode") != "public"
+                    metadata.get("client_runtime") != expected_runtime
+                    or metadata.get("privacy_mode") != self.experiment.privacy_mode
+                    or (
+                        expected_protocol is not None
+                        and metadata.get("privacy_protocol") != expected_protocol
+                    )
                 ):
                     raise ProtocolError(
-                        "Experiment requires public masked_transformer_v1 inference", 409
+                        "Experiment runtime contract does not match inference metadata", 409
                     )
             bundle_fingerprint = str(descriptor["sha256"])
             state = self._transformer_states.get(model_id)
@@ -1322,9 +1331,15 @@ class RuntimeClient:
                 )
                 self._transformer_states[model_id] = state
 
-            if self.experiment is not None and state.privacy_mode != "public":
+            if self.experiment is not None and (
+                state.privacy_mode != self.experiment.privacy_mode
+                or (
+                    expected_protocol is not None
+                    and state.privacy_protocol != expected_protocol
+                )
+            ):
                 raise ProtocolError(
-                    "Experiment requires public masked_transformer_v1 inference", 409
+                    "Experiment privacy mode does not match the client bundle", 409
                 )
 
             if state.privacy_mode == "public" and not state.preparation_verified:
@@ -1389,7 +1404,11 @@ class RuntimeClient:
                         "preparation and inference model commitments do not match", 409
                     )
                 state.preparation_verified = True
-            if self.experiment is not None and not state.preparation_verified:
+            if (
+                self.experiment is not None
+                and self.experiment.requires_preparation
+                and not state.preparation_verified
+            ):
                 raise ProtocolError("Experiment requires seeded-inventory preparation", 409)
             return state
 

@@ -799,17 +799,28 @@ def _serve(
 ) -> None:
     args.host = args.host or os.getenv("PLLM_HOST", "127.0.0.1")
     args.port = args.port if args.port is not None else _env_int("PLLM_PORT", 8000)
+    role = args.serve_role
     experiment = None
     if args.experiment:
         from pllm.configuration import Experiment
 
         from .targets import resolve_target
 
-        if args.config or args.model or args.model_id or args.engine_threads is not None:
+        if (
+            args.config
+            or args.model
+            or args.model_id
+            or args.engine_threads is not None
+            or args.privacy_mode is not None
+            or args.proprietary_protocol is not None
+            or args.guard_max_rows_per_request is not None
+            or args.guard_max_rows_per_stage is not None
+            or args.guard_max_requests_per_minute is not None
+            or args.guard_output_dither is not None
+        ):
             raise ResolutionError(
                 "SERVE_EXPERIMENT_CONFLICT",
-                "--experiment cannot be combined with --config, --model, --model-id, or "
-                "--engine-threads",
+                "--experiment cannot be combined with config, model, engine, privacy, protocol, or guard overrides",
             )
         target = resolve_target(
             args.experiment,
@@ -827,8 +838,29 @@ def _serve(
             experiment.resolve()
         except (TypeError, ValueError) as exc:
             raise ResolutionError("SERVE_EXPERIMENT_INVALID", str(exc)) from exc
+        from pllm.profiles import _runtime_profile_options
+
+        runtime_options = _runtime_profile_options(experiment.pipeline)
+        if runtime_options is None:
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_INVALID",
+                "experiment profile is not supported by local serving",
+            )
+        if role == "preparation" and not runtime_options.requires_preparation:
+            raise ResolutionError(
+                "SERVE_CONFIGURATION",
+                "experiment profile has no preparation role",
+            )
+        args.privacy_mode = runtime_options.privacy_mode
+        args.proprietary_protocol = runtime_options.proprietary_protocol
+        args.guard_max_rows_per_request = runtime_options.guard_max_rows_per_request
+        args.guard_max_rows_per_stage = runtime_options.guard_max_rows_per_owner_stage
+        args.guard_max_requests_per_minute = runtime_options.guard_max_requests_per_minute
+        args.guard_output_dither = runtime_options.output_dither_bound
         args.model = [experiment.pipeline.model.source]
-        args.model_id = [experiment.pipeline.model.source]
+        args.model_id = [
+            experiment.pipeline.model.model_id or experiment.pipeline.model.source
+        ]
         kernels = experiment.pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             args.engine_threads = int(kernels.params["threads"])
@@ -852,7 +884,6 @@ def _serve(
         raise ResolutionError("SERVE_PORT", "service port must be between 1 and 65535")
     if args.model_id and len(args.model_id) != len(args.model):
         raise ResolutionError("SERVE_MODEL_ID", "--model-id must be supplied once per --model")
-    role = args.serve_role
     effective_mode = (
         args.privacy_mode or os.getenv("PLLM_PRIVACY_MODE") or preview.get("privacy_mode", "public")
     )
@@ -864,6 +895,11 @@ def _serve(
         raise ResolutionError(
             "SERVE_CONFIGURATION", "production shared-transformer routing is disabled"
         )
+    effective_protocol = (
+        args.proprietary_protocol
+        or os.getenv("PLLM_PROPRIETARY_PROTOCOL")
+        or preview.get("proprietary_protocol", "guarded")
+    )
     if dry_run:
         data = {
             "config": args.config,
@@ -885,11 +921,16 @@ def _serve(
             ],
             "port": args.port,
             "privacy_mode": effective_mode,
-            "protocol": args.proprietary_protocol
-            or os.getenv("PLLM_PROPRIETARY_PROTOCOL")
-            or preview.get("proprietary_protocol", "guarded"),
+            "protocol": effective_protocol,
             "role": role,
         }
+        if effective_mode == "proprietary" and effective_protocol == "guarded":
+            data["guard_policy"] = {
+                "max_rows_per_request": args.guard_max_rows_per_request,
+                "max_rows_per_owner_stage": args.guard_max_rows_per_stage,
+                "max_requests_per_minute": args.guard_max_requests_per_minute,
+                "output_dither_bound": args.guard_output_dither,
+            }
         if output_format == "human":
             if not getattr(args, "quiet", False):
                 print(f"Would start {role} service on {_service_url(args.host, args.port)}")

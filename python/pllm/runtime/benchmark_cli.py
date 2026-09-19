@@ -119,6 +119,7 @@ def build_loopback_report(
     max_output_tokens: int,
     warmup_runs: list[dict[str, Any]],
     runs: list[dict[str, Any]],
+    roles: tuple[str, ...] = ("client", "preparation", "inference"),
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     all_runs = [*warmup_runs, *runs]
@@ -155,7 +156,7 @@ def build_loopback_report(
             "max_output_tokens": max_output_tokens,
             "warmups": len(warmup_runs),
             "repetitions": len(runs),
-            "roles": ["client", "preparation", "inference"],
+            "roles": list(roles),
         },
         "checks": {"passed": all(checks.values()), **checks},
         "summary": {
@@ -402,21 +403,35 @@ def _run_loopback_benchmark(
     if _DASHBOARD_TOKEN is None:
         _DASHBOARD_TOKEN = secrets.token_urlsafe(32)
     port = _DASHBOARD_PORT
+    roles = ("client", "preparation", "inference")
+    effective_tiny = tiny
     if experiment is not None:
         if tiny:
             raise ValueError("Experiment pipelines cannot use the generated tiny model")
         experiment.resolve()
+        from pllm.profiles import _runtime_profile_options
+
+        runtime_options = _runtime_profile_options(experiment.pipeline)
+        if runtime_options is None:
+            raise ValueError("Experiment profile is not supported by local benchmarking")
+        if not runtime_options.requires_preparation:
+            roles = ("client", "inference")
+        effective_tiny = experiment.pipeline.model.kind == "tiny"
         model = experiment.pipeline.model.source
         resolved_model_id = experiment.pipeline.model.model_id or model
     else:
         resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
     startup_inventory_rows = (
-        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if tiny else 64
+        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20)
+        if effective_tiny
+        else 64
     )
     from pllm.runtime.dashboard import DashboardConfig, create_dashboard_app
 
     candidate = Path(model).expanduser()
-    model_path = None if tiny else candidate.resolve() if candidate.exists() else model
+    model_path = (
+        None if effective_tiny else candidate.resolve() if candidate.exists() else model
+    )
     config = DashboardConfig(
         host="127.0.0.1",
         port=port,
@@ -500,10 +515,11 @@ def _run_loopback_benchmark(
 
     report = build_loopback_report(
         model_id=resolved_model_id,
-        tiny=tiny,
+        tiny=effective_tiny,
         max_output_tokens=max_output_tokens,
         warmup_runs=warmup_runs,
         runs=runs,
+        roles=roles,
     )
     if not report["checks"]["passed"]:
         raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
@@ -524,7 +540,7 @@ def run_loopback_benchmark(
     progress: ProgressCallback | None = None,
     experiment: Experiment | None = None,
 ) -> dict[str, Any]:
-    """Run the real client, preparation, and inference roles on loopback."""
+    """Run the profile's real client and service roles on loopback."""
     with _DASHBOARD_LOCK:
         return _run_loopback_benchmark(
             model=model,

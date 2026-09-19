@@ -321,6 +321,7 @@ def test_runtime_persists_exact_sanitized_runs_and_recovers_after_failure(
     runtime._topology = SimpleNamespace(
         started=True,
         closed=False,
+        requires_preparation=True,
         statuses=(SimpleNamespace(running=True),),
     )
     runtime._state["phase"] = "ready"

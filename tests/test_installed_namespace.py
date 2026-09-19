@@ -45,7 +45,12 @@ def test_public_domain_facades_share_root_identities():
         load_model,
         lower_model,
     )
-    from pllm.pipeline import MaskedLinearCpu
+    from pllm.pipeline import (
+        DirectFHEProfile,
+        MaskedLinearCpu,
+        ProprietaryBlinded,
+        ProprietaryGuarded,
+    )
     from pllm.plan import CompiledPlan
     from pllm.providers import ProviderDescriptor, discover_providers
     from pllm.runtime import serve_local
@@ -55,7 +60,10 @@ def test_public_domain_facades_share_root_identities():
     assert pllm.DecoderCoverageReport is DecoderCoverageReport
     assert pllm.DecoderRuntimeSchedule is DecoderRuntimeSchedule
     assert pllm.ModelLoadError is ModelLoadError
+    assert pllm.DirectFHEProfile is DirectFHEProfile
     assert pllm.MaskedLinearCpu is MaskedLinearCpu
+    assert pllm.ProprietaryBlinded is ProprietaryBlinded
+    assert pllm.ProprietaryGuarded is ProprietaryGuarded
     assert pllm.ModelManifest is ModelManifest
     assert pllm.ModelPlan is ModelPlan
     assert pllm.ProviderDescriptor is ProviderDescriptor

@@ -6,7 +6,16 @@ from types import SimpleNamespace
 
 import pytest
 
-from pllm import Cpu, Experiment, MaskedLinearCpu, Model
+from pllm import (
+    Cpu,
+    DirectFHEProfile,
+    Experiment,
+    MaskedLinearCpu,
+    Model,
+    ProprietaryBlinded,
+    ProprietaryGuarded,
+)
+from pllm.protocols import GuardedLinear
 from pllm.runtime.servers import LocalTopology, TopologyError, build_roles, serve_local
 from pllm.sources import TinyModel
 
@@ -98,6 +107,47 @@ def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> No
     for kwargs in invalid:
         with pytest.raises((TypeError, ValueError)):
             build_roles(**kwargs)
+
+
+@pytest.mark.parametrize(
+    ("pipeline", "protocol"),
+    [
+        (ProprietaryGuarded(Model("org/model")), "guarded"),
+        (ProprietaryBlinded(Model("org/model")), "blinded"),
+        (DirectFHEProfile(Model("org/model")), "direct"),
+    ],
+)
+def test_proprietary_profiles_build_one_role_commands(pipeline, protocol: str) -> None:
+    topology = build_roles(pipeline)
+    commands = topology._commands(9101, 0)
+    assert set(commands) == {"inference"}
+    command = commands["inference"]
+    assert command[1:5] == ["-m", "pllm", "serve", "inference"]
+    assert command[command.index("--privacy-mode") + 1] == "proprietary"
+    assert command[command.index("--protocol") + 1] == protocol
+    assert "preparation" not in command
+    with pytest.raises(TopologyError, match="no preparation role"):
+        _ = topology.preparation_url
+
+
+def test_guarded_profile_maps_exact_policy_flags() -> None:
+    pipeline = ProprietaryGuarded(
+        Model("org/model"),
+        linear=GuardedLinear(
+            max_rows_per_request=11,
+            max_rows_per_owner_stage=22,
+            max_requests_per_minute=33,
+            output_dither_bound=4,
+        ),
+    )
+    command = build_roles(pipeline)._commands(9101, 0)["inference"]
+    for flag, value in (
+        ("--guard-max-rows-per-request", "11"),
+        ("--guard-max-rows-per-stage", "22"),
+        ("--guard-max-requests-per-minute", "33"),
+        ("--guard-output-dither", "4"),
+    ):
+        assert command[command.index(flag) + 1] == value
 
 
 def test_topology_builds_secret_free_commands_and_closes_processes(monkeypatch, tmp_path: Path) -> None:
@@ -214,6 +264,86 @@ def test_topology_builds_secret_free_commands_and_closes_processes(monkeypatch, 
     assert not any(process.killed for process in spawned)
     with pytest.raises(TopologyError, match="started again"):
         topology.start()
+
+
+def test_one_role_topology_lifecycle_and_routing(monkeypatch, tmp_path: Path) -> None:
+    spawned = []
+    credentials = []
+
+    class Process:
+        pid = 5100
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, timeout):
+            self.returncode = 0
+            return 0
+
+    def popen(command, **kwargs):
+        process = Process()
+        process.command = command
+        process.kwargs = kwargs
+        spawned.append(process)
+        return process
+
+    def credential(_length):
+        credentials.append("guarded-inference")
+        return "guarded-inference"
+
+    monkeypatch.setattr(LocalTopology, "_free_port", staticmethod(lambda excluded: 9101))
+    monkeypatch.setattr("pllm.runtime.servers.secrets.token_urlsafe", credential)
+    monkeypatch.setattr("pllm.runtime.servers.subprocess.Popen", popen)
+    monkeypatch.setattr(
+        "pllm.runtime.servers.httpx.get",
+        lambda url, timeout: SimpleNamespace(
+            status_code=200,
+            json=lambda: {"role": "inference"},
+        ),
+    )
+    monkeypatch.setattr(
+        "pllm.runtime.servers.os.killpg",
+        lambda pid, signal: setattr(spawned[0], "returncode", 0),
+    )
+    topology = build_roles(
+        ProprietaryGuarded(Model.path(str(tmp_path), model_id="guarded")),
+        log_dir=tmp_path / "logs",
+        progress=lambda role: None,
+    ).start()
+    assert len(spawned) == 1
+    assert len(credentials) == 1
+    assert len(topology.statuses) == 1
+    assert topology.statuses[0].role == "inference"
+    assert topology.is_healthy() is True
+    environment = spawned[0].kwargs["env"]
+    assert environment["PLLM_API_KEY"] == "local_guarded-inference"
+    assert "PLLM_PROVIDER_PUSH_API_KEY" not in environment
+    assert "PLLM_PUSH_API_KEY" not in environment
+    assert topology._preparation_key == topology._push_key == ""
+
+    captured = {}
+
+    class Client:
+        def __init__(self, **kwargs):
+            captured["client"] = kwargs
+
+    monkeypatch.setattr("pllm.runtime.client.OpenAI", Client)
+    topology.client(timeout=3)
+    assert captured["client"]["base_url"] == topology.inference_url
+    assert "preparation_base_url" not in captured["client"]
+    assert "preparation_api_key" not in captured["client"]
+
+    monkeypatch.setattr(
+        "pllm.runtime.sidecar.create_sidecar_app",
+        lambda **kwargs: captured.setdefault("gateway", kwargs),
+    )
+    topology.gateway_app(local_api_key="local")
+    assert "preparation_base_url" not in captured["gateway"]
+    assert "preparation_api_key" not in captured["gateway"]
+    topology.close()
+    assert topology.closed is True
+    assert topology._inference_key == ""
 
 
 def test_client_and_gateway_keep_private_routing_immutable(monkeypatch) -> None:
@@ -379,6 +509,24 @@ def test_startup_failure_rolls_back_and_redacts_credentials(monkeypatch, tmp_pat
     assert "secretprefix_" not in str(failure.value)
     assert "<redacted>" in str(failure.value)
     assert topology.closed is True
+
+
+@pytest.mark.integration
+def test_actual_tiny_guarded_topology_starts_one_role(tmp_path: Path) -> None:
+    topology = serve_local(
+        ProprietaryGuarded(TinyModel(model_id="guarded-tiny")),
+        hf_cache_dir=str(tmp_path / "models"),
+        log_dir=tmp_path / "guarded-logs",
+        startup_timeout=60,
+    )
+    try:
+        assert topology.is_healthy()
+        assert tuple(status.role for status in topology.statuses) == ("inference",)
+        with pytest.raises(TopologyError, match="no preparation role"):
+            _ = topology.preparation_url
+    finally:
+        topology.close()
+    assert topology.closed
 
 
 @pytest.mark.integration

@@ -29,7 +29,7 @@ masks, or prepared material.
 
 Python users can construct the same `Experiment`, `Pipeline`, `Model`,
 `Deployment`, and `ExecutionBudget` objects directly. See the generated
-[Python API inventory](/sdk/reference/python/pllm/) for exact signatures.
+[Python API inventory](/sdk/reference/python/pllm/) for exact signatures. `MaskedLinearCpu` binds the two-role public-weight baseline. `ProprietaryGuarded`, `ProprietaryBlinded`, and `DirectFHEProfile` bind the shipped one-role proprietary engines, including guarded policy parameters; they do not imply protected research execution, model-extraction resistance, or a plaintext reference backend.
 
 ## Python SDK example
 
