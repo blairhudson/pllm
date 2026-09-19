@@ -12,6 +12,17 @@ import pllm.components as components
 import pllm.configuration as configuration
 from pllm.correlation import CorrelationSource, SeededExpansion
 from pllm.kernels import Cpu, KernelBackend
+from pllm.metrics import (
+    Accuracy,
+    Communication,
+    Cost,
+    Energy,
+    Latency,
+    Memory,
+    Metric,
+    Perplexity,
+    Throughput,
+)
 from pllm.nonlinear import (
     BinaryTableGatedMultiplyQ7,
     NonlinearProtocol,
@@ -47,26 +58,34 @@ from pllm.verification import LinearIntegrity, VerificationScheme
 
 def _instances():
     return (
+        Accuracy(dataset="fixture"),
         BFVCorrelations(),
         BinaryTableGatedMultiplyQ7(),
         BlindedLinear(),
         ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
         CleartextLinear(),
         ClientLocalKv(),
+        Communication(),
+        Cost(),
         Cpu(threads=2),
         DirectFHE(),
+        Energy(),
         GuardedLinear(),
         HEAuthenticatedPreprocessing(),
         IndependentLanesProtectedTensorSchedule(),
         Inference(),
         KvCacheEviction(),
+        Latency(),
         LinearIntegrity(),
         MaskedLinear(),
+        Memory(),
         ModelAwareCorrections(),
+        Perplexity(dataset="fixture"),
         R03CrtGatedMultiplyQ7(),
         ScalarProtectedTensorSchedule(),
         SeededExpansion(),
         SecureLinear(),
+        Throughput(),
     )
 
 
@@ -118,6 +137,7 @@ def test_all_registered_classes_round_trip_through_experiment_configuration() ->
 
 def test_category_bases_match_each_profile_slot() -> None:
     assert isinstance(Cpu(), KernelBackend)
+    assert isinstance(Latency(), Metric)
     assert isinstance(MaskedLinear(), ProtocolMethod)
     assert isinstance(ModelAwareCorrections(), PreparationProvider)
     assert isinstance(SeededExpansion(), CorrelationSource)
@@ -129,6 +149,7 @@ def test_category_bases_match_each_profile_slot() -> None:
     assert isinstance(LinearIntegrity(), VerificationScheme)
     for category in (
         KernelBackend,
+        Metric,
         ProtocolMethod,
         PreparationProvider,
         CorrelationSource,

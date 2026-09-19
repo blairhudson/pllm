@@ -1,6 +1,7 @@
 from pllm.runtime.client import AsyncOpenAI as AsyncOpenAI
 from pllm.runtime.authenticated_mpc import AuthenticatedMPC as AuthenticatedMPC
 from pllm.runtime.authenticated_mpc import AuthenticationError as AuthenticationError
+from pllm.evidence import BenchmarkResult as BenchmarkResult
 from pllm.runtime.blinded_engine import BlindedTransformerEngine as BlindedTransformerEngine
 from pllm.sources import BundleModel as BundleModel
 from pllm.runtime.transformer_client import ClientBundle as ClientBundle
@@ -50,6 +51,7 @@ from pllm.configuration import ConfigurationError as ConfigurationError
 from pllm.kernels import Cpu as Cpu
 from pllm.configuration import Deployment as Deployment
 from pllm.configuration import ExecutionBudget as ExecutionBudget
+from pllm.evidence import EvidenceRegistry as EvidenceRegistry
 from pllm.evidence import EvidenceReport as EvidenceReport
 from pllm.configuration import Experiment as Experiment
 from pllm.configuration import ExperimentProfile as ExperimentProfile
@@ -71,6 +73,7 @@ from pllm.evidence import assure as assure
 from pllm.evidence import benchmark as benchmark
 from pllm.evidence import deployment_benchmark as deployment_benchmark
 from pllm.providers import discover_providers as discover_providers
+from pllm.evidence import environment_digest as environment_digest
 from pllm.providers import load_component_factory as load_component_factory
 from pllm.runtime.server import create_app as create_app
 from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app

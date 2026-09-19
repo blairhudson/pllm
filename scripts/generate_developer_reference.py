@@ -42,6 +42,7 @@ PUBLIC_MODULES = (
     "pllm.components",
     "pllm.correlation",
     "pllm.kernels",
+    "pllm.metrics",
     "pllm.nonlinear",
     "pllm.passes",
     "pllm.profiles",

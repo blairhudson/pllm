@@ -1,17 +1,55 @@
 ---
 title: "Metrics"
-description: "Choose clear performance, resource, quality, and privacy measurements for a PLLM experiment."
+description: "Choose clear performance, resource, quality, and cost measurements for a PLLM experiment."
 ---
 
-No single number describes system performance. Report tokens per second, time to
-first token, per-token latency, peak and retained memory, CPU time and use,
-online and offline network traffic, disk use, preparation work, and failures.
-Energy and price require measurements from the stated environment.
+No single number describes system performance. PLLM exposes typed `Latency`, `Throughput`, `Communication`, `Memory`, `Energy`, `Accuracy`, `Perplexity`, and `Cost` metric declarations. Their parameters fix statistics, phases, denominators, data sets, measurement sources, or currencies before a result is compared.
 
-Define each metric's scope and denominator. Keep prefill separate from decode,
-client from provider, offline from online, cold from warm, and useful output from
-attempted work. Record model quality and privacy assurance separately from
-performance.
+`BenchmarkResult` is the canonical full-result envelope. It binds profile and component identities, model/checkpoint identity, plan and configuration digests, privacy and numeric cohorts, a digest-checked environment, warmup/measurement samples, metric values, and limitations. Unavailable measurements use `origin="not_available"`, a null value, zero samples, and an explicit reason; missing evidence is never encoded as zero. `EvidenceRegistry` retains completed, failed, and unavailable results and queries exact cohorts without ranking unlike records.
 
-Telemetry must never include prompts, generated text, token IDs, activations,
-seeds, masks, or credentials.
+## Python SDK example
+
+```python
+from pllm import BenchmarkResult, EvidenceRegistry, environment_digest
+
+attributes = {"cpu": "fixture", "transport": "loopback"}
+result = BenchmarkResult.from_dict({
+    "schema_version": "pllm.benchmark_result.v1",
+    "id": "fixture-run",
+    "created_at": "2026-09-19T12:00:00Z",
+    "status": "not_available",
+    "scope": "deployment",
+    "profile": "baseline.masked_linear_cpu",
+    "component_ids": ["pllm/cpu", "pllm/masked-linear"],
+    "model": {"id": "org/model", "checkpoint_digest": None, "source_lock_digest": None},
+    "plan_lock_digest": None,
+    "configuration_digest": None,
+    "privacy_cohort": "masked-linear",
+    "numeric_cohort": "wrap32",
+    "environment": {"digest": environment_digest(attributes), "attributes": attributes},
+    "warmups": 0,
+    "repetitions": 0,
+    "samples": [],
+    "metrics": [{
+        "id": "energy-unavailable",
+        "component": "pllm/energy",
+        "parameters": {"source": "not_available"},
+        "value": None,
+        "unit": "joules",
+        "unit_detail": None,
+        "statistic": "measurement",
+        "phase": "full",
+        "role": None,
+        "origin": "not_available",
+        "unavailable_reason": "no external energy meter",
+        "sample_count": 0,
+    }],
+    "limitations": ["energy was not measured"],
+})
+registry = EvidenceRegistry([result])
+assert registry.query(metric="pllm/energy") == (result,)
+```
+
+Keep prefill separate from decode, client from provider, offline from online, cold from warm, and useful output from attempted work. Telemetry must never include prompts, generated text, token IDs, activations, seeds, masks, or credentials.
+
+API: [`pllm.metrics` and `pllm.EvidenceRegistry`](/sdk/reference/python/pllm/#objects-and-signatures)

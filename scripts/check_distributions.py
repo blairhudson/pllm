@@ -71,6 +71,7 @@ def main() -> None:
         assert archive.extractfile(plugin_header).read() == archive.extractfile(package_header).read()
         assert any(n.endswith("/python/pllm/__init__.py") for n in names)
         assert any(n.endswith("/schemas/provider-manifest.schema.json") for n in names)
+        assert any(n.endswith("/schemas/benchmark-result.schema.json") for n in names)
         source_schema = next(
             n for n in names if n.endswith("/schemas/provider-manifest.schema.json")
         )

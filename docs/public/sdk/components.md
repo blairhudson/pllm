@@ -25,7 +25,7 @@ Inspect one record as JSON with
 uv run pllm --format json components show pllm/kv-cache-eviction
 ```
 
-Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
+Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.metrics`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
 
 ## Python SDK example
 

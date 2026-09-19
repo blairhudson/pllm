@@ -494,7 +494,7 @@ Inspect one record as JSON with
 uv run pllm --format json components show pllm/kv-cache-eviction
 ```
 
-Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
+Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.metrics`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
 
 ## Python SDK example
 
@@ -1955,13 +1955,14 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 ## Facades
 
-- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BlindedTransformerEngine`, `pllm.BundleModel`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHEProfile`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedLinearCpu`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryBlinded`, `pllm.ProprietaryGuarded`, `pllm.ProprietaryProtocol`, `pllm.ProviderDescriptor`, `pllm.ProviderDiscoveryError`, `pllm.ProviderResource`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TinyModel`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.discover_providers`, `pllm.load_component_factory`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
+- `pllm`: `pllm.AsyncOpenAI`, `pllm.AsyncPLLMTransport`, `pllm.AuthenticatedMPC`, `pllm.AuthenticationError`, `pllm.BenchmarkResult`, `pllm.BlindedTransformerEngine`, `pllm.BundleModel`, `pllm.ClientBundle`, `pllm.CompilationError`, `pllm.CompiledPlan`, `pllm.ComponentRef`, `pllm.ConfigurationError`, `pllm.Cpu`, `pllm.DecoderCoverageReport`, `pllm.DecoderRuntimeSchedule`, `pllm.Deployment`, `pllm.DirectFHEProfile`, `pllm.DirectFHETransformerEngine`, `pllm.EvidenceRegistry`, `pllm.EvidenceReport`, `pllm.ExecutionBudget`, `pllm.Experiment`, `pllm.ExperimentProfile`, `pllm.GatewayConfig`, `pllm.GuardPolicy`, `pllm.GuardedBlindedTransformerEngine`, `pllm.HEAuthenticatedPreprocessor`, `pllm.KvCacheEviction`, `pllm.MaskedLinear`, `pllm.MaskedLinearCpu`, `pllm.MaskedTransformerClientRuntime`, `pllm.MaskedTransformerEngine`, `pllm.Model`, `pllm.ModelAwareCorrections`, `pllm.ModelLoadError`, `pllm.ModelManifest`, `pllm.ModelPlan`, `pllm.OpenAI`, `pllm.PLLMTransport`, `pllm.PROFILES`, `pllm.Pipeline`, `pllm.PreparedInventory`, `pllm.PreprocessingPlan`, `pllm.PrivacyMode`, `pllm.ProprietaryBlinded`, `pllm.ProprietaryGuarded`, `pllm.ProprietaryProtocol`, `pllm.ProviderDescriptor`, `pllm.ProviderDiscoveryError`, `pllm.ProviderResource`, `pllm.RecordingPreprocessor`, `pllm.Response`, `pllm.ResponseEvent`, `pllm.ResponseStream`, `pllm.SECURE_PREVIEW`, `pllm.SecureDecoder`, `pllm.SecureDecoderConfig`, `pllm.SecureDecoderWeights`, `pllm.SecurityClaim`, `pllm.TinyModel`, `pllm.TrustedPreprocessor`, `pllm.__version__`, `pllm.assure`, `pllm.benchmark`, `pllm.canonical_bytes`, `pllm.check_linear_result`, `pllm.compile`, `pllm.configuration_digest`, `pllm.create_app`, `pllm.create_async_openai_client`, `pllm.create_linear_check_key`, `pllm.create_openai_client`, `pllm.create_preparation_app`, `pllm.create_sidecar_app`, `pllm.deployment_benchmark`, `pllm.discover_providers`, `pllm.environment_digest`, `pllm.load_component_factory`, `pllm.load_configuration`, `pllm.load_model`, `pllm.loads_configuration`, `pllm.lower_model`, `pllm.secure_argmax`, `pllm.serve_local`
 - `pllm.config`: `pllm.config.ComponentRef`, `pllm.config.ConfigurationError`, `pllm.config.Deployment`, `pllm.config.ExecutionBudget`, `pllm.config.Experiment`, `pllm.config.ExperimentProfile`, `pllm.config.Model`, `pllm.config.Pipeline`, `pllm.config.canonical_bytes`, `pllm.config.configuration_digest`, `pllm.config.load_configuration`, `pllm.config.loads_configuration`
 - `pllm.models`: `pllm.models.DecoderCoverageReport`, `pllm.models.DecoderRuntimeSchedule`, `pllm.models.ModelLoadError`, `pllm.models.ModelManifest`, `pllm.models.ModelPlan`, `pllm.models.load_model`, `pllm.models.lower_model`
 - `pllm.plan`: `pllm.plan.CompiledPlan`
 - `pllm.components`: `pllm.components.ComponentDescriptor`, `pllm.components.ComponentRef`, `pllm.components.create_component`, `pllm.components.get`, `pllm.components.get_component`, `pllm.components.list_component_classes`, `pllm.components.list_components`
 - `pllm.correlation`: `pllm.correlation.CorrelationSource`, `pllm.correlation.SeededExpansion`
 - `pllm.kernels`: `pllm.kernels.Cpu`, `pllm.kernels.KernelBackend`
+- `pllm.metrics`: `pllm.metrics.Accuracy`, `pllm.metrics.Communication`, `pllm.metrics.Cost`, `pllm.metrics.Energy`, `pllm.metrics.Latency`, `pllm.metrics.Memory`, `pllm.metrics.Metric`, `pllm.metrics.Perplexity`, `pllm.metrics.Throughput`
 - `pllm.nonlinear`: `pllm.nonlinear.BinaryTableGatedMultiplyQ7`, `pllm.nonlinear.NonlinearProtocol`, `pllm.nonlinear.R03CrtGatedMultiplyQ7`
 - `pllm.passes`: `pllm.passes.KvCacheEviction`, `pllm.passes.PlanPass`
 - `pllm.profiles`: `pllm.profiles.DirectFHEProfile`, `pllm.profiles.MaskedLinearCpu`, `pllm.profiles.ProprietaryBlinded`, `pllm.profiles.ProprietaryGuarded`
@@ -1978,7 +1979,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 - `pllm.deployment`: `pllm.deployment.Deployment`
 - `pllm.runtime`: `pllm.runtime.AsyncOpenAI`, `pllm.runtime.AsyncPLLMTransport`, `pllm.runtime.CompiledRuntimeModel`, `pllm.runtime.CompiledRuntimeSession`, `pllm.runtime.ExecutionBudget`, `pllm.runtime.GatewayConfig`, `pllm.runtime.LocalTopology`, `pllm.runtime.OpenAI`, `pllm.runtime.PLLMTransport`, `pllm.runtime.PrivacyMode`, `pllm.runtime.ProprietaryProtocol`, `pllm.runtime.RoleStatus`, `pllm.runtime.RuntimeBindingError`, `pllm.runtime.RuntimeExecutionError`, `pllm.runtime.RuntimeStageBinding`, `pllm.runtime.TopologyError`, `pllm.runtime.__version__`, `pllm.runtime.build_roles`, `pllm.runtime.compile_runtime_model`, `pllm.runtime.create_app`, `pllm.runtime.create_sidecar_app`, `pllm.runtime.serve_local`
 - `pllm.compiler`: `pllm.compiler.CompilationError`, `pllm.compiler.compile`
-- `pllm.evidence`: `pllm.evidence.EvidenceReport`, `pllm.evidence.assure`, `pllm.evidence.benchmark`, `pllm.evidence.deployment_benchmark`
+- `pllm.evidence`: `pllm.evidence.BenchmarkResult`, `pllm.evidence.EvidenceRegistry`, `pllm.evidence.EvidenceReport`, `pllm.evidence.assure`, `pllm.evidence.benchmark`, `pllm.evidence.deployment_benchmark`, `pllm.evidence.environment_digest`
 
 ## Objects and signatures
 
@@ -2008,12 +2009,24 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.configuration.loads_configuration` | function | `loads_configuration(text: str, *, format: str \| None=None, providers: Iterable[ProviderDescriptor]=...) -> Experiment` | not recorded | `pllm.config.loads_configuration`, `pllm.loads_configuration` |
 | `pllm.correlation.CorrelationSource` | class | `constructor not exposed` | not recorded | `pllm.correlation.CorrelationSource` |
 | `pllm.correlation.SeededExpansion` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.correlation.SeededExpansion` |
+| `pllm.evidence.BenchmarkResult` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `classmethod from_dict(cls, document: 'Mapping[str, Any]') -> 'BenchmarkResult'`; `property data: 'Mapping[str, Any]'`; `property digest: 'str'`; `property id: 'str'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.BenchmarkResult`, `pllm.evidence.BenchmarkResult` |
+| `pllm.evidence.EvidenceRegistry` | class | `(results: 'Iterable[BenchmarkResult]' = ()) -> 'None'` | `get(self, identity: 'str') -> 'BenchmarkResult'`; `list(self) -> 'tuple[BenchmarkResult, ...]'`; `query(self, *, profile: 'str \| None' = None, component: 'str \| None' = None, model: 'str \| None' = None, environment_digest: 'str \| None' = None, privacy_cohort: 'str \| None' = None, numeric_cohort: 'str \| None' = None, metric: 'str \| None' = None, status: 'str \| None' = None) -> 'tuple[BenchmarkResult, ...]'`; `register(self, result: 'BenchmarkResult') -> 'EvidenceRegistry'` | `pllm.EvidenceRegistry`, `pllm.evidence.EvidenceRegistry` |
 | `pllm.evidence.EvidenceReport` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property data: 'Mapping[str, Any]'`; `property schema_version: 'str'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.EvidenceReport`, `pllm.evidence.EvidenceReport` |
 | `pllm.evidence.assure` | function | `() -> 'EvidenceReport'` | not recorded | `pllm.assure`, `pllm.evidence.assure` |
 | `pllm.evidence.benchmark` | function | `(plan: 'CompiledPlan', *, weights: 'bytes', input: 'bytes', id: 'str', privacy_cohort: 'str', numeric_cohort: 'str', environment: 'Mapping[str, Any]', warmups: 'int' = 3, repetitions: 'int' = 10, threads: 'int' = 1, simd: 'bool' = True) -> 'EvidenceReport'` | not recorded | `pllm.benchmark`, `pllm.evidence.benchmark` |
 | `pllm.evidence.deployment_benchmark` | function | `(request: 'Mapping[str, Any]') -> 'EvidenceReport'` | not recorded | `pllm.deployment_benchmark`, `pllm.evidence.deployment_benchmark` |
+| `pllm.evidence.environment_digest` | function | `(attributes: 'Mapping[str, Any]') -> 'str'` | not recorded | `pllm.environment_digest`, `pllm.evidence.environment_digest` |
 | `pllm.kernels.Cpu` | class | `__init__(self, *, threads: int=1) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, threads: int=1) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.Cpu`, `pllm.kernels.Cpu` |
 | `pllm.kernels.KernelBackend` | class | `constructor not exposed` | not recorded | `pllm.kernels.KernelBackend` |
+| `pllm.metrics.Accuracy` | class | `__init__(self, *, dataset: str, measure: str='task_score') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, dataset: str, measure: str='task_score') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Accuracy` |
+| `pllm.metrics.Communication` | class | `__init__(self, *, direction: str='total', phase: str='online') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, direction: str='total', phase: str='online') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Communication` |
+| `pllm.metrics.Cost` | class | `__init__(self, *, currency: str='USD', basis: str='request') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, currency: str='USD', basis: str='request') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Cost` |
+| `pllm.metrics.Energy` | class | `__init__(self, *, source: str='not_available') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, source: str='not_available') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Energy` |
+| `pllm.metrics.Latency` | class | `__init__(self, *, statistic: str='median', phase: str='online') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, statistic: str='median', phase: str='online') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Latency` |
+| `pllm.metrics.Memory` | class | `__init__(self, *, kind: str='peak_rss') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, kind: str='peak_rss') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Memory` |
+| `pllm.metrics.Metric` | class | `constructor not exposed` | not recorded | `pllm.metrics.Metric` |
+| `pllm.metrics.Perplexity` | class | `__init__(self, *, dataset: str) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, dataset: str) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Perplexity` |
+| `pllm.metrics.Throughput` | class | `__init__(self, *, basis: str='tokens') -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, basis: str='tokens') -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.metrics.Throughput` |
 | `pllm.model_loader.load_model` | function | `load_model(value: Model \| str \| Mapping[str, Any], *, token: str \| bool \| None=None, cache_dir: str \| Path \| None=None, api_key: str \| None=None) -> ModelManifest` | not recorded | `pllm.load_model`, `pllm.models.load_model` |
 | `pllm.modeling.DecoderCoverageReport` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property complete: 'bool'`; `property operators: 'tuple[Mapping[str, Any], ...]'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.DecoderCoverageReport`, `pllm.models.DecoderCoverageReport` |
 | `pllm.modeling.DecoderRuntimeSchedule` | class | `(_canonical_bytes: 'bytes') -> None` | `canonical_bytes(self) -> 'bytes'`; `property complete: 'bool'`; `property decode: 'Mapping[str, Any]'`; `property digest: 'str'`; `property prefill: 'Mapping[str, Any]'`; `property profile: 'str'`; `property protected_execution: 'bool'`; `to_dict(self) -> 'dict[str, Any]'` | `pllm.DecoderRuntimeSchedule`, `pllm.models.DecoderRuntimeSchedule` |
@@ -2146,26 +2159,34 @@ API: [`pllm.components.get`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 | Identity/version | Lifecycle | Implementation maturity | Provenance | Input/output representation | Roles/topology | Privacy/assurance | Model/operator coverage | Evidence/cohort | Known limitations |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `pllm/accuracy` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["ratio","higher-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/bfv-correlations/v1` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["bfv-correlation-generation"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
 | `pllm/binary-table/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["protected-gated-multiply-q7"]`; host features: `["decoder-plan-v1","signed-q7"]` | no applicable evidence | not recorded |
 | `pllm/blinded-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["blinded-proprietary-linear"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/chunked-independent-lanes/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material","bounded-streaming-spool"]` | no applicable evidence | not recorded |
 | `pllm/cleartext-linear` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["plaintext-reference-linear"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/client-local-kv` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client"]` | assurance status not recorded; privacy status not recorded | capabilities: `["fixed-capacity-client-kv"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/communication` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["bytes","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/cost` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["currency","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/cpu` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["cpu"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/direct-fhe` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["direct-bfv-transformer-linear"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
+| `pllm/energy` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["joules","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/guarded-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["guarded-proprietary-linear"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/he-authenticated-preprocessing` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["he-authenticated-preprocessing"]`; host features: `["tenseal-backend"]` | no applicable evidence | not recorded |
 | `pllm/independent-lanes/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material"]` | no applicable evidence | not recorded |
 | `pllm/inference` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["remote-linear-stage-execution"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/kv-cache-eviction` / `1` | model-lowering | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["bounded-kv-cache-eviction"]`; host features: `["decoder-plan-v1"]` | no applicable evidence | not recorded |
+| `pllm/latency` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["seconds","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/linear-integrity` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client"]` | assurance status not recorded; privacy status not recorded | capabilities: `["hidden-linear-integrity-check"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/masked-linear` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["masked-linear"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/memory` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["bytes","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/model-aware-corrections` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-masked-linear-corrections"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/perplexity` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["ratio","lower-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 | `pllm/r03-crt/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["protected-gated-multiply-q7"]`; host features: `["decoder-plan-v1","signed-q7"]` | no applicable evidence | not recorded |
 | `pllm/scalar/v1` / `1` | compilation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["one-use-protected-tensor-scheduling"]`; host features: `["authenticated-one-use-material"]` | no applicable evidence | not recorded |
 | `pllm/secure-linear/v1` / `1` | online | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","inference"]` | assurance status not recorded; privacy status not recorded | capabilities: `["bounded-authenticated-linear-preview"]`; host features: `["synthetic-fixed-shape-only"]` | no applicable evidence | not recorded |
 | `pllm/seeded-expansion` / `1` | preparation | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | `["client","preparation"]` | assurance status not recorded; privacy status not recorded | capabilities: `["domain-separated-mask-expansion"]`; host features: not recorded | no applicable evidence | not recorded |
+| `pllm/throughput` / `1` | benchmark | not recorded | provider `pllm`; distribution `pllm`; source links not recorded | not recorded | not recorded | assurance status not recorded; privacy status not recorded | capabilities: `["per-second","higher-is-better"]`; host features: not recorded | no applicable evidence | not recorded |
 
 ---
 
@@ -2182,7 +2203,7 @@ Schemas under root `schemas/` define serialized document contracts. Rust and Pyt
 
 Configuration, semantic decoder plans, compile requests, executable plans, component descriptors, benchmark evidence, assurance evidence, research sources, methods, recipes, and publication assessment evolve independently. A schema-valid document can still be unsupported by a selected compiler or runtime profile.
 
-`provider-manifest.schema.json` covers static external-provider descriptors, resource digests, factory identities, tested builds, and host/category version declarations. `model.schema.json` covers the typed public model source shared by configuration and runtime requests. `model-source-lock.schema.json` covers path-independent checkpoint/config/tokenizer file hashes produced by the public model loader. `dense-qwen-runtime-schedule.schema.json` covers the complete batch-one, untransformed Qwen2 schedule emitted for `baseline.masked_linear_cpu`. `runtime-model-binding.schema.json` covers the model-plan, schedule, tokenizer, runtime-configuration, local-tensor, quantized-stage, scale, and preparation commitments checked before that schedule can execute. The schedule and binding schemas describe the model-aware baseline only; they do not authorize `research.single_evaluator`, MPCache execution, another model family, or protected client-local operators.
+`benchmark-result.schema.json` covers canonical full benchmark records with explicit metric parameters, units, unavailable reasons, cohorts, samples, environment identity, and limitations. `provider-manifest.schema.json` covers static external-provider descriptors, resource digests, factory identities, tested builds, and host/category version declarations. `model.schema.json` covers the typed public model source shared by configuration and runtime requests. `model-source-lock.schema.json` covers path-independent checkpoint/config/tokenizer file hashes produced by the public model loader. `dense-qwen-runtime-schedule.schema.json` covers the complete batch-one, untransformed Qwen2 schedule emitted for `baseline.masked_linear_cpu`. `runtime-model-binding.schema.json` covers the model-plan, schedule, tokenizer, runtime-configuration, local-tensor, quantized-stage, scale, and preparation commitments checked before that schedule can execute. The schedule and binding schemas describe the model-aware baseline only; they do not authorize `research.single_evaluator`, MPCache execution, another model family, or protected client-local operators.
 
 ## Python SDK example
 
@@ -2268,6 +2289,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived |
 | Typed pipeline profiles | `MaskedLinearCpu` is available as the two-role public-weight baseline; `ProprietaryGuarded`, `ProprietaryBlinded`, and `DirectFHEProfile` are available as one-role proprietary runtime profiles through the same configuration, local topology, gateway, and diagnostic benchmark paths; `SecureLinear`, `BFVCorrelations` as a distinct profile, plaintext reference backends, and protected research profiles remain uncomposed |
 | Provider metadata discovery | Available through static `pllm.providers.v1` manifests with distribution/resource hash checks, package confinement, host/category version checks, editable-install opt-in, and host-generated external component classes; Python factory import requires an explicit provider approval set; Native Plugin ABI 1 and its conformance fixtures are available, while runtime native-library loading remains unavailable |
+| Metric contracts and evidence registry | Typed latency, throughput, communication, memory, energy, accuracy, perplexity, and cost components are available; `BenchmarkResult` validates canonical full-result records and `EvidenceRegistry` retains and queries exact completed, failed, and unavailable cohorts; existing native region/deployment reports and dashboard diagnostics remain their documented schemas rather than being silently relabeled |
 | Local role topology | Available through `build_roles`/`serve_local` for typed `Model`, `Pipeline`, or `Experiment` inputs; the public baseline keeps inference and preparation as separate child processes, while proprietary profiles start inference only; credentials stay out of argv/status, health and client routing are bound, and close is deterministic; this is loopback development orchestration, not operator separation |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
@@ -2452,7 +2474,7 @@ compiler coverage, runtime support, generation quality,
 Missing evidence is unknown; it is not a zero result.
 
 Accepted records live under [`docs/evidence/`](https://github.com/blairhudson/pllm/tree/main/docs/evidence).
-Each record keeps its environment, workload, software revision, and limitations.
+Each record keeps its environment, workload, software revision, and limitations. Canonical full benchmark records use `pllm.benchmark_result.v1`; `EvidenceRegistry` retains positive, negative, and explicitly unavailable results and queries only exact recorded cohorts.
 A result does not apply to a changed component, plan, model, parameter, or
 deployment unless a new validation explicitly connects them.
 
@@ -4170,25 +4192,63 @@ Continue with [method implementation records](/research/methods/),
 
 # Metrics
 
-Choose clear performance, resource, quality, and privacy measurements for a PLLM experiment.
+Choose clear performance, resource, quality, and cost measurements for a PLLM experiment.
 
 [View canonical HTML](https://pllm.run/research/records/metrics/)
 
 Document ID: `pllm.docs.metrics`  
 Release: `0.1.0`
 
-No single number describes system performance. Report tokens per second, time to
-first token, per-token latency, peak and retained memory, CPU time and use,
-online and offline network traffic, disk use, preparation work, and failures.
-Energy and price require measurements from the stated environment.
+No single number describes system performance. PLLM exposes typed `Latency`, `Throughput`, `Communication`, `Memory`, `Energy`, `Accuracy`, `Perplexity`, and `Cost` metric declarations. Their parameters fix statistics, phases, denominators, data sets, measurement sources, or currencies before a result is compared.
 
-Define each metric's scope and denominator. Keep prefill separate from decode,
-client from provider, offline from online, cold from warm, and useful output from
-attempted work. Record model quality and privacy assurance separately from
-performance.
+`BenchmarkResult` is the canonical full-result envelope. It binds profile and component identities, model/checkpoint identity, plan and configuration digests, privacy and numeric cohorts, a digest-checked environment, warmup/measurement samples, metric values, and limitations. Unavailable measurements use `origin="not_available"`, a null value, zero samples, and an explicit reason; missing evidence is never encoded as zero. `EvidenceRegistry` retains completed, failed, and unavailable results and queries exact cohorts without ranking unlike records.
 
-Telemetry must never include prompts, generated text, token IDs, activations,
-seeds, masks, or credentials.
+## Python SDK example
+
+```python
+from pllm import BenchmarkResult, EvidenceRegistry, environment_digest
+
+attributes = {"cpu": "fixture", "transport": "loopback"}
+result = BenchmarkResult.from_dict({
+    "schema_version": "pllm.benchmark_result.v1",
+    "id": "fixture-run",
+    "created_at": "2026-09-19T12:00:00Z",
+    "status": "not_available",
+    "scope": "deployment",
+    "profile": "baseline.masked_linear_cpu",
+    "component_ids": ["pllm/cpu", "pllm/masked-linear"],
+    "model": {"id": "org/model", "checkpoint_digest": None, "source_lock_digest": None},
+    "plan_lock_digest": None,
+    "configuration_digest": None,
+    "privacy_cohort": "masked-linear",
+    "numeric_cohort": "wrap32",
+    "environment": {"digest": environment_digest(attributes), "attributes": attributes},
+    "warmups": 0,
+    "repetitions": 0,
+    "samples": [],
+    "metrics": [{
+        "id": "energy-unavailable",
+        "component": "pllm/energy",
+        "parameters": {"source": "not_available"},
+        "value": None,
+        "unit": "joules",
+        "unit_detail": None,
+        "statistic": "measurement",
+        "phase": "full",
+        "role": None,
+        "origin": "not_available",
+        "unavailable_reason": "no external energy meter",
+        "sample_count": 0,
+    }],
+    "limitations": ["energy was not measured"],
+})
+registry = EvidenceRegistry([result])
+assert registry.query(metric="pllm/energy") == (result,)
+```
+
+Keep prefill separate from decode, client from provider, offline from online, cold from warm, and useful output from attempted work. Telemetry must never include prompts, generated text, token IDs, activations, seeds, masks, or credentials.
+
+API: [`pllm.metrics` and `pllm.EvidenceRegistry`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 ---
 

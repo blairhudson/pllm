@@ -124,6 +124,12 @@ performance population.
 `deployment_benchmark(request)` validates supplied deployment observations into a canonical report;
 it does not itself prove that observations came from a trusted deployment.
 
+`BenchmarkResult` is the canonical full-result envelope for new benchmark workflows. It validates
+metric parameters and units, exact profile/component/model/plan/configuration/environment identity,
+cohorts, warmup and measurement samples, unavailable reasons, failures, and limitations.
+`EvidenceRegistry` preserves completed, failed, and unavailable results and queries exact cohorts; it
+does not aggregate or rank unlike records. Existing `EvidenceReport` schemas remain unchanged.
+
 `assure()` runs deterministic, bounded native assurance fixtures, including negative controls, and
 returns `EvidenceReport`. Success means a report was produced. Findings retain their model, view,
 assumptions, budget, and exact outcome; no report implies universal privacy or implementation
@@ -155,10 +161,11 @@ As inspected on 19 September 2026:
   through PyO3 in `python/pllm/modeling.py`.
 - `compile` accepts mapping/bytes/string compile requests and returns native `CompiledPlan` in
   `python/pllm/compiler.py`.
-- `benchmark`, `deployment_benchmark`, `assure`, and immutable `EvidenceReport` are implemented in
-  `python/pllm/evidence.py` for their documented native scopes.
-- Public component facades currently expose a small set including `ComponentRef`, `Cpu`,
-  `MaskedLinear`, `ModelAwareCorrections`, and `KvCacheEviction`; the broader component ecosystem is
-  a target contract, not an installed catalogue.
+- `benchmark`, `deployment_benchmark`, `assure`, immutable `EvidenceReport`, canonical
+  `BenchmarkResult`, and `EvidenceRegistry` are implemented in `python/pllm/evidence.py` for their
+  documented scopes.
+- Public capability families and the class-derived registry expose the installed protocol, kernel,
+  preparation, role, pass, scheduler, state, verification, correlation, and benchmark-metric
+  components; approved external provider descriptors can extend the same registry explicitly.
 - Remote `Deployment`, general `Runtime`/`Session` composition, full locked-plan execution, broad
   model coverage, and the target CLI mirror are not established by these APIs.

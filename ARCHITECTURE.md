@@ -121,8 +121,9 @@ derives descriptor discovery from those classes. `pllm.profiles` provides typed
 slot contracts for the two-role public baseline and shipped one-role proprietary
 engines while generic serialized pipelines remain available. `pllm.providers`
 discovers static external manifests and package-confined resources without importing
-provider code; factory import is a separate approved operation. Public objects are
-imported on demand.
+provider code; factory import is a separate approved operation. `pllm.metrics` owns
+typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact
+evidence cohorts without implicit ranking. Public objects are imported on demand.
 `pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.

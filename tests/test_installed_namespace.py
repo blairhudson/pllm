@@ -36,6 +36,7 @@ def test_explicit_native_requirement_cannot_fall_back(monkeypatch):
 def test_public_domain_facades_share_root_identities():
     import pllm
     from pllm.config import ExecutionBudget, Experiment
+    from pllm.evidence import BenchmarkResult, EvidenceRegistry
     from pllm.models import (
         DecoderCoverageReport,
         DecoderRuntimeSchedule,
@@ -55,6 +56,8 @@ def test_public_domain_facades_share_root_identities():
     from pllm.providers import ProviderDescriptor, discover_providers
     from pllm.runtime import serve_local
 
+    assert pllm.BenchmarkResult is BenchmarkResult
+    assert pllm.EvidenceRegistry is EvidenceRegistry
     assert pllm.ExecutionBudget is ExecutionBudget
     assert pllm.Experiment is Experiment
     assert pllm.DecoderCoverageReport is DecoderCoverageReport

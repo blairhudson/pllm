@@ -69,6 +69,7 @@ pllm.profiles            typed built-in Pipeline profiles
 pllm.providers           inert external-provider discovery and approved loading
 pllm.protocols           protocol-method components
 pllm.kernels             kernel-backend components
+pllm.metrics             benchmark-metric components
 pllm.preparation         preparation-provider components
 pllm.correlation         correlation-source components
 pllm.roles               role components
@@ -82,9 +83,9 @@ pllm.deployment          placement declarations
 pllm.runtime             intentionally public runtime/client contracts only
 ```
 
-Future domain facades MAY add operators, numerics, representations, conversions, metrics,
-search, assurance, integrations, or testing when stable public objects exist. They MUST NOT be
-created empty merely to match a conceptual tree.
+Future domain facades MAY add operators, numerics, representations, conversions, search,
+assurance, integrations, or testing when stable public objects exist. They MUST NOT be created
+empty merely to match a conceptual tree.
 
 Implementation modules use a leading underscore or live behind a facade. `_native`, `_cli`, and
 `_internal` are private. Public documentation and examples MUST import from facades, not a private

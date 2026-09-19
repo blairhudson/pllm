@@ -8,6 +8,16 @@ from typing import TYPE_CHECKING, Any
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.correlation import SeededExpansion as _SeededExpansion
 from pllm.kernels import Cpu as _Cpu
+from pllm.metrics import (
+    Accuracy as _Accuracy,
+    Communication as _Communication,
+    Cost as _Cost,
+    Energy as _Energy,
+    Latency as _Latency,
+    Memory as _Memory,
+    Perplexity as _Perplexity,
+    Throughput as _Throughput,
+)
 from pllm.nonlinear import (
     BinaryTableGatedMultiplyQ7 as _BinaryTableGatedMultiplyQ7,
     R03CrtGatedMultiplyQ7 as _R03CrtGatedMultiplyQ7,
@@ -39,26 +49,34 @@ if TYPE_CHECKING:
     from pllm.providers import ProviderDescriptor
 
 _BUILTIN_CLASSES: tuple[type[ComponentRef], ...] = (
+    _Accuracy,
     _BFVCorrelations,
     _BinaryTableGatedMultiplyQ7,
     _BlindedLinear,
     _ChunkedIndependentLanesProtectedTensorSchedule,
     _CleartextLinear,
     _ClientLocalKv,
+    _Communication,
+    _Cost,
     _Cpu,
     _DirectFHE,
+    _Energy,
     _GuardedLinear,
     _HEAuthenticatedPreprocessing,
     _IndependentLanesProtectedTensorSchedule,
     _Inference,
     _KvCacheEviction,
+    _Latency,
     _LinearIntegrity,
     _MaskedLinear,
+    _Memory,
     _ModelAwareCorrections,
+    _Perplexity,
     _R03CrtGatedMultiplyQ7,
     _ScalarProtectedTensorSchedule,
     _SeededExpansion,
     _SecureLinear,
+    _Throughput,
 )
 _BUILTINS = {component.describe().component: component for component in _BUILTIN_CLASSES}
 if len(_BUILTINS) != len(_BUILTIN_CLASSES):

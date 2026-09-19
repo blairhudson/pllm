@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.dev/schemas/benchmark-result.schema.json",
+  "title": "PLLM benchmark result v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "created_at",
+    "status",
+    "scope",
+    "profile",
+    "component_ids",
+    "model",
+    "plan_lock_digest",
+    "configuration_digest",
+    "privacy_cohort",
+    "numeric_cohort",
+    "environment",
+    "warmups",
+    "repetitions",
+    "samples",
+    "metrics",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": "pllm.benchmark_result.v1"},
+    "id": {"$ref": "#/$defs/identity"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["completed", "failed", "not_available"]},
+    "scope": {"enum": ["kernel", "operator", "region", "full_model", "deployment"]},
+    "profile": {"$ref": "#/$defs/identity"},
+    "component_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identity"}
+    },
+    "model": {
+      "type": "object",
+      "required": ["id", "checkpoint_digest", "source_lock_digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "checkpoint_digest": {"$ref": "#/$defs/nullableDigest"},
+        "source_lock_digest": {"$ref": "#/$defs/nullableDigest"}
+      },
+      "additionalProperties": false
+    },
+    "plan_lock_digest": {"$ref": "#/$defs/nullableDigest"},
+    "configuration_digest": {"$ref": "#/$defs/nullableDigest"},
+    "privacy_cohort": {"$ref": "#/$defs/identity"},
+    "numeric_cohort": {"$ref": "#/$defs/identity"},
+    "environment": {
+      "type": "object",
+      "required": ["digest", "attributes"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "attributes": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "warmups": {"type": "integer", "minimum": 0},
+    "repetitions": {"type": "integer", "minimum": 0},
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "kind", "status", "duration_seconds", "artifact_digest"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "kind": {"enum": ["warmup", "measurement"]},
+          "status": {"enum": ["completed", "failed"]},
+          "duration_seconds": {"type": ["number", "null"], "minimum": 0},
+          "artifact_digest": {"$ref": "#/$defs/nullableDigest"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/metric"}
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 1024}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/:+-]{0,255}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "nullableDigest": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "metric": {
+      "type": "object",
+      "required": [
+        "id",
+        "component",
+        "parameters",
+        "value",
+        "unit",
+        "unit_detail",
+        "statistic",
+        "phase",
+        "role",
+        "origin",
+        "unavailable_reason",
+        "sample_count"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/identity"},
+        "component": {"$ref": "#/$defs/identity"},
+        "parameters": {"type": "object"},
+        "value": {"type": ["number", "null"]},
+        "unit": {"enum": ["seconds", "per_second", "bytes", "joules", "ratio", "currency"]},
+        "unit_detail": {"type": ["string", "null"], "maxLength": 128},
+        "statistic": {"enum": ["measurement", "mean", "median", "p50", "p95", "p99", "sum"]},
+        "phase": {"enum": ["offline", "online", "full"]},
+        "role": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9._:/-]+$"},
+        "origin": {"enum": ["native_executed", "reference_executed", "imported_archive", "source_reported", "external_measured", "not_available"]},
+        "unavailable_reason": {"type": ["string", "null"], "minLength": 1, "maxLength": 1024},
+        "sample_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"origin": {"const": "not_available"}}, "required": ["origin"]},
+          "then": {
+            "properties": {
+              "value": {"type": "null"},
+              "unavailable_reason": {"type": "string", "minLength": 1},
+              "sample_count": {"const": 0}
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {"type": "number"},
+              "unavailable_reason": {"type": "null"},
+              "sample_count": {"minimum": 1}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

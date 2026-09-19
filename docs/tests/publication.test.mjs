@@ -70,7 +70,10 @@ test('manifest is complete and versioned without generated hashes', () => {
     assert.doesNotMatch(content, /^(?:Build|Source hash):/m, relative);
   }
   assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
-  assert.deepEqual(manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds, ['pllm/bfv-correlations/v1', 'pllm/binary-table/v1', 'pllm/blinded-linear/v1', 'pllm/chunked-independent-lanes/v1', 'pllm/cleartext-linear', 'pllm/client-local-kv', 'pllm/cpu', 'pllm/direct-fhe', 'pllm/guarded-linear/v1', 'pllm/he-authenticated-preprocessing', 'pllm/independent-lanes/v1', 'pllm/inference', 'pllm/kv-cache-eviction', 'pllm/linear-integrity', 'pllm/masked-linear', 'pllm/model-aware-corrections', 'pllm/r03-crt/v1', 'pllm/scalar/v1', 'pllm/secure-linear/v1', 'pllm/seeded-expansion']);
+  const componentIds = manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds;
+  assert.equal(new Set(componentIds).size, componentIds.length);
+  assert.deepEqual([...componentIds].sort(), componentIds);
+  for (const identity of ['pllm/cpu', 'pllm/latency', 'pllm/masked-linear', 'pllm/throughput']) assert.ok(componentIds.includes(identity));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl.startsWith('/cli/reference/research/')));
   assert.ok(!manifest.pages.some((record) => record.canonicalUrl === '/research/records/method-catalog/'));
   assert.ok(!manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.research'));

@@ -219,6 +219,7 @@ def _component_descriptor(value: Mapping[str, Any]) -> ComponentDescriptor:
 def _category_base(category: str) -> type[ComponentRef]:
     from pllm.correlation import CorrelationSource
     from pllm.kernels import KernelBackend
+    from pllm.metrics import Metric
     from pllm.nonlinear import NonlinearProtocol
     from pllm.passes import PlanPass
     from pllm.preparation import PreparationProvider
@@ -229,6 +230,7 @@ def _category_base(category: str) -> type[ComponentRef]:
     from pllm.verification import VerificationScheme
 
     return {
+        "pllm/benchmark-metric": Metric,
         "pllm/compiler-pass": PlanPass,
         "pllm/correlation-source": CorrelationSource,
         "pllm/inference-role": InferenceRole,
