@@ -1965,7 +1965,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 - `pllm.nonlinear`: `pllm.nonlinear.BinaryTableGatedMultiplyQ7`, `pllm.nonlinear.NonlinearProtocol`, `pllm.nonlinear.R03CrtGatedMultiplyQ7`
 - `pllm.passes`: `pllm.passes.KvCacheEviction`, `pllm.passes.PlanPass`
 - `pllm.profiles`: `pllm.profiles.MaskedLinearCpu`
-- `pllm.providers`: `pllm.providers.HOST_COMPONENT_STANDARD_VERSION`, `pllm.providers.PROVIDER_ENTRY_POINT_GROUP`, `pllm.providers.PROVIDER_MANIFEST_SCHEMA`, `pllm.providers.ProviderDescriptor`, `pllm.providers.ProviderDiscoveryError`, `pllm.providers.ProviderResource`, `pllm.providers.discover_providers`, `pllm.providers.load_component_factory`, `pllm.providers.provider_component_classes`
+- `pllm.providers`: `pllm.providers.HOST_COMPONENT_STANDARD_VERSION`, `pllm.providers.HOST_NATIVE_PLUGIN_ABI_VERSION`, `pllm.providers.PROVIDER_ENTRY_POINT_GROUP`, `pllm.providers.PROVIDER_MANIFEST_SCHEMA`, `pllm.providers.ProviderDescriptor`, `pllm.providers.ProviderDiscoveryError`, `pllm.providers.ProviderResource`, `pllm.providers.discover_providers`, `pllm.providers.load_component_factory`, `pllm.providers.provider_component_classes`
 - `pllm.protocols`: `pllm.protocols.BlindedLinear`, `pllm.protocols.CleartextLinear`, `pllm.protocols.DirectFHE`, `pllm.protocols.GuardedLinear`, `pllm.protocols.MaskedLinear`, `pllm.protocols.ProtocolMethod`, `pllm.protocols.SecureLinear`
 - `pllm.protocols.masked_linear`: `pllm.protocols.masked_linear.MaskedLinear`
 - `pllm.preparation`: `pllm.preparation.BFVCorrelations`, `pllm.preparation.HEAuthenticatedPreprocessing`, `pllm.preparation.ModelAwareCorrections`, `pllm.preparation.PreparationProvider`, `pllm.preparation.create_preparation_app`
@@ -2037,7 +2037,7 @@ API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)
 | `pllm.protocols.runtime_arms.DirectFHE` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.DirectFHE` |
 | `pllm.protocols.runtime_arms.GuardedLinear` | class | `__init__(self, *, max_rows_per_request: int=4096, max_rows_per_owner_stage: int=16384, max_requests_per_minute: int=4096, output_dither_bound: int=0) -> None` | `descriptor: ComponentDescriptor`; `__init__(self, *, max_rows_per_request: int=4096, max_rows_per_owner_stage: int=16384, max_requests_per_minute: int=4096, output_dither_bound: int=0) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.GuardedLinear` |
 | `pllm.protocols.runtime_arms.SecureLinear` | class | `__init__(self) -> None` | `descriptor: ComponentDescriptor`; `__init__(self) -> None`; `classmethod describe(cls) -> ComponentDescriptor` | `pllm.protocols.SecureLinear` |
-| `pllm.providers.HOST_COMPONENT_STANDARD_VERSION` | str | `str` | not recorded | `pllm.providers.HOST_COMPONENT_STANDARD_VERSION` |
+| `pllm.providers.HOST_COMPONENT_STANDARD_VERSION` | str | `str` | not recorded | `pllm.providers.HOST_COMPONENT_STANDARD_VERSION`, `pllm.providers.HOST_NATIVE_PLUGIN_ABI_VERSION` |
 | `pllm.providers.PROVIDER_ENTRY_POINT_GROUP` | str | `str` | not recorded | `pllm.providers.PROVIDER_ENTRY_POINT_GROUP` |
 | `pllm.providers.PROVIDER_MANIFEST_SCHEMA` | str | `str` | not recorded | `pllm.providers.PROVIDER_MANIFEST_SCHEMA` |
 | `pllm.providers.ProviderDescriptor` | class | `constructor not exposed` | `provider: str`; `distribution: str`; `version: str`; `host_versions: tuple[str, ...]`; `category_versions: Mapping[str, tuple[str, ...]]`; `components: tuple[ComponentDescriptor, ...]`; `schemas: tuple[ProviderResource, ...]`; `docs: tuple[ProviderResource, ...]`; `native_artifacts: tuple[ProviderResource, ...]`; `python_factories: Mapping[str, str]`; `tested_builds: tuple[Mapping[str, Any], ...]`; `entry_point: str`; `manifest_digest: str`; `editable: bool`; `component_classes: tuple[type[ComponentRef], ...]`; `to_dict(self) -> dict[str, Any]` | `pllm.ProviderDescriptor`, `pllm.providers.ProviderDescriptor` |
@@ -2264,7 +2264,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Typed `Model` source and `load_model` | Available for canonical Hugging Face/local Safetensors, MLX, GGUF, synchronous Ollama inspection, and deterministic tiny Qwen2 materialization; actual source files are hashed into checkpoint/source-lock digests, while secrets and cache paths remain operational arguments |
 | Component family classes | Available for all previously registered compiler components plus current guarded/blinded/secure/direct-FHE/cleartext linear arms, BFV and HE-authenticated preparation, seeded correlation expansion, inference role, client-local KV state, linear integrity, and tiny/bundle model sources; descriptors are class-derived |
 | Typed pipeline profiles | `MaskedLinearCpu` is available as the category-checked `baseline.masked_linear_cpu` slot contract with immutable whole-slot/nested updates; unresolved same-category alternatives remain rejected by native resolution and local serving until their full profiles are composed |
-| Provider metadata discovery | Available through static `pllm.providers.v1` manifests with distribution/resource hash checks, package confinement, host/category version checks, editable-install opt-in, and host-generated external component classes; Python factory import requires an explicit provider approval set, while a stable native plugin ABI remains unavailable |
+| Provider metadata discovery | Available through static `pllm.providers.v1` manifests with distribution/resource hash checks, package confinement, host/category version checks, editable-install opt-in, and host-generated external component classes; Python factory import requires an explicit provider approval set; Native Plugin ABI 1 and its conformance fixtures are available, while runtime native-library loading remains unavailable |
 | Local role topology | Available through `build_roles`/`serve_local` for typed `Model`, `Pipeline`, or `Experiment` inputs; inference and preparation remain separate child processes, credentials stay out of argv/status, health and client routing are bound, and close is deterministic; this is loopback development orchestration, not operator separation |
 | Semantic model adapters | Available for the listed Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and Gemma 4 text configurations |
 | MPCache plan transformation | Experimental for dense Qwen2/Qwen3 fixed-shape plans; preserves fixed Key/Value capacity and adds explicit index state; Gemma plans are rejected |
@@ -3419,19 +3419,22 @@ before proposing a new public contract.
 
 # Native plugin ABI
 
-Boundary requirements for future independently distributed native capability providers.
+C-compatible ownership, handles, status, and whole-region execution contracts for native providers.
 
 [View canonical HTML](https://pllm.run/sdk/contribute/native-plugin-abi/)
 
 Document ID: `pllm.docs.contribute.native-plugin-abi`  
 Release: `0.1.0`
 
-The installed native module is currently built with PLLM. A stable third-party native plugin ABI is not published.
+PLLM Native Plugin ABI 1 is published by `pllm-plugin-api` and `crates/pllm-plugin-api/include/pllm_plugin.h`. It is independently versioned from the Python API, PyO3 module, component standard, and wire protocols. A plugin exports `pllm_plugin_v1`; the host and plugin exchange size/version-tagged C vtables.
 
-Any future ABI must version ownership, allocation, byte layout, alignment, panic isolation, threading, cancellation, capability negotiation, artifact identity, host-feature detection, and error translation. Python entry points must remain lightweight and side-effect-free during discovery.
+The ABI uses explicit-width scalars, borrowed byte slices, plugin-owned output buffers with an explicit release callback, and opaque `(slot, generation)` handles. Status values are integer wrappers so unknown foreign values do not create invalid Rust enums. No Rust `Vec`, `String`, trait object, allocator ownership, or unwind crosses the boundary. Implementations translate panics to `PLLM_STATUS_PANIC_VALUE` and process whole region or batch payloads rather than scalar callbacks.
 
-No public Python API loads third-party native plugins because no stable plugin ABI is published.
-See [current support](/sdk/reference/status/) for the supported built-in boundary.
+The plugin vtable exposes synchronous whole-region execution and explicit asynchronous submit, poll, and cancel operations. Host callbacks expose event delivery and cancellation checks. Vtable size checks permit compatible append-only extension inside ABI 1; an unknown ABI version or undersized table fails closed. Provider manifests lock native artifact digests, targets, and ABI version before any future runtime load.
+
+A Rust `cdylib` fixture and a C11 header fixture exercise symbol lookup, version negotiation, configuration, descriptor output, opaque binary region execution, cancellation, buffer release, destruction, and stale-generation rejection. This establishes the ABI contract and conformance harness, not trust or process isolation.
+
+No public Python API loads third-party native libraries yet. Runtime host integration, role authorization, and process-isolation policy remain unavailable. PyO3 compatibility does not establish plugin ABI compatibility. See [current support](/sdk/reference/status/).
 
 ---
 
@@ -4971,7 +4974,7 @@ Release: `0.1.0`
 
 The Python binding copies bytes into validated integer buffers, releases the interpreter lock around core work, and returns immutable bytes. Matrices own their validated weights; dimensions and contents cannot mutate through public Rust APIs. An executor owns its persistent Rayon pool.
 
-The stable Python ABI starts at 3.11. No third-party native plugin ABI is currently published.
+The stable Python ABI starts at 3.11. Native Plugin ABI 1 is published as an independently versioned C-compatible vtable/header contract with a dynamic-library conformance fixture. Runtime loading of third-party native libraries is not yet exposed.
 
 ## Python SDK example
 

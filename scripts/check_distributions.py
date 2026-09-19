@@ -30,6 +30,10 @@ def main() -> None:
         assert "pllm/providers/__init__.py" in names
         assert "pllm/providers/__init__.pyi" in names
         assert "pllm/providers/provider-manifest.schema.json" in names
+        assert "pllm/include/pllm_plugin.h" in names
+        assert wheel.read("pllm/include/pllm_plugin.h") == Path(
+            "crates/pllm-plugin-api/include/pllm_plugin.h"
+        ).read_bytes()
         assert wheel.read("pllm/providers/provider-manifest.schema.json") == Path(
             "schemas/provider-manifest.schema.json"
         ).read_bytes()
@@ -49,6 +53,22 @@ def main() -> None:
         assert any(n.endswith("/pyproject.toml") for n in names)
         assert any(n.endswith("/crates/pllm-python/Cargo.toml") for n in names)
         assert any(n.endswith("/crates/pllm-core/Cargo.toml") for n in names)
+        assert any(n.endswith("/crates/pllm-plugin-api/Cargo.toml") for n in names)
+        assert any(
+            n.endswith("/crates/pllm-plugin-api/tests/fixtures/plugin/Cargo.lock")
+            for n in names
+        )
+        assert any(
+            n.endswith("/crates/pllm-plugin-api/tests/fixtures/plugin/src/lib.rs")
+            for n in names
+        )
+        plugin_header = next(
+            n for n in names if n.endswith("/crates/pllm-plugin-api/include/pllm_plugin.h")
+        )
+        package_header = next(
+            n for n in names if n.endswith("/python/pllm/include/pllm_plugin.h")
+        )
+        assert archive.extractfile(plugin_header).read() == archive.extractfile(package_header).read()
         assert any(n.endswith("/python/pllm/__init__.py") for n in names)
         assert any(n.endswith("/schemas/provider-manifest.schema.json") for n in names)
         source_schema = next(

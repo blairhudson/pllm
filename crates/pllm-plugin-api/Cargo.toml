@@ -1,0 +1,13 @@
+[package]
+name = "pllm-plugin-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Stable C-compatible native plugin ABI for PLLM"
+publish = false
+
+[dev-dependencies]
+libloading = "=0.8.8"
+tempfile.workspace = true

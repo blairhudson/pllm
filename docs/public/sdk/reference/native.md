@@ -11,7 +11,7 @@ Release: `0.1.0`
 
 The Python binding copies bytes into validated integer buffers, releases the interpreter lock around core work, and returns immutable bytes. Matrices own their validated weights; dimensions and contents cannot mutate through public Rust APIs. An executor owns its persistent Rayon pool.
 
-The stable Python ABI starts at 3.11. No third-party native plugin ABI is currently published.
+The stable Python ABI starts at 3.11. Native Plugin ABI 1 is published as an independently versioned C-compatible vtable/header contract with a dynamic-library conformance fixture. Runtime loading of third-party native libraries is not yet exposed.
 
 ## Python SDK example
 

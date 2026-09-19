@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+name = "pllm-native-plugin-fixture"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+pllm-plugin-api = { path = "../../.." }

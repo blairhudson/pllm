@@ -170,8 +170,9 @@ Static manifests, schemas, docs, and native artifacts remain package-relative an
 distribution metadata. Executable plugin code stays in its provider package. `pllm.providers`
 discovers the versioned entry-point metadata without imports, verifies package-confined resources,
 and generates inert external component classes. Python factory loading is a separate explicit
-approval boundary. Native dynamic providers use the component standard's C ABI; they do not link to
-`pllm._native` internals.
+approval boundary. `pllm-plugin-api` owns Native Plugin ABI 1, its public C header, and dynamic/C11
+conformance fixtures. Native providers do not link to `pllm._native` internals; runtime loading is a
+separate future host integration.
 
 ## Schemas, docs, and research
 

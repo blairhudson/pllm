@@ -7,6 +7,7 @@ members = [
     "crates/pllm-assurance",
     "crates/pllm-garble",
     "crates/pllm-models",
+    "crates/pllm-plugin-api",
     "crates/pllm-python",
 ]
 default-members = [
@@ -17,6 +18,7 @@ default-members = [
     "crates/pllm-assurance",
     "crates/pllm-garble",
     "crates/pllm-models",
+    "crates/pllm-plugin-api",
 ]
 resolver = "2"
 
@@ -36,6 +38,7 @@ pllm-bench = { path = "crates/pllm-bench" }
 pllm-assurance = { path = "crates/pllm-assurance" }
 pllm-garble = { path = "crates/pllm-garble" }
 pllm-models = { path = "crates/pllm-models" }
+pllm-plugin-api = { path = "crates/pllm-plugin-api" }
 pyo3 = { version = "=0.26.0", features = ["abi3-py311"] }
 rayon = "=1.11.0"
 getrandom = "=0.3.3"

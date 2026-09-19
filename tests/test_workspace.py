@@ -34,10 +34,14 @@ def test_core_is_independent_of_python():
         'crates/pllm-assurance',
         'crates/pllm-garble',
         'crates/pllm-models',
+        'crates/pllm-plugin-api',
     ]
     core = tomllib.loads((ROOT / 'crates/pllm-core/Cargo.toml').read_text())
+    plugin_api = tomllib.loads((ROOT / 'crates/pllm-plugin-api/Cargo.toml').read_text())
     binding = tomllib.loads((ROOT / 'crates/pllm-python/Cargo.toml').read_text())
     assert 'pyo3' not in core['dependencies']
+    assert 'dependencies' not in plugin_api
+    assert set(plugin_api['dev-dependencies']) == {'libloading', 'tempfile'}
     assert set(binding['dependencies']) == {
         'pllm-core',
         'pllm-types',

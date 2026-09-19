@@ -6,6 +6,7 @@ from pllm.configuration import ComponentDescriptor, ComponentRef
 PROVIDER_ENTRY_POINT_GROUP: str
 PROVIDER_MANIFEST_SCHEMA: str
 HOST_COMPONENT_STANDARD_VERSION: str
+HOST_NATIVE_PLUGIN_ABI_VERSION: str
 
 class ProviderDiscoveryError(RuntimeError): ...
 

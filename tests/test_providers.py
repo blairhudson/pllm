@@ -318,6 +318,28 @@ def test_resource_validation_fails_closed(tmp_path: Path, mode: str) -> None:
         discover_providers(entry_points=[entry_point])
 
 
+def test_native_artifact_requires_supported_abi(tmp_path: Path) -> None:
+    entry_point, manifest, path, package, distribution = provider_fixture(tmp_path)
+    artifact = package / "native.so"
+    artifact.write_bytes(b"fixture")
+    manifest["native_artifacts"] = [
+        {
+            "path": "native.so",
+            "sha256": _sha(artifact),
+            "abi_version": "1",
+            "targets": ["test-target"],
+        }
+    ]
+    distribution.files += (PurePosixPath("acme_provider/native.so"),)
+    _write_manifest(path, manifest)
+    discovered = discover_providers(entry_points=[entry_point])[0]
+    assert discovered.native_artifacts[0].abi_version == "1"
+    manifest["native_artifacts"][0]["abi_version"] = "2"
+    _write_manifest(path, manifest)
+    with pytest.raises(ProviderDiscoveryError, match="unsupported native plugin ABI"):
+        discover_providers(entry_points=[entry_point])
+
+
 def test_duplicate_component_identities_fail_across_providers_and_builtins(tmp_path: Path) -> None:
     first, _manifest, _path, _package, _distribution = provider_fixture(tmp_path / "a")
     second, second_manifest, second_path, _package, second_distribution = provider_fixture(

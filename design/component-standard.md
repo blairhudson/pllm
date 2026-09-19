@@ -137,6 +137,9 @@ PLLM Native Plugin ABI 1 is independently versioned and C-compatible:
 - Panics or exceptions never cross ABI; failures return typed status.
 - Wire protocol versions remain independent from plugin ABI versions.
 
+`pllm-plugin-api` and `pllm_plugin.h` implement ABI 1 with dynamic-library and C11 conformance
+fixtures. Runtime native-library loading and role-policy integration remain separate work.
+
 Rust `Vec`, `String`, trait objects, allocator-owned containers, and unwinding MUST NOT cross a
 dynamic-library boundary. Optimized calls operate on whole regions or batches. Process isolation
 is required when deployment policy does not trust plugin code with role secrets.

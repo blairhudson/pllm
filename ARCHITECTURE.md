@@ -17,6 +17,8 @@ pllm._native (`pllm-python`)
             │          └──▶ pllm-garble ─┘
             ├──▶ pllm-bench ─────▶ pllm-compiler
             └──▶ pllm-assurance ─▶ pllm-types
+
+native providers ──▶ pllm-plugin-api (independent C ABI)
 ```
 
 The Rust crates have no Python or web framework dependency. The binding translates
@@ -36,6 +38,7 @@ cryptographic dependency.
 | `pllm-compiler` | Region lowering, complete model-aware Qwen2 baseline scheduling, fixed-scale research composites, and plan verification |
 | `pllm-assurance` | Scoped assurance results and checked public fixtures |
 | `pllm-bench` | Native and deployment measurement records tied to plan and environment digests |
+| `pllm-plugin-api` | Independently versioned C-compatible native provider vtables, statuses, handles, buffers, header, and conformance fixtures |
 | `pllm-python` | The PyO3 `pllm._native` boundary exposed through the single Python distribution |
 
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
@@ -55,7 +58,8 @@ outside their declared domains rather than saturating.
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
 `pllm-types`, `pllm-bench`, and `pllm-assurance` through PyO3. The stable Python
 ABI is configured from Python 3.11. The application dependency matrix currently
-limits Python to 3.11 through 3.13.
+limits Python to 3.11 through 3.13. `pllm-plugin-api` is a separate C boundary;
+plugins do not link to PyO3 internals, and runtime loading is not yet exposed.
 
 `crates/pllm-models` owns the model-family-neutral semantic decoder IR. Semantic
 operators, layer identity and persistent-state kinds are explicit, so compiler and

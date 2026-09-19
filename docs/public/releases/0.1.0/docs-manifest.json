@@ -2266,7 +2266,7 @@
     {
       "id": "pllm.docs.contribute.native-plugin-abi",
       "title": "Native plugin ABI",
-      "summary": "Boundary requirements for future independently distributed native capability providers.",
+      "summary": "C-compatible ownership, handles, status, and whole-region execution contracts for native providers.",
       "sourcePath": "content/docs/contribute/native-plugin-abi.mdx",
       "canonicalUrl": "/sdk/contribute/native-plugin-abi/",
       "markdownUrl": "/sdk/contribute/native-plugin-abi.md",

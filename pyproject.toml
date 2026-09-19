@@ -72,7 +72,9 @@ profile = "release"
 strip = true
 include = [
   { path = "crates/**/*.rs", format = "sdist" },
+  { path = "crates/**/*.h", format = "sdist" },
   { path = "crates/**/Cargo.toml", format = "sdist" },
+  { path = "crates/**/Cargo.lock", format = "sdist" },
   { path = "crates/**/README.md", format = "sdist" },
   { path = "python/**/*.py", format = "sdist" },
   { path = "python/**/*.pyi", format = "sdist" },

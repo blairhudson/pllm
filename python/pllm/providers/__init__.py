@@ -27,6 +27,7 @@ from pllm.configuration import (
 PROVIDER_ENTRY_POINT_GROUP = "pllm.providers.v1"
 PROVIDER_MANIFEST_SCHEMA = "pllm.provider_manifest.v1"
 HOST_COMPONENT_STANDARD_VERSION = "1"
+HOST_NATIVE_PLUGIN_ABI_VERSION = "1"
 _MAX_MANIFEST_BYTES = 1 << 20
 _MAX_RESOURCE_BYTES = 16 << 20
 _DIGEST_DOMAIN = b"pllm.provider_manifest.v1\0"
@@ -434,6 +435,12 @@ def _discover_one(entry_point: Any, *, allow_editable: bool, host_version: str) 
             key=lambda item: item.path,
         )
     )
+    if any(
+        resource.abi_version != HOST_NATIVE_PLUGIN_ABI_VERSION for resource in native
+    ):
+        raise ProviderDiscoveryError(
+            f"provider {value['provider']!r} declares an unsupported native plugin ABI"
+        )
     resource_paths = [resource.path for resource in (*schemas, *docs, *native)]
     if len(resource_paths) != len(set(resource_paths)):
         raise ProviderDiscoveryError(f"provider {value['provider']!r} repeats a resource path")
@@ -565,6 +572,7 @@ def load_component_factory(
 
 __all__ = [
     "HOST_COMPONENT_STANDARD_VERSION",
+    "HOST_NATIVE_PLUGIN_ABI_VERSION",
     "PROVIDER_ENTRY_POINT_GROUP",
     "PROVIDER_MANIFEST_SCHEMA",
     "ProviderDescriptor",
