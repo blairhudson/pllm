@@ -201,7 +201,6 @@ def test_registry_queries_exact_cohorts_and_preserves_negative_results() -> None
         negative,
     )
     assert registry.register(completed) is registry
-
     conflict_document = result_document("completed")
     conflict_document["metrics"][0]["value"] = 2.0
     conflict = pllm.BenchmarkResult.from_dict(conflict_document)
@@ -210,6 +209,21 @@ def test_registry_queries_exact_cohorts_and_preserves_negative_results() -> None
     with pytest.raises(KeyError, match="not found"):
         registry.get("missing")
 
+
+def test_retained_freivalds_tiny_results_form_a_matched_cohort() -> None:
+    paths = [
+        ROOT / "docs/evidence/slalom-freivalds-tiny-baseline.json",
+        ROOT / "docs/evidence/slalom-freivalds-tiny-verified.json",
+    ]
+    results = [pllm.BenchmarkResult(path.read_bytes()) for path in paths]
+    baseline, verified = (result.to_dict() for result in results)
+    for key in ("environment", "model", "numeric_cohort", "privacy_cohort", "workload_digest"):
+        assert baseline[key] == verified[key]
+    assert baseline["profile"] == "baseline.masked_linear_cpu"
+    assert verified["profile"] == "research.verified_masked_linear_cpu"
+    assert "pllm/freivalds-verify/v1" not in baseline["component_ids"]
+    assert "pllm/freivalds-verify/v1" in verified["component_ids"]
+    assert baseline["limitations"] == verified["limitations"]
 
 def test_not_available_result_requires_explicit_reason_and_no_samples() -> None:
     document = result_document("not-available")

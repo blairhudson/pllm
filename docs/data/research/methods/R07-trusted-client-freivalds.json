@@ -25,7 +25,7 @@
     "fidelity": "passed",
     "protected_execution": "passed",
     "assurance": "passed",
-    "benchmark": "blocked",
+    "benchmark": "passed",
     "promotion": "blocked"
   },
   "eligible_profiles": ["research.verified_masked_linear_cpu"]
