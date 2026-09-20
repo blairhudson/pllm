@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from pllm.runtime.model_binding import (
     RuntimeBindingError,
     compile_runtime_model,
 )
-from pllm.runtime.models import transformer_stage_plan
+from pllm.runtime.models import ModelManifest, transformer_stage_plan
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -52,8 +53,13 @@ def _remote(engine: MaskedTransformerEngine, model_id: str, bundle: ClientBundle
 
 def test_stage_plan_roles_and_layers():
     fused = transformer_stage_plan(
-        hidden_size=32, intermediate_size=64, num_hidden_layers=2,
-        num_attention_heads=4, num_key_value_heads=2, head_dim=8, vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        vocab_size=64,
         include_embedding=True,
     )
     assert (fused[0].role, fused[0].layer_index) == ("token_lookup", None)
@@ -71,13 +77,25 @@ def test_stage_plan_roles_and_layers():
     assert (by_id["lm_head"].role, by_id["lm_head"].layer_index) == ("lm_head", None)
 
     unfused = transformer_stage_plan(
-        hidden_size=32, intermediate_size=64, num_hidden_layers=1,
-        num_attention_heads=4, num_key_value_heads=2, head_dim=8, vocab_size=64,
-        fuse_qkv=False, fuse_gate_up=False, include_lm_head=False,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=1,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+        vocab_size=64,
+        fuse_qkv=False,
+        fuse_gate_up=False,
+        include_lm_head=False,
     )
     assert [stage.role for stage in unfused] == [
-        "query_projection", "key_projection", "value_projection",
-        "attention_output", "mlp_gate", "mlp_up", "mlp_down",
+        "query_projection",
+        "key_projection",
+        "value_projection",
+        "attention_output",
+        "mlp_gate",
+        "mlp_up",
+        "mlp_down",
     ]
     assert all(stage.layer_index == 0 for stage in unfused)
 
@@ -92,9 +110,7 @@ def test_compiled_binding_is_canonical(tmp_path: Path):
     assert len(compiled.digest) == 64
     assert len(compiled.bundle_fingerprint) == 64
     assert len(compiled.stage_bindings) == 10
-    assert {
-        (binding.role, binding.layer_index) for binding in compiled.stage_bindings
-    } == {
+    assert {(binding.role, binding.layer_index) for binding in compiled.stage_bindings} == {
         ("token_lookup", None),
         ("lm_head", None),
         *{
@@ -113,9 +129,7 @@ def test_compiled_binding_is_canonical(tmp_path: Path):
     }
     gate_up = bindings["layers.1.mlp.gate_up_proj"]
     assert set(gate_up.semantic_operations) == {
-        f"{phase}:layer.1.{name}_proj"
-        for phase in ("prefill", "decode")
-        for name in ("gate", "up")
+        f"{phase}:layer.1.{name}_proj" for phase in ("prefill", "decode") for name in ("gate", "up")
     }
 
     covered = set(compiled.local_operations)
@@ -180,6 +194,32 @@ def test_runtime_shares_bundle_and_executes(tmp_path: Path):
     np.testing.assert_array_equal(logits, direct.forward_ids([0, 2]))
 
 
+def test_compiled_binding_uses_same_path_for_qwen3(tmp_path: Path):
+    engine, bundle, config = _bundle(
+        tmp_path,
+        model_id="tiny-qwen3-binding",
+        model_type="qwen3",
+        qk_norm=True,
+        with_qkv_bias=False,
+    )
+    plan = _plan(config)
+
+    assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+    assert plan.coverage("baseline.masked_linear_cpu").complete is True
+    compiled = compile_runtime_model(plan, bundle)
+    assert compiled.complete is True
+    assert compiled.to_spec()["model_family"] == "qwen3"
+    binding_schema = json.loads(
+        Path("schemas/runtime-model-binding.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator(binding_schema).validate(compiled.to_spec())
+
+    remote = _remote(engine, bundle.model_id, bundle)
+    logits = compiled.runtime(remote).forward_ids([0, 2])
+    direct = MaskedTransformerClientRuntime(bundle, remote).forward_ids([0, 2])
+    np.testing.assert_array_equal(logits, direct)
+
+
 def test_repeated_load_yields_identical_binding(tmp_path: Path):
     root = create_tiny_llama_checkpoint(tmp_path / "model")
     config = json.loads((root / "config.json").read_text())
@@ -210,9 +250,7 @@ def test_plan_mismatch_rejected(tmp_path: Path):
         with pytest.raises(RuntimeBindingError):
             compile_runtime_model(_plan(value), bundle)
 
-    bounded = dataclasses.replace(
-        bundle, cfg={**bundle.cfg, "max_position_embeddings": 4}
-    )
+    bounded = dataclasses.replace(bundle, cfg={**bundle.cfg, "max_position_embeddings": 4})
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(_plan(config), bounded)
 
@@ -295,7 +333,8 @@ def test_bundle_tamper_rejected(tmp_path: Path):
     ]
 
     ambiguous_arrays = {
-        key: value for key, value in bundle.arrays.items()
+        key: value
+        for key, value in bundle.arrays.items()
         if key != "model.layers.0.input_layernorm.weight"
     }
     ambiguous_arrays["other.model.layers.0.input_layernorm.weight"] = np.ones(32, np.float32)
@@ -303,7 +342,8 @@ def test_bundle_tamper_rejected(tmp_path: Path):
     cases.append(dataclasses.replace(bundle, arrays=ambiguous_arrays))
 
     suffix_arrays = {
-        key: value for key, value in bundle.arrays.items()
+        key: value
+        for key, value in bundle.arrays.items()
         if key != "model.layers.0.input_layernorm.weight"
     }
     suffix_arrays["other.model.layers.0.input_layernorm.weight"] = np.ones(32, np.float32)
@@ -368,13 +408,9 @@ def test_embed_tokens_alias_excluded_and_cannot_duplicate(tmp_path: Path):
     assert bundle.stages["embed_tokens"].id == "token_lookup"
 
     compiled = compile_runtime_model(plan, bundle)
-    assert all(
-        binding.stage_id != "embed_tokens" for binding in compiled.stage_bindings
-    )
+    assert all(binding.stage_id != "embed_tokens" for binding in compiled.stage_bindings)
 
-    duplicate = dataclasses.replace(
-        bundle.stages["token_lookup"], id="embed_tokens"
-    )
+    duplicate = dataclasses.replace(bundle.stages["token_lookup"], id="embed_tokens")
     stages = {**bundle.stages, "embed_tokens": duplicate}
     tampered = dataclasses.replace(bundle, stages=stages)
     with pytest.raises(RuntimeBindingError):
@@ -384,16 +420,12 @@ def test_embed_tokens_alias_excluded_and_cannot_duplicate(tmp_path: Path):
 def _edited_plan(config: dict, edit) -> ModelPlan:
     document = _plan(config).to_dict()
     edit(document)
-    return ModelPlan(
-        json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
-    )
+    return ModelPlan(json.dumps(document, sort_keys=True, separators=(",", ":")).encode())
 
 
 def _operation(document: dict, phase: str, operation_id: str) -> dict:
     return next(
-        operation
-        for operation in document[phase]["operations"]
-        if operation["id"] == operation_id
+        operation for operation in document[phase]["operations"] if operation["id"] == operation_id
     )
 
 
@@ -433,9 +465,7 @@ def test_portable_manifest_identity_across_paths(tmp_path: Path):
         engine = MaskedTransformerEngine(threads=1)
         asyncio.run(engine.load(manifest))
         bundles.append(ClientBundle.unpack(engine.client_bundle("tiny-portable")))
-    config = json.loads(
-        (tmp_path / "first" / "model" / "config.json").read_text()
-    )
+    config = json.loads((tmp_path / "first" / "model" / "config.json").read_text())
     plan = _plan(config)
 
     assert bundles[0].manifest["source"] != bundles[1].manifest["source"]
@@ -453,9 +483,7 @@ def test_stale_manifest_fingerprint_rejected(tmp_path: Path):
     plan = _plan(config)
     compile_runtime_model(plan, bundle)
 
-    moved = dataclasses.replace(
-        bundle, manifest={**bundle.manifest, "source": "/elsewhere/model"}
-    )
+    moved = dataclasses.replace(bundle, manifest={**bundle.manifest, "source": "/elsewhere/model"})
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, moved)
 
@@ -466,9 +494,7 @@ def test_stale_manifest_fingerprint_rejected(tmp_path: Path):
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, edited)
 
-    bad_type = dataclasses.replace(
-        bundle, manifest={**bundle.manifest, "fingerprint": 12}
-    )
+    bad_type = dataclasses.replace(bundle, manifest={**bundle.manifest, "fingerprint": 12})
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, bad_type)
 
@@ -497,9 +523,7 @@ def test_cfg_and_manifest_dimension_mismatch_rejected(tmp_path: Path):
         ("num_hidden_layers", 3),
         ("context_length", 16),
     ):
-        tampered = dataclasses.replace(
-            bundle, manifest={**bundle.manifest, key: wrong}
-        )
+        tampered = dataclasses.replace(bundle, manifest={**bundle.manifest, key: wrong})
         with pytest.raises(RuntimeBindingError):
             compile_runtime_model(plan, tampered)
 
@@ -512,22 +536,24 @@ def test_stage_spec_drift_rejected(tmp_path: Path):
     qkv_row = by_id["layers.0.self_attn.qkv_proj"]
 
     def with_row(stage_id: str, **changes):
-        replaced = [
-            {**row, **changes} if row["id"] == stage_id else dict(row)
-            for row in rows
-        ]
-        return dataclasses.replace(
-            bundle, manifest={**bundle.manifest, "stages": replaced}
-        )
+        replaced = [{**row, **changes} if row["id"] == stage_id else dict(row) for row in rows]
+        return dataclasses.replace(bundle, manifest={**bundle.manifest, "stages": replaced})
 
     tampered = [
         with_row("layers.0.self_attn.qkv_proj", fused_from=["q_proj", "k_proj"]),
-        with_row("layers.0.self_attn.qkv_proj", fused_from=["q_proj", "k_proj", "v_proj"], role="attention_output"),
+        with_row(
+            "layers.0.self_attn.qkv_proj",
+            fused_from=["q_proj", "k_proj", "v_proj"],
+            role="attention_output",
+        ),
         with_row("layers.0.self_attn.qkv_proj", layer_index=1),
         with_row("layers.0.self_attn.qkv_proj", op="embedding"),
         with_row("layers.0.self_attn.qkv_proj", weight_keys=list(qkv_row["weight_keys"][:2])),
         with_row("layers.0.mlp.gate_up_proj", fused_from=["gate_proj", "down_proj"]),
-        with_row("layers.0.mlp.down_proj", weight_keys=["extra.weight", *by_id["layers.0.mlp.down_proj"]["weight_keys"]]),
+        with_row(
+            "layers.0.mlp.down_proj",
+            weight_keys=["extra.weight", *by_id["layers.0.mlp.down_proj"]["weight_keys"]],
+        ),
         with_row("token_lookup", op="linear"),
         with_row("token_lookup", fused_from=["embed_tokens"]),
         with_row("token_lookup", layer_index=0),
@@ -535,19 +561,133 @@ def test_stage_spec_drift_rejected(tmp_path: Path):
         with_row("lm_head", op="linear"),
         with_row("lm_head", weight_keys=["model.other.weight"]),
     ]
-    tampered.append(dataclasses.replace(
-        bundle,
-        manifest={**bundle.manifest, "stages": [dict(row) for row in rows[:-1]]},
-    ))
+    tampered.append(
+        dataclasses.replace(
+            bundle,
+            manifest={**bundle.manifest, "stages": [dict(row) for row in rows[:-1]]},
+        )
+    )
     extra = [dict(row) for row in rows]
     extra.append({**dict(rows[-1]), "id": "extra_stage"})
-    tampered.append(dataclasses.replace(
-        bundle, manifest={**bundle.manifest, "stages": extra}
-    ))
+    tampered.append(dataclasses.replace(bundle, manifest={**bundle.manifest, "stages": extra}))
 
     for candidate in tampered:
         with pytest.raises(RuntimeBindingError):
             compile_runtime_model(plan, candidate)
+
+
+def test_cross_layer_weight_labels_fail_with_fresh_manifest_fingerprint(tmp_path: Path):
+    _, bundle, config = _bundle(tmp_path, num_hidden_layers=2)
+    plan = _plan(config)
+    rows = [dict(row) for row in bundle.manifest["stages"]]
+    first = next(row for row in rows if row["id"] == "layers.0.self_attn.qkv_proj")
+    second = next(row for row in rows if row["id"] == "layers.1.self_attn.qkv_proj")
+    first["weight_keys"], second["weight_keys"] = (
+        second["weight_keys"],
+        first["weight_keys"],
+    )
+    document = {**bundle.manifest, "stages": rows}
+    document.pop("fingerprint")
+    refreshed = ModelManifest.from_dict(document).to_dict()
+
+    with pytest.raises(RuntimeBindingError, match="semantic operation"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, manifest=refreshed))
+
+
+def test_fused_weight_order_is_bound_to_semantic_outputs(tmp_path: Path):
+    _, bundle, config = _bundle(tmp_path)
+    plan = _plan(config)
+    rows = [dict(row) for row in bundle.manifest["stages"]]
+    qkv = next(row for row in rows if row["id"] == "layers.0.self_attn.qkv_proj")
+    qkv["weight_keys"] = [
+        qkv["weight_keys"][0],
+        qkv["weight_keys"][2],
+        qkv["weight_keys"][1],
+    ]
+    document = {**bundle.manifest, "stages": rows}
+    document.pop("fingerprint")
+    refreshed = ModelManifest.from_dict(document).to_dict()
+
+    with pytest.raises(RuntimeBindingError, match="order"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, manifest=refreshed))
+
+    rows = [dict(row) for row in bundle.manifest["stages"]]
+    qkv = next(row for row in rows if row["id"] == "layers.0.self_attn.qkv_proj")
+    qkv["fused_from"] = list(reversed(qkv["fused_from"]))
+    document = {**bundle.manifest, "stages": rows}
+    document.pop("fingerprint")
+    refreshed = ModelManifest.from_dict(document).to_dict()
+    with pytest.raises(RuntimeBindingError, match="fused order"):
+        compile_runtime_model(plan, dataclasses.replace(bundle, manifest=refreshed))
+
+
+def test_qwen3_runtime_knobs_are_bound_to_semantic_topology(tmp_path: Path):
+    _, bundle, config = _bundle(
+        tmp_path,
+        model_id="tiny-qwen3-semantics",
+        model_type="qwen3",
+        qk_norm=True,
+        with_qkv_bias=False,
+    )
+    plan = _plan(config)
+    tampered = {**bundle.cfg, "qk_norm": False}
+    config_digest = hashlib.sha256(
+        json.dumps(
+            tampered,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode()
+    ).hexdigest()
+    metadata = {**bundle.manifest["metadata"], "runtime_config_digest": config_digest}
+    document = {**bundle.manifest, "metadata": metadata}
+    document.pop("fingerprint")
+    refreshed = ModelManifest.from_dict(document).to_dict()
+
+    with pytest.raises(RuntimeBindingError, match="normalization diverges"):
+        compile_runtime_model(
+            plan,
+            dataclasses.replace(bundle, cfg=tampered, manifest=refreshed),
+        )
+
+
+def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path: Path):
+    root = create_tiny_llama_checkpoint(tmp_path / "verified-model")
+    config = json.loads((root / "config.json").read_text(encoding="utf-8"))
+    manifest = load_hf_directory(root, model_id="verified-model")
+    engine = MaskedTransformerEngine(
+        threads=1,
+        verification_component="pllm/freivalds-verify/v1",
+        verification_target_failure_bits=40,
+    )
+    asyncio.run(engine.load(manifest))
+    verified = ClientBundle.unpack(engine.client_bundle("verified-model"))
+    plan = _plan(config)
+
+    with pytest.raises(RuntimeBindingError, match="verifier-bound remote executor"):
+        compile_runtime_model(
+            plan,
+            verified,
+            runtime_profile="research.verified_masked_linear_cpu",
+        )
+
+    _, baseline, _ = _bundle(tmp_path, model_id="baseline-model")
+    forged = dataclasses.replace(
+        baseline,
+        privacy={
+            **baseline.privacy,
+            "runtime_profile": "research.verified_masked_linear_cpu",
+            "verification_component": "pllm/freivalds-verify/v1",
+            "verification_target_failure_bits": 40,
+        },
+    )
+    with pytest.raises(RuntimeBindingError, match="verifier-bound remote executor"):
+        compile_runtime_model(
+            plan,
+            forged,
+            runtime_profile="research.verified_masked_linear_cpu",
+        )
 
 
 def test_topology_geometry_and_weight_ownership(tmp_path: Path):
@@ -566,9 +706,7 @@ def test_topology_geometry_and_weight_ownership(tmp_path: Path):
         compile_runtime_model(_edited_plan(config, rename_weight), bundle)
 
     def skip_rotary(document):
-        _operation(document, "prefill", "layer.0.attention_scores")["inputs"][0] = (
-            "layer.0.q_heads"
-        )
+        _operation(document, "prefill", "layer.0.attention_scores")["inputs"][0] = "layer.0.q_heads"
 
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(_edited_plan(config, skip_rotary), bundle)
@@ -594,9 +732,7 @@ def test_phase_accounting_and_parity_rejected(tmp_path: Path):
         compile_runtime_model(_edited_plan(config, decode_output_drift), bundle)
 
     def decode_input_drift(document):
-        _operation(document, "decode", "layer.0.q_linear")["inputs"][0] = (
-            "layer.0.post_norm"
-        )
+        _operation(document, "decode", "layer.0.q_linear")["inputs"][0] = "layer.0.post_norm"
 
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(_edited_plan(config, decode_input_drift), bundle)
@@ -627,9 +763,7 @@ def test_modulus_policy_rejected(tmp_path: Path):
 
     dropped = {key: value for key, value in metadata.items() if key != "stage_specific_moduli"}
     cases = [
-        dataclasses.replace(
-            bundle, manifest={**bundle.manifest, "metadata": dropped}
-        ),
+        dataclasses.replace(bundle, manifest={**bundle.manifest, "metadata": dropped}),
         with_metadata(stage_specific_moduli="yes"),
         with_metadata(stage_specific_moduli=None),
         with_metadata(stage_specific_moduli=False),
@@ -744,7 +878,8 @@ def test_config_reconstruction_binds_native_fields(tmp_path: Path):
         bundle,
         cfg={key: value for key, value in bundle.cfg.items() if key != "head_dim"},
     )
-    assert compile_runtime_model(plan, without_explicit_head_dim).digest == compiled.digest
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, without_explicit_head_dim)
 
     for key, wrong in (
         ("rms_norm_eps", 1e-4),
@@ -764,7 +899,7 @@ def test_config_reconstruction_binds_native_fields(tmp_path: Path):
         ("qk_norm", True),
         ("v_norm", True),
         ("layer_types", ["full_attention", "sliding_attention"]),
-        ("sliding_window", 0),
+        ("sliding_window", 2),
         ("num_kv_shared_layers", 1),
         ("attention_k_eq_v", True),
         ("hidden_size_per_layer_input", 16),
@@ -831,13 +966,8 @@ def test_lm_head_weight_keys_and_aux_rejected(tmp_path: Path):
     rows = bundle.manifest["stages"]
 
     def with_row(stage_id: str, **changes):
-        replaced = [
-            {**row, **changes} if row["id"] == stage_id else dict(row)
-            for row in rows
-        ]
-        return dataclasses.replace(
-            bundle, manifest={**bundle.manifest, "stages": replaced}
-        )
+        replaced = [{**row, **changes} if row["id"] == stage_id else dict(row) for row in rows]
+        return dataclasses.replace(bundle, manifest={**bundle.manifest, "stages": replaced})
 
     head_row = next(row for row in rows if row["id"] == "lm_head")
     with pytest.raises(RuntimeBindingError):
@@ -848,9 +978,7 @@ def test_lm_head_weight_keys_and_aux_rejected(tmp_path: Path):
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, with_row("lm_head", weight_keys=[]))
     with pytest.raises(RuntimeBindingError):
-        compile_runtime_model(
-            plan, with_row("lm_head", weight_keys=["model.other.weight"])
-        )
+        compile_runtime_model(plan, with_row("lm_head", weight_keys=["model.other.weight"]))
 
     head = bundle.stages["lm_head"]
     auxed = _replace_stage(
@@ -882,16 +1010,23 @@ def test_rope_scaling_and_semantic_bias_contract(tmp_path: Path):
         with pytest.raises(RuntimeBindingError):
             compile_runtime_model(plan, tampered)
 
-    for accepted in (None, {}, {"type": "default"}, {"rope_type": "default"}):
-        accepted_bundle = dataclasses.replace(
-            bundle, cfg={**bundle.cfg, "rope_scaling": accepted}
-        )
-        assert compile_runtime_model(plan, accepted_bundle).digest == compiled.digest
+    for accepted in ({}, {"type": "default"}, {"rope_type": "default"}):
+        accepted_bundle = dataclasses.replace(bundle, cfg={**bundle.cfg, "rope_scaling": accepted})
+        with pytest.raises(RuntimeBindingError):
+            compile_runtime_model(plan, accepted_bundle)
+    assert (
+        compile_runtime_model(
+            plan,
+            dataclasses.replace(bundle, cfg={**bundle.cfg, "rope_scaling": None}),
+        ).digest
+        == compiled.digest
+    )
     disabled_window = dataclasses.replace(
         bundle,
         cfg={**bundle.cfg, "sliding_window": 32768, "use_sliding_window": False},
     )
-    assert compile_runtime_model(plan, disabled_window).digest == compiled.digest
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, disabled_window)
 
     _, unbiased_bundle, _ = _bundle(tmp_path / "unbiased", with_qkv_bias=False)
     with pytest.raises(RuntimeBindingError):

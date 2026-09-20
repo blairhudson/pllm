@@ -1119,8 +1119,8 @@ fn decoder_runtime_schedule<'py>(
 ) -> PyResult<(Bound<'py, PyBytes>, String)> {
     if !matches!(
         profile,
-        pllm_compiler::DENSE_QWEN_MASKED_RUNTIME_PROFILE
-            | pllm_compiler::DENSE_QWEN_VERIFIED_RUNTIME_PROFILE
+        pllm_compiler::MASKED_LINEAR_RUNTIME_PROFILE
+            | pllm_compiler::VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE
     ) {
         return Err(invalid(format!(
             "unsupported decoder runtime schedule profile {profile:?}"
@@ -1128,7 +1128,7 @@ fn decoder_runtime_schedule<'py>(
     }
     let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
         .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
-    let schedule = pllm_compiler::lower_dense_qwen_runtime_schedule_for_profile(&plan, profile)
+    let schedule = pllm_compiler::lower_decoder_runtime_schedule_for_profile(&plan, profile)
         .map_err(invalid)?;
     let digest = schedule.digest().to_string();
     Ok((

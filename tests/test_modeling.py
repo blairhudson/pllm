@@ -109,7 +109,7 @@ def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
     assert schedule.canonical_bytes() == repeated.canonical_bytes()
     document = schedule.to_dict()
     schedule_schema = json.loads(
-        Path("schemas/dense-qwen-runtime-schedule.schema.json").read_text(encoding="utf-8")
+        Path("schemas/decoder-runtime-schedule.schema.json").read_text(encoding="utf-8")
     )
     Draft202012Validator(schedule_schema).validate(document)
     assert document["model_plan_digest"] == plan.digest
@@ -123,13 +123,12 @@ def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
         ]
         assert len(scheduled) == len(set(scheduled)) == len(graph["operations"])
         assert set(scheduled) == {operation["id"] for operation in graph["operations"]}
-        remote = [
-            step for step in document[phase]["steps"]
-            if step["executor"] == "remote_stage"
-        ]
+        remote = [step for step in document[phase]["steps"] if step["executor"] == "remote_stage"]
         assert len(remote) == 2 + 4 * CONFIG["num_hidden_layers"]
-        assert remote[0]["stage_role"] == "token_lookup"
-        assert remote[-1]["stage_role"] == "lm_head"
+        assert remote[0]["operators"] == ["token_lookup"]
+        assert remote[0]["weight_ids"] == ["model.embed_tokens.weight"]
+        assert remote[-1]["operators"] == ["output_head"]
+        assert remote[-1]["weight_ids"] == ["model.embed_tokens.weight"]
         assert document[phase]["steps"][-1]["operation_ids"] == ["token_feedback"]
 
     with pytest.raises(ValueError, match="unsupported decoder runtime schedule profile"):
@@ -185,14 +184,14 @@ def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
         document["decode"]["maximum_key_sequence"]
         == base_document["decode"]["maximum_key_sequence"]
     )
-    assert sum(
-        state["kind"] == "cache_indices"
-        for state in document["prefill"]["state_outputs"]
-    ) == CONFIG["num_hidden_layers"]
-    assert sum(
-        state["kind"] == "cache_indices"
-        for state in document["decode"]["state_inputs"]
-    ) == CONFIG["num_hidden_layers"]
+    assert (
+        sum(state["kind"] == "cache_indices" for state in document["prefill"]["state_outputs"])
+        == CONFIG["num_hidden_layers"]
+    )
+    assert (
+        sum(state["kind"] == "cache_indices" for state in document["decode"]["state_inputs"])
+        == CONFIG["num_hidden_layers"]
+    )
 
     decode_operations = {
         operation["id"]: operation for operation in document["decode"]["operations"]
@@ -200,10 +199,7 @@ def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
     scores = decode_operations["layer.0.attention_scores"]
     mask = decode_operations["layer.0.causal_mask"]
     assert scores["inputs"][1] == "method.mpcache.layer.0.dynamic_key_gather"
-    assert (
-        scores["output_shape"][-1]
-        < base_document["decode"]["maximum_key_sequence"]
-    )
+    assert scores["output_shape"][-1] < base_document["decode"]["maximum_key_sequence"]
     assert mask["inputs"][2] == "method.mpcache.layer.0.selected_positions"
 
     levels = {row["operator"]: row["level"] for row in optimized.coverage().operators}

@@ -1036,12 +1036,14 @@ class MaskedTransformerClientRuntime:
         bundle: ClientBundle,
         remote: Callable[[str, np.ndarray], np.ndarray],
         *,
+        stage_routes: dict[str, str] | None = None,
         token_cache: OrderedDict[int, np.ndarray] | None = None,
         token_cache_size: int = 512,
         token_cache_lock: threading.Lock | None = None,
     ) -> None:
         self.bundle = bundle
         self.remote = remote
+        self.stage_routes = dict(stage_routes or {})
         self.cfg = bundle.cfg
         self.config = self.cfg
         self.tokenizer = bundle.tokenizer()
@@ -1075,6 +1077,15 @@ class MaskedTransformerClientRuntime:
         self.token_cache_hits = 0
         self.token_cache_misses = 0
         self.token_lookup_batch = max(1, int(self.cfg.get("token_lookup_batch", 16)))
+
+    def _stage_id(self, role: str, layer: int) -> str:
+        default_suffix = {
+            "qkv_projection": "self_attn.qkv_proj",
+            "attention_output": "self_attn.o_proj",
+            "mlp_gate_up": "mlp.gate_up_proj",
+            "mlp_down": "mlp.down_proj",
+        }[role]
+        return self.stage_routes.get(f"{role}:{layer}", f"layers.{layer}.{default_suffix}")
 
     def reset(self) -> None:
         self.caches = [LayerCache() for _ in range(self.layers)]
@@ -1322,10 +1333,10 @@ class MaskedTransformerClientRuntime:
                 hidden,
                 self._tensor(f"layers.{index}.post_attention_layernorm.weight", self.hidden),
             )
-        gate_up = self.remote(f"layers.{index}.mlp.gate_up_proj", normed)
+        gate_up = self.remote(self._stage_id("mlp_gate_up", index), normed)
         gate, up = np.split(gate_up, 2, axis=-1)
         mlp = self._activation(gate) * up
-        mlp = self.remote(f"layers.{index}.mlp.down_proj", mlp)
+        mlp = self.remote(self._stage_id("mlp_down", index), mlp)
         if self.block_style == "gemma4":
             mlp = self._norm(
                 mlp,
@@ -1365,7 +1376,7 @@ class MaskedTransformerClientRuntime:
                 raise TransformerClientError(f"shared KV for {layer_type!r} is unavailable")
             key_cache, value_cache = self.shared_kv[layer_type]
         else:
-            qkv = self.remote(f"layers.{index}.self_attn.qkv_proj", hidden)
+            qkv = self.remote(self._stage_id("qkv_projection", index), hidden)
             query = qkv[:, :q_width].reshape(hidden.shape[0], self.heads, head_dim)
             key = qkv[:, q_width : q_width + kv_width].reshape(hidden.shape[0], kv_heads, head_dim)
             if qkv.shape[-1] == q_width + kv_width:
@@ -1409,7 +1420,8 @@ class MaskedTransformerClientRuntime:
                 self.heads, head_dim
             )
         return self.remote(
-            f"layers.{index}.self_attn.o_proj", output.reshape(hidden.shape[0], q_width)
+            self._stage_id("attention_output", index),
+            output.reshape(hidden.shape[0], q_width),
         )
 
     def _shared_producers(self) -> dict[str, int]:

@@ -32,9 +32,7 @@ class ModelPlan:
 
     @property
     def digest(self) -> str:
-        return hashlib.sha256(
-            b"pllm.decoder_plan.v1\0" + self._canonical_bytes
-        ).hexdigest()
+        return hashlib.sha256(b"pllm.decoder_plan.v1\0" + self._canonical_bytes).hexdigest()
 
     @property
     def prefill(self) -> Mapping[str, Any]:
@@ -60,9 +58,7 @@ class ModelPlan:
     ) -> "DecoderRuntimeSchedule":
         from pllm import _native
 
-        payload, native_digest = _native.decoder_runtime_schedule(
-            self._canonical_bytes, profile
-        )
+        payload, native_digest = _native.decoder_runtime_schedule(self._canonical_bytes, profile)
         schedule = DecoderRuntimeSchedule(payload)
         if schedule.digest != native_digest:
             raise ValueError("decoder runtime schedule digest mismatch")
@@ -117,7 +113,7 @@ class DecoderRuntimeSchedule:
 
     def __post_init__(self) -> None:
         document = json.loads(self._canonical_bytes)
-        if document.get("schema_version") != "pllm.dense_qwen_runtime_schedule.v2":
+        if document.get("schema_version") != "pllm.decoder_runtime_schedule.v1":
             raise ValueError("invalid decoder runtime schedule")
         if not document.get("complete") or document.get("protected_execution"):
             raise ValueError("invalid decoder runtime schedule capability")
@@ -125,7 +121,7 @@ class DecoderRuntimeSchedule:
     @property
     def digest(self) -> str:
         return hashlib.sha256(
-            b"pllm.dense_qwen_runtime_schedule.v2\0" + self._canonical_bytes
+            b"pllm.decoder_runtime_schedule.v1\0" + self._canonical_bytes
         ).hexdigest()
 
     @property

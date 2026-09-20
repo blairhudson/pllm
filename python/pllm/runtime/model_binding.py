@@ -24,8 +24,6 @@ if TYPE_CHECKING:
 
 BINDING_SCHEMA = "pllm.runtime_model_binding.v1"
 BINDING_DOMAIN = b"pllm.runtime_model_binding.v1\0"
-REQUIRED_MODEL_FAMILY = "qwen2"
-REQUIRED_ADAPTER = "pllm.qwen2.v1"
 
 REMOTE_OPERATORS = frozenset({"token_lookup", "linear", "output_head"})
 LOCAL_OPERATORS = frozenset(
@@ -87,7 +85,9 @@ class CompiledRuntimeModel:
         "_fingerprint",
         "_local_operations",
         "_runtime_config_digest",
+        "_runtime_profile",
         "_runtime_schedule_digest",
+        "_stage_routes",
         "_stages",
         "_tokenizer_digest",
     )
@@ -107,7 +107,9 @@ class CompiledRuntimeModel:
         stages: tuple[RuntimeStageBinding, ...],
         local_operations: tuple[str, ...],
         runtime_config_digest: str,
+        runtime_profile: str,
         runtime_schedule_digest: str,
+        stage_routes: dict[str, str],
         tokenizer_digest: str,
     ) -> CompiledRuntimeModel:
         self = object.__new__(cls)
@@ -119,7 +121,9 @@ class CompiledRuntimeModel:
         self._stages = stages
         self._local_operations = local_operations
         self._runtime_config_digest = runtime_config_digest
+        self._runtime_profile = runtime_profile
         self._runtime_schedule_digest = runtime_schedule_digest
+        self._stage_routes = dict(stage_routes)
         self._tokenizer_digest = tokenizer_digest
         return self
 
@@ -170,7 +174,11 @@ class CompiledRuntimeModel:
         return json.loads(self._canonical)
 
     def validate(self) -> None:
-        refreshed = compile_runtime_model(self._plan, self._bundle)
+        refreshed = compile_runtime_model(
+            self._plan,
+            self._bundle,
+            runtime_profile=self._runtime_profile,
+        )
         if refreshed.digest != self._digest or refreshed.to_spec() != self.to_spec():
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
 
@@ -178,7 +186,11 @@ class CompiledRuntimeModel:
         self, remote: Callable[[str, np.ndarray], np.ndarray]
     ) -> MaskedTransformerClientRuntime:
         self.validate()
-        return MaskedTransformerClientRuntime(self._bundle, remote)
+        return MaskedTransformerClientRuntime(
+            self._bundle,
+            remote,
+            stage_routes=self._stage_routes,
+        )
 
     def session(self, remote: Callable[[str, np.ndarray], np.ndarray]) -> "CompiledRuntimeSession":
         from pllm.runtime.model_execution import CompiledRuntimeSession
@@ -249,136 +261,6 @@ def _phase_operations(
     return graph, by_id
 
 
-def _plan_dimensions(
-    document: dict[str, Any],
-    phases: dict[str, tuple[dict[str, Any], dict[str, dict[str, Any]]]],
-) -> dict[str, int]:
-    prefill = phases["prefill"][1]
-    layers = sorted(
-        {
-            operation["layer"]
-            for operation in prefill.values()
-            if isinstance(operation.get("layer"), int) and not isinstance(operation["layer"], bool)
-        }
-    )
-    if not layers or layers != list(range(len(layers))):
-        raise RuntimeBindingError("plan layers must be contiguous from zero")
-    token_ops = [op for op in prefill.values() if op["operator"] == "token_lookup"]
-    head_ops = [op for op in prefill.values() if op["operator"] == "output_head"]
-    if len(token_ops) != 1 or len(head_ops) != 1:
-        raise RuntimeBindingError("plan requires exactly one token lookup and output head")
-    hidden = _last_dim(token_ops[0].get("output_shape"), "token_lookup")
-    vocab = _last_dim(head_ops[0].get("output_shape"), "output_head")
-
-    def producers(operation: dict[str, Any]) -> list[dict[str, Any]]:
-        return [
-            prefill[input_id] for input_id in operation.get("inputs") or [] if input_id in prefill
-        ]
-
-    def hop(source: dict[str, Any], operator: str, layer: int, name: str) -> dict[str, Any]:
-        found = [op for op in producers(source) if op["operator"] == operator]
-        if len(found) != 1 or found[0].get("layer") != layer:
-            raise RuntimeBindingError(f"plan layer {layer} requires exactly one {name}")
-        return found[0]
-
-    def head_shape(operation: dict[str, Any], name: str) -> list[int]:
-        shape = operation.get("output_shape")
-        if not isinstance(shape, list) or len(shape) != 4:
-            raise RuntimeBindingError(f"plan {name} reshape is malformed")
-        return shape
-
-    heads = kv_heads = head_dim = intermediate = 0
-    for layer in layers:
-        layer_ops = [op for op in prefill.values() if op.get("layer") == layer]
-
-        def only(operator: str) -> dict[str, Any]:
-            found = [op for op in layer_ops if op["operator"] == operator]
-            if len(found) != 1:
-                raise RuntimeBindingError(
-                    f"plan layer {layer} requires exactly one {operator} operation"
-                )
-            return found[0]
-
-        scores = only("attention_scores")
-        rope_q = hop(scores, "rotary_embedding", layer, "query rotary input")
-        q_heads = hop(rope_q, "reshape", layer, "query head reshape")
-        q_linear = hop(q_heads, "linear", layer, "query projection")
-        key_view = hop(scores, "cache_suffix", layer, "key cache view")
-        key_append = hop(key_view, "kv_cache_append", layer, "key cache append")
-        if key_append.get("state_kind") != "key":
-            raise RuntimeBindingError(f"plan layer {layer} key append is not a key state")
-        rope_k = hop(key_append, "rotary_embedding", layer, "key rotary input")
-        k_heads = hop(rope_k, "reshape", layer, "key head reshape")
-        k_linear = hop(k_heads, "linear", layer, "key projection")
-        values = only("attention_values")
-        value_view = hop(values, "cache_suffix", layer, "value cache view")
-        value_append = hop(value_view, "kv_cache_append", layer, "value cache append")
-        if value_append.get("state_kind") != "value":
-            raise RuntimeBindingError(f"plan layer {layer} value append is not a value state")
-        v_heads = hop(value_append, "reshape", layer, "value head reshape")
-        v_linear = hop(v_heads, "linear", layer, "value projection")
-        silu = only("silu")
-        gate = hop(silu, "linear", layer, "gate projection")
-        multiply = only("multiply")
-        multiply_producers = producers(multiply)
-        multiply_silu = [op for op in multiply_producers if op["operator"] == "silu"]
-        multiply_linear = [op for op in multiply_producers if op["operator"] == "linear"]
-        if (
-            len(multiply_silu) != 1
-            or multiply_silu[0]["id"] != silu["id"]
-            or len(multiply_linear) != 1
-            or multiply_linear[0].get("layer") != layer
-        ):
-            raise RuntimeBindingError(f"plan layer {layer} gated multiply is malformed")
-        up = multiply_linear[0]
-        norm_inputs = {
-            op["id"] for source in (q_linear, k_linear, v_linear) for op in producers(source)
-        }
-        if len(norm_inputs) != 1:
-            raise RuntimeBindingError(
-                f"plan layer {layer} q/k/v projections must share one normalized input"
-            )
-        shared_norm = prefill[norm_inputs.pop()]
-        if shared_norm["operator"] != "rms_norm":
-            raise RuntimeBindingError(
-                f"plan layer {layer} projections must consume a single rms norm"
-            )
-        if _last_dim(shared_norm.get("output_shape"), shared_norm["id"]) != hidden:
-            raise RuntimeBindingError(f"plan layer {layer} norm width does not match hidden")
-
-        q_shape = head_shape(q_heads, "query head")
-        k_shape = head_shape(k_heads, "key head")
-        v_shape = head_shape(v_heads, "value head")
-        if q_shape[-1] != k_shape[-1] or k_shape[-1] != v_shape[-1]:
-            raise RuntimeBindingError(f"plan layer {layer} head dims differ")
-        if k_shape[1] != v_shape[1]:
-            raise RuntimeBindingError(f"plan layer {layer} kv head counts differ")
-        if heads and (heads != q_shape[1] or kv_heads != k_shape[1] or head_dim != q_shape[-1]):
-            raise RuntimeBindingError("plan attention geometry differs across layers")
-        heads, kv_heads, head_dim = q_shape[1], k_shape[1], q_shape[-1]
-        if heads * head_dim != _last_dim(q_linear["output_shape"], "query projection"):
-            raise RuntimeBindingError("plan query projection width does not match heads")
-        if kv_heads * head_dim != _last_dim(k_linear["output_shape"], "key projection"):
-            raise RuntimeBindingError("plan key projection width does not match heads")
-        if kv_heads * head_dim != _last_dim(v_linear["output_shape"], "value projection"):
-            raise RuntimeBindingError("plan value projection width does not match heads")
-        width = _last_dim(gate["output_shape"], "gate projection")
-        if width != _last_dim(up["output_shape"], "up projection"):
-            raise RuntimeBindingError("plan gate and up widths differ")
-        if intermediate and intermediate != width:
-            raise RuntimeBindingError("plan intermediate width differs across layers")
-        intermediate = width
-    return {
-        "layers": len(layers),
-        "hidden": hidden,
-        "vocab": vocab,
-        "heads": heads,
-        "kv_heads": kv_heads,
-        "head_dim": head_dim,
-        "intermediate": intermediate,
-    }
-
-
 def _resolve_array(arrays: dict[str, np.ndarray], weight_id: str) -> tuple[str, np.ndarray]:
     if weight_id in arrays:
         return weight_id, arrays[weight_id]
@@ -431,6 +313,7 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
 
 def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     hidden = _require_int(cfg.get("hidden_size"), "config hidden_size")
+    intermediate = _require_int(cfg.get("intermediate_size"), "config intermediate_size")
     layers = _require_int(cfg.get("num_hidden_layers"), "config num_hidden_layers")
     heads = _require_int(cfg.get("num_attention_heads"), "config num_attention_heads")
     kv_heads = _require_int(cfg.get("num_key_value_heads", heads), "config num_key_value_heads")
@@ -459,8 +342,9 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     ):
         raise RuntimeBindingError("config layer_types must be a per-layer string list")
     sliding_window = cfg.get("sliding_window")
-    if sliding_window is not None and _require_int(sliding_window, "config sliding_window") <= 0:
-        raise RuntimeBindingError("config sliding_window must be positive when present")
+    if sliding_window is not None:
+        _require_int(sliding_window, "config sliding_window")
+        raise RuntimeBindingError("compiled runtime profile does not support sliding windows")
     shared_count = _require_int(
         cfg.get("num_kv_shared_layers", 0) or 0, "config num_kv_shared_layers"
     )
@@ -488,46 +372,22 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     elif rope_scaling in ({"type": "default"}, {"rope_type": "default"}):
         rope_scaling = None
     else:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids rope scaling")
+        raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
     if use_sliding_window:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids sliding windows")
-    sliding_window = None
+        raise RuntimeBindingError("compiled runtime profile does not support sliding windows")
     attention_bias = bool(cfg.get("attention_bias", True))
-    if not attention_bias:
-        raise RuntimeBindingError("base qwen2 runtime profile requires attention bias")
-    if block_style != "llama":
-        raise RuntimeBindingError("base qwen2 runtime profile requires llama block style")
-    if model_family != "llama-compatible":
-        raise RuntimeBindingError("base qwen2 runtime profile requires llama-compatible family")
-    if float(norm_offset) != 0.0:
-        raise RuntimeBindingError("base qwen2 runtime profile requires zero norm offset")
-    if float(multiplier) != 1.0:
-        raise RuntimeBindingError("base qwen2 runtime profile requires unit embedding scale")
-    if qk_norm or v_norm:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids qk/v norms")
-    if layer_types != ["full_attention"] * layers:
-        raise RuntimeBindingError("base qwen2 runtime profile requires full attention layers")
-    if shared_count != 0:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids shared kv layers")
-    if k_eq_v:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids shared k/v weights")
-    if ple_dim != 0:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids per-layer inputs")
-    if output_multiplier is not None or softcap is not None:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids logit transforms")
-    if attention_scaling is not None:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids attention scaling")
-    if not isinstance(rope_parameters, dict) or rope_parameters:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids rope parameters")
-    if not isinstance(per_layer, dict) or per_layer:
-        raise RuntimeBindingError("base qwen2 runtime profile forbids per-layer config")
-    if hidden_activation != "silu":
-        raise RuntimeBindingError("base qwen2 runtime profile requires silu activation")
+    if block_style not in {"llama", "gemma4"}:
+        raise RuntimeBindingError("compiled runtime profile does not implement this block style")
+    if not isinstance(rope_parameters, dict) or not isinstance(per_layer, dict):
+        raise RuntimeBindingError("compiled runtime model parameters must be objects")
+    if hidden_activation not in {"silu", "gelu_pytorch_tanh"}:
+        raise RuntimeBindingError("compiled runtime profile does not implement this activation")
     if token_lookup_batch <= 0:
         raise RuntimeBindingError("config token_lookup_batch must be positive")
     return {
         "hidden_size": hidden,
+        "intermediate_size": intermediate,
         "num_hidden_layers": layers,
         "num_attention_heads": heads,
         "num_key_value_heads": kv_heads,
@@ -584,6 +444,141 @@ def _canonicalize_descriptor(value: Any) -> Any:
     raise RuntimeBindingError(f"tokenizer descriptor value {type(value).__name__!r} is unsupported")
 
 
+def _validate_runtime_semantics(
+    runtime_config: dict[str, Any],
+    phases: dict[str, tuple[dict[str, Any], dict[str, dict[str, Any]]]],
+) -> None:
+    rotary_head_dims: set[int] = set()
+    rotary_norm_inputs: list[bool] = []
+    for phase, (_, operations) in phases.items():
+        for operation in operations.values():
+            if operation.get("operator") != "rotary_embedding":
+                continue
+            source = next(
+                (
+                    operations[value]
+                    for value in operation.get("inputs") or ()
+                    if value in operations
+                ),
+                None,
+            )
+            if source is None:
+                raise RuntimeBindingError(f"{phase} rotary input is not produced by the plan")
+            rotary_head_dims.add(_last_dim(source.get("output_shape"), f"{phase} rotary input"))
+            rotary_norm_inputs.append(source.get("operator") == "rms_norm")
+    if rotary_head_dims != {_require_int(runtime_config.get("head_dim"), "runtime head_dim")}:
+        raise RuntimeBindingError("runtime head dimension diverges from the semantic plan")
+    if rotary_norm_inputs and any(rotary_norm_inputs) != all(rotary_norm_inputs):
+        raise RuntimeBindingError("runtime Q/K normalization topology is inconsistent")
+    if bool(runtime_config.get("qk_norm")) != bool(rotary_norm_inputs and all(rotary_norm_inputs)):
+        raise RuntimeBindingError("runtime Q/K normalization diverges from the semantic plan")
+    expected_defaults = {
+        "block_style": "llama",
+        "embedding_multiplier": 1.0,
+        "output_multiplier": None,
+        "final_logit_softcapping": None,
+        "attention_scaling": None,
+        "rope_parameters": {},
+        "v_norm": False,
+        "num_kv_shared_layers": 0,
+        "hidden_size_per_layer_input": 0,
+        "attention_k_eq_v": False,
+        "per_layer_config": {},
+        "hidden_activation": "silu",
+    }
+    mismatched = [
+        key for key, value in expected_defaults.items() if runtime_config.get(key) != value
+    ]
+    layer_types = runtime_config.get("layer_types")
+    if not isinstance(layer_types, list) or any(
+        layer_type != "full_attention" for layer_type in layer_types
+    ):
+        mismatched.append("layer_types")
+    if runtime_config.get("sliding_window") is not None:
+        mismatched.append("sliding_window")
+    if runtime_config.get("local_attention_window") is not None:
+        mismatched.append("local_attention_window")
+    if mismatched:
+        raise RuntimeBindingError(
+            "runtime numeric controls diverge from supported semantics: " + ", ".join(mismatched)
+        )
+
+
+def _graph_reaches(
+    start: str,
+    target: str,
+    operations: dict[str, dict[str, Any]],
+    *,
+    reverse: bool = False,
+) -> bool:
+    consumers: dict[str, list[str]] = {}
+    if not reverse:
+        for operation_id, operation in operations.items():
+            for source in operation.get("inputs") or ():
+                if source in operations:
+                    consumers.setdefault(source, []).append(operation_id)
+    frontier = [start]
+    visited: set[str] = set()
+    for _ in range(5):
+        next_frontier: list[str] = []
+        for operation_id in frontier:
+            if operation_id in visited:
+                continue
+            visited.add(operation_id)
+            operation = operations.get(operation_id)
+            if operation is None:
+                continue
+            if operation.get("operator") == target:
+                return True
+            if reverse:
+                next_frontier.extend(
+                    source for source in operation.get("inputs") or () if source in operations
+                )
+            else:
+                next_frontier.extend(consumers.get(operation_id, ()))
+        frontier = next_frontier
+    return False
+
+
+def _semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, Any]]) -> str:
+    operators = step.get("operators")
+    if isinstance(operators, list) and operators and set(operators) == {"token_lookup"}:
+        return "token_lookup"
+    if operators == ["output_head"]:
+        return "lm_head"
+    operation_ids = step.get("operation_ids")
+    if not isinstance(operation_ids, list) or not operation_ids:
+        raise RuntimeBindingError("remote stage is missing semantic operation identities")
+    if (
+        len(operation_ids) == 3
+        and sum(
+            _graph_reaches(operation_id, "rotary_embedding", operations)
+            for operation_id in operation_ids
+        )
+        == 2
+    ):
+        return "qkv_projection"
+    if (
+        len(operation_ids) == 2
+        and all(
+            _graph_reaches(operation_id, "multiply", operations) for operation_id in operation_ids
+        )
+        and sum(_graph_reaches(operation_id, "silu", operations) for operation_id in operation_ids)
+        == 1
+    ):
+        return "mlp_gate_up"
+    if len(operation_ids) == 1:
+        input_ids = step.get("input_ids")
+        if not isinstance(input_ids, list) or len(input_ids) != 1:
+            raise RuntimeBindingError("remote linear stage must have one semantic input")
+        source = input_ids[0]
+        if _graph_reaches(source, "attention_values", operations, reverse=True):
+            return "attention_output"
+        if _graph_reaches(source, "multiply", operations, reverse=True):
+            return "mlp_down"
+    raise RuntimeBindingError("remote stage topology is not implemented")
+
+
 def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
     if not isinstance(descriptor, dict):
         raise RuntimeBindingError("client bundle tokenizer descriptor must be a mapping")
@@ -607,29 +602,36 @@ def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
     return _sha256(_canonical_json(_canonicalize_descriptor(descriptor)))
 
 
-def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRuntimeModel:
+def compile_runtime_model(
+    plan: ModelPlan,
+    bundle: ClientBundle,
+    *,
+    runtime_profile: str = "baseline.masked_linear_cpu",
+) -> CompiledRuntimeModel:
     if type(plan) is not ModelPlan:
         raise RuntimeBindingError("plan must be a ModelPlan")
     if type(bundle) is not ClientBundle:
         raise RuntimeBindingError("bundle must be a ClientBundle")
+    if runtime_profile != "baseline.masked_linear_cpu":
+        raise RuntimeBindingError(
+            "compiled runtime does not yet accept a verifier-bound remote executor"
+        )
     try:
         plan.coverage()
     except Exception as exc:
         raise RuntimeBindingError("native model plan validation failed") from exc
     document = plan.to_dict()
-    if document.get("model_family") != REQUIRED_MODEL_FAMILY:
-        raise RuntimeBindingError("model plan family is not qwen2")
-    if document.get("adapter") != REQUIRED_ADAPTER:
-        raise RuntimeBindingError("model plan adapter is not pllm.qwen2.v1")
+    model_family = document.get("model_family")
+    adapter = document.get("adapter")
+    if not isinstance(model_family, str) or not model_family:
+        raise RuntimeBindingError("model plan is missing its family identity")
+    if not isinstance(adapter, str) or not adapter:
+        raise RuntimeBindingError("model plan is missing its adapter identity")
     if document.get("transformations"):
         raise RuntimeBindingError("transformed model plans cannot be bound")
 
     manifest = bundle.manifest if isinstance(bundle.manifest, dict) else {}
     cfg = bundle.cfg if isinstance(bundle.cfg, dict) else {}
-    if str(cfg.get("model_type", "")).lower() != REQUIRED_MODEL_FAMILY:
-        raise RuntimeBindingError("client bundle config is not a qwen2 model")
-    if REQUIRED_MODEL_FAMILY not in str(manifest.get("architecture", "")).lower():
-        raise RuntimeBindingError("client bundle manifest is not a qwen2 model")
     if manifest.get("id") != bundle.model_id:
         raise RuntimeBindingError("client bundle model id does not match its manifest")
     official_fingerprint = manifest.get("fingerprint")
@@ -673,9 +675,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     if reconstructed.to_dict().get("config_digest") != document.get("config_digest"):
         raise RuntimeBindingError("client bundle config digest does not match the plan")
     try:
-        runtime_schedule = plan.runtime_schedule(
-            str(bundle.privacy.get("runtime_profile", "baseline.masked_linear_cpu"))
-        )
+        runtime_schedule = plan.runtime_schedule(runtime_profile)
     except Exception as exc:
         raise RuntimeBindingError("native whole-decoder runtime scheduling failed") from exc
     runtime_schedule_spec = runtime_schedule.to_dict()
@@ -689,10 +689,11 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     runtime_schedule_digest = runtime_schedule.digest
 
     runtime_config = _runtime_config(cfg)
-    runtime_config_digest = _sha256(_canonical_json(runtime_config))
+    runtime_config_digest = _sha256(_canonical_json(cfg))
     tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
 
     phases = {phase: _phase_operations(document, phase) for phase in ("prefill", "decode")}
+    _validate_runtime_semantics(runtime_config, phases)
     prefill_ops, decode_ops = phases["prefill"][1], phases["decode"][1]
     if set(prefill_ops) != set(decode_ops):
         raise RuntimeBindingError("prefill and decode operations differ")
@@ -701,7 +702,15 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     ):
         raise RuntimeBindingError("prefill and decode operators differ")
 
-    dims = _plan_dimensions(document, phases)
+    dims = {
+        "hidden": runtime_config["hidden_size"],
+        "intermediate": runtime_config["intermediate_size"],
+        "layers": runtime_config["num_hidden_layers"],
+        "heads": runtime_config["num_attention_heads"],
+        "kv_heads": runtime_config["num_key_value_heads"],
+        "head_dim": runtime_config["head_dim"],
+        "vocab": runtime_config["vocab_size"],
+    }
     manifest_dimensions = {
         "hidden_size": dims["hidden"],
         "intermediate_size": dims["intermediate"],
@@ -762,6 +771,23 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     activation_bits = _require_int(privacy.get("activation_bits"), "privacy activation_bits")
     if not (2 <= weight_bits <= 8 and 2 <= activation_bits <= 8):
         raise RuntimeBindingError("client bundle bit widths must be in [2, 8]")
+    bundle_runtime_profile = privacy.get("runtime_profile")
+    if bundle_runtime_profile != runtime_profile:
+        raise RuntimeBindingError("client bundle runtime profile does not match the request")
+    verification_component = privacy.get("verification_component", "none")
+    verification_failure_bits = _require_int(
+        privacy.get("verification_target_failure_bits", 0), "verification failure bits"
+    )
+    if runtime_profile == "research.verified_masked_linear_cpu":
+        if verification_component != "pllm/freivalds-verify/v1" or verification_failure_bits < 40:
+            raise RuntimeBindingError(
+                "verified masked-linear execution requires the Freivalds verifier"
+            )
+    elif runtime_profile == "baseline.masked_linear_cpu":
+        if verification_component != "none" or verification_failure_bits != 0:
+            raise RuntimeBindingError("baseline masked-linear execution cannot claim verification")
+    else:
+        raise RuntimeBindingError("client bundle runtime profile is unsupported")
 
     canonical: dict[str, Any] = {}
     for key, stage in bundle.stages.items():
@@ -786,62 +812,43 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         row = spec_rows[stage_id]
         if row.get("role") != stage.role or row.get("layer_index") != stage.layer_index:
             raise RuntimeBindingError(f"bundle stage {stage_id!r} role or layer drifted")
-        row_keys = {_normalize_weight_key(key) for key in row.get("weight_keys") or ()}
+        row_keys = row.get("weight_keys") or ()
         row_fused = list(row.get("fused_from") or [])
         row_op = row.get("op")
-        layered = stage.layer_index is not None
-        if stage.role == "token_lookup":
-            valid = (
-                row_op == "embedding"
-                and not row_fused
-                and stage.layer_index is None
-                and row_keys == {"embed_tokens.weight"}
+        valid = (
+            row_op == stage.op
+            and row_op in {"embedding", "linear", "lm_head"}
+            and isinstance(row_keys, (list, tuple))
+            and bool(row_keys)
+            and all(isinstance(key, str) and key for key in row_keys)
+            and all(isinstance(name, str) and name for name in row_fused)
+            and (
+                (row_op in {"embedding", "lm_head"} and stage.layer_index is None)
+                or (row_op == "linear" and stage.layer_index is not None)
             )
-        elif stage.role == "lm_head":
-            valid = (
-                row_op == "lm_head"
-                and not row_fused
-                and stage.layer_index is None
-                and bool(row_keys)
-                and row_keys <= {"embed_tokens.weight", "lm_head.weight"}
-            )
-        elif stage.role == "qkv_projection":
-            valid = (
-                row_op == "linear"
-                and row_fused == ["q_proj", "k_proj", "v_proj"]
-                and len(row_keys) == 3
-                and layered
-            )
-        elif stage.role == "attention_output":
-            valid = row_op == "linear" and not row_fused and len(row_keys) == 1 and layered
-        elif stage.role == "mlp_gate_up":
-            valid = (
-                row_op == "linear"
-                and row_fused == ["gate_proj", "up_proj"]
-                and len(row_keys) == 2
-                and layered
-            )
-        elif stage.role == "mlp_down":
-            valid = row_op == "linear" and not row_fused and len(row_keys) == 1 and layered
-        else:
-            valid = False
+        )
         if not valid:
             raise RuntimeBindingError(f"bundle stage {stage_id!r} spec row is inconsistent")
-
-    expected_roles = {("token_lookup", None), ("lm_head", None)}
-    for layer in range(dims["layers"]):
-        expected_roles |= {
-            ("qkv_projection", layer),
-            ("attention_output", layer),
-            ("mlp_gate_up", layer),
-            ("mlp_down", layer),
-        }
-    if {(stage.role, stage.layer_index) for stage in canonical.values()} != expected_roles:
-        raise RuntimeBindingError("bundle stage role set does not match the qwen2 surface")
+        expected_fused = (
+            [weight_key.rsplit(".", 2)[-2] for weight_key in row_keys] if len(row_keys) > 1 else []
+        )
+        if row_fused != expected_fused:
+            raise RuntimeBindingError(f"bundle stage {stage_id!r} fused order is inconsistent")
 
     manifest_metadata = manifest.get("metadata")
     if not isinstance(manifest_metadata, dict):
         raise RuntimeBindingError("bundle manifest is missing metadata")
+    if manifest_metadata.get("runtime_config_digest") != runtime_config_digest:
+        raise RuntimeBindingError("client runtime config does not match its manifest commitment")
+    if any(
+        manifest_metadata.get(key) != privacy.get(key)
+        for key in (
+            "runtime_profile",
+            "verification_component",
+            "verification_target_failure_bits",
+        )
+    ):
+        raise RuntimeBindingError("client verification profile does not match its manifest")
     stage_specific_moduli = manifest_metadata.get("stage_specific_moduli")
     if not isinstance(stage_specific_moduli, bool):
         raise RuntimeBindingError("bundle manifest must declare a modulus policy")
@@ -853,30 +860,139 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         raise RuntimeBindingError("bundle manifest plain_moduli must be a list of integers")
     advertised_moduli = set(plain_moduli)
 
-    hidden, intermediate, vocab = dims["hidden"], dims["intermediate"], dims["vocab"]
-    q_width = dims["heads"] * dims["head_dim"]
-    kv_width = dims["kv_heads"] * dims["head_dim"]
-    expected_dims = {
-        "token_lookup": (vocab, hidden),
-        "lm_head": (hidden, vocab),
-        "qkv_projection": (hidden, q_width + 2 * kv_width),
-        "attention_output": (q_width, hidden),
-        "mlp_gate_up": (hidden, 2 * intermediate),
-        "mlp_down": (intermediate, hidden),
-    }
-
     ownership: dict[str, str | None] = {}
     for stage_id, stage in canonical.items():
         row = spec_rows[stage_id]
         for key in set(row.get("weight_keys") or ()):
             normalized = _normalize_weight_key(key)
-            if normalized in ownership:
+            if normalized in ownership and ownership[normalized] != stage_id:
                 ownership[normalized] = None
             else:
                 ownership[normalized] = stage_id
 
+    stage_by_role = {(stage.role, stage.layer_index): stage for stage in canonical.values()}
+    token_stage = stage_by_role.get(("token_lookup", None))
+    head_stage = stage_by_role.get(("lm_head", None))
+    if token_stage is None or head_stage is None:
+        raise RuntimeBindingError("bundle must provide token lookup and output head stages")
+
+    schedule_stage_ids: dict[tuple[str, int], str] = {}
+    expected_dims: dict[str, tuple[int, int]] = {}
+    for phase in ("prefill", "decode"):
+        phase_schedule = runtime_schedule_spec.get(phase)
+        if not isinstance(phase_schedule, dict):
+            raise RuntimeBindingError(f"native {phase} runtime schedule is malformed")
+        used_stages: set[str] = set()
+        for step in phase_schedule.get("steps") or ():
+            if not isinstance(step, dict) or step.get("executor") != "remote_stage":
+                continue
+            order = _require_int(step.get("order"), f"native {phase} runtime step order")
+            operators = step.get("operators")
+            if operators and set(operators) == {"token_lookup"}:
+                remote_stage = token_stage
+                input_width = dims["vocab"]
+            elif operators == ["output_head"]:
+                remote_stage = head_stage
+                input_ids = step.get("input_ids")
+                if not isinstance(input_ids, list) or len(input_ids) != 1:
+                    raise RuntimeBindingError(f"native {phase} output head must have one input")
+                source = (
+                    prefill_ops.get(input_ids[0])
+                    if phase == "prefill"
+                    else decode_ops.get(input_ids[0])
+                )
+                if source is None:
+                    raise RuntimeBindingError(f"native {phase} output head input is unknown")
+                input_width = _last_dim(
+                    source.get("output_shape"), f"native {phase} output head input"
+                )
+            else:
+                weight_ids = step.get("weight_ids")
+                if not isinstance(weight_ids, list) or not weight_ids:
+                    raise RuntimeBindingError(
+                        f"native {phase} remote step is missing weight identities"
+                    )
+                owners = {
+                    ownership.get(_normalize_weight_key(weight_id), "")
+                    for weight_id in weight_ids
+                    if isinstance(weight_id, str)
+                }
+                if None in owners or "" in owners or len(owners) != 1:
+                    raise RuntimeBindingError(
+                        f"native {phase} runtime weight ownership is ambiguous"
+                    )
+                owner = next(iter(owners))
+                if not isinstance(owner, str):
+                    raise RuntimeBindingError(
+                        f"native {phase} runtime weight ownership is malformed"
+                    )
+                remote_stage = canonical[owner]
+                input_ids = step.get("input_ids")
+                if not isinstance(input_ids, list) or len(input_ids) != 1:
+                    raise RuntimeBindingError(
+                        f"native {phase} remote linear stage must have one input"
+                    )
+                operations = prefill_ops if phase == "prefill" else decode_ops
+                source = operations.get(input_ids[0])
+                if source is None:
+                    raise RuntimeBindingError(f"native {phase} remote linear input is unknown")
+                input_width = _last_dim(
+                    source.get("output_shape"), f"native {phase} remote linear input"
+                )
+
+            expected_stage_op = (
+                "embedding"
+                if isinstance(operators, list) and operators and set(operators) == {"token_lookup"}
+                else "lm_head"
+                if operators == ["output_head"]
+                else "linear"
+            )
+            if remote_stage.op != expected_stage_op or remote_stage.layer_index != step.get(
+                "layer"
+            ):
+                raise RuntimeBindingError(
+                    f"native {phase} runtime stage does not match its semantic operation"
+                )
+            operations = prefill_ops if phase == "prefill" else decode_ops
+            if remote_stage.role != _semantic_stage_role(step, operations):
+                raise RuntimeBindingError(
+                    f"native {phase} runtime stage role does not match plan topology"
+                )
+            semantic_weights = step.get("weight_ids")
+            manifest_weights = spec_rows[remote_stage.id].get("weight_keys")
+            if (
+                not isinstance(semantic_weights, list)
+                or not isinstance(manifest_weights, list)
+                or [_normalize_weight_key(value) for value in semantic_weights]
+                != [_normalize_weight_key(value) for value in manifest_weights]
+            ):
+                raise RuntimeBindingError(
+                    f"native {phase} runtime stage {remote_stage.id!r} weight order "
+                    f"does not match the plan: {manifest_weights!r} != {semantic_weights!r}"
+                )
+            outputs = step.get("outputs")
+            if not isinstance(outputs, list) or not outputs:
+                raise RuntimeBindingError(f"native {phase} remote outputs are malformed")
+            output_width = sum(
+                _require_int(output.get("stage_width"), "remote stage output width")
+                for output in outputs
+                if isinstance(output, dict)
+            )
+            if output_width <= 0 or len(outputs) != sum(
+                isinstance(output, dict) for output in outputs
+            ):
+                raise RuntimeBindingError(f"native {phase} remote outputs are malformed")
+            contract = (input_width, output_width)
+            previous = expected_dims.setdefault(remote_stage.id, contract)
+            if previous != contract or remote_stage.id in used_stages:
+                raise RuntimeBindingError(f"native {phase} remote stage binding is inconsistent")
+            used_stages.add(remote_stage.id)
+            schedule_stage_ids[(phase, order)] = remote_stage.id
+        if used_stages != set(canonical):
+            raise RuntimeBindingError(f"native {phase} remote stages do not match the bundle")
+
     for stage in canonical.values():
-        expected = expected_dims.get(str(stage.role))
+        expected = expected_dims.get(stage.id)
         if expected is None:
             raise RuntimeBindingError(f"unsupported bundle stage role {stage.role!r}")
         if (stage.in_features, stage.out_features) != expected:
@@ -1191,15 +1307,26 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             ):
                 raise RuntimeBindingError(f"native {phase} runtime outputs are malformed")
             executor = step.get("executor")
-            layer = step.get("layer")
-            stage_role = step.get("stage_role")
+            weight_ids = step.get("weight_ids")
+            if not isinstance(weight_ids, list) or not all(
+                isinstance(weight_id, str) for weight_id in weight_ids
+            ):
+                raise RuntimeBindingError(f"native {phase} runtime weights are malformed")
             stage_offset = 0
             remote_stage = None
             if executor == "remote_stage":
-                remote_stage = stage_by_role.get((stage_role, layer))
-                if remote_stage is None:
-                    raise RuntimeBindingError(f"native {phase} runtime stage is unknown")
-            elif executor != "client_local" or stage_role is not None or len(operation_ids) != 1:
+                expected_weights = [
+                    operation["attributes"].get("weight") for operation in operations
+                ]
+                if weight_ids != expected_weights:
+                    raise RuntimeBindingError(f"native {phase} runtime weights are malformed")
+                stage_id = schedule_stage_ids.get(
+                    (phase, _require_int(step.get("order"), "step order"))
+                )
+                if stage_id is None:
+                    raise RuntimeBindingError(f"native {phase} runtime stage binding is missing")
+                remote_stage = canonical[stage_id]
+            elif executor != "client_local" or weight_ids or len(operation_ids) != 1:
                 raise RuntimeBindingError(f"native {phase} runtime executor is unsupported")
             for operation_id, operation, output in zip(
                 operation_ids, operations, outputs, strict=True
@@ -1331,6 +1458,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                         "block_style",
                         "weight_bits",
                         "activation_bits",
+                        "runtime_config_digest",
                         "runtime_profile",
                         "verification_component",
                         "verification_target_failure_bits",
@@ -1403,8 +1531,8 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     spec = {
         "schema": BINDING_SCHEMA,
         "model_plan_digest": plan.digest,
-        "model_family": REQUIRED_MODEL_FAMILY,
-        "adapter": REQUIRED_ADAPTER,
+        "model_family": model_family,
+        "adapter": adapter,
         "bundle_fingerprint": fingerprint,
         "model_id": bundle.model_id,
         "body_fingerprint": body_fingerprint,
@@ -1422,6 +1550,11 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         "tokenizer_digest": tokenizer_digest,
     }
     canonical_bytes = _canonical_json(spec)
+    stage_routes = {
+        f"{stage.role}:{stage.layer_index}": stage.stage_id
+        for stage in bindings
+        if stage.layer_index is not None
+    }
     return CompiledRuntimeModel._create(
         plan=plan,
         bundle=bundle,
@@ -1431,7 +1564,9 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         stages=tuple(bindings),
         local_operations=tuple(sorted(local_operations)),
         runtime_config_digest=runtime_config_digest,
+        runtime_profile=runtime_profile,
         runtime_schedule_digest=runtime_schedule_digest,
+        stage_routes=stage_routes,
         tokenizer_digest=tokenizer_digest,
     )
 

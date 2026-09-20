@@ -35,7 +35,7 @@ cryptographic dependency.
 | `pllm-core` | Bounded numeric primitives, immutable integer matrices, codecs, masking, SIMD dispatch, and reference kernels |
 | `pllm-models` | Model-family configuration validation, semantic decoder IR, state contracts, and graph transformations |
 | `pllm-garble` | Experimental one-use arithmetic-garbling material and evaluators |
-| `pllm-compiler` | Region lowering, complete model-aware Qwen2 baseline scheduling, fixed-scale research composites, and plan verification |
+| `pllm-compiler` | Model-neutral semantic scheduling, region lowering, fixed-scale research composites, and plan verification |
 | `pllm-assurance` | Scoped assurance results and checked public fixtures |
 | `pllm-bench` | Native and deployment measurement records tied to plan and environment digests |
 | `pllm-plugin-api` | Independently versioned C-compatible native provider vtables, statuses, handles, buffers, header, and conformance fixtures |
@@ -82,27 +82,30 @@ operator coverage, protected/private parity, generation quality, benchmark
 evidence and deployment support are separate claims. A complete bounded semantic
 plan does not establish any later claim, and coverage is profile-scoped.
 
-For batch-one, untransformed Qwen2, `baseline.masked_linear_cpu` now has a complete
-model-aware prefill/decode schedule. The compiler groups q/k/v and gate/up stages by
-graph topology, schedules every layer, KV transition, final norm, last-token
-selection, output head, greedy selection and feedback, and emits a canonical digest.
-The Python binding then verifies that schedule against the model configuration,
-tokenizer, local norm tensors, quantized stage bytes, per-row scales, modulus policy,
-preparation commitments and shared boundary weights. A plan-bound session enforces
-workload limits and remote-stage output contracts, poisons partially advanced state,
-and erases logits and KV state when execution ends. The pinned
-Qwen2.5-0.5B-Instruct checkpoint passes a clear native-kernel prefill-to-decode
-functionality test through this path; a separate tiny test exercises the masked
-stage protocol.
+For batch-one untransformed plans, `baseline.masked_linear_cpu` now builds one
+model-neutral prefill/decode schedule from semantic operators, dependencies and
+declared weight artifacts. Independent remote operators with the same semantic
+input are grouped without parsing adapter-specific node names or weight paths; all
+other implemented operators are placed locally in dependency order. The Python
+binding resolves those weight groups against checkpoint stages, verifies exact
+shapes, configuration, tokenizer, local tensors, quantized bytes, scales, modulus
+policy and preparation commitments, and rejects any unresolved operation or stage.
+The same compiled binding and execution path is covered for tiny Qwen2 and dense
+Qwen3 checkpoints, including Qwen3 Q/K normalization. The pinned
+Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
+prefill-to-decode functionality test; a separate tiny test exercises the masked
+stage protocol. Gemma 4 semantic plans enter the same compiler scheduler but fail
+closed on local operators that the compiled runtime has not implemented.
 
 This baseline does not promote `research.single_evaluator`. The fixed-Q10 research
-path has executable regions for all dense-Qwen semantic operators, graph-derived
+path has executable regions for the dense gated-decoder operators, graph-derived
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
-composed into a real-model whole decoder. Qwen3, transformed MPCache execution,
-Qwen3.5, Phi and Gemma likewise remain incomplete for whole-model compiler
-execution. Existing runtime support for those checkpoint families is a separate
-axis unless an exact schedule and binding say otherwise.
+composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,
+Phi and compiler-bound Gemma checkpoint execution remain incomplete; dense Qwen3
+has only tiny synthetic compiled-runtime evidence. Existing runtime support for a
+checkpoint family is a separate axis unless an exact schedule, binding and execution
+test say otherwise.
 
 ## Python package
 

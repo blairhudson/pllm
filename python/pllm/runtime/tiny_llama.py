@@ -19,6 +19,8 @@ def create_tiny_llama_checkpoint(
     num_key_value_heads: int = 2,
     head_dim: int = 8,
     with_qkv_bias: bool = True,
+    model_type: str = "qwen2",
+    qk_norm: bool = False,
 ) -> Path:
     """Create a deterministic Qwen/Llama-compatible checkpoint for integration tests."""
 
@@ -32,10 +34,11 @@ def create_tiny_llama_checkpoint(
     def vector(width: int, scale: float = 0.02) -> torch.Tensor:
         return torch.randn(width, generator=generator) * scale
 
+    architecture = "Qwen3ForCausalLM" if model_type == "qwen3" else "Qwen2ForCausalLM"
     config = {
-        "architectures": ["Qwen2ForCausalLM"],
-        "model_type": "qwen2",
-        "name_or_path": "tiny-qwen2-pllm",
+        "architectures": [architecture],
+        "model_type": model_type,
+        "name_or_path": f"tiny-{model_type}-pllm",
         "vocab_size": vocab_size,
         "hidden_size": hidden_size,
         "intermediate_size": intermediate_size,
@@ -52,15 +55,29 @@ def create_tiny_llama_checkpoint(
         "eos_token_id": 1,
         "pad_token_id": 1,
         "rope_theta": 10000.0,
+        "attention_bias": with_qkv_bias,
+        "attention_dropout": 0.0,
+        "rope_scaling": None,
+        "use_cache": True,
+        "use_sliding_window": False,
+        "max_window_layers": num_hidden_layers,
+        "layer_types": ["full_attention"] * num_hidden_layers,
         "pllm_test_tokenizer": "byte",
     }
     (root / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    (root / "tokenizer_config.json").write_text(json.dumps({
-        "bos_token": "<bos>",
-        "eos_token": "<eos>",
-        "model_max_length": 256,
-        "chat_template": "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\\n{% endfor %}assistant: ",
-    }, indent=2) + "\n", encoding="utf-8")
+    (root / "tokenizer_config.json").write_text(
+        json.dumps(
+            {
+                "bos_token": "<bos>",
+                "eos_token": "<eos>",
+                "model_max_length": 256,
+                "chat_template": "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\\n{% endfor %}assistant: ",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     tensors: dict[str, torch.Tensor] = {
         "model.embed_tokens.weight": matrix(vocab_size, hidden_size, 0.12),
@@ -70,22 +87,33 @@ def create_tiny_llama_checkpoint(
         prefix = f"model.layers.{index}"
         q_width = num_attention_heads * head_dim
         kv_width = num_key_value_heads * head_dim
-        tensors.update({
-            f"{prefix}.self_attn.q_proj.weight": matrix(q_width, hidden_size),
-            f"{prefix}.self_attn.k_proj.weight": matrix(kv_width, hidden_size),
-            f"{prefix}.self_attn.v_proj.weight": matrix(kv_width, hidden_size),
-            f"{prefix}.self_attn.o_proj.weight": matrix(hidden_size, q_width),
-            f"{prefix}.mlp.gate_proj.weight": matrix(intermediate_size, hidden_size),
-            f"{prefix}.mlp.up_proj.weight": matrix(intermediate_size, hidden_size),
-            f"{prefix}.mlp.down_proj.weight": matrix(hidden_size, intermediate_size),
-            f"{prefix}.input_layernorm.weight": torch.ones(hidden_size),
-            f"{prefix}.post_attention_layernorm.weight": torch.ones(hidden_size),
-        })
+        tensors.update(
+            {
+                f"{prefix}.self_attn.q_proj.weight": matrix(q_width, hidden_size),
+                f"{prefix}.self_attn.k_proj.weight": matrix(kv_width, hidden_size),
+                f"{prefix}.self_attn.v_proj.weight": matrix(kv_width, hidden_size),
+                f"{prefix}.self_attn.o_proj.weight": matrix(hidden_size, q_width),
+                f"{prefix}.mlp.gate_proj.weight": matrix(intermediate_size, hidden_size),
+                f"{prefix}.mlp.up_proj.weight": matrix(intermediate_size, hidden_size),
+                f"{prefix}.mlp.down_proj.weight": matrix(hidden_size, intermediate_size),
+                f"{prefix}.input_layernorm.weight": torch.ones(hidden_size),
+                f"{prefix}.post_attention_layernorm.weight": torch.ones(hidden_size),
+            }
+        )
         if with_qkv_bias:
-            tensors.update({
-                f"{prefix}.self_attn.q_proj.bias": vector(q_width),
-                f"{prefix}.self_attn.k_proj.bias": vector(kv_width),
-                f"{prefix}.self_attn.v_proj.bias": vector(kv_width),
-            })
+            tensors.update(
+                {
+                    f"{prefix}.self_attn.q_proj.bias": vector(q_width),
+                    f"{prefix}.self_attn.k_proj.bias": vector(kv_width),
+                    f"{prefix}.self_attn.v_proj.bias": vector(kv_width),
+                }
+            )
+        if qk_norm:
+            tensors.update(
+                {
+                    f"{prefix}.self_attn.q_norm.weight": torch.ones(head_dim),
+                    f"{prefix}.self_attn.k_norm.weight": torch.ones(head_dim),
+                }
+            )
     save_file(tensors, root / "model.safetensors", metadata={"format": "pt"})
     return root

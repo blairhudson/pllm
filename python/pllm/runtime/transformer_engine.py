@@ -449,12 +449,24 @@ class MaskedTransformerEngine:
                 op="embedding",
                 in_features=manifest.vocab_size,
                 out_features=manifest.hidden_size + manifest.num_hidden_layers * ple,
-                weight_keys=("model.embed_tokens.weight", "embed_tokens.weight"),
+                weight_keys=(
+                    "model.embed_tokens.weight",
+                    *(("model.embed_tokens_per_layer.weight",) if ple else ()),
+                ),
                 transpose_weight=True,
                 role="token_lookup",
                 metadata={"ple_width": manifest.num_hidden_layers * ple},
             ),
         )
+        output_weight = (
+            "model.embed_tokens.weight"
+            if bool(config.get("tie_word_embeddings", False))
+            else "lm_head.weight"
+        )
+        stages = [
+            replace(stage, weight_keys=(output_weight,)) if stage.role == "lm_head" else stage
+            for stage in stages
+        ]
         stages = [
             replace(
                 stage,
@@ -1390,6 +1402,15 @@ class MaskedTransformerEngine:
                 "attention_scaling": config.get("attention_scaling"),
             }
         )
+        model.manifest.metadata["runtime_config_digest"] = hashlib.sha256(
+            json.dumps(
+                config,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode()
+        ).hexdigest()
         return msgpack.packb(
             {
                 "v": 2,

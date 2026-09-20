@@ -19,15 +19,21 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
+mod decoder_runtime_schedule;
 mod dense_qwen_attention;
 mod dense_qwen_layer;
 mod dense_qwen_mlp;
 mod dense_qwen_mlp_protected;
-mod dense_qwen_runtime_schedule;
 mod gated_tensor;
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
+pub use decoder_runtime_schedule::{
+    lower_decoder_runtime_schedule, lower_decoder_runtime_schedule_for_profile,
+    DecoderRuntimeExecutor, DecoderRuntimeOutput, DecoderRuntimePhaseSchedule,
+    DecoderRuntimeSchedule, DecoderRuntimeStep, DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION,
+    MASKED_LINEAR_RUNTIME_PROFILE, VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE,
+};
 pub use dense_qwen_attention::{
     compile_dense_qwen_attention_block, execute_dense_qwen_attention_decode,
     execute_dense_qwen_attention_prefill, CompiledDenseQwenAttentionBlock,
@@ -62,12 +68,6 @@ pub use dense_qwen_mlp_protected::{
     DenseQwenMlpProtectedNonlinearBinding, DenseQwenMlpProtectedNonlinearExecution,
     DenseQwenMlpProtectedResourcePolicy, ExperimentalDenseQwenMlpProtectedNonlinearApproval,
     DENSE_QWEN_MLP_PROTECTED_HARD_MAX_ROWS, DENSE_QWEN_MLP_PROTECTED_HARD_MAX_TOTAL_BODY_BYTES,
-};
-pub use dense_qwen_runtime_schedule::{
-    lower_dense_qwen_runtime_schedule, lower_dense_qwen_runtime_schedule_for_profile,
-    DenseQwenRuntimeExecutor, DenseQwenRuntimeOutput, DenseQwenRuntimePhaseSchedule,
-    DenseQwenRuntimeSchedule, DenseQwenRuntimeStep, DENSE_QWEN_MASKED_RUNTIME_PROFILE,
-    DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION, DENSE_QWEN_VERIFIED_RUNTIME_PROFILE,
 };
 pub use gated_tensor::{
     prepare_bound_gated_multiply_q7_tensor_material, BoundGatedMultiplyQ7TensorMaterial,
@@ -412,10 +412,8 @@ fn model_gated_multiply_q7_chunked_executable(plan: &DecoderPlan, mode: DecoderM
 }
 
 pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageReport {
-    let masked_runtime_complete = matches!(
-        profile,
-        DENSE_QWEN_MASKED_RUNTIME_PROFILE | DENSE_QWEN_VERIFIED_RUNTIME_PROFILE
-    ) && lower_dense_qwen_runtime_schedule(plan).is_ok();
+    let masked_runtime_complete = profile == MASKED_LINEAR_RUNTIME_PROFILE
+        && lower_decoder_runtime_schedule_for_profile(plan, profile).is_ok();
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -1660,13 +1658,15 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentProfile, Str
         5
     };
     if document.pipeline.components.len() != expected_components {
-        return Err(if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
-            "baseline profile requires exactly linear, preparation, inference, and kernels components"
+        return Err(
+            if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
+                "baseline profile requires exactly linear, preparation, inference, and kernels components"
                 .into()
-        } else {
-            "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
+            } else {
+                "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
                 .into()
-        });
+            },
+        );
     }
     if document.pipeline.profile == VERIFIED_MASKED_EXPERIMENT_PROFILE {
         let verification = document
@@ -2181,8 +2181,7 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
             5
         };
         if document.configuration.pipeline.components.len() != expected {
-            let message = if document.configuration.pipeline.profile
-                == BASELINE_EXPERIMENT_PROFILE
+            let message = if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE
             {
                 "baseline profile requires exactly linear, preparation, inference, and kernels components"
             } else {

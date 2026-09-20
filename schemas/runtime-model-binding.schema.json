@@ -5,11 +5,15 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "model_plan_digest", "model_family", "adapter", "bundle_fingerprint", "model_id", "body_fingerprint", "stage_commitment", "weight_bits", "activation_bits", "stages", "local_tensors", "local_operations", "operation_count", "complete", "completeness_scope", "runtime_config_digest", "runtime_schedule_digest", "tokenizer_digest"],
+  "oneOf": [
+    {"properties": {"model_family": {"const": "qwen2"}, "adapter": {"const": "pllm.qwen2.v1"}}},
+    {"properties": {"model_family": {"const": "qwen3"}, "adapter": {"const": "pllm.qwen3.v1"}}}
+  ],
   "properties": {
     "schema": {"const": "pllm.runtime_model_binding.v1"},
     "model_plan_digest": {"$ref": "#/$defs/digest"},
-    "model_family": {"const": "qwen2"},
-    "adapter": {"const": "pllm.qwen2.v1"},
+    "model_family": {"enum": ["qwen2", "qwen3"]},
+    "adapter": {"enum": ["pllm.qwen2.v1", "pllm.qwen3.v1"]},
     "bundle_fingerprint": {"$ref": "#/$defs/digest"},
     "model_id": {"type": "string", "minLength": 1},
     "body_fingerprint": {"$ref": "#/$defs/digest"},

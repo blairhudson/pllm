@@ -61,7 +61,7 @@ plan is not evidence of complete executable private inference.
 
 This paper claims an implemented prepared three-role runtime, a trusted local
 gateway, semantic adapters for the listed Qwen, Phi, and Gemma configurations, a
-complete model-aware Qwen2 baseline schedule bound to that runtime, typed
+model-neutral baseline scheduler with compiled Qwen2 and dense-Qwen3 bindings, typed
 component and plan foundations, and a bounded experimental Q7 SiLU garbling
 component. It does **not** claim complete execution for the protected research
 profile, transformed plans, other model families, or implemented autonomous plan
@@ -188,21 +188,24 @@ does not establish checkpoint import, compiler operator coverage, executable
 distributed placement, numerical parity, generation quality, or deployment
 support.
 
-Coverage is profile-scoped. For untransformed Qwen2,
-`baseline.masked_linear_cpu` now lowers every semantic operation into a
-deterministic prefill/decode schedule: q/k/v and gate/up stages are fused by
-topology; every layer, KV transition, final norm, last-token selection, output
-head, greedy selection, and feedback step is represented; and the schedule is
-bound to the model plan, tokenizer, runtime configuration, local tensors,
-quantized stage bytes, per-row scales, and preparation commitments. A plan-bound
+Coverage is profile-scoped. For untransformed plans,
+`baseline.masked_linear_cpu` now lowers supported semantic operators into a
+deterministic prefill/decode schedule. Independent weighted operators sharing one
+input are grouped without inspecting family-specific node names, while local
+operators retain dependency order. The schedule is bound to the model plan,
+tokenizer, runtime configuration, local tensors, quantized stage bytes, per-row
+scales, and preparation commitments. A plan-bound
 session enforces greedy token selection and feedback, input/output bounds,
 remote-stage shapes and finite values, and poisoned-state handling after partial
 failure. The same pinned Qwen2.5-0.5B checkpoint used by the prepared runtime
 passes a clear native-kernel prefill-to-decode functionality check through this
 binding; retained prepared-runtime evidence independently covers the masked
 protocol. This baseline remains client-heavy and non-protected for local
-operations. `research.single_evaluator`, transformed MPCache plans, Qwen3,
-Qwen3.5, Phi, and Gemma still report incomplete whole-model execution.
+operations. Tiny Qwen2 and dense-Qwen3 checkpoints exercise the same compiled
+binding, but only Qwen2 has pinned real-checkpoint evidence. Gemma 4 enters the
+same scheduler and fails closed on unimplemented local runtime operators.
+`research.single_evaluator`, transformed MPCache plans, Qwen3.5, and Phi remain
+incomplete for whole-model execution.
 
 ### Component library and autonomous search
 

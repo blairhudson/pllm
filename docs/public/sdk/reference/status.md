@@ -89,7 +89,7 @@ The [CLI reference](/cli/reference/) remains the source for exact parser help.
 | Responses API gateway | Available for text, streaming, function tools, continuation, compaction, storage controls, and structured errors |
 | Chat Completions API gateway | Available as a translation over the same private execution path for text, streaming, and function tools |
 | Native compile, benchmark, and assurance APIs | Available for their documented narrow scopes |
-| Complete private generation from `ModelPlan` | Available only for untransformed Qwen2 through `baseline.masked_linear_cpu` and a validated runtime bundle; protected research scheduling, MPCache execution, Qwen3, Qwen3.5, Phi, and Gemma remain incomplete |
+| Complete private generation from `ModelPlan` | Available for untransformed Qwen2 and compatible dense Qwen3 bundles through the same model-neutral `baseline.masked_linear_cpu` compiler path; only Qwen2 has pinned real-checkpoint evidence, while protected research scheduling, MPCache execution, Qwen3.5, Phi, and compiler-bound Gemma checkpoint execution remain incomplete |
 | Generation quality for semantic adapters | Not evaluated |
 | Privacy evidence for generated component descriptors | Not evaluated |
 | Remote role processes | Available; deployment automation, TLS, identity, rollback protection, and non-colluding operators are not provided by the commands |
