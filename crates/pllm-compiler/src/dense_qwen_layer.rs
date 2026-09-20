@@ -10,10 +10,10 @@ use super::{
     DENSE_QWEN_ATTENTION_CLEAR_PROFILE, DENSE_QWEN_MLP_CLEAR_PROFILE,
 };
 
-pub const DENSE_QWEN_LAYER_SCHEMA_VERSION: &str = "pllm.dense_qwen_layer.v1";
-pub const DENSE_QWEN_LAYER_CLEAR_PROFILE: &str = "pllm.clear_exact.dense_qwen_layer.q10_q4_q7.v1";
-const DENSE_QWEN_LAYER_BINDING_DOMAIN: &str = "pllm.dense_qwen_layer.binding.v1";
-const DENSE_QWEN_LAYER_STATE_DOMAIN: &str = "pllm.dense_qwen_layer.state.v1";
+pub const DENSE_QWEN_LAYER_SCHEMA_VERSION: &str = "pllm.dense_qwen_layer.v2";
+pub const DENSE_QWEN_LAYER_CLEAR_PROFILE: &str = "pllm.clear_exact.dense_qwen_layer.q10_q4_q7.v2";
+const DENSE_QWEN_LAYER_BINDING_DOMAIN: &str = "pllm.dense_qwen_layer.binding.v2";
+const DENSE_QWEN_LAYER_STATE_DOMAIN: &str = "pllm.dense_qwen_layer.state.v2";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DenseQwenLayerComposite {

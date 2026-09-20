@@ -30,17 +30,17 @@ use super::{
     Q14ToQ10RescaleRegion, StateKind,
 };
 
-pub const DENSE_QWEN_ATTENTION_BLOCK_SCHEMA_VERSION: &str = "pllm.dense_qwen_attention_block.v1";
+pub const DENSE_QWEN_ATTENTION_BLOCK_SCHEMA_VERSION: &str = "pllm.dense_qwen_attention_block.v2";
 pub const DENSE_QWEN_ATTENTION_CLEAR_PROFILE: &str =
-    "pllm.clear_exact.dense_qwen_attention.q10_q4.v1";
+    "pllm.clear_exact.dense_qwen_attention.q10_q4.v2";
 pub const DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_SCHEMA_VERSION: &str =
-    "pllm.dense_qwen_attention_weight_manifest.v1";
+    "pllm.dense_qwen_attention_weight_manifest.v2";
 pub const DENSE_QWEN_ATTENTION_HARD_MAX_TOTAL_WEIGHT_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 pub const DENSE_QWEN_ATTENTION_HARD_MAX_ACTIVATION_ELEMENTS: u64 = 16 * 1024 * 1024;
 const DENSE_QWEN_ATTENTION_WEIGHT_BYTES_DOMAIN: &str = "pllm.dense_qwen_attention.weight_bytes.v1";
 const DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_DOMAIN: &str =
-    "pllm.dense_qwen_attention.weight_manifest.v1";
-const DENSE_QWEN_ATTENTION_BINDING_DOMAIN: &str = "pllm.dense_qwen_attention.binding.v1";
+    "pllm.dense_qwen_attention.weight_manifest.v2";
+const DENSE_QWEN_ATTENTION_BINDING_DOMAIN: &str = "pllm.dense_qwen_attention.binding.v2";
 
 #[derive(Clone, Copy, Debug)]
 pub struct DenseQwenAttentionWeightBytes<'a> {
@@ -52,8 +52,11 @@ pub struct DenseQwenAttentionWeightBytes<'a> {
 pub struct DenseQwenAttentionWeights<'a> {
     pub norm_q10: DenseQwenAttentionWeightBytes<'a>,
     pub q_q4: DenseQwenAttentionWeightBytes<'a>,
+    pub q_bias_q10: DenseQwenAttentionWeightBytes<'a>,
     pub k_q4: DenseQwenAttentionWeightBytes<'a>,
+    pub k_bias_q10: DenseQwenAttentionWeightBytes<'a>,
     pub v_q4: DenseQwenAttentionWeightBytes<'a>,
+    pub v_bias_q10: DenseQwenAttentionWeightBytes<'a>,
     pub o_q4: DenseQwenAttentionWeightBytes<'a>,
 }
 
@@ -69,8 +72,11 @@ impl DenseQwenAttentionWeightManifest {
         for weight in [
             weights.norm_q10,
             weights.q_q4,
+            weights.q_bias_q10,
             weights.k_q4,
+            weights.k_bias_q10,
             weights.v_q4,
+            weights.v_bias_q10,
             weights.o_q4,
         ] {
             if weight.weight_id.is_empty() {
@@ -84,8 +90,8 @@ impl DenseQwenAttentionWeightManifest {
                 return Err("dense-qwen attention weight ids must be unique".into());
             }
         }
-        if entries.len() != 5 {
-            return Err("dense-qwen attention requires exactly five weights".into());
+        if entries.len() != 8 {
+            return Err("dense-qwen attention requires exactly eight weights and biases".into());
         }
         Ok(Self {
             schema_version: DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_SCHEMA_VERSION.to_owned(),
@@ -196,8 +202,11 @@ pub struct DenseQwenAttentionComposite {
     pub residual: ModelResidualRegion,
     pub norm_weight: DenseQwenAttentionWeightArtifact,
     pub q_weight: DenseQwenAttentionWeightArtifact,
+    pub q_bias: DenseQwenAttentionWeightArtifact,
     pub k_weight: DenseQwenAttentionWeightArtifact,
+    pub k_bias: DenseQwenAttentionWeightArtifact,
     pub v_weight: DenseQwenAttentionWeightArtifact,
+    pub v_bias: DenseQwenAttentionWeightArtifact,
     pub o_weight: DenseQwenAttentionWeightArtifact,
     pub protected_execution: bool,
     pub complete_decoder: bool,
@@ -995,12 +1004,16 @@ fn check_weight_ids(
 ) -> Result<(), String> {
     if weights.norm_q10.weight_id != regions.norm.weight_id
         || weights.q_q4.weight_id != regions.q.weight_id
+        || Some(weights.q_bias_q10.weight_id) != regions.q.bias_id.as_deref()
         || weights.k_q4.weight_id != regions.k.weight_id
+        || Some(weights.k_bias_q10.weight_id) != regions.k.bias_id.as_deref()
         || weights.v_q4.weight_id != regions.v.weight_id
+        || Some(weights.v_bias_q10.weight_id) != regions.v.bias_id.as_deref()
         || weights.o_q4.weight_id != regions.o.weight_id
+        || regions.o.bias_id.is_some()
     {
         return Err(
-            "dense-qwen attention weight ids must match the traced region weight ids".into(),
+            "dense-qwen attention weight and bias ids must match the traced region ids".into(),
         );
     }
     Ok(())
@@ -1028,6 +1041,12 @@ fn check_weight_lengths(
             .checked_mul(output)
             .ok_or_else(|| "dense-qwen attention linear weight shape overflows usize".into())
     };
+    let bias_expected = |region: &ModelLinearRegion| -> Result<usize, String> {
+        usize::try_from(region.operation.output.shape[1])
+            .map_err(|_| "dense-qwen attention bias width exceeds usize".to_owned())?
+            .checked_mul(2)
+            .ok_or_else(|| "dense-qwen attention bias length overflows usize".to_owned())
+    };
     if weights.q_q4.bytes.len() != expected(&regions.q)?
         || weights.k_q4.bytes.len() != expected(&regions.k)?
         || weights.v_q4.bytes.len() != expected(&regions.v)?
@@ -1036,6 +1055,12 @@ fn check_weight_lengths(
         return Err(
             "dense-qwen attention projection weights must match [output,input] byte lengths".into(),
         );
+    }
+    if weights.q_bias_q10.bytes.len() != bias_expected(&regions.q)?
+        || weights.k_bias_q10.bytes.len() != bias_expected(&regions.k)?
+        || weights.v_bias_q10.bytes.len() != bias_expected(&regions.v)?
+    {
+        return Err("dense-qwen attention biases must hold one Q10 i16 per output".into());
     }
     Ok(())
 }
@@ -1076,19 +1101,21 @@ fn validate_q4_row_bounds(
     Ok(())
 }
 
+type AttentionWeightArtifacts = (
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+    DenseQwenAttentionWeightArtifact,
+);
+
 fn weight_artifacts(
     regions: &AttentionRegions,
     weights: DenseQwenAttentionWeights<'_>,
-) -> Result<
-    (
-        DenseQwenAttentionWeightArtifact,
-        DenseQwenAttentionWeightArtifact,
-        DenseQwenAttentionWeightArtifact,
-        DenseQwenAttentionWeightArtifact,
-        DenseQwenAttentionWeightArtifact,
-    ),
-    String,
-> {
+) -> Result<AttentionWeightArtifacts, String> {
     let artifact = |weight: DenseQwenAttentionWeightBytes<'_>,
                     shape: Vec<u64>,
                     element_type: DenseQwenAttentionElementType,
@@ -1123,6 +1150,13 @@ fn weight_artifacts(
             DenseQwenAttentionLayout::RowMajorOutputInput,
         ),
         artifact(
+            weights.q_bias_q10,
+            vec![regions.q.operation.output.shape[1]],
+            DenseQwenAttentionElementType::SignedI16,
+            10,
+            DenseQwenAttentionLayout::RowMajorVector,
+        ),
+        artifact(
             weights.k_q4,
             matrix_shape(&regions.k),
             DenseQwenAttentionElementType::SignedI8,
@@ -1130,11 +1164,25 @@ fn weight_artifacts(
             DenseQwenAttentionLayout::RowMajorOutputInput,
         ),
         artifact(
+            weights.k_bias_q10,
+            vec![regions.k.operation.output.shape[1]],
+            DenseQwenAttentionElementType::SignedI16,
+            10,
+            DenseQwenAttentionLayout::RowMajorVector,
+        ),
+        artifact(
             weights.v_q4,
             matrix_shape(&regions.v),
             DenseQwenAttentionElementType::SignedI8,
             4,
             DenseQwenAttentionLayout::RowMajorOutputInput,
+        ),
+        artifact(
+            weights.v_bias_q10,
+            vec![regions.v.operation.output.shape[1]],
+            DenseQwenAttentionElementType::SignedI16,
+            10,
+            DenseQwenAttentionLayout::RowMajorVector,
         ),
         artifact(
             weights.o_q4,
@@ -1154,8 +1202,11 @@ fn check_resource_policy(
     let total: u64 = [
         weights.norm_q10.bytes.len(),
         weights.q_q4.bytes.len(),
+        weights.q_bias_q10.bytes.len(),
         weights.k_q4.bytes.len(),
+        weights.k_bias_q10.bytes.len(),
         weights.v_q4.bytes.len(),
+        weights.v_bias_q10.bytes.len(),
         weights.o_q4.bytes.len(),
     ]
     .iter()
@@ -1216,7 +1267,7 @@ fn build_composite(
         validate_q4_row_bounds(bytes, rows, columns, role)?;
     }
     check_resource_policy(&regions, weights, resource_policy)?;
-    let (norm_weight, q_weight, k_weight, v_weight, o_weight) =
+    let (norm_weight, q_weight, q_bias, k_weight, k_bias, v_weight, v_bias, o_weight) =
         weight_artifacts(&regions, weights)?;
     Ok(DenseQwenAttentionComposite {
         schema_version: DENSE_QWEN_ATTENTION_BLOCK_SCHEMA_VERSION.to_owned(),
@@ -1257,8 +1308,11 @@ fn build_composite(
         residual: regions.residual,
         norm_weight,
         q_weight,
+        q_bias,
         k_weight,
+        k_bias,
         v_weight,
+        v_bias,
         o_weight,
         protected_execution: false,
         complete_decoder: false,
@@ -1269,8 +1323,14 @@ struct OwnedWeights {
     norm_bytes: Vec<u8>,
     norm_q10: Vec<i16>,
     q_q4: Vec<u8>,
+    q_bias_bytes: Vec<u8>,
+    q_bias_q10: Vec<i16>,
     k_q4: Vec<u8>,
+    k_bias_bytes: Vec<u8>,
+    k_bias_q10: Vec<i16>,
     v_q4: Vec<u8>,
+    v_bias_bytes: Vec<u8>,
+    v_bias_q10: Vec<i16>,
     o_q4: Vec<u8>,
 }
 
@@ -1284,22 +1344,34 @@ impl OwnedWeights {
             copied.extend_from_slice(bytes);
             Ok(copied)
         };
-        if weights.norm_q10.bytes.len() % 2 != 0 {
-            return Err("dense-qwen attention norm weight requires even byte length".into());
-        }
-        let mut norm_q10 = Vec::new();
-        norm_q10
-            .try_reserve_exact(weights.norm_q10.bytes.len() / 2)
-            .map_err(|_| "dense-qwen attention norm weight decode allocation failed")?;
-        for chunk in weights.norm_q10.bytes.chunks_exact(2) {
-            norm_q10.push(i16::from_le_bytes([chunk[0], chunk[1]]));
-        }
+        let decode_i16 = |bytes: &[u8], role: &str| -> Result<Vec<i16>, String> {
+            if bytes.len() % 2 != 0 {
+                return Err(format!(
+                    "dense-qwen attention {role} requires even byte length"
+                ));
+            }
+            let mut values = Vec::new();
+            values
+                .try_reserve_exact(bytes.len() / 2)
+                .map_err(|_| format!("dense-qwen attention {role} decode allocation failed"))?;
+            for chunk in bytes.chunks_exact(2) {
+                values.push(i16::from_le_bytes([chunk[0], chunk[1]]));
+            }
+            Ok(values)
+        };
+        let norm_q10 = decode_i16(weights.norm_q10.bytes, "norm weight")?;
         Ok(Self {
             norm_bytes: copy_bytes(weights.norm_q10.bytes, "norm")?,
             norm_q10,
             q_q4: copy_bytes(weights.q_q4.bytes, "query projection")?,
+            q_bias_bytes: copy_bytes(weights.q_bias_q10.bytes, "query bias")?,
+            q_bias_q10: decode_i16(weights.q_bias_q10.bytes, "query bias")?,
             k_q4: copy_bytes(weights.k_q4.bytes, "key projection")?,
+            k_bias_bytes: copy_bytes(weights.k_bias_q10.bytes, "key bias")?,
+            k_bias_q10: decode_i16(weights.k_bias_q10.bytes, "key bias")?,
             v_q4: copy_bytes(weights.v_q4.bytes, "value projection")?,
+            v_bias_bytes: copy_bytes(weights.v_bias_q10.bytes, "value bias")?,
+            v_bias_q10: decode_i16(weights.v_bias_q10.bytes, "value bias")?,
             o_q4: copy_bytes(weights.o_q4.bytes, "output projection")?,
         })
     }
@@ -1314,13 +1386,25 @@ impl OwnedWeights {
                 weight_id: "",
                 bytes: &self.q_q4,
             },
+            q_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: "",
+                bytes: &self.q_bias_bytes,
+            },
             k_q4: DenseQwenAttentionWeightBytes {
                 weight_id: "",
                 bytes: &self.k_q4,
             },
+            k_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: "",
+                bytes: &self.k_bias_bytes,
+            },
             v_q4: DenseQwenAttentionWeightBytes {
                 weight_id: "",
                 bytes: &self.v_q4,
+            },
+            v_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: "",
+                bytes: &self.v_bias_bytes,
             },
             o_q4: DenseQwenAttentionWeightBytes {
                 weight_id: "",
@@ -1354,9 +1438,9 @@ pub fn compile_dense_qwen_attention_block(
 ) -> Result<CompiledDenseQwenAttentionBlock, String> {
     resource_policy.validate()?;
     if weight_manifest.schema_version != DENSE_QWEN_ATTENTION_WEIGHT_MANIFEST_SCHEMA_VERSION
-        || weight_manifest.entries.len() != 5
+        || weight_manifest.entries.len() != 8
     {
-        return Err("dense-qwen attention requires a five-entry weight manifest".into());
+        return Err("dense-qwen attention requires an eight-entry weight manifest".into());
     }
     let composite = build_composite(
         plan,
@@ -1369,8 +1453,11 @@ pub fn compile_dense_qwen_attention_block(
     for artifact in [
         &composite.norm_weight,
         &composite.q_weight,
+        &composite.q_bias,
         &composite.k_weight,
+        &composite.k_bias,
         &composite.v_weight,
+        &composite.v_bias,
         &composite.o_weight,
     ] {
         if weight_manifest.entries.get(&artifact.weight_id) != Some(&artifact.data_digest) {
@@ -1418,13 +1505,25 @@ fn validate_compiled_block(
                 weight_id: &block.composite.q_weight.weight_id,
                 bytes: borrowed.q_q4.bytes,
             },
+            q_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: &block.composite.q_bias.weight_id,
+                bytes: borrowed.q_bias_q10.bytes,
+            },
             k_q4: DenseQwenAttentionWeightBytes {
                 weight_id: &block.composite.k_weight.weight_id,
                 bytes: borrowed.k_q4.bytes,
             },
+            k_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: &block.composite.k_bias.weight_id,
+                bytes: borrowed.k_bias_q10.bytes,
+            },
             v_q4: DenseQwenAttentionWeightBytes {
                 weight_id: &block.composite.v_weight.weight_id,
                 bytes: borrowed.v_q4.bytes,
+            },
+            v_bias_q10: DenseQwenAttentionWeightBytes {
+                weight_id: &block.composite.v_bias.weight_id,
+                bytes: borrowed.v_bias_q10.bytes,
             },
             o_q4: DenseQwenAttentionWeightBytes {
                 weight_id: &block.composite.o_weight.weight_id,
@@ -1629,11 +1728,40 @@ struct PreCacheTensors {
     v: Zeroizing<Vec<i16>>,
 }
 
+fn zero_masked_rows(values: &mut [i16], mask: &[bool]) -> Result<(), String> {
+    if mask.is_empty() || values.len() % mask.len() != 0 {
+        return Err("dense-qwen attention projected mask shape mismatch".into());
+    }
+    let width = values.len() / mask.len();
+    for (row, valid) in values.chunks_exact_mut(width).zip(mask) {
+        if !valid {
+            row.fill(0);
+        }
+    }
+    Ok(())
+}
+
+fn reject_nonzero_masked_input(values: &[u32], mask: &[bool]) -> Result<(), String> {
+    if mask.is_empty() || values.len() % mask.len() != 0 {
+        return Err("dense-qwen attention input mask shape mismatch".into());
+    }
+    let width = values.len() / mask.len();
+    if values
+        .chunks_exact(width)
+        .zip(mask)
+        .any(|(row, valid)| !valid && row.iter().any(|value| *value != 0))
+    {
+        return Err("dense-qwen attention masked input rows must be zero".into());
+    }
+    Ok(())
+}
+
 fn pre_cache_forward(
     plan: &DecoderPlan,
     block: &CompiledDenseQwenAttentionBlock,
     input_q10: &[u32],
     positions: &[u32],
+    attention_mask: &[bool],
     policy: DenseQwenAttentionExecutionPolicy,
 ) -> Result<PreCacheTensors, String> {
     let composite = &block.composite;
@@ -1661,6 +1789,7 @@ fn pre_cache_forward(
                       rescale: &Q14ToQ10RescaleRegion,
                       reshape: &ModelReshapeRegion,
                       weights: &[u8],
+                      bias_q10: &[i16],
                       role: &str|
      -> Result<Zeroizing<Vec<i16>>, String> {
         let q14 = Zeroizing::new(execute_model_linear(
@@ -1671,7 +1800,20 @@ fn pre_cache_forward(
             policy.simd,
         )?);
         check_activation(block, q14.len(), role)?;
-        let q10 = Zeroizing::new(execute_q14_to_q10_rescale(rescale, &q14)?);
+        let mut q10 = Zeroizing::new(execute_q14_to_q10_rescale(rescale, &q14)?);
+        if bias_q10.is_empty() || q10.len() % bias_q10.len() != 0 {
+            return Err(format!(
+                "dense-qwen attention {role} bias does not match output width"
+            ));
+        }
+        for row in q10.chunks_exact_mut(bias_q10.len()) {
+            for (value, bias) in row.iter_mut().zip(bias_q10) {
+                *value = i16::try_from(i32::from(*value) + i32::from(*bias)).map_err(|_| {
+                    format!("dense-qwen attention {role} bias result is outside signed Q10 i16")
+                })?;
+            }
+        }
+        zero_masked_rows(&mut q10, attention_mask)?;
         let reshaped = Zeroizing::new(execute_model_reshape(reshape, &encode_centered_i16(&q10)?)?);
         decode_centered_q10(&reshaped, role)
     };
@@ -1680,6 +1822,7 @@ fn pre_cache_forward(
         &composite.q_rescale,
         &composite.q_reshape,
         &block.weights.q_q4,
+        &block.weights.q_bias_q10,
         "query projection",
     )?;
     let k_heads = projection(
@@ -1687,6 +1830,7 @@ fn pre_cache_forward(
         &composite.k_rescale,
         &composite.k_reshape,
         &block.weights.k_q4,
+        &block.weights.k_bias_q10,
         "key projection",
     )?;
     let v_heads = projection(
@@ -1694,6 +1838,7 @@ fn pre_cache_forward(
         &composite.v_rescale,
         &composite.v_reshape,
         &block.weights.v_q4,
+        &block.weights.v_bias_q10,
         "value projection",
     )?;
     let q_rope = Zeroizing::new(execute_model_rope_q10(
@@ -1831,7 +1976,8 @@ pub fn execute_dense_qwen_attention_prefill(
         return Err("dense-qwen attention prefill requires a prefill block".into());
     }
     validate_execution_inputs(block, input_q10, positions, attention_mask, valid_lengths)?;
-    let tensors = pre_cache_forward(plan, block, input_q10, positions, policy)?;
+    reject_nonzero_masked_input(input_q10, attention_mask)?;
+    let tensors = pre_cache_forward(plan, block, input_q10, positions, attention_mask, policy)?;
     let key_cache = initialize_model_kv_cache_q10(
         plan,
         &block.composite.key_append,
@@ -1899,7 +2045,8 @@ pub fn execute_dense_qwen_attention_decode(
         attention_mask,
         new_valid_lengths,
     )?;
-    let tensors = pre_cache_forward(plan, block, input_q10, positions, policy)?;
+    reject_nonzero_masked_input(input_q10, attention_mask)?;
+    let tensors = pre_cache_forward(plan, block, input_q10, positions, attention_mask, policy)?;
     state.usable = false;
     append_model_kv_cache_q10(
         &mut state.key,

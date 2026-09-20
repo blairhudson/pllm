@@ -41,8 +41,11 @@ fn q4_matrix(rows: usize, cols: usize, seed: usize) -> Vec<u8> {
 struct AttentionWeights {
     norm: Vec<u8>,
     q: Vec<u8>,
+    q_bias: Vec<u8>,
     k: Vec<u8>,
+    k_bias: Vec<u8>,
     v: Vec<u8>,
+    v_bias: Vec<u8>,
     o: Vec<u8>,
 }
 
@@ -54,8 +57,11 @@ impl AttentionWeights {
                 .flat_map(|value| value.to_le_bytes())
                 .collect(),
             q: q4_matrix(8, 8, 0),
+            q_bias: vec![0; 16],
             k: q4_matrix(4, 8, 1),
+            k_bias: vec![0; 8],
             v: q4_matrix(4, 8, 2),
+            v_bias: vec![0; 8],
             o: q4_matrix(8, 8, 3),
         }
     }
@@ -64,8 +70,11 @@ impl AttentionWeights {
         DenseQwenAttentionWeights {
             norm_q10: attention_weight("model.layers.0.input_layernorm.weight", &self.norm),
             q_q4: attention_weight("model.layers.0.self_attn.q_proj.weight", &self.q),
+            q_bias_q10: attention_weight("model.layers.0.self_attn.q_proj.bias", &self.q_bias),
             k_q4: attention_weight("model.layers.0.self_attn.k_proj.weight", &self.k),
+            k_bias_q10: attention_weight("model.layers.0.self_attn.k_proj.bias", &self.k_bias),
             v_q4: attention_weight("model.layers.0.self_attn.v_proj.weight", &self.v),
+            v_bias_q10: attention_weight("model.layers.0.self_attn.v_proj.bias", &self.v_bias),
             o_q4: attention_weight("model.layers.0.self_attn.o_proj.weight", &self.o),
         }
     }

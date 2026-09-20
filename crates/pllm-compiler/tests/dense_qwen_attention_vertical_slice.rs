@@ -43,14 +43,23 @@ struct TestWeights {
     norm: Vec<u8>,
     norm_i16: Vec<i16>,
     q: Vec<u8>,
+    q_bias: Vec<u8>,
+    q_bias_i16: Vec<i16>,
     k: Vec<u8>,
+    k_bias: Vec<u8>,
+    k_bias_i16: Vec<i16>,
     v: Vec<u8>,
+    v_bias: Vec<u8>,
+    v_bias_i16: Vec<i16>,
     o: Vec<u8>,
 }
 
 impl TestWeights {
     fn new() -> Self {
         let norm_i16 = vec![1024_i16; 8];
+        let q_bias_i16: Vec<i16> = vec![4, -3, 2, -1, 1, -2, 3, -4];
+        let k_bias_i16: Vec<i16> = vec![3, -2, 1, -1];
+        let v_bias_i16: Vec<i16> = vec![-1, 2, -3, 4];
         Self {
             norm: norm_i16
                 .iter()
@@ -58,8 +67,23 @@ impl TestWeights {
                 .collect(),
             norm_i16,
             q: q4_matrix(8, 8, 0),
+            q_bias: q_bias_i16
+                .iter()
+                .flat_map(|value| value.to_le_bytes())
+                .collect(),
+            q_bias_i16,
             k: q4_matrix(4, 8, 1),
+            k_bias: k_bias_i16
+                .iter()
+                .flat_map(|value| value.to_le_bytes())
+                .collect(),
+            k_bias_i16,
             v: q4_matrix(4, 8, 2),
+            v_bias: v_bias_i16
+                .iter()
+                .flat_map(|value| value.to_le_bytes())
+                .collect(),
+            v_bias_i16,
             o: q4_matrix(8, 8, 3),
         }
     }
@@ -68,8 +92,11 @@ impl TestWeights {
         DenseQwenAttentionWeights {
             norm_q10: weight("model.layers.0.input_layernorm.weight", &self.norm),
             q_q4: weight("model.layers.0.self_attn.q_proj.weight", &self.q),
+            q_bias_q10: weight("model.layers.0.self_attn.q_proj.bias", &self.q_bias),
             k_q4: weight("model.layers.0.self_attn.k_proj.weight", &self.k),
+            k_bias_q10: weight("model.layers.0.self_attn.k_proj.bias", &self.k_bias),
             v_q4: weight("model.layers.0.self_attn.v_proj.weight", &self.v),
+            v_bias_q10: weight("model.layers.0.self_attn.v_proj.bias", &self.v_bias),
             o_q4: weight("model.layers.0.self_attn.o_proj.weight", &self.o),
         }
     }
@@ -166,6 +193,7 @@ fn merge_heads(input: &[i16], batch: usize, sequence: usize, heads: usize, dim: 
 
 fn oracle_linear(
     weights: &[u8],
+    bias: Option<&[i16]>,
     output_width: usize,
     input_width: usize,
     input: &[i32],
@@ -175,7 +203,15 @@ fn oracle_linear(
     let executor = pllm_core::Executor::new(1, false).unwrap();
     let rows = input.len() / input_width;
     let q14 = matrix.wrap32(&executor, &wrap, rows).unwrap();
-    pllm_core::rescale_q14_to_q10_centered_u32_tensor(&q14).unwrap()
+    let mut output = pllm_core::rescale_q14_to_q10_centered_u32_tensor(&q14).unwrap();
+    if let Some(bias) = bias {
+        for row in output.chunks_exact_mut(output_width) {
+            for (value, bias) in row.iter_mut().zip(bias) {
+                *value = i16::try_from(i32::from(*value) + i32::from(*bias)).unwrap();
+            }
+        }
+    }
+    output
 }
 
 fn flatten_cache(cache: &pllm_core::BoundedKvCacheQ10, maximum_sequence: usize) -> Vec<i16> {
@@ -217,9 +253,42 @@ fn oracle_forward(
     let capacity = composite.key_append.state_shape[2] as usize;
     let normalized = pllm_core::rms_norm_q10_direct(input, &weights.norm_i16).unwrap();
     let normalized_i32: Vec<i32> = normalized;
-    let q = oracle_linear(&weights.q, heads * head_dim, hidden, &normalized_i32);
-    let k = oracle_linear(&weights.k, kv_heads * head_dim, hidden, &normalized_i32);
-    let v = oracle_linear(&weights.v, kv_heads * head_dim, hidden, &normalized_i32);
+    let mut q = oracle_linear(
+        &weights.q,
+        Some(&weights.q_bias_i16),
+        heads * head_dim,
+        hidden,
+        &normalized_i32,
+    );
+    let mut k = oracle_linear(
+        &weights.k,
+        Some(&weights.k_bias_i16),
+        kv_heads * head_dim,
+        hidden,
+        &normalized_i32,
+    );
+    let mut v = oracle_linear(
+        &weights.v,
+        Some(&weights.v_bias_i16),
+        kv_heads * head_dim,
+        hidden,
+        &normalized_i32,
+    );
+    for (row, valid) in q.chunks_exact_mut(heads * head_dim).zip(attention_mask) {
+        if !valid {
+            row.fill(0);
+        }
+    }
+    for values in [&mut k, &mut v] {
+        for (row, valid) in values
+            .chunks_exact_mut(kv_heads * head_dim)
+            .zip(attention_mask)
+        {
+            if !valid {
+                row.fill(0);
+            }
+        }
+    }
     let q_heads = split_heads(&q, batch, query, heads, head_dim);
     let k_heads = split_heads(&k, batch, query, kv_heads, head_dim);
     let v_heads = split_heads(&v, batch, query, kv_heads, head_dim);
@@ -318,7 +387,7 @@ fn oracle_forward(
     .unwrap();
     let hidden_flat = merge_heads(values.values(), batch, query, heads, head_dim);
     let hidden_i32: Vec<i32> = hidden_flat.iter().map(|value| i32::from(*value)).collect();
-    let o = oracle_linear(&weights.o, hidden, heads * head_dim, &hidden_i32);
+    let o = oracle_linear(&weights.o, None, hidden, heads * head_dim, &hidden_i32);
     input
         .iter()
         .zip(&o)
@@ -751,8 +820,11 @@ fn compile_rejects_wrong_family_transformations_weights_and_bounds() {
     let manifest = DenseQwenAttentionWeightManifest::from_weights(input).unwrap();
     let total = input.norm_q10.bytes.len()
         + input.q_q4.bytes.len()
+        + input.q_bias_q10.bytes.len()
         + input.k_q4.bytes.len()
+        + input.k_bias_q10.bytes.len()
         + input.v_q4.bytes.len()
+        + input.v_bias_q10.bytes.len()
         + input.o_q4.bytes.len();
     assert!(compile_dense_qwen_attention_block(
         &plan,
