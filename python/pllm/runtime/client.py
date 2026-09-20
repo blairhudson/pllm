@@ -23,6 +23,7 @@ import httpx
 import msgpack
 import numpy as np
 from filelock import FileLock
+from pllm import _native
 
 from .secure_random import FieldRandom
 
@@ -51,6 +52,9 @@ from .preparation_protocol import (
     SessionAuthorizationAck,
     expand_output_mask,
     expand_preparation_mask,
+    freivalds_binding,
+    freivalds_material_id,
+    freivalds_session_id,
 )
 from .stage_protocol import (
     BlindedStageCorrelation,
@@ -61,7 +65,7 @@ from .stage_protocol import (
     blinded_correlation_from_wire,
     prepared_stage_batch_rows,
 )
-from .quantization import dequantize_matmul, quantize_activation_per_row
+from .quantization import dequantize_matmul, quantize_activation_per_row, signed_qmax
 from .transformer_client import (
     ClientBundle,
     MaskedTransformerClientRuntime,
@@ -379,6 +383,28 @@ class _BFVStageClient:
             for item in value["ciphertexts"]
         ]
         return np.asarray(outputs, dtype=np.uint32)
+
+
+def _client_freivalds_policy(authorization, stages):
+    if authorization.verification_component == "none":
+        return None
+    max_matrix = max(stage.in_features * stage.out_features for stage in stages)
+    max_input = max(stage.in_features for stage in stages)
+    max_output = max(stage.out_features for stage in stages)
+    rows = authorization.rows
+    checks = 8
+    return _native.FreivaldsPolicy(
+        authorization.verification_target_failure_bits,
+        authorization.max_attempts,
+        max_matrix,
+        rows * checks * max_input,
+        rows * checks * max_output,
+        rows * max_output,
+        max_matrix * rows * checks,
+        rows,
+        freivalds_session_id(authorization),
+        True,
+    )
 
 
 @dataclass(slots=True)
@@ -1306,6 +1332,10 @@ class RuntimeClient:
                         "client_runtime": runtime.get("client_runtime"),
                         "privacy_mode": runtime.get("privacy_mode"),
                         "privacy_protocol": runtime.get("privacy_protocol"),
+                        "verification_component": runtime.get("verification_component", "none"),
+                        "verification_target_failure_bits": runtime.get(
+                            "verification_target_failure_bits", 0
+                        ),
                     }
                 if (
                     metadata.get("client_runtime") != expected_runtime
@@ -1314,6 +1344,10 @@ class RuntimeClient:
                         expected_protocol is not None
                         and metadata.get("privacy_protocol") != expected_protocol
                     )
+                    or metadata.get("verification_component", "none")
+                    != (self.experiment.verification_component or "none")
+                    or int(metadata.get("verification_target_failure_bits", 0))
+                    != self.experiment.verification_target_failure_bits
                 ):
                     raise ProtocolError(
                         "Experiment runtime contract does not match inference metadata", 409
@@ -1333,14 +1367,13 @@ class RuntimeClient:
 
             if self.experiment is not None and (
                 state.privacy_mode != self.experiment.privacy_mode
-                or (
-                    expected_protocol is not None
-                    and state.privacy_protocol != expected_protocol
-                )
+                or (expected_protocol is not None and state.privacy_protocol != expected_protocol)
+                or state.bundle.privacy.get("verification_component", "none")
+                != (self.experiment.verification_component or "none")
+                or int(state.bundle.privacy.get("verification_target_failure_bits", 0))
+                != self.experiment.verification_target_failure_bits
             ):
-                raise ProtocolError(
-                    "Experiment privacy mode does not match the client bundle", 409
-                )
+                raise ProtocolError("Experiment privacy mode does not match the client bundle", 409)
 
             if state.privacy_mode == "public" and not state.preparation_verified:
                 if self.preparation_http is None:
@@ -1446,11 +1479,23 @@ class RuntimeClient:
         inventory_id = str(value["id"])
         try:
             descriptor = value.get("preparation_authorization") or {}
+            expected_verification = (
+                self.experiment.verification_component
+                if self.experiment is not None
+                else state.bundle.privacy.get("verification_component", "none")
+            )
+            expected_failure_bits = (
+                self.experiment.verification_target_failure_bits
+                if self.experiment is not None
+                else int(state.bundle.privacy.get("verification_target_failure_bits", 0))
+            )
             expected = {
                 "body_fingerprint": state.bundle.privacy.get("body_fingerprint"),
                 "stage_commitment": state.bundle.privacy.get("stage_commitment"),
                 "weight_bits": state.bundle.privacy.get("weight_bits"),
                 "activation_bits": state.bundle.privacy.get("activation_bits"),
+                "verification_component": expected_verification or "none",
+                "verification_target_failure_bits": expected_failure_bits,
             }
             if any(descriptor.get(name) != item for name, item in expected.items()):
                 raise ProtocolError("inventory authorization commitments do not match", 409)
@@ -1468,6 +1513,8 @@ class RuntimeClient:
                 max_attempts=int(descriptor["max_attempts"]),
                 rows=int(descriptor["rows"]),
                 stage_ids=tuple(str(stage_id) for stage_id in descriptor["stage_ids"]),
+                verification_component=str(expected["verification_component"]),
+                verification_target_failure_bits=int(expected["verification_target_failure_bits"]),
             )
             if authorization.rows != rows or authorization.stage_ids != tuple(
                 stage.id for stage in remote_stages
@@ -1488,6 +1535,7 @@ class RuntimeClient:
             if SessionAuthorizationAck.unpack(authorized.content).session_id != inventory_id:
                 raise ModelError("preparation inventory authorization mismatch")
 
+            verification_policy = _client_freivalds_policy(authorization, remote_stages)
             prepared_stages: dict[str, PreparedStageRows] = {}
             for stage in remote_stages:
                 profile = stage.seeded_profile
@@ -1520,25 +1568,46 @@ class RuntimeClient:
                     0,
                     phase="offline",
                 )
+                prepared = None
                 try:
-                    prepared = self.preparation_http.post(
-                        f"/v1/preparation/inventories/{inventory_id}/stages/{stage.id}",
-                        headers={
-                            **self.preparation_headers,
-                            "Content-Type": "application/octet-stream",
-                        },
-                        content=payload,
+                    max_prepared_bytes = 4_096
+                    if verification_policy is not None:
+                        max_prepared_bytes += (
+                            request.rows
+                            * verification_policy.checks
+                            * request.in_features
+                            * 4
+                        )
+                    prepared = self.preparation_http.send(
+                        self.preparation_http.build_request(
+                            "POST",
+                            f"/v1/preparation/inventories/{inventory_id}/stages/{stage.id}",
+                            headers={
+                                **self.preparation_headers,
+                                "Content-Type": "application/octet-stream",
+                            },
+                            content=payload,
+                        ),
+                        stream=True,
                     )
                     _raise(prepared)
+                    prepared_content = bytearray()
+                    for chunk in prepared.iter_bytes():
+                        if len(prepared_content) + len(chunk) > max_prepared_bytes:
+                            raise ProtocolError("preparation response exceeds its bound", 413)
+                        prepared_content.extend(chunk)
+                    prepared.close()
                 except Exception as exc:
+                    if prepared is not None:
+                        prepared.close()
                     protocol_span.record_exception(exc)
                     protocol_span.end()
                     raise
                 self.audit.preparation_attempts += 1
                 self.audit.preparation_rows += request.rows
-                self.audit.preparation_download_bytes += len(prepared.content)
+                self.audit.preparation_download_bytes += len(prepared_content)
                 try:
-                    ack = PreparationAck.unpack(prepared.content)
+                    ack = PreparationAck.unpack(bytes(prepared_content))
                 except Exception as exc:
                     protocol_span.record_exception(exc)
                     protocol_span.end()
@@ -1552,16 +1621,43 @@ class RuntimeClient:
                 self.audit.preparation_server_ns += ack.server_ns
                 self.audit.correction_push_ns += ack.push_ns
                 record_protocol_bytes("client", "preparation", len(payload), stage.id)
-                record_protocol_bytes("preparation", "client", len(prepared.content), stage.id)
+                record_protocol_bytes("preparation", "client", len(prepared_content), stage.id)
                 protocol_span.set_attribute(
                     "pllm.preparation_inference.bytes", ack.correction_bytes
                 )
-                protocol_span.set_attribute("pllm.preparation_client.bytes", len(prepared.content))
+                protocol_span.set_attribute("pllm.preparation_client.bytes", len(prepared_content))
                 protocol_span.end()
+                verification = None
+                verification_binding = b""
+                if verification_policy is not None:
+                    verification_binding = freivalds_binding(authorization, request)
+                    if (
+                        ack.verification_component != authorization.verification_component
+                        or ack.verification_checks != verification_policy.checks
+                        or ack.verification_material_id
+                        != freivalds_material_id(authorization, request)
+                    ):
+                        raise ModelError("preparation verification acknowledgement mismatch")
+                    verification = _native.import_freivalds(
+                        ack.verification_payload,
+                        ack.verification_tag,
+                        request.seed,
+                        request.rows,
+                        request.in_features,
+                        request.out_features,
+                        verification_binding,
+                        ack.verification_material_id,
+                        signed_qmax(request.activation_bits),
+                        request.signed_output_bound,
+                        ack.verification_max_row_l1,
+                        verification_policy,
+                    )
                 prepared_stages[stage.id] = PreparedStageRows(
                     request=request,
                     input_mask=expand_preparation_mask(request),
                     output_mask=expand_output_mask(request),
+                    verification=verification,
+                    verification_binding=verification_binding,
                 )
             sealed = self.http.post(
                 f"/v1/runtime/inventories/{inventory_id}/ready",
@@ -1589,6 +1685,7 @@ class RuntimeClient:
             raise
 
     def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
+        inventory.cancel()
         try:
             self.http.post(f"/v1/runtime/inventories/{inventory.id}/cancel", headers=self.headers)
         except Exception:

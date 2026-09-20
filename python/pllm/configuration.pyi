@@ -165,6 +165,8 @@ class ExperimentProfile:
     requires_preparation: bool
     client_runtime: str
     privacy_protocol: str | None
+    verification_component: str | None
+    verification_target_failure_bits: int
     def __init__(self, experiment: Experiment) -> None: ...
 
 def loads_configuration(

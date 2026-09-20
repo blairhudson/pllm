@@ -3,13 +3,14 @@
 //! once at compilation. Arithmetic runs without the Python interpreter lock.
 use pllm_core::{codec, kernels};
 
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU8, Ordering},
     Arc, Mutex,
 };
+use zeroize::Zeroizing;
 
 fn invalid(error: String) -> PyErr {
     PyValueError::new_err(error)
@@ -143,6 +144,388 @@ fn bytes_f32(values: &[f32]) -> Vec<u8> {
         output.extend_from_slice(&value.to_le_bytes());
     }
     output
+}
+
+fn signed_i8s(bytes: &[u8]) -> PyResult<Vec<i8>> {
+    let mut values = Vec::new();
+    values
+        .try_reserve_exact(bytes.len())
+        .map_err(|_| PyRuntimeError::new_err("Freivalds weight allocation failed"))?;
+    values.extend(bytes.iter().map(|value| *value as i8));
+    Ok(values)
+}
+
+fn bounded_copy(bytes: &[u8], maximum: usize, kind: &str) -> PyResult<Vec<u8>> {
+    if bytes.is_empty() || bytes.len() > maximum {
+        return Err(invalid(format!("{kind} has an invalid byte length")));
+    }
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(bytes.len())
+        .map_err(|_| PyRuntimeError::new_err(format!("{kind} allocation failed")))?;
+    output.extend_from_slice(bytes);
+    Ok(output)
+}
+
+fn exact_i32s(bytes: &[u8], expected: usize, kind: &str) -> PyResult<Zeroizing<Vec<i32>>> {
+    if bytes.len()
+        != expected
+            .checked_mul(4)
+            .ok_or_else(|| invalid(format!("{kind} length overflow")))?
+    {
+        return Err(invalid(format!("{kind} has an invalid byte length")));
+    }
+    let mut values = Zeroizing::new(Vec::new());
+    values
+        .try_reserve_exact(expected)
+        .map_err(|_| PyRuntimeError::new_err(format!("{kind} allocation failed")))?;
+    for chunk in bytes.chunks_exact(4) {
+        values.push(i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+    }
+    Ok(values)
+}
+
+fn exact_i64s(bytes: &[u8], expected: usize, kind: &str) -> PyResult<Zeroizing<Vec<i64>>> {
+    if bytes.len()
+        != expected
+            .checked_mul(8)
+            .ok_or_else(|| invalid(format!("{kind} length overflow")))?
+    {
+        return Err(invalid(format!("{kind} has an invalid byte length")));
+    }
+    let mut values = Zeroizing::new(Vec::new());
+    values
+        .try_reserve_exact(expected)
+        .map_err(|_| PyRuntimeError::new_err(format!("{kind} allocation failed")))?;
+    for chunk in bytes.chunks_exact(8) {
+        values.push(i64::from_le_bytes([
+            chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7],
+        ]));
+    }
+    Ok(values)
+}
+
+fn exact_32(bytes: &[u8], kind: &str) -> PyResult<[u8; 32]> {
+    bytes
+        .try_into()
+        .map_err(|_| invalid(format!("{kind} must contain exactly 32 bytes")))
+}
+
+fn exact_secret_32(bytes: &[u8], kind: &str) -> PyResult<Zeroizing<[u8; 32]>> {
+    Ok(Zeroizing::new(exact_32(bytes, kind)?))
+}
+
+fn exact_16(bytes: &[u8], kind: &str) -> PyResult<[u8; 16]> {
+    bytes
+        .try_into()
+        .map_err(|_| invalid(format!("{kind} must contain exactly 16 bytes")))
+}
+
+#[pyclass(name = "FreivaldsPolicy", frozen, module = "pllm._native")]
+struct PyFreivaldsPolicy {
+    policy: pllm_core::FreivaldsPolicy,
+    resources: pllm_core::FreivaldsResourcePolicy,
+    target_failure_bits: u32,
+    max_attempts: u64,
+    session_id: [u8; 32],
+    session: Option<Arc<Mutex<pllm_core::FreivaldsSession>>>,
+}
+
+#[pymethods]
+impl PyFreivaldsPolicy {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        target_failure_bits: u32,
+        max_attempts: u64,
+        max_matrix_elements: usize,
+        max_projection_elements: usize,
+        max_challenge_elements: usize,
+        max_output_elements: usize,
+        max_multiply_accumulates: u64,
+        max_batch_rows: usize,
+        session_id: &Bound<'_, PyBytes>,
+        register_session: bool,
+    ) -> PyResult<Self> {
+        let policy =
+            pllm_core::FreivaldsPolicy::sized_for_attempts(target_failure_bits, max_attempts)
+                .map_err(|error| invalid(error.to_string()))?;
+        let resources = pllm_core::FreivaldsResourcePolicy::new(
+            max_matrix_elements,
+            max_projection_elements,
+            max_challenge_elements,
+            max_output_elements,
+            max_multiply_accumulates,
+            max_batch_rows,
+        )
+        .map_err(|error| invalid(error.to_string()))?;
+        let session_id = exact_32(session_id.as_bytes(), "Freivalds session ID")?;
+        let session = if register_session {
+            Some(Arc::new(Mutex::new(
+                pllm_core::FreivaldsSession::register(session_id, policy)
+                    .map_err(|error| invalid(error.to_string()))?,
+            )))
+        } else {
+            None
+        };
+        Ok(Self {
+            policy,
+            resources,
+            target_failure_bits,
+            max_attempts,
+            session_id,
+            session,
+        })
+    }
+
+    #[getter]
+    fn checks(&self) -> usize {
+        self.policy.checks()
+    }
+
+    #[getter]
+    fn target_failure_bits(&self) -> u32 {
+        self.target_failure_bits
+    }
+
+    #[getter]
+    fn max_attempts(&self) -> u64 {
+        self.max_attempts
+    }
+
+    #[getter]
+    fn conservative_failure_bits(&self) -> u32 {
+        self.policy.conservative_failure_bits()
+    }
+}
+
+#[pyclass(module = "pllm._native")]
+struct FreivaldsProjectionInventory {
+    inner: Mutex<Option<pllm_core::FreivaldsProjectionBatch>>,
+    resources: pllm_core::FreivaldsResourcePolicy,
+    session: Option<Arc<Mutex<pllm_core::FreivaldsSession>>>,
+}
+
+#[pymethods]
+impl FreivaldsProjectionInventory {
+    #[getter]
+    fn material_id<'python>(&self, py: Python<'python>) -> PyResult<Bound<'python, PyBytes>> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        let material = guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory is cancelled"))?;
+        Ok(PyBytes::new(py, material.material_id()))
+    }
+
+    #[getter]
+    fn inventory_rows(&self) -> PyResult<usize> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        Ok(guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .inventory_rows())
+    }
+
+    #[getter]
+    fn in_features(&self) -> PyResult<usize> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        Ok(guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .in_features())
+    }
+
+    #[getter]
+    fn out_features(&self) -> PyResult<usize> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        Ok(guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .out_features())
+    }
+
+    #[getter]
+    fn checks(&self) -> PyResult<usize> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        Ok(guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .checks())
+    }
+
+    #[getter]
+    fn max_row_l1(&self) -> PyResult<u64> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        Ok(guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .max_row_l1())
+    }
+
+    fn payload<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        let encoded = guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .encode()
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &encoded))
+    }
+
+    fn authentication_tag<'py>(
+        &self,
+        py: Python<'py>,
+        root_seed: &Bound<'_, PyBytes>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let seed = exact_secret_32(root_seed.as_bytes(), "Freivalds root seed")?;
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        let tag = guard
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .authentication_tag(&seed)
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &tag))
+    }
+
+    fn claim(
+        &self,
+        root_seed: &Bound<'_, PyBytes>,
+        binding: &Bound<'_, PyBytes>,
+        row_start: usize,
+        batch_rows: usize,
+    ) -> PyResult<FreivaldsVerifierHandle> {
+        let seed = exact_secret_32(root_seed.as_bytes(), "Freivalds root seed")?;
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(|| invalid("Freivalds preparation material cannot be claimed".into()))?;
+        let mut session = session
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds session lock poisoned"))?;
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?;
+        let verifier = guard
+            .as_mut()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds inventory was cancelled"))?
+            .claim_verifier(
+                &seed,
+                binding.as_bytes(),
+                row_start,
+                batch_rows,
+                &mut session,
+                self.resources,
+            )
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(FreivaldsVerifierHandle {
+            inner: Mutex::new(Some(verifier)),
+            state: AtomicU8::new(0),
+        })
+    }
+
+    fn cancel(&self) -> PyResult<bool> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds inventory lock poisoned"))?
+            .take()
+            .is_some())
+    }
+}
+
+#[pyclass(name = "FreivaldsVerifier", module = "pllm._native")]
+struct FreivaldsVerifierHandle {
+    inner: Mutex<Option<pllm_core::FreivaldsVerifier>>,
+    state: AtomicU8,
+}
+
+#[pymethods]
+impl FreivaldsVerifierHandle {
+    fn verify<'py>(
+        &self,
+        py: Python<'py>,
+        input: &Bound<'_, PyAny>,
+        output: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        self.state
+            .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| PyRuntimeError::new_err("Freivalds verifier was already consumed"))?;
+        let verifier = self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds verifier lock poisoned"))?
+            .take()
+            .ok_or_else(|| PyRuntimeError::new_err("Freivalds verifier was already consumed"))?;
+        self.state.store(2, Ordering::Release);
+        let batch_rows = verifier.batch_rows();
+        let (out_features, in_features) = verifier.shape();
+        let input = input
+            .downcast::<PyBytes>()
+            .map_err(|_| PyTypeError::new_err("Freivalds input must be bytes"))?;
+        let output = output
+            .downcast::<PyBytes>()
+            .map_err(|_| PyTypeError::new_err("Freivalds output must be bytes"))?;
+        let input_values = exact_i32s(
+            input.as_bytes(),
+            batch_rows
+                .checked_mul(in_features)
+                .ok_or_else(|| invalid("Freivalds input length overflow".into()))?,
+            "Freivalds input",
+        )?;
+        let output_values = exact_i64s(
+            output.as_bytes(),
+            batch_rows
+                .checked_mul(out_features)
+                .ok_or_else(|| invalid("Freivalds output length overflow".into()))?,
+            "Freivalds output",
+        )?;
+        let mut verifier = verifier;
+        let verified = py
+            .detach(move || verifier.verify(&input_values, &output_values))
+            .map_err(|error| invalid(error.to_string()))?;
+        Ok(PyBytes::new(py, &bytes_i64(verified.as_slice())))
+    }
+
+    fn cancel(&self) -> PyResult<bool> {
+        if self
+            .state
+            .compare_exchange(0, 2, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Ok(false);
+        }
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("Freivalds verifier lock poisoned"))?
+            .take()
+            .is_some())
+    }
 }
 
 #[pyclass(frozen, module = "pllm._native")]
@@ -734,14 +1117,19 @@ fn decoder_runtime_schedule<'py>(
     plan: &Bound<'_, PyBytes>,
     profile: &str,
 ) -> PyResult<(Bound<'py, PyBytes>, String)> {
-    if profile != pllm_compiler::DENSE_QWEN_MASKED_RUNTIME_PROFILE {
+    if !matches!(
+        profile,
+        pllm_compiler::DENSE_QWEN_MASKED_RUNTIME_PROFILE
+            | pllm_compiler::DENSE_QWEN_VERIFIED_RUNTIME_PROFILE
+    ) {
         return Err(invalid(format!(
             "unsupported decoder runtime schedule profile {profile:?}"
         )));
     }
     let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
         .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
-    let schedule = pllm_compiler::lower_dense_qwen_runtime_schedule(&plan).map_err(invalid)?;
+    let schedule = pllm_compiler::lower_dense_qwen_runtime_schedule_for_profile(&plan, profile)
+        .map_err(invalid)?;
     let digest = schedule.digest().to_string();
     Ok((
         PyBytes::new(py, &pllm_types::canonical_bytes(&schedule)),
@@ -1014,6 +1402,149 @@ fn uniform_residues(py: Python<'_>, modulus: u64, count: usize) -> PyResult<Boun
         .map_err(PyRuntimeError::new_err)?;
     Ok(PyBytes::new(py, &bytes_u32(&values)))
 }
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn prepare_freivalds(
+    py: Python<'_>,
+    weights: &Bound<'_, PyBytes>,
+    out_features: usize,
+    in_features: usize,
+    inventory_rows: usize,
+    root_seed: &Bound<'_, PyBytes>,
+    binding: &Bound<'_, PyBytes>,
+    material_id: &Bound<'_, PyBytes>,
+    signed_input_bound: i64,
+    signed_output_bound: i64,
+    policy: PyRef<'_, PyFreivaldsPolicy>,
+) -> PyResult<FreivaldsProjectionInventory> {
+    let expected_weight_bytes = out_features
+        .checked_mul(in_features)
+        .ok_or_else(|| invalid("Freivalds weight length overflow".into()))?;
+    if weights.as_bytes().len() != expected_weight_bytes
+        || expected_weight_bytes > policy.resources.max_matrix_elements()
+    {
+        return Err(invalid("Freivalds weight dimensions exceed policy".into()));
+    }
+    let weight_values = signed_i8s(weights.as_bytes())?;
+    let seed = exact_secret_32(root_seed.as_bytes(), "Freivalds root seed")?;
+    let material_id = exact_32(material_id.as_bytes(), "Freivalds material id")?;
+    let binding = bounded_copy(
+        binding.as_bytes(),
+        pllm_core::FREIVALDS_MAX_BINDING_BYTES,
+        "Freivalds binding",
+    )?;
+    let native_policy = policy.policy;
+    let resources = policy.resources;
+    let session_id = policy.session_id;
+    let inner = py
+        .detach(move || {
+            pllm_core::prepare_freivalds_projections(
+                &weight_values,
+                out_features,
+                in_features,
+                inventory_rows,
+                &seed,
+                &binding,
+                session_id,
+                material_id,
+                signed_input_bound,
+                signed_output_bound,
+                native_policy,
+                resources,
+            )
+        })
+        .map_err(|error| invalid(error.to_string()))?;
+    Ok(FreivaldsProjectionInventory {
+        inner: Mutex::new(Some(inner)),
+        resources,
+        session: None,
+    })
+}
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn import_freivalds(
+    py: Python<'_>,
+    payload: &Bound<'_, PyBytes>,
+    authentication_tag: &Bound<'_, PyBytes>,
+    root_seed: &Bound<'_, PyBytes>,
+    inventory_rows: usize,
+    in_features: usize,
+    out_features: usize,
+    binding: &Bound<'_, PyBytes>,
+    material_id: &Bound<'_, PyBytes>,
+    signed_input_bound: i64,
+    signed_output_bound: i64,
+    max_row_l1: u64,
+    policy: PyRef<'_, PyFreivaldsPolicy>,
+) -> PyResult<FreivaldsProjectionInventory> {
+    let authentication_tag = exact_16(
+        authentication_tag.as_bytes(),
+        "Freivalds authentication tag",
+    )?;
+    let root_seed = exact_secret_32(root_seed.as_bytes(), "Freivalds root seed")?;
+    let material_id = exact_32(material_id.as_bytes(), "Freivalds material id")?;
+    let binding = bounded_copy(
+        binding.as_bytes(),
+        pllm_core::FREIVALDS_MAX_BINDING_BYTES,
+        "Freivalds binding",
+    )?;
+    let expected_payload_bytes = inventory_rows
+        .checked_mul(policy.policy.checks())
+        .and_then(|value| value.checked_mul(in_features))
+        .and_then(|value| value.checked_mul(4))
+        .ok_or_else(|| invalid("Freivalds payload length overflow".into()))?;
+    if payload.as_bytes().len() != expected_payload_bytes {
+        return Err(invalid(format!(
+            "Freivalds payload requires {expected_payload_bytes} bytes"
+        )));
+    }
+    let payload = Zeroizing::new(bounded_copy(
+        payload.as_bytes(),
+        policy
+            .resources
+            .max_projection_elements()
+            .checked_mul(4)
+            .ok_or_else(|| invalid("Freivalds payload bound overflow".into()))?,
+        "Freivalds payload",
+    )?);
+    let native_policy = policy.policy;
+    let resources = policy.resources;
+    let session =
+        Arc::clone(policy.session.as_ref().ok_or_else(|| {
+            invalid("Freivalds import requires a registered client session".into())
+        })?);
+    let import_session = Arc::clone(&session);
+    let inner = py
+        .detach(move || {
+            let mut session = import_session
+                .lock()
+                .map_err(|_| pllm_core::FreivaldsError::Consumed)?;
+            pllm_core::import_freivalds_projections(
+                &payload,
+                &authentication_tag,
+                &root_seed,
+                &mut session,
+                inventory_rows,
+                out_features,
+                in_features,
+                &binding,
+                material_id,
+                signed_input_bound,
+                signed_output_bound,
+                max_row_l1,
+                native_policy,
+                resources,
+            )
+        })
+        .map_err(|error| invalid(error.to_string()))?;
+    Ok(FreivaldsProjectionInventory {
+        inner: Mutex::new(Some(inner)),
+        resources,
+        session: Some(session),
+    })
+}
 #[pyfunction]
 fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
     let out = PyDict::new(py);
@@ -1038,6 +1569,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<GatedMultiplyQ7Region>()?;
     module.add_class::<GarbledGatedMultiplyQ7Material>()?;
     module.add_class::<GatedMultiplyQ7Evaluator>()?;
+    module.add_class::<PyFreivaldsPolicy>()?;
+    module.add_class::<FreivaldsProjectionInventory>()?;
+    module.add_class::<FreivaldsVerifierHandle>()?;
     module.add_class::<Executor>()?;
     module.add_function(wrap_pyfunction!(compile_plan, module)?)?;
     module.add_function(wrap_pyfunction!(silu_q7_contract, module)?)?;
@@ -1057,5 +1591,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(unmask, module)?)?;
     module.add_function(wrap_pyfunction!(quantize, module)?)?;
     module.add_function(wrap_pyfunction!(uniform_residues, module)?)?;
+    module.add_function(wrap_pyfunction!(prepare_freivalds, module)?)?;
+    module.add_function(wrap_pyfunction!(import_freivalds, module)?)?;
     Ok(())
 }

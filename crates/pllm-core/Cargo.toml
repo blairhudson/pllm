@@ -9,8 +9,11 @@ description = "Exact integer execution, codecs, and masking for private LLM infe
 publish = false
 
 [dependencies]
+aes.workspace = true
 rayon.workspace = true
 getrandom.workspace = true
 libm.workspace = true
 serde.workspace = true
+sha2.workspace = true
+subtle.workspace = true
 zeroize.workspace = true

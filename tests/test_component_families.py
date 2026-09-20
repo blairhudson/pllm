@@ -53,7 +53,7 @@ from pllm.schedulers import (
 )
 from pllm.sources import BundleModel, ModelSource, TinyModel
 from pllm.state import ClientLocalKv, StateProtocol
-from pllm.verification import LinearIntegrity, VerificationScheme
+from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationScheme
 
 
 def _instances():
@@ -70,6 +70,7 @@ def _instances():
         Cpu(threads=2),
         DirectFHE(),
         Energy(),
+        FreivaldsVerify(),
         GuardedLinear(),
         HEAuthenticatedPreprocessing(),
         IndependentLanesProtectedTensorSchedule(),

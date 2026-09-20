@@ -43,6 +43,13 @@ class PreparedStageRows:
     request: PreparationRequest
     input_mask: np.ndarray
     output_mask: np.ndarray
+    verification: Any | None = field(default=None, repr=False)
+    verification_binding: bytes = field(default=b"", repr=False)
+
+    def cancel(self) -> None:
+        if self.verification is not None:
+            self.verification.cancel()
+            self.verification = None
 
 
 @dataclass(slots=True)
@@ -53,6 +60,7 @@ class PreparedInventoryLease:
     rows: int
     _owner: "PreparedInventory" = field(repr=False)
     _offsets: dict[str, int] = field(default_factory=dict)
+    _verifiers: dict[str, Any] = field(default_factory=dict, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _closed: bool = False
 
@@ -87,7 +95,19 @@ class PreparedInventoryLease:
             end = begin + count
             self._offsets[stage_id] = offset + count
         attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, end)]
+        verifier = None
+        if stage.verification is not None:
+            verifier = stage.verification.claim(
+                stage.request.seed,
+                stage.verification_binding,
+                begin,
+                count,
+            )
+            self._verifiers[stage_id] = verifier
         return stage.input_mask[begin:end], stage.output_mask[begin:end], attempts
+
+    def take_verifier(self, stage_id: str) -> Any | None:
+        return self._verifiers.pop(stage_id, None)
 
 
 @dataclass(slots=True)
@@ -127,6 +147,10 @@ class PreparedInventory:
             self._active -= rows
             self._consumed += consumed
             self._burned += rows - consumed
+
+    def cancel(self) -> None:
+        for stage in self.stages.values():
+            stage.cancel()
 
     def status(self) -> dict[str, int | str]:
         with self._lock:
@@ -841,11 +865,12 @@ class PreparedRemoteLinear:
         profile = stage.seeded_profile
         if profile is None:
             raise TransformerClientError("stage lacks a seeded ring profile")
-        clear = (
-            quantized.values.reshape(quantized.rows, stage.in_features).astype(np.int64, copy=False)
-            % profile.modulus
+        clear_signed = quantized.values.reshape(quantized.rows, stage.in_features).astype(
+            np.int32, copy=False
         )
+        clear = clear_signed.astype(np.int64, copy=False) % profile.modulus
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
+        verifier = self.inventory.take_verifier(stage_id)
         complement = (clear - mask.astype(np.int64)) % profile.modulus
         batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
         if batch_id is not None:
@@ -929,6 +954,16 @@ class PreparedRemoteLinear:
             accumulators = np.where(combined >= 1 << 23, combined - (1 << 24), combined)
         else:
             accumulators = combined.astype(np.uint32).view(np.int32).astype(np.int64)
+        if verifier is not None:
+            verified = verifier.verify(
+                np.asarray(clear_signed, dtype="<i4").tobytes(),
+                np.asarray(accumulators, dtype="<i8").tobytes(),
+            )
+            accumulators = (
+                np.frombuffer(verified, dtype="<i8")
+                .copy()
+                .reshape(quantized.rows, stage.out_features)
+            )
         output = dequantize_matmul(
             accumulators,
             quantized.scales,

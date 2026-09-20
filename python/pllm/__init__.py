@@ -80,6 +80,7 @@ _EXPORTS = {
     "KvCacheEviction": ("pllm.passes", "KvCacheEviction"),
     "MaskedLinear": ("pllm.protocols", "MaskedLinear"),
     "MaskedLinearCpu": ("pllm.profiles", "MaskedLinearCpu"),
+    "VerifiedMaskedLinearCpu": ("pllm.profiles", "VerifiedMaskedLinearCpu"),
     "MethodRecord": ("pllm.research", "MethodRecord"),
     "Model": ("pllm.configuration", "Model"),
     "ModelLoadError": ("pllm.model_loader", "ModelLoadError"),

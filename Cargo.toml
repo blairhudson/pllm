@@ -30,7 +30,7 @@ license = "Apache-2.0"
 authors = ["Blair Hudson"]
 
 [workspace.dependencies]
-aes = "0.8.4"
+aes = { version = "0.8.4", features = ["zeroize"] }
 pllm-core = { path = "crates/pllm-core" }
 pllm-compiler = { path = "crates/pllm-compiler" }
 pllm-types = { path = "crates/pllm-types" }

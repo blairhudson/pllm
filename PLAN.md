@@ -73,7 +73,7 @@ Mission: composable SDK for private-inference research → multi-party pipelines
 | Compose into pipelines | `Pipeline`/`Experiment` immutability + digests work; `baseline.masked_linear_cpu` is the only resolvable profile; `research.single_evaluator` exists as coverage target but resolution is incomplete |
 | Benchmark vs objectives | Latency/bytes/rows instrumented; **Memory/Disk/Energy/cost metrics absent** (network is the only measured resource; CPU partially via threads knob) |
 | Prompts never leave client | Achieved for the masked-linear path under honest-but-curious + non-collusion; client-local attention/norm/softmax/sampling makes this credible |
-| Untrusted inference providers | Protocol-level yes; **no verification of correct execution** (Slalom/Maverick verification is backlog P1, unimplemented); no attestation/identity beyond API keys |
+| Untrusted inference providers | `research.verified_masked_linear_cpu` verifies every prepared public linear result with authenticated one-use Freivalds material; the default baseline remains unverified, and no TEE, attestation, or arbitrary-malicious-provider claim follows |
 | Trusted preparation SaaS | `serve preparation` exists + systemd unit + env templates; no HA, no tenancy, no durable material store (in-memory only), no rate/quota, no TLS provisioning |
 | Performance | Rust kernels fine; **traffic is the wall**: 63–433 MB/request for 0.5B — unusable on home uplinks; decode-per-token ticket+masked-vector round trips add WAN latency |
 
@@ -153,7 +153,7 @@ Alignment target (one core, three fronts):
 
 ### 5.7 Security/ops hardening gaps (for the stated trust model)
 - All auth is bearer API keys; no mTLS, no provider identity/attestation, no signed manifests; WS push auth = one shared key.
-- `verify correct execution` = nothing: no checksum/MAC on `W·x−s`, no Slalom-style check, no `linear_integrity` wiring in the public path (module exists, unwired to prepared flow).
+- `verify correct execution` = an opt-in full-model trusted-client adaptation now authenticates preparation projections and verifies bounded integer `W·x` results before dequantization; the baseline profile remains intentionally unchanged.
 - Preparation is Python — masks/seed material in GC memory; "physical zeroization … has not been established" (paper admits). For a SaaS prep service this matters; consider Rust-side material handling or mlock/secure enclaves later.
 - Inventory in memory only — restart loses all prepared rows (documented); no spill-to-disk with AEAD for node churn on VirtualDC.
 - `market.py` auth model is a single admin key; ProviderOffer `input_privacy` is unverified self-attestation — **resolved by removal** (P1.8: placement is VirtualDC's layer; node claims must instead be backed by signed `measurement.v1` evidence, see P4.18).
@@ -200,7 +200,7 @@ Ordering rationale: the mission-critical path is **one complete plan-compiled pr
 14. **Type surface**: `mypy --strict` (or pyright) on `pllm`'s public modules; complete `.pyi` coverage (generate `_native.pyi` from PyO3 stubs); ship `py.typed` (already shipped — keep).
 
 ### P3 — VirtualDC economics: traffic, trust, fleet ops (4–8 weeks)
-15. **Attack client traffic** (the metric that makes VirtualDC viable or not): implement R07-Slalom-style Freivalds verification + R24-Maverick LPN masking/batch-verification as `protocol-method` components (already backlog P1 — pull it forward; it's the single biggest product lever: cutting 60–430 MB to ~activation+O(√n) check bytes changes the home-uplink math entirely).
+15. **Attack client traffic** (the metric that makes VirtualDC viable or not): **[partial]** the R07-derived Freivalds verifier is implemented end to end as `research.verified_masked_linear_cpu`, with matched tiny functionality evidence and real-Qwen evidence unavailable. It verifies correctness but does not reduce online traffic. R24-Maverick LPN masking/batch verification remains the traffic-reduction work.
 16. **Measure the real objectives**: extend `benchmark run` to record peak RSS (ru_maxrss/psutil), bundle-cache disk bytes, correction-store memory, per-stage kernel ms, and (optional) `powermetrics`/RAPL energy — produce a `pllm.measurement.v1` row per objective; add WAN emulation (tc/netem or a delay-injecting transport shim) + a 2-host docker-compose topology so "loopback ≠ WAN" gets real numbers.
 17. **Provider integrity**: wire `linear_integrity` (exists, orphaned) or the new verify component into the prepared path so a wrong `W·x−s` is *detected*, not just undocumented; signed model manifests + checkpoint-digest pinning in `serve` (bundle fingerprint already exists — surface it in `pllm serve` output + dashboard).
 18. **Preparation as a service**: durable (AEAD, rollback-protected) material store option; multi-inventory scheduling; rate limits/quota; health/metrics endpoints; a `deploy/kubernetes/` or `deploy/systemd` HA pair; document SaaS-vs-enterprise placement matrix (both exist, both need the same "sees no prompts" proof — that IS the marketable claim).

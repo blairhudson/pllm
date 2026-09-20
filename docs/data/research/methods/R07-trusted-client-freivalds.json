@@ -1,0 +1,32 @@
+{
+  "schema_version": "pllm.method_record.v1",
+  "id": "pllm.method.r07-trusted-client-freivalds",
+  "version": "1",
+  "registry_aliases": [],
+  "source_record_ids": ["R07"],
+  "upstream_artifact_lock_ids": [],
+  "classification": "engineering_improvement",
+  "semantic_scope": "trusted-client verification of public-weight prepared linear stages without claiming a reproduced TEE deployment",
+  "input_representations": ["bounded-signed-integer-matrix", "authenticated-secret-projection"],
+  "output_representations": ["verified-signed-accumulator"],
+  "online_roles": ["client", "inference"],
+  "preparation_phase": "offline",
+  "native_owner": "Rust",
+  "implementation_status": "native_operator",
+  "assurance_obligations": [
+    "verification challenges remain secret from inference",
+    "projection material is authenticated and consumed once",
+    "session-wide attempt bounds compose to the declared failure target",
+    "integer no-wrap bounds are checked before modular equality is accepted",
+    "the adaptation is not described as a reproduced TEE deployment",
+    "the method is not claimed to reduce online traffic or protect against malicious preparation"
+  ],
+  "lifecycle_status": {
+    "fidelity": "passed",
+    "protected_execution": "passed",
+    "assurance": "passed",
+    "benchmark": "blocked",
+    "promotion": "blocked"
+  },
+  "eligible_profiles": ["research.verified_masked_linear_cpu"]
+}

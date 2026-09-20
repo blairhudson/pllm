@@ -12,7 +12,7 @@ from .protocol import ProtocolError
 from .stage_protocol import RingKind, pack_residues, unpack_residues
 
 
-PREPARATION_PROTOCOL_VERSION = 2
+PREPARATION_PROTOCOL_VERSION = 3
 PREPARATION_SEED_BYTES = 32
 _ATTEMPT_RE = re.compile(r"[0-9a-f]{32}")
 PREPARATION_MAX_IDENTIFIER_BYTES = 512
@@ -36,7 +36,10 @@ class SeededRingProfile:
     @classmethod
     def from_dict(cls, value: Any) -> "SeededRingProfile":
         if not isinstance(value, dict) or set(value) != {
-            "signed_output_bound", "ring", "modulus", "wire_bits"
+            "signed_output_bound",
+            "ring",
+            "modulus",
+            "wire_bits",
         }:
             raise ProtocolError("invalid seeded ring profile")
         expected = seeded_ring_profile(int(value["signed_output_bound"]))
@@ -86,9 +89,10 @@ def _validate_shape(
         raise ProtocolError(f"{kind} shape must be positive")
     if max_rows is not None and rows > max_rows:
         raise ProtocolError(f"{kind} row count exceeds model context")
-    if max_tensor_elements is not None and max(
-        rows * in_features, rows * out_features
-    ) > max_tensor_elements:
+    if (
+        max_tensor_elements is not None
+        and max(rows * in_features, rows * out_features) > max_tensor_elements
+    ):
         raise ProtocolError(f"{kind} tensor allocation is too large")
 
 
@@ -133,9 +137,7 @@ class PreparationRequest:
 
     @property
     def profile(self) -> SeededRingProfile:
-        return SeededRingProfile(
-            self.signed_output_bound, self.ring, self.modulus, self.wire_bits
-        )
+        return SeededRingProfile(self.signed_output_bound, self.ring, self.modulus, self.wire_bits)
 
     @property
     def context(self) -> PreparationRequestContext:
@@ -244,10 +246,21 @@ class PreparationRequest:
 
     def metadata(self) -> tuple[Any, ...]:
         return (
-            self.session_id, self.model, self.body_fingerprint, self.attempt_id,
-            self.stage_id, self.weight_digest, self.rows, self.in_features,
-            self.out_features, self.weight_bits, self.activation_bits,
-            self.signed_output_bound, self.ring, self.modulus, self.wire_bits,
+            self.session_id,
+            self.model,
+            self.body_fingerprint,
+            self.attempt_id,
+            self.stage_id,
+            self.weight_digest,
+            self.rows,
+            self.in_features,
+            self.out_features,
+            self.weight_bits,
+            self.activation_bits,
+            self.signed_output_bound,
+            self.ring,
+            self.modulus,
+            self.wire_bits,
         )
 
 
@@ -262,6 +275,8 @@ class SessionAuthorization:
     max_attempts: int
     rows: int
     stage_ids: tuple[str, ...]
+    verification_component: str = "none"
+    verification_target_failure_bits: int = 0
 
     def metadata(self) -> tuple[Any, ...]:
         return (
@@ -274,6 +289,8 @@ class SessionAuthorization:
             self.max_attempts,
             self.rows,
             self.stage_ids,
+            self.verification_component,
+            self.verification_target_failure_bits,
         )
 
     def _validate(self) -> None:
@@ -289,6 +306,14 @@ class SessionAuthorization:
         if self.max_attempts <= 0:
             raise ProtocolError("session authorization attempt budget must be positive")
         _validate_identifiers(*self.stage_ids, kind="session authorization stage")
+        if self.verification_component == "none":
+            if self.verification_target_failure_bits != 0:
+                raise ProtocolError("disabled verification requires a zero failure target")
+        elif self.verification_component == "pllm/freivalds-verify/v1":
+            if not 1 <= self.verification_target_failure_bits <= 80:
+                raise ProtocolError("invalid Freivalds failure target")
+        else:
+            raise ProtocolError("unsupported verification component")
         if self.rows <= 0 or not self.stage_ids or len(self.stage_ids) != len(set(self.stage_ids)):
             raise ProtocolError("invalid session authorization inventory shape")
         if self.max_attempts != self.rows * len(self.stage_ids):
@@ -299,10 +324,17 @@ class SessionAuthorization:
         return msgpack.packb(
             {
                 "v": PREPARATION_PROTOCOL_VERSION,
-                "h": self.session_id, "m": self.model, "b": self.body_fingerprint,
-                "t": self.stage_commitment, "wb": self.weight_bits,
-                "ab": self.activation_bits, "a": self.max_attempts,
-                "r": self.rows, "s": list(self.stage_ids),
+                "h": self.session_id,
+                "m": self.model,
+                "b": self.body_fingerprint,
+                "t": self.stage_commitment,
+                "wb": self.weight_bits,
+                "ab": self.activation_bits,
+                "a": self.max_attempts,
+                "r": self.rows,
+                "s": list(self.stage_ids),
+                "vc": self.verification_component,
+                "vf": self.verification_target_failure_bits,
             },
             use_bin_type=True,
         )
@@ -313,31 +345,77 @@ class SessionAuthorization:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise ProtocolError("invalid session authorization") from exc
-        required = {"v", "h", "m", "b", "t", "wb", "ab", "a", "r", "s"}
+        required = {"v", "h", "m", "b", "t", "wb", "ab", "a", "r", "s", "vc", "vf"}
         if not isinstance(value, dict) or set(value) != required:
             raise ProtocolError("invalid session authorization schema")
         if int(value["v"]) != PREPARATION_PROTOCOL_VERSION:
             raise ProtocolError("unsupported preparation protocol")
         result = cls(
-            session_id=str(value["h"]), model=str(value["m"]),
-            body_fingerprint=str(value["b"]), stage_commitment=str(value["t"]),
-            weight_bits=int(value["wb"]), activation_bits=int(value["ab"]),
+            session_id=str(value["h"]),
+            model=str(value["m"]),
+            body_fingerprint=str(value["b"]),
+            stage_commitment=str(value["t"]),
+            weight_bits=int(value["wb"]),
+            activation_bits=int(value["ab"]),
             max_attempts=int(value["a"]),
-            rows=int(value["r"]), stage_ids=tuple(str(item) for item in value["s"]),
+            rows=int(value["r"]),
+            stage_ids=tuple(str(item) for item in value["s"]),
+            verification_component=str(value["vc"]),
+            verification_target_failure_bits=int(value["vf"]),
         )
         result._validate()
         return result
 
 
+def freivalds_session_id(authorization: SessionAuthorization) -> bytes:
+    authorization._validate()
+    return hashlib.sha256(b"pllm.freivalds.session.v1\x00" + authorization.pack()).digest()
+
+
+def freivalds_material_id(
+    authorization: SessionAuthorization, request: PreparationRequest
+) -> bytes:
+    domain = msgpack.packb(
+        ["pllm.freivalds.material.v1", authorization.metadata(), request.metadata()],
+        use_bin_type=True,
+    )
+    return hashlib.sha256(domain).digest()
+
+
+def freivalds_binding(authorization: SessionAuthorization, request: PreparationRequest) -> bytes:
+    value = msgpack.packb(
+        [
+            "pllm.freivalds.runtime_binding.v1",
+            authorization.metadata(),
+            request.metadata(),
+        ],
+        use_bin_type=True,
+    )
+    if len(value) > 4_096:
+        raise ProtocolError("Freivalds binding exceeds its fixed limit")
+    return value
+
+
 def _mask_domain(request: PreparationRequest, purpose: str) -> bytes:
     return msgpack.packb(
         [
-            "pllm-prepared-correction-v2", purpose, request.session_id,
-            request.model, request.body_fingerprint, request.attempt_id,
-            request.stage_id, request.weight_digest, request.rows,
-            request.in_features, request.out_features, request.weight_bits,
-            request.activation_bits, request.ring, request.modulus,
-            request.wire_bits, request.signed_output_bound,
+            "pllm-prepared-correction-v2",
+            purpose,
+            request.session_id,
+            request.model,
+            request.body_fingerprint,
+            request.attempt_id,
+            request.stage_id,
+            request.weight_digest,
+            request.rows,
+            request.in_features,
+            request.out_features,
+            request.weight_bits,
+            request.activation_bits,
+            request.ring,
+            request.modulus,
+            request.wire_bits,
+            request.signed_output_bound,
         ],
         use_bin_type=True,
     )
@@ -385,10 +463,21 @@ class CorrectionPush:
 
     def metadata(self) -> tuple[Any, ...]:
         return (
-            self.session_id, self.model, self.body_fingerprint, self.attempt_id,
-            self.stage_id, self.weight_digest, self.rows, self.in_features,
-            self.out_features, self.weight_bits, self.activation_bits,
-            self.signed_output_bound, self.ring, self.modulus, self.wire_bits,
+            self.session_id,
+            self.model,
+            self.body_fingerprint,
+            self.attempt_id,
+            self.stage_id,
+            self.weight_digest,
+            self.rows,
+            self.in_features,
+            self.out_features,
+            self.weight_bits,
+            self.activation_bits,
+            self.signed_output_bound,
+            self.ring,
+            self.modulus,
+            self.wire_bits,
         )
 
     def _validate(
@@ -426,14 +515,26 @@ class CorrectionPush:
             raise ProtocolError("correction shape mismatch")
         return msgpack.packb(
             {
-                "v": PREPARATION_PROTOCOL_VERSION, "a": self.attempt_id,
-                "h": self.session_id, "m": self.model, "b": self.body_fingerprint,
-                "t": self.stage_id, "w": self.weight_digest, "r": self.rows,
-                "n": self.in_features, "o": self.out_features, "wb": self.weight_bits,
-                "ab": self.activation_bits, "q": self.signed_output_bound,
-                "k": self.ring, "p": self.modulus, "x": self.wire_bits,
-                "e": int(self.server_ns), "d": pack_residues(value, self.wire_bits),
-            }, use_bin_type=True,
+                "v": PREPARATION_PROTOCOL_VERSION,
+                "a": self.attempt_id,
+                "h": self.session_id,
+                "m": self.model,
+                "b": self.body_fingerprint,
+                "t": self.stage_id,
+                "w": self.weight_digest,
+                "r": self.rows,
+                "n": self.in_features,
+                "o": self.out_features,
+                "wb": self.weight_bits,
+                "ab": self.activation_bits,
+                "q": self.signed_output_bound,
+                "k": self.ring,
+                "p": self.modulus,
+                "x": self.wire_bits,
+                "e": int(self.server_ns),
+                "d": pack_residues(value, self.wire_bits),
+            },
+            use_bin_type=True,
         )
 
     @classmethod
@@ -457,8 +558,31 @@ class CorrectionPush:
             )
         except Exception as exc:
             raise ProtocolError("invalid correction push") from exc
-        required = {"v", "a", "h", "m", "b", "t", "w", "r", "n", "o", "wb", "ab", "q", "k", "p", "x", "e", "d"}
-        if not isinstance(value, dict) or set(value) != required or int(value["v"]) != PREPARATION_PROTOCOL_VERSION:
+        required = {
+            "v",
+            "a",
+            "h",
+            "m",
+            "b",
+            "t",
+            "w",
+            "r",
+            "n",
+            "o",
+            "wb",
+            "ab",
+            "q",
+            "k",
+            "p",
+            "x",
+            "e",
+            "d",
+        }
+        if (
+            not isinstance(value, dict)
+            or set(value) != required
+            or int(value["v"]) != PREPARATION_PROTOCOL_VERSION
+        ):
             raise ProtocolError("invalid correction push schema")
         rows, in_features, out_features = int(value["r"]), int(value["n"]), int(value["o"])
         _validate_shape(
@@ -476,12 +600,21 @@ class CorrectionPush:
         ):
             raise ProtocolError("correction payload length mismatch")
         result = cls(
-            attempt_id=str(value["a"]), session_id=str(value["h"]), model=str(value["m"]),
-            body_fingerprint=str(value["b"]), stage_id=str(value["t"]),
-            weight_digest=str(value["w"]), rows=rows, in_features=in_features,
-            out_features=out_features, weight_bits=int(value["wb"]),
-            activation_bits=int(value["ab"]), signed_output_bound=int(value["q"]),
-            ring=str(value["k"]), modulus=int(value["p"]), wire_bits=wire_bits,  # type: ignore[arg-type]
+            attempt_id=str(value["a"]),
+            session_id=str(value["h"]),
+            model=str(value["m"]),
+            body_fingerprint=str(value["b"]),
+            stage_id=str(value["t"]),
+            weight_digest=str(value["w"]),
+            rows=rows,
+            in_features=in_features,
+            out_features=out_features,
+            weight_bits=int(value["wb"]),
+            activation_bits=int(value["ab"]),
+            signed_output_bound=int(value["q"]),
+            ring=str(value["k"]),
+            modulus=int(value["p"]),
+            wire_bits=wire_bits,  # type: ignore[arg-type]
             correction=unpack_residues(bytes(data), (rows, out_features), wire_bits),
             server_ns=int(value["e"]),
         )
@@ -555,15 +688,57 @@ class PreparationAck:
     correction_bytes: int
     server_ns: int
     push_ns: int = 0
+    verification_component: str = "none"
+    verification_checks: int = 0
+    verification_max_row_l1: int = 0
+    verification_material_id: bytes = b""
+    verification_tag: bytes = b""
+    verification_payload: bytes = b""
+
+    def _validate_verification(self) -> None:
+        fields = (
+            self.verification_checks,
+            self.verification_max_row_l1,
+            self.verification_material_id,
+            self.verification_tag,
+            self.verification_payload,
+        )
+        if self.verification_component == "none":
+            if any(fields):
+                raise ProtocolError("disabled verification carries material")
+            return
+        if self.verification_component != "pllm/freivalds-verify/v1":
+            raise ProtocolError("unsupported verification acknowledgement")
+        if not 1 <= self.verification_checks <= 8 or self.verification_max_row_l1 <= 0:
+            raise ProtocolError("invalid Freivalds verification metadata")
+        if len(self.verification_material_id) != 32 or len(self.verification_tag) != 16:
+            raise ProtocolError("invalid Freivalds material identity")
+        if not self.verification_payload or len(self.verification_payload) % 4:
+            raise ProtocolError("invalid Freivalds projection payload")
 
     def pack(self) -> bytes:
         validate_attempt_id(self.attempt_id)
-        return msgpack.packb(
-            {"v": PREPARATION_PROTOCOL_VERSION, "a": self.attempt_id, "t": self.stage_id,
-             "c": int(self.correction_bytes), "e": int(self.server_ns),
-             "p": int(self.push_ns)},
-            use_bin_type=True,
-        )
+        self._validate_verification()
+        value = {
+            "v": PREPARATION_PROTOCOL_VERSION,
+            "a": self.attempt_id,
+            "t": self.stage_id,
+            "c": int(self.correction_bytes),
+            "e": int(self.server_ns),
+            "p": int(self.push_ns),
+        }
+        if self.verification_component != "none":
+            value.update(
+                {
+                    "vc": self.verification_component,
+                    "vk": self.verification_checks,
+                    "vl": self.verification_max_row_l1,
+                    "vi": self.verification_material_id,
+                    "vt": self.verification_tag,
+                    "vp": self.verification_payload,
+                }
+            )
+        return msgpack.packb(value, use_bin_type=True)
 
     @classmethod
     def unpack(cls, payload: bytes) -> "PreparationAck":
@@ -571,17 +746,29 @@ class PreparationAck:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise ProtocolError("invalid preparation acknowledgement") from exc
+        base_keys = {"v", "a", "t", "c", "e", "p"}
+        verification_keys = {"vc", "vk", "vl", "vi", "vt", "vp"}
         if (
             not isinstance(value, dict)
-            or set(value) != {"v", "a", "t", "c", "e", "p"}
+            or set(value) not in {frozenset(base_keys), frozenset(base_keys | verification_keys)}
             or int(value["v"]) != PREPARATION_PROTOCOL_VERSION
         ):
             raise ProtocolError("invalid preparation acknowledgement schema")
         result = cls(
-            str(value["a"]), str(value["t"]), int(value["c"]),
-            int(value["e"]), int(value["p"]),
+            str(value["a"]),
+            str(value["t"]),
+            int(value["c"]),
+            int(value["e"]),
+            int(value["p"]),
+            str(value.get("vc", "none")),
+            int(value.get("vk", 0)),
+            int(value.get("vl", 0)),
+            bytes(value.get("vi", b"")),
+            bytes(value.get("vt", b"")),
+            bytes(value.get("vp", b"")),
         )
         validate_attempt_id(result.attempt_id)
         if result.correction_bytes <= 0 or result.server_ns < 0 or result.push_ns < 0:
             raise ProtocolError("invalid preparation acknowledgement")
+        result._validate_verification()
         return result

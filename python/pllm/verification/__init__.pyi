@@ -7,6 +7,13 @@ from pllm.runtime.linear_integrity import create_linear_check_key as create_line
 
 class VerificationScheme(ComponentRef): ...
 
+class FreivaldsVerify(VerificationScheme):
+    descriptor: ComponentDescriptor
+    target_failure_bits: int
+    def __init__(self, target_failure_bits: int = 40) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
 class LinearIntegrity(VerificationScheme):
     descriptor: ComponentDescriptor
     def __init__(self) -> None: ...

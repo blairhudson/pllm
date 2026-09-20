@@ -50,15 +50,62 @@ class LinearIntegrity(VerificationScheme):
         return cls.descriptor
 
 
+class FreivaldsVerify(VerificationScheme):
+    """Authenticated one-use verification for prepared public linear stages."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/freivalds-verify/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/verification-scheme",
+        category_version="1",
+        lifecycle_phase="offline-online",
+        parameter_schema={
+            "type": "object",
+            "properties": {"target_failure_bits": {"type": "integer", "minimum": 1, "maximum": 80}},
+            "required": ["target_failure_bits"],
+            "additionalProperties": False,
+        },
+        capabilities=("authenticated-one-use-freivalds",),
+        required_host_features=("prepared-public-linear-v1",),
+        role_eligibility=("client", "preparation"),
+    )
+
+    def __init__(self, target_failure_bits: int = 40) -> None:
+        if isinstance(target_failure_bits, bool) or not isinstance(target_failure_bits, int):
+            raise TypeError("target_failure_bits must be an integer")
+        if not 1 <= target_failure_bits <= 80:
+            raise ValueError("target_failure_bits must be in [1, 80]")
+        super().__init__(
+            self.descriptor.component,
+            {"target_failure_bits": target_failure_bits},
+        )
+
+    @property
+    def target_failure_bits(self) -> int:
+        return self.params["target_failure_bits"]
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"target_failure_bits": self.target_failure_bits}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 _RUNTIME_EXPORTS = {
     "LinearCheckKey",
     "LinearCheckResult",
+    "FreivaldsVerify",
     "LinearIntegrityError",
     "check_linear_result",
     "create_linear_check_key",
 }
 
 __all__ = [
+    "FreivaldsVerify",
     "LinearCheckKey",
     "LinearCheckResult",
     "LinearIntegrity",

@@ -470,7 +470,9 @@ def create_app(
                 if config.privacy_mode == "public"
                 else []
             ),
-            "private_models": [model.manifest.to_model_object() for model in private_models.values()],
+            "private_models": [
+                model.manifest.to_model_object() for model in private_models.values()
+            ],
             "backend_adapters": {
                 name: adapter.capabilities.to_dict()
                 for name, adapter in backend_registry.adapters.items()
@@ -536,7 +538,11 @@ def create_app(
         return {
             "object": "list",
             "data": [
-                {"id": name, "object": "runtime.engine", "capabilities": engine.capabilities.to_dict()}
+                {
+                    "id": name,
+                    "object": "runtime.engine",
+                    "capabilities": engine.capabilities.to_dict(),
+                }
                 for name, engine in engines.items()
             ],
         }
@@ -573,7 +579,12 @@ def create_app(
         await engines[engine_name].unload(model_id)
         client_bundles.pop((engine_name, model_id), None)
         imported.pop(model_id, None)
-        return {"id": model_id, "object": "runtime.model", "status": "unloaded", "engine": engine_name}
+        return {
+            "id": model_id,
+            "object": "runtime.model",
+            "status": "unloaded",
+            "engine": engine_name,
+        }
 
     @app.post("/v1/runtime/engines/{engine_name}/models/{model_id:path}/stages/{stage_id}")
     async def execute_engine_stage(
@@ -805,9 +816,7 @@ def create_app(
                     ),
                     "privacy_protocol": imported_manifest.metadata.get("privacy_protocol"),
                     "online_fhe": bool(imported_manifest.metadata.get("online_fhe", False)),
-                    "preprocessed": bool(
-                        imported_manifest.metadata.get("preprocessed", False)
-                    ),
+                    "preprocessed": bool(imported_manifest.metadata.get("preprocessed", False)),
                     "model_privacy_threat_model": imported_manifest.metadata.get(
                         "model_privacy_threat_model"
                     ),
@@ -836,6 +845,8 @@ def create_app(
                 "weight_bits": expected_authorization.weight_bits,
                 "activation_bits": expected_authorization.activation_bits,
                 "max_attempts": expected_authorization.max_attempts,
+                "verification_component": expected_authorization.verification_component,
+                "verification_target_failure_bits": expected_authorization.verification_target_failure_bits,
             }
         return result
 
@@ -858,7 +869,9 @@ def create_app(
         try:
             rows = int(body.get("rows", 0))
         except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=400, detail={"error": {"message": "Invalid rows"}}) from exc
+            raise HTTPException(
+                status_code=400, detail={"error": {"message": "Invalid rows"}}
+            ) from exc
         if rows <= 0 or rows > manifest.context_length:
             raise HTTPException(
                 status_code=400,
@@ -867,24 +880,24 @@ def create_app(
         engine = engines[engine_name]
         stage_ids = engine.seeded_stage_ids(model_id)
         if not stage_ids:
-            raise HTTPException(status_code=400, detail={"error": {"message": "No prepared stages"}})
+            raise HTTPException(
+                status_code=400, detail={"error": {"message": "No prepared stages"}}
+            )
         max_attempts = rows * len(stage_ids)
         stage_map = {stage.id: stage for stage in manifest.stages}
         reserved_bytes = sum(
             rows
             * stage_map[stage_id].out_features
             * (engine.seeded_profile(model_id, stage_id).wire_bits // 8)
-                + 8 * PREPARATION_MAX_IDENTIFIER_BYTES
-                + 4_096
+            + 8 * PREPARATION_MAX_IDENTIFIER_BYTES
+            + 4_096
             for stage_id in stage_ids
         )
         with inventory_lock:
             active_inventories = [
                 item
                 for item in sessions.values()
-                if item.execution == "seeded-inventory"
-                and not item.canceled
-                and not item.completed
+                if item.execution == "seeded-inventory" and not item.canceled and not item.completed
             ]
             if (
                 max_attempts > config.rendezvous_max_attempts_per_session
@@ -898,11 +911,7 @@ def create_app(
             ):
                 raise HTTPException(
                     status_code=503,
-                    detail={
-                        "error": {
-                            "message": "Prepared inventory capacity exhausted"
-                        }
-                    },
+                    detail={"error": {"message": "Prepared inventory capacity exhausted"}},
                 )
         session_id = new_id("rti")
         session = RuntimeSession(session_id, "", model_id, api_key)
@@ -911,9 +920,7 @@ def create_app(
         session.inventory_stages = frozenset(stage_ids)
         session.inventory_reserved_entries = max_attempts
         session.inventory_reserved_bytes = reserved_bytes
-        session_authorization = getattr(
-            engines[engine_name], "seeded_session_authorization", None
-        )
+        session_authorization = getattr(engines[engine_name], "seeded_session_authorization", None)
         if session_authorization is None:
             raise HTTPException(
                 status_code=503,
@@ -923,9 +930,7 @@ def create_app(
         try:
             rendezvous.register_session(expected)
         except RendezvousError as exc:
-            raise HTTPException(
-                status_code=503, detail={"error": {"message": str(exc)}}
-            ) from exc
+            raise HTTPException(status_code=503, detail={"error": {"message": str(exc)}}) from exc
         sessions[session_id] = session
         return {
             "id": session_id,
@@ -942,6 +947,8 @@ def create_app(
                 "max_attempts": expected.max_attempts,
                 "rows": expected.rows,
                 "stage_ids": list(expected.stage_ids),
+                "verification_component": expected.verification_component,
+                "verification_target_failure_bits": expected.verification_target_failure_bits,
             },
         }
 
@@ -1063,9 +1070,7 @@ def create_app(
         manifest = imported.get(session.model_id)
         if manifest is None:
             raise ProtocolError("prepared session model is unavailable")
-        batch_rows = (
-            prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
-        )
+        batch_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
         if batch_rows is not None:
             batch = PreparedStageBatchRequest.unpack(
                 payloads[0],
@@ -1099,25 +1104,19 @@ def create_app(
                 )
 
             engine_request = batch_request(batch.batch_id, batch.masked_input)
-            validation_request = batch_request(
-                batch.correlation_ids[0], batch.masked_input[0:1]
-            )
+            validation_request = batch_request(batch.correlation_ids[0], batch.masked_input[0:1])
             validate_prepared_request(session, stage_id, validation_request, engine)
             if any(
                 (stage_id, correlation_id) not in session.reserved_attempts
                 for correlation_id in batch.correlation_ids
             ):
                 raise ProtocolError("stage correlation was not reserved for this response")
-            corrections = rendezvous.consume_preloaded_batch(
-                engine_request, batch.correlation_ids
-            )
+            corrections = rendezvous.consume_preloaded_batch(engine_request, batch.correlation_ids)
             results = await runner([engine_request.pack()])
             if len(results) != 1:
                 raise ProtocolError("Runtime engine returned the wrong batch result count")
             result = MaskedStageResponse.unpack(results[0])
-            correction = np.concatenate(
-                [item.correction for item in corrections], axis=0
-            )
+            correction = np.concatenate([item.correction for item in corrections], axis=0)
             if (
                 result.correlation_id != batch.batch_id
                 or result.stage_id != stage_id
@@ -1714,7 +1713,9 @@ def create_app(
         if create is None:
             raise HTTPException(
                 status_code=501,
-                detail={"error": {"message": "Runtime engine cannot create blinded test correlations"}},
+                detail={
+                    "error": {"message": "Runtime engine cannot create blinded test correlations"}
+                },
             )
         rows = await asyncio.to_thread(
             create,
@@ -1854,7 +1855,8 @@ def create_app(
             result = await execute_envelope(session, envelope)
         except ProtocolError as exc:
             raise HTTPException(
-                status_code=400, detail={"error": {"message": str(exc), "code": "invalid_runtime_frame"}}
+                status_code=400,
+                detail={"error": {"message": str(exc), "code": "invalid_runtime_frame"}},
             )
         return FastAPIResponse(pack_envelope(result), media_type=BINARY_MEDIA_TYPE)
 
@@ -1893,9 +1895,7 @@ def create_app(
             payloads = list(iter_length_prefixed(raw))
             if not payloads:
                 raise ProtocolError("empty stage batch")
-            compact_rows = (
-                prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
-            )
+            compact_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
             logical_rows = compact_rows or len(payloads)
             if logical_rows > config.prepared_stage_batch_rows:
                 raise ProtocolError("stage prefill batch is too large")
@@ -2033,9 +2033,10 @@ def create_app(
             async def generate():
                 async for raw_event in adapter.stream_response(upstream_body):
                     event = publicize(raw_event)
-                    if event.get("type") in {"response.completed", "response.incomplete"} and isinstance(
-                        event.get("response"), dict
-                    ):
+                    if event.get("type") in {
+                        "response.completed",
+                        "response.incomplete",
+                    } and isinstance(event.get("response"), dict):
                         responses.put(event["response"], api_key)
                     yield sse_event(event)
                 yield b"data: [DONE]\n\n"

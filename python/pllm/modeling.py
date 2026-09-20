@@ -117,7 +117,7 @@ class DecoderRuntimeSchedule:
 
     def __post_init__(self) -> None:
         document = json.loads(self._canonical_bytes)
-        if document.get("schema_version") != "pllm.dense_qwen_runtime_schedule.v1":
+        if document.get("schema_version") != "pllm.dense_qwen_runtime_schedule.v2":
             raise ValueError("invalid decoder runtime schedule")
         if not document.get("complete") or document.get("protected_execution"):
             raise ValueError("invalid decoder runtime schedule capability")
@@ -125,7 +125,7 @@ class DecoderRuntimeSchedule:
     @property
     def digest(self) -> str:
         return hashlib.sha256(
-            b"pllm.dense_qwen_runtime_schedule.v1\0" + self._canonical_bytes
+            b"pllm.dense_qwen_runtime_schedule.v2\0" + self._canonical_bytes
         ).hexdigest()
 
     @property

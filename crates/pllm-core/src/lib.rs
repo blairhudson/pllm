@@ -7,8 +7,8 @@ pub mod activation;
 mod attention;
 mod attention_values;
 pub mod codec;
-mod delegated_linear;
 pub mod fixed_point;
+mod freivalds;
 pub mod kernels;
 pub mod kv_cache;
 pub mod rms_norm;
@@ -31,15 +31,16 @@ pub use attention_values::{
     ATTENTION_VALUE_Q10_MAX_OUTPUT_ELEMENTS, ATTENTION_VALUE_Q10_MAX_ROUNDING_ERROR_RAW,
     ATTENTION_VALUE_Q30_Q10_PROFILE,
 };
-pub use delegated_linear::{
-    slalom_evaluate_masked, DelegatedLinearError, MaskedFieldVector, SlalomPreparedMatVec,
-    VerifiedFieldVector, SLALOM_CHALLENGE_REPETITIONS, SLALOM_FIELD_MODULUS,
-    SLALOM_MAX_MATRIX_ELEMENTS,
-};
 pub use fixed_point::{
     gated_multiply_q7, multiply_q7, multiply_q7_tensor, rescale_q14_to_q10,
     rescale_q14_to_q10_centered_u32, rescale_q14_to_q10_centered_u32_tensor, rescale_q14_to_q7,
     rescale_q14_to_q7_tensor, Q14_TO_Q10_INPUT_MAX, Q14_TO_Q10_INPUT_MIN, Q14_TO_Q10_PROFILE,
+};
+pub use freivalds::{
+    import_freivalds_projections, prepare_freivalds_projections, FreivaldsError, FreivaldsPolicy,
+    FreivaldsProjectionBatch, FreivaldsResourcePolicy, FreivaldsSession, FreivaldsVerifier,
+    VerifiedAccumulatorBatch, FREIVALDS_FIELD_MODULUS, FREIVALDS_MAX_BINDING_BYTES,
+    FREIVALDS_MAX_CHECKS, FREIVALDS_MAX_PROCESS_SESSIONS, FREIVALDS_MAX_SOUNDNESS_BITS,
 };
 pub use kernels::{Executor, Matrix};
 pub use kv_cache::{BoundedKvCacheQ10, KvCacheError, Q10KvCache};

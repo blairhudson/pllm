@@ -47,9 +47,9 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom.
+Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom. PLLM now separately implements `pllm.method.slalom-trusted-client-freivalds` through `research.verified_masked_linear_cpu`: trusted Preparation computes authenticated per-row projections, and the trusted Client verifies every remote public linear result before dequantization. A matched tiny CPU loopback functionality result is retained under `docs/evidence/slalom-freivalds-tiny-2026-09-19.json`; real-Qwen evidence was unavailable.
 
-The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
+The original experiments and limitations are under `legacy/`. The implemented record is explicitly a trusted-client/trusted-preparation engineering adaptation, **not a completed native reproduction of the paper's TEE deployment**.
 
 ## Reproduction gates
 

@@ -15,6 +15,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response as FastAPIResponse
 
 from pllm.model_loader import model_from_runtime_spec, resolve_model
+from pllm import _native
 
 from .config import GatewayConfig
 from .correction_channel import (
@@ -29,6 +30,7 @@ from .preparation_protocol import (
     PreparationRequestContext,
     SessionAuthorization,
     SessionAuthorizationAck,
+    freivalds_session_id,
     validate_attempt_id,
 )
 from .privacy import PrivacyMode
@@ -36,6 +38,22 @@ from .protocol import BINARY_MEDIA_TYPE, ProtocolError
 from .security import bearer_token
 from .telemetry import record_protocol_bytes
 from .transformer_engine import MaskedTransformerEngine, TransformerEngineError
+
+
+def _freivalds_policy(value, max_elements):
+    work = min(max_elements * max(value.max_attempts, 1) * 8, (1 << 64) - 1)
+    return _native.FreivaldsPolicy(
+        value.verification_target_failure_bits,
+        value.max_attempts,
+        max_elements,
+        max_elements,
+        max_elements,
+        max_elements,
+        work,
+        value.rows,
+        freivalds_session_id(value),
+        False,
+    )
 
 
 @dataclass(slots=True)
@@ -136,7 +154,10 @@ class PreparationSessionRegistry:
             session = self._sessions.get(session_id)
             if session is None or session.owner != owner or not session.active:
                 raise ProtocolError("preparation session is not authorized")
-            if stage_id not in session.authorization.stage_ids or rows != session.authorization.rows:
+            if (
+                stage_id not in session.authorization.stage_ids
+                or rows != session.authorization.rows
+            ):
                 raise ProtocolError("preparation request is outside the authorized inventory")
             if attempt in session.attempts:
                 raise ProtocolError("preparation attempt was already consumed")
@@ -241,6 +262,7 @@ def create_preparation_app(
         config.prepared_session_capacity,
         config.prepared_session_idle_seconds,
     )
+    freivalds_policies: dict[str, Any] = {}
     owns_push_client = push_client is None
     push_http = push_client or httpx.AsyncClient(
         base_url=inference_url,
@@ -345,6 +367,7 @@ def create_preparation_app(
         owner = authenticate(authorization)
         raw = await _read_limited_body(request, config.preparation_request_max_bytes)
         reserved = False
+        policy_reserved = False
         try:
             value = SessionAuthorization.unpack(raw)
             if value.session_id != session_id:
@@ -355,6 +378,11 @@ def create_preparation_app(
             validate_authorization(value)
             session_registry.reserve(value, owner)
             reserved = True
+            if value.verification_component != "none":
+                freivalds_policies[session_id] = _freivalds_policy(
+                    value, config.prepared_tensor_max_elements
+                )
+                policy_reserved = True
             pushed = await push_http.post(
                 f"/v1/runtime/inventories/{session_id}/authorize",
                 headers={
@@ -370,6 +398,8 @@ def create_preparation_app(
             session_registry.activate(session_id, owner)
             result = ack.pack()
         except (ProtocolError, TransformerEngineError, ValueError, httpx.HTTPError) as exc:
+            if policy_reserved:
+                freivalds_policies.pop(session_id, None)
             if reserved:
                 session_registry.release(session_id, owner)
             metrics.failures += 1
@@ -407,6 +437,7 @@ def create_preparation_app(
     ) -> dict[str, Any]:
         owner = authenticate(authorization)
         session_registry.release(session_id, owner, force=True)
+        freivalds_policies.pop(session_id, None)
         return {"id": session_id, "status": "canceled"}
 
     @app.post("/v1/preparation/inventories/{session_id}/stages/{stage_id}")
@@ -513,12 +544,32 @@ def create_preparation_app(
             record_protocol_bytes(
                 "preparation", "inference", len(correction_payload), value.stage_id
             )
+            verification = {}
+            if session.verification_component != "none":
+                policy = freivalds_policies.get(session_id)
+                if policy is None:
+                    raise ProtocolError("Freivalds policy is unavailable for the session")
+                material = await asyncio.to_thread(
+                    engine.prepare_freivalds,
+                    session,
+                    value,
+                    policy,
+                )
+                verification = {
+                    "verification_component": session.verification_component,
+                    "verification_checks": material.checks,
+                    "verification_max_row_l1": material.max_row_l1,
+                    "verification_material_id": material.material_id,
+                    "verification_tag": material.authentication_tag(value.seed),
+                    "verification_payload": material.payload(),
+                }
             result = PreparationAck(
                 value.attempt_id,
                 value.stage_id,
                 len(correction_payload),
                 correction.server_ns,
                 correction_push_ns,
+                **verification,
             ).pack()
         except (
             CorrectionChannelError,

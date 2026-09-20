@@ -76,6 +76,8 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "compiled_cache_dir": _env("PLLM_COMPILED_CACHE"),
         "streaming_threshold_elements": 50_000_000,
         "quantization_chunk_rows": 64,
+        "verification_component": _env("PLLM_VERIFICATION_COMPONENT", "none"),
+        "verification_target_failure_bits": int(_env("PLLM_VERIFICATION_TARGET_FAILURE_BITS", "0")),
         "weight_bits": 8,
         "activation_bits": 8,
         "model": [],
@@ -211,9 +213,7 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
                 engine_name = "direct-bfv-transformer-proprietary"
             else:
                 raise AssertionError("secure mode must fail before model loading")
-            resolved_models.append(
-                {"engine": engine_name, **runtime_model.to_runtime_spec()}
-            )
+            resolved_models.append({"engine": engine_name, **runtime_model.to_runtime_spec()})
         value["engine_models"] = resolved_models
     config = GatewayConfig.from_dict(value)
     loopback = _is_loopback_host(args.host)
@@ -242,6 +242,8 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         "quantization_chunk_rows": args.quantization_chunk_rows,
         "weight_bits": args.weight_bits,
         "activation_bits": args.activation_bits,
+        "verification_component": args.verification_component,
+        "verification_target_failure_bits": args.verification_target_failure_bits,
     }
     if engine_type is GuardedBlindedTransformerEngine:
         engine_kwargs["guard_policy"] = GuardPolicy(
@@ -253,9 +255,7 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
     engine = engine_type(**engine_kwargs)
     from .telemetry import configure_telemetry
 
-    configure_telemetry(
-        "pllm-preparation" if preparation else "pllm-inference"
-    )
+    configure_telemetry("pllm-preparation" if preparation else "pllm-inference")
     app = (
         create_preparation_app(config, engine)
         if preparation
@@ -358,8 +358,7 @@ def run_local_gateway(args: argparse.Namespace) -> None:
         reserved_ports=(args.port,),
     ) as topology:
         app = topology.gateway_app(
-            local_api_key=getattr(args, "api_key", None)
-            or _env("PLLM_GATEWAY_API_KEY", "local"),
+            local_api_key=getattr(args, "api_key", None) or _env("PLLM_GATEWAY_API_KEY", "local"),
             tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
             session_transport=getattr(args, "transport", "websocket"),
             correlation_prefetch=getattr(args, "correlation_prefetch", 4),

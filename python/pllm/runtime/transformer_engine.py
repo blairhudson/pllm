@@ -16,6 +16,7 @@ from typing import Any, cast
 import msgpack
 import numpy as np
 from filelock import FileLock
+from pllm import _native
 
 from .engine import EngineCapabilities
 from .bfv_correlations import BFVCorrelationServer
@@ -26,6 +27,8 @@ from .preparation_protocol import (
     PreparationRequest,
     SeededRingProfile,
     SessionAuthorization,
+    freivalds_binding,
+    freivalds_material_id,
     expand_output_mask,
     expand_preparation_mask,
     seeded_ring_profile,
@@ -347,7 +350,7 @@ class MaskedTransformerEngine:
     capabilities = EngineCapabilities(
         name="masked-transformer-w4a4",
         model_sources=("huggingface", "safetensors", "vllm", "mlx-lm"),
-        protocols=("masked.stage/v3", "prepared-correction/v2", "bfv-correlation/v1"),
+        protocols=("masked.stage/v3", "prepared-correction/v3", "bfv-correlation/v1"),
         online_fhe=False,
         preprocessed=True,
         continuous_batching=True,
@@ -371,6 +374,8 @@ class MaskedTransformerEngine:
         compiled_cache_dir: str | Path | None = None,
         streaming_threshold_elements: int = 50_000_000,
         quantization_chunk_rows: int = 64,
+        verification_component: str = "none",
+        verification_target_failure_bits: int = 0,
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -387,6 +392,16 @@ class MaskedTransformerEngine:
         )
         self.streaming_threshold_elements = max(1, int(streaming_threshold_elements))
         self.quantization_chunk_rows = max(1, int(quantization_chunk_rows))
+        if verification_component == "none":
+            if verification_target_failure_bits != 0:
+                raise ValueError("disabled verification requires a zero failure target")
+        elif verification_component == "pllm/freivalds-verify/v1":
+            if not 1 <= verification_target_failure_bits <= 80:
+                raise ValueError("invalid Freivalds failure target")
+        else:
+            raise ValueError("unsupported verification component")
+        self.verification_component = verification_component
+        self.verification_target_failure_bits = verification_target_failure_bits
         self.models: dict[str, LoadedTransformer] = {}
         self._rng = np.random.default_rng(local_correlation_seed)
         self._rng_lock = threading.Lock()
@@ -462,6 +477,13 @@ class MaskedTransformerEngine:
                 "block_style": profile.block_style,
                 "privacy_mode": "public",
                 "privacy_protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
+                "verification_component": self.verification_component,
+                "verification_target_failure_bits": self.verification_target_failure_bits,
+                "runtime_profile": (
+                    "research.verified_masked_linear_cpu"
+                    if self.verification_component == "pllm/freivalds-verify/v1"
+                    else "baseline.masked_linear_cpu"
+                ),
                 "online_fhe": False,
                 "preprocessed": True,
                 "model_weight_correlations_disclosed": True,
@@ -895,16 +917,18 @@ class MaskedTransformerEngine:
         if not requests:
             return []
         profiles = {
-            (request.ring or "prime", request.modulus, request.wire_bits)
-            for request in requests
+            (request.ring or "prime", request.modulus, request.wire_bits) for request in requests
         }
         if len(profiles) != 1:
             raise TransformerEngineError("masked stage arithmetic profile mismatch")
         ring, modulus, wire_bits = profiles.pop()
-        prime_profile = ring == "prime" and modulus == runtime.modulus and wire_bits == runtime.wire_bits
-        wrapping_profile = ring in {"u16", "u24", "u32"} and (
-            modulus, wire_bits
-        ) == (1 << wire_bits, wire_bits)
+        prime_profile = (
+            ring == "prime" and modulus == runtime.modulus and wire_bits == runtime.wire_bits
+        )
+        wrapping_profile = ring in {"u16", "u24", "u32"} and (modulus, wire_bits) == (
+            1 << wire_bits,
+            wire_bits,
+        )
         if not prime_profile and not wrapping_profile:
             raise TransformerEngineError("masked stage arithmetic profile mismatch")
         if wrapping_profile and runtime.signed_output_bound >= 1 << (wire_bits - 1):
@@ -934,7 +958,8 @@ class MaskedTransformerEngine:
                     request.ring or "prime",  # type: ignore[arg-type]
                     request.modulus,
                     request.wire_bits,
-                ) != runtime.seeded_profile
+                )
+                != runtime.seeded_profile
             ):
                 raise TransformerEngineError("masked stage seeded profile mismatch")
 
@@ -1000,13 +1025,13 @@ class MaskedTransformerEngine:
         output_mask = expand_output_mask(request)
         started = time.perf_counter_ns()
         transformed = await asyncio.to_thread(
-            runtime.compiled_weight.wrap32 if request.ring == "u32" else runtime.compiled_weight.modular,
+            runtime.compiled_weight.wrap32
+            if request.ring == "u32"
+            else runtime.compiled_weight.modular,
             mask,
             *(() if request.ring == "u32" else (request.modulus,)),
         )
-        correction = (
-            transformed.astype(np.int64) - output_mask.astype(np.int64)
-        ) % request.modulus
+        correction = (transformed.astype(np.int64) - output_mask.astype(np.int64)) % request.modulus
         elapsed = time.perf_counter_ns() - started
         runtime.calls += 1
         runtime.rows += request.rows
@@ -1037,12 +1062,27 @@ class MaskedTransformerEngine:
     def seeded_profile(self, model_id: str, stage_id: str) -> SeededRingProfile:
         return self._runtime(model_id, stage_id).seeded_profile
 
+    def prepare_freivalds(self, authorization, request, policy):
+        runtime = self._runtime(request.model, request.stage_id)
+        if runtime.weight.values.dtype != np.int8 or not runtime.weight.values.flags.c_contiguous:
+            raise TransformerEngineError("Freivalds weights must be contiguous int8")
+        return _native.prepare_freivalds(
+            runtime.weight.values.tobytes(order="C"),
+            runtime.spec.out_features,
+            runtime.spec.in_features,
+            request.rows,
+            request.seed,
+            freivalds_binding(authorization, request),
+            freivalds_material_id(authorization, request),
+            signed_qmax(runtime.spec.activation_bits),
+            runtime.signed_output_bound,
+            policy,
+        )
+
     def seeded_stage_ids(self, model_id: str) -> tuple[str, ...]:
         model = self._model(model_id)
         return tuple(
-            stage_id
-            for stage_id in model.stages
-            if stage_id not in {"token_lookup", "lm_head"}
+            stage_id for stage_id in model.stages if stage_id not in {"token_lookup", "lm_head"}
         )
 
     def validate_seeded_correction(self, correction: CorrectionPush) -> None:
@@ -1105,6 +1145,8 @@ class MaskedTransformerEngine:
             max_attempts=max_attempts,
             rows=max_attempts // len(self.seeded_stage_ids(model_id)),
             stage_ids=self.seeded_stage_ids(model_id),
+            verification_component=self.verification_component,
+            verification_target_failure_bits=self.verification_target_failure_bits,
         )
 
     def validate_seeded_session_authorization(
@@ -1250,9 +1292,7 @@ class MaskedTransformerEngine:
             key = (stage_id, context_id)
             server = model.bfv_servers.get(key)
             if server is None and tiled_context_modulus(public) is not None:
-                server = TiledBFVServer(
-                    public, runtime.weight.values, threads=self.kernel.threads
-                )
+                server = TiledBFVServer(public, runtime.weight.values, threads=self.kernel.threads)
                 model.bfv_servers[key] = server
         if isinstance(server, TiledBFVServer):
             return server.evaluate_many(encrypted_masks, cancel_event=cancel_event)
@@ -1260,9 +1300,7 @@ class MaskedTransformerEngine:
         for payload in encrypted_masks:
             if cancel_event is not None and cancel_event.is_set():
                 raise TransformerEngineError("BFV evaluation cancelled")
-            results.append(
-                self.evaluate_bfv_correlation(model_id, stage_id, context_id, payload)
-            )
+            results.append(self.evaluate_bfv_correlation(model_id, stage_id, context_id, payload))
         return results
 
     def client_bundle(self, model_id: str, *, include_local_weights: bool = True) -> bytes:
@@ -1383,6 +1421,13 @@ class MaskedTransformerEngine:
                     "stage_commitment": model.manifest.metadata["seeded_stage_commitment"],
                     "weight_bits": self.weight_bits,
                     "activation_bits": self.activation_bits,
+                    "verification_component": self.verification_component,
+                    "verification_target_failure_bits": self.verification_target_failure_bits,
+                    "runtime_profile": (
+                        "research.verified_masked_linear_cpu"
+                        if self.verification_component != "none"
+                        else "baseline.masked_linear_cpu"
+                    ),
                 },
             },
             use_bin_type=True,

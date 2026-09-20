@@ -11,6 +11,7 @@ dependencies = [
  "cfg-if",
  "cipher",
  "cpufeatures",
+ "zeroize",
 ]
 
 [[package]]
@@ -267,10 +268,13 @@ dependencies = [
 name = "pllm-core"
 version = "0.1.0-alpha.1"
 dependencies = [
+ "aes",
  "getrandom",
  "libm",
  "rayon",
  "serde",
+ "sha2",
+ "subtle",
  "zeroize",
 ]
 
@@ -316,6 +320,7 @@ dependencies = [
  "pllm-types",
  "pyo3",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

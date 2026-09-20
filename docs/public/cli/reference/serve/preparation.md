@@ -42,6 +42,8 @@ usage: pllm serve preparation [-h] [--format {human,json,jsonl}] [--quiet]
                               [--compiled-cache-dir COMPILED_CACHE_DIR]
                               [--streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS]
                               [--quantization-chunk-rows QUANTIZATION_CHUNK_ROWS]
+                              [--verification-component {none,pllm/freivalds-verify/v1}]
+                              [--verification-target-failure-bits VERIFICATION_TARGET_FAILURE_BITS]
                               [--guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST]
                               [--guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE]
                               [--guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE]
@@ -90,6 +92,8 @@ options:
   --compiled-cache-dir COMPILED_CACHE_DIR
   --streaming-threshold-elements STREAMING_THRESHOLD_ELEMENTS
   --quantization-chunk-rows QUANTIZATION_CHUNK_ROWS
+  --verification-component {none,pllm/freivalds-verify/v1}
+  --verification-target-failure-bits VERIFICATION_TARGET_FAILURE_BITS
   --guard-max-rows-per-request GUARD_MAX_ROWS_PER_REQUEST
   --guard-max-rows-per-stage GUARD_MAX_ROWS_PER_STAGE
   --guard-max-requests-per-minute GUARD_MAX_REQUESTS_PER_MINUTE

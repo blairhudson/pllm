@@ -64,9 +64,10 @@ pub use dense_qwen_mlp_protected::{
     DENSE_QWEN_MLP_PROTECTED_HARD_MAX_ROWS, DENSE_QWEN_MLP_PROTECTED_HARD_MAX_TOTAL_BODY_BYTES,
 };
 pub use dense_qwen_runtime_schedule::{
-    lower_dense_qwen_runtime_schedule, DenseQwenRuntimeExecutor, DenseQwenRuntimeOutput,
-    DenseQwenRuntimePhaseSchedule, DenseQwenRuntimeSchedule, DenseQwenRuntimeStep,
-    DENSE_QWEN_MASKED_RUNTIME_PROFILE, DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION,
+    lower_dense_qwen_runtime_schedule, lower_dense_qwen_runtime_schedule_for_profile,
+    DenseQwenRuntimeExecutor, DenseQwenRuntimeOutput, DenseQwenRuntimePhaseSchedule,
+    DenseQwenRuntimeSchedule, DenseQwenRuntimeStep, DENSE_QWEN_MASKED_RUNTIME_PROFILE,
+    DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION, DENSE_QWEN_VERIFIED_RUNTIME_PROFILE,
 };
 pub use gated_tensor::{
     prepare_bound_gated_multiply_q7_tensor_material, BoundGatedMultiplyQ7TensorMaterial,
@@ -101,6 +102,7 @@ pub use rms_norm_stream_protected::{
 pub const REGION_PROGRAM_SCHEMA_VERSION: &str = "pllm.region_program.v1";
 pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v1";
 pub const BASELINE_EXPERIMENT_PROFILE: &str = "baseline.masked_linear_cpu";
+pub const VERIFIED_MASKED_EXPERIMENT_PROFILE: &str = "research.verified_masked_linear_cpu";
 pub const SILU_Q7_EXPERIMENT_PROFILE: &str = "research.single_evaluator";
 pub const SILU_Q7_NUMERIC_GRAPH_ID: &str = pllm_core::activation::SILU_QUADRATIC_Q7_PROFILE;
 pub const SILU_Q7_PROTECTED_GRAPH_ID: &str = "pllm.protected.arithmetic_garbling.silu_q7.v1";
@@ -410,8 +412,10 @@ fn model_gated_multiply_q7_chunked_executable(plan: &DecoderPlan, mode: DecoderM
 }
 
 pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageReport {
-    let masked_runtime_complete = profile == DENSE_QWEN_MASKED_RUNTIME_PROFILE
-        && lower_dense_qwen_runtime_schedule(plan).is_ok();
+    let masked_runtime_complete = matches!(
+        profile,
+        DENSE_QWEN_MASKED_RUNTIME_PROFILE | DENSE_QWEN_VERIFIED_RUNTIME_PROFILE
+    ) && lower_dense_qwen_runtime_schedule(plan).is_ok();
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -1130,6 +1134,71 @@ struct ExperimentPipeline {
 #[serde(deny_unknown_fields)]
 struct ExperimentModel {
     source: String,
+    #[serde(
+        default = "default_experiment_model_kind",
+        skip_serializing_if = "is_default_experiment_model_kind"
+    )]
+    kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    model_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    revision: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    local_files_only: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    endpoint: Option<String>,
+}
+
+fn default_experiment_model_kind() -> String {
+    "huggingface".into()
+}
+
+fn is_default_experiment_model_kind(value: &str) -> bool {
+    value == "huggingface"
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn validate_experiment_model(model: &ExperimentModel) -> Result<(), String> {
+    const KINDS: &[&str] = &[
+        "huggingface",
+        "safetensors",
+        "vllm",
+        "mlx",
+        "mlx-lm",
+        "gguf",
+        "llama.cpp",
+        "ollama",
+        "tiny",
+    ];
+    if model.source.is_empty() || !KINDS.contains(&model.kind.as_str()) {
+        return Err("experiment model source or kind is invalid".into());
+    }
+    if model
+        .model_id
+        .as_ref()
+        .is_some_and(|value| value.is_empty())
+    {
+        return Err("experiment model_id must not be empty".into());
+    }
+    let revision_capable = matches!(model.kind.as_str(), "huggingface" | "safetensors" | "vllm");
+    if (model.revision.is_some() || model.local_files_only) && !revision_capable {
+        return Err("experiment model revision policy is invalid".into());
+    }
+    if model.kind == "ollama" {
+        if !model
+            .endpoint
+            .as_deref()
+            .is_some_and(|value| value.starts_with("http://") || value.starts_with("https://"))
+        {
+            return Err("ollama experiment model requires an HTTP(S) endpoint".into());
+        }
+    } else if model.endpoint.is_some() {
+        return Err("experiment model endpoint is restricted to ollama".into());
+    }
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -1529,7 +1598,7 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_baseline_components(document: &ExperimentDocument) -> Result<(), String> {
+fn validate_masked_components(document: &ExperimentDocument) -> Result<(), String> {
     for (slot, required) in [
         ("linear", "pllm/masked-linear"),
         ("preparation", "pllm/model-aware-corrections"),
@@ -1564,9 +1633,6 @@ fn validate_baseline_components(document: &ExperimentDocument) -> Result<(), Str
                 .into(),
         );
     }
-    if document.pipeline.components.len() != 4 {
-        return Err("baseline profile requires exactly linear, preparation, inference, and kernels components".into());
-    }
     Ok(())
 }
 
@@ -1577,13 +1643,48 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentProfile, Str
         return Err("Experiment must use canonical compact sorted JSON bytes".into());
     }
     validate_experiment(&document)?;
-    if document.pipeline.profile != BASELINE_EXPERIMENT_PROFILE {
+    validate_experiment_model(&document.pipeline.model)?;
+    if !matches!(
+        document.pipeline.profile.as_str(),
+        BASELINE_EXPERIMENT_PROFILE | VERIFIED_MASKED_EXPERIMENT_PROFILE
+    ) {
         return Err(format!(
             "unsupported Experiment profile {:?}",
             document.pipeline.profile
         ));
     }
-    validate_baseline_components(&document)?;
+    validate_masked_components(&document)?;
+    let expected_components = if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
+        4
+    } else {
+        5
+    };
+    if document.pipeline.components.len() != expected_components {
+        return Err(if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
+            "baseline profile requires exactly linear, preparation, inference, and kernels components"
+                .into()
+        } else {
+            "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
+                .into()
+        });
+    }
+    if document.pipeline.profile == VERIFIED_MASKED_EXPERIMENT_PROFILE {
+        let verification = document
+            .pipeline
+            .components
+            .get("verification")
+            .ok_or_else(|| "verified profile requires a verification component".to_string())?;
+        if verification.component != "pllm/freivalds-verify/v1" {
+            return Err("verified profile requires pllm/freivalds-verify/v1".into());
+        }
+        let target = verification
+            .params
+            .get("target_failure_bits")
+            .and_then(serde_json::Value::as_u64);
+        if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
+            return Err("Freivalds verification requires target_failure_bits from 1 to 80".into());
+        }
+    }
 
     Ok(ResolvedExperimentProfile {
         canonical_profile: canonical_bytes(&document.pipeline),
@@ -2068,8 +2169,47 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
         )));
     }
     validate_experiment(&document.configuration).map_err(document_error)?;
-    if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
-        validate_baseline_components(&document.configuration).map_err(document_error)?;
+    validate_experiment_model(&document.configuration.pipeline.model).map_err(document_error)?;
+    if matches!(
+        document.configuration.pipeline.profile.as_str(),
+        BASELINE_EXPERIMENT_PROFILE | VERIFIED_MASKED_EXPERIMENT_PROFILE
+    ) {
+        validate_masked_components(&document.configuration).map_err(document_error)?;
+        let expected = if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
+            4
+        } else {
+            5
+        };
+        if document.configuration.pipeline.components.len() != expected {
+            let message = if document.configuration.pipeline.profile
+                == BASELINE_EXPERIMENT_PROFILE
+            {
+                "baseline profile requires exactly linear, preparation, inference, and kernels components"
+            } else {
+                "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
+            };
+            return Err(document_error(message));
+        }
+        if document.configuration.pipeline.profile == VERIFIED_MASKED_EXPERIMENT_PROFILE {
+            let verification = document
+                .configuration
+                .pipeline
+                .components
+                .get("verification")
+                .ok_or_else(|| document_error("verified profile requires verification"))?;
+            if verification.component != "pllm/freivalds-verify/v1" {
+                return Err(document_error(
+                    "verified profile requires pllm/freivalds-verify/v1",
+                ));
+            }
+            let target = verification
+                .params
+                .get("target_failure_bits")
+                .and_then(serde_json::Value::as_u64);
+            if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
+                return Err(document_error("invalid Freivalds verification parameters"));
+            }
+        }
     }
     if canonical_bytes(&document) != bytes {
         return Err(document_error(

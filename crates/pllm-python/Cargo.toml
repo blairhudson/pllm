@@ -25,3 +25,4 @@ pllm-assurance.workspace = true
 pllm-models.workspace = true
 pyo3.workspace = true
 serde_json.workspace = true
+zeroize.workspace = true

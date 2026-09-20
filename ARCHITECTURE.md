@@ -192,6 +192,15 @@ model body, and must follow the protocol, erase masks, and not collude with the
 inference provider. Self-hosting keeps that trust inside the client boundary.
 The online public path does not use BFV or contact preparation.
 
+The opt-in `research.verified_masked_linear_cpu` profile adds a trusted-client
+Freivalds check to that prepared path. Preparation returns authenticated,
+per-row projections over the client channel; Inference never receives the root
+seed, challenges, or projections. The client verifies bounded integer stage
+outputs before dequantization and burns material on use, cancellation, or
+failure. This is a Slalom-derived engineering adaptation, not a TEE reproduction
+or an actively malicious preparation guarantee. It does not reduce online
+traffic.
+
 Public model bundles also carry the quantized token-lookup and output-head
 matrices. The client evaluates token lookup locally and applies the output
 head only to the final prefill row. This removes vocabulary-sized HE work from

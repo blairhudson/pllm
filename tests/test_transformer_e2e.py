@@ -22,8 +22,19 @@ from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
-def prepared_service(root: Path, model_id: str, gateway):
-    engine = MaskedTransformerEngine(threads=1)
+def prepared_service(
+    root: Path,
+    model_id: str,
+    gateway,
+    *,
+    verification_component: str = "none",
+    verification_target_failure_bits: int = 0,
+):
+    engine = MaskedTransformerEngine(
+        threads=1,
+        verification_component=verification_component,
+        verification_target_failure_bits=verification_target_failure_bits,
+    )
     asyncio.run(engine.load(load_hf_directory(root, model_id=model_id)))
     return start_preparation(engine, gateway.base_url, gateway.push_api_key), engine
 
@@ -87,6 +98,54 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
         assert canary.encode() not in raw_audit
         assert engine.stats()["execute_items"] > 0
         assert preparation_engine.stats()["execute_items"] > 0
+    finally:
+        gateway.close()
+        preparation.close()
+
+
+def test_verified_seeded_preparation_executes_end_to_end(tmp_path: Path):
+    root = create_tiny_gemma4_checkpoint(tmp_path / "verified-tiny")
+    model_id = "tiny-verified-pllm"
+    component = "pllm/freivalds-verify/v1"
+    engine = MaskedTransformerEngine(
+        threads=1,
+        verification_component=component,
+        verification_target_failure_bits=40,
+    )
+    gateway = start_gateway(engines={engine.capabilities.name: engine})
+    preparation, _ = prepared_service(
+        root,
+        model_id,
+        gateway,
+        verification_component=component,
+        verification_target_failure_bits=40,
+    )
+    try:
+        with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
+            loaded = admin.post(
+                "/v1/runtime/models/load",
+                headers={"Authorization": f"Bearer {gateway.api_key}"},
+                json={
+                    "engine": engine.capabilities.name,
+                    "kind": "huggingface",
+                    "path": str(root),
+                    "model_id": model_id,
+                },
+            )
+            assert loaded.status_code == 200, loaded.text
+        with OpenAI(
+            api_key=gateway.api_key,
+            base_url=gateway.base_url,
+            preparation_base_url=preparation.base_url,
+            preparation_api_key=preparation.api_key,
+            background_inventory_refill=False,
+        ) as client:
+            response = client.responses.create(
+                model=model_id, input="verified", max_output_tokens=1
+            )
+            assert response.status == "incomplete"
+            assert client.privacy_audit.preparation_download_bytes > 0
+            assert client.privacy_audit.online_steps > 0
     finally:
         gateway.close()
         preparation.close()
@@ -196,10 +255,7 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             preparation_metrics["correction_channel_upload_bytes"]
             == replacement_audit["correction_push_bytes"]
         )
-        assert (
-            preparation_metrics["correction_push_ns"]
-            == replacement_audit["correction_push_ns"]
-        )
+        assert preparation_metrics["correction_push_ns"] == replacement_audit["correction_push_ns"]
         assert inference_metrics["correction_channel"]["connections"] == 1
         assert (
             inference_metrics["correction_channel"]["frames"]
@@ -276,9 +332,7 @@ def test_seeded_preparation_accepts_prefill_larger_than_decode_scheduler_batch(
 
 
 def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path: Path):
-    root = create_tiny_gemma4_checkpoint(
-        tmp_path / "no-permit", num_hidden_layers=1, ple_dim=0
-    )
+    root = create_tiny_gemma4_checkpoint(tmp_path / "no-permit", num_hidden_layers=1, ple_dim=0)
     engine = MaskedTransformerEngine(threads=1)
     model_id = "tiny-no-permit"
     engine_name = engine.capabilities.name
@@ -289,12 +343,14 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
             rendezvous_timeout_seconds=0.01,
             prepared_session_capacity=1,
             prepared_session_idle_seconds=60,
-            engine_models=({
-                "engine": engine_name,
-                "kind": "huggingface",
-                "path": str(root),
-                "model_id": model_id,
-            },),
+            engine_models=(
+                {
+                    "engine": engine_name,
+                    "kind": "huggingface",
+                    "path": str(root),
+                    "model_id": model_id,
+                },
+            ),
         ),
         engines={engine_name: engine},
     )
@@ -315,8 +371,7 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
         assert capacity.status_code == 503
         model = engine.models[model_id]
         stage = next(
-            item for item in model.manifest.stages
-            if item.id not in {"token_lookup", "lm_head"}
+            item for item in model.manifest.stages if item.id not in {"token_lookup", "lm_head"}
         )
         runtime = model.stages[stage.id]
         profile = runtime.seeded_profile
@@ -419,7 +474,10 @@ def _legacy_activation_without_session_authorization_never_starts_gemm(tmp_path:
             correction_payload = correction.pack()
             frame = correction_payload
             corrections.send_bytes(frame)
-            assert PreparationAck.unpack(corrections.receive_bytes()).attempt_id == correction.attempt_id
+            assert (
+                PreparationAck.unpack(corrections.receive_bytes()).attempt_id
+                == correction.attempt_id
+            )
             corrections.send_bytes(frame)
             with pytest.raises(WebSocketDisconnect) as replayed_correction:
                 corrections.receive_bytes()
@@ -566,9 +624,7 @@ def test_client_authorization_failure_burns_inference_session(tmp_path: Path):
     inference_engine = MaskedTransformerEngine(threads=1)
     preparation_engine = MaskedTransformerEngine(threads=1)
     asyncio.run(preparation_engine.load(load_hf_directory(root, model_id=model_id)))
-    gateway = start_gateway(
-        engines={inference_engine.capabilities.name: inference_engine}
-    )
+    gateway = start_gateway(engines={inference_engine.capabilities.name: inference_engine})
     preparation = start_preparation(
         preparation_engine,
         gateway.base_url,
@@ -648,9 +704,9 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
                 max_output_tokens=1,
                 temperature=0,
             )
-            before_qkv_rows = engine.models["tiny-continuation-pllm"].stages[
-                "layers.0.self_attn.qkv_proj"
-            ].rows
+            before_qkv_rows = (
+                engine.models["tiny-continuation-pllm"].stages["layers.0.self_attn.qkv_proj"].rows
+            )
             # The final emitted token is carried into a future continuation
             # instead of paying for a transformer pass after the response ends.
             assert before_qkv_rows == first.usage.input_tokens
@@ -661,9 +717,9 @@ def test_previous_response_id_reuses_private_kv_and_token_cache(tmp_path: Path):
                 max_output_tokens=1,
                 temperature=0,
             )
-            after_qkv_rows = engine.models["tiny-continuation-pllm"].stages[
-                "layers.0.self_attn.qkv_proj"
-            ].rows
+            after_qkv_rows = (
+                engine.models["tiny-continuation-pllm"].stages["layers.0.self_attn.qkv_proj"].rows
+            )
             audit = client.privacy_audit.to_dict()
             assert second.status == "incomplete"
             assert second.incomplete_details == {"reason": "max_output_tokens"}

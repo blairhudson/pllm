@@ -5,9 +5,10 @@ use pllm_types::{canonical_digest, Digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.dense_qwen_runtime_schedule.v1";
+pub const DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.dense_qwen_runtime_schedule.v2";
 pub const DENSE_QWEN_MASKED_RUNTIME_PROFILE: &str = "baseline.masked_linear_cpu";
-const DENSE_QWEN_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.dense_qwen_runtime_schedule.v1";
+pub const DENSE_QWEN_VERIFIED_RUNTIME_PROFILE: &str = "research.verified_masked_linear_cpu";
+const DENSE_QWEN_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.dense_qwen_runtime_schedule.v2";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -687,6 +688,19 @@ fn remote_signature(phase: &DenseQwenRuntimePhaseSchedule) -> Vec<RemoteSignatur
 pub fn lower_dense_qwen_runtime_schedule(
     plan: &DecoderPlan,
 ) -> Result<DenseQwenRuntimeSchedule, String> {
+    lower_dense_qwen_runtime_schedule_for_profile(plan, DENSE_QWEN_MASKED_RUNTIME_PROFILE)
+}
+
+pub fn lower_dense_qwen_runtime_schedule_for_profile(
+    plan: &DecoderPlan,
+    profile: &str,
+) -> Result<DenseQwenRuntimeSchedule, String> {
+    if !matches!(
+        profile,
+        DENSE_QWEN_MASKED_RUNTIME_PROFILE | DENSE_QWEN_VERIFIED_RUNTIME_PROFILE
+    ) {
+        return Err("dense-qwen runtime schedule requires a shipped masked profile".into());
+    }
     plan.validate().map_err(|error| error.to_string())?;
     if plan.model_family != "qwen2" || plan.adapter != "pllm.qwen2.v1" {
         return Err("dense-qwen masked runtime schedule requires the Qwen2 adapter".into());
@@ -704,7 +718,7 @@ pub fn lower_dense_qwen_runtime_schedule(
     }
     Ok(DenseQwenRuntimeSchedule {
         schema_version: DENSE_QWEN_RUNTIME_SCHEDULE_SCHEMA_VERSION.into(),
-        profile: DENSE_QWEN_MASKED_RUNTIME_PROFILE.into(),
+        profile: profile.into(),
         model_plan_digest: plan.digest(),
         model_config_digest: plan.config_digest.clone(),
         prefill,

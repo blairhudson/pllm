@@ -28,24 +28,26 @@ REQUIRED_MODEL_FAMILY = "qwen2"
 REQUIRED_ADAPTER = "pllm.qwen2.v1"
 
 REMOTE_OPERATORS = frozenset({"token_lookup", "linear", "output_head"})
-LOCAL_OPERATORS = frozenset({
-    "reshape",
-    "rms_norm",
-    "rotary_embedding",
-    "kv_cache_append",
-    "attention_scores",
-    "attention_scale",
-    "causal_mask",
-    "softmax",
-    "attention_values",
-    "residual_add",
-    "silu",
-    "multiply",
-    "last_token",
-    "greedy_token_selection",
-    "token_feedback",
-    "cache_suffix",
-})
+LOCAL_OPERATORS = frozenset(
+    {
+        "reshape",
+        "rms_norm",
+        "rotary_embedding",
+        "kv_cache_append",
+        "attention_scores",
+        "attention_scale",
+        "causal_mask",
+        "softmax",
+        "attention_values",
+        "residual_add",
+        "silu",
+        "multiply",
+        "last_token",
+        "greedy_token_selection",
+        "token_feedback",
+        "cache_suffix",
+    }
+)
 BOUNDARY_STAGE_IDS = frozenset({"token_lookup", "lm_head"})
 
 
@@ -91,9 +93,7 @@ class CompiledRuntimeModel:
     )
 
     def __init__(self) -> None:
-        raise RuntimeBindingError(
-            "CompiledRuntimeModel must be created by compile_runtime_model"
-        )
+        raise RuntimeBindingError("CompiledRuntimeModel must be created by compile_runtime_model")
 
     @classmethod
     def _create(
@@ -180,9 +180,7 @@ class CompiledRuntimeModel:
         self.validate()
         return MaskedTransformerClientRuntime(self._bundle, remote)
 
-    def session(
-        self, remote: Callable[[str, np.ndarray], np.ndarray]
-    ) -> "CompiledRuntimeSession":
+    def session(self, remote: Callable[[str, np.ndarray], np.ndarray]) -> "CompiledRuntimeSession":
         from pllm.runtime.model_execution import CompiledRuntimeSession
 
         return CompiledRuntimeSession._create(self, remote)
@@ -213,7 +211,7 @@ def _f32_bytes(value: np.ndarray) -> bytes:
 def _normalize_weight_key(key: Any) -> str:
     if not isinstance(key, str):
         raise RuntimeBindingError("stage weight key must be a string")
-    return key[len("model."):] if key.startswith("model.") else key
+    return key[len("model.") :] if key.startswith("model.") else key
 
 
 def _require_int(value: Any, name: str) -> int:
@@ -228,7 +226,9 @@ def _last_dim(shape: Any, name: str) -> int:
     return _require_int(shape[-1], name)
 
 
-def _phase_operations(document: dict[str, Any], phase: str) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+def _phase_operations(
+    document: dict[str, Any], phase: str
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     graph = document.get(phase)
     if not isinstance(graph, dict):
         raise RuntimeBindingError(f"plan is missing the {phase} phase")
@@ -269,11 +269,10 @@ def _plan_dimensions(
         raise RuntimeBindingError("plan requires exactly one token lookup and output head")
     hidden = _last_dim(token_ops[0].get("output_shape"), "token_lookup")
     vocab = _last_dim(head_ops[0].get("output_shape"), "output_head")
+
     def producers(operation: dict[str, Any]) -> list[dict[str, Any]]:
         return [
-            prefill[input_id]
-            for input_id in operation.get("inputs") or []
-            if input_id in prefill
+            prefill[input_id] for input_id in operation.get("inputs") or [] if input_id in prefill
         ]
 
     def hop(source: dict[str, Any], operator: str, layer: int, name: str) -> dict[str, Any]:
@@ -333,9 +332,7 @@ def _plan_dimensions(
             raise RuntimeBindingError(f"plan layer {layer} gated multiply is malformed")
         up = multiply_linear[0]
         norm_inputs = {
-            op["id"]
-            for source in (q_linear, k_linear, v_linear)
-            for op in producers(source)
+            op["id"] for source in (q_linear, k_linear, v_linear) for op in producers(source)
         }
         if len(norm_inputs) != 1:
             raise RuntimeBindingError(
@@ -402,26 +399,30 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
             continue
         scales = stage.weight_scales.astype("<f4", copy=False).tobytes()
         bias = None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes()
-        body.append({
-            "id": stage_id,
-            "op": stage.op,
-            "in": stage.in_features,
-            "out": stage.out_features,
-            "weight_bits": stage.weight_bits,
-            "activation_bits": stage.activation_bits,
-            "weight_digest": stage.weight_digest,
-            "weight_scales": scales,
-            "bias": bias,
-        })
-        commitment.append({
-            "id": stage_id,
-            "weight": stage.weight_digest,
-            "in": stage.in_features,
-            "out": stage.out_features,
-            "wb": stage.weight_bits,
-            "ab": stage.activation_bits,
-            "profile": stage.seeded_profile.to_dict(),
-        })
+        body.append(
+            {
+                "id": stage_id,
+                "op": stage.op,
+                "in": stage.in_features,
+                "out": stage.out_features,
+                "weight_bits": stage.weight_bits,
+                "activation_bits": stage.activation_bits,
+                "weight_digest": stage.weight_digest,
+                "weight_scales": scales,
+                "bias": bias,
+            }
+        )
+        commitment.append(
+            {
+                "id": stage_id,
+                "weight": stage.weight_digest,
+                "in": stage.in_features,
+                "out": stage.out_features,
+                "wb": stage.weight_bits,
+                "ab": stage.activation_bits,
+                "profile": stage.seeded_profile.to_dict(),
+            }
+        )
     return (
         _sha256(msgpack.packb(body, use_bin_type=True)),
         _sha256(msgpack.packb(commitment, use_bin_type=True)),
@@ -432,9 +433,7 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     hidden = _require_int(cfg.get("hidden_size"), "config hidden_size")
     layers = _require_int(cfg.get("num_hidden_layers"), "config num_hidden_layers")
     heads = _require_int(cfg.get("num_attention_heads"), "config num_attention_heads")
-    kv_heads = _require_int(
-        cfg.get("num_key_value_heads", heads), "config num_key_value_heads"
-    )
+    kv_heads = _require_int(cfg.get("num_key_value_heads", heads), "config num_key_value_heads")
     head_dim = _require_int(cfg.get("head_dim", hidden // heads), "config head_dim")
     eps = cfg.get("rms_norm_eps", 1e-6)
     norm_offset = cfg.get("norm_offset", 0.0)
@@ -446,7 +445,11 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
         ("embedding_multiplier", multiplier),
         ("rope_theta", theta),
     ):
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
             raise RuntimeBindingError(f"config {name} must be a finite number")
     layer_types = cfg.get("layer_types") or ["full_attention"] * layers
     if (
@@ -456,9 +459,7 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     ):
         raise RuntimeBindingError("config layer_types must be a per-layer string list")
     sliding_window = cfg.get("sliding_window")
-    if sliding_window is not None and _require_int(
-        sliding_window, "config sliding_window"
-    ) <= 0:
+    if sliding_window is not None and _require_int(sliding_window, "config sliding_window") <= 0:
         raise RuntimeBindingError("config sliding_window must be positive when present")
     shared_count = _require_int(
         cfg.get("num_kv_shared_layers", 0) or 0, "config num_kv_shared_layers"
@@ -471,9 +472,9 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     block_style = str(cfg.get("block_style", "gemma4"))
     qk_norm = bool(cfg.get("qk_norm", True))
     v_norm = bool(cfg.get("v_norm", False))
-    token_lookup_batch = max(1, _require_int(
-        cfg.get("token_lookup_batch", 16), "config token_lookup_batch"
-    ))
+    token_lookup_batch = max(
+        1, _require_int(cfg.get("token_lookup_batch", 16), "config token_lookup_batch")
+    )
     output_multiplier = cfg.get("output_multiplier")
     softcap = cfg.get("final_logit_softcapping")
     attention_scaling = cfg.get("attention_scaling")
@@ -580,9 +581,7 @@ def _canonicalize_descriptor(value: Any) -> Any:
                 raise RuntimeBindingError("tokenizer descriptor keys must be strings")
             canonical[key] = _canonicalize_descriptor(item)
         return canonical
-    raise RuntimeBindingError(
-        f"tokenizer descriptor value {type(value).__name__!r} is unsupported"
-    )
+    raise RuntimeBindingError(f"tokenizer descriptor value {type(value).__name__!r} is unsupported")
 
 
 def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
@@ -592,9 +591,10 @@ def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
     if kind not in {"byte", "sentencepiece", "tokenizer_json"}:
         raise RuntimeBindingError(f"unsupported tokenizer type {kind!r}")
     vocab = descriptor.get("vocab_size")
-    if vocab is not None and _require_int(vocab, "tokenizer vocab_size") != runtime_config[
-        "vocab_size"
-    ]:
+    if (
+        vocab is not None
+        and _require_int(vocab, "tokenizer vocab_size") != runtime_config["vocab_size"]
+    ):
         raise RuntimeBindingError("tokenizer vocabulary does not match the model config")
     expected = {
         "bos_token_id": int(runtime_config["bos_token_id"] or 2),
@@ -650,18 +650,14 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     prefill_graph = document.get("prefill") or {}
     decode_graph = document.get("decode") or {}
     batch = _require_int(prefill_graph.get("batch"), "prefill batch")
-    max_input_tokens = _require_int(
-        prefill_graph.get("query_sequence"), "prefill query_sequence"
-    )
+    max_input_tokens = _require_int(prefill_graph.get("query_sequence"), "prefill query_sequence")
     decode_key_sequence = _require_int(
         decode_graph.get("maximum_key_sequence"), "decode maximum_key_sequence"
     )
     max_new_tokens = decode_key_sequence - max_input_tokens + 1
     if batch <= 0 or max_input_tokens <= 0 or max_new_tokens <= 0:
         raise RuntimeBindingError("model plan workload bounds must be positive")
-    if _require_int(
-        decode_graph.get("query_sequence"), "decode query_sequence"
-    ) != 1:
+    if _require_int(decode_graph.get("query_sequence"), "decode query_sequence") != 1:
         raise RuntimeBindingError("decode query_sequence must be one")
     try:
         reconstructed = lower_model(
@@ -671,15 +667,15 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             max_new_tokens=max_new_tokens,
         )
     except Exception as exc:
-        raise RuntimeBindingError(
-            "client bundle config cannot reproduce the model plan"
-        ) from exc
+        raise RuntimeBindingError("client bundle config cannot reproduce the model plan") from exc
     if reconstructed.digest != plan.digest:
         raise RuntimeBindingError("client bundle config does not reproduce the model plan")
     if reconstructed.to_dict().get("config_digest") != document.get("config_digest"):
         raise RuntimeBindingError("client bundle config digest does not match the plan")
     try:
-        runtime_schedule = plan.runtime_schedule("baseline.masked_linear_cpu")
+        runtime_schedule = plan.runtime_schedule(
+            str(bundle.privacy.get("runtime_profile", "baseline.masked_linear_cpu"))
+        )
     except Exception as exc:
         raise RuntimeBindingError("native whole-decoder runtime scheduling failed") from exc
     runtime_schedule_spec = runtime_schedule.to_dict()
@@ -696,13 +692,13 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     runtime_config_digest = _sha256(_canonical_json(runtime_config))
     tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
 
-    phases = {
-        phase: _phase_operations(document, phase) for phase in ("prefill", "decode")
-    }
+    phases = {phase: _phase_operations(document, phase) for phase in ("prefill", "decode")}
     prefill_ops, decode_ops = phases["prefill"][1], phases["decode"][1]
     if set(prefill_ops) != set(decode_ops):
         raise RuntimeBindingError("prefill and decode operations differ")
-    if any(prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in prefill_ops):
+    if any(
+        prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in prefill_ops
+    ):
         raise RuntimeBindingError("prefill and decode operators differ")
 
     dims = _plan_dimensions(document, phases)
@@ -719,9 +715,9 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         manifest_value = _require_int(manifest.get(key), f"manifest {key}")
         config_source = cfg.get(key)
         if key == "head_dim" and config_source is None:
-            config_source = _require_int(cfg.get("hidden_size"), "config hidden_size") // _require_int(
-                cfg.get("num_attention_heads"), "config num_attention_heads"
-            )
+            config_source = _require_int(
+                cfg.get("hidden_size"), "config hidden_size"
+            ) // _require_int(cfg.get("num_attention_heads"), "config num_attention_heads")
         config_value = _require_int(config_source, f"config {key}")
         if manifest_value != expected:
             raise RuntimeBindingError(f"bundle manifest {key} does not match the model plan")
@@ -907,12 +903,10 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                 raise RuntimeBindingError(
                     f"bundle stage {stage.id!r} modulus does not match its bound"
                 )
-        elif modulus <= signed_dot_bound(
-            features, stage.weight_bits, stage.activation_bits
-        ) * 2 + 1:
-            raise RuntimeBindingError(
-                f"bundle stage {stage.id!r} modulus does not cover its bound"
-            )
+        elif (
+            modulus <= signed_dot_bound(features, stage.weight_bits, stage.activation_bits) * 2 + 1
+        ):
+            raise RuntimeBindingError(f"bundle stage {stage.id!r} modulus does not cover its bound")
         if not isinstance(stage.weight_digest, str) or not stage.weight_digest:
             raise RuntimeBindingError(f"bundle stage {stage.id!r} is missing a weight digest")
         scales = np.asarray(stage.weight_scales)
@@ -934,9 +928,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             or stage.client_aux_weight is not None
             or stage.client_aux_scales is not None
         ):
-            raise RuntimeBindingError(
-                f"bundle stage {stage.id!r} must not carry client weights"
-            )
+            raise RuntimeBindingError(f"bundle stage {stage.id!r} must not carry client weights")
         if stage.seeded_profile is None:
             raise RuntimeBindingError(f"bundle stage {stage.id!r} is missing a ring profile")
 
@@ -953,9 +945,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         client_weight = stage.client_weight
         client_scales = stage.client_weight_scales
         if client_weight is None or client_scales is None:
-            raise RuntimeBindingError(
-                f"bundle stage {stage.id!r} must carry a local client weight"
-            )
+            raise RuntimeBindingError(f"bundle stage {stage.id!r} must carry a local client weight")
         weight_values = np.asarray(client_weight)
         if weight_values.dtype != np.int8 or weight_values.ndim != 2:
             raise RuntimeBindingError(f"bundle stage {stage.id!r} client weight is malformed")
@@ -989,9 +979,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                 raise RuntimeBindingError("token_lookup client weight shape is inconsistent")
             if digest != head_stage.weight_digest:
                 raise RuntimeBindingError("token_lookup client weight must match lm_head")
-            if not np.array_equal(
-                scale_values, np.asarray(head_stage.client_weight_scales)
-            ):
+            if not np.array_equal(scale_values, np.asarray(head_stage.client_weight_scales)):
                 raise RuntimeBindingError("token_lookup client scales must match lm_head")
         elif layout == "transposed_embedding":
             if tied:
@@ -1010,9 +998,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         if stage.id == "lm_head" and (aux_weight is not None or aux_scales is not None):
             raise RuntimeBindingError("lm_head must not carry auxiliary client weights")
         if (aux_weight is None) != (aux_scales is None):
-            raise RuntimeBindingError(
-                f"bundle stage {stage.id!r} auxiliary weight is incomplete"
-            )
+            raise RuntimeBindingError(f"bundle stage {stage.id!r} auxiliary weight is incomplete")
         if aux_weight is not None:
             aux_values = np.asarray(aux_weight)
             aux_scale_values = np.asarray(aux_scales)
@@ -1057,9 +1043,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
     }
     mapped_shapes: dict[str, dict[str, Any]] = {"prefill": {}, "decode": {}}
     bias_expectations: dict[tuple[str, str], set[bool]] = {
-        (phase, stage_id): set()
-        for phase in ("prefill", "decode")
-        for stage_id in canonical
+        (phase, stage_id): set() for phase in ("prefill", "decode") for stage_id in canonical
     }
     for phase in ("prefill", "decode"):
         _, by_id = phases[phase]
@@ -1092,7 +1076,9 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                     raise RuntimeBindingError(f"linear {operation_id!r} requires a weight")
                 owner = ownership.get(_normalize_weight_key(weight_id), "")
                 if owner is None:
-                    raise RuntimeBindingError(f"linear {operation_id!r} weight ownership is ambiguous")
+                    raise RuntimeBindingError(
+                        f"linear {operation_id!r} weight ownership is ambiguous"
+                    )
                 if not owner:
                     raise RuntimeBindingError(f"linear {operation_id!r} weight has no stage owner")
                 stage = canonical[owner]
@@ -1108,9 +1094,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                     )
             stage_semantics[stage.id].add(qualified)
             producers = [
-                by_id[input_id]
-                for input_id in operation.get("inputs") or []
-                if input_id in by_id
+                by_id[input_id] for input_id in operation.get("inputs") or [] if input_id in by_id
             ]
             if operator == "token_lookup":
                 producers = []
@@ -1121,9 +1105,7 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                     raise RuntimeBindingError(
                         f"operation {operation_id!r} input width does not match {stage.id!r}"
                     )
-            output_sums[(phase, stage.id)] += _last_dim(
-                operation.get("output_shape"), operation_id
-            )
+            output_sums[(phase, stage.id)] += _last_dim(operation.get("output_shape"), operation_id)
             bias_expectations[(phase, stage.id)].add(
                 operator == "linear" and bool(attributes.get("bias", False))
             )
@@ -1224,7 +1206,9 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             ):
                 qualified = f"{phase}:{operation_id}"
                 if qualified in scheduled_operations:
-                    raise RuntimeBindingError(f"native runtime operation {qualified!r} is duplicated")
+                    raise RuntimeBindingError(
+                        f"native runtime operation {qualified!r} is duplicated"
+                    )
                 scheduled_operations.add(qualified)
                 width = _last_dim(operation.get("output_shape"), operation_id)
                 if (
@@ -1269,43 +1253,47 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             raise RuntimeBindingError(f"client tensor {key!r} shape does not match its norm")
         if not np.all(np.isfinite(value)):
             raise RuntimeBindingError(f"client tensor {key!r} must be finite")
-        local_tensors.append({
-            "weight_id": weight_id,
-            "key": key,
-            "shape": list(value.shape),
-            "dtype": str(value.dtype),
-            "sha256": _sha256(value.astype("<f4", copy=False).tobytes()),
-        })
+        local_tensors.append(
+            {
+                "weight_id": weight_id,
+                "key": key,
+                "shape": list(value.shape),
+                "dtype": str(value.dtype),
+                "sha256": _sha256(value.astype("<f4", copy=False).tobytes()),
+            }
+        )
 
     bindings = []
     for stage in canonical.values():
-        bindings.append(RuntimeStageBinding(
-            stage_id=stage.id,
-            role=str(stage.role),
-            layer_index=stage.layer_index,
-            semantic_operations=tuple(sorted(stage_semantics[stage.id])),
-            in_features=stage.in_features,
-            out_features=stage.out_features,
-            weight_bits=stage.weight_bits,
-            activation_bits=stage.activation_bits,
-            ring=str(stage.ring),
-            modulus=stage.modulus,
-            wire_bits=stage.wire_bits,
-            weight_digest=stage.weight_digest,
-            weight_scales_digest=_sha256(_f32_bytes(stage.weight_scales)),
-            bias_digest=None if stage.bias is None else _sha256(_f32_bytes(stage.bias)),
-            client_weight_layout=client_fields.get(stage.id, {}).get("client_weight_layout"),
-            client_weight_digest=client_fields.get(stage.id, {}).get("client_weight_digest"),
-            client_weight_scales_digest=client_fields.get(stage.id, {}).get(
-                "client_weight_scales_digest"
-            ),
-            client_aux_weight_digest=client_fields.get(stage.id, {}).get(
-                "client_aux_weight_digest"
-            ),
-            client_aux_scales_digest=client_fields.get(stage.id, {}).get(
-                "client_aux_scales_digest"
-            ),
-        ))
+        bindings.append(
+            RuntimeStageBinding(
+                stage_id=stage.id,
+                role=str(stage.role),
+                layer_index=stage.layer_index,
+                semantic_operations=tuple(sorted(stage_semantics[stage.id])),
+                in_features=stage.in_features,
+                out_features=stage.out_features,
+                weight_bits=stage.weight_bits,
+                activation_bits=stage.activation_bits,
+                ring=str(stage.ring),
+                modulus=stage.modulus,
+                wire_bits=stage.wire_bits,
+                weight_digest=stage.weight_digest,
+                weight_scales_digest=_sha256(_f32_bytes(stage.weight_scales)),
+                bias_digest=None if stage.bias is None else _sha256(_f32_bytes(stage.bias)),
+                client_weight_layout=client_fields.get(stage.id, {}).get("client_weight_layout"),
+                client_weight_digest=client_fields.get(stage.id, {}).get("client_weight_digest"),
+                client_weight_scales_digest=client_fields.get(stage.id, {}).get(
+                    "client_weight_scales_digest"
+                ),
+                client_aux_weight_digest=client_fields.get(stage.id, {}).get(
+                    "client_aux_weight_digest"
+                ),
+                client_aux_scales_digest=client_fields.get(stage.id, {}).get(
+                    "client_aux_scales_digest"
+                ),
+            )
+        )
     bindings.sort(
         key=lambda item: (
             item.layer_index is None,
@@ -1315,36 +1303,43 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
         )
     )
 
-    manifest_identity = _binding_digest(_canonical_json({
-        "id": manifest.get("id"),
-        "architecture": manifest.get("architecture"),
-        "source_format": manifest.get("source_format"),
-        "vocab_size": manifest.get("vocab_size"),
-        "hidden_size": manifest.get("hidden_size"),
-        "intermediate_size": manifest.get("intermediate_size"),
-        "num_hidden_layers": manifest.get("num_hidden_layers"),
-        "num_attention_heads": manifest.get("num_attention_heads"),
-        "num_key_value_heads": manifest.get("num_key_value_heads"),
-        "head_dim": manifest.get("head_dim"),
-        "context_length": manifest.get("context_length"),
-        "quantization": manifest.get("quantization"),
-        "tied_embeddings": manifest.get("tied_embeddings"),
-        "stages": manifest.get("stages"),
-        "metadata": {
-            key: manifest_metadata[key]
-            for key in (
-                "model_type",
-                "architectures",
-                "text_config",
-                "client_tensor_policy",
-                "model_family",
-                "block_style",
-                "weight_bits",
-                "activation_bits",
-            )
-            if key in manifest_metadata
-        },
-    }))
+    manifest_identity = _binding_digest(
+        _canonical_json(
+            {
+                "id": manifest.get("id"),
+                "architecture": manifest.get("architecture"),
+                "source_format": manifest.get("source_format"),
+                "vocab_size": manifest.get("vocab_size"),
+                "hidden_size": manifest.get("hidden_size"),
+                "intermediate_size": manifest.get("intermediate_size"),
+                "num_hidden_layers": manifest.get("num_hidden_layers"),
+                "num_attention_heads": manifest.get("num_attention_heads"),
+                "num_key_value_heads": manifest.get("num_key_value_heads"),
+                "head_dim": manifest.get("head_dim"),
+                "context_length": manifest.get("context_length"),
+                "quantization": manifest.get("quantization"),
+                "tied_embeddings": manifest.get("tied_embeddings"),
+                "stages": manifest.get("stages"),
+                "metadata": {
+                    key: manifest_metadata[key]
+                    for key in (
+                        "model_type",
+                        "architectures",
+                        "text_config",
+                        "client_tensor_policy",
+                        "model_family",
+                        "block_style",
+                        "weight_bits",
+                        "activation_bits",
+                        "runtime_profile",
+                        "verification_component",
+                        "verification_target_failure_bits",
+                    )
+                    if key in manifest_metadata
+                },
+            }
+        )
+    )
     fingerprint_payload = {
         "model_id": bundle.model_id,
         "manifest_identity": manifest_identity,
@@ -1358,6 +1353,11 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
             "stage_commitment": stage_commitment,
             "weight_bits": weight_bits,
             "activation_bits": activation_bits,
+            "runtime_profile": privacy.get("runtime_profile"),
+            "verification_component": privacy.get("verification_component", "none"),
+            "verification_target_failure_bits": int(
+                privacy.get("verification_target_failure_bits", 0)
+            ),
         },
         "stages": [
             {
@@ -1374,12 +1374,8 @@ def compile_runtime_model(plan: ModelPlan, bundle: ClientBundle) -> CompiledRunt
                 "weight_digest": stage.weight_digest,
                 "weight_scales_digest": _sha256(_f32_bytes(stage.weight_scales)),
                 "bias_digest": None if stage.bias is None else _sha256(_f32_bytes(stage.bias)),
-                "client_weight_layout": client_fields.get(stage.id, {}).get(
-                    "client_weight_layout"
-                ),
-                "client_weight_digest": client_fields.get(stage.id, {}).get(
-                    "client_weight_digest"
-                ),
+                "client_weight_layout": client_fields.get(stage.id, {}).get("client_weight_layout"),
+                "client_weight_digest": client_fields.get(stage.id, {}).get("client_weight_digest"),
                 "client_weight_scales_digest": client_fields.get(stage.id, {}).get(
                     "client_weight_scales_digest"
                 ),

@@ -466,9 +466,9 @@ class DashboardRuntime:
             raw_runtime = model.get("runtime")
             runtime: dict[str, Any] = raw_runtime if isinstance(raw_runtime, dict) else {}
             value = (
-                model.get("fingerprint")
+                runtime.get("body_fingerprint")
+                or model.get("fingerprint")
                 or runtime.get("fingerprint")
-                or runtime.get("body_fingerprint")
             )
             if value is not None:
                 fingerprint = str(value)

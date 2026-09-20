@@ -213,17 +213,19 @@ class _Configuration:
         return result
 
 
-_MODEL_KINDS = frozenset({
-    "huggingface",
-    "safetensors",
-    "vllm",
-    "mlx",
-    "mlx-lm",
-    "gguf",
-    "llama.cpp",
-    "ollama",
-    "tiny",
-})
+_MODEL_KINDS = frozenset(
+    {
+        "huggingface",
+        "safetensors",
+        "vllm",
+        "mlx",
+        "mlx-lm",
+        "gguf",
+        "llama.cpp",
+        "ollama",
+        "tiny",
+    }
+)
 _MODEL_PATH_KINDS = _MODEL_KINDS - {"ollama", "tiny"}
 
 
@@ -271,9 +273,12 @@ class Model(_Configuration):
                 or parsed_endpoint.path not in {"", "/"}
                 or parsed_endpoint.query
                 or parsed_endpoint.fragment
-                or port is not None and not 1 <= port <= 65535
+                or port is not None
+                and not 1 <= port <= 65535
             ):
-                raise ConfigurationError("model.endpoint must be an HTTP(S) origin without credentials")
+                raise ConfigurationError(
+                    "model.endpoint must be an HTTP(S) origin without credentials"
+                )
             endpoint = f"{parsed_endpoint.scheme.lower()}://{parsed_endpoint.netloc}"
         if revision is not None and kind not in {"huggingface", "safetensors", "vllm"}:
             raise ConfigurationError(
@@ -371,10 +376,12 @@ class Model(_Configuration):
             from pllm.sources import TinyModel
 
             return TinyModel(value["source"], model_id=value.get("model_id"))
-        if (
-            (local_files_only and value.get("revision") is None)
-            or kind in {"mlx", "mlx-lm", "gguf", "llama.cpp"}
-        ):
+        if (local_files_only and value.get("revision") is None) or kind in {
+            "mlx",
+            "mlx-lm",
+            "gguf",
+            "llama.cpp",
+        }:
             from pllm.sources import BundleModel
 
             return BundleModel(
@@ -545,6 +552,23 @@ class Pipeline(_Configuration):
                 inference=components["inference"],
                 kernels=components["kernels"],
             )
+        if data["profile"] == "research.verified_masked_linear_cpu" and set(components) == {
+            "linear",
+            "preparation",
+            "inference",
+            "kernels",
+            "verification",
+        }:
+            from pllm.profiles import VerifiedMaskedLinearCpu
+
+            return VerifiedMaskedLinearCpu(
+                model,
+                linear=components["linear"],
+                preparation=components["preparation"],
+                inference=components["inference"],
+                kernels=components["kernels"],
+                verification=components["verification"],
+            )
         if set(components) == {"linear", "inference", "kernels"}:
             from pllm.profiles import DirectFHEProfile, ProprietaryBlinded, ProprietaryGuarded
 
@@ -699,6 +723,8 @@ class ExperimentProfile:
     requires_preparation: bool
     client_runtime: str
     privacy_protocol: str | None
+    verification_component: str | None
+    verification_target_failure_bits: int
 
     def __init__(self, experiment: Experiment) -> None:
         if not isinstance(experiment, Experiment):
@@ -708,7 +734,9 @@ class ExperimentProfile:
         runtime_options = _runtime_profile_options(experiment.pipeline)
         if experiment.pipeline.profile.startswith("runtime."):
             if runtime_options is None or runtime_options.requires_preparation:
-                raise ConfigurationError("runtime profile does not match its typed component contract")
+                raise ConfigurationError(
+                    "runtime profile does not match its typed component contract"
+                )
             object.__setattr__(
                 self,
                 "model",
@@ -722,6 +750,12 @@ class ExperimentProfile:
             object.__setattr__(self, "requires_preparation", runtime_options.requires_preparation)
             object.__setattr__(self, "client_runtime", runtime_options.client_runtime)
             object.__setattr__(self, "privacy_protocol", runtime_options.privacy_protocol)
+            object.__setattr__(self, "verification_component", runtime_options.verification_component)
+            object.__setattr__(
+                self,
+                "verification_target_failure_bits",
+                runtime_options.verification_target_failure_bits,
+            )
             return
         from pllm import _native
 
@@ -729,7 +763,9 @@ class ExperimentProfile:
             resolved = _native.resolve_experiment(experiment.canonical_bytes())
         except ValueError as exc:
             raise ConfigurationError(str(exc)) from exc
-        object.__setattr__(self, "model", resolved.model)
+        object.__setattr__(
+            self, "model", experiment.pipeline.model.model_id or resolved.model
+        )
         object.__setattr__(self, "canonical_profile", resolved.canonical_profile)
         object.__setattr__(self, "configuration_digest", resolved.configuration_digest)
         if runtime_options is None:
@@ -740,6 +776,12 @@ class ExperimentProfile:
         object.__setattr__(self, "requires_preparation", runtime_options.requires_preparation)
         object.__setattr__(self, "client_runtime", runtime_options.client_runtime)
         object.__setattr__(self, "privacy_protocol", runtime_options.privacy_protocol)
+        object.__setattr__(self, "verification_component", runtime_options.verification_component)
+        object.__setattr__(
+            self,
+            "verification_target_failure_bits",
+            runtime_options.verification_target_failure_bits,
+        )
 
 
 def _replace_path(target: Any, path: list[str], value: object) -> Any:

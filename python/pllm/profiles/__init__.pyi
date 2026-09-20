@@ -11,6 +11,7 @@ from pllm.protocols import (
 )
 from pllm.roles import InferenceRole
 from pllm.sources import ModelSource
+from pllm.verification import FreivaldsVerify, VerificationScheme
 
 class MaskedLinearCpu(Pipeline):
     PROFILE: str
@@ -33,6 +34,30 @@ class MaskedLinearCpu(Pipeline):
     def kernels(self) -> KernelBackend: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> MaskedLinearCpu: ...
+
+class VerifiedMaskedLinearCpu(Pipeline):
+    PROFILE: str
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = ...,
+        preparation: PreparationProvider = ...,
+        inference: InferenceRole = ...,
+        kernels: KernelBackend = ...,
+        verification: VerificationScheme = ...,
+    ) -> None: ...
+    @property
+    def linear(self) -> ProtocolMethod: ...
+    @property
+    def preparation(self) -> PreparationProvider: ...
+    @property
+    def inference(self) -> InferenceRole: ...
+    @property
+    def kernels(self) -> KernelBackend: ...
+    @property
+    def verification(self) -> FreivaldsVerify: ...
+    def with_params(self, **changes: object) -> VerifiedMaskedLinearCpu: ...
 
 class ProprietaryGuarded(Pipeline):
     PROFILE: str

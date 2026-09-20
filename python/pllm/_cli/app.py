@@ -142,6 +142,11 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--compiled-cache-dir")
     parser.add_argument("--streaming-threshold-elements", type=int)
     parser.add_argument("--quantization-chunk-rows", type=int)
+    parser.add_argument(
+        "--verification-component",
+        choices=("none", "pllm/freivalds-verify/v1"),
+    )
+    parser.add_argument("--verification-target-failure-bits", type=int)
     parser.add_argument("--guard-max-rows-per-request", type=int)
     parser.add_argument("--guard-max-rows-per-stage", type=int)
     parser.add_argument("--guard-max-requests-per-minute", type=int)
@@ -458,9 +463,7 @@ def _components(args: argparse.Namespace, output_format: str, dry_run: bool) -> 
         )
 
 
-def _benchmark(
-    args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool
-) -> None:
+def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
     if not 1 <= args.max_output_tokens <= 512:
         raise ResolutionError(
             "BENCHMARK_OUTPUT_LIMIT", "max output tokens must be between 1 and 512"
@@ -511,9 +514,7 @@ def _benchmark(
                 "BENCHMARK_EXPERIMENT_DUPLICATE", "Experiment configurations must be unique"
             )
         if len(set(names)) != len(names):
-            raise ResolutionError(
-                "BENCHMARK_EXPERIMENT_NAME", "Experiment names must be unique"
-            )
+            raise ResolutionError("BENCHMARK_EXPERIMENT_NAME", "Experiment names must be unique")
     if args.save_best is not None and len(experiments) < 2:
         raise ResolutionError(
             "BENCHMARK_SAVE_BEST", "--save-best requires at least two --experiment targets"
@@ -794,9 +795,7 @@ def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> Non
         raise RuntimeFailure("GATEWAY_FAILED", f"gateway failed ({type(exc).__name__})") from exc
 
 
-def _serve(
-    args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool
-) -> None:
+def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
     args.host = args.host or os.getenv("PLLM_HOST", "127.0.0.1")
     args.port = args.port if args.port is not None else _env_int("PLLM_PORT", 8000)
     role = args.serve_role
@@ -857,10 +856,15 @@ def _serve(
         args.guard_max_rows_per_stage = runtime_options.guard_max_rows_per_owner_stage
         args.guard_max_requests_per_minute = runtime_options.guard_max_requests_per_minute
         args.guard_output_dither = runtime_options.output_dither_bound
+        args.verification_component = runtime_options.verification_component
+        args.verification_target_failure_bits = (
+            runtime_options.verification_target_failure_bits
+        )
         args.model = [experiment.pipeline.model.source]
-        args.model_id = [
-            experiment.pipeline.model.model_id or experiment.pipeline.model.source
-        ]
+        args.model_id = [experiment.pipeline.model.model_id or experiment.pipeline.model.source]
+        args.model_kind = experiment.pipeline.model.kind
+        args.revision = experiment.pipeline.model.revision
+        args.local_files_only = experiment.pipeline.model.local_files_only
         kernels = experiment.pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             args.engine_threads = int(kernels.params["threads"])

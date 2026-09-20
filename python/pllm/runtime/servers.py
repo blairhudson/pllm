@@ -71,6 +71,8 @@ class LocalTopology:
         "_telemetry_endpoint",
         "_telemetry_token",
         "_tenseal_path",
+        "_verification_component",
+        "_verification_target_failure_bits",
         "_weight_bits",
     )
 
@@ -91,6 +93,8 @@ class LocalTopology:
         guard_max_rows_per_owner_stage: int,
         guard_max_requests_per_minute: int,
         guard_output_dither: int,
+        verification_component: str | None,
+        verification_target_failure_bits: int,
         tenseal_path: str | None,
         hf_cache_dir: str | None,
         reserved_ports: tuple[int, ...],
@@ -117,6 +121,8 @@ class LocalTopology:
         self._guard_max_rows_per_owner_stage = guard_max_rows_per_owner_stage
         self._guard_max_requests_per_minute = guard_max_requests_per_minute
         self._guard_output_dither = guard_output_dither
+        self._verification_component = verification_component or "none"
+        self._verification_target_failure_bits = verification_target_failure_bits
         self._tenseal_path = tenseal_path
         self._hf_cache_dir = hf_cache_dir
         self._reserved_ports = reserved_ports
@@ -232,6 +238,12 @@ class LocalTopology:
     def _commands(self, inference_port: int, preparation_port: int) -> dict[str, list[str]]:
         common = [sys.executable, "-m", "pllm", "serve"]
         model = self._model_options()
+        verification = [
+            "--verification-component",
+            self._verification_component,
+            "--verification-target-failure-bits",
+            str(self._verification_target_failure_bits),
+        ]
         inference = [
             *common,
             "inference",
@@ -247,19 +259,22 @@ class LocalTopology:
             str(self._rendezvous_capacity),
             "--rendezvous-max-bytes",
             str(self._rendezvous_max_bytes),
+            *verification,
             *model,
         ]
         if self._privacy_mode == "proprietary" and self._proprietary_protocol == "guarded":
-            inference.extend((
-                "--guard-max-rows-per-request",
-                str(self._guard_max_rows_per_request),
-                "--guard-max-rows-per-stage",
-                str(self._guard_max_rows_per_owner_stage),
-                "--guard-max-requests-per-minute",
-                str(self._guard_max_requests_per_minute),
-                "--guard-output-dither",
-                str(self._guard_output_dither),
-            ))
+            inference.extend(
+                (
+                    "--guard-max-rows-per-request",
+                    str(self._guard_max_rows_per_request),
+                    "--guard-max-rows-per-stage",
+                    str(self._guard_max_rows_per_owner_stage),
+                    "--guard-max-requests-per-minute",
+                    str(self._guard_max_requests_per_minute),
+                    "--guard-output-dither",
+                    str(self._guard_output_dither),
+                )
+            )
         if self._privacy_mode == "public" and self._correlation_mode == "local-test":
             inference.append("--allow-insecure-local-correlations")
         if not self._requires_preparation:
@@ -275,6 +290,7 @@ class LocalTopology:
             "127.0.0.1",
             "--port",
             str(preparation_port),
+            *verification,
             *model,
         ]
         return {"inference": inference, "preparation": preparation}
@@ -288,21 +304,25 @@ class LocalTopology:
             else:
                 environment.pop("PLLM_PROVIDER_PUSH_API_KEY", None)
         else:
-            environment.update({
-                "PLLM_API_KEY": self._preparation_key,
-                "PLLM_INFERENCE_URL": self._inference_url,
-                "PLLM_PUSH_API_KEY": self._push_key,
-            })
+            environment.update(
+                {
+                    "PLLM_API_KEY": self._preparation_key,
+                    "PLLM_INFERENCE_URL": self._inference_url,
+                    "PLLM_PUSH_API_KEY": self._push_key,
+                }
+            )
         if self._telemetry_endpoint is not None:
-            environment.update({
-                "OTEL_EXPORTER_OTLP_ENDPOINT": self._telemetry_endpoint,
-                "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST": "",
-                "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST": "",
-                "OTEL_METRIC_EXPORT_INTERVAL": "500",
-                "OTEL_EXPORTER_OTLP_HEADERS": f"x-pllm-otel-token={self._telemetry_token}",
-                "OTEL_SERVICE_NAME": f"pllm-{role}",
-                "PYTHONUNBUFFERED": "1",
-            })
+            environment.update(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": self._telemetry_endpoint,
+                    "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_CLIENT_REQUEST": "",
+                    "OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST": "",
+                    "OTEL_METRIC_EXPORT_INTERVAL": "500",
+                    "OTEL_EXPORTER_OTLP_HEADERS": f"x-pllm-otel-token={self._telemetry_token}",
+                    "OTEL_SERVICE_NAME": f"pllm-{role}",
+                    "PYTHONUNBUFFERED": "1",
+                }
+            )
         return environment
 
     def _spawn(self, role: str, command: list[str]) -> subprocess.Popen[Any]:
@@ -431,9 +451,7 @@ class LocalTopology:
         if not self._started or self._closed:
             return False
         expected_roles = (
-            ("inference", "trusted-preparation")
-            if self._requires_preparation
-            else ("inference",)
+            ("inference", "trusted-preparation") if self._requires_preparation else ("inference",)
         )
         for status, expected in zip(self.statuses, expected_roles, strict=True):
             if not status.running:
@@ -480,10 +498,12 @@ class LocalTopology:
             "experiment": self._experiment,
         }
         if self._requires_preparation:
-            options.update({
-                "preparation_base_url": self._preparation_url,
-                "preparation_api_key": self._preparation_key,
-            })
+            options.update(
+                {
+                    "preparation_base_url": self._preparation_url,
+                    "preparation_api_key": self._preparation_key,
+                }
+            )
         return OpenAI(**options, **overrides)
 
     def gateway_app(self, *, local_api_key: str, **overrides: Any) -> Any:
@@ -518,10 +538,12 @@ class LocalTopology:
             "local_api_key": local_api_key,
         }
         if self._requires_preparation:
-            options.update({
-                "preparation_base_url": self._preparation_url,
-                "preparation_api_key": self._preparation_key,
-            })
+            options.update(
+                {
+                    "preparation_base_url": self._preparation_url,
+                    "preparation_api_key": self._preparation_key,
+                }
+            )
         return create_sidecar_app(**options, **overrides)
 
     @staticmethod
@@ -673,7 +695,11 @@ def build_roles(
         if value is not None and (type(value) is not str or not value):
             raise ValueError(f"{name} must be a nonempty string")
     if telemetry_endpoint is not None:
-        if type(telemetry_endpoint) is not str or type(telemetry_token) is not str or not telemetry_token:
+        if (
+            type(telemetry_endpoint) is not str
+            or type(telemetry_token) is not str
+            or not telemetry_token
+        ):
             raise ValueError("telemetry endpoint and token must be nonempty strings")
         endpoint = urlsplit(telemetry_endpoint)
         try:
@@ -688,7 +714,8 @@ def build_roles(
             or endpoint.path not in {"", "/"}
             or endpoint.query
             or endpoint.fragment
-            or endpoint_port is not None and not 1 <= endpoint_port <= 65535
+            or endpoint_port is not None
+            and not 1 <= endpoint_port <= 65535
         ):
             raise ValueError("telemetry endpoint must be an HTTP(S) URL without credentials")
     if progress is not None and not callable(progress):
@@ -708,6 +735,8 @@ def build_roles(
         guard_max_rows_per_owner_stage=runtime_options.guard_max_rows_per_owner_stage,
         guard_max_requests_per_minute=runtime_options.guard_max_requests_per_minute,
         guard_output_dither=runtime_options.output_dither_bound,
+        verification_component=runtime_options.verification_component,
+        verification_target_failure_bits=runtime_options.verification_target_failure_bits,
         tenseal_path=tenseal_path,
         hf_cache_dir=hf_cache_dir,
         reserved_ports=reserved,

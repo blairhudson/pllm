@@ -17,6 +17,7 @@ from pllm.protocols import (
 )
 from pllm.roles import Inference, InferenceRole
 from pllm.sources import ModelSource
+from pllm.verification import FreivaldsVerify, VerificationScheme
 
 _DEFAULT_MASKED = MaskedLinear()
 _DEFAULT_GUARDED = GuardedLinear()
@@ -25,6 +26,7 @@ _DEFAULT_DIRECT = DirectFHEMethod()
 _DEFAULT_PREPARATION = ModelAwareCorrections()
 _DEFAULT_INFERENCE = Inference()
 _DEFAULT_KERNELS = Cpu()
+_DEFAULT_FREIVALDS = FreivaldsVerify()
 
 
 def _model(value: ModelSource) -> Model:
@@ -120,6 +122,58 @@ class MaskedLinearCpu(_TypedPipeline):
     @property
     def kernels(self) -> KernelBackend:
         return self.components["kernels"]
+
+
+class VerifiedMaskedLinearCpu(_TypedPipeline):
+    PROFILE = "research.verified_masked_linear_cpu"
+    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "verification")
+    __slots__ = ()
+
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = _DEFAULT_MASKED,
+        preparation: PreparationProvider = _DEFAULT_PREPARATION,
+        inference: InferenceRole = _DEFAULT_INFERENCE,
+        kernels: KernelBackend = _DEFAULT_KERNELS,
+        verification: VerificationScheme = _DEFAULT_FREIVALDS,
+    ) -> None:
+        super().__init__(
+            profile=self.PROFILE,
+            model=_model(model),
+            components={
+                "linear": _slot("linear", linear, ProtocolMethod, "pllm/masked-linear"),
+                "preparation": _slot(
+                    "preparation", preparation, PreparationProvider, "pllm/model-aware-corrections"
+                ),
+                "inference": _slot("inference", inference, InferenceRole, "pllm/inference"),
+                "kernels": _slot("kernels", kernels, KernelBackend, "pllm/cpu"),
+                "verification": _slot(
+                    "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
+                ),
+            },
+        )
+
+    @property
+    def linear(self) -> ProtocolMethod:
+        return self.components["linear"]
+
+    @property
+    def preparation(self) -> PreparationProvider:
+        return self.components["preparation"]
+
+    @property
+    def inference(self) -> InferenceRole:
+        return self.components["inference"]
+
+    @property
+    def kernels(self) -> KernelBackend:
+        return self.components["kernels"]
+
+    @property
+    def verification(self) -> FreivaldsVerify:
+        return self.components["verification"]
 
 
 class ProprietaryGuarded(_TypedPipeline):
@@ -242,28 +296,67 @@ class _RuntimeProfileOptions:
     guard_max_rows_per_owner_stage: int = 16_384
     guard_max_requests_per_minute: int = 4096
     output_dither_bound: int = 0
+    verification_component: str | None = None
+    verification_target_failure_bits: int = 0
 
 
 def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | None:
-    identities = {
-        name: component.component for name, component in pipeline.components.items()
-    }
+    identities = {name: component.component for name, component in pipeline.components.items()}
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
-    if isinstance(pipeline, MaskedLinearCpu) and identities == {
-        "linear": "pllm/masked-linear",
-        "preparation": "pllm/model-aware-corrections",
-        "inference": "pllm/inference",
-        "kernels": "pllm/cpu",
-    } and kernels_valid and not pipeline.linear.params and not pipeline.preparation.params and not pipeline.inference.params:
+    if isinstance(pipeline, VerifiedMaskedLinearCpu):
+        expected = {
+            "linear": "pllm/masked-linear",
+            "preparation": "pllm/model-aware-corrections",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+            "verification": "pllm/freivalds-verify/v1",
+        }
+        verification = pipeline.components["verification"]
+        if (
+            identities != expected
+            or not kernels_valid
+            or set(verification.params) != {"target_failure_bits"}
+        ):
+            return None
+        return _RuntimeProfileOptions(
+            privacy_mode="public",
+            proprietary_protocol="guarded",
+            requires_preparation=True,
+            correlation_mode="bfv",
+            client_runtime="masked_transformer_v1",
+            privacy_protocol=None,
+            verification_component="pllm/freivalds-verify/v1",
+            verification_target_failure_bits=verification.params["target_failure_bits"],
+        )
+    if (
+        isinstance(pipeline, MaskedLinearCpu)
+        and identities
+        == {
+            "linear": "pllm/masked-linear",
+            "preparation": "pllm/model-aware-corrections",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+        }
+        and kernels_valid
+        and not pipeline.linear.params
+        and not pipeline.preparation.params
+        and not pipeline.inference.params
+    ):
         return _RuntimeProfileOptions(
             "public", "guarded", True, "bfv", "masked_transformer_v1", None
         )
-    if isinstance(pipeline, ProprietaryGuarded) and identities == {
-        "linear": "pllm/guarded-linear/v1",
-        "inference": "pllm/inference",
-        "kernels": "pllm/cpu",
-    } and kernels_valid and not pipeline.inference.params:
+    if (
+        isinstance(pipeline, ProprietaryGuarded)
+        and identities
+        == {
+            "linear": "pllm/guarded-linear/v1",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+        }
+        and kernels_valid
+        and not pipeline.inference.params
+    ):
         params = pipeline.linear.params
         return _RuntimeProfileOptions(
             "proprietary",
@@ -277,11 +370,18 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             guard_max_requests_per_minute=params["max_requests_per_minute"],
             output_dither_bound=params["output_dither_bound"],
         )
-    if isinstance(pipeline, ProprietaryBlinded) and identities == {
-        "linear": "pllm/blinded-linear/v1",
-        "inference": "pllm/inference",
-        "kernels": "pllm/cpu",
-    } and kernels_valid and not pipeline.linear.params and not pipeline.inference.params:
+    if (
+        isinstance(pipeline, ProprietaryBlinded)
+        and identities
+        == {
+            "linear": "pllm/blinded-linear/v1",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+        }
+        and kernels_valid
+        and not pipeline.linear.params
+        and not pipeline.inference.params
+    ):
         return _RuntimeProfileOptions(
             "proprietary",
             "blinded",
@@ -290,11 +390,18 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             "blinded_ole_transformer_v1",
             "blinded_ole_w4a4",
         )
-    if isinstance(pipeline, DirectFHEProfile) and identities == {
-        "linear": "pllm/direct-fhe",
-        "inference": "pllm/inference",
-        "kernels": "pllm/cpu",
-    } and kernels_valid and not pipeline.linear.params and not pipeline.inference.params:
+    if (
+        isinstance(pipeline, DirectFHEProfile)
+        and identities
+        == {
+            "linear": "pllm/direct-fhe",
+            "inference": "pllm/inference",
+            "kernels": "pllm/cpu",
+        }
+        and kernels_valid
+        and not pipeline.linear.params
+        and not pipeline.inference.params
+    ):
         return _RuntimeProfileOptions(
             "proprietary",
             "direct",
@@ -309,6 +416,7 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
 __all__ = [
     "DirectFHEProfile",
     "MaskedLinearCpu",
+    "VerifiedMaskedLinearCpu",
     "ProprietaryBlinded",
     "ProprietaryGuarded",
 ]

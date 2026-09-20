@@ -43,6 +43,7 @@ from pllm.schedulers import (
     ScalarProtectedTensorSchedule as _ScalarProtectedTensorSchedule,
 )
 from pllm.state import ClientLocalKv as _ClientLocalKv
+from pllm.verification import FreivaldsVerify as _FreivaldsVerify
 from pllm.verification import LinearIntegrity as _LinearIntegrity
 
 if TYPE_CHECKING:
@@ -61,6 +62,7 @@ _BUILTIN_CLASSES: tuple[type[ComponentRef], ...] = (
     _Cpu,
     _DirectFHE,
     _Energy,
+    _FreivaldsVerify,
     _GuardedLinear,
     _HEAuthenticatedPreprocessing,
     _IndependentLanesProtectedTensorSchedule,
@@ -112,14 +114,10 @@ def list_components(
     *, providers: Iterable[ProviderDescriptor] = ()
 ) -> tuple[ComponentDescriptor, ...]:
     """Return descriptors in stable component-identity order."""
-    return tuple(
-        component.describe() for component in list_component_classes(providers=providers)
-    )
+    return tuple(component.describe() for component in list_component_classes(providers=providers))
 
 
-def get(
-    identity: str, *, providers: Iterable[ProviderDescriptor] = ()
-) -> type[ComponentRef]:
+def get(identity: str, *, providers: Iterable[ProviderDescriptor] = ()) -> type[ComponentRef]:
     if type(identity) is not str:
         raise TypeError("component identity must be a string")
     providers = tuple(providers)

@@ -51,6 +51,7 @@ def test_core_is_independent_of_python():
         'pllm-models',
         'pyo3',
         'serde_json',
+        'zeroize',
     }
     assert core['package']['version']['workspace'] is True
     assert binding['package']['version']['workspace'] is True

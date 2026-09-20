@@ -8,6 +8,7 @@ from pllm.preparation import BFVCorrelations, ModelAwareCorrections
 from pllm.profiles import (
     DirectFHEProfile,
     MaskedLinearCpu,
+    VerifiedMaskedLinearCpu,
     ProprietaryBlinded,
     ProprietaryGuarded,
     _runtime_profile_options,
@@ -16,6 +17,7 @@ from pllm.protocols import BlindedLinear, DirectFHE, GuardedLinear, MaskedLinear
 from pllm.roles import Inference
 from pllm.runtime import build_roles
 from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
 
 
 def test_masked_linear_cpu_has_typed_default_slots_and_resolves() -> None:
@@ -49,6 +51,28 @@ def test_masked_linear_cpu_has_typed_default_slots_and_resolves() -> None:
     assert resolved.client_runtime == "masked_transformer_v1"
     assert resolved.privacy_mode == "public"
     assert resolved.requires_preparation is True
+
+
+def test_verified_masked_profile_resolves_exact_verification_slot() -> None:
+    pipeline = VerifiedMaskedLinearCpu(
+        pllm.Model("org/model"), verification=FreivaldsVerify(target_failure_bits=48)
+    )
+    assert pipeline.profile == "research.verified_masked_linear_cpu"
+    assert pipeline.verification.target_failure_bits == 48
+    restored = pllm.Pipeline.from_spec(pipeline.to_spec())
+    assert isinstance(restored, VerifiedMaskedLinearCpu)
+    options = _runtime_profile_options(restored)
+    assert options is not None
+    assert options.verification_component == "pllm/freivalds-verify/v1"
+    resolved = pllm.Experiment(
+        name="verified-profile",
+        pipeline=restored,
+        deployment=pllm.Deployment.local(root="local://verified-profile"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    ).resolve()
+    assert resolved.verification_target_failure_bits == 48
+    with pytest.raises(ValueError, match="target_failure_bits"):
+        FreivaldsVerify(0)
 
 
 def test_profile_accepts_structural_model_sources() -> None:
@@ -152,7 +176,9 @@ def test_uncomposed_same_category_alternatives_fail_at_resolution_and_serving() 
 def test_proprietary_profiles_round_trip_resolve_and_publish_runtime_contract(
     profile_type, profile_name: str, linear_id: str, protocol: str
 ) -> None:
-    pipeline = profile_type(pllm.Model("org/model", model_id="runtime-model"), kernels=Cpu(threads=3))
+    pipeline = profile_type(
+        pllm.Model("org/model", model_id="runtime-model"), kernels=Cpu(threads=3)
+    )
     assert pipeline.profile == profile_name
     assert pipeline.linear.component == linear_id
     assert set(pipeline.components) == {"linear", "inference", "kernels"}
@@ -226,15 +252,23 @@ def test_proprietary_profiles_reject_wrong_implementations_and_forged_generic_pr
 def test_runtime_profile_matrix_keeps_unsupported_arms_out() -> None:
     baseline = _runtime_profile_options(MaskedLinearCpu(pllm.Model("org/model")))
     assert baseline is not None
-    assert (baseline.privacy_mode, baseline.proprietary_protocol, baseline.requires_preparation) == (
+    assert (
+        baseline.privacy_mode,
+        baseline.proprietary_protocol,
+        baseline.requires_preparation,
+    ) == (
         "public",
         "guarded",
         True,
     )
-    assert _runtime_profile_options(
-        MaskedLinearCpu(pllm.Model("org/model"), linear=SecureLinear())
-    ) is None
-    assert _runtime_profile_options(
-        MaskedLinearCpu(pllm.Model("org/model"), preparation=BFVCorrelations())
-    ) is None
+    assert (
+        _runtime_profile_options(MaskedLinearCpu(pllm.Model("org/model"), linear=SecureLinear()))
+        is None
+    )
+    assert (
+        _runtime_profile_options(
+            MaskedLinearCpu(pllm.Model("org/model"), preparation=BFVCorrelations())
+        )
+        is None
+    )
     assert DirectFHE().component == "pllm/direct-fhe"
