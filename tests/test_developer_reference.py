@@ -79,10 +79,8 @@ def test_generated_developer_reference_is_fresh_and_deterministic() -> None:
     # Python 3.13 is the canonical documentation generator used by Pages.
     if sys.version_info[:2] == (3, 13):
         assert all(path.read_text(encoding="utf-8") == content for path, content in first.items())
-    assert all(
-        path.suffix == ".json" or reference.GENERATED_NOTICE in content
-        for path, content in first.items()
-    )
+    assert all(content.strip() for content in first.values())
+    assert all("do not edit" not in content.casefold() for content in first.values())
 
 
 def test_cli_parser_help_is_split_exactly_across_generated_pages() -> None:

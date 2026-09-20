@@ -354,6 +354,10 @@
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 
+/sdk/research/search.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
 /research/records/metrics.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
@@ -383,6 +387,10 @@
   X-Content-Type-Options: nosniff
 
 /sdk/build/numerics.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Content-Type-Options: nosniff
+
+/sdk/operate/client.md
   Content-Type: text/markdown; charset=utf-8
   X-Content-Type-Options: nosniff
 

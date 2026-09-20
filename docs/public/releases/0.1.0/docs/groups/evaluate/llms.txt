@@ -23,6 +23,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Research map](https://pllm.run/research/recipes/agent-map/) ([Markdown](https://pllm.run/research/recipes/agent-map.md)): Trace a source through clean-room code, plans, evidence, and publication review.
 - [Assurance](https://pllm.run/sdk/research/assurance/) ([Markdown](https://pllm.run/sdk/research/assurance.md)): Evaluate a specific privacy, integrity, numeric, implementation, or deployment claim.
 - [Benchmarks](https://pllm.run/sdk/research/benchmarks/) ([Markdown](https://pllm.run/sdk/research/benchmarks.md)): Measure PLLM systems with reproducible records and compare only equivalent runs.
+- [Search](https://pllm.run/sdk/research/search/) ([Markdown](https://pllm.run/sdk/research/search.md)): Generate deterministic experiment candidates and rank only benchmark results with compatible evidence cohorts.
 - [Metrics](https://pllm.run/research/records/metrics/) ([Markdown](https://pllm.run/research/records/metrics.md)): Choose clear performance, resource, quality, and cost measurements for a PLLM experiment.
 - [Research workflows](https://pllm.run/research/recipes/) ([Markdown](https://pllm.run/research/recipes.md)): Build, reproduce, compare, and review private-inference research with explicit stop rules.
 - [Reimplementation backlog](https://pllm.run/research/backlog/) ([Markdown](https://pllm.run/research/backlog.md)): What PLLM will reproduce, implement, review, and measure next.

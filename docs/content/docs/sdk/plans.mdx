@@ -10,21 +10,29 @@ weights or make the plan executable.
 ## Python SDK example
 
 ```python
-from pathlib import Path
-
 from pllm import KvCacheEviction, lower_model
 
-fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
-base = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+config = {
+    "model_type": "qwen2",
+    "hidden_size": 64,
+    "intermediate_size": 192,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "vocab_size": 256,
+    "max_position_embeddings": 128,
+    "hidden_act": "silu",
+    "rms_norm_eps": 1e-6,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+base = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
 optimized = base.apply(KvCacheEviction())
 assert optimized.digest != base.digest
 assert optimized.to_dict()["transformations"][-1]["component"] == "pllm/kv-cache-eviction"
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
-
-Run this example from a PLLM source checkout; package installations do not include
-the model-adapter test fixture.
 
 `KvCacheEviction` is a deterministic structural compiler pass for dense Qwen2 and
 Qwen3 plans. It preserves fixed-capacity Key/Value state across prefill and decode,

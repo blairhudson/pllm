@@ -16,7 +16,7 @@ const Arrow = () => <span className={styles.arrow} aria-hidden="true">→</span>
 
 export default function WhitepaperPage() {
   return (
-    <main className={styles.document}>
+    <main id="main-content" tabIndex={-1} className={styles.document}>
       <section className={`${styles.page} ${styles.cover}`}>
         <header className={styles.header}>
           <Link href="/" className={styles.brand}>PLLM</Link>

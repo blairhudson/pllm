@@ -11,6 +11,22 @@ PLLM ships one Python package backed by Rust. The public API separates model
 planning from live runtime state so you can inspect and reproduce a plan without
 including credentials, masks, sessions, or model weights.
 
+## Choose an API
+
+| Task | Start here | Result |
+| --- | --- | --- |
+| Declare a reproducible system | [Configuration](/sdk/configuration/) | Immutable `Experiment` input |
+| Inspect model semantics | [Plans](/sdk/plans/) | Immutable `ModelPlan` and coverage |
+| Select implementations | [Components](/sdk/components/) | Typed capability composition |
+| Compile executable regions | [Compiler](/sdk/pipeline/compiler/) | Verified native plan handles |
+| Send native private requests | [Python client](/sdk/operate/client/) | Responses and model resources |
+| Measure and compare | [Benchmark](/sdk/research/benchmark/) and [search](/sdk/research/search/) | Cohort-bound evidence and candidates |
+| Operate provider roles | [Deploy and operate](/sdk/operate/) | Explicit client, preparation, and inference boundaries |
+
+Use the [Python API reference](/sdk/reference/python/pllm/) for exact signatures;
+the authored pages above explain lifecycle, trust, and evidence constraints that a
+signature cannot express.
+
 ## Install the package
 
 Add the `pllm` package from PyPI to a uv project:
@@ -26,20 +42,28 @@ an immutable semantic `ModelPlan`; it does not load a checkpoint or start an
 inference session.
 
 ```python
-from pathlib import Path
-
 from pllm import lower_model
 
-fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
-plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
-assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
+config = {
+    "model_type": "qwen2",
+    "hidden_size": 64,
+    "intermediate_size": 192,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "vocab_size": 256,
+    "max_position_embeddings": 128,
+    "hidden_act": "silu",
+    "rms_norm_eps": 1e-6,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+assert plan.to_dict()["adapter"] == "pllm.qwen2.v1"
 assert plan.prefill["output"] == "token_feedback"
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
-
-Run this example from a PLLM source checkout; package installations do not include
-the model-adapter test fixture.
 
 ## Compose research methods
 

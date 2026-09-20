@@ -10,7 +10,7 @@
 
 .researchPage :global(.research-hero),
 .researchPage :global(.research-section) {
-  width: min(100% - 4.5rem, 1180px);
+  width: min(calc(100% - 4.5rem), 1180px);
   margin-inline: auto;
 }
 
@@ -203,12 +203,17 @@
 @media (max-width: 620px) {
   .researchPage :global(.research-hero),
   .researchPage :global(.research-section) {
-    width: min(100% - 2.5rem, 1180px);
+    width: min(calc(100% - 2.5rem), 1180px);
   }
 
   .researchPage :global(.research-hero) {
     gap: 2.5rem;
     padding-top: 2.5rem;
+  }
+
+  .researchPage h1 {
+    overflow-wrap: anywhere;
+    font-size: clamp(2.35rem, 12vw, 3.2rem);
   }
 
   .researchPage :global(.research-copy .button-row) {

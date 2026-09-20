@@ -5,7 +5,8 @@ import { basePath, withBasePath } from '@/lib/paths.mjs';
 import { Menu, Search, SunMoon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SidebarTrigger } from 'fumadocs-ui/layouts/docs/slots/sidebar';
+import { useEffect, useRef } from 'react';
+import { useSidebar } from 'fumadocs-ui/layouts/docs/slots/sidebar';
 
 function routeWithoutBasePath(pathname: string) {
   if (!basePath || !pathname.startsWith(`${basePath}/`)) return pathname;
@@ -14,6 +15,42 @@ function routeWithoutBasePath(pathname: string) {
 
 export function DocsSidebarTitle() {
   return null;
+}
+
+function DocsMenuButton() {
+  const { open, setOpen } = useSidebar();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      wasOpen.current = true;
+      const drawer = document.getElementById('nd-sidebar-mobile');
+      drawer?.querySelector<HTMLElement>('button, a[href]')?.focus();
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      trigger.current?.focus();
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [open, setOpen]);
+
+  return (
+    <button
+      ref={trigger}
+      type="button"
+      aria-label={open ? 'Close local navigation' : 'Open local navigation'}
+      aria-controls="nd-sidebar-mobile"
+      aria-expanded={open}
+      onClick={() => setOpen((value) => !value)}
+    >
+      <Menu aria-hidden />
+    </button>
+  );
 }
 
 export function DocsMobileHeader({ showMenu = true }: { showMenu?: boolean }) {
@@ -63,11 +100,7 @@ export function DocsMobileHeader({ showMenu = true }: { showMenu?: boolean }) {
         <button type="button" onClick={toggleTheme} aria-label="Toggle color theme">
           <SunMoon aria-hidden />
         </button>
-        {showMenu ? (
-          <SidebarTrigger aria-label="Open local navigation">
-            <Menu aria-hidden />
-          </SidebarTrigger>
-        ) : null}
+        {showMenu ? <DocsMenuButton /> : null}
       </div>
     </header>
   );

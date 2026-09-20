@@ -531,6 +531,12 @@
       "representation": "html"
     },
     {
+      "from": "/sdk/research/search",
+      "to": "/sdk/research/search/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
       "from": "/research/records/metrics",
       "to": "/research/records/metrics/",
       "status": 308,
@@ -575,6 +581,12 @@
     {
       "from": "/sdk/build/numerics",
       "to": "/sdk/build/numerics/",
+      "status": 308,
+      "representation": "html"
+    },
+    {
+      "from": "/sdk/operate/client",
+      "to": "/sdk/operate/client/",
       "status": 308,
       "representation": "html"
     },

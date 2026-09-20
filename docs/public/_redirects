@@ -86,6 +86,7 @@
 /learn/parties-and-offline-work /learn/parties-and-offline-work/ 308
 /learn/privacy-and-threat-models /learn/privacy-and-threat-models/ 308
 /learn/reading-research-and-evidence /learn/reading-research-and-evidence/ 308
+/sdk/research/search /sdk/research/search/ 308
 /research/records/metrics /research/records/metrics/ 308
 /sdk/build/models/gemma4 /sdk/build/models/gemma4/ 308
 /sdk/build/models /sdk/build/models/ 308
@@ -94,6 +95,7 @@
 /sdk/build/models/qwen3 /sdk/build/models/qwen3/ 308
 /sdk/build/models/qwen35 /sdk/build/models/qwen35/ 308
 /sdk/build/numerics /sdk/build/numerics/ 308
+/sdk/operate/client /sdk/operate/client/ 308
 /sdk/build/operators/activation-silu /sdk/build/operators/activation-silu/ 308
 /sdk/build/operators /sdk/build/operators/ 308
 /sdk/build/operators/projection-rotary /sdk/build/operators/projection-rotary/ 308

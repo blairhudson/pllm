@@ -492,7 +492,8 @@
         "pllm.docs.measure.benchmark",
         "pllm.docs.measure.assure",
         "pllm.docs.assurance",
-        "pllm.docs.benchmarks"
+        "pllm.docs.benchmarks",
+        "pllm.docs.measure.search"
       ],
       "prerequisites": [],
       "related": [],
@@ -646,7 +647,8 @@
       "children": [
         "pllm.docs.operate.client-boundary",
         "pllm.docs.operate.provider-roles",
-        "pllm.docs.deployment"
+        "pllm.docs.deployment",
+        "pllm.docs.operate.client"
       ],
       "prerequisites": [],
       "related": [],
@@ -2926,6 +2928,36 @@
       "navigationOrder": 1
     },
     {
+      "id": "pllm.docs.measure.search",
+      "title": "Search",
+      "summary": "Generate deterministic experiment candidates and rank only benchmark results with compatible evidence cohorts.",
+      "sourcePath": "content/docs/measure/search.mdx",
+      "canonicalUrl": "/sdk/research/search/",
+      "markdownUrl": "/sdk/research/search.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/sdk/research/search"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.measure",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/measure/search.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "evaluate",
+      "navigationGroupTitle": "Evaluate",
+      "navigationRoot": "/sdk/research/",
+      "navigationOrder": 307
+    },
+    {
       "id": "pllm.docs.metrics",
       "title": "Metrics",
       "summary": "Choose clear performance, resource, quality, and cost measurements for a PLLM experiment.",
@@ -3170,6 +3202,36 @@
       "navigationGroupTitle": "Define",
       "navigationRoot": "/sdk/build/numerics/",
       "navigationOrder": 103
+    },
+    {
+      "id": "pllm.docs.operate.client",
+      "title": "Python client",
+      "summary": "Construct the native PLLM client, inspect its resources, and choose it instead of the gateway only when your process owns the private client boundary.",
+      "sourcePath": "content/docs/operate/client.mdx",
+      "canonicalUrl": "/sdk/operate/client/",
+      "markdownUrl": "/sdk/operate/client.md",
+      "kind": "guide",
+      "status": "published",
+      "release": "0.1.0",
+      "aliases": [
+        "/sdk/operate/client"
+      ],
+      "markdownAliases": [],
+      "parent": "pllm.docs.operate",
+      "children": [],
+      "prerequisites": [],
+      "related": [],
+      "publicModules": [],
+      "publicSymbols": [],
+      "componentIds": [],
+      "sourcePaths": [
+        "content/docs/operate/client.mdx"
+      ],
+      "testPaths": [],
+      "navigationGroup": "execute",
+      "navigationGroupTitle": "Execute",
+      "navigationRoot": "/sdk/operate/",
+      "navigationOrder": 206
     },
     {
       "id": "pllm.docs.operators.activation-silu",

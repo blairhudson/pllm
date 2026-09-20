@@ -56,6 +56,12 @@ function nodeUrls(node: Node): string[] {
   ];
 }
 
+function researchPapers(): Folder {
+  const children = researchSource.getPageTree().children;
+  if (children.length === 0) throw new Error('Missing generated research papers');
+  return { type: 'folder', name: 'Papers', root: true, children };
+}
+
 export type AreaSection = {
   title: string;
   url: string;
@@ -71,6 +77,7 @@ export function getAreaSections(area: NavigationArea): AreaSection[] {
     (node): node is Folder => node.type === 'folder' && node.root === true,
   );
   const sections: Folder[] = [{ ...root, children: localChildren }, ...sectionRoots];
+  if (area === 'Research') sections.push(researchPapers());
 
   const result = sections.map((section, index) => {
     if (typeof section.name !== 'string') {
@@ -111,6 +118,7 @@ export function getAreaPageTree(area: NavigationArea): Root {
     children: [
       { ...root, children: localChildren },
       ...sectionRoots,
+      ...(area === 'Research' ? [researchPapers()] : []),
     ],
   };
 }

@@ -89,6 +89,7 @@
   <url><loc>https://pllm.run/learn/parties-and-offline-work/</loc></url>
   <url><loc>https://pllm.run/learn/privacy-and-threat-models/</loc></url>
   <url><loc>https://pllm.run/learn/reading-research-and-evidence/</loc></url>
+  <url><loc>https://pllm.run/sdk/research/search/</loc></url>
   <url><loc>https://pllm.run/research/records/metrics/</loc></url>
   <url><loc>https://pllm.run/sdk/build/models/gemma4/</loc></url>
   <url><loc>https://pllm.run/sdk/build/models/</loc></url>
@@ -97,6 +98,7 @@
   <url><loc>https://pllm.run/sdk/build/models/qwen3/</loc></url>
   <url><loc>https://pllm.run/sdk/build/models/qwen35/</loc></url>
   <url><loc>https://pllm.run/sdk/build/numerics/</loc></url>
+  <url><loc>https://pllm.run/sdk/operate/client/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/activation-silu/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/</loc></url>
   <url><loc>https://pllm.run/sdk/build/operators/projection-rotary/</loc></url>

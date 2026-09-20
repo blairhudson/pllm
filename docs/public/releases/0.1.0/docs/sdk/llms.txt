@@ -35,6 +35,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Conversions](https://pllm.run/sdk/build/conversions/) ([Markdown](https://pllm.run/sdk/build/conversions.md)): Learn how values move between numeric formats, layouts, and owners.
 - [Deployment](https://pllm.run/sdk/operate/deployment/) ([Markdown](https://pllm.run/sdk/operate/deployment.md)): Learn how to assign PLLM roles to authenticated services without changing privacy assumptions.
 - [Kernels](https://pllm.run/sdk/pipeline/kernels/) ([Markdown](https://pllm.run/sdk/pipeline/kernels.md)): Understand PLLM's native integer matrix kernels, memory costs, and CPU requirements.
+- [Search](https://pllm.run/sdk/research/search/) ([Markdown](https://pllm.run/sdk/research/search.md)): Generate deterministic experiment candidates and rank only benchmark results with compatible evidence cohorts.
 - [Gemma 4](https://pllm.run/sdk/build/models/gemma4/) ([Markdown](https://pllm.run/sdk/build/models/gemma4.md)): Variant-parameterized text-decoder lowering for exact Gemma 4 E2B and E4B configurations.
 - [Models](https://pllm.run/sdk/build/models/) ([Markdown](https://pllm.run/sdk/build/models.md)): See which model configurations PLLM can describe and what model support does not yet include.
 - [Phi-4 mini](https://pllm.run/sdk/build/models/phi4-mini/) ([Markdown](https://pllm.run/sdk/build/models/phi4-mini.md)): Fused-projection and LongRoPE semantic lowering for Phi-4-mini-instruct.
@@ -42,6 +43,7 @@ Private LLM inference documentation. Public weights; provider follows the protoc
 - [Qwen3 and mini-coder](https://pllm.run/sdk/build/models/qwen3/) ([Markdown](https://pllm.run/sdk/build/models/qwen3.md)): Dense Qwen3 lowering with explicit head width and Q/K normalization.
 - [Qwen3.5](https://pllm.run/sdk/build/models/qwen35/) ([Markdown](https://pllm.run/sdk/build/models/qwen35.md)): Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B.
 - [Numerics](https://pllm.run/sdk/build/numerics/) ([Markdown](https://pllm.run/sdk/build/numerics.md)): Understand PLLM's integer arithmetic, quantization, rounding, approximation, and overflow checks.
+- [Python client](https://pllm.run/sdk/operate/client/) ([Markdown](https://pllm.run/sdk/operate/client.md)): Construct the native PLLM client, inspect its resources, and choose it instead of the gateway only when your process owns the private client boundary.
 - [SiLU activation](https://pllm.run/sdk/build/operators/activation-silu/) ([Markdown](https://pllm.run/sdk/build/operators/activation-silu.md)): Compile and evaluate PLLM's bounded experimental Q7 SiLU component.
 - [Operators](https://pllm.run/sdk/build/operators/) ([Markdown](https://pllm.run/sdk/build/operators.md)): Learn how PLLM describes model operations independently of model family and runtime.
 - [Projection and rotary variants](https://pllm.run/sdk/build/operators/projection-rotary/) ([Markdown](https://pllm.run/sdk/build/operators/projection-rotary.md)): Represent fused projections, tensor slices, head widths, and rotary position rules.
