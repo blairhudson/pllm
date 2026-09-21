@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 import importlib
 import inspect
@@ -23,19 +23,195 @@ if str(PYTHON_ROOT) not in sys.path:
 
 CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
 CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "benchmark", "dev")
-CLI_EXAMPLES = {
-    "pllm gateway": "pllm gateway --config client.toml",
-    "pllm serve inference": "pllm serve inference --config inference.json",
-    "pllm serve preparation": "pllm serve preparation --config preparation.json",
-    "pllm config show": "pllm config show examples/pllm.yaml",
-    "pllm config export": ("pllm config export examples/pllm.yaml --output experiment.json"),
-    "pllm components list": "pllm components list --format json",
-    "pllm components show": "pllm components show pllm/cpu --format json",
-    "pllm benchmark run": (
-        "pllm benchmark run --prompt-file prompt.txt --max-output-tokens 24 "
-        "--repetitions 3 --output benchmark.json"
+
+
+@dataclass(frozen=True)
+class CliExample:
+    title: str
+    description: str
+    command: str
+    validate_resolution: bool = False
+
+
+CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
+    "pllm gateway": (
+        CliExample(
+            "Serve a Python experiment locally",
+            "Import the checked-in `Experiment` object and start both provider roles behind the "
+            "trusted loopback gateway.",
+            "pllm gateway --local --experiment examples/composition.py:experiment --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Build an experiment with a Python factory",
+            "Use `--factory` when the selected Python object is a zero-argument callable rather "
+            "than an existing `Experiment`.",
+            "pllm gateway --local --experiment examples/composition.py:build_experiment "
+            "--factory --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Serve a declarative experiment",
+            "JSON and YAML targets are data, so they do not require `--trust-python`.",
+            "pllm gateway --local --experiment examples/pllm.yaml",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Connect to separately operated providers",
+            "Set `PLLM_INFERENCE_API_KEY` and `PLLM_PREPARATION_API_KEY` in the environment; "
+            "credentials should not appear in shell arguments.",
+            "pllm gateway --inference-url https://inference.example.com "
+            "--preparation-url https://preparation.example.com",
+            validate_resolution=True,
+        ),
     ),
-    "pllm dev dashboard": "pllm dev dashboard --tiny",
+    "pllm serve inference": (
+        CliExample(
+            "Serve the inference role from Python configuration",
+            "Set `PLLM_API_KEY` and `PLLM_PROVIDER_PUSH_API_KEY` before starting this public-model "
+            "role.",
+            "pllm serve inference --experiment examples/composition.py:experiment --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Build the inference role configuration with a factory",
+            "Add `--factory` when the trusted Python target constructs the `Experiment` on demand.",
+            "pllm serve inference --experiment examples/composition.py:build_experiment "
+            "--factory --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Serve the inference role from YAML",
+            "The same declarative experiment used by gateway and benchmark can configure a "
+            "standalone provider role.",
+            "pllm serve inference --experiment examples/pllm.yaml",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm serve preparation": (
+        CliExample(
+            "Serve trusted preparation from Python configuration",
+            "Set `PLLM_API_KEY`, `PLLM_PROVIDER_PUSH_API_KEY`, and `PLLM_INFERENCE_URL` before "
+            "starting the preparation role.",
+            "pllm serve preparation --experiment examples/composition.py:experiment --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Build preparation configuration with a factory",
+            "The preparation role accepts the same zero-argument experiment factory as inference.",
+            "pllm serve preparation --experiment examples/composition.py:build_experiment "
+            "--factory --trust-python",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Serve trusted preparation from YAML",
+            "Use the identical experiment document at both roles so their model and pipeline "
+            "commitments agree.",
+            "pllm serve preparation --experiment examples/pllm.yaml",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm config show": (
+        CliExample(
+            "Inspect declarative configuration",
+            "Validate a checked-in experiment and print its canonical public form.",
+            "pllm config show examples/pllm.yaml",
+        ),
+        CliExample(
+            "Inspect Python configuration",
+            "Python objects use the same explicit target syntax as gateway and benchmark.",
+            "pllm config show examples/composition.py:experiment --trust-python",
+        ),
+        CliExample(
+            "Inspect an importable module target",
+            "Use `module:object` instead of `file.py:object` when the target is importable.",
+            "pllm config show examples.composition:experiment --trust-python",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm config export": (
+        CliExample(
+            "Export canonical JSON",
+            "Write a validated declarative experiment as strict canonical JSON.",
+            "pllm config export examples/pllm.yaml --output experiment.json",
+        ),
+    ),
+    "pllm components list": (
+        CliExample(
+            "Browse components",
+            "List component identity, category, version, and lifecycle in a terminal-friendly form.",
+            "pllm components list",
+        ),
+        CliExample(
+            "Produce machine-readable inventory",
+            "Use JSON when another tool will filter or compare component metadata.",
+            "pllm components list --format json",
+        ),
+    ),
+    "pllm components show": (
+        CliExample(
+            "Inspect one component",
+            "Resolve a component by its stable identity and print its complete descriptor.",
+            "pllm components show pllm/cpu --format json",
+        ),
+    ),
+    "pllm benchmark run": (
+        CliExample(
+            "Run a fast transport smoke test",
+            "Generated tiny weights exercise the real local role topology without downloading a "
+            "checkpoint.",
+            "pllm benchmark run --tiny --max-output-tokens 1 --repetitions 1",
+        ),
+        CliExample(
+            "Measure a Python experiment",
+            "Resolve a typed `Experiment`, then run its real client, preparation, and inference "
+            "roles.",
+            "pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:cpu_4 "
+            "--trust-python --max-output-tokens 8 --repetitions 1",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Build a benchmark experiment with a factory",
+            "Factory targets construct the typed experiment before the benchmark driver resolves "
+            "its profile and role topology.",
+            "pllm benchmark run --experiment examples/composition.py:build_experiment "
+            "--factory --trust-python --max-output-tokens 8 --repetitions 1",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Compare two matched experiments",
+            "Repeated `--experiment` options run candidates sequentially; `--save-best` exports a "
+            "winner only when their measured cohorts are comparable.",
+            "pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:cpu_1 "
+            "--experiment examples/benchmarks/qwen_prepared.py:cpu_4 --trust-python "
+            "--max-output-tokens 8 --repetitions 3 --save-best best-experiment.json",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Measure declarative configuration",
+            "A YAML experiment follows the same resolution and execution path as its Python form.",
+            "pllm benchmark run --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml "
+            "--max-output-tokens 8 --repetitions 1 --output benchmark.json",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm dev dashboard": (
+        CliExample(
+            "Open the real-model development dashboard",
+            "The dashboard starts the loopback benchmark topology and defaults to the documented "
+            "Qwen checkpoint.",
+            "pllm dev dashboard",
+        ),
+        CliExample(
+            "Run a non-interactive transport smoke dashboard",
+            "Use tiny random weights and suppress browser launch for local automation.",
+            "pllm dev dashboard --tiny --no-open",
+        ),
+    ),
+}
+
+CLI_VIRTUAL_CHILDREN: dict[tuple[str, ...], tuple[str, ...]] = {
+    ("gateway",): ("local-experiments", "provider-connections"),
 }
 PUBLIC_MODULES = (
     "pllm",
@@ -694,18 +870,90 @@ def render_cli_reference(
     return "".join(body)
 
 
-def render_cli_command_reference(command: str, help_text: str, example: str | None) -> str:
+def _render_cli_examples(examples: tuple[CliExample, ...]) -> str:
+    body = ["## Examples\n\n"]
+    for example in examples:
+        body.extend(
+            (
+                f"### {example.title}\n\n",
+                example.description,
+                "\n\n```bash\n",
+                example.command,
+                "\n```\n\n",
+            )
+        )
+    return "".join(body)
+
+
+def render_cli_command_reference(
+    command: str, help_text: str, examples: tuple[CliExample, ...] | None
+) -> str:
     body = [_frontmatter(command, f"Exact {command} help from the installed PLLM CLI.")]
-    if example is None:
+    if examples is None:
         body.append(
             "Choose a subcommand below. Each executable command page includes an example.\n\n"
         )
     else:
         if command == "pllm dev dashboard":
             body.append("This dashboard is a development-only local tool.\n\n")
-        body.extend(("## Example\n\n", "```bash\n", example, "\n```\n\n"))
+        body.append(_render_cli_examples(examples))
     body.extend(("## Options\n\n", "```text\n", help_text, "```\n"))
     return "".join(body)
+
+
+def render_gateway_local_guide() -> str:
+    examples = CLI_EXAMPLES["pllm gateway"][:3]
+    return "".join(
+        (
+            _frontmatter(
+                "Local experiments",
+                "Serve declarative experiments, Python objects, and Python factories locally.",
+            ),
+            "`pllm gateway --local` resolves one typed `Experiment`, starts its required roles "
+            "as child processes, and exposes the trusted loopback Responses and Chat Completions "
+            "API. The gateway does not replace the experiment's pipeline or profile.\n\n",
+            "## Target forms\n\n",
+            "Use `file.py:object` for a Python file, `module:object` for an importable module, or "
+            "`.json`/`.yaml` for declarative configuration. Python targets are imported code and "
+            "therefore require `--trust-python` in unattended commands. Add `--factory` only when "
+            "the selected object is a zero-argument callable returning an `Experiment`. Raw "
+            "`python file.py` execution is intentionally unsupported.\n\n",
+            "The repository's [composition example](https://github.com/blairhudson/pllm/blob/main/"
+            "examples/composition.py) exposes both `experiment` and `build_experiment`; "
+            "[`examples/pllm.yaml`](https://github.com/blairhudson/pllm/blob/main/examples/"
+            "pllm.yaml) provides the equivalent declarative form.\n\n",
+            _render_cli_examples(examples),
+            "## Application endpoint\n\n",
+            "Applications connect to `http://127.0.0.1:8080/v1` by default. Inference and "
+            "preparation children remain provider-role services, not application-facing "
+            "OpenAI-compatible endpoints. Stop the gateway to shut down its local role topology.\n",
+        )
+    )
+
+
+def render_gateway_provider_guide() -> str:
+    example = CLI_EXAMPLES["pllm gateway"][3:]
+    return "".join(
+        (
+            _frontmatter(
+                "Provider connections",
+                "Connect the trusted gateway to separately operated inference and preparation roles.",
+            ),
+            "Without `--local`, the gateway stays inside the client boundary and connects to "
+            "provider-role URLs. It does not start those services and it does not make their "
+            "endpoints OpenAI compatible.\n\n",
+            "## Credentials\n\n",
+            "Set `PLLM_INFERENCE_API_KEY` and `PLLM_PREPARATION_API_KEY` in the gateway "
+            "environment. Keep those role-specific credentials distinct and out of argv, shell "
+            "history, and checked-in configuration. Public prepared inference needs both URLs; a "
+            "profile with no preparation role must omit the preparation URL.\n\n",
+            _render_cli_examples(example),
+            "Start provider roles with [`pllm serve inference`](/cli/reference/serve/inference/) "
+            "and [`pllm serve preparation`](/cli/reference/serve/preparation/). Both can resolve "
+            "the same Python, JSON, or YAML experiment target used for local gateway execution and "
+            "benchmarking.\n",
+        )
+    )
 
 
 def _render_meta(title: str, pages: tuple[str, ...], *, root: bool = False) -> str:
@@ -723,7 +971,9 @@ def render_cli_reference_outputs() -> dict[Path, str]:
     commands = [
         (tuple(command.split()[1:]), command, help_text) for command, help_text in sections[1:]
     ]
-    parent_paths = {path[:depth] for path, _, _ in commands for depth in range(1, len(path))}
+    parent_paths = {path[:depth] for path, _, _ in commands for depth in range(1, len(path))} | set(
+        CLI_VIRTUAL_CHILDREN
+    )
     outputs = {
         CLI_REFERENCE_ROOT / "index.mdx": render_cli_reference(sections),
         CLI_REFERENCE_ROOT / "meta.json": _render_meta(
@@ -740,14 +990,19 @@ def render_cli_reference_outputs() -> dict[Path, str]:
             command, help_text, CLI_EXAMPLES[command] if command in leaf_commands else None
         )
     for parent in sorted(parent_paths):
-        children = tuple(
+        parser_children = tuple(
             path[-1]
             for path, _, _ in commands
             if len(path) == len(parent) + 1 and path[:-1] == parent
         )
+        children = (*parser_children, *CLI_VIRTUAL_CHILDREN.get(parent, ()))
         outputs[CLI_REFERENCE_ROOT.joinpath(*parent, "meta.json")] = _render_meta(
             parent[-1].replace("-", " ").title(), ("index", *children)
         )
+    outputs[CLI_REFERENCE_ROOT / "gateway/local-experiments.mdx"] = render_gateway_local_guide()
+    outputs[CLI_REFERENCE_ROOT / "gateway/provider-connections.mdx"] = (
+        render_gateway_provider_guide()
+    )
     return outputs
 
 

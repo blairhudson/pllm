@@ -100,7 +100,9 @@ def test_cli_parser_help_is_split_exactly_across_generated_pages() -> None:
         words = command.split()[1:]
         if not words:
             source = reference.CLI_REFERENCE_ROOT / "index.mdx"
-        elif command in parent_commands:
+        elif command in parent_commands or (
+            reference.CLI_REFERENCE_ROOT.joinpath(*words, "index.mdx") in pages
+        ):
             source = reference.CLI_REFERENCE_ROOT.joinpath(*words, "index.mdx")
         else:
             source = reference.CLI_REFERENCE_ROOT.joinpath(*words[:-1], f"{words[-1]}.mdx")
@@ -119,16 +121,69 @@ def test_cli_examples_cover_every_parser_leaf_and_parse() -> None:
     reference.validate_cli_examples()
 
     outputs = reference.render_cli_reference_outputs()
-    for command, example in reference.CLI_EXAMPLES.items():
-        arguments = shlex.split(example)
-        assert arguments[0] == "pllm", command
-        build_parser().parse_args(arguments[1:])
+    for command, examples in reference.CLI_EXAMPLES.items():
+        assert examples, command
+        assert len({example.title for example in examples}) == len(examples), command
+        for example in examples:
+            assert example.description.strip(), command
+            arguments = shlex.split(example.command)
+            assert arguments[0] == "pllm", command
+            build_parser().parse_args(arguments[1:])
 
         words = command.split()[1:]
-        source = reference.CLI_REFERENCE_ROOT.joinpath(*words[:-1], f"{words[-1]}.mdx")
+        nested = reference.CLI_REFERENCE_ROOT.joinpath(*words, "index.mdx")
+        source = (
+            nested
+            if nested in outputs
+            else reference.CLI_REFERENCE_ROOT.joinpath(*words[:-1], f"{words[-1]}.mdx")
+        )
         content = outputs[source]
-        assert content.count("## Example") == 1, command
-        assert f"```bash\n{example}\n```\n\n## Options\n\n```text\n" in content, command
+        assert content.count("## Examples") == 1, command
+        assert content.index("## Examples") < content.index("## Options"), command
+        for example in examples:
+            assert f"### {example.title}\n" in content, command
+            assert f"```bash\n{example.command}\n```" in content, command
+
+
+def test_documented_experiment_targets_resolve_in_dry_run() -> None:
+    environment = {
+        **os.environ,
+        "PYTHONPATH": str(ROOT / "python"),
+        "PLLM_INFERENCE_API_KEY": "documented-inference-test-key",
+        "PLLM_PREPARATION_API_KEY": "documented-preparation-test-key",
+    }
+    examples = [
+        example
+        for command_examples in reference.CLI_EXAMPLES.values()
+        for example in command_examples
+        if example.validate_resolution
+    ]
+    assert examples
+    for example in examples:
+        arguments = shlex.split(example.command)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pllm",
+                *arguments[1:],
+                "--dry-run",
+                "--no-input",
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert completed.returncode == 0, (
+            f"{example.title} failed:\n{completed.stdout}{completed.stderr}"
+        )
+        payload = json.loads(completed.stdout)
+        assert payload["data"]["dry_run"] is True
 
 
 def test_cli_example_validation_rejects_missing_and_extra_commands(monkeypatch) -> None:
@@ -154,6 +209,14 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
         "show",
         "export",
     ]
+    assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "gateway/meta.json"])["pages"] == [
+        "index",
+        "local-experiments",
+        "provider-connections",
+    ]
+    assert reference.CLI_REFERENCE_ROOT / "gateway/index.mdx" in outputs
+    assert reference.CLI_REFERENCE_ROOT / "gateway/local-experiments.mdx" in outputs
+    assert reference.CLI_REFERENCE_ROOT / "gateway/provider-connections.mdx" in outputs
     assert not (reference.CLI_REFERENCE_ROOT / "research").exists()
 
 

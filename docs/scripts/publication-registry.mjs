@@ -41,6 +41,7 @@ const cliCommands = [
 ];
 const cliParents = new Set(cliCommands.flatMap((words) =>
   words.slice(1).map((_word, index) => words.slice(0, index + 1).join('/'))));
+cliParents.add('gateway');
 const cliProvenance = (sourcePath) => ({
   sourcePaths: [sourcePath, '../python/pllm/_cli/app.py'],
   testPaths: ['../tests/test_cli.py', '../tests/test_developer_reference.py'],
@@ -50,6 +51,16 @@ const cliCommandPages = cliCommands.map((words) => {
   const sourcePath = `content/docs/reference/cli/${commandPath}${cliParents.has(commandPath) ? '/index' : ''}.mdx`;
   return page(
     `pllm.docs.reference.cli.${words.join('.')}`,
+    sourcePath,
+    '/',
+    'reference',
+    cliProvenance(sourcePath),
+  );
+});
+const cliGuidePages = ['local-experiments', 'provider-connections'].map((slug) => {
+  const sourcePath = `content/docs/reference/cli/gateway/${slug}.mdx`;
+  return page(
+    `pllm.docs.reference.cli.gateway.${slug}`,
     sourcePath,
     '/',
     'reference',
@@ -121,6 +132,7 @@ const declaredPublicationRegistry = {
     page('pllm.docs.reference', 'content/docs/reference/index.mdx', '/reference', 'reference'),
     page('pllm.docs.reference.cli', 'content/docs/reference/cli/index.mdx', '/reference/cli', 'reference', cliProvenance('content/docs/reference/cli/index.mdx')),
     ...cliCommandPages,
+    ...cliGuidePages,
     page('pllm.docs.reference.python.pllm', 'content/docs/reference/python/pllm/index.mdx', '/reference/python/pllm', 'reference', { publicModules: pythonModules, sourcePaths: ['content/docs/reference/python/pllm/index.mdx', '../python/pllm'], testPaths: ['../tests/test_developer_reference.py'] }),
     ...pythonModulePages,
     page('pllm.docs.reference.components', 'content/docs/reference/components.mdx', '/reference/components', 'reference', { publicModules: ['pllm.components', 'pllm.correlation', 'pllm.kernels', 'pllm.metrics', 'pllm.nonlinear', 'pllm.passes', 'pllm.preparation', 'pllm.protocols', 'pllm.roles', 'pllm.schedulers', 'pllm.state', 'pllm.verification'], publicSymbols: ['get', 'get_component', 'list_component_classes', 'list_components'], componentIds: ['pllm/accuracy', 'pllm/bfv-correlations/v1', 'pllm/binary-table/v1', 'pllm/blinded-linear/v1', 'pllm/chunked-independent-lanes/v1', 'pllm/cleartext-linear', 'pllm/client-local-kv', 'pllm/communication', 'pllm/cost', 'pllm/cpu', 'pllm/direct-fhe', 'pllm/energy', 'pllm/guarded-linear/v1', 'pllm/he-authenticated-preprocessing', 'pllm/independent-lanes/v1', 'pllm/inference', 'pllm/kv-cache-eviction', 'pllm/latency', 'pllm/linear-integrity', 'pllm/masked-linear', 'pllm/memory', 'pllm/model-aware-corrections', 'pllm/perplexity', 'pllm/r03-crt/v1', 'pllm/scalar/v1', 'pllm/secure-linear/v1', 'pllm/seeded-expansion', 'pllm/throughput'], sourcePaths: ['content/docs/reference/components.mdx', '../python/pllm/components/__init__.py'], testPaths: ['../tests/test_component_families.py', '../tests/test_developer_reference.py'] }),

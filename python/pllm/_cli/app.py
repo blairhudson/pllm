@@ -67,28 +67,32 @@ def _command(parent: Any, name: str, **kwargs: Any) -> _Parser:
 
 def _target_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "TARGET", help="experiment .json/.yaml or explicit path.py:object/module:object"
+        "TARGET", help="Experiment .json/.yaml or explicit Python path.py:object/module:object"
     )
     parser.add_argument(
-        "--factory", action="store_true", help="call explicit zero-argument Python factory"
+        "--factory", action="store_true", help="call the Python target as a zero-argument factory"
     )
     parser.add_argument(
         "--trust-python",
         action="store_true",
-        help="approve execution of the explicit local Python target",
+        help="allow import and execution of the explicit Python target",
     )
 
 
 def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="JSON GatewayConfig file")
-    parser.add_argument("--experiment", metavar="TARGET", help="validated Experiment target")
     parser.add_argument(
-        "--factory", action="store_true", help="call an explicit zero-argument Python factory"
+        "--experiment",
+        metavar="TARGET",
+        help="Experiment .json/.yaml or explicit Python path.py:object/module:object",
+    )
+    parser.add_argument(
+        "--factory", action="store_true", help="call the Python target as a zero-argument factory"
     )
     parser.add_argument(
         "--trust-python",
         action="store_true",
-        help="approve execution of an explicit local Python experiment target",
+        help="allow import and execution of the explicit Python experiment target",
     )
     parser.add_argument(
         "--privacy-mode",
@@ -218,15 +222,15 @@ def build_parser() -> _Parser:
     gateway.add_argument(
         "--experiment",
         metavar="TARGET",
-        help="Experiment .json/.yaml or explicit path.py:object/module:object",
+        help=("local Experiment .json/.yaml or explicit Python path.py:object/module:object"),
     )
     gateway.add_argument(
-        "--factory", action="store_true", help="call an explicit zero-argument Python factory"
+        "--factory", action="store_true", help="call the Python target as a zero-argument factory"
     )
     gateway.add_argument(
         "--trust-python",
         action="store_true",
-        help="approve execution of the explicit local Python experiment target",
+        help="allow import and execution of the explicit Python experiment target",
     )
     gateway.add_argument("--model")
     gateway.add_argument("--model-id")
@@ -276,15 +280,20 @@ def build_parser() -> _Parser:
         action="append",
         default=[],
         metavar="TARGET",
-        help="Experiment .json/.yaml or Python target; repeat to compare pipelines",
+        help=(
+            "Experiment .json/.yaml or explicit Python path.py:object/module:object; repeat to "
+            "compare pipelines"
+        ),
     )
     benchmark_run.add_argument(
-        "--factory", action="store_true", help="call explicit zero-argument Python factories"
+        "--factory",
+        action="store_true",
+        help="call each Python target as a zero-argument factory",
     )
     benchmark_run.add_argument(
         "--trust-python",
         action="store_true",
-        help="approve execution of explicit local Python experiment targets",
+        help="allow import and execution of explicit Python experiment targets",
     )
     benchmark_run.add_argument(
         "--model",
