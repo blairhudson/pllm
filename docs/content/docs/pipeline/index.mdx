@@ -16,21 +16,159 @@ preparation and live inference remain distinct.
 Run [`pllm config show`](/cli/reference/config/show/) to inspect
 `examples/pllm.yaml` without loading a model or runtime.
 
+## How profiles fit together
+
+A profile is the safest starting point because it fills the protocol, preparation,
+role, kernel, and optional verification slots with a compatible set. Choose first
+by who owns the transformer weights, then by the protection and checking required
+at the deployment boundary. Constructing a profile is still configuration only;
+[`Experiment.resolve()`](/sdk/reference/python/pllm/#experiment) checks the complete
+composition, and compilation separately checks operator coverage.
+
+API: [Profile objects and signatures](/sdk/reference/python/pllm/profiles/#objects-and-signatures)
+
 ## Python SDK example
 
-```python
-from pllm import Cpu, MaskedLinear, Model, ModelAwareCorrections, Pipeline
+Each example below is a complete `experiment.py` for the same generated tiny model,
+so the pipeline is the only important difference. Serve any runtime-backed profile
+through the trusted local gateway after placing that example in `experiment.py`:
 
-pipeline = Pipeline.from_profile(
-    "baseline.masked_linear_cpu",
-    model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
-    components={"linear": MaskedLinear(), "preparation": ModelAwareCorrections(), "kernels": Cpu()},
-)
-spec = pipeline.to_spec()
-assert spec["components"]["linear"] == {"component": "pllm/masked-linear", "params": {}}
-assert spec["components"]["kernels"]["params"]["threads"] == 1
+```bash
+pllm gateway --local \
+  --experiment experiment.py:experiment \
+  --trust-python
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+The gateway resolves the exact experiment, starts the required provider roles, and
+serves Responses and Chat Completions requests on `http://127.0.0.1:8080/v1` with
+the default local API key `local`. To measure the same file instead, pass it to
+[`pllm benchmark run`](/cli/reference/benchmark/run/). Generated tiny weights test
+protocol behavior only; use a pinned real checkpoint for quality or performance work.
 
-This creates public configuration only; it does not start a runtime.
+### Prepare public-weight stages with `MaskedLinearCpu`
+
+Use [`MaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#maskedlinearcpu) when
+the transformer body is public but inference must not receive plaintext client
+activations. It pairs [prepared masking](/sdk/pipeline/protocols/masked-linear/),
+offline model-aware corrections, inference placement, and the native CPU kernel.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-linear",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="masked-linear-tiny")),
+    deployment=Deployment.local(root="local://masked-linear"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.profile == "baseline.masked_linear_cpu"
+assert resolved.requires_preparation
+```
+
+### Verify prepared outputs with `VerifiedMaskedLinearCpu`
+
+Use [`VerifiedMaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#verifiedmaskedlinearcpu)
+when the trusted client must also check bounded integer stage outputs. It adds
+[`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify)
+material to the prepared path; it does not reduce online traffic. This is PLLM's
+trusted-client adaptation of [Slalom](/research/papers/r07-slalom/), not a TEE
+reproduction.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="verified-masked-linear",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="verified-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://verified-masked-linear"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.verification_component == "pllm/freivalds-verify/v1"
+assert resolved.verification_target_failure_bits == 48
+```
+
+### Encrypt linear inputs with `DirectFHEProfile`
+
+[`DirectFHEProfile`](/sdk/reference/python/pllm/profiles/#directfheprofile) selects
+the separate [direct-FHE method](/sdk/reference/python/pllm/protocols/#directfhe).
+It uses ciphertext transport rather than the masked-linear correction inventory and
+requires the optional HE runtime for live execution.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import DirectFHEProfile
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="direct-fhe",
+    pipeline=DirectFHEProfile(TinyModel(model_id="direct-fhe-tiny")),
+    deployment=Deployment.local(root="local://direct-fhe"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.profile == "runtime.direct_fhe"
+assert not resolved.requires_preparation
+```
+
+### Guard provider-owned weights with `ProprietaryGuarded`
+
+Use [`ProprietaryGuarded`](/sdk/reference/python/pllm/profiles/#proprietaryguarded)
+when the provider owns the weights and explicit request limits match the deployment
+policy. [`GuardedLinear`](/sdk/reference/python/pllm/protocols/#guardedlinear)
+adds quotas and bounds, not cryptographic activation confidentiality.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryGuarded
+from pllm.protocols import GuardedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="proprietary-guarded",
+    pipeline=ProprietaryGuarded(
+        TinyModel(model_id="guarded-tiny"),
+        linear=GuardedLinear(max_rows_per_request=32),
+    ),
+    deployment=Deployment.local(root="local://proprietary-guarded"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.profile == "runtime.proprietary_guarded"
+assert resolved.proprietary_protocol == "guarded"
+```
+
+### Blind provider-owned stages with `ProprietaryBlinded`
+
+[`ProprietaryBlinded`](/sdk/reference/python/pllm/profiles/#proprietaryblinded)
+selects the provider-owned [blinded-linear transport](/sdk/reference/python/pllm/protocols/#blindedlinear).
+Its support and leakage claims remain scoped to that runtime arm and deployment.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryBlinded
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="proprietary-blinded",
+    pipeline=ProprietaryBlinded(TinyModel(model_id="blinded-tiny")),
+    deployment=Deployment.local(root="local://proprietary-blinded"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.profile == "runtime.proprietary_blinded"
+assert resolved.proprietary_protocol == "blinded"
+```
+
+After choosing a profile, use [configuration](/sdk/configuration/) to place it in
+an experiment and [the compiler guide](/sdk/pipeline/compiler/) to understand the
+separate executable-coverage gate.

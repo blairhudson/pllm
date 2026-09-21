@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import argparse
 import ast
+from dataclasses import fields, is_dataclass
+from enum import Enum
 import importlib
 import inspect
 import json
 from pathlib import Path
+import re
 import sys
-from typing import Any
+import textwrap
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_ROOT = ROOT / "python"
@@ -35,14 +39,17 @@ CLI_EXAMPLES = {
 }
 PUBLIC_MODULES = (
     "pllm",
+    "pllm.client",
     "pllm.config",
     "pllm.models",
+    "pllm.native",
     "pllm.plan",
     "pllm.components",
     "pllm.correlation",
     "pllm.kernels",
     "pllm.metrics",
     "pllm.nonlinear",
+    "pllm.official",
     "pllm.passes",
     "pllm.profiles",
     "pllm.providers",
@@ -53,6 +60,7 @@ PUBLIC_MODULES = (
     "pllm.roles",
     "pllm.schedulers",
     "pllm.search",
+    "pllm.server",
     "pllm.sources",
     "pllm.state",
     "pllm.verification",
@@ -62,6 +70,517 @@ PUBLIC_MODULES = (
     "pllm.compiler",
     "pllm.evidence",
 )
+PYTHON_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/python/pllm"
+CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
+
+
+def _example(source: str) -> str:
+    return textwrap.dedent(source).strip()
+
+
+MODEL_EXAMPLE = _example(
+    """
+    import pllm
+    from pllm.kernels import Cpu
+    from pllm.profiles import MaskedLinearCpu
+
+    experiment = pllm.Experiment(
+        name="qwen-local",
+        pipeline=MaskedLinearCpu(
+            pllm.Model("Qwen/Qwen2.5-0.5B-Instruct"),
+            kernels=Cpu(threads=2),
+        ),
+        deployment=pllm.Deployment.local(root=".pllm/qwen-local"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=32, max_new_tokens=8),
+    )
+    assert len(pllm.configuration_digest(experiment)) == 64
+    """
+)
+
+CONFIG_EXAMPLE = MODEL_EXAMPLE.replace("import pllm\n", "import pllm.config as pllm\n", 1)
+
+CLIENT_EXAMPLE = _example(
+    """
+    import pllm.client as client
+
+    closed = []
+    stream = client.ResponseStream(iter(["first", "second"]), lambda: closed.append(True))
+    assert list(stream) == ["first", "second"]
+    stream.close()
+    assert closed == [True]
+    """
+)
+
+NATIVE_EXAMPLE = _example(
+    """
+    import pllm.native as native
+
+    details = native.capabilities()
+    assert details["implementation"] == "rust"
+    assert details["matrix_storage"] == "owned-int8"
+    """
+)
+
+OFFICIAL_EXAMPLE = _example(
+    """
+    import pllm.official as official
+
+    client = official.create_openai_client()
+    try:
+        base_url = str(client.base_url)
+    finally:
+        client.close()
+    assert base_url == "https://pllm.local/v1/"
+    """
+)
+
+SERVER_EXAMPLE = _example(
+    """
+    import pllm.server as server
+
+    app = server.create_app()
+    routes = {route.path for route in app.routes}
+    assert {"/healthz", "/v1/responses"} <= routes
+    """
+)
+
+PLAN_EXAMPLE = _example(
+    """
+    import pllm
+
+    config = {
+        "model_type": "qwen2",
+        "hidden_size": 16,
+        "intermediate_size": 32,
+        "num_hidden_layers": 1,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 2,
+        "vocab_size": 64,
+        "max_position_embeddings": 128,
+        "hidden_act": "silu",
+        "rope_theta": 10000.0,
+        "rms_norm_eps": 1e-6,
+        "tie_word_embeddings": False,
+        "attention_bias": True,
+    }
+    plan = pllm.lower_model(config, batch=1, max_input_tokens=8, max_new_tokens=2)
+    assert plan.to_dict()["model_family"] == "qwen2"
+    """
+)
+
+COMPONENT_EXAMPLE = _example(
+    """
+    import pllm.components as components
+
+    reference = components.ComponentRef("pllm/cpu")
+    implementation = components.get(reference.component)
+    assert implementation.describe().component == "pllm/cpu"
+    """
+)
+
+CORRELATION_EXAMPLE = _example(
+    """
+    import pllm.correlation as correlation
+
+    source = correlation.SeededExpansion()
+    assert source.to_spec() == {"component": "pllm/seeded-expansion", "params": {}}
+    """
+)
+
+KERNEL_EXAMPLE = _example(
+    """
+    import pllm.kernels as kernels
+
+    backend = kernels.Cpu(threads=2)
+    assert backend.get_params() == {"threads": 2}
+    """
+)
+
+NONLINEAR_EXAMPLE = _example(
+    """
+    import pllm.nonlinear as nonlinear
+
+    methods = [nonlinear.BinaryTableGatedMultiplyQ7(), nonlinear.R03CrtGatedMultiplyQ7()]
+    assert [method.component for method in methods] == ["pllm/binary-table/v1", "pllm/r03-crt/v1"]
+    """
+)
+
+SCHEDULER_EXAMPLE = _example(
+    """
+    import pllm.schedulers as schedulers
+
+    scheduler = schedulers.IndependentLanesProtectedTensorSchedule(max_elements=4)
+    assert scheduler.get_params() == {"max_elements": 4}
+    """
+)
+
+STATE_EXAMPLE = _example(
+    """
+    import pllm.state as state
+
+    protocol = state.ClientLocalKv()
+    assert protocol.component == "pllm/client-local-kv"
+    """
+)
+
+METRIC_EXAMPLE = _example(
+    """
+    import pllm.metrics as metrics
+
+    latency = metrics.Latency(statistic="p95", phase="online")
+    assert latency.to_spec()["params"] == {"phase": "online", "statistic": "p95"}
+    """
+)
+
+PASS_EXAMPLE = _example(
+    """
+    import pllm.passes as passes
+    cache = passes.KvCacheEviction(cluster_sizes=(32, 16), share_adjacent_layers=True)
+    assert cache.get_params()["implementation"] == "pllm/mpcache/v1"
+    """
+)
+
+PROVIDER_EXAMPLE = _example(
+    """
+    import pllm.providers as providers
+
+    # An explicit empty entry-point set disables external package discovery.
+    assert providers.discover_providers(entry_points=()) == ()
+    """
+)
+
+RESEARCH_EXAMPLE = _example(
+    """
+    import pllm.research as research
+
+    lock = research.ArtifactLock(
+        id="slalom-upstream",
+        source_record_id="R07",
+        revision="a" * 40,
+        artifact_digest="b" * 64,
+        license_review="external_reproduction_only",
+        isolation="external_process",
+    )
+    assert lock.verify(evidence_digest="c" * 64).status == "reproduction_verified"
+    """
+)
+
+PROTOCOL_EXAMPLE = _example(
+    """
+    import pllm.protocols as protocols
+
+    guarded = protocols.GuardedLinear(max_rows_per_request=128, output_dither_bound=1)
+    assert guarded.get_params()["max_rows_per_request"] == 128
+    """
+)
+
+PROFILE_EXAMPLE = _example(
+    """
+    import pllm.profiles as profiles
+
+    from pllm.sources import TinyModel
+
+    selected = profiles.MaskedLinearCpu(TinyModel("qwen2"))
+    assert selected.to_spec()["components"]["linear"]["component"] == "pllm/masked-linear"
+    """
+)
+
+SOURCE_EXAMPLE = _example(
+    """
+    import pllm.sources as sources
+
+    model = sources.TinyModel("qwen2", model_id="transport-smoke")
+    assert model.to_spec() == {"source": "qwen2", "kind": "tiny", "model_id": "transport-smoke"}
+    """
+)
+
+SEARCH_EXAMPLE = _example(
+    """
+    import pllm
+    import pllm.search as search
+    from pllm.kernels import Cpu
+    from pllm.profiles import MaskedLinearCpu
+
+    base = pllm.Experiment(
+        name="search-base",
+        pipeline=MaskedLinearCpu(pllm.Model("org/model"), kernels=Cpu(threads=1)),
+        deployment=pllm.Deployment.local(root="local://search"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    space = search.SearchSpace(base, {"pipeline__kernels__threads": [1, 2]})
+    assert [candidate.parameters for candidate in search.GridSearch("cpu", space).candidates()] == [
+        {"pipeline__kernels__threads": 1},
+        {"pipeline__kernels__threads": 2},
+    ]
+    """
+)
+
+RUNTIME_EXAMPLE = _example(
+    """
+    import pllm.runtime as runtime
+
+    app = runtime.create_app(runtime.GatewayConfig(api_keys=("local-test",)))
+    routes = {route.path for route in app.routes}
+    assert {"/health", "/v1/responses"} <= routes
+    """
+)
+
+COMPILER_EXAMPLE = _example(
+    """
+    import pllm.compiler as compiler
+
+    rejected = False
+    try:
+        compiler.compile(b"{}")
+    except compiler.CompilationError as error:
+        rejected = "E_INVALID_DOCUMENT" in str(error)
+    assert rejected
+    """
+)
+
+PLAN_RECORD_EXAMPLE = _example(
+    """
+    import pllm.plan as plan
+
+    try:
+        plan.CompiledPlan(object())
+    except TypeError as error:
+        rejected = "handle must come from pllm.compile" in str(error)
+    else:
+        rejected = False
+    assert rejected
+    """
+)
+
+EVIDENCE_EXAMPLE = _example(
+    """
+    import pllm.evidence as evidence
+
+    digest = evidence.environment_digest({"python": "3.13", "machine": "local"})
+    assert len(digest) == 64 and int(digest, 16) >= 0
+    """
+)
+
+MASKED_LINEAR_EXAMPLE = _example(
+    """
+    import pllm.protocols.masked_linear as masked_linear
+
+    method = masked_linear.MaskedLinear()
+    assert method.to_spec() == {"component": "pllm/masked-linear", "params": {}}
+    """
+)
+
+PREPARATION_EXAMPLE = _example(
+    """
+    import pllm.preparation as preparation
+
+    provider = preparation.ModelAwareCorrections()
+    assert provider.component == "pllm/model-aware-corrections"
+    """
+)
+
+ROLE_EXAMPLE = _example(
+    """
+    import pllm.roles as roles
+
+    inference = roles.Inference()
+    assert inference.component == "pllm/inference"
+    """
+)
+
+VERIFICATION_EXAMPLE = _example(
+    """
+    import pllm.verification as verification
+
+    verifier = verification.FreivaldsVerify(target_failure_bits=48)
+    assert verifier.get_params()["target_failure_bits"] == 48
+    """
+)
+
+PIPELINE_EXAMPLE = _example(
+    """
+    import pllm.pipeline as pipeline
+    from pllm.sources import TinyModel
+
+    configured = pipeline.VerifiedMaskedLinearCpu(TinyModel("qwen2"))
+    assert configured.to_spec()["components"]["verification"]["component"] == "pllm/freivalds-verify/v1"
+    """
+)
+
+DEPLOYMENT_EXAMPLE = _example(
+    """
+    import pllm.deployment as deployment
+
+    local = deployment.Deployment(kind="local", root="/tmp/pllm-example")
+    assert local.kind == "local" and local.root.endswith("pllm-example")
+    """
+)
+
+DASH_CITATION = "[DASH](/research/papers/r01-dash/)"
+REDASH_CITATION = "[ReDASH](/research/papers/r02-redash/)"
+SLALOM_CITATION = "[Slalom](/research/papers/r07-slalom/)"
+MPCACHE_CITATION = "[MPCache](/research/papers/r23-mpcache/)"
+COMPACT_CITATION = "[Compact](/research/papers/r18-compact/)"
+R03_CITATION = "[Garbling Gadgets](/research/papers/r03-garbling-gadgets/)"
+HYCC_CITATION = "[HyCC](/research/papers/r09-hycc/)"
+
+MODULE_GUIDES: dict[str, dict[str, object]] = {
+    "pllm": {
+        "purpose": "The root package is the task-oriented SDK surface for describing a model, bounding a workload, selecting a pipeline, lowering semantic plans, and constructing clients without depending on internal module paths.",
+        "citations": (),
+        "example": MODEL_EXAMPLE,
+    },
+    "pllm.client": {
+        "purpose": "Client facades expose synchronous and asynchronous private-inference clients plus bounded response streams without requiring callers to import runtime internals.",
+        "citations": (),
+        "example": CLIENT_EXAMPLE,
+    },
+    "pllm.config": {
+        "purpose": "Immutable configuration records describe experiments before any checkpoint, network connection, credential, or one-use material is opened.",
+        "citations": (),
+        "example": CONFIG_EXAMPLE,
+    },
+    "pllm.models": {
+        "purpose": "Model APIs separate semantic architecture lowering from checkpoint import so a plan can be reviewed before weights or runtime state exist.",
+        "citations": (),
+        "example": PLAN_EXAMPLE.replace("import pllm", "import pllm.models as pllm"),
+    },
+    "pllm.native": {
+        "purpose": "Native APIs inspect the installed Rust backend and compile reusable integer matrix stages with explicit owned storage and conversion boundaries.",
+        "citations": (),
+        "example": NATIVE_EXAMPLE,
+    },
+    "pllm.plan": {
+        "purpose": "Plan records and locks bind semantic, numeric, privacy, and deployment decisions into immutable digest-addressed documents.",
+        "citations": (),
+        "example": PLAN_RECORD_EXAMPLE,
+    },
+    "pllm.components": {
+        "purpose": "The component registry discovers typed built-in capabilities by stable identity and creates concrete implementations only when explicitly requested.",
+        "citations": (),
+        "example": COMPONENT_EXAMPLE,
+    },
+    "pllm.correlation": {
+        "purpose": "Correlation components describe offline cryptographic material sources independently from online protocol scheduling.",
+        "citations": (DASH_CITATION, REDASH_CITATION),
+        "example": CORRELATION_EXAMPLE,
+    },
+    "pllm.kernels": {
+        "purpose": "Kernel components select bounded matrix implementations while preserving the compiler's numeric and placement contracts.",
+        "citations": (),
+        "example": KERNEL_EXAMPLE,
+    },
+    "pllm.metrics": {
+        "purpose": "Metric definitions attach units and optimization direction to measurements so evidence and Pareto search do not guess whether larger or smaller is better.",
+        "citations": (),
+        "example": METRIC_EXAMPLE,
+    },
+    "pllm.nonlinear": {
+        "purpose": "Nonlinear components identify approximation or protected-evaluation methods separately from their scheduling strategy and executable coverage.",
+        "citations": (R03_CITATION, COMPACT_CITATION),
+        "example": NONLINEAR_EXAMPLE,
+    },
+    "pllm.official": {
+        "purpose": "Official integration factories construct OpenAI SDK clients that route requests through PLLM's trusted local client transport.",
+        "citations": (),
+        "example": OFFICIAL_EXAMPLE,
+    },
+    "pllm.passes": {
+        "purpose": "Graph passes transform semantic plans under explicit state and lifecycle contracts rather than rewriting adapter-specific operation names.",
+        "citations": (MPCACHE_CITATION,),
+        "example": PASS_EXAMPLE,
+    },
+    "pllm.profiles": {
+        "purpose": "Profiles provide reviewed slot-compatible pipeline presets while retaining the exact component identities used to compile an experiment.",
+        "citations": (SLALOM_CITATION,),
+        "example": PROFILE_EXAMPLE,
+    },
+    "pllm.providers": {
+        "purpose": "Provider discovery reads package-confined static manifests without importing provider code; factory loading is a separate approved operation.",
+        "citations": (),
+        "example": PROVIDER_EXAMPLE,
+    },
+    "pllm.research": {
+        "purpose": "The research registry exposes locked paper sources, clean-room method records, evidence requirements, and promotion assessments without executing quarantined upstream artifacts.",
+        "citations": (),
+        "example": RESEARCH_EXAMPLE,
+    },
+    "pllm.protocols": {
+        "purpose": "Protocol components define which parties exchange which protected values and keep baseline masking separate from optional verification.",
+        "citations": (SLALOM_CITATION, DASH_CITATION),
+        "example": PROTOCOL_EXAMPLE,
+    },
+    "pllm.protocols.masked_linear": {
+        "purpose": "Masked-linear records configure the public-weight prepared protocol and its optional trusted-client Freivalds verification contract.",
+        "citations": (SLALOM_CITATION,),
+        "example": MASKED_LINEAR_EXAMPLE,
+    },
+    "pllm.preparation": {
+        "purpose": "Preparation components define offline inventory production and trusted preparation roles without placing preparation work on the online inference path.",
+        "citations": (DASH_CITATION, REDASH_CITATION),
+        "example": PREPARATION_EXAMPLE,
+    },
+    "pllm.roles": {
+        "purpose": "Role components make client, preparation, inference, and single-evaluator placement explicit in pipeline configuration.",
+        "citations": (DASH_CITATION,),
+        "example": ROLE_EXAMPLE,
+    },
+    "pllm.schedulers": {
+        "purpose": "Scheduler components state how independent protected lanes or scalar operations are ordered without changing the underlying method identity.",
+        "citations": (),
+        "example": SCHEDULER_EXAMPLE,
+    },
+    "pllm.search": {
+        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions.",
+        "citations": (),
+        "example": SEARCH_EXAMPLE,
+    },
+    "pllm.server": {
+        "purpose": "The server facade constructs the trusted client-boundary ASGI gateway with health, Responses API, and bounded runtime routes.",
+        "citations": (),
+        "example": SERVER_EXAMPLE,
+    },
+    "pllm.sources": {
+        "purpose": "Source records identify model origins and bounded workloads without resolving files, downloading checkpoints, or opening runtime state.",
+        "citations": (),
+        "example": SOURCE_EXAMPLE,
+    },
+    "pllm.state": {
+        "purpose": "State components identify where persistent decoder state lives and keep mutable KV lifecycle out of immutable configuration records.",
+        "citations": (MPCACHE_CITATION,),
+        "example": STATE_EXAMPLE,
+    },
+    "pllm.verification": {
+        "purpose": "Verification components and checks bind optional result verification to explicit soundness and one-use material policies.",
+        "citations": (SLALOM_CITATION,),
+        "example": VERIFICATION_EXAMPLE,
+    },
+    "pllm.pipeline": {
+        "purpose": "Pipeline records compose component identities into a digestible configuration while leaving live sessions, masks, and credentials outside the object graph.",
+        "citations": (),
+        "example": PIPELINE_EXAMPLE,
+    },
+    "pllm.deployment": {
+        "purpose": "Deployment records describe role placement, endpoints, and trust boundaries without starting services or embedding credentials.",
+        "citations": (),
+        "example": DEPLOYMENT_EXAMPLE,
+    },
+    "pllm.runtime": {
+        "purpose": "Runtime APIs execute validated native kernels, bind compiled models, construct local role topologies, and expose trusted client-boundary services.",
+        "citations": (SLALOM_CITATION, DASH_CITATION),
+        "example": RUNTIME_EXAMPLE,
+    },
+    "pllm.compiler": {
+        "purpose": "The compiler accepts canonical request bytes, verifies complete capability coverage, and returns opaque native plans or fails closed.",
+        "citations": (HYCC_CITATION,),
+        "example": COMPILER_EXAMPLE,
+    },
+    "pllm.evidence": {
+        "purpose": "Evidence records preserve exact benchmark cohorts, environment identity, and assurance results without silently ranking incomparable runs.",
+        "citations": (),
+        "example": EVIDENCE_EXAMPLE,
+    },
+}
 
 
 def _frontmatter(title: str, description: str) -> str:
@@ -252,6 +771,21 @@ def _signature(value: object) -> str:
         return "signature not exposed"
 
 
+def _private_only_parameters(value: object) -> bool:
+    try:
+        parameters = tuple(inspect.signature(cast(Any, value)).parameters.values())
+    except (TypeError, ValueError):
+        return False
+    public_parameters = tuple(
+        parameter
+        for parameter in parameters
+        if parameter.name not in {"self", "cls"}
+    )
+    return bool(public_parameters) and all(
+        parameter.name.startswith("_") for parameter in public_parameters
+    )
+
+
 def _stub_path(module_name: str) -> Path | None:
     relative = Path(*module_name.split("."))
     candidates = (
@@ -313,8 +847,22 @@ def _typed_details(exports: list[str], value: object) -> tuple[str, tuple[str, .
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if child.name.startswith("_") and child.name not in {"__init__", "__new__"}:
                     continue
+                arguments = (*child.args.posonlyargs, *child.args.args, *child.args.kwonlyargs)
+                external_arguments = tuple(
+                    argument for argument in arguments if argument.arg not in {"self", "cls"}
+                )
+                if (
+                    child.name in {"__init__", "__new__"}
+                    and external_arguments
+                    and all(argument.arg.startswith("_") for argument in external_arguments)
+                ):
+                    continue
                 members.append(_function_declaration(child))
-            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            elif (
+                isinstance(child, ast.AnnAssign)
+                and isinstance(child.target, ast.Name)
+                and not child.target.id.startswith("_")
+            ):
                 members.append(f"{child.target.id}: {ast.unparse(child.annotation)}")
         constructor = next(
             (item for item in members if item.startswith("__new__") or item.startswith("__init__")),
@@ -344,25 +892,37 @@ def _typed_details(exports: list[str], value: object) -> tuple[str, tuple[str, .
                 members.append(f"classmethod {name}{_signature(member.__func__)}")
             elif callable(member):
                 members.append(f"{name}{_signature(member)}")
-        return _signature(value), tuple(sorted(members))
+        signature = "not publicly constructible" if _private_only_parameters(value) else _signature(value)
+        return signature, tuple(sorted(members))
     return _signature(value), ()
 
 
 def api_inventory() -> tuple[dict[str, Any], ...]:
-    grouped: dict[int, dict[str, Any]] = {}
+    grouped: dict[tuple[str, object], dict[str, Any]] = {}
     for export in public_exports():
         value = export["value"]
+        object_export = inspect.isclass(value) or callable(value)
+        key = (
+            ("object", id(value))
+            if object_export
+            else ("export", f"{export['module']}.{export['name']}")
+        )
         record = grouped.setdefault(
-            id(value),
+            key,
             {
-                "canonical": f"{getattr(value, '__module__', export['module'])}."
-                f"{getattr(value, '__qualname__', export['name'])}",
+                "canonical": (
+                    f"{getattr(value, '__module__', export['module'])}."
+                    f"{getattr(value, '__qualname__', export['name'])}"
+                    if object_export
+                    else f"{export['module']}.{export['name']}"
+                ),
                 "kind": "class"
                 if inspect.isclass(value)
                 else "function"
                 if callable(value)
                 else type(value).__name__,
                 "signature": _signature(value),
+                "documentation": inspect.getdoc(value) or "",
                 "exports": [],
                 "value": value,
             },
@@ -371,50 +931,225 @@ def api_inventory() -> tuple[dict[str, Any], ...]:
     for record in grouped.values():
         record["exports"].sort()
         record["signature"], record["members"] = _typed_details(record["exports"], record["value"])
-        del record["value"]
     return tuple(sorted(grouped.values(), key=lambda item: (item["canonical"], item["exports"])))
 
 
-def render_python_reference() -> str:
-    exports = public_exports()
-    by_module: dict[str, list[str]] = {name: [] for name in PUBLIC_MODULES}
-    for export in exports:
-        by_module[export["module"]].append(f"{export['module']}.{export['name']}")
+def _module_slug(module: str) -> str:
+    if module == "pllm":
+        return "index"
+    return module.removeprefix("pllm.").replace(".", "-").replace("_", "-")
+
+
+def _object_summary(item: dict[str, Any], public_module: str) -> str:
+    value = item["value"]
+    canonical = str(item["canonical"])
+    name = canonical.rsplit(".", 1)[-1]
+    if not callable(value) and is_dataclass(value):
+        public_values = ", ".join(
+            f"`{field.name}={getattr(value, field.name)!r}`"
+            for field in fields(value)
+            if not field.name.startswith("_")
+        )
+        return (
+            f"`{name}` is the predefined `{type(value).__name__}` value"
+            + (f" with {public_values}." if public_values else ".")
+        )
+    if canonical == "pllm.PROFILES":
+        return "Maps each shipped profile ID to its immutable typed pipeline preset."
+    if canonical == "pllm.__version__":
+        return "Reports the installed PLLM distribution version."
+    if inspect.isclass(value) and hasattr(value, "describe"):
+        try:
+            descriptor = getattr(value, "describe")()
+            capabilities = ", ".join(f"`{item}`" for item in descriptor.capabilities)
+            roles = (
+                f" for roles {', '.join(descriptor.role_eligibility)}"
+                if descriptor.role_eligibility
+                else ""
+            )
+            return (
+                f"Selects component `{descriptor.component}` during `{descriptor.lifecycle_phase}`; "
+                f"it provides {capabilities or 'its declared contract'}{roles}."
+            )
+        except (AttributeError, TypeError, ValueError):
+            pass
+    if inspect.isclass(value) and issubclass(value, Enum):
+        choices = ", ".join(f"`{member.value}`" for member in value)
+        return f"Defines the accepted values for `{canonical.rsplit('.', 1)[-1]}`: {choices}."
+    documentation = str(item["documentation"]).strip()
+    name = canonical.rsplit(".", 1)[-1]
+    if inspect.isclass(value) and issubclass(value, Exception):
+        condition = name.removesuffix("Error").replace("_", " ")
+        return f"Raised when a {condition} condition prevents the requested operation from completing."
+    inherited_builtin_docs = {
+        inspect.getdoc(Exception),
+        inspect.getdoc(RuntimeError),
+        inspect.getdoc(TypeError),
+        inspect.getdoc(ValueError),
+    }
+    if (
+        documentation
+        and documentation not in inherited_builtin_docs
+        and not documentation.startswith((f"{name}(", "ComponentRef(", "dict(", "str("))
+    ):
+        paragraph = documentation.split("\n\n", 1)[0].replace("\n", " ")
+        return paragraph.rstrip(".") + "."
+    specific = {
+        "AsyncOpenAI": "Asynchronous OpenAI-compatible client that targets the trusted local PLLM gateway",
+        "OpenAI": "Synchronous OpenAI-compatible client that targets the trusted local PLLM gateway",
+        "AsyncSSETransport": "Asynchronous transport for consuming bounded server-sent response streams",
+        "SSETransport": "Synchronous transport for consuming bounded server-sent response streams",
+        "HttpxTransport": "HTTPX-backed transport used by the native PLLM client",
+        "CompiledRuntimeModel": "Opaque validated binding between a semantic model plan and a concrete runtime bundle",
+        "CompiledRuntimeSession": "Stateful execution session created from one validated compiled runtime model",
+        "MaskedTransformerClientRuntime": "Client-owned decoder runtime for prepared masked-linear execution",
+        "MaskedTransformerEngine": "Inference-side engine that owns quantized remote stages and prepared rows",
+        "NativeMatrix": "Reusable native integer matrix executor with explicit input and output conversion",
+        "RuntimeRoles": "Owned local-process topology for inference and preparation roles",
+        "LinearIntegrityError": "Failure raised when a checked linear result violates its authenticated contract",
+        "environment_digest": "Computes a deterministic digest for the exact benchmark environment record",
+        "evaluate_search": "Evaluates candidate benchmark evidence using explicit cohort-safe metric directions",
+        "load_model": "Resolves and imports a model source while recording path-independent checkpoint hashes",
+        "compile_runtime_model": "Binds a semantic plan to a validated runtime bundle and fails on unresolved operations",
+        "build_roles": "Starts the bounded local inference and preparation process topology",
+        "close_roles": "Stops all owned local role processes and releases their resources",
+        "check_linear_result": "Checks one linear output against supplied integrity material",
+        "discover_providers": "Discovers static provider manifests without importing provider implementation code",
+        "load_provider_factory": "Imports one explicitly selected provider factory after manifest discovery",
+        "load_component": "Creates one selected component implementation from its immutable reference",
+        "serve": "Runs a selected PLLM service role from validated configuration",
+    }.get(name)
+    if specific:
+        return specific + "."
+    if name.startswith("create_") and name.endswith("_app"):
+        service = name.removeprefix("create_").removesuffix("_app").replace("_", " ")
+        return f"Builds the {service} ASGI application from validated runtime dependencies."
+    if name.startswith("get_"):
+        return f"Looks up the selected {name.removeprefix('get_').replace('_', ' ')} by stable identity."
+    if name.startswith("list_"):
+        return f"Returns the deterministic public {name.removeprefix('list_').replace('_', ' ')} inventory."
+    purpose = str(MODULE_GUIDES[public_module]["purpose"]).split(".", 1)[0]
+    words = " ".join(re.findall(r"[A-Z]+(?=[A-Z][a-z]|s?$)|[A-Z]?[a-z]+|\d+", name)).lower()
+    if inspect.isclass(value) and is_dataclass(value):
+        field_names = ", ".join(
+            f"`{field.name}`" for field in fields(value) if not field.name.startswith("_")
+        )
+        if field_names:
+            return f"Immutable `{name}` record carrying {field_names} for the workflow where {purpose.lower()}."
+        return f"Opaque immutable `{name}` record created by its public factories for the workflow where {purpose.lower()}."
+    if inspect.isclass(value):
+        operations = [member.split("(", 1)[0].strip("`") for member in item["members"][:3]]
+        operation_text = (
+            f" Public operations include {', '.join(f'`{operation}`' for operation in operations)}."
+            if operations
+            else ""
+        )
+        return f"`{name}` provides {words} behavior for the workflow where {purpose.lower()}.{operation_text}"
+    if callable(value):
+        return f"Performs the {words} operation for the workflow where {purpose.lower()}."
+    return f"Provides the public {words} value used where {purpose.lower()}."
+
+
+def _module_items(module: str) -> tuple[dict[str, Any], ...]:
+    return tuple(
+        item
+        for item in api_inventory()
+        if any(export.rsplit(".", 1)[0] == module for export in item["exports"])
+    )
+
+
+def _research_context(citations: tuple[str, ...]) -> str:
+    if not citations:
+        return (
+            "This API is project infrastructure rather than an implementation of one specific "
+            "paper. Relevant method pages link their primary sources separately."
+        )
+    return "Relevant design inputs: " + ", ".join(citations) + ". PLLM's implementation and evidence claims remain independent."
+
+
+def render_python_module_reference(module: str) -> str:
+    guide = MODULE_GUIDES[module]
+    slug = _module_slug(module)
+    items = _module_items(module)
+    if not items:
+        raise ValueError(f"public module {module!r} has no documented exports")
     body = [
         _frontmatter(
-            "Python API inventory",
-            "Public Python classes, functions, and evidence APIs in the installed package.",
+            f"{module} Python API",
+            f"Public objects, practical usage, and research context for {module}.",
         ),
-        "One row describes each Python object. `Exports` lists facade aliases, preventing duplicate "
-        "handwritten class definitions. Presence is API inventory only; consult "
-        "[status](/sdk/reference/status/) for coverage and maturity.\n\n",
-        "## Python SDK example\n\n",
-        "```python\n",
-        "import pllm\n",
-        "from pllm.config import Experiment\n\n",
-        "assert pllm.Experiment is Experiment\n",
-        "```\n\n",
-        "API: [`pllm.Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)\n\n",
-        "## Facades\n\n",
+        str(guide["purpose"]),
+        " Presence documents API availability, not complete model, security, or deployment "
+        "coverage; check [implementation status](/sdk/reference/status/) before relying on a path.\n\n",
     ]
-    for module, names in by_module.items():
-        body.append(
-            f"- `{module}`: {', '.join(f'`{name}`' for name in names) if names else 'no public exports recorded'}\n"
-        )
+    if module == "pllm":
+        body.extend(("## Modules\n\n", "Every public module has its own executable reference page:\n\n"))
+        for public_module in PUBLIC_MODULES[1:]:
+            public_slug = _module_slug(public_module)
+            body.append(
+                f"- [`{public_module}`](/sdk/reference/python/pllm/{public_slug}/) - "
+                f"{MODULE_GUIDES[public_module]['purpose']}\n"
+            )
+        body.append("\n")
     body.extend(
         (
-            "\n## Objects and signatures\n\n",
-            "| Canonical object | Kind | Signature/type | Public members | Exports |\n",
-            "| --- | --- | --- | --- | --- |\n",
+            "## Research context\n\n",
+            _research_context(cast(tuple[str, ...], guide["citations"])),
+            "\n\n## Python SDK example\n\n",
+            "The example performs a bounded offline task and checks an observable result. It does "
+            "not download a checkpoint or contact a provider.\n\n",
+            "```python\n",
+            str(guide["example"]),
+            "\n```\n\n",
+            f"API: [`{module}`](/sdk/reference/python/pllm/{'' if slug == 'index' else slug + '/'}#objects-and-signatures)\n\n",
+            "## Objects and signatures\n\n",
         )
     )
-    for item in api_inventory():
-        exports_text = ", ".join(_code(name) for name in item["exports"])
-        members_text = "; ".join(_code(name) for name in item["members"]) or "not recorded"
-        body.append(
-            f"| {_code(item['canonical'])} | {item['kind']} | {_code(item['signature'])} | {members_text} | {exports_text} |\n"
+    for item in items:
+        module_exports = [
+            export for export in item["exports"] if export.rsplit(".", 1)[0] == module
+        ]
+        display_name = module_exports[0].rsplit(".", 1)[-1]
+        body.extend(
+            (
+                f"### `{display_name}`\n\n",
+                _object_summary(item, module),
+                "\n\n",
+                f"- Canonical object: {_code(item['canonical'])}\n",
+                f"- Kind: `{item['kind']}`\n",
+                f"- Signature/type: {_code(item['signature'])}\n",
+                "- Public exports: "
+                + ", ".join(_code(export) for export in item["exports"])
+                + "\n",
+            )
         )
+        if item["members"]:
+            body.append(
+                "- Public members: "
+                + "; ".join(_code(member) for member in item["members"])
+                + "\n"
+            )
+        body.append("\n")
     return "".join(body)
+
+
+def render_python_reference() -> str:
+    return render_python_module_reference("pllm")
+
+
+def render_python_reference_outputs() -> dict[Path, str]:
+    outputs = {
+        PYTHON_REFERENCE_ROOT / f"{_module_slug(module)}.mdx": render_python_module_reference(module)
+        for module in PUBLIC_MODULES
+    }
+    outputs[PYTHON_REFERENCE_ROOT / "meta.json"] = json.dumps(
+        {
+            "title": "pllm",
+            "pages": [_module_slug(module) for module in PUBLIC_MODULES],
+        },
+        indent=2,
+    ) + "\n"
+    return outputs
 
 
 def component_catalog() -> tuple[dict[str, Any], ...]:
@@ -439,7 +1174,7 @@ def render_component_catalog() -> str:
         'assert component_class.describe() is component\n',
         'assert "cpu" in component.capabilities\n',
         "```\n\n",
-        "API: [`pllm.components.get`](/sdk/reference/python/pllm/#objects-and-signatures)\n\n",
+        "API: [`pllm.components.get`](/sdk/reference/python/pllm/components/#objects-and-signatures)\n\n",
         "| Identity/version | Lifecycle | Implementation maturity | Provenance | Input/output representation | Roles/topology | Privacy/assurance | Model/operator coverage | Evidence/cohort | Known limitations |\n",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n",
     ]
@@ -469,9 +1204,9 @@ def render_component_catalog() -> str:
 
 def render_outputs() -> dict[Path, str]:
     outputs = render_cli_reference_outputs()
+    outputs.update(render_python_reference_outputs())
     outputs.update(
         {
-            ROOT / "docs/content/docs/reference/python/pllm/index.mdx": render_python_reference(),
             ROOT / "docs/content/docs/reference/components.mdx": render_component_catalog(),
             ROOT / "docs/public/downloads/cli-help.txt": render_cli_help(),
         }
@@ -480,8 +1215,22 @@ def render_outputs() -> dict[Path, str]:
 
 
 def generate(*, check: bool = False) -> int:
-    stale = []
-    for path, content in render_outputs().items():
+    outputs = render_outputs()
+    managed_roots = (PYTHON_REFERENCE_ROOT, CLI_REFERENCE_ROOT)
+    expected_reference_paths = {
+        path for path in outputs if any(path.is_relative_to(root) for root in managed_roots)
+    }
+    managed_reference_paths: set[Path] = set()
+    for root in managed_roots:
+        if root.exists():
+            managed_reference_paths.update(root.rglob("*.mdx"))
+            managed_reference_paths.update(root.rglob("meta.json"))
+    orphaned = sorted(managed_reference_paths - expected_reference_paths)
+    stale = list(orphaned)
+    if not check:
+        for path in orphaned:
+            path.unlink()
+    for path, content in outputs.items():
         if path.exists() and path.read_text(encoding="utf-8") == content:
             continue
         stale.append(path.relative_to(ROOT))
@@ -502,7 +1251,7 @@ def generate(*, check: bool = False) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if committed output differs")
+    parser.add_argument("--check", action="store_true", help="fail if generated output differs")
     return generate(check=parser.parse_args().check)
 
 

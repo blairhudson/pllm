@@ -147,6 +147,11 @@ dashboard driver now runs in-process, so a diagnostic run has two role children
 rather than a dashboard child that creates another process tree. This topology is
 for local development and measurement; it does not establish non-colluding
 operators or production deployment.
+`pllm gateway --local --experiment TARGET` resolves the same typed `Experiment`
+documents and trusted Python targets as the benchmark CLI, then passes the complete
+experiment to `build_roles`. Every shipped runtime-backed profile therefore uses
+the same gateway command and fails through profile resolution rather than a
+gateway-specific profile branch.
 
 ## Hot operations
 

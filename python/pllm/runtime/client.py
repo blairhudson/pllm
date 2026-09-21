@@ -1573,10 +1573,7 @@ class RuntimeClient:
                     max_prepared_bytes = 4_096
                     if verification_policy is not None:
                         max_prepared_bytes += (
-                            request.rows
-                            * verification_policy.checks
-                            * request.in_features
-                            * 4
+                            request.rows * verification_policy.checks * request.in_features * 4
                         )
                     prepared = self.preparation_http.send(
                         self.preparation_http.build_request(
@@ -3159,6 +3156,7 @@ class OpenAI:
         preparation_http_client: httpx.Client | None = None,
         experiment: Experiment | ExperimentProfile | None = None,
     ) -> None:
+        from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
 
         settings = ClientSettings.load().merged(
@@ -3176,6 +3174,19 @@ class OpenAI:
             bundle_cache_dir=bundle_cache_dir,
             timeout=timeout,
         )
+        if isinstance(experiment, (Experiment, ExperimentProfile)):
+            profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
+            if not profile.requires_preparation:
+                if (
+                    preparation_base_url is not None
+                    or preparation_api_key is not None
+                    or preparation_http_client is not None
+                ):
+                    raise ValueError(
+                        "preparation settings conflict with an Experiment that has no preparation role"
+                    )
+                settings.preparation_base_url = None
+                settings.preparation_api_key = None
         self._core = RuntimeClient(
             base_url=settings.base_url,
             api_key=settings.api_key,

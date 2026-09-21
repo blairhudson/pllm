@@ -9,25 +9,150 @@ Inventory identity binds model, body, stage, weight, shape, quantization, ring, 
 
 This contract assumes protocol-following non-colluding roles and public body weights. Confidential-weight and shared-state protocols are separate.
 
+## How the components cooperate
+
+The path has five distinct slots: the protocol defines the wire behavior,
+preparation creates one-use corrections, placement identifies the inference role,
+the kernel executes bounded integer matrices, and optional verification checks the
+result. Use the typed profile to keep these choices compatible rather than treating
+the individual configuration objects as a running deployment.
+
+API: [Masked-linear objects and signatures](/sdk/reference/python/pllm/protocols-masked-linear/#objects-and-signatures)
+
 ## Python SDK example
 
+Each section exports a complete `experiment.py` while changing one slot. Run any
+example with `pllm gateway --local --experiment experiment.py:experiment
+--trust-python`. Nothing contacts a service or creates inventory until the gateway
+passes the experiment to the [runtime](/sdk/pipeline/runtime/).
+
+### Define the stage protocol with `MaskedLinear`
+
+[`MaskedLinear`](/sdk/reference/python/pllm/protocols-masked-linear/#maskedlinear)
+commits the prepared online exchange: inference receives a ticket and `x-r`, then
+returns `W*x-s` for client reconstruction.
+
 ```python
-import numpy as np
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear
+from pllm.sources import TinyModel
 
-from pllm import AuthenticatedMPC, TrustedPreprocessor
-
-preparation = TrustedPreprocessor(modulus=65537, seed=3)
-runtime = AuthenticatedMPC(preparation)
-x = np.array([[3, -2]], dtype=np.int64)
-weight = np.array([[2, 1]], dtype=np.int64)
-masked_x = runtime.input(x, preparation.input_mask(x.shape))
-correlation = preparation.linear_correlation(weight, x.shape)
-result = runtime.centered(runtime.open(runtime.linear(masked_x, weight, correlation)))
-assert result.tolist() == [[4]]
-assert runtime.stats.linear_rounds == 1
+experiment = Experiment(
+    name="masked-protocol",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="masked-tiny"), linear=MaskedLinear()),
+    deployment=Deployment.local(root="local://masked-protocol"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation is True
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+### Produce corrections with `ModelAwareCorrections`
 
-This exercises prepared masked linear arithmetic in the single-process reference
-protocol; it does not provide role separation or deployment assurance.
+[`ModelAwareCorrections`](/sdk/reference/python/pllm/preparation/#modelawarecorrections)
+expands root seeds and uploads model- and stage-bound correction rows before chat.
+The [preparation guide](/sdk/pipeline/preparation/) covers inventory creation and
+the alternative research providers.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.preparation import ModelAwareCorrections
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-preparation",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="masked-tiny"),
+        preparation=ModelAwareCorrections(),
+    ),
+    deployment=Deployment.local(root="local://masked-preparation"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.to_spec()["components"]["preparation"]["component"] == (
+    "pllm/model-aware-corrections"
+)
+```
+
+### Place public stages with `Inference`
+
+[`Inference`](/sdk/reference/python/pllm/roles/#inference) is placement metadata for
+the role that owns the public transformer body and consumes tickets. It is not the
+running service itself; [parties and offline work](/learn/parties-and-offline-work/)
+explains the process boundary.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import Inference
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-placement",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="masked-tiny"),
+        inference=Inference(),
+    ),
+    deployment=Deployment.local(root="local://masked-placement"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.to_spec()["components"]["inference"]["component"] == (
+    "pllm/inference"
+)
+```
+
+### Execute bounded matrices with `Cpu`
+
+[`Cpu`](/sdk/reference/python/pllm/kernels/#cpu) selects the persistent native
+worker pool. SIMD is chosen at runtime inside this backend rather than represented
+as separate profile components. See [kernels](/sdk/pipeline/kernels/) for direct
+matrix execution.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.kernels import Cpu
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-kernel",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="masked-tiny"),
+        kernels=Cpu(threads=2),
+    ),
+    deployment=Deployment.local(root="local://masked-kernel"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.to_spec()["components"]["kernels"]["params"] == {
+    "threads": 2,
+}
+```
+
+### Add one-use checks with `FreivaldsVerify`
+
+[`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify) lets
+the trusted client validate integer stage outputs using authenticated one-use
+projections. Select it through `VerifiedMaskedLinearCpu`; adding the configuration
+does not change the preparation role's non-collusion assumption.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="verified-masked",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="verified-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://verified-masked"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().verification_target_failure_bits == 48
+```
+
+`MaskedLinearCpu` composes the first four slots. `VerifiedMaskedLinearCpu` adds the
+fifth. Continue to [profiles](/sdk/pipeline/) to compare these with direct-FHE and
+provider-owned pipelines.

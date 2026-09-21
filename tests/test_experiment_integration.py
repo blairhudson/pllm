@@ -14,6 +14,7 @@ from pllm import (
     MaskedLinearCpu,
     Model,
     OpenAI,
+    ProprietaryGuarded,
     _native,
 )
 from pllm.runtime.client import ProtocolError, RuntimeClient
@@ -91,6 +92,51 @@ def test_openai_experiment_locks_default_and_rejects_request_drift():
             http_client=inert_client("https://inference.example"),
             experiment=baseline_experiment(),
         )
+
+
+def test_one_role_experiment_clears_inherited_preparation_settings(monkeypatch):
+    experiment = Experiment(
+        name="one-role-client",
+        pipeline=ProprietaryGuarded(Model.tiny()),
+        deployment=Deployment.local(root=".pllm/one-role"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    )
+    monkeypatch.setenv("PLLM_PREPARATION_BASE_URL", "https://stale-preparation.example")
+    monkeypatch.setenv("PLLM_PREPARATION_API_KEY", "stale-key")
+    http = inert_client("https://inference.example")
+
+    client = OpenAI(
+        base_url="https://inference.example",
+        api_key="secret",
+        experiment=experiment,
+        http_client=http,
+    )
+    try:
+        assert client._core.preparation_http is None
+    finally:
+        client.close()
+        http.close()
+
+
+def test_one_role_experiment_rejects_explicit_preparation_settings():
+    experiment = Experiment(
+        name="one-role-client",
+        pipeline=ProprietaryGuarded(Model.tiny()),
+        deployment=Deployment.local(root=".pllm/one-role"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    )
+    http = inert_client("https://inference.example")
+
+    with pytest.raises(ValueError, match="no preparation role"):
+        OpenAI(
+            base_url="https://inference.example",
+            api_key="secret",
+            experiment=experiment,
+            preparation_base_url="https://preparation.example",
+            preparation_api_key="preparation-key",
+            http_client=http,
+        )
+    http.close()
 
 
 def test_experiment_rejects_nonpublic_transformer_runtime():

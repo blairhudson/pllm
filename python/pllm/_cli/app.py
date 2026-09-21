@@ -215,6 +215,19 @@ def build_parser() -> _Parser:
     gateway.add_argument("--inference-key", default=os.getenv("PLLM_INFERENCE_API_KEY"))
     gateway.add_argument("--preparation-url")
     gateway.add_argument("--preparation-key", default=os.getenv("PLLM_PREPARATION_API_KEY"))
+    gateway.add_argument(
+        "--experiment",
+        metavar="TARGET",
+        help="Experiment .json/.yaml or explicit path.py:object/module:object",
+    )
+    gateway.add_argument(
+        "--factory", action="store_true", help="call an explicit zero-argument Python factory"
+    )
+    gateway.add_argument(
+        "--trust-python",
+        action="store_true",
+        help="approve execution of the explicit local Python experiment target",
+    )
     gateway.add_argument("--model")
     gateway.add_argument("--model-id")
     gateway.add_argument("--local", action="store_true", help="co-locate both server roles locally")
@@ -235,8 +248,8 @@ def build_parser() -> _Parser:
     gateway.add_argument("--revision", default=os.getenv("PLLM_HF_REVISION"))
     gateway.add_argument("--hf-cache-dir", default=os.getenv("HF_HUB_CACHE"))
     gateway.add_argument("--local-files-only", action="store_true")
-    gateway.add_argument("--weight-bits", type=int, choices=(4, 8), default=8)
-    gateway.add_argument("--activation-bits", type=int, choices=(4, 8), default=8)
+    gateway.add_argument("--weight-bits", type=int, choices=(4, 8))
+    gateway.add_argument("--activation-bits", type=int, choices=(4, 8))
 
     serve = _command(commands, "serve", help="run an inference or preparation role")
     serve_commands = serve.add_subparsers(dest="serve_role", metavar="ROLE", required=True)
@@ -724,13 +737,70 @@ def _service_url(host: str, port: int) -> str:
     return f"http://{rendered_host}:{port}"
 
 
-def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
+def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
     if not _is_loopback(args.host):
         raise ResolutionError("GATEWAY_HOST", "gateway bind must use a loopback address")
     if not 1 <= args.port <= 65_535:
         raise ResolutionError("GATEWAY_PORT", "gateway port must be between 1 and 65535")
-    if args.local and not (args.model or args.tiny):
-        raise ResolutionError("GATEWAY_LOCAL_MODEL", "--local requires --model MODEL")
+    experiment = None
+    experiment_data = None
+    if args.experiment:
+        if not args.local:
+            raise ResolutionError("GATEWAY_EXPERIMENT_LOCAL", "--experiment requires --local")
+        legacy_flags = {
+            "--config": args.config,
+            "--model": args.model,
+            "--model-id": args.model_id,
+            "--tiny": args.tiny,
+            "--revision": args.revision,
+            "--local-files-only": args.local_files_only,
+            "--weight-bits": args.weight_bits,
+            "--activation-bits": args.activation_bits,
+        }
+        conflicts = [name for name, value in legacy_flags.items() if value not in (None, False)]
+        if conflicts:
+            raise ResolutionError(
+                "GATEWAY_EXPERIMENT_CONFLICT",
+                "--experiment owns model and quantization settings; remove " + ", ".join(conflicts),
+            )
+        from pllm.configuration import Experiment
+
+        from .targets import resolve_target
+
+        target = resolve_target(
+            args.experiment,
+            factory=args.factory,
+            no_input=no_input,
+            trust_python=args.trust_python,
+            output_format=output_format,
+        )
+        if not isinstance(target.configuration, Experiment):
+            raise ResolutionError(
+                "GATEWAY_EXPERIMENT_TYPE", f"target is not an Experiment: {args.experiment}"
+            )
+        experiment = target.configuration
+        try:
+            resolved_experiment = experiment.resolve()
+        except (TypeError, ValueError) as exc:
+            raise ResolutionError("GATEWAY_EXPERIMENT_INVALID", str(exc)) from exc
+        from pllm.profiles import _runtime_profile_options
+
+        if _runtime_profile_options(experiment.pipeline) is None:
+            raise ResolutionError(
+                "GATEWAY_EXPERIMENT_INVALID",
+                "experiment profile is not supported by local serving",
+            )
+        args.resolved_experiment = experiment
+        experiment_data = {
+            "name": experiment.name,
+            "profile": resolved_experiment.profile,
+            "configuration_digest": experiment.configuration_digest(),
+            "pipeline_digest": experiment.pipeline.digest(),
+        }
+    if args.local and not (args.model or args.tiny or experiment is not None):
+        raise ResolutionError(
+            "GATEWAY_LOCAL_MODEL", "--local requires --model MODEL or --experiment TARGET"
+        )
     if args.tiny and not args.local:
         raise ResolutionError("GATEWAY_TINY", "--tiny requires --local")
 
@@ -743,7 +813,11 @@ def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> Non
             flush=True,
         )
     if dry_run:
-        model = args.model_id or args.model
+        model = (
+            experiment.pipeline.model.model_id or experiment.pipeline.model.source
+            if experiment is not None
+            else args.model_id or args.model
+        )
         transport = args.transport
         bundle_cache_mode = args.bundle_cache_mode
         if not args.local:
@@ -762,6 +836,7 @@ def _gateway(args: argparse.Namespace, output_format: str, dry_run: bool) -> Non
             "bundle_cache_mode": bundle_cache_mode,
             "config": args.config,
             "dry_run": True,
+            "experiment": experiment_data,
             "local": args.local,
             "model": model,
             "transport": transport,
@@ -857,9 +932,7 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
         args.guard_max_requests_per_minute = runtime_options.guard_max_requests_per_minute
         args.guard_output_dither = runtime_options.output_dither_bound
         args.verification_component = runtime_options.verification_component
-        args.verification_target_failure_bits = (
-            runtime_options.verification_target_failure_bits
-        )
+        args.verification_target_failure_bits = runtime_options.verification_target_failure_bits
         args.model = [experiment.pipeline.model.source]
         args.model_id = [experiment.pipeline.model.model_id or experiment.pipeline.model.source]
         args.model_kind = experiment.pipeline.model.kind
@@ -998,7 +1071,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         elif args.command == "components":
             _components(args, output_format, dry_run)
         elif args.command == "gateway":
-            _gateway(args, output_format, dry_run)
+            _gateway(args, output_format, no_input, dry_run)
         elif args.command == "serve":
             _serve(args, output_format, no_input, dry_run)
         elif args.command == "benchmark":

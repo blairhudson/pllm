@@ -32,7 +32,9 @@ def test_regenerate_runs_reference_then_publication_generation(monkeypatch) -> N
     ]
 
 
-def test_check_mode_is_read_only_and_runs_both_freshness_gates(monkeypatch) -> None:
+def test_check_mode_materializes_ignored_references_then_runs_freshness_gates(
+    monkeypatch,
+) -> None:
     module = _module()
     calls = []
     monkeypatch.setattr(
@@ -42,6 +44,7 @@ def test_check_mode_is_read_only_and_runs_both_freshness_gates(monkeypatch) -> N
     )
     module.run(check=True)
     assert calls == [
+        ([sys.executable, str(module.DEVELOPER_REFERENCE)], module.ROOT, True),
         (
             [sys.executable, str(module.DEVELOPER_REFERENCE), "--check"],
             module.ROOT,

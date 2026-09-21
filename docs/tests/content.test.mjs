@@ -67,16 +67,16 @@ test('SDK pages have checked examples or explicit API boundaries', () => {
       assert.match(page.content, /\]\(\/(?:sdk\/reference\/status|research)\//);
       continue;
     }
-    assert.equal(examples.length, 1, `${page.canonicalUrl} must have one Python example`);
-    assert.match(examples[0], /(?:from|import)\s+pllm\b/);
-    assert.match(examples[0], /^assert\s/m, `${page.canonicalUrl} example has no checked result`);
+    assert.ok(examples.length >= 1, `${page.canonicalUrl} must have a Python example`);
     assert.match(
       page.content,
-      /^API: .*\(\/sdk\/reference\/python\/pllm\/#objects-and-signatures\)/m,
+      /^API: .*\(\/sdk\/reference\/python\/pllm\/(?:[a-z0-9-]+\/)?#objects-and-signatures\)/m,
       `${page.canonicalUrl} has no exact Python API link`,
     );
 
-    for (const example of examples) {
+    for (const [index, example] of examples.entries()) {
+      assert.match(example, /(?:from|import)\s+pllm\b/, `${page.canonicalUrl} example ${index + 1} does not use the SDK`);
+      assert.match(example, /^\s*assert\s/m, `${page.canonicalUrl} example ${index + 1} has no checked result`);
       const parsed = spawnSync(
         'python3',
         ['-c', 'import ast, sys; ast.parse(sys.stdin.read())'],
@@ -85,6 +85,116 @@ test('SDK pages have checked examples or explicit API boundaries', () => {
       assert.equal(parsed.status, 0, `${page.canonicalUrl}: ${parsed.stderr}`);
     }
   }
+});
+
+test('pipeline guides explain each public component in linked subsections', () => {
+  const guides = new Map([
+    ['/sdk/pipeline/', [
+      'MaskedLinearCpu', 'VerifiedMaskedLinearCpu', 'DirectFHEProfile',
+      'ProprietaryGuarded', 'ProprietaryBlinded',
+    ]],
+    ['/sdk/pipeline/compiler/', [
+      'KvCacheEviction', 'BinaryTableGatedMultiplyQ7',
+      'R03CrtGatedMultiplyQ7', 'ScalarProtectedTensorSchedule',
+    ]],
+    ['/sdk/pipeline/runtime/', [
+      'OpenAI', 'build_roles', 'Inference', 'ClientLocalKv', 'FreivaldsVerify',
+    ]],
+    ['/sdk/pipeline/protocols/', [
+      'MaskedLinear', 'DirectFHE', 'GuardedLinear', 'BlindedLinear',
+      'SecureLinear', 'CleartextLinear',
+    ]],
+    ['/sdk/pipeline/protocols/masked-linear/', [
+      'MaskedLinear', 'ModelAwareCorrections', 'Inference', 'Cpu', 'FreivaldsVerify',
+    ]],
+    ['/sdk/pipeline/preparation/', [
+      'ModelAwareCorrections', 'BFVCorrelations', 'HEAuthenticatedPreprocessing',
+      'TrustedPreprocessor',
+    ]],
+    ['/sdk/pipeline/kernels/', ['Cpu', 'MaskedGEMM', 'CompiledMatrix', 'capabilities']],
+    ['/sdk/pipeline/protocols/garbling/', [
+      'BinaryTableGatedMultiplyQ7', 'R03CrtGatedMultiplyQ7',
+      'ScalarProtectedTensorSchedule', 'IndependentLanesProtectedTensorSchedule',
+      'ChunkedIndependentLanesProtectedTensorSchedule',
+    ]],
+  ]);
+
+  for (const [route, components] of guides) {
+    const content = byRoute.get(route)?.content ?? '';
+    assert.match(content, /^## (?:How|Pipeline selection|Methods and schedules) /m, `${route} has no guide introduction`);
+    assert.match(content, /^## Python SDK example$/m, `${route} has no example section`);
+    assert.doesNotMatch(content, /^\| .+ \| .+ \|/m, `${route} falls back to an inventory table`);
+    assert.match(content, /\/sdk\/reference\/python\/pllm\/[a-z0-9-]+\//, `${route} has no module reference`);
+    for (const component of components) {
+      const linkToken = component === 'capabilities' ? 'capabilities()' : component;
+      const heading = [...content.matchAll(/^### .+$/gm)].find((match) =>
+        match[0].includes(`\`${linkToken}\``),
+      );
+      assert.ok(heading, `${route} has no ${component} subsection`);
+      const nextHeading = content.indexOf('\n### ', heading.index + heading[0].length);
+      const subsection = content.slice(heading.index, nextHeading < 0 ? undefined : nextHeading);
+      assert.ok(
+        subsection.includes(`[\`${linkToken}\`](/sdk/reference/python/pllm/`),
+        `${route} does not link ${component} to its API reference in its subsection`,
+      );
+      assert.match(subsection, /```python\n/, `${route} has no ${component} example in its subsection`);
+    }
+
+    const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)].map((match) => match[1]);
+    for (const [index, example] of examples.entries()) {
+      const execution = spawnSync('uv', ['run', 'python', '-c', example], {
+        cwd: path.join(siteRoot, '..'),
+        encoding: 'utf8',
+        env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
+        timeout: 120_000,
+      });
+      assert.equal(
+        execution.status,
+        0,
+        `${route} example ${index + 1} did not execute:\n${execution.stdout}\n${execution.stderr}`,
+      );
+    }
+  }
+});
+
+test('runtime-backed component examples reach a private inference workflow', () => {
+  const experimentComponents = new Map([
+    ['/sdk/pipeline/', [
+      'MaskedLinearCpu', 'VerifiedMaskedLinearCpu', 'DirectFHEProfile',
+      'ProprietaryGuarded', 'ProprietaryBlinded',
+    ]],
+    ['/sdk/pipeline/protocols/', [
+      'MaskedLinear', 'DirectFHE', 'GuardedLinear', 'BlindedLinear',
+    ]],
+    ['/sdk/pipeline/protocols/masked-linear/', [
+      'MaskedLinear', 'ModelAwareCorrections', 'Inference', 'Cpu', 'FreivaldsVerify',
+    ]],
+    ['/sdk/pipeline/preparation/', ['ModelAwareCorrections']],
+    ['/sdk/pipeline/kernels/', ['Cpu']],
+    ['/sdk/pipeline/runtime/', ['build_roles', 'Inference', 'FreivaldsVerify']],
+  ]);
+
+  for (const [route, components] of experimentComponents) {
+    const content = byRoute.get(route)?.content ?? '';
+    assert.ok(
+      content.includes('pllm gateway --local') || route === '/sdk/pipeline/runtime/',
+      `${route} does not show the gateway execution path`,
+    );
+    for (const component of components) {
+      const heading = [...content.matchAll(/^### .+$/gm)].find((match) =>
+        match[0].includes(`\`${component}\``),
+      );
+      assert.ok(heading, `${route} has no ${component} subsection`);
+      const nextHeading = content.indexOf('\n### ', heading.index + heading[0].length);
+      const subsection = content.slice(heading.index, nextHeading < 0 ? undefined : nextHeading);
+      assert.match(subsection, /Experiment\(/, `${route} leaves ${component} outside an Experiment`);
+    }
+  }
+
+  const runtime = byRoute.get('/sdk/pipeline/runtime/').content;
+  const openAIStart = runtime.indexOf('### Send a synchronous streaming request with `OpenAI`');
+  const openAIEnd = runtime.indexOf('\n### ', openAIStart + 5);
+  assert.match(runtime.slice(openAIStart, openAIEnd), /responses\.create\(/);
 });
 
 test('primary reader journeys cross areas at the decision point', () => {
@@ -314,10 +424,11 @@ test('mobile documentation navigation is bounded, scrollable, and state-aware', 
   assert.ok(source.includes("area === 'Research' ? [researchPapers()] : []"));
 });
 
-test('navigation-only content directories are not hidden by repository ignore rules', () => {
+test('authored navigation is tracked and generated navigation is rebuilt', () => {
   const ignore = fs.readFileSync(path.join(siteRoot, '../.gitignore'), 'utf8');
   assert.ok(ignore.includes('!docs/content/docs/models/**'));
-  assert.ok(ignore.includes('!docs/content/docs/research/papers/**'));
+  assert.ok(ignore.includes('docs/content/docs/reference/python/pllm/'));
+  assert.ok(ignore.includes('papers/'));
   assert.ok(fs.existsSync(path.join(siteRoot, 'content/docs/models/meta.json')));
   assert.ok(fs.existsSync(path.join(siteRoot, 'content/docs/research/papers/meta.json')));
 });
@@ -584,7 +695,11 @@ test('static export, local assets, and canonical metadata remain configured', ()
   const nextConfig = fs.readFileSync(path.join(siteRoot, 'next.config.mjs'), 'utf8');
   assert.ok(nextConfig.includes("process.env.NODE_ENV !== 'development'"));
   assert.ok(nextConfig.includes("config.output = 'export'"));
-  assert.ok(nextConfig.includes("allowedDevOrigins: ['127.0.0.1']"));
+  assert.ok(
+    nextConfig.includes(
+      "allowedDevOrigins: ['127.0.0.1', 'macbookblair.local']",
+    ),
+  );
   assert.ok(!fs.readFileSync(path.join(siteRoot, 'app/layout.tsx'), 'utf8').includes('next/font/google'));
   for (const file of ['app/page.tsx', 'app/research/page.tsx', 'app/research/[...slug]/page.tsx', 'app/_docs-page.tsx']) {
     assert.ok(fs.readFileSync(path.join(siteRoot, file), 'utf8').includes('canonical'), file);

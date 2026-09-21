@@ -16,25 +16,162 @@ and experimental [garbling components](/sdk/pipeline/protocols/garbling/). Check
 support, security review, assurance, and deployment status separately; apply the
 [research evidence](/research/evidence/) rules to any supporting records.
 
+## How methods fit into a pipeline
+
+Protocol methods identify the message flow and trust contract for protected linear
+work. They do not select model ownership, preparation, placement, or kernels on
+their own. Start from a shipped [pipeline profile](/sdk/pipeline/) when possible;
+constructing a method only validates that method's parameters. A typed profile binds
+the method to compatible preparation, role, kernel, and verification components.
+
+API: [Protocol objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
+
 ## Python SDK example
 
-```python
-import numpy as np
+The first four examples are complete `experiment.py` modules. Serve one through the
+real trusted loopback gateway with:
 
-from pllm import AuthenticatedMPC, AuthenticationError, TrustedPreprocessor
-
-mpc = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=2))
-value = mpc.public_value(np.array([5], dtype=np.int64))
-try:
-    mpc.open(value.tamper_client(value_delta=1))
-except AuthenticationError:
-    tamper_detected = True
-else:
-    tamper_detected = False
-assert tamper_detected
+```bash
+pllm gateway --local \
+  --experiment experiment.py:experiment \
+  --trust-python
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+`SecureLinear` and `CleartextLinear` are shown separately because no shipped typed
+profile composes either into gateway or benchmark model execution.
 
-This checks authenticated-opening failure behavior in the single-process reference
-protocol; it does not start separate protocol parties.
+### Hide activations with `MaskedLinear`
+
+[`MaskedLinear`](/sdk/reference/python/pllm/protocols-masked-linear/#maskedlinear)
+uses one-time corrections prepared before chat for public transformer weights.
+Online requests contact inference only; the trusted preparation role must not
+collude with inference. Follow the [masked-linear guide](/sdk/pipeline/protocols/masked-linear/)
+for the complete offline and online flow.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-method",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="masked-tiny"), linear=MaskedLinear()),
+    deployment=Deployment.local(root="local://masked-method"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.client_runtime == "masked_transformer_v1"
+assert resolved.requires_preparation
+```
+
+### Use encrypted transport with `DirectFHE`
+
+[`DirectFHE`](/sdk/reference/python/pllm/protocols/#directfhe) sends encrypted
+linear inputs through a separate runtime arm. It does not consume masked-linear
+inventory and live use requires the optional HE dependency.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import DirectFHEProfile
+from pllm.protocols import DirectFHE
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="direct-fhe-method",
+    pipeline=DirectFHEProfile(TinyModel(model_id="direct-fhe-tiny"), linear=DirectFHE()),
+    deployment=Deployment.local(root="local://direct-fhe-method"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.profile == "runtime.direct_fhe"
+assert not resolved.requires_preparation
+```
+
+### Bound clear execution with `GuardedLinear`
+
+[`GuardedLinear`](/sdk/reference/python/pllm/protocols/#guardedlinear) configures
+request and stage quotas for provider-owned weights. These controls bound use; they
+do not cryptographically hide activations from the provider.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryGuarded
+from pllm.protocols import GuardedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="guarded-method",
+    pipeline=ProprietaryGuarded(
+        TinyModel(model_id="guarded-tiny"),
+        linear=GuardedLinear(max_rows_per_request=8),
+    ),
+    deployment=Deployment.local(root="local://guarded-method"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.proprietary_protocol == "guarded"
+assert not resolved.requires_preparation
+```
+
+### Blind provider transport with `BlindedLinear`
+
+[`BlindedLinear`](/sdk/reference/python/pllm/protocols/#blindedlinear) selects the
+provider-owned blinded transport. Treat its support and leakage properties as
+specific to that runtime arm rather than interchangeable with prepared masking.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryBlinded
+from pllm.protocols import BlindedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="blinded-method",
+    pipeline=ProprietaryBlinded(
+        TinyModel(model_id="blinded-tiny"),
+        linear=BlindedLinear(),
+    ),
+    deployment=Deployment.local(root="local://blinded-method"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.proprietary_protocol == "blinded"
+assert not resolved.requires_preparation
+```
+
+### Inspect the bounded `SecureLinear` preview
+
+[`SecureLinear`](/sdk/reference/python/pllm/protocols/#securelinear) describes an
+authenticated preview restricted to its fixed synthetic shape. It is useful for
+research inspection, but it cannot be substituted into a shipped profile or run by
+`pllm gateway --local` or `pllm benchmark run`.
+
+```python
+from pllm.protocols import SecureLinear
+
+method = SecureLinear()
+descriptor = method.describe()
+assert descriptor.required_host_features == ("synthetic-fixed-shape-only",)
+assert method.component == "pllm/secure-linear/v1"
+```
+
+### Declare a non-private `CleartextLinear` baseline
+
+[`CleartextLinear`](/sdk/reference/python/pllm/protocols/#cleartextlinear) makes a
+non-private control configuration explicit for tests and comparisons. Inputs are
+visible to the executor. No shipped profile or CLI benchmark composes it, so this
+descriptor inspection is intentionally not presented as a private-inference run.
+
+```python
+from pllm.protocols import CleartextLinear
+
+method = CleartextLinear()
+descriptor = method.describe()
+assert descriptor.role_eligibility == ("inference",)
+assert method.component == "pllm/cleartext-linear"
+```
+
+Check [current Python support](/sdk/reference/status/#python-support) before moving
+from configuration to execution. Experimental [garbling components](/sdk/pipeline/protocols/garbling/)
+protect nonlinear regions and are not another end-to-end linear protocol.

@@ -18,20 +18,114 @@ Prepared material is part of the system cost. Benchmarks must state whether
 preparation and loading are included in cold and warm measurements so the resulting
 [research evidence](/research/evidence/) keeps that scope visible.
 
+## How preparation providers differ
+
+A preparation component describes which offline artifact a protocol expects. The
+configuration object itself does not load TenSEAL, generate material, or contact a
+provider. Prefer the provider already composed by a shipped profile; the other
+implementations remain explicit research configurations.
+
+Shipped profiles select protocol, preparation, roles, and verification as one
+compatible set. Passing a preparation descriptor alone does not replace the
+profile's dependencies: build a typed profile when the provider supports runtime
+execution, and treat standalone research descriptors as uncomposed candidates.
+
+All live material is bounded and one-use. Cancellation and failure burn reserved
+rows rather than returning them to inventory. `TrustedPreprocessor` is a separate,
+deterministic in-process arithmetic reference for tests, not a deployable provider.
+
+API: [Preparation objects and signatures](/sdk/reference/python/pllm/preparation/#objects-and-signatures)
+
 ## Python SDK example
 
+### Prepare public weights with `ModelAwareCorrections`
+
+[`ModelAwareCorrections`](/sdk/reference/python/pllm/preparation/#modelawarecorrections)
+is the provider used by `MaskedLinearCpu` and `VerifiedMaskedLinearCpu`. It expands
+client seeds into model- and stage-bound `W*r-s` rows, then loads those corrections
+into inference before chat. See the complete [masked-linear flow](/sdk/pipeline/protocols/masked-linear/).
+
 ```python
-import numpy as np
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.preparation import ModelAwareCorrections
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
 
-from pllm import TrustedPreprocessor
-
-preparation = TrustedPreprocessor(modulus=65537, seed=7)
-mask = preparation.input_mask((3,))
-reconstructed = (mask.shared_mask.client.value + mask.shared_mask.server.value) % 65537
-assert np.array_equal(reconstructed, mask.clear_mask_for_client)
+experiment = Experiment(
+    name="model-aware-preparation",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="preparation-tiny"),
+        preparation=ModelAwareCorrections(),
+    ),
+    deployment=Deployment.local(root="local://model-aware-preparation"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert experiment.pipeline.to_spec()["components"]["preparation"]["component"] == (
+    "pllm/model-aware-corrections"
+)
+assert resolved.requires_preparation
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+Save this example as `experiment.py`, then run `pllm gateway --local --experiment
+experiment.py:experiment --trust-python`. The runtime creates and fills inventory;
+constructing or resolving the experiment does not.
 
-This creates and checks reference one-time material in process. Production use
-requires a reviewed correlation protocol and separate roles.
+### Describe packed research material with `BFVCorrelations`
+
+[`BFVCorrelations`](/sdk/reference/python/pllm/preparation/#bfvcorrelations)
+records the polynomial degree for legacy packed-BFV and confidential-weight
+experiments. Public masked inference does not select it, and live generation
+requires the optional TenSEAL dependency.
+
+```python
+from pllm.preparation import BFVCorrelations
+
+provider = BFVCorrelations(poly_modulus_degree=8192)
+candidate = provider.to_spec()
+assert candidate["component"] == "pllm/bfv-correlations/v1"
+assert candidate["params"] == {"poly_modulus_degree": 8192}
+```
+
+The candidate is inspectable configuration, not a supported typed pipeline.
+
+### Configure research `HEAuthenticatedPreprocessing`
+
+[`HEAuthenticatedPreprocessing`](/sdk/reference/python/pllm/preparation/#heauthenticatedpreprocessing)
+describes experimental authenticated preprocessing with explicit HE and worker
+settings. It is also TenSEAL-dependent and is not composed by a shipped profile.
+
+```python
+from pllm.preparation import HEAuthenticatedPreprocessing
+
+provider = HEAuthenticatedPreprocessing(
+    poly_modulus_degree=8192,
+    threads=2,
+    enable_linear_correlations=False,
+)
+candidate = provider.to_spec()
+assert candidate["params"] == {
+    "poly_modulus_degree": 8192,
+    "threads": 2,
+    "enable_linear_correlations": False,
+}
+```
+
+### Generate test shares with `TrustedPreprocessor`
+
+[`TrustedPreprocessor`](/sdk/reference/python/pllm/#trustedpreprocessor)
+is a deterministic, in-process source for testing authenticated arithmetic. It
+contains both parties' shares and authentication secret, so it is not a deployable
+provider and must not be used to support a private-inference claim.
+
+```python
+from pllm.runtime.authenticated_mpc import TrustedPreprocessor
+
+preprocessor = TrustedPreprocessor(seed=7)
+shared = preprocessor.share([3, 5])
+clear = (shared.client.value + shared.server.value) % shared.modulus
+assert clear.tolist() == [3, 5]
+```
+
+For operational behavior after selection, continue to [runtime](/sdk/pipeline/runtime/)
+and [parties and offline work](/learn/parties-and-offline-work/).

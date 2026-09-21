@@ -5,6 +5,10 @@ description: "Mixed-modulus labels and projection gates over bounded arithmetic 
 
 Arithmetic garbling represents values with labels per modulus. Free compatible arithmetic can avoid tables; nonlinear projection reconstructs signed values jointly from a coprime residue bundle and emits output labels. Gate material is shape-bound, strictly serialized, and consumed once.
 
+PLLM's method configurations are clean-room adaptations informed by
+[Garbling Gadgets for Boolean and Arithmetic Circuits](/research/papers/r03-garbling-gadgets/),
+not wrappers around its implementation.
+
 Reference exhaustive correctness, tamper rejection, plan commitments, and one-use
 process-local issuance checks establish implementation behavior only. The compiler
 can select the exact `research.single_evaluator` profile; the
@@ -12,6 +16,26 @@ baseline profile cannot activate it. Cryptographic review, cross-process or dura
 replay protection, complete-model coverage, and deployment assurance are not
 recorded.
 
-No public Python API currently exposes the arithmetic-garbling evaluator. See
-[research evidence](/research/evidence/). The evaluator remains internal to the
-native compiled-plan boundary and is not part of the stable Python runtime facade.
+The stable Python facade exposes method and scheduler configuration, but not raw
+labels or the arithmetic-garbling evaluator. The evaluator remains internal to the
+native compiled-plan boundary. See [nonlinear methods](/sdk/reference/python/pllm/nonlinear/),
+[schedulers](/sdk/reference/python/pllm/schedulers/), and
+[research evidence](/research/evidence/).
+
+API: [Nonlinear objects and signatures](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import ScalarProtectedTensorSchedule
+
+method = R03CrtGatedMultiplyQ7()
+schedule = ScalarProtectedTensorSchedule()
+
+assert method.to_spec() == {"component": "pllm/r03-crt/v1", "params": {}}
+assert schedule.component == "pllm/scalar/v1"
+```
+
+These are immutable compilation choices. They do not expose or execute one-use
+evaluator material directly.

@@ -13,12 +13,14 @@ DEVELOPER_REFERENCE = ROOT / "scripts/generate_developer_reference.py"
 def run(*, check: bool) -> None:
     reference = [sys.executable, str(DEVELOPER_REFERENCE)]
     if check:
-        reference.append("--check")
-    subprocess.run(reference, cwd=ROOT, check=True)
-    if check:
+        # Generated references are intentionally ignored, so materialize a clean
+        # checkout before checking determinism and the publication graph.
+        subprocess.run(reference, cwd=ROOT, check=True)
+        subprocess.run([*reference, "--check"], cwd=ROOT, check=True)
         subprocess.run(["npm", "test"], cwd=DOCS, check=True)
         subprocess.run(["npm", "run", "check:content"], cwd=DOCS, check=True)
     else:
+        subprocess.run(reference, cwd=ROOT, check=True)
         subprocess.run(["npm", "run", "generate"], cwd=DOCS, check=True)
 
 

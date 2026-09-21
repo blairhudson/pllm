@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 import json
 import os
 from pathlib import Path
@@ -54,8 +55,14 @@ PYTHON_FENCE = re.compile(r"```python[^\n]*\n(.*?)```", re.DOTALL)
 PYTHON_EXAMPLE_HEADING = "## Python SDK example"
 NO_PYTHON_API = "No public Python API"
 API_LINK = re.compile(
-    r"^API: .*\(/sdk/reference/python/pllm/#objects-and-signatures\)", re.MULTILINE
+    r"^API: .*\(/sdk/reference/python/pllm(?:/[a-z0-9-]+)?/#objects-and-signatures\)",
+    re.MULTILINE,
 )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def materialize_generated_reference() -> None:
+    reference.generate()
 
 
 def sdk_doc_pages() -> tuple[Path, ...]:
@@ -175,16 +182,18 @@ def test_sdk_pages_have_executable_examples_or_explicit_api_boundaries() -> None
                     f"{relative}: no-API boundary has no status or research link"
                 )
             continue
-        if len(examples) != 1:
-            invalid_contract.append(f"{relative}: expected exactly one Python example")
+        if not examples:
+            invalid_contract.append(f"{relative}: expected at least one Python example")
             continue
-        if not re.search(r"(?:from|import)\s+pllm\b", examples[0]):
-            invalid_contract.append(f"{relative}: example does not use public PLLM SDK")
-        if not re.search(r"^assert\s", examples[0], re.MULTILINE):
-            invalid_contract.append(f"{relative}: example has no checked result")
         if not API_LINK.search(content):
             invalid_contract.append(f"{relative}: example has no exact Python API link")
         for index, example in enumerate(examples, start=1):
+            if not re.search(r"(?:from|import)\s+pllm\b", example):
+                invalid_contract.append(
+                    f"{relative} example {index}: does not use public PLLM SDK"
+                )
+            if not re.search(r"^\s*assert\s", example, re.MULTILINE):
+                invalid_contract.append(f"{relative} example {index}: has no checked result")
             try:
                 ast.parse(example, filename=f"{page} example {index}")
             except SyntaxError as exc:
@@ -231,6 +240,82 @@ def test_api_inventory_uses_public_objects_once_and_keeps_alias_identity() -> No
     assert by_name["pllm.Experiment"] is by_name["pllm.config.Experiment"]
     assert by_name["pllm.ModelPlan"] is by_name["pllm.models.ModelPlan"]
     assert by_name["pllm.ComponentRef"] is by_name["pllm.components.ComponentRef"]
+    for item in inventory:
+        if len(item["exports"]) > 1:
+            first = by_name[item["exports"][0]]
+            assert all(by_name[name] is first for name in item["exports"])
+            assert inspect.isclass(first) or callable(first)
+    provider_constants = {
+        item["canonical"]
+        for item in inventory
+        if item["canonical"].startswith("pllm.providers.")
+    }
+    assert "pllm.providers.PROVIDER_ENTRY_POINT_GROUP" in provider_constants
+    assert "pllm.providers.PROVIDER_MANIFEST_SCHEMA" in provider_constants
+
+
+def test_each_public_module_reference_explains_every_export() -> None:
+    assert {
+        "pllm.client",
+        "pllm.config",
+        "pllm.models",
+        "pllm.native",
+        "pllm.official",
+        "pllm.plan",
+        "pllm.providers",
+        "pllm.research",
+        "pllm.runtime",
+        "pllm.search",
+        "pllm.server",
+    } <= set(reference.PUBLIC_MODULES)
+    outputs = reference.render_python_reference_outputs()
+    inventory = reference.api_inventory()
+    assert len(outputs) == len(reference.PUBLIC_MODULES) + 1
+    for module in reference.PUBLIC_MODULES:
+        path = reference.PYTHON_REFERENCE_ROOT / f"{reference._module_slug(module)}.mdx"
+        content = outputs[path]
+        assert "## Research context" in content
+        assert "## Python SDK example" in content
+        assert content.count("```python\n") == 1
+        assert "## Objects and signatures" in content
+        assert "Public `" not in content
+        assert "Unspecified run-time error" not in content
+        assert "Represents " not in content
+        for members in re.findall(r"^- Public members: (.+)$", content, re.MULTILINE):
+            assert not re.search(r"(?:^|; )`?_[A-Za-z]", members)
+        exports = {
+            export
+            for item in inventory
+            for export in item["exports"]
+            if export.rsplit(".", 1)[0] == module
+        }
+        assert exports
+        for export in exports:
+            assert f"`{export}`" in content
+        example = PYTHON_FENCE.search(content)
+        assert example is not None
+        if module == "pllm":
+            assert re.search(r"(?:from|import)\s+pllm\b", example.group(1))
+        else:
+            assert re.search(
+                rf"(?:from\s+{re.escape(module)}\s+import|import\s+{re.escape(module)}\b)",
+                example.group(1),
+            ), module
+
+
+def test_generator_prunes_orphaned_reference_pages() -> None:
+    orphans = (
+        reference.PYTHON_REFERENCE_ROOT / "removed-module.mdx",
+        reference.CLI_REFERENCE_ROOT / "removed-command.mdx",
+    )
+    for orphan in orphans:
+        orphan.write_text("stale\n", encoding="utf-8")
+    try:
+        assert reference.generate() == 0
+        assert all(not orphan.exists() for orphan in orphans)
+    finally:
+        for orphan in orphans:
+            orphan.unlink(missing_ok=True)
 
 
 def test_component_catalog_matches_public_api_and_research_catalog_is_absent() -> None:

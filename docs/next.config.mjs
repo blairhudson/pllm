@@ -4,7 +4,7 @@ const withMDX = createMDX();
 const config = {
   trailingSlash: true,
   reactStrictMode: true,
-  allowedDevOrigins: ['127.0.0.1'],
+  allowedDevOrigins: ['127.0.0.1', 'macbookblair.local'],
   basePath: normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH ?? ''),
   images: { unoptimized: true },
   poweredByHeader: false,

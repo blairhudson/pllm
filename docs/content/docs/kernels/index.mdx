@@ -13,21 +13,100 @@ supported operations, memory use, and evidence. Moving arithmetic to Rust does
 not remove protocol messages, offline preparation, client state, or conversion
 costs.
 
+## Pipeline selection and direct execution
+
+`Cpu` is the component placed in a typed pipeline. `MaskedGEMM`, `CompiledMatrix`,
+and `capabilities()` are lower-level native APIs for direct execution and deployment
+inspection. Runtime SIMD chooses scalar, AVX2, or NEON internally after checking the
+host; those paths are not separate component classes.
+
+API: [Kernel objects and signatures](/sdk/reference/python/pllm/kernels/#objects-and-signatures)
+
 ## Python SDK example
 
-```python
-from pllm import ConfigurationError, Cpu
+### Select the pipeline backend with `Cpu`
 
-kernel = Cpu(threads=4)
-assert kernel.to_spec() == {"component": "pllm/cpu", "params": {"threads": 4}}
-try:
-    Cpu(threads=0)
-except ConfigurationError:
-    pass
-else:
-    raise AssertionError("Cpu accepted a non-positive thread count")
+[`Cpu`](/sdk/reference/python/pllm/kernels/#cpu) commits a thread count into the
+pipeline and owns the persistent native worker pool used by matrix stages. It does
+not choose the protocol or remove transport and preparation costs.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.kernels import Cpu
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="two-thread-cpu",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="cpu-tiny"),
+        kernels=Cpu(threads=2),
+    ),
+    deployment=Deployment.local(root="local://two-thread-cpu"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+kernel = experiment.pipeline.to_spec()["components"]["kernels"]
+assert kernel["component"] == "pllm/cpu"
+assert kernel["params"] == {"threads": 2}
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+Save the module as `experiment.py` and run `pllm gateway --local --experiment
+experiment.py:experiment --trust-python` to use that exact kernel choice in private
+loopback inference. Use `pllm benchmark run --experiment experiment.py:experiment
+--trust-python --max-output-tokens 1 --repetitions 1` to measure it rather than
+inferring performance from selection.
 
-This checks public kernel configuration and its thread bound; it does not execute a model.
+### Create a direct matrix engine with `MaskedGEMM`
+
+[`MaskedGEMM`](/sdk/reference/python/pllm/native/#maskedgemm) exposes clear,
+modular, coefficient, wrap32, and wrap64 integer matrix operations. Use it for
+kernel integration or measurement, not as a substitute for a private protocol.
+
+```python
+import numpy as np
+
+from pllm.native import MaskedGEMM
+
+engine = MaskedGEMM(threads=2)
+weights = np.array([[1, -2], [3, 4]], dtype=np.int8)
+matrix = engine.compile(weights)
+result = matrix.clear(np.array([[5, 6]], dtype=np.int8))
+assert result.tolist() == [[-7, 39]]
+```
+
+### Reuse an immutable `CompiledMatrix`
+
+Obtain [`CompiledMatrix`](/sdk/reference/python/pllm/native/#compiledmatrix) from
+`MaskedGEMM.compile()`. It copies validated weights once; later source-array
+mutation does not change the native snapshot.
+
+```python
+import numpy as np
+
+from pllm.native import CompiledMatrix, MaskedGEMM
+
+weights = np.array([[1, -2], [3, 4]], dtype=np.int8)
+matrix = MaskedGEMM(threads=1).compile(weights)
+weights[:] = 0
+result = matrix.clear(np.array([[5, 6]], dtype=np.int8))
+assert isinstance(matrix, CompiledMatrix)
+assert result.tolist() == [[-7, 39]]
+```
+
+### Inspect the installed backend with `capabilities()`
+
+[`capabilities()`](/sdk/reference/python/pllm/native/#capabilities) reports whether
+the native extension is compiled and which backend is active. Inspect it before
+making deployment claims; a research fallback does not establish native evidence.
+
+```python
+from pllm.native import capabilities
+
+installed = capabilities()
+assert isinstance(installed["compiled"], bool)
+assert installed["implementation"] in {"rust", "python-reference"}
+```
+
+For protocol-level composition, return to [masked linear](/sdk/pipeline/protocols/masked-linear/).
+For the exact lower-level signatures, see the [native matrix interface](/sdk/reference/python/pllm/native/).

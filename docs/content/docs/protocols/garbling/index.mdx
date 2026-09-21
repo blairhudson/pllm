@@ -5,8 +5,104 @@ description: "Reference arithmetic and Boolean garbling components with explicit
 
 Garbling is a family of representations and protocols, not one interchangeable backend. PLLM records arithmetic projection gates, Boolean half-gates, lookup tables, and weighted paths separately because their domains, costs, proofs, and conversion obligations differ.
 
-Current clean-room arithmetic work is reference-only and unreviewed. It is excluded from executable compiler profiles until protocol, transport, coverage, and assurance gates pass. See [research reproductions](/research/recipes/reproductions/).
+Current clean-room arithmetic components execute bounded protected Q7 regions in
+the native reference path, but no shipped typed profile composes them into a whole
+decoder. They remain unreviewed and cannot support production-security claims. See
+[research reproductions](/research/recipes/reproductions/) for the promotion gates.
 
-No public Python API currently exposes garbling configuration or execution. Follow
-[research reproductions](/research/recipes/reproductions/) for experimental evidence;
-the unsupported SDK state is not an execution fallback.
+## Methods and schedules are separate choices
+
+A nonlinear method chooses the gated-multiply construction. A scheduler chooses
+how tensor lanes are grouped and consumed. Both identities are authenticated into
+one-use material and plan provenance, so changing either choice changes the
+candidate. These public Python classes are immutable selectors; native reference
+bindings may still expose opaque evaluator payloads internally, so selection alone
+is not a process-isolation or production-security boundary.
+
+API: [Nonlinear objects and signatures](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+## Python SDK example
+
+### Use `BinaryTableGatedMultiplyQ7`
+
+[`BinaryTableGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#binarytablegatedmultiplyq7)
+represents `SiLU(gate) * up` with the bounded binary-table method. The
+[lookup-table guide](/sdk/pipeline/protocols/garbling/lookup-tables/) explains the
+encoded domain and why this is not a generic nonlinear lookup.
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7
+
+method = BinaryTableGatedMultiplyQ7()
+candidate = {"method": method.to_spec()}
+assert candidate["method"]["component"] == "pllm/binary-table/v1"
+```
+
+### Use `R03CrtGatedMultiplyQ7`
+
+[`R03CrtGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#r03crtgatedmultiplyq7)
+selects mixed-modulus CRT projection gates derived from the
+[R03 method record](/research/papers/r03-garbling-gadgets/). The
+[arithmetic guide](/sdk/pipeline/protocols/garbling/arithmetic/) covers the exact
+moduli, conversions, and maturity boundary.
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+
+method = R03CrtGatedMultiplyQ7()
+candidate = {"method": method.to_spec()}
+assert candidate["method"]["component"] == "pllm/r03-crt/v1"
+```
+
+### Consume one `ScalarProtectedTensorSchedule` scalar at a time
+
+[`ScalarProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#scalarprotectedtensorschedule)
+binds one independent scalar lane. Use it for the smallest reference evaluations,
+where batching would obscure the material lifecycle.
+
+```python
+from pllm.schedulers import ScalarProtectedTensorSchedule
+
+schedule = ScalarProtectedTensorSchedule()
+candidate = {"scheduler": schedule.to_spec()}
+assert candidate["scheduler"]["component"] == "pllm/scalar/v1"
+```
+
+### Authenticate an `IndependentLanesProtectedTensorSchedule` bundle
+
+[`IndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#independentlanesprotectedtensorschedule)
+groups two to four lanes while preserving independent material per lane. The entire
+bundle is authenticated and burned atomically.
+
+```python
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
+
+schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
+candidate = {"scheduler": schedule.to_spec()}
+assert candidate["scheduler"]["params"] == {"max_elements": 4}
+```
+
+### Stream with `ChunkedIndependentLanesProtectedTensorSchedule`
+
+[`ChunkedIndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#chunkedindependentlanesprotectedtensorschedule)
+extends independent lanes to larger tensors with an explicit upper bound. This is
+the schedule used by bounded tensor reference work, not an unlimited stream.
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import ChunkedIndependentLanesProtectedTensorSchedule
+
+candidate = {
+    "method": R03CrtGatedMultiplyQ7().to_spec(),
+    "scheduler": ChunkedIndependentLanesProtectedTensorSchedule(
+        max_elements=64,
+    ).to_spec(),
+}
+assert candidate["method"]["component"] == "pllm/r03-crt/v1"
+assert candidate["scheduler"]["params"] == {"max_elements": 64}
+```
+
+The candidate above demonstrates the orthogonal pairing only. It does not issue
+material or imply complete-model coverage, cryptographic review, or deployment
+assurance. Continue to [compiler components](/sdk/pipeline/compiler/) to see where
+these choices enter planning.

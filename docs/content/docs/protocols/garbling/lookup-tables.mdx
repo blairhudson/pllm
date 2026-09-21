@@ -7,6 +7,24 @@ A lookup-table component maps a finite encoded domain to an encoded range. Its c
 
 Tables are useful for nonlinearities only when domain bounds and total storage remain explicit. Approximation and model-quality evidence belong to the numeric policy, not the table name.
 
-No public Python API currently exposes a garbled lookup-table component. See
-[research evidence](/research/evidence/) for the evidence boundary; no lookup-table
-component is currently published through the SDK.
+`BinaryTableGatedMultiplyQ7` exposes the bounded Q7 gated-multiply method as public
+configuration; it does not expose generic user-defined tables or evaluator labels.
+See the exact [nonlinear API](/sdk/reference/python/pllm/nonlinear/) and
+[research evidence](/research/evidence/) boundary.
+
+API: [Nonlinear objects and signatures](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7
+
+method = BinaryTableGatedMultiplyQ7()
+assert method.to_spec() == {
+    "component": "pllm/binary-table/v1",
+    "params": {},
+}
+```
+
+The object selects a compiler component. It does not evaluate a table or establish
+that a complete model can use the method.

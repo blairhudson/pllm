@@ -8,12 +8,13 @@
   },
   "scripts": {
     "generate": "node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
-    "dev": "npm run generate && next dev",
-    "build": "npm run generate && next build",
+    "reference": "uv run --project .. --frozen python ../scripts/generate_developer_reference.py",
+    "dev": "npm run reference && npm run generate && next dev",
+    "build": "npm run reference && npm run generate && next build",
     "postinstall": "fumadocs-mdx",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "check:content": "node scripts/check-content.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "test": "npm run reference && npm run generate && node --test tests/*.test.mjs",
     "preview": "python3 -m http.server 3000 --directory out"
   },
   "dependencies": {

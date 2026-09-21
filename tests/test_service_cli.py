@@ -90,6 +90,140 @@ def test_serve_accepts_python_experiment_target(
     assert len(data["experiment"]["configuration_digest"]) == 64
 
 
+def test_local_gateway_accepts_python_experiment_target(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from pllm.cli import main
+
+    main(
+        [
+            "--format",
+            "json",
+            "--no-input",
+            "gateway",
+            "--local",
+            "--experiment",
+            "examples/composition.py:experiment",
+            "--trust-python",
+            "--dry-run",
+        ]
+    )
+    result = json.loads(capsys.readouterr().out)
+    data = result["data"]
+    assert data["model"] == "Qwen/Qwen2.5-0.5B-Instruct"
+    assert data["experiment"]["name"] == "qwen-local"
+    assert len(data["experiment"]["configuration_digest"]) == 64
+    assert len(data["experiment"]["pipeline_digest"]) == 64
+
+
+@pytest.mark.parametrize(
+    ("profile_class", "expected_profile"),
+    [
+        ("VerifiedMaskedLinearCpu", "research.verified_masked_linear_cpu"),
+        ("ProprietaryGuarded", "runtime.proprietary_guarded"),
+        ("ProprietaryBlinded", "runtime.proprietary_blinded"),
+        ("DirectFHEProfile", "runtime.direct_fhe"),
+    ],
+)
+def test_gateway_accepts_each_runtime_backed_experiment(
+    tmp_path,
+    capsys: pytest.CaptureFixture[str],
+    profile_class: str,
+    expected_profile: str,
+) -> None:
+    from pllm.cli import main
+
+    target = tmp_path / "experiment.py"
+    target.write_text(
+        f"""
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import {profile_class}
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="gateway-profile",
+    pipeline={profile_class}(TinyModel(model_id="profile-tiny")),
+    deployment=Deployment.local(root="local://gateway-profile"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+)
+""".lstrip()
+    )
+
+    main(
+        [
+            "--format",
+            "json",
+            "--no-input",
+            "gateway",
+            "--local",
+            "--experiment",
+            f"{target}:experiment",
+            "--trust-python",
+            "--dry-run",
+        ]
+    )
+
+    data = json.loads(capsys.readouterr().out)["data"]
+    assert data["experiment"]["profile"] == expected_profile
+    assert data["model"] == "profile-tiny"
+
+
+def test_gateway_experiment_requires_local(capsys: pytest.CaptureFixture[str]) -> None:
+    from pllm.cli import main
+
+    with pytest.raises(SystemExit, match="3"):
+        main(
+            [
+                "gateway",
+                "--experiment",
+                "examples/composition.py:experiment",
+                "--trust-python",
+                "--dry-run",
+            ]
+        )
+    assert "--experiment requires --local" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "legacy_args",
+    [
+        ["--model", "other/model"],
+        ["--model-id", "other-model"],
+        ["--tiny"],
+        ["--revision", "other-revision"],
+        ["--local-files-only"],
+        ["--weight-bits", "4"],
+        ["--activation-bits", "4"],
+    ],
+)
+def test_gateway_experiment_rejects_legacy_model_overrides(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    legacy_args: list[str],
+) -> None:
+    from pllm.cli import main
+
+    target = tmp_path / "experiment.json"
+    target.write_text("{}")
+    with pytest.raises(SystemExit, match="3"):
+        main(
+            [
+                "--format",
+                "json",
+                "--no-input",
+                "gateway",
+                "--local",
+                "--experiment",
+                str(target),
+                *legacy_args,
+                "--dry-run",
+            ]
+        )
+
+    data = json.loads(capsys.readouterr().err)
+    assert data["error"]["code"] == "GATEWAY_EXPERIMENT_CONFLICT"
+
+
 @pytest.mark.parametrize(
     "arguments",
     [
@@ -396,16 +530,18 @@ def test_proprietary_experiment_maps_serve_contract_and_rejects_preparation(
         "pllm._cli.targets.resolve_target",
         lambda *args, **kwargs: SimpleNamespace(configuration=experiment),
     )
-    app.main([
-        "--format",
-        "json",
-        "--no-input",
-        "--dry-run",
-        "serve",
-        "inference",
-        "--experiment",
-        "guarded",
-    ])
+    app.main(
+        [
+            "--format",
+            "json",
+            "--no-input",
+            "--dry-run",
+            "serve",
+            "inference",
+            "--experiment",
+            "guarded",
+        ]
+    )
     data = json.loads(capsys.readouterr().out)["data"]
     assert data["privacy_mode"] == "proprietary"
     assert data["protocol"] == "guarded"
@@ -416,14 +552,16 @@ def test_proprietary_experiment_maps_serve_contract_and_rejects_preparation(
         "output_dither_bound": 2,
     }
     with pytest.raises(SystemExit, match="3"):
-        app.main([
-            "--no-input",
-            "--dry-run",
-            "serve",
-            "preparation",
-            "--experiment",
-            "guarded",
-        ])
+        app.main(
+            [
+                "--no-input",
+                "--dry-run",
+                "serve",
+                "preparation",
+                "--experiment",
+                "guarded",
+            ]
+        )
     assert "no preparation role" in capsys.readouterr().err
 
 
@@ -576,6 +714,48 @@ def test_local_gateway_uses_shared_topology_and_closes_it(
     assert captured["model"].source == "org/model"
     assert captured["roles"]["reserved_ports"] == (8080,)
     assert captured["gateway"]["local_api_key"] == "local"
+
+
+def test_local_gateway_passes_resolved_experiment_to_shared_topology(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pllm import Experiment, MaskedLinearCpu, Model
+    from pllm.deployment import Deployment
+    from pllm.runtime import ExecutionBudget
+    from pllm.runtime import cli
+
+    experiment = Experiment(
+        name="gateway-profile",
+        pipeline=MaskedLinearCpu(Model("org/model")),
+        deployment=Deployment.local(root=".pllm/gateway-profile"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    args = build_parser().parse_args(["gateway", "--local", "--experiment", "ignored.json"])
+    args.resolved_experiment = experiment
+    captured: dict[str, Any] = {}
+
+    class Topology:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @staticmethod
+        def gateway_app(**_kwargs):
+            return object()
+
+    def roles(model, **kwargs):
+        captured["model"] = model
+        captured["model_id"] = kwargs["model_id"]
+        return Topology()
+
+    monkeypatch.setattr(cli, "build_roles", roles)
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *_args, **_kwargs: None)
+    cli.run_local_gateway(args)
+
+    assert captured["model"] is experiment
+    assert captured["model_id"] is None
 
 
 def test_local_gateway_tiny_flag_selects_typed_tiny_model(

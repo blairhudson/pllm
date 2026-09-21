@@ -19,22 +19,147 @@ same semantic model format.
 Current research profiles cannot execute a complete listed model plan. A model
 adapter can therefore be available while full private inference remains unsupported.
 
-This example requires a PLLM source checkout and must run from its repository root
-because it reads the checked-in compiler fixture.
+## How compiler components fit together
+
+Model passes change semantic structure. Nonlinear methods select a protected
+representation for an eligible region, while schedulers determine how one-use
+material is grouped and consumed. The native compiler then verifies one canonical
+request and returns an immutable plan. No component fills missing coverage or
+activates a hidden fallback.
+
+API: [Compiler objects and signatures](/sdk/reference/python/pllm/compiler/#objects-and-signatures)
 
 ## Python SDK example
 
+These examples follow the order of a compilation workflow. Protected methods and
+schedulers are currently inspectable candidate selections; the public high-level
+API does not yet compose them with a complete decoder into an executable plan.
+
+### Transform compatible KV state with `KvCacheEviction`
+
+[`KvCacheEviction`](/sdk/reference/python/pllm/passes/#kvcacheeviction) applies the
+[MPCache adaptation](/research/papers/r23-mpcache/) to a semantic model plan. Use it
+only when the decoder has a compatible fixed-capacity KV topology; the compiler
+rejects incompatible state handoffs.
+
 ```python
+from pllm import lower_model
+from pllm.passes import KvCacheEviction
+
+config = {
+    "model_type": "qwen2",
+    "hidden_size": 64,
+    "intermediate_size": 192,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "vocab_size": 256,
+    "max_position_embeddings": 128,
+    "hidden_act": "silu",
+    "rms_norm_eps": 1e-6,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+base = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+optimized = base.apply(KvCacheEviction(cluster_sizes=(32, 16)))
+assert optimized.digest != base.digest
+```
+
+### Select binary-table `BinaryTableGatedMultiplyQ7`
+
+[`BinaryTableGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#binarytablegatedmultiplyq7)
+selects the bounded binary-table construction for `SiLU(gate) * up`. It identifies
+the method in a candidate plan; material issuance and evaluation remain native and
+one-use. See the [lookup-table guide](/sdk/pipeline/protocols/garbling/lookup-tables/).
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7
+
+method = BinaryTableGatedMultiplyQ7()
+candidate = {"nonlinear": method.to_spec()}
+assert candidate["nonlinear"]["component"] == "pllm/binary-table/v1"
+```
+
+### Select CRT `R03CrtGatedMultiplyQ7`
+
+[`R03CrtGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#r03crtgatedmultiplyq7)
+selects the mixed-modulus projection construction from the
+[R03 method record](/research/papers/r03-garbling-gadgets/). Compare its exact
+domain and maturity in the [arithmetic garbling guide](/sdk/pipeline/protocols/garbling/arithmetic/).
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+
+method = R03CrtGatedMultiplyQ7()
+candidate = {"nonlinear": method.to_spec()}
+assert candidate["nonlinear"]["component"] == "pllm/r03-crt/v1"
+```
+
+### Issue one scalar with `ScalarProtectedTensorSchedule`
+
+[`ScalarProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#scalarprotectedtensorschedule)
+is the simplest scheduler: each protected scalar receives independently consumed
+material. It is useful for small reference cases, not tensor throughput.
+
+```python
+from pllm.schedulers import ScalarProtectedTensorSchedule
+
+schedule = ScalarProtectedTensorSchedule()
+candidate = {"scheduler": schedule.to_spec()}
+assert candidate["scheduler"]["component"] == "pllm/scalar/v1"
+```
+
+### Bundle small tensors with `IndependentLanesProtectedTensorSchedule`
+
+[`IndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#independentlanesprotectedtensorschedule)
+authenticates one independent bundle of two to four lanes. The bundle is burned
+atomically if validation or evaluation fails.
+
+```python
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
+
+schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
+candidate = {"scheduler": schedule.to_spec()}
+assert candidate["scheduler"]["params"] == {"max_elements": 4}
+```
+
+### Stream larger tensors with `ChunkedIndependentLanesProtectedTensorSchedule`
+
+[`ChunkedIndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#chunkedindependentlanesprotectedtensorschedule)
+extends independent lanes to bounded chunks. Choose the smallest admitted chunk
+that matches the protected tensor rather than treating it as an unbounded stream.
+
+```python
+from pllm.schedulers import ChunkedIndependentLanesProtectedTensorSchedule
+
+schedule = ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096)
+candidate = {"scheduler": schedule.to_spec()}
+assert candidate["scheduler"]["params"] == {"max_elements": 4096}
+```
+
+### Compile a canonical request into `CompiledPlan`
+
+[`compile`](/sdk/reference/python/pllm/compiler/#compile) accepts the canonical
+request document and returns an opaque, verified
+[`CompiledPlan`](/sdk/reference/python/pllm/plan/#compiledplan). This example must
+run from a PLLM checkout because it reads a checked-in fixture.
+
+```python
+import json
 from pathlib import Path
 
 from pllm import compile
 
-request = Path("schemas/fixtures/compile-request.valid.json").read_text(encoding="utf-8")
+request = json.loads(
+    Path("schemas/fixtures/compile-request.valid.json").read_text(encoding="utf-8")
+)
 plan = compile(request)
 assert plan.input_shape == (2, 3)
 assert plan.output_shape == (2, 2)
+assert len(plan.plan_lock_digest) == 64
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
-
-Compilation rejects unsupported coverage rather than hiding it behind a fallback. Complete model compilation remains unsupported for current research profiles.
+Compilation rejects unsupported coverage rather than hiding it behind a fallback.
+Complete model compilation remains unsupported for current research profiles; use
+[the status matrix](/sdk/reference/status/) to separate semantic planning from
+executable runtime support.

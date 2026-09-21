@@ -12,25 +12,215 @@ while Rust runs, and returns immutable bytes. Python coordinates models and
 protocols. Runtime graph support and checkpoint loading remain separate from
 model planning.
 
-Before execution, the runtime rechecks plan identity, component support, weights,
-and required assurance records. The CLI provides explicit gateway, inference,
-and preparation lifecycle commands; it does not provide generic plan-locked
-orchestration. See [local gateway](/learn/integrations/local-gateway/).
+Before execution, each profile enforces its runtime capabilities and verification
+contract; compiled paths additionally bind their plan and weights. Assurance records
+remain evidence rather than a universal execution prerequisite. The gateway and
+benchmark CLIs accept the same typed `Experiment` target and derive the required role
+topology from its profile; unsupported component combinations fail at resolution. See
+[local gateway](/learn/integrations/local-gateway/).
+
+## How runtime pieces fit together
+
+The runtime turns immutable choices into live state. A local topology owns provider
+processes, the client owns the application-facing request lifecycle, role components
+record placement, state components describe persistent model state, and verification
+components govern output checks. None of these objects alone proves that a model and
+profile have complete executable coverage.
+
+Use the client facade for application calls and `build_roles` only for local
+development and measurement. A loopback topology exercises real process boundaries,
+but does not establish independent non-colluding operators.
+
+API: [Runtime objects and signatures](/sdk/reference/python/pllm/runtime/#objects-and-signatures)
 
 ## Python SDK example
+
+### Build local provider roles with `build_roles`
+
+[`build_roles`](/sdk/reference/python/pllm/runtime/#buildroles) converts a typed
+experiment or pipeline into a [`LocalTopology`](/sdk/reference/python/pllm/runtime/#localtopology).
+Before the context manager starts, it is an inspectable process plan; entering it
+starts separate inference and preparation children and owns their shutdown.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.runtime import LocalTopology, build_roles
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="runtime-topology",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="docs-tiny")),
+    deployment=Deployment.local(root="local://runtime-topology"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+topology = build_roles(experiment)
+assert isinstance(topology, LocalTopology)
+assert not topology.started
+assert tuple(status.role for status in topology.statuses) == (
+    "inference",
+    "preparation",
+)
+```
+
+### Send a synchronous streaming request with `OpenAI`
+
+[`OpenAI`](/sdk/reference/python/pllm/client/#openai) is the synchronous trusted
+client. A streaming call returns [`ResponseStream`](/sdk/reference/python/pllm/client/#responsestream),
+which should be used as a context manager so cancellation burns reserved material
+and closes the connection. This tiny `local-test` run is an insecure development
+topology, not a deployment claim.
+
+```python
+from pllm import Model
+from pllm.client import OpenAI, ResponseStream
+from pllm.profiles import MaskedLinearCpu
+from pllm.runtime import build_roles
+
+pipeline = MaskedLinearCpu(Model.tiny(model_id="docs-tiny"))
+with build_roles(pipeline, correlation_mode="local-test") as local:
+    with local.client(bundle_cache_mode="off") as client:
+        assert isinstance(client, OpenAI)
+        stream = client.responses.create(
+            input="Keep this prompt private.",
+            max_output_tokens=2,
+            stream=True,
+        )
+        assert isinstance(stream, ResponseStream)
+        with stream:
+            events = list(stream)
+        assert events[0].type == "response.created"
+        assert events[-1].type in {"response.completed", "response.incomplete"}
+        assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+```
+
+### Configure the async lifecycle with `AsyncOpenAI`
+
+[`AsyncOpenAI`](/sdk/reference/python/pllm/client/#asyncopenai) accepts the same
+connection settings and exposes async resources and cleanup. When `stream=True`,
+`responses.create()` returns an async iterator of response events rather than the
+synchronous `ResponseStream` wrapper.
+
+```python
+import asyncio
+
+from pllm.client import AsyncOpenAI
+
+async def inspect_client() -> None:
+    async with AsyncOpenAI(
+        base_url="http://127.0.0.1:1",
+        api_key="docs-only",
+        default_model="docs-tiny",
+    ) as client:
+        assert client.responses is not None
+        assert client.runtime.privacy_audit.plaintext_prompt_bytes_sent == 0
+
+asyncio.run(inspect_client())
+```
+
+The setup example performs no request; use the same URL and credential issued by
+your trusted deployment boundary. See [client integration](/learn/integrations/)
+for application-facing connection patterns.
+
+### Place work with `Inference`
+
+[`Inference`](/sdk/reference/python/pllm/roles/#inference) is configuration metadata
+selected by shipped profiles. It identifies the role that owns provider-side model
+work; it is not a running server process.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import Inference
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="inference-placement",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="role-tiny"),
+        inference=Inference(),
+    ),
+    deployment=Deployment.local(root="local://inference-placement"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.to_spec()["components"]["inference"]["component"] == (
+    "pllm/inference"
+)
+```
+
+The [parties and offline work](/learn/parties-and-offline-work/) guide maps this
+placement record to the preparation and inference service boundaries.
+
+### Describe client-owned KV state with `ClientLocalKv`
+
+[`ClientLocalKv`](/sdk/reference/python/pllm/state/#clientlocalkv) records that KV
+state remains inside the trusted client boundary. It does not make every cache
+topology executable; transformed MPCache state still requires compatible compiler
+and runtime coverage.
+
+```python
+from pllm.state import ClientLocalKv
+
+state = ClientLocalKv()
+description = state.describe()
+assert state.component == "pllm/client-local-kv"
+assert description.capabilities == ("fixed-capacity-client-kv",)
+```
+
+### Verify prepared execution with `FreivaldsVerify`
+
+[`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify) adds
+the reviewed one-use native check to the prepared profile. The target failure bound
+is part of the immutable configuration and shared session accounting.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="verified-runtime",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="verified-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://verified-runtime"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().verification_target_failure_bits == 48
+```
+
+Save this example as `experiment.py` and run `pllm gateway --local --experiment
+experiment.py:experiment --trust-python`. Configuration does not itself perform
+verification; the verified profile binds authenticated one-use projection material
+when the gateway executes requests.
+
+### Exercise the lower-level `LinearIntegrity` policy
+
+[`LinearIntegrity`](/sdk/reference/python/pllm/verification/#linearintegrity) is an
+uncomposed lower-level policy for explicit integration work. The helpers below check
+one modular matrix result; a fixed seed is appropriate only for a deterministic
+test, not live verification material.
 
 ```python
 import numpy as np
 
-from pllm import AuthenticatedMPC, TrustedPreprocessor
+from pllm.verification import (
+    LinearIntegrity,
+    check_linear_result,
+    create_linear_check_key,
+)
 
-runtime = AuthenticatedMPC(TrustedPreprocessor(modulus=65537, seed=4))
-opened = runtime.open(runtime.public_value(np.array([7, 8], dtype=np.int64)))
-assert opened.tolist() == [7, 8]
-assert runtime.stats.opening_rounds == 1
+policy = LinearIntegrity()
+weight = np.array([[2, 1], [1, 3]], dtype=np.int64)
+inputs = np.array([[4, 5]], dtype=np.int64)
+outputs = inputs @ weight.T % 65537
+key = create_linear_check_key(weight, modulus=65537, checks=2, seed=7)
+assert check_linear_result(inputs, outputs, key).valid
+assert policy.component == "pllm/linear-integrity"
 ```
 
-API: [Python objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
-
-The opening updates live runtime counters. This in-process arithmetic simulator is
-not a deployed multi-party session.
+Selecting `LinearIntegrity` alone does not create verifier-backed model execution.
+Use [the verified profile](/sdk/pipeline/#verify-prepared-outputs-with-verifiedmaskedlinearcpu)
+for the supported prepared composition.
