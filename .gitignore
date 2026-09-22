@@ -49,6 +49,7 @@ docs/content/docs/reference/cli/
 docs/content/docs/reference/python/pllm/
 docs/content/docs/reference/components.mdx
 docs/scripts/discovered-docs.mjs
+docs/scripts/package-version.mjs
 docs/public/downloads/cli-help.txt
 docs/public/*.md
 docs/public/**/*.md

@@ -1,15 +1,25 @@
 ---
 title: "Get started"
-description: "Install PLLM, inspect a private inference plan, and run the local development benchmark."
+description: "Install PLLM, make a real private inference request, and measure it — in about ten minutes."
 ---
 
-1. [Install PLLM](/learn/start/installation/) with a supported Python version.
-2. [Inspect a private inference plan](/learn/start/first-private-request/) without starting a service or downloading model weights.
-3. [Run the local development benchmark](/learn/start/first-local-benchmark/) through the client, preparation, and inference roles on one machine.
-4. [Connect an SDK or coding agent](/learn/integrations/) through the trusted loopback gateway.
+By the end of this sequence you will have:
 
-The CLI currently inspects metadata. Its `dev dashboard` command is a developer
-tool, not a production interface. The Python package also exposes planning,
-compilation, benchmarking, assurance, and runtime APIs. Check the support status
-for each API instead of assuming that every model and protocol combination is
-available.
+- Installed the `pllm` command and Python package.
+- Made a real private inference request and read generated text.
+- Run the local development benchmark and learned what it does and does not measure.
+
+1. [Install PLLM](/learn/start/installation/) with a supported Python version.
+2. [Make your first private request](/learn/start/first-private-request/) — start the trusted
+   loopback gateway and get real generated text from an OpenAI-compatible endpoint.
+3. [Run the local development benchmark](/learn/start/first-local-benchmark/) through the
+   client, preparation, and inference roles on one machine.
+4. Optional: [inspect the execution plan](/learn/start/inspect-a-plan/) to see how PLLM
+   decomposed that request into components before it ran.
+5. [Connect an SDK or coding agent](/learn/integrations/) — the same gateway serves the
+   Responses and Chat Completions APIs, OpenAI-compatible clients, and coding agents.
+
+One honest caveat before you start: running every role on one machine validates the private
+protocol and your setup. It does not demonstrate non-collusion between operators — that
+requires independently operated roles, covered under
+[operations](/sdk/operate/deployment/).

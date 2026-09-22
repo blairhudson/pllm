@@ -1,0 +1,86 @@
+---
+title: "Inspect the execution plan"
+description: "Define a reproducible experiment, lower a semantic model plan, and check its execution coverage."
+---
+
+You have already run a request end to end. This optional page shows the
+declarative side of the same machinery: how an experiment is defined, resolved,
+and checked for coverage — without starting a service.
+
+## Define the experiment
+
+```python
+from pllm import Experiment, MaskedLinearCpu, Model
+from pllm.deployment import Deployment
+from pllm.kernels import Cpu
+from pllm.runtime import ExecutionBudget
+
+experiment = Experiment(
+    name="qwen-local",
+    pipeline=MaskedLinearCpu(
+        Model("Qwen/Qwen2.5-0.5B-Instruct"),
+        kernels=Cpu(threads=4),
+    ),
+    deployment=Deployment.local(root=".pllm/qwen-local"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
+)
+
+resolved = experiment.resolve()
+assert resolved.configuration_digest == experiment.configuration_digest()
+print(experiment.configuration_digest())
+print(experiment.to_spec())
+```
+
+The checked-in [`examples/first_request.py`](/learn/examples/first-request/)
+executes this same resolution path in the test suite, and the
+[SDK configuration model](/sdk/configuration/) keeps the declaration
+inspectable without loading weights. You can inspect or export an equivalent
+checked-in JSON or YAML file:
+
+```bash
+pllm config show examples/pllm.yaml --format json
+pllm config export examples/pllm.yaml --output experiment.resolved.json
+```
+
+Python configuration targets execute local code. In noninteractive use, you must
+explicitly allow them with `--trust-python`.
+
+## Lower and compose
+
+The [`lower_model` model-planning path](/sdk/build/models/) accepts public model
+configuration and workload limits. It does not accept a model repository name or
+load weights:
+
+```python
+import pllm
+from pllm.passes import KvCacheEviction
+from pllm.profiles import MaskedLinearCpu
+
+config = {
+    "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,
+    "num_hidden_layers": 24, "num_attention_heads": 14,
+    "num_key_value_heads": 2, "vocab_size": 151936,
+    "max_position_embeddings": 32768, "hidden_act": "silu",
+    "rms_norm_eps": 1e-6, "rope_theta": 1000000,
+    "tie_word_embeddings": True,
+}
+plan = pllm.lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
+composed = plan.apply(KvCacheEviction())
+pipeline = MaskedLinearCpu(pllm.Model("Qwen/Qwen2.5-0.5B-Instruct"))
+coverage = composed.coverage(pipeline)
+assert composed.digest != plan.digest
+assert coverage.complete is False
+print(composed.digest, coverage.complete, coverage.to_dict())
+```
+
+This plan describes work that could precede an inference request. The
+`KvCacheEviction` structural pass is functional for dense Qwen2/Qwen3 plans, but
+the reported compiler coverage is currently incomplete. Semantic planning,
+protected runtime execution, model quality, benchmark results, privacy evidence,
+and deployment readiness are separate status checks — see
+[current support](/sdk/reference/status/) for exactly which are met.
+
+Inspect component metadata with `pllm components list`. Continue to
+[runtime](/sdk/pipeline/runtime/),
+[protocol interfaces](/sdk/pipeline/protocols/), or
+[research evidence requirements](/research/evidence/).

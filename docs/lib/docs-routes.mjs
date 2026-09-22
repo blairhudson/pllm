@@ -39,6 +39,7 @@ const PREFIX_ROUTES = [
   ['metrics', 'research/records/metrics'],
   ['start', 'learn/start'],
   ['understand', 'learn/understand'],
+  ['examples', 'learn/examples'],
   ['learn', 'learn'],
   ['cli', 'cli'],
   ['sdk', 'sdk'],

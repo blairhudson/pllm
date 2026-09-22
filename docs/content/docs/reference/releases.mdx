@@ -1,0 +1,38 @@
+---
+title: "Releases"
+description: "Released versions of the pllm.run distribution, their artifacts, and what each status label means."
+---
+
+The Python distribution `pllm.run` is published to
+[PyPI](https://pypi.org/project/pllm.run/) from git tags by
+[trusted publishing](https://github.com/blairhudson/pllm/blob/main/RELEASING.md).
+Every tag builds wheels for Linux (x86_64, aarch64), macOS (x86_64, arm64), and
+Windows (x86_64), plus a source distribution — all abi3 wheels covering Python
+3.11–3.13.
+
+| Release | Date | Notes |
+| --- | --- | --- |
+| `0.1.0a2` | 2026-09-22 | Distribution renamed to `pllm.run`; first public release. |
+| `0.1.0a1` | 2026-09-22 | Initial tagged preview (superseded same day). |
+
+## Reading the version
+
+Releases are `0.x.y` pre-releases while the component catalog and support
+matrix evolve. An `a` suffix marks an alpha: the documented
+[support status](/sdk/reference/status/) applies exactly as labeled, and API
+surfaces may change between releases without a deprecation window.
+
+## Upgrading
+
+```bash
+uv tool upgrade pllm.run        # CLI
+uv add "pllm.run>=0.1.0a2"      # project dependency
+```
+
+Pin an exact version (`pllm.run==0.1.0a2`) anywhere reproducibility matters —
+benchmarks, evidence records, and published experiment configurations record the
+version that produced them.
+
+**No public Python API.** This page documents releases; the version is exposed
+programmatically as `pllm.__version__` — see
+[current support](/sdk/reference/status/) for what each release covers.
