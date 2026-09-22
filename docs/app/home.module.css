@@ -105,6 +105,35 @@
   background: color-mix(in srgb, var(--accent) 88%, white);
 }
 
+.page :global(.home-install) {
+  margin: 28px 0 0;
+}
+
+.page :global(.home-install code) {
+  display: inline-block;
+  padding: 11px 15px;
+  border: 1px solid var(--home-rule);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--home-ink) 6%, transparent);
+  font: 0.92rem/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.page :global(.home-meta) {
+  margin: 16px 0 0;
+  color: var(--home-muted);
+  font-size: 0.88rem;
+}
+
+.page :global(.home-meta a) {
+  border-bottom: 1px solid currentColor;
+  color: inherit;
+  font-weight: 650;
+}
+
+.page :global(.home-meta a:hover) {
+  color: var(--accent);
+}
+
 .page :global(.home-learn-link) {
   margin-top: 24px;
 }
@@ -252,6 +281,10 @@
   color: inherit;
 }
 
+.page :global(.home-panels[hidden]) {
+  display: none;
+}
+
 .page :global(.home-code) {
   position: relative;
   min-height: 104px;
@@ -260,6 +293,17 @@
   border-radius: 0 0 8px 8px;
   background: #101510;
   color: #edf2e9;
+}
+
+.page :global(.home-code-output) {
+  min-height: 0;
+  margin-top: 14px;
+  border-top: 1px solid var(--home-rule);
+  border-radius: 8px;
+}
+
+.page :global(.home-code-output pre) {
+  color: #b7c4b2;
 }
 
 .page :global(.home-code[hidden]) {

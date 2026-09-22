@@ -5,6 +5,8 @@
       <span>Open compute to the world.</span>
     </h1>
     <p class="home-intro">PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.</p>
+    <p class="home-install"><code>uv tool install pllm.run</code></p>
+    <p class="home-meta">Latest release <a href="/sdk/reference/releases/">__PLLM_VERSION__</a> · <a href="https://pypi.org/project/pllm.run/">PyPI</a> · <a href="https://github.com/blairhudson/pllm">GitHub</a> · Apache-2.0</p>
     <div class="button-row" aria-label="Start with PLLM">
       <a class="button primary" href="#start-building">Start building <span aria-hidden="true">→</span></a>
       <a class="button" href="#run-research">Run research <span aria-hidden="true">→</span></a>
@@ -55,9 +57,20 @@
           <button type="button" role="tab" id="tab-start-client" aria-controls="panel-start-client" aria-selected="false" data-phase="start-client">Client config</button>
           <button type="button" role="tab" id="tab-start-services" aria-controls="panel-start-services" aria-selected="false" data-phase="start-services">Operate services</button>
         </div>
-        <div class="home-code" id="panel-start-local" role="tabpanel" aria-labelledby="tab-start-local" data-panel="start-local">
-          <button class="copy-code" type="button" data-copy aria-label="Copy local gateway command">Copy</button>
-          <pre><code>pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct</code></pre>
+        <div class="home-panels" id="panel-start-local" role="tabpanel" aria-labelledby="tab-start-local" data-panel="start-local">
+          <div class="home-code">
+            <button class="copy-code" type="button" data-copy aria-label="Copy local gateway command">Copy</button>
+            <pre><code>pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct</code></pre>
+          </div>
+          <div class="home-code home-code-output">
+            <button class="copy-code" type="button" data-copy aria-label="Copy request example">Copy</button>
+            <pre><code>curl http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","messages":[{"role":"user","content":"Say hello in one word."}]}'
+
+# Verified output: "content": "Hello." with "finish_reason": "stop"</code></pre>
+          </div>
         </div>
         <div class="home-code" id="panel-start-client" role="tabpanel" aria-labelledby="tab-start-client" data-panel="start-client" hidden>
           <button class="copy-code" type="button" data-copy aria-label="Copy configured gateway command">Copy</button>
@@ -72,7 +85,9 @@ pllm serve preparation --config preparation.json</code></pre>
         <nav class="home-inline-links" aria-label="Build with PLLM">
           <a href="/learn/start/installation/">Install PLLM</a>
           <a href="/learn/start/first-private-request/">Send a private request</a>
+          <a href="/learn/examples/">Browse the examples</a>
           <a href="/learn/understand/trust-boundary/">Review the trust boundary</a>
+          <a href="/sdk/reference/releases/">Releases</a>
         </nav>
       </div>
     </div>
@@ -223,7 +238,10 @@ wire_api = "responses"</code></pre>
     <h2 id="continue-title">Continue with PLLM.</h2>
     <nav class="home-final-links" aria-label="PLLM resources">
       <a href="/">Documentation</a>
+      <a href="/learn/examples/">Examples</a>
+      <a href="/sdk/reference/releases/">Releases</a>
       <a href="https://github.com/blairhudson/pllm">Source</a>
+      <a href="https://pypi.org/project/pllm.run/">PyPI</a>
       <a href="/research/paper/">Technical paper</a>
       <a href="/research/whitepaper/">Whitepaper</a>
       <a href="/sdk/research/benchmarks/">Benchmarks</a>
