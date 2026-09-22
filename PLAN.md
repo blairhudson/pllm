@@ -933,7 +933,7 @@ pllm — the package root; only the workflow surface lives at top level
 ### 8.5 Watch-items (not defects, but risks)
 - Working tree carries ~17k uncommitted staged lines — commit or worktree-isolate before parallel contributors collide.
 - `docs/package.json` uses npm lockfile; README/CONTRIBUTING disagree (bun vs npm) — CI uses `npm ci`, standardize on npm unless bun.lock is committed.
-- `restack.toml` + `blairhudson/restack/actions/run` — external deployment dependency; document its role in `infra/README` (currently thin).
+- `restack.toml` + the public `blairhudson/restack-action` bundle generated from the private Restack source — external deployment dependency; document its role in `infra/README` (currently thin).
 - Version skew: `market_server` reported `0.14.0` (resolves itself on removal); docs release is `0.1.0`; package is `0.1.0a1` — one release train should own remaining surfaces.
 
 ---

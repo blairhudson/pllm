@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
       - name: Deploy with Restack
-        uses: blairhudson/restack/actions/run@0434ee8d3cb2c416188cae8d68eb2b246fc2ac1f
+        uses: blairhudson/restack-action@27f15855d76ba9137f33de29eb9a51f9b2be9340
         with:
           args: |
             ci

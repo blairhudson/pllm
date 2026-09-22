@@ -92,7 +92,7 @@ def test_pages_deployment_targets_are_separate():
     text = path.read_text()
     assert "pllm-non" in text and "PLLM_NON_PAGES_API_TOKEN" in text
     assert "pllm-production" in text and "PLLM_PRODUCTION_PAGES_API_TOKEN" in text
-    assert "blairhudson/restack/actions/run@" in text
+    assert "blairhudson/restack-action@" in text
 
 def test_docs_are_fumadocs_not_retired_mkdocs():
     project = json.loads((ROOT / "docs/package.json").read_text())
