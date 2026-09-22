@@ -44,7 +44,7 @@ def method_document(*, promoted: bool = False) -> dict:
             "benchmark": status,
             "promotion": status,
         },
-        "eligible_profiles": ["research.single_evaluator"] if promoted else [],
+        "eligible_components": ["pllm/arithmetic-garbling-silu-q7/v1"] if promoted else [],
     }
 
 

@@ -3,9 +3,10 @@ title: "SiLU activation"
 description: "Compile and evaluate PLLM's bounded experimental Q7 SiLU component."
 ---
 
-PLLM implements one executable SiLU profile:
-`research.single_evaluator`, using numeric graph
-`pllm.numeric.silu.quadratic_q7.v1`. It encodes `[-1, 1]` at scale 128,
+PLLM implements one bounded SiLU primitive using numeric graph
+`pllm.numeric.silu.quadratic_q7.v1`. Compilation requires the explicit
+`pllm/arithmetic-garbling-silu-q7/v1` nonlinear component and
+`pllm/bounded-independent-elements/v1` protected scheduler. It encodes `[-1, 1]` at scale 128,
 evaluates `x / 2 + x² / 4`, rounds ties to even, and rejects inputs outside the
 locked domain. Across all 257 encoded inputs, absolute error against SiLU is at
 most `0.02285`. One compiled Q7 SiLU region is capped at 128 elements in this
@@ -25,6 +26,8 @@ protocol, or a production-security claim.
 from pathlib import Path
 
 from pllm import lower_model
+from pllm.nonlinear import ArithmeticGarblingSiluQ7
+from pllm.schedulers import BoundedIndependentElementsProtectedTensorSchedule
 
 fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
 plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
@@ -35,6 +38,10 @@ silu = next(
 )
 assert silu["id"] == "layer.0.silu"
 assert silu["output_shape"] == (1, 16, 9728)
+assert ArithmeticGarblingSiluQ7().component == "pllm/arithmetic-garbling-silu-q7/v1"
+assert BoundedIndependentElementsProtectedTensorSchedule(
+    max_elements=128
+).params["max_elements"] == 128
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

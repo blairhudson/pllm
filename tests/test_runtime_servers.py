@@ -58,10 +58,9 @@ def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> No
     with pytest.raises(ValueError, match="conflicts"):
         build_roles(pipeline, engine_threads=2)
     experiment = Experiment.from_spec({
-        "schema": "pllm.experiment.v1",
+        "schema": "pllm.experiment.v2",
         "name": "topology",
         "pipeline": {
-            "profile": "baseline.masked_linear_cpu",
             "model": {"source": "org/experiment"},
             "components": {
                 "inference": {"component": "pllm/inference", "params": {}},

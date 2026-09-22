@@ -792,9 +792,9 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
             resolved_experiment = experiment.resolve()
         except (TypeError, ValueError) as exc:
             raise ResolutionError("GATEWAY_EXPERIMENT_INVALID", str(exc)) from exc
-        from pllm.profiles import _runtime_profile_options
+        from pllm.profiles import resolve_runtime_composition
 
-        if _runtime_profile_options(experiment.pipeline) is None:
+        if resolve_runtime_composition(experiment.pipeline) is None:
             raise ResolutionError(
                 "GATEWAY_EXPERIMENT_INVALID",
                 "experiment profile is not supported by local serving",
@@ -921,9 +921,9 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
             experiment.resolve()
         except (TypeError, ValueError) as exc:
             raise ResolutionError("SERVE_EXPERIMENT_INVALID", str(exc)) from exc
-        from pllm.profiles import _runtime_profile_options
+        from pllm.profiles import resolve_runtime_composition
 
-        runtime_options = _runtime_profile_options(experiment.pipeline)
+        runtime_options = resolve_runtime_composition(experiment.pipeline)
         if runtime_options is None:
             raise ResolutionError(
                 "SERVE_EXPERIMENT_INVALID",

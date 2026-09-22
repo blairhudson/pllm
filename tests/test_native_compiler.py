@@ -24,8 +24,12 @@ def compiled_fixture() -> _native.CompiledPlan:
 def silu_compiled_fixture(size: int):
     document = json.loads((FIXTURES / "compile-request.valid.json").read_bytes())
     contract = json.loads(_native.silu_q7_contract())
-    document["configuration"]["pipeline"]["profile"] = contract["profile"]
-    document["context"]["profile"] = contract["profile"]
+    components = document["configuration"]["pipeline"]["components"]
+    components["nonlinear"] = {"component": contract["component_id"], "params": {}}
+    components["nonlinear_schedule"] = {
+        "component": contract["schedule_component_id"],
+        "params": {"max_elements": 128},
+    }
     document["context"]["compiler"] = {
         "id": contract["compiler_id"],
         "version": contract["compiler_version"],
@@ -86,6 +90,10 @@ def silu_compiled_fixture(size: int):
     def digest(domain, value):
         canonical = json.dumps(value, separators=(",", ":"), sort_keys=True).encode()
         return hashlib.sha256(domain.encode() + b"\0" + canonical).hexdigest()
+
+    document["context"]["composition_digest"] = digest(
+        "pllm.pipeline.v2", document["configuration"]["pipeline"]
+    )
 
     semantic = digest(
         "pllm.semantic_region.v1",
@@ -176,18 +184,18 @@ def test_compiled_plan_matches_canonical_fixtures_and_digests():
     ).read_bytes().removesuffix(b"\n")
     assert (
         plan.configuration_digest
-        == "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
+        == "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329"
     )
     assert (
         plan.logical_plan_digest
-        == "a2dd71d2dd5e3917b4a4578dbde9d1287a285df6fd722d3acb97f7dbcaf26961"
+        == "2af9881d478e537177d8ab84637327ee454cc7c7a71a213fc03b01ea2b488703"
     )
     assert (
         plan.execution_plan_digest
-        == "bdba1776ec7496d2a41f5508c6efb0d56bc66c0ccfd49267f90ce6c6811f31b7"
+        == "07348c6bb80569b71d6cb548c0e6fa10d9523a4392cf1a635e849adebbe05266"
     )
     assert (
-        plan.plan_lock_digest == "32e02bfcc5a235ab148b77508ee9fe7acba64a4b51dae222eb96538882ba13ce"
+        plan.plan_lock_digest == "fe8373bcc198486ebd03c29a877036faf32d54e4cfe2fc4d87e23738dab1f77a"
     )
     assert plan.input_shape == (2, 3)
     assert plan.output_shape == (2, 2)

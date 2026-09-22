@@ -14,10 +14,10 @@ use std::{
 };
 
 const COMPONENT: &str = "pllm/kv-cache-eviction";
-const IMPLEMENTATION: &str = "pllm/mpcache/v1";
+const IMPLEMENTATION: &str = "pllm/importance-kv-cache-eviction/v1";
 const METHOD_ID: &str = "R23";
-const METHOD_PREFIX: &str = "method.mpcache.";
-const POLICY_DIGEST_NAMESPACE: &str = "pllm.method.mpcache.policy.v1";
+const METHOD_PREFIX: &str = "method.kv_cache_eviction.";
+const POLICY_DIGEST_NAMESPACE: &str = "pllm.pass.kv_cache_eviction.policy.v1";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +54,7 @@ pub struct MpcachePolicy {
 }
 
 impl MpcachePolicy {
-    pub fn paper_profile() -> Self {
+    pub fn r23_reference_policy() -> Self {
         Self {
             observation_window: Ratio {
                 numerator: 1,
@@ -1639,7 +1639,7 @@ mod tests {
             .into_iter()
             .chain(kv_states(&base.decode.state_outputs))
             .collect();
-        let plan = optimize(&base, MpcachePolicy::paper_profile()).unwrap();
+        let plan = optimize(&base, MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         assert_eq!(
             plan.decode.maximum_key_sequence,
@@ -1672,14 +1672,17 @@ mod tests {
         assert_eq!(scores.output_shape[3], 16);
         assert_eq!(
             scores.inputs[1],
-            "method.mpcache.layer.0.dynamic_key_gather"
+            "method.kv_cache_eviction.layer.0.dynamic_key_gather"
         );
         let mask = operation(&plan.decode, "layer.0.causal_mask");
-        assert_eq!(mask.inputs[2], "method.mpcache.layer.0.selected_positions");
+        assert_eq!(
+            mask.inputs[2],
+            "method.kv_cache_eviction.layer.0.selected_positions"
+        );
         assert_eq!(
             operation(
                 &plan.decode,
-                "method.mpcache.layer.0.hierarchy.0.cluster_bounds"
+                "method.kv_cache_eviction.layer.0.hierarchy.0.cluster_bounds"
             )
             .output_shape,
             vec![1, 2, 2, 8, 2],
@@ -1687,7 +1690,7 @@ mod tests {
         assert_eq!(
             operation(
                 &plan.decode,
-                "method.mpcache.layer.0.hierarchy.0.cluster_similarity"
+                "method.kv_cache_eviction.layer.0.hierarchy.0.cluster_similarity"
             )
             .output_shape,
             vec![1, 4, 1, 2],
@@ -1695,7 +1698,7 @@ mod tests {
         assert_eq!(
             operation(
                 &plan.decode,
-                "method.mpcache.layer.0.hierarchy.1.cluster_bounds"
+                "method.kv_cache_eviction.layer.0.hierarchy.1.cluster_bounds"
             )
             .output_shape,
             vec![1, 4, 1, 2, 8, 2],
@@ -1703,7 +1706,7 @@ mod tests {
         assert_eq!(
             operation(
                 &plan.decode,
-                "method.mpcache.layer.0.hierarchy.1.cluster_similarity"
+                "method.kv_cache_eviction.layer.0.hierarchy.1.cluster_similarity"
             )
             .output_shape,
             vec![1, 4, 1, 2],
@@ -1712,18 +1715,18 @@ mod tests {
 
     #[test]
     fn transformation_is_deterministic_and_policy_is_bounded() {
-        let policy = MpcachePolicy::paper_profile();
+        let policy = MpcachePolicy::r23_reference_policy();
         assert_eq!(
             optimize(&qwen_plan(4), policy.clone()).unwrap().digest(),
             optimize(&qwen_plan(4), policy).unwrap().digest()
         );
-        let mut invalid = MpcachePolicy::paper_profile();
+        let mut invalid = MpcachePolicy::r23_reference_policy();
         invalid.dynamic_keep.numerator = 0;
         assert!(matches!(
             optimize(&qwen_plan(4), invalid),
             Err(MpcacheError::InvalidPolicy(_))
         ));
-        let mut invalid = MpcachePolicy::paper_profile();
+        let mut invalid = MpcachePolicy::r23_reference_policy();
         invalid.cluster_sizes = vec![24, 16];
         assert!(matches!(
             optimize(&qwen_plan(4), invalid),
@@ -1742,7 +1745,7 @@ mod tests {
             },
         )
         .unwrap();
-        let plan = optimize(&base, MpcachePolicy::paper_profile()).unwrap();
+        let plan = optimize(&base, MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         assert_eq!(plan.transformations.len(), 1);
         assert_eq!(plan.transformations[0].method_id, "R23");
@@ -1764,7 +1767,7 @@ mod tests {
         )
         .unwrap();
         plan.validate().unwrap();
-        let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
+        let error = optimize(&plan, MpcachePolicy::r23_reference_policy()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
         assert!(error
             .to_string()
@@ -1773,9 +1776,9 @@ mod tests {
 
     #[test]
     fn reapplication_is_rejected_without_mutating_the_plan() {
-        let plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         let digest = plan.digest();
-        let error = optimize(&plan, MpcachePolicy::paper_profile()).unwrap_err();
+        let error = optimize(&plan, MpcachePolicy::r23_reference_policy()).unwrap_err();
         assert!(matches!(error, MpcacheError::InvalidPlan(_)));
         assert!(error.to_string().contains("MPCache is already applied"));
         assert_eq!(plan.digest(), digest);
@@ -1783,13 +1786,13 @@ mod tests {
 
     #[test]
     fn tampered_policy_attribute_fails_validation() {
-        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         let importance = plan
             .prefill
             .operations
             .iter_mut()
-            .find(|operation| operation.id == "method.mpcache.layer.0.static_importance")
+            .find(|operation| operation.id == "method.kv_cache_eviction.layer.0.static_importance")
             .unwrap();
         importance.attributes["policy"]["static_keep"]["numerator"] = json!(1);
         assert!(plan.validate().is_err());
@@ -1797,7 +1800,7 @@ mod tests {
 
     #[test]
     fn tampered_static_state_shape_fails_validation() {
-        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         plan.prefill
             .state_outputs
@@ -1810,7 +1813,7 @@ mod tests {
 
     #[test]
     fn tampered_selected_position_input_fails_validation() {
-        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         let mask = plan
             .decode
@@ -1818,33 +1821,35 @@ mod tests {
             .iter_mut()
             .find(|operation| operation.id == "layer.0.causal_mask")
             .unwrap();
-        mask.inputs[2] = "method.mpcache.layer.1.selected_positions".to_owned();
+        mask.inputs[2] = "method.kv_cache_eviction.layer.1.selected_positions".to_owned();
         assert!(plan.validate().is_err());
     }
 
     #[test]
     fn tampered_cross_layer_share_fails_validation() {
-        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         let share = plan
             .decode
             .operations
             .iter_mut()
-            .find(|operation| operation.id == "method.mpcache.layer.3.selected_positions")
+            .find(|operation| operation.id == "method.kv_cache_eviction.layer.3.selected_positions")
             .unwrap();
-        share.inputs[0] = "method.mpcache.layer.0.selected_positions".to_owned();
+        share.inputs[0] = "method.kv_cache_eviction.layer.0.selected_positions".to_owned();
         assert!(plan.validate().is_err());
     }
 
     #[test]
     fn tampered_hierarchy_bounds_shape_fails_validation() {
-        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::paper_profile()).unwrap();
+        let mut plan = optimize(&qwen_plan(4), MpcachePolicy::r23_reference_policy()).unwrap();
         plan.validate().unwrap();
         let bounds = plan
             .decode
             .operations
             .iter_mut()
-            .find(|operation| operation.id == "method.mpcache.layer.0.hierarchy.1.cluster_bounds")
+            .find(|operation| {
+                operation.id == "method.kv_cache_eviction.layer.0.hierarchy.1.cluster_bounds"
+            })
             .unwrap();
         bounds.output_shape = vec![1, 2, 2, 8, 2];
         assert!(plan.validate().is_err());

@@ -26,5 +26,5 @@
     "benchmark": "blocked",
     "promotion": "blocked"
   },
-  "eligible_profiles": []
+  "eligible_components": []
 }

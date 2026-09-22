@@ -1,15 +1,14 @@
 use pllm_compiler::{
     compile, lower_model_q14_to_q7_rescale_regions, lower_model_silu_operation,
-    region_graph_digests, region_program_digest, CompileRequest, KernelDescriptor,
+    region_graph_digests, region_program_digest, CompileRequest, DiagnosticCode, KernelDescriptor,
     KernelImplementation, LogicalOperation, MethodDescriptor, NumericType, Operator,
-    Representation, SecurityProperties, TensorType, SILU_Q7_EXPERIMENT_PROFILE,
-    SILU_Q7_KERNEL_DESCRIPTOR_ID, SILU_Q7_METHOD_ID, SILU_Q7_NUMERIC_GRAPH_ID,
-    SILU_Q7_PROTECTED_GRAPH_ID,
+    Representation, SecurityProperties, TensorType, SILU_Q7_KERNEL_DESCRIPTOR_ID,
+    SILU_Q7_METHOD_ID, SILU_Q7_NUMERIC_GRAPH_ID, SILU_Q7_PROTECTED_GRAPH_ID,
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
     canonical_bytes, configuration_digest_bytes, execution_plan_digest, logical_plan_digest,
-    privacy_contract_digest, Digest, LockedContext, NamedDigest, PrivacyContract,
+    pipeline_digest, privacy_contract_digest, Digest, LockedContext, NamedDigest, PrivacyContract,
     RolePlanReference, VersionedArtifact, LOCKED_CONTEXT_SCHEMA_VERSION,
     PRIVACY_CONTRACT_SCHEMA_VERSION,
 };
@@ -54,16 +53,30 @@ fn request(shape: Vec<u64>, allow_experimental: bool) -> CompileRequest {
         Representation::ArithmeticLabel,
         &operations,
     );
-    let configuration_json = canonical_bytes(&serde_json::json!({
-        "profile": SILU_Q7_EXPERIMENT_PROFILE,
-        "schema": "pllm.experiment.v1"
-    }));
+    let configuration = serde_json::json!({
+        "budget": {"max_input_tokens": 1, "max_new_tokens": 1, "requests": 1},
+        "deployment": {"kind": "local", "root": ".pllm/silu-test"},
+        "name": "silu-test",
+        "pipeline": {
+            "components": {
+                "inference": {"component": "pllm/inference", "params": {}},
+                "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+                "linear": {"component": "pllm/masked-linear", "params": {}},
+                "nonlinear": {"component": "pllm/arithmetic-garbling-silu-q7/v1", "params": {}},
+                "nonlinear_schedule": {"component": "pllm/bounded-independent-elements/v1", "params": {"max_elements": 128}},
+                "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+            },
+            "model": {"source": "model.qwen.fixture"}
+        },
+        "schema": "pllm.experiment.v2"
+    });
+    let configuration_json = canonical_bytes(&configuration);
     CompileRequest {
         configuration_digest: configuration_digest_bytes(&configuration_json),
         configuration_json,
         context: LockedContext {
             schema_version: LOCKED_CONTEXT_SCHEMA_VERSION.into(),
-            profile: SILU_Q7_EXPERIMENT_PROFILE.into(),
+            composition_digest: pipeline_digest(&configuration["pipeline"]),
             model: named("model.qwen.fixture", '1'),
             tokenizer: named("tokenizer.fixture", '2'),
             semantic_graph: NamedDigest {
@@ -172,6 +185,27 @@ fn compiler_rejects_experimental_silu_when_contract_forbids_it() {
     assert!(diagnostics
         .iter()
         .any(|diagnostic| diagnostic.message == "experimental method is not permitted"));
+}
+
+#[test]
+fn compiler_rejects_silu_without_matching_composition_components() {
+    let mut request = request(vec![1], true);
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&request.configuration_json).unwrap();
+    let components = configuration["pipeline"]["components"]
+        .as_object_mut()
+        .unwrap();
+    components.remove("nonlinear");
+    components.remove("nonlinear_schedule");
+    request.configuration_json = canonical_bytes(&configuration);
+    request.configuration_digest = configuration_digest_bytes(&request.configuration_json);
+    request.context.composition_digest = pipeline_digest(&configuration["pipeline"]);
+
+    let diagnostics = compile(&request).unwrap_err();
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == pllm_compiler::DiagnosticCode::InvalidContext
+            && diagnostic.message.contains("Q7 SiLU composition requires")
+    }));
 }
 
 #[test]
@@ -373,19 +407,54 @@ fn editable_envelope_metadata_cannot_rebind_authenticated_gate_rows() {
 }
 
 #[test]
-fn compiler_rejects_silu_under_baseline_profile() {
+fn compiler_admits_silu_without_pseudo_profile_identity() {
+    let compiled = compile(&request(vec![1], true)).unwrap();
+    assert_eq!(
+        compiled.logical.composition_digest,
+        compiled.locked_context.composition_digest
+    );
+    let contract = serde_json::to_value(pllm_compiler::silu_q7_installed_contract()).unwrap();
+    assert!(contract.get("profile").is_none());
+}
+
+#[test]
+fn q7_silu_rejects_baseline_composition_without_nonlinear_contract() {
     let mut request = request(vec![1], true);
-    request.context.profile = pllm_compiler::BASELINE_EXPERIMENT_PROFILE.into();
-    request.configuration_json = serde_json::to_vec(&serde_json::json!({
-        "profile": pllm_compiler::BASELINE_EXPERIMENT_PROFILE,
-        "schema": "pllm.experiment.v1"
-    }))
-    .unwrap();
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&request.configuration_json).expect("configuration");
+    configuration["pipeline"]["components"]
+        .as_object_mut()
+        .unwrap()
+        .remove("nonlinear");
+    request.context.composition_digest = pipeline_digest(&configuration["pipeline"]);
+    request.configuration_json = canonical_bytes(&configuration);
     request.configuration_digest = configuration_digest_bytes(&request.configuration_json);
-    let errors = compile(&request).unwrap_err();
-    assert!(errors.iter().any(|error| {
-        error.subject_id == "configuration.profile"
-            && error.message.contains(SILU_Q7_EXPERIMENT_PROFILE)
+
+    let diagnostics = compile(&request).expect_err("baseline components must fail closed");
+    assert!(
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == DiagnosticCode::InvalidContext
+                && diagnostic.message.contains("Q7 SiLU composition requires")
+        }),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn q7_silu_rejects_region_larger_than_composed_schedule() {
+    let mut request = request(vec![5], true);
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&request.configuration_json).expect("configuration");
+    configuration["pipeline"]["components"]["nonlinear_schedule"]["params"]["max_elements"] =
+        serde_json::json!(4);
+    request.context.composition_digest = pipeline_digest(&configuration["pipeline"]);
+    request.configuration_json = canonical_bytes(&configuration);
+    request.configuration_digest = configuration_digest_bytes(&request.configuration_json);
+
+    let diagnostics = compile(&request).expect_err("schedule bound must fail closed");
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == DiagnosticCode::InvalidContext
+            && diagnostic.message.contains("schedule permits 4")
     }));
 }
 

@@ -13,6 +13,44 @@ class ProtectedScheduler(ComponentRef, ABC):
     def describe(cls) -> ComponentDescriptor: ...
 
 
+class BoundedIndependentElementsProtectedTensorSchedule(ProtectedScheduler):
+    """One-use scheduling for bounded unary protected tensors."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/bounded-independent-elements/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/protected-scheduler",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "max_elements": {"type": "integer", "minimum": 1, "maximum": 128},
+            },
+            "required": ["max_elements"],
+            "additionalProperties": False,
+        },
+        capabilities=("one-use-protected-tensor-scheduling",),
+        required_host_features=("authenticated-one-use-material",),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self, *, max_elements: int = 128) -> None:
+        if type(max_elements) is not int or not 1 <= max_elements <= 128:
+            raise ConfigurationError("max_elements must be an integer from 1 through 128")
+        super().__init__(self.descriptor.component, {"max_elements": max_elements})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"max_elements": self.params["max_elements"]}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class ScalarProtectedTensorSchedule(ProtectedScheduler):
     """Scalar one-use scheduling for protected tensor elements."""
 
@@ -126,6 +164,7 @@ class ChunkedIndependentLanesProtectedTensorSchedule(ProtectedScheduler):
 
 
 __all__ = [
+    "BoundedIndependentElementsProtectedTensorSchedule",
     "ChunkedIndependentLanesProtectedTensorSchedule",
     "IndependentLanesProtectedTensorSchedule",
     "ProtectedScheduler",

@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/locked-context.schema.json",
-  "title": "PLLM locked compiler context v1",
+  "$id": "https://pllm.run/schemas/locked-context.schema.json",
+  "title": "PLLM locked compiler context v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "profile", "model", "tokenizer", "semantic_graph", "numeric_graph", "protected_graph", "roles", "privacy_contract", "workload", "target", "material_requests", "resource_forecast", "compiler", "execution_role", "static_role_plans"],
+  "required": ["schema_version", "composition_digest", "model", "tokenizer", "semantic_graph", "numeric_graph", "protected_graph", "roles", "privacy_contract", "workload", "target", "material_requests", "resource_forecast", "compiler", "execution_role", "static_role_plans"],
   "properties": {
-    "schema_version": {"const": "pllm.locked_context.v1"},
-    "profile": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "pllm.locked_context.v2"},
+    "composition_digest": {"$ref": "#/$defs/digest"},
     "model": {"$ref": "#/$defs/namedDigest"},
     "tokenizer": {"$ref": "#/$defs/namedDigest"},
     "semantic_graph": {"$ref": "#/$defs/namedDigest"},

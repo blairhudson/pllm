@@ -28,5 +28,5 @@
     "benchmark": "passed",
     "promotion": "blocked"
   },
-  "eligible_profiles": ["research.verified_masked_linear_cpu"]
+  "eligible_components": ["pllm/freivalds-verify/v1"]
 }

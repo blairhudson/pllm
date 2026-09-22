@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/reproduction-recipe.schema.json",
+  "$id": "https://pllm.run/schemas/reproduction-recipe.schema.json",
   "title": "PLLM reproduction recipe v1",
   "type": "object",
   "additionalProperties": false,

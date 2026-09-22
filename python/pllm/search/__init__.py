@@ -278,8 +278,6 @@ def evaluate_search(
             raise SearchError("benchmark result id does not match candidate trial id")
         if document["configuration_digest"] != candidate.configuration_digest:
             raise SearchError("benchmark result configuration does not match candidate")
-        if document["profile"] != candidate.experiment.pipeline.profile:
-            raise SearchError("benchmark result profile does not match candidate")
         if document["model"]["id"] != expected_model:
             raise SearchError("benchmark result model does not match candidate")
         if not required_components.issubset(document["component_ids"]):

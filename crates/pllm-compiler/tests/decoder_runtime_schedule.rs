@@ -1,9 +1,10 @@
 use pllm_compiler::{
-    lower_decoder_runtime_schedule, lower_decoder_runtime_schedule_for_profile,
-    DecoderRuntimeExecutor, DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION, MASKED_LINEAR_RUNTIME_PROFILE,
-    VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE,
+    lower_decoder_runtime_schedule, DecoderRuntimeExecutor, DecoderRuntimeSchedule,
+    DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION,
 };
 use pllm_models::{lower_model_json, DecoderPlan, DecoderWorkload, ModelOperator};
+use pllm_types::{canonical_bytes, pipeline_digest_bytes};
+use serde_json::json;
 use std::collections::BTreeSet;
 
 const QWEN2: &[u8] = br#"{
@@ -36,15 +37,42 @@ fn plan(config: &[u8]) -> DecoderPlan {
     .unwrap()
 }
 
+fn composition(verified: bool) -> Vec<u8> {
+    let mut pipeline = json!({
+        "components": {
+            "inference": {"component": "pllm/inference", "params": {}},
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/masked-linear", "params": {}},
+            "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+        },
+        "model": {"source": "model.fixture"}
+    });
+    if verified {
+        pipeline["components"]["verification"] = json!({
+            "component": "pllm/freivalds-verify/v1",
+            "params": {"target_failure_bits": 40}
+        });
+    }
+    canonical_bytes(&pipeline)
+}
+
+fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> {
+    lower_decoder_runtime_schedule(plan, &composition(false))
+}
+
 #[test]
 fn lowers_complete_prefill_and_decode_schedules() {
     let plan = plan(QWEN2);
-    let schedule = lower_decoder_runtime_schedule(&plan).unwrap();
+    let composition = composition(false);
+    let schedule = lower_decoder_runtime_schedule(&plan, &composition).unwrap();
     assert_eq!(
         schedule.schema_version,
         DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION
     );
-    assert_eq!(schedule.profile, MASKED_LINEAR_RUNTIME_PROFILE);
+    assert_eq!(
+        schedule.composition_digest,
+        pipeline_digest_bytes(&composition)
+    );
     assert_eq!(schedule.model_plan_digest, plan.digest());
     assert_eq!(schedule.model_config_digest, plan.config_digest);
     assert!(schedule.complete);
@@ -98,11 +126,11 @@ fn lowers_complete_prefill_and_decode_schedules() {
 
 #[test]
 fn schedules_multiple_dense_decoder_adapters_through_one_contract() {
-    let qwen2 = lower_decoder_runtime_schedule(&plan(QWEN2)).unwrap();
-    let qwen3 = lower_decoder_runtime_schedule(&plan(QWEN3)).unwrap();
+    let qwen2 = lower_schedule(&plan(QWEN2)).unwrap();
+    let qwen3 = lower_schedule(&plan(QWEN3)).unwrap();
 
     assert_eq!(qwen2.schema_version, qwen3.schema_version);
-    assert_eq!(qwen2.profile, qwen3.profile);
+    assert_eq!(qwen2.composition_digest, qwen3.composition_digest);
     for schedule in [&qwen2, &qwen3] {
         assert!(schedule.complete);
         assert_eq!(schedule.prefill.steps.len(), schedule.decode.steps.len());
@@ -113,12 +141,8 @@ fn schedules_multiple_dense_decoder_adapters_through_one_contract() {
 }
 
 #[test]
-fn verified_profile_requires_verifier_bound_execution_evidence() {
-    let error = lower_decoder_runtime_schedule_for_profile(
-        &plan(QWEN2),
-        VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE,
-    )
-    .unwrap_err();
+fn verified_composition_requires_verifier_bound_execution_evidence() {
+    let error = lower_decoder_runtime_schedule(&plan(QWEN2), &composition(true)).unwrap_err();
     assert!(error.contains("verifier-bound"));
 }
 
@@ -126,12 +150,12 @@ fn verified_profile_requires_verifier_bound_execution_evidence() {
 fn rejects_unimplemented_local_operator_capabilities() {
     let mut plan = plan(QWEN2);
     plan.prefill.operations[1].operator = ModelOperator::Scale;
-    assert!(lower_decoder_runtime_schedule(&plan).is_err());
+    assert!(lower_schedule(&plan).is_err());
 }
 
 #[test]
 fn fuses_remote_stages_with_deterministic_slices() {
-    let schedule = lower_decoder_runtime_schedule(&plan(QWEN2)).unwrap();
+    let schedule = lower_schedule(&plan(QWEN2)).unwrap();
     for phase in [&schedule.prefill, &schedule.decode] {
         let layer_zero: Vec<_> = phase
             .steps
@@ -170,16 +194,14 @@ fn fuses_remote_stages_with_deterministic_slices() {
         );
     }
     assert_eq!(
-        lower_decoder_runtime_schedule(&plan(QWEN2))
-            .unwrap()
-            .digest(),
+        lower_schedule(&plan(QWEN2)).unwrap().digest(),
         schedule.digest()
     );
 }
 
 #[test]
 fn includes_final_norm_head_and_decoder_tail() {
-    let schedule = lower_decoder_runtime_schedule(&plan(QWEN2)).unwrap();
+    let schedule = lower_schedule(&plan(QWEN2)).unwrap();
     for phase in [&schedule.prefill, &schedule.decode] {
         let final_norm = phase
             .steps
@@ -211,10 +233,15 @@ fn includes_final_norm_head_and_decoder_tail() {
 }
 
 #[test]
-fn baseline_coverage_is_complete_without_promoting_research_profile() {
+fn exact_composition_enables_complete_coverage_without_promoting_arbitrary_compositions() {
     let qwen = plan(QWEN2);
-    let baseline = pllm_compiler::decoder_coverage(&qwen, MASKED_LINEAR_RUNTIME_PROFILE);
+    let baseline_composition = composition(false);
+    let baseline = pllm_compiler::decoder_coverage(&qwen, Some(&baseline_composition)).unwrap();
     assert!(baseline.complete);
+    assert_eq!(
+        baseline.composition_digest,
+        Some(pipeline_digest_bytes(&baseline_composition))
+    );
     assert!(baseline.operators.iter().all(|row| {
         row.level == pllm_compiler::CapabilityLevel::ExecutableRegion && row.component.is_some()
     }));
@@ -225,17 +252,47 @@ fn baseline_coverage_is_complete_without_promoting_research_profile() {
                 .contains("client-local execution is outside provider protection")
     }));
 
-    let research = pllm_compiler::decoder_coverage(&qwen, "research.single_evaluator");
-    assert!(!research.complete);
-    assert!(research.operators.iter().all(|row| row
+    let arbitrary = canonical_bytes(&json!({
+        "components": {},
+        "model": {"source": "model.fixture"}
+    }));
+    let primitive = pllm_compiler::decoder_coverage(&qwen, Some(&arbitrary)).unwrap();
+    assert!(!primitive.complete);
+    assert!(primitive.operators.iter().all(|row| row
         .blocker
         .contains("whole-decoder scheduling is unavailable")));
-    assert!(pllm_compiler::decoder_coverage(&plan(QWEN3), MASKED_LINEAR_RUNTIME_PROFILE).complete);
+    assert!(lower_decoder_runtime_schedule(&qwen, &arbitrary)
+        .unwrap_err()
+        .contains("exact masked-linear component composition"));
+    assert!(pllm_compiler::decoder_coverage(&qwen, None)
+        .unwrap()
+        .operators
+        .iter()
+        .all(|row| row.level != pllm_compiler::CapabilityLevel::Missing));
+    assert!(
+        pllm_compiler::decoder_coverage(&plan(QWEN3), Some(&baseline_composition))
+            .unwrap()
+            .complete
+    );
+
+    let verified = pllm_compiler::decoder_coverage(&qwen, Some(&composition(true))).unwrap();
+    assert!(!verified.complete);
+    assert!(verified
+        .operators
+        .iter()
+        .all(|row| row.blocker.contains("verifier-bound execution evidence")));
+
+    let noncanonical = serde_json::to_vec_pretty(
+        &serde_json::from_slice::<serde_json::Value>(&baseline_composition).unwrap(),
+    )
+    .unwrap();
+    assert!(pllm_compiler::decoder_coverage(&qwen, Some(&noncanonical)).is_err());
+    assert!(lower_decoder_runtime_schedule(&qwen, &noncanonical).is_err());
 }
 
 #[test]
 fn accepts_supported_semantics_and_rejects_transformations_and_batches() {
-    assert!(lower_decoder_runtime_schedule(&plan(QWEN3)).is_ok());
+    assert!(lower_schedule(&plan(QWEN3)).is_ok());
     let batched = lower_model_json(
         QWEN2,
         DecoderWorkload {
@@ -245,8 +302,12 @@ fn accepts_supported_semantics_and_rejects_transformations_and_batches() {
         },
     )
     .unwrap();
-    assert!(lower_decoder_runtime_schedule(&batched).is_err());
-    assert!(!pllm_compiler::decoder_coverage(&batched, MASKED_LINEAR_RUNTIME_PROFILE).complete);
+    assert!(lower_schedule(&batched).is_err());
+    assert!(
+        !pllm_compiler::decoder_coverage(&batched, Some(&composition(false)))
+            .unwrap()
+            .complete
+    );
 
     let mut transformed = plan(QWEN2);
     transformed
@@ -258,7 +319,7 @@ fn accepts_supported_semantics_and_rejects_transformations_and_batches() {
             input_digest: transformed.digest(),
             configuration_digest: transformed.config_digest.clone(),
         });
-    assert!(lower_decoder_runtime_schedule(&transformed).is_err());
+    assert!(lower_schedule(&transformed).is_err());
 
     let mut reordered = plan(QWEN2);
     let query = reordered
@@ -288,5 +349,5 @@ fn accepts_supported_semantics_and_rejects_transformations_and_batches() {
         .unwrap();
     reordered.decode.operations.swap(query, key);
     assert!(reordered.validate().is_ok());
-    assert!(lower_decoder_runtime_schedule(&reordered).is_ok());
+    assert!(lower_schedule(&reordered).is_ok());
 }

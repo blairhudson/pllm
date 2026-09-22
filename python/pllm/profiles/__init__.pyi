@@ -13,6 +13,37 @@ from pllm.roles import InferenceRole
 from pllm.sources import ModelSource
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
+class RuntimeComposition:
+    privacy_mode: str
+    proprietary_protocol: str
+    requires_preparation: bool
+    correlation_mode: str
+    client_runtime: str
+    privacy_protocol: str | None
+    guard_max_rows_per_request: int
+    guard_max_rows_per_owner_stage: int
+    guard_max_requests_per_minute: int
+    output_dither_bound: int
+    verification_component: str | None
+    verification_target_failure_bits: int
+    def __init__(
+        self,
+        privacy_mode: str,
+        proprietary_protocol: str,
+        requires_preparation: bool,
+        correlation_mode: str,
+        client_runtime: str,
+        privacy_protocol: str | None,
+        guard_max_rows_per_request: int = ...,
+        guard_max_rows_per_owner_stage: int = ...,
+        guard_max_requests_per_minute: int = ...,
+        output_dither_bound: int = ...,
+        verification_component: str | None = ...,
+        verification_target_failure_bits: int = ...,
+    ) -> None: ...
+
+def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None: ...
+
 class MaskedLinearCpu(Pipeline):
     PROFILE: str
     def __init__(

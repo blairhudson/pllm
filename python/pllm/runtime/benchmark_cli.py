@@ -409,9 +409,9 @@ def _run_loopback_benchmark(
         if tiny:
             raise ValueError("Experiment pipelines cannot use the generated tiny model")
         experiment.resolve()
-        from pllm.profiles import _runtime_profile_options
+        from pllm.profiles import resolve_runtime_composition
 
-        runtime_options = _runtime_profile_options(experiment.pipeline)
+        runtime_options = resolve_runtime_composition(experiment.pipeline)
         if runtime_options is None:
             raise ValueError("Experiment profile is not supported by local benchmarking")
         if not runtime_options.requires_preparation:

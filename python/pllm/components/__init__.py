@@ -19,6 +19,7 @@ from pllm.metrics import (
     Throughput as _Throughput,
 )
 from pllm.nonlinear import (
+    ArithmeticGarblingSiluQ7 as _ArithmeticGarblingSiluQ7,
     BinaryTableGatedMultiplyQ7 as _BinaryTableGatedMultiplyQ7,
     R03CrtGatedMultiplyQ7 as _R03CrtGatedMultiplyQ7,
 )
@@ -38,6 +39,7 @@ from pllm.protocols import (
 )
 from pllm.roles import Inference as _Inference
 from pllm.schedulers import (
+    BoundedIndependentElementsProtectedTensorSchedule as _BoundedIndependentElementsProtectedTensorSchedule,
     ChunkedIndependentLanesProtectedTensorSchedule as _ChunkedIndependentLanesProtectedTensorSchedule,
     IndependentLanesProtectedTensorSchedule as _IndependentLanesProtectedTensorSchedule,
     ScalarProtectedTensorSchedule as _ScalarProtectedTensorSchedule,
@@ -51,9 +53,11 @@ if TYPE_CHECKING:
 
 _BUILTIN_CLASSES: tuple[type[ComponentRef], ...] = (
     _Accuracy,
+    _ArithmeticGarblingSiluQ7,
     _BFVCorrelations,
     _BinaryTableGatedMultiplyQ7,
     _BlindedLinear,
+    _BoundedIndependentElementsProtectedTensorSchedule,
     _ChunkedIndependentLanesProtectedTensorSchedule,
     _CleartextLinear,
     _ClientLocalKv,

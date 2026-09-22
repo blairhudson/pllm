@@ -5,12 +5,13 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::fmt;
 
-pub const LOGICAL_PLAN_SCHEMA_VERSION: &str = "pllm.logical_plan.v1";
+pub const LOGICAL_PLAN_SCHEMA_VERSION: &str = "pllm.logical_plan.v2";
 pub const EXECUTION_PLAN_SCHEMA_VERSION: &str = "pllm.execution_plan.v1";
 pub const PLAN_LOCK_SCHEMA_VERSION: &str = "pllm.plan_lock.v1";
 pub const ASSURANCE_RESULT_SCHEMA_VERSION: &str = "pllm.assurance_result.v1";
 pub const PRIVACY_CONTRACT_SCHEMA_VERSION: &str = "pllm.privacy_contract.v1";
-pub const LOCKED_CONTEXT_SCHEMA_VERSION: &str = "pllm.locked_context.v1";
+pub const LOCKED_CONTEXT_SCHEMA_VERSION: &str = "pllm.locked_context.v2";
+pub const PIPELINE_DIGEST_DOMAIN: &str = "pllm.pipeline.v2";
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Digest(String);
@@ -159,7 +160,7 @@ pub struct PrivacyContract {
 #[serde(deny_unknown_fields)]
 pub struct LockedContext {
     pub schema_version: String,
-    pub profile: String,
+    pub composition_digest: Digest,
     pub model: NamedDigest,
     pub tokenizer: NamedDigest,
     pub semantic_graph: NamedDigest,
@@ -181,7 +182,7 @@ pub struct LockedContext {
 pub struct LogicalPlan {
     pub schema_version: String,
     pub configuration_digest: Digest,
-    pub profile: String,
+    pub composition_digest: Digest,
     pub model: NamedDigest,
     pub tokenizer: NamedDigest,
     pub semantic_graph: NamedDigest,
@@ -299,6 +300,14 @@ pub fn configuration_digest_bytes(bytes: &[u8]) -> Digest {
     digest_bytes("pllm.configuration.v1", bytes)
 }
 
+pub fn pipeline_digest_bytes(bytes: &[u8]) -> Digest {
+    digest_bytes(PIPELINE_DIGEST_DOMAIN, bytes)
+}
+
+pub fn pipeline_digest<T: Serialize>(pipeline: &T) -> Digest {
+    canonical_digest(PIPELINE_DIGEST_DOMAIN, pipeline)
+}
+
 fn encode_digest(value: impl AsRef<[u8]>) -> Digest {
     let mut encoded = String::with_capacity(64);
     const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -407,7 +416,15 @@ mod tests {
         let bytes = canonical_bytes(&value);
         assert_eq!(
             configuration_digest_bytes(&bytes).as_str(),
-            "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
+            "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329"
+        );
+        assert_eq!(
+            pipeline_digest(&value["pipeline"]),
+            pipeline_digest_bytes(&canonical_bytes(&value["pipeline"]))
+        );
+        assert_eq!(
+            pipeline_digest(&value["pipeline"]).as_str(),
+            "b8531d93f0bdc4ca759981903aa67ccc726ff5652ba59c714af468b60593cd8c"
         );
     }
 }

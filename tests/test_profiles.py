@@ -11,7 +11,7 @@ from pllm.profiles import (
     VerifiedMaskedLinearCpu,
     ProprietaryBlinded,
     ProprietaryGuarded,
-    _runtime_profile_options,
+    resolve_runtime_composition,
 )
 from pllm.protocols import BlindedLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
 from pllm.roles import Inference
@@ -28,7 +28,6 @@ def test_masked_linear_cpu_has_typed_default_slots_and_resolves() -> None:
     assert isinstance(pipeline.inference, Inference)
     assert isinstance(pipeline.kernels, Cpu)
     assert pipeline.to_spec() == {
-        "profile": "baseline.masked_linear_cpu",
         "model": {"source": "org/model"},
         "components": {
             "linear": {"component": "pllm/masked-linear", "params": {}},
@@ -60,8 +59,8 @@ def test_verified_masked_profile_resolves_exact_verification_slot() -> None:
     assert pipeline.profile == "research.verified_masked_linear_cpu"
     assert pipeline.verification.target_failure_bits == 48
     restored = pllm.Pipeline.from_spec(pipeline.to_spec())
-    assert isinstance(restored, VerifiedMaskedLinearCpu)
-    options = _runtime_profile_options(restored)
+    assert type(restored) is pllm.Pipeline
+    options = resolve_runtime_composition(restored)
     assert options is not None
     assert options.verification_component == "pllm/freivalds-verify/v1"
     resolved = pllm.Experiment(
@@ -89,11 +88,12 @@ def test_profile_accepts_structural_model_sources() -> None:
     assert pipeline.model == pllm.Model("org/structural", model_id="structural")
 
 
-def test_pipeline_from_spec_promotes_exact_baseline_profile() -> None:
+def test_pipeline_from_spec_returns_canonical_generic_composition() -> None:
     original = MaskedLinearCpu(pllm.Model("org/model"), kernels=Cpu(threads=2))
     restored = pllm.Pipeline.from_spec(original.to_spec())
-    assert isinstance(restored, MaskedLinearCpu)
+    assert type(restored) is pllm.Pipeline
     assert restored == original
+    assert restored.digest() == original.digest()
 
     extended = original.to_spec()
     extended["components"]["candidate"] = {
@@ -183,9 +183,10 @@ def test_proprietary_profiles_round_trip_resolve_and_publish_runtime_contract(
     assert pipeline.linear.component == linear_id
     assert set(pipeline.components) == {"linear", "inference", "kernels"}
     restored = pllm.Pipeline.from_spec(pipeline.to_spec())
-    assert type(restored) is profile_type
+    assert type(restored) is pllm.Pipeline
     assert restored == pipeline
-    options = _runtime_profile_options(pipeline)
+    assert restored.digest() == pipeline.digest()
+    options = resolve_runtime_composition(pipeline)
     assert options is not None
     assert options.privacy_mode == "proprietary"
     assert options.proprietary_protocol == protocol
@@ -198,7 +199,8 @@ def test_proprietary_profiles_round_trip_resolve_and_publish_runtime_contract(
     )
     resolved = experiment.resolve()
     assert resolved.model == "runtime-model"
-    assert resolved.canonical_profile == pipeline.canonical_bytes()
+    assert resolved.canonical_composition == pipeline.canonical_bytes()
+    assert resolved.composition_digest == pipeline.digest()
     assert resolved.configuration_digest == experiment.configuration_digest()
     assert resolved.client_runtime == options.client_runtime
     assert resolved.privacy_protocol == options.privacy_protocol
@@ -213,7 +215,7 @@ def test_guarded_profile_binds_and_clones_guard_policy() -> None:
         linear__output_dither_bound=2,
     )
     assert isinstance(changed, ProprietaryGuarded)
-    options = _runtime_profile_options(changed)
+    options = resolve_runtime_composition(changed)
     assert options is not None
     assert options.guard_max_rows_per_request == 23
     assert options.guard_max_rows_per_owner_stage == 47
@@ -222,7 +224,7 @@ def test_guarded_profile_binds_and_clones_guard_policy() -> None:
     assert original.linear.params["max_rows_per_request"] == 4096
 
 
-def test_proprietary_profiles_reject_wrong_implementations_and_forged_generic_profiles() -> None:
+def test_proprietary_profiles_reject_wrong_implementations_and_accept_generic_compositions() -> None:
     model = pllm.Model("org/model")
     with pytest.raises(pllm.ConfigurationError, match="pllm/guarded-linear/v1"):
         ProprietaryGuarded(model, linear=BlindedLinear())
@@ -232,25 +234,35 @@ def test_proprietary_profiles_reject_wrong_implementations_and_forged_generic_pr
         DirectFHEProfile(model, linear=SecureLinear())
 
     valid = ProprietaryGuarded(model)
-    forged = pllm.Pipeline.from_profile(
-        valid.profile,
-        model=model,
-        components=valid.components,
-    )
+    generic = pllm.Pipeline(model=model, components=valid.components)
     experiment = pllm.Experiment(
-        name="forged",
-        pipeline=forged,
-        deployment=pllm.Deployment.local(root="local://forged"),
+        name="generic",
+        pipeline=generic,
+        deployment=pllm.Deployment.local(root="local://generic"),
         budget=pllm.ExecutionBudget(requests=1, max_input_tokens=1, max_new_tokens=1),
     )
-    with pytest.raises(pllm.ConfigurationError, match="typed component contract"):
-        experiment.resolve()
-    with pytest.raises(ValueError, match="does not support"):
-        build_roles(forged)
+    assert type(generic) is pllm.Pipeline
+    assert generic.digest() == valid.digest()
+    assert experiment.resolve().proprietary_protocol == "guarded"
+    topology = build_roles(generic)
+    topology.close()
+
+
+def test_generic_pipeline_rejects_invalid_builtin_component_parameters() -> None:
+    with pytest.raises(pllm.ConfigurationError, match="unknown fields"):
+        pllm.Pipeline.from_profile(
+            "authoring-label",
+            model=pllm.Model("org/model"),
+            components={
+                "linear": pllm.ComponentRef(
+                    "pllm/guarded-linear/v1", {"unexpected": True}
+                )
+            },
+        )
 
 
 def test_runtime_profile_matrix_keeps_unsupported_arms_out() -> None:
-    baseline = _runtime_profile_options(MaskedLinearCpu(pllm.Model("org/model")))
+    baseline = resolve_runtime_composition(MaskedLinearCpu(pllm.Model("org/model")))
     assert baseline is not None
     assert (
         baseline.privacy_mode,
@@ -262,11 +274,13 @@ def test_runtime_profile_matrix_keeps_unsupported_arms_out() -> None:
         True,
     )
     assert (
-        _runtime_profile_options(MaskedLinearCpu(pllm.Model("org/model"), linear=SecureLinear()))
+        resolve_runtime_composition(
+            MaskedLinearCpu(pllm.Model("org/model"), linear=SecureLinear())
+        )
         is None
     )
     assert (
-        _runtime_profile_options(
+        resolve_runtime_composition(
             MaskedLinearCpu(pllm.Model("org/model"), preparation=BFVCorrelations())
         )
         is None

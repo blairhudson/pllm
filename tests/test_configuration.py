@@ -36,6 +36,14 @@ PYTHON_EXAMPLE = ROOT / "examples/composition.py"
 FIRST_REQUEST_EXAMPLE = ROOT / "examples/first_request.py"
 
 
+def test_schema_ids_use_public_pllm_run_origin() -> None:
+    paths = list((ROOT / "schemas").glob("*.schema.json"))
+    paths.append(ROOT / "python/pllm/providers/provider-manifest.schema.json")
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        assert document["$id"].startswith("https://pllm.run/schemas/"), path
+
+
 def example() -> Experiment:
     return Experiment(
         name="qwen-local",
@@ -142,13 +150,12 @@ def test_canonical_bytes_and_digest_golden():
         b'"kernels":{"component":"pllm/cpu","params":{"threads":4}},'
         b'"linear":{"component":"pllm/masked-linear","params":{}},"preparation":'
         b'{"component":"pllm/model-aware-corrections","params":{}}},"model":'
-        b'{"source":"Qwen/Qwen2.5-0.5B-Instruct"},"profile":"baseline.masked_linear_cpu"},'
-        b'"schema":"pllm.experiment.v1"}'
+        b'{"source":"Qwen/Qwen2.5-0.5B-Instruct"}},"schema":"pllm.experiment.v2"}'
     )
     assert canonical_bytes(example()) == expected
     assert example().canonical_bytes() == expected
     assert configuration_digest(example()) == (
-        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
+        "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329"
     )
     assert (
         configuration_digest(example())
@@ -215,8 +222,8 @@ def test_get_params_and_with_params_are_nested_and_immutable():
 @pytest.mark.parametrize(
     "text, message",
     [
-        ("schema: pllm.experiment.v1\nschema: pllm.experiment.v1\n", "duplicate"),
-        ('{"schema":"pllm.experiment.v1","schema":"pllm.experiment.v1"}', "duplicate"),
+        ("schema: pllm.experiment.v2\nschema: pllm.experiment.v2\n", "duplicate"),
+        ('{"schema":"pllm.experiment.v2","schema":"pllm.experiment.v2"}', "duplicate"),
         ("schema: other.v1\n", "unknown fields|unsupported schema|missing fields"),
         (YAML_EXAMPLE.read_text() + "unknown: value\n", "unknown fields"),
         (YAML_EXAMPLE.read_text().replace("requests: 1", "requests: true"), "integer"),

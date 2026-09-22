@@ -582,7 +582,7 @@ fn plan_authentication_policy_rejects_before_relowering_or_core_work() {
 #[test]
 fn coverage_marks_valid_q10_descriptors_executable() {
     let decoder = plan(QWEN2, 1, 2, 2);
-    let coverage = decoder_coverage(&decoder, "research.single_evaluator");
+    let coverage = decoder_coverage(&decoder, None).unwrap();
     for (operator, component) in [
         (
             ModelOperator::RotaryEmbedding,
@@ -620,7 +620,7 @@ fn coverage_rejects_legacy_and_malformed_q10_descriptors() {
             .as_slice(),
     ] {
         let legacy = plan(config, 1, 2, 1);
-        let coverage = decoder_coverage(&legacy, "research.single_evaluator");
+        let coverage = decoder_coverage(&legacy, None).unwrap();
         for item in coverage.operators.iter().filter(|item| {
             matches!(
                 item.operator,
@@ -642,7 +642,7 @@ fn coverage_rejects_legacy_and_malformed_q10_descriptors() {
         .find(|operation| operation.operator == ModelOperator::RotaryEmbedding)
         .unwrap()
         .attributes["coefficient_profile"] = serde_json::json!("forged.profile");
-    let coverage = decoder_coverage(&malformed, "research.single_evaluator");
+    let coverage = decoder_coverage(&malformed, None).unwrap();
     let rope = coverage
         .operators
         .iter()
@@ -666,7 +666,7 @@ fn coverage_rejects_legacy_and_malformed_q10_descriptors() {
         u64::try_from(PROVENANCE_PRIMITIVE_HARD_MAX_ROPE_ELEMENTS / 8 + 1).unwrap(),
         1,
     );
-    let coverage = decoder_coverage(&oversized, "research.single_evaluator");
+    let coverage = decoder_coverage(&oversized, None).unwrap();
     let rope = coverage
         .operators
         .iter()

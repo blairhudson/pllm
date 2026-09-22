@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/model.schema.json",
+  "$id": "https://pllm.run/schemas/model.schema.json",
   "title": "PLLM model source",
   "type": "object",
   "additionalProperties": false,

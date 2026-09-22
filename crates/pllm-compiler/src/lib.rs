@@ -5,7 +5,7 @@ use pllm_models::{
 };
 use pllm_types::{
     assurance_result_digest, canonical_bytes, canonical_digest, configuration_digest_bytes,
-    digest_bytes, execution_plan_digest, logical_plan_digest, plan_lock_bytes,
+    digest_bytes, execution_plan_digest, logical_plan_digest, pipeline_digest, plan_lock_bytes,
     privacy_contract_digest, valid_identity, AssuranceResult, Digest, EvidenceReference,
     ExecutionPlan, LockedContext, LogicalPlan, NamedDigest, PlanLock, PrivacyContract,
     ResolvedComponent, RolePlanReference, VersionedArtifact, ASSURANCE_RESULT_SCHEMA_VERSION,
@@ -29,10 +29,9 @@ mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
 pub use decoder_runtime_schedule::{
-    lower_decoder_runtime_schedule, lower_decoder_runtime_schedule_for_profile,
-    DecoderRuntimeExecutor, DecoderRuntimeOutput, DecoderRuntimePhaseSchedule,
-    DecoderRuntimeSchedule, DecoderRuntimeStep, DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION,
-    MASKED_LINEAR_RUNTIME_PROFILE, VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE,
+    lower_decoder_runtime_schedule, DecoderRuntimeExecutor, DecoderRuntimeOutput,
+    DecoderRuntimePhaseSchedule, DecoderRuntimeSchedule, DecoderRuntimeStep,
+    DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION,
 };
 pub use dense_qwen_attention::{
     compile_dense_qwen_attention_block, execute_dense_qwen_attention_decode,
@@ -100,13 +99,12 @@ pub use rms_norm_stream_protected::{
 };
 
 pub const REGION_PROGRAM_SCHEMA_VERSION: &str = "pllm.region_program.v1";
-pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v1";
-pub const BASELINE_EXPERIMENT_PROFILE: &str = "baseline.masked_linear_cpu";
-pub const VERIFIED_MASKED_EXPERIMENT_PROFILE: &str = "research.verified_masked_linear_cpu";
-pub const SILU_Q7_EXPERIMENT_PROFILE: &str = "research.single_evaluator";
+pub const COMPILE_REQUEST_SCHEMA_VERSION: &str = "pllm.compile_request.v2";
 pub const SILU_Q7_NUMERIC_GRAPH_ID: &str = pllm_core::activation::SILU_QUADRATIC_Q7_PROFILE;
 pub const SILU_Q7_PROTECTED_GRAPH_ID: &str = "pllm.protected.arithmetic_garbling.silu_q7.v1";
 pub const SILU_Q7_METHOD_ID: &str = "arithmetic-garbling-silu-q7";
+pub const SILU_Q7_COMPONENT_ID: &str = "pllm/arithmetic-garbling-silu-q7/v1";
+pub const SILU_Q7_SCHEDULE_COMPONENT_ID: &str = "pllm/bounded-independent-elements/v1";
 pub const SILU_Q7_KERNEL_DESCRIPTOR_ID: &str = "pllm-garble-silu-quadratic-q7";
 pub const SILU_Q7_COMPILER_ID: &str = "pllm-compiler";
 pub const SILU_Q7_MAX_TENSOR_ELEMENTS: usize = 128;
@@ -116,7 +114,7 @@ pub const Q14_TO_Q7_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_region.v
 pub const Q14_TO_Q10_REGION_SCHEMA_VERSION: &str = "pllm.numeric.rescale_q14_to_q10_region.v1";
 pub const RMS_NORM_F32_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_f32_direct_region.v1";
 pub const RMS_NORM_Q10_DIRECT_REGION_SCHEMA_VERSION: &str = "pllm.rms_norm_q10_direct_region.v1";
-pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v2";
+pub const GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION: &str = "pllm.gated_multiply_q7_region.v3";
 pub const GATED_MULTIPLY_Q7_NUMERIC_GRAPH_ID: &str =
     pllm_core::fixed_point::GATED_MULTIPLY_Q7_PROFILE;
 pub const GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID: &str =
@@ -305,7 +303,8 @@ pub fn protected_rms_norm_q10_artifact_digest() -> Digest {
 
 #[derive(Serialize)]
 pub struct SiluQ7InstalledContract {
-    pub profile: &'static str,
+    pub component_id: &'static str,
+    pub schedule_component_id: &'static str,
     pub compiler_id: &'static str,
     pub compiler_version: &'static str,
     pub compiler_artifact_digest: Digest,
@@ -319,7 +318,8 @@ pub struct SiluQ7InstalledContract {
 
 pub fn silu_q7_installed_contract() -> SiluQ7InstalledContract {
     SiluQ7InstalledContract {
-        profile: SILU_Q7_EXPERIMENT_PROFILE,
+        component_id: SILU_Q7_COMPONENT_ID,
+        schedule_component_id: SILU_Q7_SCHEDULE_COMPONENT_ID,
         compiler_id: SILU_Q7_COMPILER_ID,
         compiler_version: env!("CARGO_PKG_VERSION"),
         compiler_artifact_digest: silu_q7_compiler_artifact_digest(),
@@ -389,7 +389,7 @@ pub struct OperatorCoverage {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DecoderCoverageReport {
     pub schema_version: String,
-    pub profile: String,
+    pub composition_digest: Option<Digest>,
     pub model_config_digest: Digest,
     pub complete: bool,
     pub operators: Vec<OperatorCoverage>,
@@ -411,9 +411,19 @@ fn model_gated_multiply_q7_chunked_executable(plan: &DecoderPlan, mode: DecoderM
     })
 }
 
-pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageReport {
-    let masked_runtime_complete = profile == MASKED_LINEAR_RUNTIME_PROFILE
-        && lower_decoder_runtime_schedule_for_profile(plan, profile).is_ok();
+pub fn decoder_coverage(
+    plan: &DecoderPlan,
+    canonical_composition: Option<&[u8]>,
+) -> Result<DecoderCoverageReport, String> {
+    let composition_kind = canonical_composition
+        .map(classify_decoder_composition)
+        .transpose()?
+        .unwrap_or(DecoderCompositionKind::Other);
+    let masked_runtime_complete = composition_kind == DecoderCompositionKind::MaskedLinear
+        && canonical_composition
+            .is_some_and(|composition| lower_decoder_runtime_schedule(plan, composition).is_ok());
+    let verified_runtime_unavailable =
+        composition_kind == DecoderCompositionKind::VerifiedMaskedLinear;
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
     for operation in plan
         .prefill
@@ -589,6 +599,9 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
                         _ => "scheduled client-local by the complete model-aware runtime; client-local execution is outside provider protection",
                     }
                     .to_owned()
+                } else if verified_runtime_unavailable {
+                    "verified masked-linear composition requires verifier-bound execution evidence; primitive and region coverage does not authorize whole-decoder execution"
+                        .to_owned()
                 } else if operator == ModelOperator::Linear {
                     "single semantic linear regions execute, but whole-decoder scheduling is unavailable"
                         .to_owned()
@@ -678,13 +691,13 @@ pub fn decoder_coverage(plan: &DecoderPlan, profile: &str) -> DecoderCoverageRep
             }
         })
         .collect();
-    DecoderCoverageReport {
-        schema_version: "pllm.decoder_coverage_report.v1".to_owned(),
-        profile: profile.to_owned(),
+    Ok(DecoderCoverageReport {
+        schema_version: "pllm.decoder_coverage_report.v2".to_owned(),
+        composition_digest: canonical_composition.map(pllm_types::pipeline_digest_bytes),
         model_config_digest: plan.config_digest.clone(),
         complete: masked_runtime_complete,
         operators,
-    }
+    })
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -997,7 +1010,6 @@ pub struct Q14ToQ10RescaleRegion {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ModelGatedMultiplyQ7Region {
     pub schema_version: String,
-    pub profile: String,
     pub model_plan_digest: Digest,
     pub mode: DecoderMode,
     pub layer: u64,
@@ -1123,7 +1135,6 @@ struct ExperimentDocument {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ExperimentPipeline {
-    profile: String,
     model: ExperimentModel,
     components: BTreeMap<String, ExperimentComponent>,
 }
@@ -1222,15 +1233,20 @@ struct ExperimentBudget {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ResolvedExperimentProfile {
-    canonical_profile: Vec<u8>,
+pub struct ResolvedExperimentComposition {
+    canonical_composition: Vec<u8>,
+    composition_digest: Digest,
     configuration_digest: Digest,
     model: String,
 }
 
-impl ResolvedExperimentProfile {
-    pub fn canonical_profile(&self) -> &[u8] {
-        &self.canonical_profile
+impl ResolvedExperimentComposition {
+    pub fn canonical_composition(&self) -> &[u8] {
+        &self.canonical_composition
+    }
+
+    pub fn composition_digest(&self) -> &Digest {
+        &self.composition_digest
     }
 
     pub fn configuration_digest(&self) -> &Digest {
@@ -1507,11 +1523,10 @@ fn document_error(message: impl Into<String>) -> Vec<Diagnostic> {
 }
 
 fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
-    if document.schema != "pllm.experiment.v1" {
-        return Err("configuration schema must be pllm.experiment.v1".into());
+    if document.schema != "pllm.experiment.v2" {
+        return Err("configuration schema must be pllm.experiment.v2".into());
     }
     if document.name.is_empty()
-        || document.pipeline.profile.is_empty()
         || document.pipeline.model.source.is_empty()
         || document.deployment.kind != "local"
         || document.deployment.root.is_empty()
@@ -1562,6 +1577,7 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             component.component.as_str(),
             GATED_MULTIPLY_Q7_BINARY_TABLE_COMPONENT_ID
                 | GATED_MULTIPLY_Q7_R03_CRT_COMPONENT_ID
+                | SILU_Q7_COMPONENT_ID
                 | GATED_MULTIPLY_Q7_SCALAR_SCHEDULE_COMPONENT_ID
         ) && !component.params.is_empty()
         {
@@ -1577,6 +1593,17 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             if component.params.len() != 1 || !matches!(max_elements, Some(2..=4)) {
                 return Err(format!(
                     "configuration component {slot} requires max_elements between 2 and 4"
+                ));
+            }
+        }
+        if component.component == SILU_Q7_SCHEDULE_COMPONENT_ID {
+            let max_elements = component
+                .params
+                .get("max_elements")
+                .and_then(serde_json::Value::as_u64);
+            if component.params.len() != 1 || !matches!(max_elements, Some(1..=128)) {
+                return Err(format!(
+                    "configuration component {slot} requires max_elements between 1 and 128"
                 ));
             }
         }
@@ -1596,28 +1623,85 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_masked_components(document: &ExperimentDocument) -> Result<(), String> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MaskedLinearComposition {
+    Baseline,
+    Verified,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DecoderCompositionKind {
+    MaskedLinear,
+    VerifiedMaskedLinear,
+    Other,
+}
+
+pub(crate) fn classify_decoder_composition(
+    canonical_composition: &[u8],
+) -> Result<DecoderCompositionKind, String> {
+    let pipeline: ExperimentPipeline = serde_json::from_slice(canonical_composition)
+        .map_err(|error| format!("invalid pipeline composition: {error}"))?;
+    if canonical_bytes(&pipeline) != canonical_composition {
+        return Err("pipeline composition must use canonical compact sorted JSON bytes".into());
+    }
+    validate_experiment_model(&pipeline.model)?;
+    Ok(match validate_masked_linear_composition(&pipeline) {
+        Ok(MaskedLinearComposition::Baseline) => DecoderCompositionKind::MaskedLinear,
+        Ok(MaskedLinearComposition::Verified) => DecoderCompositionKind::VerifiedMaskedLinear,
+        Err(_) => DecoderCompositionKind::Other,
+    })
+}
+
+fn validate_masked_linear_composition(
+    pipeline: &ExperimentPipeline,
+) -> Result<MaskedLinearComposition, String> {
+    validate_masked_linear_core(pipeline)?;
+    match pipeline.components.len() {
+        4 => Ok(MaskedLinearComposition::Baseline),
+        5 => {
+            let verification = pipeline.components.get("verification").ok_or_else(|| {
+                "unsupported masked-linear component composition; fifth slot must be verification"
+                    .to_string()
+            })?;
+            if verification.component != "pllm/freivalds-verify/v1" {
+                return Err(
+                    "verified masked-linear composition requires verification component pllm/freivalds-verify/v1"
+                        .into(),
+                );
+            }
+            let target = verification
+                .params
+                .get("target_failure_bits")
+                .and_then(serde_json::Value::as_u64);
+            if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
+                return Err(
+                    "Freivalds verification requires target_failure_bits from 1 to 80".into(),
+                );
+            }
+            Ok(MaskedLinearComposition::Verified)
+        }
+        _ => Err("unsupported masked-linear component composition; expected exact baseline four slots or verified five slots".into()),
+    }
+}
+
+fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), String> {
     for (slot, required) in [
         ("linear", "pllm/masked-linear"),
         ("preparation", "pllm/model-aware-corrections"),
         ("inference", "pllm/inference"),
     ] {
-        let component = document
-            .pipeline
-            .components
-            .get(slot)
-            .ok_or_else(|| format!("baseline profile requires {slot} component {required}"))?;
+        let component = pipeline.components.get(slot).ok_or_else(|| {
+            format!("masked-linear composition requires {slot} component {required}")
+        })?;
         if component.component != required || !component.params.is_empty() {
             return Err(format!(
-                "baseline profile requires {slot} component {required} with no parameters"
+                "masked-linear composition requires {slot} component {required} with no parameters"
             ));
         }
     }
-    let kernels = document
-        .pipeline
-        .components
-        .get("kernels")
-        .ok_or_else(|| "baseline profile requires kernels component pllm/cpu".to_string())?;
+    let kernels = pipeline.components.get("kernels").ok_or_else(|| {
+        "masked-linear composition requires kernels component pllm/cpu".to_string()
+    })?;
     if kernels.component != "pllm/cpu"
         || kernels.params.len() != 1
         || kernels
@@ -1627,14 +1711,56 @@ fn validate_masked_components(document: &ExperimentDocument) -> Result<(), Strin
             .is_none_or(|threads| threads == 0)
     {
         return Err(
-            "baseline profile requires kernels component pllm/cpu with positive integer threads"
+            "masked-linear composition requires kernels component pllm/cpu with positive integer threads"
                 .into(),
         );
     }
     Ok(())
 }
 
-pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentProfile, String> {
+fn validate_silu_q7_composition(pipeline: &ExperimentPipeline) -> Result<u64, String> {
+    validate_masked_linear_core(pipeline)?;
+    if pipeline.components.len() != 6 {
+        return Err(
+            "Q7 SiLU composition requires exact masked-linear core, nonlinear, and nonlinear_schedule slots"
+                .into(),
+        );
+    }
+    let nonlinear = pipeline.components.get("nonlinear").ok_or_else(|| {
+        format!("Q7 SiLU composition requires nonlinear component {SILU_Q7_COMPONENT_ID}")
+    })?;
+    if nonlinear.component != SILU_Q7_COMPONENT_ID || !nonlinear.params.is_empty() {
+        return Err(format!(
+            "Q7 SiLU composition requires nonlinear component {SILU_Q7_COMPONENT_ID} with no parameters"
+        ));
+    }
+    let schedule = pipeline
+        .components
+        .get("nonlinear_schedule")
+        .ok_or_else(|| {
+            "Q7 SiLU composition requires nonlinear_schedule component pllm/bounded-independent-elements/v1"
+                .to_string()
+        })?;
+    if schedule.component != SILU_Q7_SCHEDULE_COMPONENT_ID {
+        return Err(
+            "Q7 SiLU composition requires nonlinear_schedule component pllm/bounded-independent-elements/v1"
+                .into(),
+        );
+    }
+    let max_elements = schedule
+        .params
+        .get("max_elements")
+        .and_then(serde_json::Value::as_u64);
+    if schedule.params.len() != 1 || !matches!(max_elements, Some(1..=128)) {
+        return Err(
+            "Q7 SiLU bounded-independent-elements schedule requires max_elements between 1 and 128"
+                .into(),
+        );
+    }
+    Ok(max_elements.expect("validated max_elements"))
+}
+
+pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentComposition, String> {
     let document: ExperimentDocument = serde_json::from_slice(bytes)
         .map_err(|error| format!("invalid Experiment document: {error}"))?;
     if canonical_bytes(&document) != bytes {
@@ -1642,52 +1768,12 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentProfile, Str
     }
     validate_experiment(&document)?;
     validate_experiment_model(&document.pipeline.model)?;
-    if !matches!(
-        document.pipeline.profile.as_str(),
-        BASELINE_EXPERIMENT_PROFILE | VERIFIED_MASKED_EXPERIMENT_PROFILE
-    ) {
-        return Err(format!(
-            "unsupported Experiment profile {:?}",
-            document.pipeline.profile
-        ));
-    }
-    validate_masked_components(&document)?;
-    let expected_components = if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
-        4
-    } else {
-        5
-    };
-    if document.pipeline.components.len() != expected_components {
-        return Err(
-            if document.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
-                "baseline profile requires exactly linear, preparation, inference, and kernels components"
-                .into()
-            } else {
-                "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
-                .into()
-            },
-        );
-    }
-    if document.pipeline.profile == VERIFIED_MASKED_EXPERIMENT_PROFILE {
-        let verification = document
-            .pipeline
-            .components
-            .get("verification")
-            .ok_or_else(|| "verified profile requires a verification component".to_string())?;
-        if verification.component != "pllm/freivalds-verify/v1" {
-            return Err("verified profile requires pllm/freivalds-verify/v1".into());
-        }
-        let target = verification
-            .params
-            .get("target_failure_bits")
-            .and_then(serde_json::Value::as_u64);
-        if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
-            return Err("Freivalds verification requires target_failure_bits from 1 to 80".into());
-        }
-    }
+    validate_masked_linear_composition(&document.pipeline)?;
+    let canonical_composition = canonical_bytes(&document.pipeline);
 
-    Ok(ResolvedExperimentProfile {
-        canonical_profile: canonical_bytes(&document.pipeline),
+    Ok(ResolvedExperimentComposition {
+        composition_digest: pipeline_digest(&document.pipeline),
+        canonical_composition,
         configuration_digest: configuration_digest_bytes(bytes),
         model: document.pipeline.model.source,
     })
@@ -1724,26 +1810,18 @@ fn valid_named(value: &NamedDigest) -> bool {
 fn validate_configuration_json(
     bytes: &[u8],
     declared_digest: &Digest,
-) -> Result<serde_json::Value, String> {
-    let value: serde_json::Value =
+) -> Result<ExperimentDocument, String> {
+    let document: ExperimentDocument =
         serde_json::from_slice(bytes).map_err(|_| "configuration JSON is invalid")?;
-    if canonical_bytes(&value) != bytes {
+    if canonical_bytes(&document) != bytes {
         return Err("configuration JSON is not canonical".into());
     }
-    if value.get("schema").and_then(serde_json::Value::as_str) != Some("pllm.experiment.v1") {
-        return Err("configuration schema must be pllm.experiment.v1".into());
-    }
+    validate_experiment(&document)?;
+    validate_experiment_model(&document.pipeline.model)?;
     if configuration_digest_bytes(bytes) != *declared_digest {
         return Err("configuration digest does not match canonical Experiment bytes".into());
     }
-    Ok(value)
-}
-
-fn configuration_profile(value: &serde_json::Value) -> Option<&str> {
-    value
-        .pointer("/pipeline/profile")
-        .or_else(|| value.get("profile"))
-        .and_then(serde_json::Value::as_str)
+    Ok(document)
 }
 
 fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
@@ -1756,11 +1834,44 @@ fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
             message,
         )),
         Ok(configuration) => {
-            if configuration_profile(&configuration) != Some(context.profile.as_str()) {
+            let uses_silu = request
+                .operations
+                .iter()
+                .any(|operation| operation.operator == Operator::Silu);
+            let composition = if uses_silu {
+                validate_silu_q7_composition(&configuration.pipeline).map(|max_elements| {
+                    for operation in request
+                        .operations
+                        .iter()
+                        .filter(|operation| operation.operator == Operator::Silu)
+                    {
+                        let elements = operation.output.shape.iter().copied().product::<u64>();
+                        if elements > max_elements {
+                            diagnostics.push(diagnostic(
+                                DiagnosticCode::InvalidContext,
+                                "configuration.pipeline.components.nonlinear_schedule",
+                                format!(
+                                    "Q7 SiLU region requires {elements} elements but the composed schedule permits {max_elements}"
+                                ),
+                            ));
+                        }
+                    }
+                })
+            } else {
+                validate_masked_linear_composition(&configuration.pipeline).map(|_| ())
+            };
+            if let Err(message) = composition {
                 diagnostics.push(diagnostic(
                     DiagnosticCode::InvalidContext,
-                    "configuration.profile",
-                    "configuration profile does not match locked context",
+                    "configuration.pipeline.components",
+                    message,
+                ));
+            }
+            if pipeline_digest(&configuration.pipeline) != context.composition_digest {
+                diagnostics.push(diagnostic(
+                    DiagnosticCode::InvalidContext,
+                    "configuration.pipeline",
+                    "configuration pipeline digest does not match locked context composition",
                 ));
             }
         }
@@ -1769,7 +1880,7 @@ fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
         diagnostics.push(diagnostic(
             DiagnosticCode::InvalidContext,
             "locked_context",
-            "schema_version must be pllm.locked_context.v1",
+            format!("schema_version must be {LOCKED_CONTEXT_SCHEMA_VERSION}"),
         ));
     }
     let graphs = region_graph_digests(
@@ -1789,8 +1900,7 @@ fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
             "semantic, numeric, or protected graph digest does not match region intent",
         ));
     }
-    if !valid_identity(&context.profile)
-        || !valid_named(&context.model)
+    if !valid_named(&context.model)
         || !valid_named(&context.tokenizer)
         || !valid_named(&context.semantic_graph)
         || !valid_named(&context.numeric_graph)
@@ -2170,45 +2280,15 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
     }
     validate_experiment(&document.configuration).map_err(document_error)?;
     validate_experiment_model(&document.configuration.pipeline.model).map_err(document_error)?;
-    if matches!(
-        document.configuration.pipeline.profile.as_str(),
-        BASELINE_EXPERIMENT_PROFILE | VERIFIED_MASKED_EXPERIMENT_PROFILE
-    ) {
-        validate_masked_components(&document.configuration).map_err(document_error)?;
-        let expected = if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE {
-            4
-        } else {
-            5
-        };
-        if document.configuration.pipeline.components.len() != expected {
-            let message = if document.configuration.pipeline.profile == BASELINE_EXPERIMENT_PROFILE
-            {
-                "baseline profile requires exactly linear, preparation, inference, and kernels components"
-            } else {
-                "verified profile requires exactly linear, preparation, inference, kernels, and verification components"
-            };
-            return Err(document_error(message));
-        }
-        if document.configuration.pipeline.profile == VERIFIED_MASKED_EXPERIMENT_PROFILE {
-            let verification = document
-                .configuration
-                .pipeline
-                .components
-                .get("verification")
-                .ok_or_else(|| document_error("verified profile requires verification"))?;
-            if verification.component != "pllm/freivalds-verify/v1" {
-                return Err(document_error(
-                    "verified profile requires pllm/freivalds-verify/v1",
-                ));
-            }
-            let target = verification
-                .params
-                .get("target_failure_bits")
-                .and_then(serde_json::Value::as_u64);
-            if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
-                return Err(document_error("invalid Freivalds verification parameters"));
-            }
-        }
+    if document
+        .operations
+        .iter()
+        .any(|operation| operation.operator == Operator::Silu)
+    {
+        validate_silu_q7_composition(&document.configuration.pipeline).map_err(document_error)?;
+    } else {
+        validate_masked_linear_composition(&document.configuration.pipeline)
+            .map_err(document_error)?;
     }
     if canonical_bytes(&document) != bytes {
         return Err(document_error(
@@ -2224,13 +2304,6 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
         .operations
         .iter()
         .any(|operation| operation.operator == Operator::Silu);
-    if has_silu && request.context.profile != SILU_Q7_EXPERIMENT_PROFILE {
-        diagnostics.push(diagnostic(
-            DiagnosticCode::InvalidContext,
-            "configuration.profile",
-            format!("Q7 SiLU requires profile {SILU_Q7_EXPERIMENT_PROFILE}"),
-        ));
-    }
     let mut operation_ids = BTreeMap::new();
     let mut method_ids = BTreeMap::new();
     let mut kernel_ids = BTreeMap::new();
@@ -2476,7 +2549,7 @@ pub fn compile(request: &CompileRequest) -> Result<CompiledPlan, Vec<Diagnostic>
     let logical = LogicalPlan {
         schema_version: LOGICAL_PLAN_SCHEMA_VERSION.into(),
         configuration_digest: request.configuration_digest.clone(),
-        profile: request.context.profile.clone(),
+        composition_digest: request.context.composition_digest.clone(),
         model: request.context.model.clone(),
         tokenizer: request.context.tokenizer.clone(),
         semantic_graph: request.context.semantic_graph.clone(),
@@ -2835,8 +2908,8 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
     let region = &compiled.region_program;
     let configuration =
         validate_configuration_json(&compiled.configuration_json, &logical.configuration_digest)?;
-    if configuration_profile(&configuration) != Some(logical.profile.as_str()) {
-        return Err("configuration profile does not match canonical plan".into());
+    if pipeline_digest(&configuration.pipeline) != logical.composition_digest {
+        return Err("configuration pipeline digest does not match canonical plan".into());
     }
     if logical.schema_version != LOGICAL_PLAN_SCHEMA_VERSION
         || execution.schema_version != EXECUTION_PLAN_SCHEMA_VERSION
@@ -2847,7 +2920,6 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
     if logical.roles.is_empty()
         || !sorted_unique(&logical.roles)
         || !sorted_unique(&logical.required_claim_ids)
-        || !valid_identity(&logical.profile)
         || !valid_named(&logical.model)
         || !valid_named(&logical.tokenizer)
         || !valid_named(&logical.semantic_graph)
@@ -2863,7 +2935,7 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
     }
     let context = &compiled.locked_context;
     if context.schema_version != LOCKED_CONTEXT_SCHEMA_VERSION
-        || logical.profile != context.profile
+        || logical.composition_digest != context.composition_digest
         || logical.model != context.model
         || logical.tokenizer != context.tokenizer
         || logical.semantic_graph != context.semantic_graph
@@ -2913,11 +2985,6 @@ fn verify_compiled_plan(compiled: &CompiledPlan) -> Result<(), String> {
         let [step] = region.steps.as_slice() else {
             return Err("the Q7 SiLU executor supports only a singleton region".into());
         };
-        if logical.profile != SILU_Q7_EXPERIMENT_PROFILE {
-            return Err(format!(
-                "Q7 SiLU requires profile {SILU_Q7_EXPERIMENT_PROFILE}"
-            ));
-        }
         if logical.numeric_graph.id != SILU_Q7_NUMERIC_GRAPH_ID
             || logical.protected_graph.id != SILU_Q7_PROTECTED_GRAPH_ID
         {
@@ -5278,7 +5345,6 @@ pub fn lower_model_gated_multiply_q7_regions_with_components(
         };
         let region = ModelGatedMultiplyQ7Region {
             schema_version: GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION.into(),
-            profile: SILU_Q7_EXPERIMENT_PROFILE.into(),
             model_plan_digest: plan.digest(),
             mode,
             layer,
@@ -5342,7 +5408,6 @@ fn validate_model_gated_multiply_q7_region(
         region.max_tensor_elements,
     )?;
     if region.schema_version != GATED_MULTIPLY_Q7_REGION_SCHEMA_VERSION
-        || region.profile != SILU_Q7_EXPERIMENT_PROFILE
         || !valid_identity(&region.gate_linear_operation_id)
         || !valid_identity(&region.silu_operation_id)
         || !valid_identity(&region.up_linear_operation_id)

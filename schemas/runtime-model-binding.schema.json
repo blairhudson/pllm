@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/runtime-model-binding.schema.json",
+  "$id": "https://pllm.run/schemas/runtime-model-binding.schema.json",
   "title": "PLLM runtime model binding",
   "type": "object",
   "additionalProperties": false,

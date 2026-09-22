@@ -24,6 +24,7 @@ from pllm.metrics import (
     Throughput,
 )
 from pllm.nonlinear import (
+    ArithmeticGarblingSiluQ7,
     BinaryTableGatedMultiplyQ7,
     NonlinearProtocol,
     R03CrtGatedMultiplyQ7,
@@ -46,6 +47,7 @@ from pllm.protocols import (
 )
 from pllm.roles import Inference, InferenceRole
 from pllm.schedulers import (
+    BoundedIndependentElementsProtectedTensorSchedule,
     ChunkedIndependentLanesProtectedTensorSchedule,
     IndependentLanesProtectedTensorSchedule,
     ProtectedScheduler,
@@ -59,9 +61,11 @@ from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationSche
 def _instances():
     return (
         Accuracy(dataset="fixture"),
+        ArithmeticGarblingSiluQ7(),
         BFVCorrelations(),
         BinaryTableGatedMultiplyQ7(),
         BlindedLinear(),
+        BoundedIndependentElementsProtectedTensorSchedule(),
         ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
         CleartextLinear(),
         ClientLocalKv(),
@@ -118,10 +122,9 @@ def test_builtin_registry_is_derived_from_family_classes() -> None:
 def test_all_registered_classes_round_trip_through_experiment_configuration() -> None:
     instances = _instances()
     experiment = pllm.Experiment.from_spec({
-        "schema": "pllm.experiment.v1",
+        "schema": "pllm.experiment.v2",
         "name": "all-components",
         "pipeline": {
-            "profile": "registry.roundtrip",
             "model": {"source": "org/model"},
             "components": {
                 f"slot-{index}": instance.to_spec()

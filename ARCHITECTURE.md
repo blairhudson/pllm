@@ -97,8 +97,8 @@ prefill-to-decode functionality test; a separate tiny test exercises the masked
 stage protocol. Gemma 4 semantic plans enter the same compiler scheduler but fail
 closed on local operators that the compiled runtime has not implemented.
 
-This baseline does not promote `research.single_evaluator`. The fixed-Q10 research
-path has executable regions for the dense gated-decoder operators, graph-derived
+There is no `research.single_evaluator` profile. The fixed-Q10 research path is an
+ordinary component composition with executable regions for dense gated-decoder operators, graph-derived
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
 composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,

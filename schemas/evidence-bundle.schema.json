@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/evidence-bundle.schema.json",
+  "$id": "https://pllm.run/schemas/evidence-bundle.schema.json",
   "title": "PLLM evidence bundle v1",
   "type": "object",
   "additionalProperties": false,

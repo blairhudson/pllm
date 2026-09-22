@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/privacy-contract.schema.json",
+  "$id": "https://pllm.run/schemas/privacy-contract.schema.json",
   "title": "PLLM privacy contract v1",
   "type": "object",
   "additionalProperties": false,

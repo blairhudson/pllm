@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/compile-request.schema.json",
-  "title": "PLLM canonical compile request v1",
+  "$id": "https://pllm.run/schemas/compile-request.schema.json",
+  "title": "PLLM canonical compile request v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "configuration", "context", "privacy_contract", "input", "input_representation", "output", "output_representation", "operations", "methods", "kernels", "assurance_results", "candidate_evidence"],
   "properties": {
-    "schema_version": {"const": "pllm.compile_request.v1"},
+    "schema_version": {"const": "pllm.compile_request.v2"},
     "configuration": {"$ref": "experiment.schema.json"},
     "context": {"$ref": "locked-context.schema.json"},
     "privacy_contract": {"$ref": "privacy-contract.schema.json"},

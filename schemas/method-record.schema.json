@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/method-record.schema.json",
+  "$id": "https://pllm.run/schemas/method-record.schema.json",
   "title": "PLLM method record v1",
   "type": "object",
   "additionalProperties": false,
@@ -33,6 +33,6 @@
         "promotion": {"enum": ["unchecked", "passed", "failed", "blocked", "not_applicable"]}
       }
     },
-    "eligible_profiles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+    "eligible_components": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
   }
 }

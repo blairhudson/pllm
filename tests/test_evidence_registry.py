@@ -119,7 +119,7 @@ def test_metric_components_are_typed_registered_and_immutable() -> None:
         Perplexity(dataset="fixture"),
         Cost(),
     )
-    assert len(list_component_classes()) == 29
+    assert len(list_component_classes()) == 31
     for metric in metrics:
         assert get(metric.component) is type(metric)
         assert metric.describe().category == "pllm/benchmark-metric"

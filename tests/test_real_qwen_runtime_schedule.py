@@ -10,6 +10,7 @@ import pytest
 
 import pllm
 from pllm.runtime.model_binding import compile_runtime_model
+from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
 from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -31,8 +32,9 @@ def test_real_qwen_checkpoint_binds_and_executes_complete_schedule() -> None:
     asyncio.run(engine.load(manifest))
     bundle = ClientBundle.unpack(engine.client_bundle(model_id))
     plan = pllm.lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=2)
-    schedule = plan.runtime_schedule()
-    compiled = compile_runtime_model(plan, bundle)
+    composition = MaskedLinearCpu(pllm.Model(model_id))
+    schedule = plan.runtime_schedule(composition)
+    compiled = compile_runtime_model(plan, bundle, composition)
     model = engine.models[model_id]
 
     def remote(stage_id: str, activation: np.ndarray) -> np.ndarray:
@@ -67,8 +69,8 @@ def test_real_qwen_checkpoint_binds_and_executes_complete_schedule() -> None:
     assert session.position == len(prompt_ids) + 1
     assert len(manifest.checkpoint_digest or "") == 64
     assert len(manifest.source_lock_digest or "") == 64
-    assert plan.coverage("baseline.masked_linear_cpu").complete is True
-    assert plan.coverage("research.single_evaluator").complete is False
+    assert plan.coverage(composition).complete is True
+    assert plan.coverage(VerifiedMaskedLinearCpu(pllm.Model(model_id))).complete is False
     assert schedule.complete is True
     assert schedule.protected_execution is False
     assert schedule.digest == compiled.runtime_schedule_digest

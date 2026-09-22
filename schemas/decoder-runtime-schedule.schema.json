@@ -1,15 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/decoder-runtime-schedule.schema.json",
+  "$id": "https://pllm.run/schemas/decoder-runtime-schedule.schema.json",
   "title": "PLLM decoder runtime schedule",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "profile", "model_plan_digest", "model_config_digest", "prefill", "decode", "protected_execution", "complete"],
+  "required": ["schema_version", "composition_digest", "model_plan_digest", "model_config_digest", "prefill", "decode", "protected_execution", "complete"],
   "properties": {
-    "schema_version": {"const": "pllm.decoder_runtime_schedule.v1"},
-    "profile": {
-      "enum": ["baseline.masked_linear_cpu", "research.verified_masked_linear_cpu"]
-    },
+    "schema_version": {"const": "pllm.decoder_runtime_schedule.v2"},
+    "composition_digest": {"$ref": "#/$defs/digest"},
     "model_plan_digest": {"$ref": "#/$defs/digest"},
     "model_config_digest": {"$ref": "#/$defs/digest"},
     "prefill": {"$ref": "#/$defs/phase"},

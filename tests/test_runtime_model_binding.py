@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 import pllm
 from pllm.modeling import ModelPlan
+from pllm.profiles import MaskedLinearCpu
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import (
     CompiledRuntimeModel,
@@ -22,6 +23,10 @@ from pllm.runtime.models import ModelManifest, transformer_stage_plan
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+
+def _composition(model_id: str = "tiny-binding") -> MaskedLinearCpu:
+    return MaskedLinearCpu(pllm.Model(model_id))
 
 
 def _bundle(path: Path, *, model_id: str = "tiny-binding", **checkpoint):
@@ -205,7 +210,7 @@ def test_compiled_binding_uses_same_path_for_qwen3(tmp_path: Path):
     plan = _plan(config)
 
     assert plan.to_dict()["adapter"] == "pllm.qwen3.v1"
-    assert plan.coverage("baseline.masked_linear_cpu").complete is True
+    assert plan.coverage(_composition(bundle.model_id)).complete is True
     compiled = compile_runtime_model(plan, bundle)
     assert compiled.complete is True
     assert compiled.to_spec()["model_family"] == "qwen3"
@@ -438,7 +443,7 @@ def test_completeness_scope_and_private_constructor(tmp_path: Path):
     assert compiled.completeness_scope == "runtime_binding"
     assert compiled.to_spec()["completeness_scope"] == "runtime_binding"
     assert plan.coverage().complete is False
-    assert plan.coverage("baseline.masked_linear_cpu").complete is True
+    assert plan.coverage(_composition(bundle.model_id)).complete is True
 
     message = "CompiledRuntimeModel must be created by compile_runtime_model"
     with pytest.raises(RuntimeBindingError, match=message):
@@ -653,6 +658,9 @@ def test_qwen3_runtime_knobs_are_bound_to_semantic_topology(tmp_path: Path):
 
 
 def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path: Path):
+    from pllm.profiles import VerifiedMaskedLinearCpu
+    from pllm.verification import FreivaldsVerify
+
     root = create_tiny_llama_checkpoint(tmp_path / "verified-model")
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     manifest = load_hf_directory(root, model_id="verified-model")
@@ -664,12 +672,16 @@ def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path:
     asyncio.run(engine.load(manifest))
     verified = ClientBundle.unpack(engine.client_bundle("verified-model"))
     plan = _plan(config)
+    composition = VerifiedMaskedLinearCpu(
+        pllm.Model("verified-model"),
+        verification=FreivaldsVerify(target_failure_bits=40),
+    )
 
     with pytest.raises(RuntimeBindingError, match="verifier-bound remote executor"):
         compile_runtime_model(
             plan,
             verified,
-            runtime_profile="research.verified_masked_linear_cpu",
+            composition=composition,
         )
 
     _, baseline, _ = _bundle(tmp_path, model_id="baseline-model")
@@ -677,7 +689,6 @@ def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path:
         baseline,
         privacy={
             **baseline.privacy,
-            "runtime_profile": "research.verified_masked_linear_cpu",
             "verification_component": "pllm/freivalds-verify/v1",
             "verification_target_failure_bits": 40,
         },
@@ -686,7 +697,7 @@ def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path:
         compile_runtime_model(
             plan,
             forged,
-            runtime_profile="research.verified_masked_linear_cpu",
+            composition=composition,
         )
 
 
@@ -926,7 +937,9 @@ def test_runtime_config_and_tokenizer_digests(tmp_path: Path):
     assert len(compiled.tokenizer_digest) == 64
     assert spec["runtime_config_digest"] == compiled.runtime_config_digest
     assert spec["runtime_schedule_digest"] == compiled.runtime_schedule_digest
-    assert compiled.runtime_schedule_digest == plan.runtime_schedule().digest
+    assert compiled.runtime_schedule_digest == plan.runtime_schedule(
+        _composition(bundle.model_id)
+    ).digest
     assert spec["tokenizer_digest"] == compiled.tokenizer_digest
     serialized = json.dumps(spec)
     assert "chat_template" not in serialized

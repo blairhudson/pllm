@@ -895,14 +895,18 @@ impl SiluQ7Evaluator {
 }
 
 #[pyclass(frozen, module = "pllm._native")]
-struct ResolvedExperimentProfile {
-    inner: pllm_compiler::ResolvedExperimentProfile,
+struct ResolvedExperimentComposition {
+    inner: pllm_compiler::ResolvedExperimentComposition,
 }
 #[pymethods]
-impl ResolvedExperimentProfile {
+impl ResolvedExperimentComposition {
     #[getter]
-    fn canonical_profile<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, self.inner.canonical_profile())
+    fn canonical_composition<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.inner.canonical_composition())
+    }
+    #[getter]
+    fn composition_digest(&self) -> String {
+        self.inner.composition_digest().to_string()
     }
     #[getter]
     fn configuration_digest(&self) -> String {
@@ -1062,8 +1066,8 @@ fn silu_q7_contract(py: Python<'_>) -> PyResult<Bound<'_, PyBytes>> {
 }
 
 #[pyfunction]
-fn resolve_experiment(document: &Bound<'_, PyBytes>) -> PyResult<ResolvedExperimentProfile> {
-    Ok(ResolvedExperimentProfile {
+fn resolve_experiment(document: &Bound<'_, PyBytes>) -> PyResult<ResolvedExperimentComposition> {
+    Ok(ResolvedExperimentComposition {
         inner: pllm_compiler::resolve_experiment(document.as_bytes()).map_err(invalid)?,
     })
 }
@@ -1099,15 +1103,19 @@ fn lower_model<'py>(
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&plan)))
 }
 
-#[pyfunction]
+#[pyfunction(signature = (plan, composition = None))]
 fn decoder_coverage<'py>(
     py: Python<'py>,
     plan: &Bound<'_, PyBytes>,
-    profile: &str,
+    composition: Option<&Bound<'_, PyBytes>>,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
         .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
-    let report = pllm_compiler::decoder_coverage(&plan, profile);
+    let report = pllm_compiler::decoder_coverage(
+        &plan,
+        composition.map(|composition| composition.as_bytes()),
+    )
+    .map_err(invalid)?;
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&report)))
 }
 
@@ -1115,20 +1123,11 @@ fn decoder_coverage<'py>(
 fn decoder_runtime_schedule<'py>(
     py: Python<'py>,
     plan: &Bound<'_, PyBytes>,
-    profile: &str,
+    composition: &Bound<'_, PyBytes>,
 ) -> PyResult<(Bound<'py, PyBytes>, String)> {
-    if !matches!(
-        profile,
-        pllm_compiler::MASKED_LINEAR_RUNTIME_PROFILE
-            | pllm_compiler::VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE
-    ) {
-        return Err(invalid(format!(
-            "unsupported decoder runtime schedule profile {profile:?}"
-        )));
-    }
     let plan: pllm_models::DecoderPlan = serde_json::from_slice(plan.as_bytes())
         .map_err(|error| invalid(format!("invalid decoder model plan: {error}")))?;
-    let schedule = pllm_compiler::lower_decoder_runtime_schedule_for_profile(&plan, profile)
+    let schedule = pllm_compiler::lower_decoder_runtime_schedule(&plan, composition.as_bytes())
         .map_err(invalid)?;
     let digest = schedule.digest().to_string();
     Ok((
@@ -1201,7 +1200,7 @@ fn apply_model_component<'py>(
         .remove("implementation")
         .and_then(|value| value.as_str().map(str::to_owned))
         .ok_or_else(|| invalid("KV-cache eviction requires implementation".to_owned()))?;
-    if implementation != "pllm/mpcache/v1" {
+    if implementation != "pllm/importance-kv-cache-eviction/v1" {
         return Err(invalid(format!(
             "unsupported KV-cache eviction implementation {implementation:?}"
         )));
@@ -1563,7 +1562,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Matrix>()?;
     module.add_class::<CompiledPlan>()?;
-    module.add_class::<ResolvedExperimentProfile>()?;
+    module.add_class::<ResolvedExperimentComposition>()?;
     module.add_class::<GarbledSiluQ7Material>()?;
     module.add_class::<SiluQ7Evaluator>()?;
     module.add_class::<GatedMultiplyQ7Region>()?;

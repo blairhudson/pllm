@@ -491,11 +491,6 @@ class MaskedTransformerEngine:
                 "privacy_protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
                 "verification_component": self.verification_component,
                 "verification_target_failure_bits": self.verification_target_failure_bits,
-                "runtime_profile": (
-                    "research.verified_masked_linear_cpu"
-                    if self.verification_component == "pllm/freivalds-verify/v1"
-                    else "baseline.masked_linear_cpu"
-                ),
                 "online_fhe": False,
                 "preprocessed": True,
                 "model_weight_correlations_disclosed": True,
@@ -1444,11 +1439,6 @@ class MaskedTransformerEngine:
                     "activation_bits": self.activation_bits,
                     "verification_component": self.verification_component,
                     "verification_target_failure_bits": self.verification_target_failure_bits,
-                    "runtime_profile": (
-                        "research.verified_masked_linear_cpu"
-                        if self.verification_component != "none"
-                        else "baseline.masked_linear_cpu"
-                    ),
                 },
             },
             use_bin_type=True,

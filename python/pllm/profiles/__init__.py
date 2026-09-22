@@ -285,7 +285,7 @@ class DirectFHEProfile(_TypedPipeline):
 
 
 @dataclass(frozen=True, slots=True)
-class _RuntimeProfileOptions:
+class RuntimeComposition:
     privacy_mode: str
     proprietary_protocol: str
     requires_preparation: bool
@@ -300,11 +300,17 @@ class _RuntimeProfileOptions:
     verification_target_failure_bits: int = 0
 
 
-def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | None:
+def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
-    if isinstance(pipeline, VerifiedMaskedLinearCpu):
+    if identities == {
+        "linear": "pllm/masked-linear",
+        "preparation": "pllm/model-aware-corrections",
+        "inference": "pllm/inference",
+        "kernels": "pllm/cpu",
+        "verification": "pllm/freivalds-verify/v1",
+    }:
         expected = {
             "linear": "pllm/masked-linear",
             "preparation": "pllm/model-aware-corrections",
@@ -319,7 +325,7 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             or set(verification.params) != {"target_failure_bits"}
         ):
             return None
-        return _RuntimeProfileOptions(
+        return RuntimeComposition(
             privacy_mode="public",
             proprietary_protocol="guarded",
             requires_preparation=True,
@@ -330,8 +336,7 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             verification_target_failure_bits=verification.params["target_failure_bits"],
         )
     if (
-        isinstance(pipeline, MaskedLinearCpu)
-        and identities
+        identities
         == {
             "linear": "pllm/masked-linear",
             "preparation": "pllm/model-aware-corrections",
@@ -339,26 +344,25 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             "kernels": "pllm/cpu",
         }
         and kernels_valid
-        and not pipeline.linear.params
-        and not pipeline.preparation.params
-        and not pipeline.inference.params
+        and not pipeline.components["linear"].params
+        and not pipeline.components["preparation"].params
+        and not pipeline.components["inference"].params
     ):
-        return _RuntimeProfileOptions(
+        return RuntimeComposition(
             "public", "guarded", True, "bfv", "masked_transformer_v1", None
         )
     if (
-        isinstance(pipeline, ProprietaryGuarded)
-        and identities
+        identities
         == {
             "linear": "pllm/guarded-linear/v1",
             "inference": "pllm/inference",
             "kernels": "pllm/cpu",
         }
         and kernels_valid
-        and not pipeline.inference.params
+        and not pipeline.components["inference"].params
     ):
-        params = pipeline.linear.params
-        return _RuntimeProfileOptions(
+        params = pipeline.components["linear"].params
+        return RuntimeComposition(
             "proprietary",
             "guarded",
             False,
@@ -371,18 +375,17 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             output_dither_bound=params["output_dither_bound"],
         )
     if (
-        isinstance(pipeline, ProprietaryBlinded)
-        and identities
+        identities
         == {
             "linear": "pllm/blinded-linear/v1",
             "inference": "pllm/inference",
             "kernels": "pllm/cpu",
         }
         and kernels_valid
-        and not pipeline.linear.params
-        and not pipeline.inference.params
+        and not pipeline.components["linear"].params
+        and not pipeline.components["inference"].params
     ):
-        return _RuntimeProfileOptions(
+        return RuntimeComposition(
             "proprietary",
             "blinded",
             False,
@@ -391,18 +394,17 @@ def _runtime_profile_options(pipeline: Pipeline) -> _RuntimeProfileOptions | Non
             "blinded_ole_w4a4",
         )
     if (
-        isinstance(pipeline, DirectFHEProfile)
-        and identities
+        identities
         == {
             "linear": "pllm/direct-fhe",
             "inference": "pllm/inference",
             "kernels": "pllm/cpu",
         }
         and kernels_valid
-        and not pipeline.linear.params
-        and not pipeline.inference.params
+        and not pipeline.components["linear"].params
+        and not pipeline.components["inference"].params
     ):
-        return _RuntimeProfileOptions(
+        return RuntimeComposition(
             "proprietary",
             "direct",
             False,

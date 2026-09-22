@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/decoder-plan.schema.json",
+  "$id": "https://pllm.run/schemas/decoder-plan.schema.json",
   "title": "PLLM decoder model plan",
   "type": "object",
   "additionalProperties": false,

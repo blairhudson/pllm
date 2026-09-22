@@ -1,13 +1,12 @@
-use pllm_compiler::{resolve_experiment, BASELINE_EXPERIMENT_PROFILE};
-use pllm_types::{canonical_bytes, configuration_digest_bytes};
+use pllm_compiler::resolve_experiment;
+use pllm_types::{canonical_bytes, configuration_digest_bytes, pipeline_digest};
 use serde_json::{json, Value};
 
 fn experiment() -> Value {
     json!({
-        "schema": "pllm.experiment.v1",
+        "schema": "pllm.experiment.v2",
         "name": "baseline",
         "pipeline": {
-            "profile": BASELINE_EXPERIMENT_PROFILE,
             "model": {"source": "model-a"},
             "components": {
                 "inference": {"component": "pllm/inference", "params": {}},
@@ -25,15 +24,19 @@ fn experiment() -> Value {
 }
 
 #[test]
-fn resolves_canonical_baseline_profile_and_identity() {
+fn resolves_canonical_baseline_composition_and_identity() {
     let value = experiment();
     let bytes = canonical_bytes(&value);
     let resolved = resolve_experiment(&bytes).unwrap();
 
     assert_eq!(resolved.model(), "model-a");
     assert_eq!(
-        resolved.canonical_profile(),
+        resolved.canonical_composition(),
         canonical_bytes(&value["pipeline"])
+    );
+    assert_eq!(
+        resolved.composition_digest(),
+        &pipeline_digest(&value["pipeline"])
     );
     assert_eq!(
         resolved.configuration_digest(),
@@ -50,10 +53,10 @@ fn rejects_noncanonical_or_unsupported_experiments() {
         .contains("canonical compact sorted JSON"));
 
     let mut unsupported = value;
-    unsupported["pipeline"]["profile"] = json!("research.single_evaluator");
+    unsupported["pipeline"]["profile"] = json!("legacy.selector");
     assert!(resolve_experiment(&canonical_bytes(&unsupported))
         .unwrap_err()
-        .contains("unsupported Experiment profile"));
+        .contains("unknown field `profile`"));
 }
 
 #[test]
@@ -103,7 +106,7 @@ fn validates_and_rejects_unexecuted_gated_component_selections() {
     });
     assert!(resolve_experiment(&canonical_bytes(&unused))
         .unwrap_err()
-        .contains("baseline profile requires exactly"));
+        .contains("unsupported masked-linear component composition"));
 
     unused["pipeline"]["components"]["nonlinear_schedule"] = json!({
         "component": "pllm/chunked-independent-lanes/v1",
@@ -111,7 +114,7 @@ fn validates_and_rejects_unexecuted_gated_component_selections() {
     });
     assert!(resolve_experiment(&canonical_bytes(&unused))
         .unwrap_err()
-        .contains("baseline profile requires exactly"));
+        .contains("unsupported masked-linear component composition"));
 
     unused["pipeline"]["components"]["nonlinear_schedule"]["params"]["max_elements"] =
         json!(4_000_001);
@@ -126,7 +129,7 @@ fn validates_and_rejects_unexecuted_gated_component_selections() {
     });
     assert!(resolve_experiment(&canonical_bytes(&unknown))
         .unwrap_err()
-        .contains("baseline profile requires exactly"));
+        .contains("unsupported masked-linear component composition"));
 
     let mut duplicate = experiment();
     duplicate["pipeline"]["components"]["duplicate"] = json!({
@@ -135,5 +138,20 @@ fn validates_and_rejects_unexecuted_gated_component_selections() {
     });
     assert!(resolve_experiment(&canonical_bytes(&duplicate))
         .unwrap_err()
-        .contains("baseline profile requires exactly"));
+        .contains("unsupported masked-linear component composition"));
+}
+
+#[test]
+fn resolves_only_exact_verified_composition_with_bounded_freivalds_parameters() {
+    let mut verified = experiment();
+    verified["pipeline"]["components"]["verification"] = json!({
+        "component": "pllm/freivalds-verify/v1",
+        "params": {"target_failure_bits": 40}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&verified)).is_ok());
+
+    verified["pipeline"]["components"]["verification"]["params"]["target_failure_bits"] = json!(81);
+    assert!(resolve_experiment(&canonical_bytes(&verified))
+        .unwrap_err()
+        .contains("target_failure_bits from 1 to 80"));
 }

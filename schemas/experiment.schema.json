@@ -1,19 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/experiment.schema.json",
-  "title": "PLLM experiment v1",
+  "$id": "https://pllm.run/schemas/experiment.schema.json",
+  "title": "PLLM experiment v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "name", "pipeline", "deployment", "budget"],
   "properties": {
-    "schema": {"const": "pllm.experiment.v1"},
+    "schema": {"const": "pllm.experiment.v2"},
     "name": {"type": "string", "minLength": 1},
     "pipeline": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profile", "model", "components"],
+      "required": ["model", "components"],
       "properties": {
-        "profile": {"type": "string", "minLength": 1},
         "model": {
           "type": "object",
           "additionalProperties": false,
@@ -110,12 +109,30 @@
           "if": {
             "properties": {
               "component": {
-                "enum": ["pllm/masked-linear", "pllm/model-aware-corrections"]
+                "enum": ["pllm/masked-linear", "pllm/model-aware-corrections", "pllm/inference"]
               }
             },
             "required": ["component"]
           },
           "then": {"properties": {"params": {"maxProperties": 0}}}
+        },
+        {
+          "if": {
+            "properties": {"component": {"const": "pllm/freivalds-verify/v1"}},
+            "required": ["component"]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["target_failure_bits"],
+                "properties": {
+                  "target_failure_bits": {"type": "integer", "minimum": 1, "maximum": 80}
+                }
+              }
+            }
+          }
         }
       ]
     }

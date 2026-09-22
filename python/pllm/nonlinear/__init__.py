@@ -13,6 +13,33 @@ class NonlinearProtocol(ComponentRef, ABC):
     def describe(cls) -> ComponentDescriptor: ...
 
 
+class ArithmeticGarblingSiluQ7(NonlinearProtocol):
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/arithmetic-garbling-silu-q7/v1",
+        provider="pllm",
+        distribution="pllm",
+        version="1",
+        category="pllm/nonlinear-protocol",
+        category_version="1",
+        lifecycle_phase="runtime",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("protected-silu-q7",),
+        required_host_features=("native-core",),
+        role_eligibility=("client", "inference"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class BinaryTableGatedMultiplyQ7(NonlinearProtocol):
     """Binary-table implementation of protected Q7 ``SiLU(gate) * up``."""
 
@@ -72,6 +99,7 @@ class R03CrtGatedMultiplyQ7(NonlinearProtocol):
 
 
 __all__ = [
+    "ArithmeticGarblingSiluQ7",
     "BinaryTableGatedMultiplyQ7",
     "NonlinearProtocol",
     "R03CrtGatedMultiplyQ7",

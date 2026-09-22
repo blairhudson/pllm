@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/execution-plan.schema.json",
+  "$id": "https://pllm.run/schemas/execution-plan.schema.json",
   "title": "PLLM execution plan v1",
   "type": "object",
   "additionalProperties": false,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/measurement.schema.json",
+  "$id": "https://pllm.run/schemas/measurement.schema.json",
   "title": "PLLM measurement v1",
   "type": "object",
   "additionalProperties": false,

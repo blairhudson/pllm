@@ -3,7 +3,7 @@
 Canonical schemas use JSON Schema draft 2020-12 and distinct stable `$id` values. They describe
 public records only. Live runtime, session, secret, and prepared-material handles are never JSON.
 
-`experiment.schema.json` matches production `pllm.experiment.v1`. Plan schemas define accepted 0.1
+`experiment.schema.json` matches production `pllm.experiment.v2`. Plan schemas define accepted 0.1
 architecture contracts; their presence does not claim compiler implementation. Evidence schemas
 keep measurements and scoped assurance outcomes separate from claims.
 

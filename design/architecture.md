@@ -53,17 +53,20 @@ rotary variants, shared KV, recurrent matrices, and convolution state lower into
 Nemotron, Kimi, GLM, and future adapters extend typed operator vocabulary when required instead of
 forking model-specific compiler pipelines.
 
-## Profiles
+## Component compositions
 
-Profiles are versioned, strict bundles of topology, operation coverage, numeric policy, permitted
-representations, conversions, implementation eligibility, and evidence requirements.
+Canonical pipeline identity is the normalized model plus typed component slots. Preset classes are
+only ergonomic constructors and optional display labels; compiler and runtime admission never
+dispatch on a profile name or Python class. Each component declares its topology, operation
+coverage, numeric policy, representations, conversions, implementation eligibility, lifecycle,
+and evidence requirements.
 
-- `baseline.masked_linear_cpu` preserves the client-heavy masked-linear integration target. It
-  is not a thin-client claim and requires its recovered numeric lock before reproduction claims.
-- `research.single_evaluator` targets minimal Client work, model-aware offline Preparation, and
-  one online encoded evaluator. It fails until attention, normalization, nonlinearities,
-  rescaling, state, selection, sampling, and feedback are covered.
-- BFV/FHE, two-online-worker, and attested plaintext designs are explicit comparison profiles only.
+- `MaskedLinearCpu` constructs the client-heavy masked-linear integration composition. It is not a
+  thin-client claim and requires its recovered numeric lock before reproduction claims.
+- Protected execution is assembled from ordinary nonlinear, scheduler, representation,
+  conversion, state, protocol, and placement components. Incomplete whole-model compositions fail
+  closed rather than being represented by a special `research.single_evaluator` profile.
+- BFV/FHE, two-online-worker, and attested plaintext designs remain explicit component choices.
 
 Local co-location simulates roles but does not establish administrative non-collusion. Deployment
 changes placement, not protocol, numeric, or privacy choices.

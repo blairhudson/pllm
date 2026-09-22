@@ -412,7 +412,7 @@ PASS_EXAMPLE = _example(
     """
     import pllm.passes as passes
     cache = passes.KvCacheEviction(cluster_sizes=(32, 16), share_adjacent_layers=True)
-    assert cache.get_params()["implementation"] == "pllm/mpcache/v1"
+    assert cache.get_params()["implementation"] == "pllm/importance-kv-cache-eviction/v1"
     """
 )
 

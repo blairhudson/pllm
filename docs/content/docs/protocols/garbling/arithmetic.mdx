@@ -11,8 +11,8 @@ not wrappers around its implementation.
 
 Reference exhaustive correctness, tamper rejection, plan commitments, and one-use
 process-local issuance checks establish implementation behavior only. The compiler
-can select the exact `research.single_evaluator` profile; the
-baseline profile cannot activate it. Cryptographic review, cross-process or durable
+authorizes the bounded primitive from explicit nonlinear and protected-scheduler
+components; baseline masked-linear components cannot activate it. Cryptographic review, cross-process or durable
 replay protection, complete-model coverage, and deployment assurance are not
 recorded.
 
@@ -27,14 +27,17 @@ API: [Nonlinear objects and signatures](/sdk/reference/python/pllm/nonlinear/#ob
 ## Python SDK example
 
 ```python
-from pllm.nonlinear import R03CrtGatedMultiplyQ7
-from pllm.schedulers import ScalarProtectedTensorSchedule
+from pllm.nonlinear import ArithmeticGarblingSiluQ7
+from pllm.schedulers import BoundedIndependentElementsProtectedTensorSchedule
 
-method = R03CrtGatedMultiplyQ7()
-schedule = ScalarProtectedTensorSchedule()
+method = ArithmeticGarblingSiluQ7()
+schedule = BoundedIndependentElementsProtectedTensorSchedule(max_elements=128)
 
-assert method.to_spec() == {"component": "pllm/r03-crt/v1", "params": {}}
-assert schedule.component == "pllm/scalar/v1"
+assert method.to_spec() == {
+    "component": "pllm/arithmetic-garbling-silu-q7/v1",
+    "params": {},
+}
+assert schedule.component == "pllm/bounded-independent-elements/v1"
 ```
 
 These are immutable compilation choices. They do not expose or execute one-use

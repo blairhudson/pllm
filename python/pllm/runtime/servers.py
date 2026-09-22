@@ -633,15 +633,15 @@ def build_roles(
         pipeline = experiment.pipeline
     elif isinstance(model, Pipeline):
         pipeline = model
-    from pllm.profiles import _RuntimeProfileOptions, _runtime_profile_options
+    from pllm.profiles import RuntimeComposition, resolve_runtime_composition
 
-    runtime_options = _RuntimeProfileOptions(
+    runtime_options = RuntimeComposition(
         "public", "guarded", True, "bfv", "masked_transformer_v1", None
     )
     if pipeline is not None:
-        resolved_options = _runtime_profile_options(pipeline)
+        resolved_options = resolve_runtime_composition(pipeline)
         if resolved_options is None:
-            raise ValueError("local topology does not support this pipeline profile")
+            raise ValueError("local topology does not support this component composition")
         runtime_options = resolved_options
         kernels = pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":

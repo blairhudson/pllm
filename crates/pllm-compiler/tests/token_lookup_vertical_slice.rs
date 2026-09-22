@@ -127,7 +127,7 @@ fn rejects_out_of_range_tokens_and_forged_regions() {
 #[test]
 fn reports_token_lookup_as_executable_region() {
     let plan = qwen_plan();
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let row = coverage
         .operators
         .iter()
@@ -189,7 +189,7 @@ fn gemma_per_layer_lookup_stays_primitive() {
     )
     .unwrap();
     assert!(lower_model_token_lookup_q10_regions(&gemma, DecoderMode::Prefill).is_err());
-    let coverage = decoder_coverage(&gemma, "research.single_evaluator");
+    let coverage = decoder_coverage(&gemma, None).unwrap();
     let row = coverage
         .operators
         .iter()

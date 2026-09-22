@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/provider-manifest.schema.json",
+  "$id": "https://pllm.run/schemas/provider-manifest.schema.json",
   "title": "PLLM provider manifest",
   "type": "object",
   "required": [

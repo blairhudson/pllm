@@ -1,7 +1,6 @@
-schema: pllm.experiment.v1
+schema: pllm.experiment.v2
 name: qwen-prepared-cpu-4
 pipeline:
-  profile: baseline.masked_linear_cpu
   model:
     source: Qwen/Qwen2.5-0.5B-Instruct
   components:

@@ -152,9 +152,11 @@ fn composes_with_mpcache_per_query_head_windows() {
     let plan = qwen_plan();
     let base =
         lower_model_attention_values_q10_regions(&plan, DecoderMode::Decode).unwrap()[0].clone();
-    let optimized =
-        pllm_models::cache::optimize(&plan, pllm_models::cache::MpcachePolicy::paper_profile())
-            .unwrap();
+    let optimized = pllm_models::cache::optimize(
+        &plan,
+        pllm_models::cache::MpcachePolicy::r23_reference_policy(),
+    )
+    .unwrap();
     let regions =
         lower_model_attention_values_q10_regions(&optimized, DecoderMode::Decode).unwrap();
     assert_eq!(regions.len(), 1);
@@ -182,7 +184,7 @@ fn composes_with_mpcache_per_query_head_windows() {
 #[test]
 fn reports_attention_values_as_executable_region() {
     let plan = qwen_plan();
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let row = coverage
         .operators
         .iter()
@@ -227,12 +229,12 @@ fn rejects_tampered_attention_values_plans() {
 
     let mut tampered = pllm_models::cache::optimize(
         &qwen_plan(),
-        pllm_models::cache::MpcachePolicy::paper_profile(),
+        pllm_models::cache::MpcachePolicy::r23_reference_policy(),
     )
     .unwrap();
     operation_mut(
         &mut tampered.decode,
-        "method.mpcache.layer.0.dynamic_value_gather",
+        "method.kv_cache_eviction.layer.0.dynamic_value_gather",
     )
     .state_kind = Some(StateKind::Key);
     assert!(lower_model_attention_values_q10_regions(&tampered, DecoderMode::Decode).is_err());

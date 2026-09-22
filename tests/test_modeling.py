@@ -94,17 +94,20 @@ def test_model_lowering_is_complete_immutable_and_deterministic() -> None:
 
 def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
     plan = pllm.lower_model(CONFIG, batch=1, max_input_tokens=128, max_new_tokens=32)
-    coverage = plan.coverage("baseline.masked_linear_cpu")
+    from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
+
+    composition = MaskedLinearCpu(pllm.Model("org/model"))
+    coverage = plan.coverage(composition)
     assert coverage.complete is True
     assert all(row["level"] == "executable_region" for row in coverage.operators)
-    assert plan.coverage("research.single_evaluator").complete is False
+    assert plan.coverage(VerifiedMaskedLinearCpu(pllm.Model("org/model"))).complete is False
 
-    schedule = plan.runtime_schedule()
-    repeated = plan.runtime_schedule("baseline.masked_linear_cpu")
+    schedule = plan.runtime_schedule(composition)
+    repeated = plan.runtime_schedule(composition)
     assert isinstance(schedule, pllm.DecoderRuntimeSchedule)
     assert schedule.complete is True
     assert schedule.protected_execution is False
-    assert schedule.profile == "baseline.masked_linear_cpu"
+    assert schedule.composition_digest == composition.digest()
     assert schedule.digest == repeated.digest
     assert schedule.canonical_bytes() == repeated.canonical_bytes()
     document = schedule.to_dict()
@@ -131,12 +134,12 @@ def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
         assert remote[-1]["weight_ids"] == ["model.embed_tokens.weight"]
         assert document[phase]["steps"][-1]["operation_ids"] == ["token_feedback"]
 
-    with pytest.raises(ValueError, match="unsupported decoder runtime schedule profile"):
-        plan.runtime_schedule("research.single_evaluator")
+    with pytest.raises(ValueError, match="verifier-bound execution"):
+        plan.runtime_schedule(VerifiedMaskedLinearCpu(pllm.Model("org/model")))
     batched = pllm.lower_model(CONFIG, batch=2, max_input_tokens=8, max_new_tokens=2)
-    assert batched.coverage("baseline.masked_linear_cpu").complete is False
+    assert batched.coverage(composition).complete is False
     with pytest.raises(ValueError, match="requires batch one"):
-        batched.runtime_schedule()
+        batched.runtime_schedule(composition)
 
 
 def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
@@ -149,7 +152,7 @@ def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
     assert base_document["transformations"] == []
     transformation = document["transformations"][-1]
     assert transformation["component"] == "pllm/kv-cache-eviction"
-    assert transformation["implementation"] == "pllm/mpcache/v1"
+    assert transformation["implementation"] == "pllm/importance-kv-cache-eviction/v1"
     assert transformation["method_id"] == "R23"
     assert transformation["input_digest"] == base.digest
     assert optimized.digest != base.digest
@@ -198,15 +201,17 @@ def test_model_component_transforms_generic_decoder_plan_immutably() -> None:
     }
     scores = decode_operations["layer.0.attention_scores"]
     mask = decode_operations["layer.0.causal_mask"]
-    assert scores["inputs"][1] == "method.mpcache.layer.0.dynamic_key_gather"
+    assert scores["inputs"][1] == "method.kv_cache_eviction.layer.0.dynamic_key_gather"
     assert scores["output_shape"][-1] < base_document["decode"]["maximum_key_sequence"]
-    assert mask["inputs"][2] == "method.mpcache.layer.0.selected_positions"
+    assert mask["inputs"][2] == "method.kv_cache_eviction.layer.0.selected_positions"
 
     levels = {row["operator"]: row["level"] for row in optimized.coverage().operators}
     assert levels["cache_active_indices"] == "missing"
-    assert optimized.coverage("baseline.masked_linear_cpu").complete is False
+    from pllm.profiles import MaskedLinearCpu
+
+    assert optimized.coverage(MaskedLinearCpu(pllm.Model("org/model"))).complete is False
     with pytest.raises(ValueError, match="does not support transformed plans"):
-        optimized.runtime_schedule()
+        optimized.runtime_schedule(MaskedLinearCpu(pllm.Model("org/model")))
     schema = json.loads(Path("schemas/decoder-plan.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator(schema).validate(document)
 

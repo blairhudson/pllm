@@ -60,10 +60,9 @@ def _report(*, full: float = 4.0) -> dict[str, object]:
 def _experiment(name: str, threads: int) -> Experiment:
     return Experiment.from_spec(
         {
-            "schema": "pllm.experiment.v1",
+            "schema": "pllm.experiment.v2",
             "name": name,
             "pipeline": {
-                "profile": "baseline.masked_linear_cpu",
                 "model": {"source": "Qwen/Qwen2.5-0.5B-Instruct"},
                 "components": {
                     "inference": {"component": "pllm/inference", "params": {}},

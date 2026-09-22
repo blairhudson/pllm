@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import msgpack
 import numpy as np
 
+from pllm.configuration import Model, Pipeline
 from pllm.modeling import ModelPlan, lower_model
 from pllm.runtime.quantization import (
     choose_plain_modulus,
@@ -85,7 +86,7 @@ class CompiledRuntimeModel:
         "_fingerprint",
         "_local_operations",
         "_runtime_config_digest",
-        "_runtime_profile",
+        "_canonical_composition",
         "_runtime_schedule_digest",
         "_stage_routes",
         "_stages",
@@ -107,7 +108,7 @@ class CompiledRuntimeModel:
         stages: tuple[RuntimeStageBinding, ...],
         local_operations: tuple[str, ...],
         runtime_config_digest: str,
-        runtime_profile: str,
+        canonical_composition: bytes,
         runtime_schedule_digest: str,
         stage_routes: dict[str, str],
         tokenizer_digest: str,
@@ -121,7 +122,7 @@ class CompiledRuntimeModel:
         self._stages = stages
         self._local_operations = local_operations
         self._runtime_config_digest = runtime_config_digest
-        self._runtime_profile = runtime_profile
+        self._canonical_composition = canonical_composition
         self._runtime_schedule_digest = runtime_schedule_digest
         self._stage_routes = dict(stage_routes)
         self._tokenizer_digest = tokenizer_digest
@@ -177,7 +178,7 @@ class CompiledRuntimeModel:
         refreshed = compile_runtime_model(
             self._plan,
             self._bundle,
-            runtime_profile=self._runtime_profile,
+            composition=Pipeline.from_spec(json.loads(self._canonical_composition)),
         )
         if refreshed.digest != self._digest or refreshed.to_spec() != self.to_spec():
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
@@ -606,18 +607,30 @@ def compile_runtime_model(
     plan: ModelPlan,
     bundle: ClientBundle,
     *,
-    runtime_profile: str = "baseline.masked_linear_cpu",
+    composition: Pipeline | None = None,
 ) -> CompiledRuntimeModel:
     if type(plan) is not ModelPlan:
         raise RuntimeBindingError("plan must be a ModelPlan")
     if type(bundle) is not ClientBundle:
         raise RuntimeBindingError("bundle must be a ClientBundle")
-    if runtime_profile != "baseline.masked_linear_cpu":
+    if composition is None:
+        from pllm.profiles import MaskedLinearCpu
+
+        composition = MaskedLinearCpu(Model(bundle.model_id))
+    if type(composition) is not Pipeline and not isinstance(composition, Pipeline):
+        raise RuntimeBindingError("composition must be a Pipeline")
+    from pllm.profiles import resolve_runtime_composition
+
+    runtime_options = resolve_runtime_composition(composition)
+    if runtime_options is None or not runtime_options.requires_preparation:
+        raise RuntimeBindingError("compiled runtime component composition is unsupported")
+    if runtime_options.verification_component is not None:
         raise RuntimeBindingError(
             "compiled runtime does not yet accept a verifier-bound remote executor"
         )
+    canonical_composition = composition.canonical_bytes()
     try:
-        plan.coverage()
+        plan.coverage(composition)
     except Exception as exc:
         raise RuntimeBindingError("native model plan validation failed") from exc
     document = plan.to_dict()
@@ -675,7 +688,7 @@ def compile_runtime_model(
     if reconstructed.to_dict().get("config_digest") != document.get("config_digest"):
         raise RuntimeBindingError("client bundle config digest does not match the plan")
     try:
-        runtime_schedule = plan.runtime_schedule(runtime_profile)
+        runtime_schedule = plan.runtime_schedule(composition)
     except Exception as exc:
         raise RuntimeBindingError("native whole-decoder runtime scheduling failed") from exc
     runtime_schedule_spec = runtime_schedule.to_dict()
@@ -771,23 +784,12 @@ def compile_runtime_model(
     activation_bits = _require_int(privacy.get("activation_bits"), "privacy activation_bits")
     if not (2 <= weight_bits <= 8 and 2 <= activation_bits <= 8):
         raise RuntimeBindingError("client bundle bit widths must be in [2, 8]")
-    bundle_runtime_profile = privacy.get("runtime_profile")
-    if bundle_runtime_profile != runtime_profile:
-        raise RuntimeBindingError("client bundle runtime profile does not match the request")
     verification_component = privacy.get("verification_component", "none")
     verification_failure_bits = _require_int(
         privacy.get("verification_target_failure_bits", 0), "verification failure bits"
     )
-    if runtime_profile == "research.verified_masked_linear_cpu":
-        if verification_component != "pllm/freivalds-verify/v1" or verification_failure_bits < 40:
-            raise RuntimeBindingError(
-                "verified masked-linear execution requires the Freivalds verifier"
-            )
-    elif runtime_profile == "baseline.masked_linear_cpu":
-        if verification_component != "none" or verification_failure_bits != 0:
-            raise RuntimeBindingError("baseline masked-linear execution cannot claim verification")
-    else:
-        raise RuntimeBindingError("client bundle runtime profile is unsupported")
+    if verification_component != "none" or verification_failure_bits != 0:
+        raise RuntimeBindingError("masked-linear execution cannot claim unbound verification")
 
     canonical: dict[str, Any] = {}
     for key, stage in bundle.stages.items():
@@ -843,7 +845,6 @@ def compile_runtime_model(
     if any(
         manifest_metadata.get(key) != privacy.get(key)
         for key in (
-            "runtime_profile",
             "verification_component",
             "verification_target_failure_bits",
         )
@@ -1459,7 +1460,6 @@ def compile_runtime_model(
                         "weight_bits",
                         "activation_bits",
                         "runtime_config_digest",
-                        "runtime_profile",
                         "verification_component",
                         "verification_target_failure_bits",
                     )
@@ -1481,7 +1481,7 @@ def compile_runtime_model(
             "stage_commitment": stage_commitment,
             "weight_bits": weight_bits,
             "activation_bits": activation_bits,
-            "runtime_profile": privacy.get("runtime_profile"),
+            "composition_digest": composition.digest(),
             "verification_component": privacy.get("verification_component", "none"),
             "verification_target_failure_bits": int(
                 privacy.get("verification_target_failure_bits", 0)
@@ -1564,7 +1564,7 @@ def compile_runtime_model(
         stages=tuple(bindings),
         local_operations=tuple(sorted(local_operations)),
         runtime_config_digest=runtime_config_digest,
-        runtime_profile=runtime_profile,
+        canonical_composition=canonical_composition,
         runtime_schedule_digest=runtime_schedule_digest,
         stage_routes=stage_routes,
         tokenizer_digest=tokenizer_digest,

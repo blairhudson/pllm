@@ -1,14 +1,12 @@
 use pllm_models::{
     DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator, StateTensor,
 };
-use pllm_types::{canonical_digest, Digest};
+use pllm_types::{canonical_digest, pipeline_digest_bytes, Digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v1";
-pub const MASKED_LINEAR_RUNTIME_PROFILE: &str = "baseline.masked_linear_cpu";
-pub const VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE: &str = "research.verified_masked_linear_cpu";
-const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v1";
+pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v2";
+const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v2";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -56,7 +54,7 @@ pub struct DecoderRuntimePhaseSchedule {
 #[serde(deny_unknown_fields)]
 pub struct DecoderRuntimeSchedule {
     pub schema_version: String,
-    pub profile: String,
+    pub composition_digest: Digest,
     pub model_plan_digest: Digest,
     pub model_config_digest: Digest,
     pub prefill: DecoderRuntimePhaseSchedule,
@@ -341,21 +339,21 @@ fn remote_signature(phase: &DecoderRuntimePhaseSchedule) -> Vec<RemoteSignature>
 
 pub fn lower_decoder_runtime_schedule(
     plan: &DecoderPlan,
+    canonical_composition: &[u8],
 ) -> Result<DecoderRuntimeSchedule, String> {
-    lower_decoder_runtime_schedule_for_profile(plan, MASKED_LINEAR_RUNTIME_PROFILE)
-}
-
-pub fn lower_decoder_runtime_schedule_for_profile(
-    plan: &DecoderPlan,
-    profile: &str,
-) -> Result<DecoderRuntimeSchedule, String> {
-    if profile == VERIFIED_MASKED_LINEAR_RUNTIME_PROFILE {
-        return Err(
-            "verified runtime scheduling requires verifier-bound execution evidence".into(),
-        );
-    }
-    if profile != MASKED_LINEAR_RUNTIME_PROFILE {
-        return Err("decoder runtime schedule requires the baseline masked-linear profile".into());
+    match super::classify_decoder_composition(canonical_composition)? {
+        super::DecoderCompositionKind::MaskedLinear => {}
+        super::DecoderCompositionKind::VerifiedMaskedLinear => {
+            return Err(
+                "verified runtime scheduling requires verifier-bound execution evidence".into(),
+            );
+        }
+        super::DecoderCompositionKind::Other => {
+            return Err(
+                "decoder runtime schedule requires the exact masked-linear component composition"
+                    .into(),
+            );
+        }
     }
     plan.validate().map_err(|error| error.to_string())?;
     if !plan.transformations.is_empty() {
@@ -371,7 +369,7 @@ pub fn lower_decoder_runtime_schedule_for_profile(
     }
     Ok(DecoderRuntimeSchedule {
         schema_version: DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION.into(),
-        profile: profile.into(),
+        composition_digest: pipeline_digest_bytes(canonical_composition),
         model_plan_digest: plan.digest(),
         model_config_digest: plan.config_digest.clone(),
         prefill,

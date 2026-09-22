@@ -163,7 +163,7 @@ def test_interactive_python_target_warns_and_confirms(
     monkeypatch.setattr(sys, "stdin", Input("yes\n"))
     main(["config", "show", "examples/composition.py:experiment"])
     captured = capsys.readouterr()
-    assert '"schema": "pllm.experiment.v1"' in captured.out
+    assert '"schema": "pllm.experiment.v2"' in captured.out
     assert "warning[PYTHON_CODE_EXECUTION]" in captured.err
     assert "Continue? [y/N]" in captured.err
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/component-descriptor.schema.json",
+  "$id": "https://pllm.run/schemas/component-descriptor.schema.json",
   "title": "PLLM component descriptor v1",
   "type": "object",
   "additionalProperties": false,

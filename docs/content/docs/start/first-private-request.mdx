@@ -50,6 +50,7 @@ load weights:
 ```python
 import pllm
 from pllm.passes import KvCacheEviction
+from pllm.profiles import MaskedLinearCpu
 
 config = {
     "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,
@@ -61,7 +62,8 @@ config = {
 }
 plan = pllm.lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
 composed = plan.apply(KvCacheEviction())
-coverage = composed.coverage("research.single_evaluator")
+pipeline = MaskedLinearCpu(pllm.Model("Qwen/Qwen2.5-0.5B-Instruct"))
+coverage = composed.coverage(pipeline)
 assert composed.digest != plan.digest
 assert coverage.complete is False
 print(composed.digest, coverage.complete, coverage.to_dict())

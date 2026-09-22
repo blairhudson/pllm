@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/plan-lineage-record.schema.json",
+  "$id": "https://pllm.run/schemas/plan-lineage-record.schema.json",
   "title": "PLLM plan lineage record v1",
   "type": "object",
   "additionalProperties": false,

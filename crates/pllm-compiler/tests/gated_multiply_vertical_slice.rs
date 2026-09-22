@@ -63,7 +63,7 @@ fn semantic_qwen_gated_multiply_lowers_with_exact_provenance() {
             GATED_MULTIPLY_Q7_PROTECTED_GRAPH_ID
         );
     }
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let silu = coverage
         .operators
         .iter()
@@ -660,7 +660,7 @@ fn oversized_intermediate_keeps_gated_regions_primitive() {
             GATED_MULTIPLY_Q7_CHUNKED_MAX_TENSOR_ELEMENTS + 1
         )
     );
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let silu = coverage
         .operators
         .iter()

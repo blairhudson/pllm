@@ -12,11 +12,11 @@ use pllm_compiler::{
 };
 use pllm_models::{lower_model_json, DecoderMode, DecoderWorkload, ModelOperator};
 use pllm_types::{
-    assurance_result_digest, configuration_digest_bytes, privacy_contract_digest, AssuranceOrigin,
-    AssuranceOutcome, AssuranceResult, ClaimRequirement, Digest, EvidenceReference,
-    ImplementationRefinement, LockedContext, NamedDigest, PrivacyContract, RolePlanReference,
-    VersionedArtifact, ASSURANCE_RESULT_SCHEMA_VERSION, LOCKED_CONTEXT_SCHEMA_VERSION,
-    PRIVACY_CONTRACT_SCHEMA_VERSION,
+    assurance_result_digest, configuration_digest_bytes, pipeline_digest, privacy_contract_digest,
+    AssuranceOrigin, AssuranceOutcome, AssuranceResult, ClaimRequirement, Digest,
+    EvidenceReference, ImplementationRefinement, LockedContext, NamedDigest, PrivacyContract,
+    RolePlanReference, VersionedArtifact, ASSURANCE_RESULT_SCHEMA_VERSION,
+    LOCKED_CONTEXT_SCHEMA_VERSION, PRIVACY_CONTRACT_SCHEMA_VERSION,
 };
 use std::collections::BTreeSet;
 
@@ -65,7 +65,11 @@ fn privacy() -> PrivacyContract {
 fn context(privacy: &PrivacyContract) -> LockedContext {
     LockedContext {
         schema_version: LOCKED_CONTEXT_SCHEMA_VERSION.into(),
-        profile: "baseline.masked_linear_cpu".into(),
+        composition_digest: {
+            let configuration: serde_json::Value =
+                serde_json::from_slice(&configuration_json()).unwrap();
+            pipeline_digest(&configuration["pipeline"])
+        },
         model: named("model.fixture", '1'),
         tokenizer: named("tokenizer.fixture", '2'),
         semantic_graph: named("semantic.linear", '3'),
@@ -321,7 +325,7 @@ fn semantic_qwen_linear_compiles_and_executes_without_name_parsing() {
             .len(),
         4
     );
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let linear_coverage = coverage
         .operators
         .iter()
@@ -491,7 +495,7 @@ fn gemma_last_token_executes_length_aware_selection() {
     let output = execute_model_last_token(prefill, &input, Some(&[1])).unwrap();
     assert_eq!(output, input[..inner]);
     assert!(lower_model_greedy_token_selection_regions(&plan, DecoderMode::Prefill).is_err());
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let last_token = coverage
         .operators
         .iter()
@@ -520,6 +524,28 @@ fn canonical_compile_document_matches_direct_request() {
     );
 }
 
+#[test]
+fn compile_document_accepts_only_validated_verified_composition() {
+    let mut verified: serde_json::Value =
+        serde_json::from_slice(&document_bytes(&request(2, 3, 2))).unwrap();
+    verified["configuration"]["pipeline"]["components"]["verification"] = serde_json::json!({
+        "component": "pllm/freivalds-verify/v1",
+        "params": {"target_failure_bits": 40}
+    });
+    verified["context"]["composition_digest"] =
+        serde_json::json!(pipeline_digest(&verified["configuration"]["pipeline"]));
+    assert!(compile_document(&pllm_types::canonical_bytes(&verified)).is_ok());
+
+    verified["configuration"]["pipeline"]["components"]["verification"]["params"]
+        ["target_failure_bits"] = serde_json::json!(81);
+    verified["context"]["composition_digest"] =
+        serde_json::json!(pipeline_digest(&verified["configuration"]["pipeline"]));
+    assert_eq!(
+        document_error_code(&pllm_types::canonical_bytes(&verified)),
+        DiagnosticCode::InvalidDocument
+    );
+}
+
 fn document_error_code(bytes: &[u8]) -> DiagnosticCode {
     let errors = compile_document(bytes).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
@@ -536,7 +562,7 @@ fn compile_document_rejects_noncanonical_duplicate_unknown_and_wrong_schema() {
     );
 
     let source = String::from_utf8(canonical.clone()).unwrap();
-    let duplicate = source.replacen('{', "{\"schema_version\":\"pllm.compile_request.v1\",", 1);
+    let duplicate = source.replacen('{', "{\"schema_version\":\"pllm.compile_request.v2\",", 1);
     assert_eq!(
         document_error_code(duplicate.as_bytes()),
         DiagnosticCode::InvalidDocument
@@ -553,14 +579,14 @@ fn compile_document_rejects_noncanonical_duplicate_unknown_and_wrong_schema() {
     );
 
     let mut wrong_document = value.clone();
-    wrong_document["schema_version"] = serde_json::json!("pllm.compile_request.v2");
+    wrong_document["schema_version"] = serde_json::json!("pllm.compile_request.v1");
     assert_eq!(
         document_error_code(&pllm_types::canonical_bytes(&wrong_document)),
         DiagnosticCode::InvalidDocument
     );
 
     let mut wrong_configuration = value;
-    wrong_configuration["configuration"]["schema"] = serde_json::json!("pllm.experiment.v2");
+    wrong_configuration["configuration"]["schema"] = serde_json::json!("pllm.experiment.v1");
     assert_eq!(
         document_error_code(&pllm_types::canonical_bytes(&wrong_configuration)),
         DiagnosticCode::InvalidDocument
@@ -630,23 +656,23 @@ fn canonical_manifests_have_exact_boundaries_and_stable_digests() {
     );
     assert_eq!(
         compiled.lock.logical_plan_digest.as_str(),
-        "a2dd71d2dd5e3917b4a4578dbde9d1287a285df6fd722d3acb97f7dbcaf26961"
+        "2af9881d478e537177d8ab84637327ee454cc7c7a71a213fc03b01ea2b488703"
     );
     assert_eq!(
         compiled.lock.execution_plan_digest.as_str(),
-        "bdba1776ec7496d2a41f5508c6efb0d56bc66c0ccfd49267f90ce6c6811f31b7"
+        "07348c6bb80569b71d6cb548c0e6fa10d9523a4392cf1a635e849adebbe05266"
     );
     assert_eq!(
         pllm_compiler::region_program_digest(&compiled.region_program).as_str(),
-        "f0e1fb6b830785dd74da3cfeb633c69355e05a214160245c722030a003fed215"
+        "d1ebbf7de7da674a5c6ef30809581f147430a498412d6e96c7ce7144724d969d"
     );
     assert_eq!(
         pllm_types::plan_lock_digest(&compiled.lock).as_str(),
-        "32e02bfcc5a235ab148b77508ee9fe7acba64a4b51dae222eb96538882ba13ce"
+        "fe8373bcc198486ebd03c29a877036faf32d54e4cfe2fc4d87e23738dab1f77a"
     );
     assert_eq!(
         compiled.logical.configuration_digest.as_str(),
-        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
+        "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329"
     );
 
     let logical = String::from_utf8(compiled.logical_json()).unwrap();
@@ -724,7 +750,7 @@ fn configuration_identity_is_canonical_plain_sha256() {
     let canonical = configuration_json();
     assert_eq!(
         configuration_digest_bytes(&canonical).as_str(),
-        "863af238d286ed9970ee710a9c4694a14fb43fea2ffde883b9e43ca59f90197e"
+        "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329"
     );
 
     let mut noncanonical = request(1, 3, 2);
@@ -741,7 +767,7 @@ fn configuration_identity_is_canonical_plain_sha256() {
     let mut wrong_schema = request(1, 3, 2);
     let mut value: serde_json::Value =
         serde_json::from_slice(&wrong_schema.configuration_json).unwrap();
-    value["schema"] = "pllm.experiment.v2".into();
+    value["schema"] = "pllm.experiment.v1".into();
     wrong_schema.configuration_json = pllm_types::canonical_bytes(&value);
     wrong_schema.configuration_digest =
         configuration_digest_bytes(&wrong_schema.configuration_json);
@@ -749,19 +775,20 @@ fn configuration_identity_is_canonical_plain_sha256() {
 }
 
 #[test]
-fn configuration_profile_must_match_locked_context() {
+fn configuration_pipeline_must_match_locked_context_composition() {
     let mut mismatched = request(1, 2, 2);
     let mut configuration: serde_json::Value =
         serde_json::from_slice(&mismatched.configuration_json).unwrap();
-    configuration["pipeline"]["profile"] = "research.single_evaluator".into();
+    configuration["pipeline"]["components"]["kernels"]["params"]["threads"] = serde_json::json!(8);
     mismatched.configuration_json = pllm_types::canonical_bytes(&configuration);
     mismatched.configuration_digest = configuration_digest_bytes(&mismatched.configuration_json);
 
     let diagnostics = compile(&mismatched).unwrap_err();
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.code == DiagnosticCode::InvalidContext
-            && diagnostic.subject_id == "configuration.profile"
-            && diagnostic.message == "configuration profile does not match locked context"
+            && diagnostic.subject_id == "configuration.pipeline"
+            && diagnostic.message
+                == "configuration pipeline digest does not match locked context composition"
     }));
 }
 

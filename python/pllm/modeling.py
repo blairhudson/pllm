@@ -8,7 +8,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pllm.configuration import ComponentRef
+    from pllm.configuration import ComponentRef, Pipeline
 
 
 def _freeze(value: Any) -> Any:
@@ -48,17 +48,18 @@ class ModelPlan:
     def to_dict(self) -> dict[str, Any]:
         return json.loads(self._canonical_bytes)
 
-    def coverage(self, profile: str = "research.single_evaluator") -> "DecoderCoverageReport":
+    def coverage(self, composition: "Pipeline | None" = None) -> "DecoderCoverageReport":
         from pllm import _native
 
-        return DecoderCoverageReport(_native.decoder_coverage(self._canonical_bytes, profile))
+        canonical = None if composition is None else composition.canonical_bytes()
+        return DecoderCoverageReport(_native.decoder_coverage(self._canonical_bytes, canonical))
 
-    def runtime_schedule(
-        self, profile: str = "baseline.masked_linear_cpu"
-    ) -> "DecoderRuntimeSchedule":
+    def runtime_schedule(self, composition: "Pipeline") -> "DecoderRuntimeSchedule":
         from pllm import _native
 
-        payload, native_digest = _native.decoder_runtime_schedule(self._canonical_bytes, profile)
+        payload, native_digest = _native.decoder_runtime_schedule(
+            self._canonical_bytes, composition.canonical_bytes()
+        )
         schedule = DecoderRuntimeSchedule(payload)
         if schedule.digest != native_digest:
             raise ValueError("decoder runtime schedule digest mismatch")
@@ -89,7 +90,7 @@ class DecoderCoverageReport:
 
     def __post_init__(self) -> None:
         document = json.loads(self._canonical_bytes)
-        if document.get("schema_version") != "pllm.decoder_coverage_report.v1":
+        if document.get("schema_version") != "pllm.decoder_coverage_report.v2":
             raise ValueError("invalid decoder coverage report")
 
     @property
@@ -113,7 +114,7 @@ class DecoderRuntimeSchedule:
 
     def __post_init__(self) -> None:
         document = json.loads(self._canonical_bytes)
-        if document.get("schema_version") != "pllm.decoder_runtime_schedule.v1":
+        if document.get("schema_version") != "pllm.decoder_runtime_schedule.v2":
             raise ValueError("invalid decoder runtime schedule")
         if not document.get("complete") or document.get("protected_execution"):
             raise ValueError("invalid decoder runtime schedule capability")
@@ -121,12 +122,12 @@ class DecoderRuntimeSchedule:
     @property
     def digest(self) -> str:
         return hashlib.sha256(
-            b"pllm.decoder_runtime_schedule.v1\0" + self._canonical_bytes
+            b"pllm.decoder_runtime_schedule.v2\0" + self._canonical_bytes
         ).hexdigest()
 
     @property
-    def profile(self) -> str:
-        return str(json.loads(self._canonical_bytes)["profile"])
+    def composition_digest(self) -> str:
+        return str(json.loads(self._canonical_bytes)["composition_digest"])
 
     @property
     def complete(self) -> bool:

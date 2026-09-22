@@ -9,10 +9,9 @@ implementation. A similar data flow is not a reproduction.
 
 ## Release-critical work
 
-1. **Complete one executable Qwen profile.** Close every semantic, numeric,
-   protected, placement, state, and token-feedback gap for the preferred
-   `research.single_evaluator` profile. The compiler must continue to reject
-   partial coverage.
+1. **Complete one protected Qwen composition.** Close every semantic, numeric,
+   protected, placement, state, and token-feedback gap using explicit component
+   contracts. The compiler must continue to reject partial coverage.
 2. **Re-measure the current prepared runtime.** Record current-revision Qwen
    prefill and decode runs with exact model, prompt length, output length,
    machine, topology, cold/warm state, protocol bytes, and failure behavior.

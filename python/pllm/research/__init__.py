@@ -208,7 +208,7 @@ class MethodRecord:
             "assurance_obligations",
             "lifecycle_status",
         }
-        value = dict(_fields(document, required, {"eligible_profiles"}, "method"))
+        value = dict(_fields(document, required, {"eligible_components"}, "method"))
         if value["schema_version"] != "pllm.method_record.v1":
             raise ValueError("unsupported method record schema")
         _identity(value["id"], "method.id")
@@ -221,7 +221,7 @@ class MethodRecord:
             ("output_representations", False),
             ("online_roles", False),
             ("assurance_obligations", False),
-            ("eligible_profiles", False),
+            ("eligible_components", False),
         ):
             if name in value:
                 value[name] = list(_array(value[name], f"method.{name}", nonempty=nonempty))
@@ -530,7 +530,7 @@ class ResearchRegistry:
         for gate, accepted in required.items():
             if lifecycle[gate] not in accepted:
                 blockers.append(f"gate:{gate}:{lifecycle[gate]}")
-        if not method.get("eligible_profiles"):
+        if not method.get("eligible_components"):
             blockers.append("method:no_eligible_profile")
         blockers = tuple(sorted(set(blockers)))
         return PromotionDecision(method_id, not blockers, blockers)

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/assurance-result.schema.json",
+  "$id": "https://pllm.run/schemas/assurance-result.schema.json",
   "title": "PLLM assurance result v1",
   "type": "object",
   "additionalProperties": false,

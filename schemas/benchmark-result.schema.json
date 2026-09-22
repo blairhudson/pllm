@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/benchmark-result.schema.json",
+  "$id": "https://pllm.run/schemas/benchmark-result.schema.json",
   "title": "PLLM benchmark result v1",
   "type": "object",
   "required": [

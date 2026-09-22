@@ -57,7 +57,7 @@ fn direct_weight_norm_regions_bind_semantics_and_execute_reference() {
     assert_eq!(decode.len(), 3);
     assert!(decode.iter().all(|region| region.shape == vec![1, 1, 8]));
 
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let rms_norm = coverage
         .operators
         .iter()
@@ -90,7 +90,7 @@ fn coverage_falls_back_to_fp32_reference_when_q10_width_exceeded() {
     .unwrap();
     assert!(lower_rms_norm_q10_direct_regions(&plan, DecoderMode::Decode).is_err());
     assert!(lower_rms_norm_f32_direct_regions(&plan, DecoderMode::Decode).is_ok());
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let rms_norm = coverage
         .operators
         .iter()

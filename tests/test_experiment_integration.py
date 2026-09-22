@@ -50,19 +50,20 @@ def test_profile_is_native_resolved_and_immutable():
     assert isinstance(profile, ExperimentProfile)
     assert profile.model == "model-a"
     assert profile.configuration_digest == experiment.configuration_digest()
-    assert profile.canonical_profile == (
+    assert profile.canonical_composition == (
         b'{"components":{"inference":{"component":"pllm/inference","params":{}},'
         b'"kernels":{"component":"pllm/cpu","params":{"threads":4}},'
         b'"linear":{"component":"pllm/masked-linear","params":{}},'
         b'"preparation":{"component":"pllm/model-aware-corrections","params":{}}},'
-        b'"model":{"source":"model-a"},"profile":"baseline.masked_linear_cpu"}'
+        b'"model":{"source":"model-a"}}'
     )
+    assert profile.composition_digest == experiment.pipeline.digest()
     with pytest.raises(AttributeError):
         profile.model = "model-b"
     with pytest.raises(AttributeError):
-        native.canonical_profile = b"{}"
+        native.canonical_composition = b"{}"
     with pytest.raises(TypeError):
-        _native.ResolvedExperimentProfile()
+        _native.ResolvedExperimentComposition()
 
 
 def test_openai_experiment_locks_default_and_rejects_request_drift():

@@ -149,7 +149,7 @@ fn token_feedback_passes_token_ids_through() {
 #[test]
 fn tail_operators_report_executable_coverage() {
     let plan = qwen_plan();
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     for operator in [
         ModelOperator::LastToken,
         ModelOperator::GreedyTokenSelection,

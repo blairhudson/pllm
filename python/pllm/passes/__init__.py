@@ -93,7 +93,7 @@ class KvCacheEviction(PlanPass):
     def __init__(
         self,
         *,
-        implementation: str = "pllm/mpcache/v1",
+        implementation: str = "pllm/importance-kv-cache-eviction/v1",
         observation_window: tuple[int, int] | Mapping[str, int] = (1, 5),
         static_keep: tuple[int, int] | Mapping[str, int] = (3, 10),
         dynamic_keep: tuple[int, int] | Mapping[str, int] = (1, 4),

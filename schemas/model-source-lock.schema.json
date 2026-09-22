@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/model-source-lock.schema.json",
+  "$id": "https://pllm.run/schemas/model-source-lock.schema.json",
   "title": "PLLM model source lock",
   "type": "object",
   "additionalProperties": false,

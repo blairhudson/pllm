@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, cast
@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from pllm.providers import ProviderDescriptor
 
 _DIGEST_DOMAIN = b"pllm.configuration.v1\0"
-_PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v1\0"
-_EXPERIMENT_SCHEMA = "pllm.experiment.v1"
+_PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v2\0"
+_EXPERIMENT_SCHEMA = "pllm.experiment.v2"
 _MAX_DOCUMENT_BYTES = 1_048_576
 
 
@@ -484,12 +484,13 @@ class ComponentRef(_Configuration):
 
 @dataclass(frozen=True, slots=True)
 class Pipeline(_Configuration):
-    profile: str
     model: Model
     components: Mapping[str, ComponentRef]
+    profile: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
-        _string(self.profile, "pipeline.profile")
+        if self.profile is not None:
+            _string(self.profile, "pipeline.profile")
         if not isinstance(self.model, Model):
             raise ConfigurationError("pipeline.model must be a Model")
         if not isinstance(self.components, Mapping):
@@ -501,7 +502,15 @@ class Pipeline(_Configuration):
                 raise ConfigurationError("pipeline component names cannot contain '__'")
             if not isinstance(component, ComponentRef):
                 raise ConfigurationError(f"pipeline.components.{name} must be a ComponentRef")
-            copied[name] = component
+            if not component.component.startswith("pllm/"):
+                copied[name] = component
+            else:
+                from pllm.components import create_component
+
+                copied[name] = cast(
+                    ComponentRef,
+                    create_component(component.component, component.params),
+                )
         object.__setattr__(self, "components", MappingProxyType(copied))
 
     @classmethod
@@ -523,7 +532,7 @@ class Pipeline(_Configuration):
     ) -> Pipeline:
         if cls is not Pipeline:
             raise TypeError("Pipeline.from_spec must be called on Pipeline")
-        data = _fields(value, {"profile", "model", "components"}, "pipeline")
+        data = _fields(value, {"model", "components"}, "pipeline")
         model = Model.from_spec(data["model"])
         raw_components = data["components"]
         if not isinstance(raw_components, Mapping):
@@ -537,62 +546,13 @@ class Pipeline(_Configuration):
             )
             for name, component in raw_components.items()
         }
-        if data["profile"] == "baseline.masked_linear_cpu" and set(components) == {
-            "linear",
-            "preparation",
-            "inference",
-            "kernels",
-        }:
-            from pllm.profiles import MaskedLinearCpu
-
-            return MaskedLinearCpu(
-                model,
-                linear=components["linear"],
-                preparation=components["preparation"],
-                inference=components["inference"],
-                kernels=components["kernels"],
-            )
-        if data["profile"] == "research.verified_masked_linear_cpu" and set(components) == {
-            "linear",
-            "preparation",
-            "inference",
-            "kernels",
-            "verification",
-        }:
-            from pllm.profiles import VerifiedMaskedLinearCpu
-
-            return VerifiedMaskedLinearCpu(
-                model,
-                linear=components["linear"],
-                preparation=components["preparation"],
-                inference=components["inference"],
-                kernels=components["kernels"],
-                verification=components["verification"],
-            )
-        if set(components) == {"linear", "inference", "kernels"}:
-            from pllm.profiles import DirectFHEProfile, ProprietaryBlinded, ProprietaryGuarded
-
-            profile_types = {
-                "runtime.proprietary_guarded": ProprietaryGuarded,
-                "runtime.proprietary_blinded": ProprietaryBlinded,
-                "runtime.direct_fhe": DirectFHEProfile,
-            }
-            if profile_type := profile_types.get(data["profile"]):
-                return profile_type(
-                    model,
-                    linear=components["linear"],
-                    inference=components["inference"],
-                    kernels=components["kernels"],
-                )
         return cls(
-            profile=data["profile"],
             model=model,
             components=components,
         )
 
     def to_spec(self) -> dict[str, Any]:
         return {
-            "profile": self.profile,
             "model": self.model.to_spec(),
             "components": {
                 name: component.to_spec() for name, component in self.components.items()
@@ -617,7 +577,7 @@ class Pipeline(_Configuration):
         return self.to_spec() == other.to_spec()
 
     def __hash__(self) -> int:
-        return hash((self.profile, self.model, tuple(sorted(self.components.items()))))
+        return hash((self.model, tuple(sorted(self.components.items()))))
 
 
 @dataclass(frozen=True, slots=True)
@@ -712,12 +672,13 @@ class Experiment(_Configuration):
 
 @dataclass(frozen=True, slots=True, init=False)
 class ExperimentProfile:
-    """Immutable resolution of one supported Experiment profile."""
+    """Immutable runtime resolution of one component composition."""
 
     model: str
-    canonical_profile: bytes
+    canonical_composition: bytes
+    composition_digest: str
     configuration_digest: str
-    profile: str
+    profile: str | None
     privacy_mode: str
     proprietary_protocol: str
     requires_preparation: bool
@@ -729,20 +690,19 @@ class ExperimentProfile:
     def __init__(self, experiment: Experiment) -> None:
         if not isinstance(experiment, Experiment):
             raise TypeError("experiment must be an Experiment")
-        from pllm.profiles import _runtime_profile_options
+        from pllm.profiles import resolve_runtime_composition
 
-        runtime_options = _runtime_profile_options(experiment.pipeline)
-        if experiment.pipeline.profile.startswith("runtime."):
-            if runtime_options is None or runtime_options.requires_preparation:
-                raise ConfigurationError(
-                    "runtime profile does not match its typed component contract"
-                )
+        runtime_options = resolve_runtime_composition(experiment.pipeline)
+        if runtime_options is not None and not runtime_options.requires_preparation:
             object.__setattr__(
                 self,
                 "model",
                 experiment.pipeline.model.model_id or experiment.pipeline.model.source,
             )
-            object.__setattr__(self, "canonical_profile", experiment.pipeline.canonical_bytes())
+            object.__setattr__(
+                self, "canonical_composition", experiment.pipeline.canonical_bytes()
+            )
+            object.__setattr__(self, "composition_digest", experiment.pipeline.digest())
             object.__setattr__(self, "configuration_digest", experiment.configuration_digest())
             object.__setattr__(self, "profile", experiment.pipeline.profile)
             object.__setattr__(self, "privacy_mode", runtime_options.privacy_mode)
@@ -766,7 +726,10 @@ class ExperimentProfile:
         object.__setattr__(
             self, "model", experiment.pipeline.model.model_id or resolved.model
         )
-        object.__setattr__(self, "canonical_profile", resolved.canonical_profile)
+        object.__setattr__(
+            self, "canonical_composition", resolved.canonical_composition
+        )
+        object.__setattr__(self, "composition_digest", resolved.composition_digest)
         object.__setattr__(self, "configuration_digest", resolved.configuration_digest)
         if runtime_options is None:
             raise ConfigurationError("resolved profile has no runtime contract")
@@ -1000,7 +963,12 @@ def configuration_digest(
 
 
 _CONCRETE_EXPORTS = {
+    "ArithmeticGarblingSiluQ7": ("pllm.nonlinear", "ArithmeticGarblingSiluQ7"),
     "BinaryTableGatedMultiplyQ7": ("pllm.nonlinear", "BinaryTableGatedMultiplyQ7"),
+    "BoundedIndependentElementsProtectedTensorSchedule": (
+        "pllm.schedulers",
+        "BoundedIndependentElementsProtectedTensorSchedule",
+    ),
     "ChunkedIndependentLanesProtectedTensorSchedule": (
         "pllm.schedulers",
         "ChunkedIndependentLanesProtectedTensorSchedule",

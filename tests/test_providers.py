@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 
 import pllm
 from pllm.components import create_component, get, list_component_classes
+from pllm.configuration import ComponentRef
 from pllm.kernels import KernelBackend
 from pllm.profiles import MaskedLinearCpu
 from pllm.providers import (
@@ -211,17 +212,17 @@ def test_valid_discovery_is_inert_deterministic_and_registry_aware(tmp_path: Pat
         ),
     )
     restored = pllm.Experiment.from_spec(experiment.to_spec(), providers=providers)
-    assert type(restored.pipeline.kernels) is component_class
+    assert type(restored.pipeline.components["kernels"]) is component_class
     assert restored == experiment
     assert pllm.canonical_bytes(experiment.to_spec(), providers=providers) == experiment.canonical_bytes()
-    with pytest.raises(pllm.ConfigurationError):
-        pllm.Experiment.from_spec(experiment.to_spec())
+    unresolved = pllm.Experiment.from_spec(experiment.to_spec())
+    assert type(unresolved.pipeline.components["kernels"]) is ComponentRef
     with pytest.raises(pllm.ConfigurationError):
         experiment.resolve()
     with pytest.raises(pllm.ConfigurationError, match="invalid|integer"):
         component_class(limit=0)
-    assert len(list_component_classes()) == 29
-    assert len(list_component_classes(providers=providers)) == 30
+    assert len(list_component_classes()) == 31
+    assert len(list_component_classes(providers=providers)) == 32
 
 
 def test_discovery_rejects_duplicate_keys_and_unknown_fields(tmp_path: Path) -> None:

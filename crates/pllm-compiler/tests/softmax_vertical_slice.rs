@@ -178,7 +178,7 @@ fn rejects_tampered_plans_regions_and_buffers() {
 #[test]
 fn reports_softmax_as_an_executable_region_with_scheduling_blocker() {
     let plan = qwen_plan();
-    let coverage = decoder_coverage(&plan, "research.single_evaluator");
+    let coverage = decoder_coverage(&plan, None).unwrap();
     let softmax = coverage
         .operators
         .iter()
@@ -199,9 +199,11 @@ fn composes_with_the_mpcache_structural_transform() {
     let plan = qwen_plan();
     let base_decode =
         lower_model_softmax_q30_regions(&plan, DecoderMode::Decode).unwrap()[0].clone();
-    let optimized =
-        pllm_models::cache::optimize(&plan, pllm_models::cache::MpcachePolicy::paper_profile())
-            .unwrap();
+    let optimized = pllm_models::cache::optimize(
+        &plan,
+        pllm_models::cache::MpcachePolicy::r23_reference_policy(),
+    )
+    .unwrap();
     let transformed = lower_model_softmax_q30_regions(&optimized, DecoderMode::Decode).unwrap();
     assert_eq!(transformed.len(), 1);
     let region = &transformed[0];

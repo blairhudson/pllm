@@ -70,6 +70,8 @@ class Model:
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> Self: ...
     def to_spec(self) -> dict[str, Any]: ...
+    def canonical_bytes(self) -> bytes: ...
+    def digest(self) -> str: ...
     def to_runtime_spec(self) -> dict[str, Any]: ...
 
 class ComponentRef:
@@ -83,6 +85,10 @@ class ComponentRef:
     def to_spec(self) -> dict[str, Any]: ...
 
 from pllm.kernels import Cpu as Cpu
+from pllm.nonlinear import ArithmeticGarblingSiluQ7 as ArithmeticGarblingSiluQ7
+from pllm.schedulers import (
+    BoundedIndependentElementsProtectedTensorSchedule as BoundedIndependentElementsProtectedTensorSchedule,
+)
 from pllm.nonlinear import BinaryTableGatedMultiplyQ7 as BinaryTableGatedMultiplyQ7
 from pllm.nonlinear import R03CrtGatedMultiplyQ7 as R03CrtGatedMultiplyQ7
 from pllm.passes import KvCacheEviction as KvCacheEviction
@@ -97,11 +103,14 @@ from pllm.schedulers import (
 from pllm.schedulers import ScalarProtectedTensorSchedule as ScalarProtectedTensorSchedule
 
 class Pipeline:
-    profile: str
     model: Model
     components: Mapping[str, ComponentRef]
+    profile: str | None
     def __init__(
-        self, profile: str, model: Model, components: Mapping[str, ComponentRef]
+        self,
+        model: Model,
+        components: Mapping[str, ComponentRef],
+        profile: str | None = ...,
     ) -> None: ...
     @classmethod
     def from_profile(
@@ -114,6 +123,8 @@ class Pipeline:
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> Self: ...
     def to_spec(self) -> dict[str, Any]: ...
+    def canonical_bytes(self) -> bytes: ...
+    def digest(self) -> str: ...
 
 class Deployment:
     kind: str
@@ -157,9 +168,10 @@ class Experiment:
 
 class ExperimentProfile:
     model: str
-    canonical_profile: bytes
+    canonical_composition: bytes
+    composition_digest: str
     configuration_digest: str
-    profile: str
+    profile: str | None
     privacy_mode: str
     proprietary_protocol: str
     requires_preparation: bool

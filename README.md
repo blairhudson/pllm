@@ -147,6 +147,7 @@ not download weights or perform inference:
 
 ```python
 import pllm
+from pllm.profiles import MaskedLinearCpu
 
 config = {
     "model_type": "qwen2",
@@ -169,7 +170,7 @@ plan = pllm.lower_model(
     max_input_tokens=128,
     max_new_tokens=32,
 )
-coverage = plan.coverage("research.single_evaluator")
+coverage = plan.coverage(MaskedLinearCpu(pllm.Model("Qwen/Qwen2.5-0.5B-Instruct")))
 print(plan.digest)
 print(coverage.to_dict())
 ```

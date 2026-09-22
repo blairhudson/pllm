@@ -23,9 +23,9 @@ abstract: |
   composes compatible components into immutable plans, and binds those plans to
   assurance and benchmark evidence. Constrained plan-space search is planned, not
   yet implemented. Adapter coverage likewise does not imply complete execution.
-  The compiler now emits a complete, digest-bound `baseline.masked_linear_cpu`
+  The compiler now emits a complete, composition-bound masked-linear CPU
   schedule for untransformed Qwen2 and binds it to the existing model-aware
-  prepared runtime; `research.single_evaluator` remains incomplete, and garbling
+  prepared runtime; whole-model protected composition remains incomplete, and garbling
   is limited to experimental bounded Q7 SiLU and four-lane gated-multiply
   components. Security requires protocol-following, non-colluding Preparation and
   Inference roles. Retained
@@ -188,8 +188,8 @@ does not establish checkpoint import, compiler operator coverage, executable
 distributed placement, numerical parity, generation quality, or deployment
 support.
 
-Coverage is profile-scoped. For untransformed plans,
-`baseline.masked_linear_cpu` now lowers supported semantic operators into a
+Coverage is composition-scoped. For untransformed plans, the component composition
+constructed by the `baseline.masked_linear_cpu` preset now lowers supported semantic operators into a
 deterministic prefill/decode schedule. Independent weighted operators sharing one
 input are grouped without inspecting family-specific node names, while local
 operators retain dependency order. The schedule is bound to the model plan,
@@ -204,8 +204,8 @@ protocol. This baseline remains client-heavy and non-protected for local
 operations. Tiny Qwen2 and dense-Qwen3 checkpoints exercise the same compiled
 binding, but only Qwen2 has pinned real-checkpoint evidence. Gemma 4 enters the
 same scheduler and fails closed on unimplemented local runtime operators.
-`research.single_evaluator`, transformed MPCache plans, Qwen3.5, and Phi remain
-incomplete for whole-model execution.
+Whole-model protected composition, transformed KV-cache eviction, Qwen3.5, and Phi
+remain incomplete for whole-model execution.
 
 ### Component library and autonomous search
 

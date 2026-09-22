@@ -116,13 +116,13 @@ gateway, native integer matrix executor, telemetry, and benchmark dashboard are
 implemented. Model adapters lower Qwen2, Qwen3, Qwen3.5, Phi-4-mini, and selected
 Gemma 4 text configurations into a shared semantic representation.
 
-The compiler now emits a complete, digest-bound `baseline.masked_linear_cpu`
+The compiler now emits a complete, composition-bound masked-linear CPU
 schedule for untransformed Qwen2 and binds it to the existing model-aware prepared
 runtime. The pinned Qwen2.5-0.5B checkpoint passes a clear native-kernel
 prefill-to-decode functionality check through that binding; retained
 prepared-runtime evidence separately covers the masked protocol. This does not
-complete the protected research path: `research.single_evaluator`, transformed
-MPCache execution, other model families, and real-model tensor scale for the
+complete the protected research path: whole-model protected composition,
+transformed KV-cache-eviction execution, other model families, and real-model tensor scale for the
 fixed-Q10/Q7 composites remain unavailable. Model lowering alone is not evidence
 of compiler coverage, generation quality, deployment readiness, or production
 security.

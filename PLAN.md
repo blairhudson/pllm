@@ -5,6 +5,10 @@ created: 2026-09-18T02:30:47Z
 ---
 # PLLM deep-dive analysis and prioritized roadmap
 
+> Historical audit snapshot. `COMPONENT_COMPOSITION_PLAN.md` supersedes its
+> profile-driven compiler and runtime proposals; profile names below describe the
+> repository state observed when this audit was written, not current interfaces.
+
 One-sentence summary: PLLM is an unusually well-governed, honestly-documented, ~10-day-old codebase whose prepared masked-linear runtime works end-to-end today (Qwen2.5-0.5B), whose new compiler/component architecture is deliberately fail-closed and ~2/3 implemented (live coverage report: `rms_norm`, `softmax`, `greedy_token_selection`, `token_feedback` missing; whole-decoder scheduling absent), and whose biggest streamlining needs are (a) finishing exactly one executable profile, (b) unifying `serve`/`gateway`/`benchmark`/SDK onto one model-spec + role-topology core, (c) lowering the existing runtime arms (BFV, proprietary protocols, plaintext backends, tiny models) into the typed component system so old and new compose declaratively — sklearn-style optionality — (d) building the provider/plugin surface the research community is promised, and (e) attacking the 60–430 MB/request client traffic that blocks the VirtualDC vision (whose marketplace/placement layer is explicitly *out* of PLLM's scope — PLLM only emits the capability/evidence vocabulary VirtualDC routes on).
 
 ---
@@ -894,7 +898,7 @@ pllm — the package root; only the workflow surface lives at top level
 ### 7.6 What stays unchanged
 
 - `OpenAI`/`AsyncOpenAI`/`ResponseStream` — the consuming client; gains no arm-selection kwargs (existing `privacy_mode`/`correlation_mode` kwargs get deprecation-by-status and forward to the corresponding component preset).
-- `Experiment`/`Pipeline`/`ComponentRef`/`Model` types + YAML schema — already the convergent shape; `ModelRef`/`ModelSpec` merge into `pllm.Model` (`kind:` discriminator, `.hf()`/`.path()`/`.tiny()` constructors) without breaking `pllm.experiment.v1`.
+- `Experiment`/`Pipeline`/`ComponentRef`/`Model` types + YAML schema — already the convergent shape; `ModelRef`/`ModelSpec` merge into `pllm.Model` (`kind:` discriminator, `.hf()`/`.path()`/`.tiny()` constructors). Canonical component composition replaces profile identity in `pllm.experiment.v2`.
 - `resolve_huggingface_source` + `loaders.py` — the loader core; `hf_download` stays the dependency-free fallback.
 - `create_app`/`create_preparation_app` — become internals of `serve_inference`/`serve_preparation`; still exported for power users.
 - `InferenceEngine`/`MaskedTransformerEngineProtocol` (`execute_stage`, `seeded_*`) — the engine seam every protocol arm implements for conformance.

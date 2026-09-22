@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pllm.dev/schemas/region-program.schema.json",
+  "$id": "https://pllm.run/schemas/region-program.schema.json",
   "title": "PLLM compiler region program v1",
   "type": "object",
   "additionalProperties": false,
