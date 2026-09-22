@@ -1,0 +1,59 @@
+---
+title: "First request (offline)"
+description: "Resolve an experiment into a deterministic plan without starting a service or loading weights."
+---
+
+`examples/first_request.py` builds a local experiment around a public model and
+prints the resolved plan. It makes no network calls and loads no weights — the
+output is the configuration the runtime would execute.
+
+```python
+from pllm import Experiment, MaskedLinearCpu, Model
+from pllm.deployment import Deployment
+from pllm.kernels import Cpu
+from pllm.runtime import ExecutionBudget
+
+experiment = Experiment(
+    name="qwen-local",
+    pipeline=MaskedLinearCpu(
+        Model("Qwen/Qwen2.5-0.5B-Instruct"),
+        kernels=Cpu(threads=4),
+    ),
+    deployment=Deployment.local(root=".pllm/qwen-local"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
+)
+resolved = experiment.resolve()
+```
+
+```bash
+python examples/first_request.py
+```
+
+## Captured output
+
+```json
+{
+  "configuration_digest": "cd051de9c3dfdfe2e3f13d1316582a844d5494529cf772c58502a44021875329",
+  "experiment": {
+    "name": "qwen-local",
+    "adapter": {
+      "components": {
+        "inference": {"component": "pllm/inference", "params": {}},
+        "kernels": {"component": "pllm/cpu", "params": {"threads": 4}},
+        "linear": {"component": "pllm/masked-linear", "params": {}},
+        "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+      },
+      "model": {"source": "Qwen/Qwen2.5-0.5B-Instruct"}
+    }
+  }
+}
+```
+
+The digest is deterministic: the same declaration always resolves to the same
+plan, which is what makes experiments reproducible across machines and over
+time. `examples/composition.py` builds the identical experiment behind a
+`build_experiment()` function for reuse from other code.
+
+Resolution proves the plan is well-formed — it does not prove every component
+can execute it. Check [current support](/sdk/reference/status/) before treating
+a resolved plan as runnable.

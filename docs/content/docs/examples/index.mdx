@@ -1,0 +1,29 @@
+---
+title: "Examples"
+description: "Runnable PLLM examples with captured output — plan a private inference, talk to the gateway, and configure experiments."
+---
+
+Every page here reproduces a checked-in file under
+[`examples/`](https://github.com/blairhudson/pllm/tree/main/examples) and shows
+the output it produces, so you can compare before running it yourself.
+
+## Plan an experiment offline
+
+[First request](/learn/examples/first-request/) — declare an `Experiment`,
+resolve it, and print the deterministic plan. No service, no weights, no
+network. Covers `examples/first_request.py` and `examples/composition.py`.
+
+## Talk to a running gateway
+
+[Client usage](/learn/examples/client-usage/) — call the loopback gateway from
+the OpenAI-compatible client: single response, streaming, and the official
+`openai` SDK surface. Covers `examples/direct_client.py`,
+`examples/stream.py`, `examples/official_sdk.py`, and
+`examples/official_sdk_transport.py`. Requires the gateway from
+[your first request](/learn/start/first-private-request/).
+
+## Configure with YAML
+
+[Configuration files](/learn/examples/configuration/) — the same experiment as
+checked-in YAML, inspected and exported with `pllm config`. Covers
+`examples/pllm.yaml` and `examples/publication-assessment.json`.

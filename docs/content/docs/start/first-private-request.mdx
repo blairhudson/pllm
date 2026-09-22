@@ -1,83 +1,55 @@
 ---
-title: "Inspect a private inference plan"
-description: "Define a reproducible experiment, lower a semantic model plan, and check its execution coverage."
+title: "Make your first private request"
+description: "Start the trusted loopback gateway and get real generated text from a private inference endpoint."
 ---
 
-## Define the experiment
+This page starts the gateway plus co-located preparation and inference roles on
+your machine, then sends one chat request through the private protocol. You will
+see generated text — not a plan or a dry run.
 
-```python
-from pllm import Experiment, MaskedLinearCpu, Model
-from pllm.deployment import Deployment
-from pllm.kernels import Cpu
-from pllm.runtime import ExecutionBudget
-
-experiment = Experiment(
-    name="qwen-local",
-    pipeline=MaskedLinearCpu(
-        Model("Qwen/Qwen2.5-0.5B-Instruct"),
-        kernels=Cpu(threads=4),
-    ),
-    deployment=Deployment.local(root=".pllm/qwen-local"),
-    budget=ExecutionBudget(requests=1, max_input_tokens=128, max_new_tokens=32),
-)
-
-resolved = experiment.resolve()
-assert resolved.configuration_digest == experiment.configuration_digest()
-print(experiment.configuration_digest())
-print(experiment.to_spec())
-```
-
-The checked-in `examples/first_request.py` executes this same resolution path in the test suite.
-
-The [SDK configuration model](/sdk/configuration/) keeps this declaration
-inspectable without starting a service or loading a model. You can inspect or
-export an equivalent checked-in JSON or YAML file:
+## Start the gateway
 
 ```bash
-pllm config show examples/pllm.yaml --format json
-pllm config export examples/pllm.yaml --output experiment.resolved.json
+pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct --api-key local
 ```
 
-Python configuration targets execute local code. In noninteractive use, you must
-explicitly allow them with `--trust-python`.
+The first run downloads the public model weights (about 1 GB) and then starts
+three processes: the client-controlled gateway on `127.0.0.1:8080`, a preparation
+role, and an inference role. Leave it running in the foreground; stopping the
+gateway stops its children.
 
-## Lower and compose
+`--local` co-locates every role under one operator. It exercises the real private
+protocol but cannot demonstrate non-collusion — see the
+[trust boundary](/learn/understand/trust-boundary/) for what changes when roles
+are independently operated.
 
-The [`lower_model` model-planning path](/sdk/build/models/) accepts public model
-configuration and workload limits. It does not accept a model repository name or
-load weights:
+## Send one request
 
-```python
-import pllm
-from pllm.passes import KvCacheEviction
-from pllm.profiles import MaskedLinearCpu
+In a second terminal, call the OpenAI-compatible endpoint:
 
-config = {
-    "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,
-    "num_hidden_layers": 24, "num_attention_heads": 14,
-    "num_key_value_heads": 2, "vocab_size": 151936,
-    "max_position_embeddings": 32768, "hidden_act": "silu",
-    "rms_norm_eps": 1e-6, "rope_theta": 1000000,
-    "tie_word_embeddings": True,
-}
-plan = pllm.lower_model(config, batch=1, max_input_tokens=128, max_new_tokens=32)
-composed = plan.apply(KvCacheEviction())
-pipeline = MaskedLinearCpu(pllm.Model("Qwen/Qwen2.5-0.5B-Instruct"))
-coverage = composed.coverage(pipeline)
-assert composed.digest != plan.digest
-assert coverage.complete is False
-print(composed.digest, coverage.complete, coverage.to_dict())
+```bash
+curl -s http://127.0.0.1:8080/v1/chat/completions \
+  -H "Authorization: Bearer local" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "messages": [{"role": "user", "content": "Say hello in one word."}],
+    "max_tokens": 8
+  }'
 ```
 
-This plan describes work that could precede an inference request. The MPCache
-structural pass is functional for dense Qwen2/Qwen3 plans, but the reported
-compiler coverage is currently incomplete, so the example does not perform private
-text generation. Semantic planning, protected runtime execution, model quality,
-benchmark results, privacy evidence, and deployment readiness are separate status
-checks.
+The response is a standard `chat.completion` whose `choices[0].message.content`
+holds the generated text — verified output for this exact command is `Hello.`
+with `finish_reason: "stop"`. The gateway also exposes `/v1/responses`.
 
-Inspect component metadata with `pllm components list`. See
-[runtime](/sdk/pipeline/runtime/),
-[protocol interfaces](/sdk/pipeline/protocols/), and
-[current support](/sdk/reference/status/). To send an executable request from a
-compatible client, continue to the [integration guides](/learn/integrations/).
+## What just happened
+
+Your prompt stayed inside the client boundary: the gateway decomposed it into
+preparation work (client-side) and masked inference work (provider-side), ran the
+request through the protocol, and returned only the completion. The
+[SDK configuration model](/sdk/configuration/) is the declarative form of what
+just ran, and the [protocol interfaces](/sdk/pipeline/protocols/) describe each
+role's contract. To see the component decomposition a request produces,
+[inspect the execution plan](/learn/start/inspect-a-plan/). To use the same
+endpoint from an SDK or a coding agent, continue to the
+[integration guides](/learn/integrations/).

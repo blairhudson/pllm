@@ -1,0 +1,63 @@
+---
+title: "Client usage"
+description: "Call the trusted loopback gateway from the OpenAI-compatible client — single responses and streaming."
+---
+
+These examples need a running gateway. Start one in another terminal with the
+command from [your first request](/learn/start/first-private-request/):
+
+```bash
+pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct --api-key local
+```
+
+## Single response
+
+`examples/direct_client.py` sends one Responses API request through the
+private protocol:
+
+```python
+from pllm import OpenAI
+
+with OpenAI(
+    base_url="http://127.0.0.1:8080",
+    api_key="local",
+) as client:
+    response = client.responses.create(
+        model="Qwen/Qwen2.5-0.5B-Instruct",
+        input="This prompt stays on the client.",
+    )
+    print(response.output_text)
+```
+
+The returned object is the standard Responses API shape; `output_text` holds the
+generated text. Equivalent calls work on `/v1/chat/completions` — verified
+output for `"Say hello in one word."` is `Hello.`.
+
+## Streaming
+
+`examples/stream.py` prints tokens as they arrive:
+
+```python
+from pllm import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8080", api_key="local")
+stream = client.responses.create(
+    model="Qwen/Qwen2.5-0.5B-Instruct", input="private", stream=True,
+)
+for event in stream:
+    if event.type == "response.output_text.delta":
+        print(event.delta, end="", flush=True)
+```
+
+## Official OpenAI SDK shape
+
+`examples/official_sdk.py` and `examples/official_sdk_transformer.py` show the
+same calls through `create_openai_client` and a model-configured client, so
+code written for the OpenAI SDK runs against the gateway unchanged. The
+[integration guides](/learn/integrations/) cover each tested client — OpenAI
+Python, OpenAI Agents, Codex, and OpenCode — with pinned verified versions.
+
+The `correlation_mode`/`session_transport` arguments in the checked-in files
+match provider-side configurations; with `--local` defaults they are not
+required. See [`pllm gateway` options](/cli/reference/gateway/) for the full
+flag set.

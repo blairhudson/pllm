@@ -20,13 +20,22 @@ export function prefixHtml(html, prefix = basePath) {
     (_match, attribute, href) => `${attribute}="${withBasePath(href, prefix)}"`);
 }
 
-/** Stable Markdown alternate for each canonical public route. */
-export function markdownPathForRoute(route) {
+function pageForRoute(route) {
   const normalized = route === '/' ? '/' : `${route.replace(/\/$/, '')}/`;
-  const page = publicationRegistry.pages.find((candidate) =>
+  return publicationRegistry.pages.find((candidate) =>
     candidate.canonicalUrl === normalized || candidate.aliases?.some((alias) =>
       (alias === '/' ? '/' : `${alias.replace(/\/$/, '')}/`) === normalized));
+}
+
+/** Stable Markdown alternate for each canonical public route. */
+export function markdownPathForRoute(route) {
+  const page = pageForRoute(route);
   if (!page) throw new Error(`Unregistered public route: ${route}`);
   return page.markdownUrl;
+}
+
+/** Repository-relative source path for a canonical public route, when known. */
+export function sourcePathForRoute(route) {
+  return pageForRoute(route)?.sourcePath;
 }
 import { publicationRegistry } from '../scripts/publication-registry.mjs';

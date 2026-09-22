@@ -12,16 +12,43 @@ pllm --version
 pllm --help
 ```
 
-For a Python project, add the same package as a project dependency:
+The distribution is named `pllm.run`; the installed command is `pllm` and the
+importable package is `pllm`. Plain `pip` and `pipx` work too — the same PyPI
+project serves all installers:
+
+```bash
+pipx install pllm.run        # isolated CLI, like uv tool install
+pip install pllm.run         # into the current environment
+```
+
+For a Python project, add the package as a dependency:
 
 ```bash
 uv add pllm.run
 uv run python -c "import pllm; print(pllm.__version__)"
 ```
 
+## Supported platforms
+
+Current releases ship prebuilt wheels (Python 3.11–3.13, abi3) and a source
+distribution:
+
+| Platform | Wheel |
+| --- | --- |
+| Linux x86_64 (glibc ≥ 2.28) | `manylinux_2_28_x86_64` |
+| Linux arm64 (glibc ≥ 2.28) | `manylinux_2_28_aarch64` |
+| macOS x86_64 (≥ 10.12) | `macosx_10_12_x86_64` |
+| macOS Apple Silicon (≥ 11) | `macosx_11_0_arm64` |
+| Windows x86_64 | `win_amd64` |
+
+Other platforms fall back to the source distribution, which builds the Rust
+runtime locally and requires a working Rust toolchain. The
+[current release](/sdk/reference/releases/) lists the artifacts for each
+version.
+
 `--help` and `--version` do not load a model, initialize a device, or use the
 network. A successful installation confirms only that the package is available.
 It does not confirm support for a particular model, protocol, deployment, or
-privacy goal.
+privacy goal — check [current support](/sdk/reference/status/) for that.
 
-Continue to [inspect a private inference plan](/learn/start/first-private-request/).
+Continue to [make your first private request](/learn/start/first-private-request/).

@@ -1,5 +1,5 @@
 {
   "title": "Get started",
   "root": true,
-  "pages": ["index", "installation", "first-private-request", "first-local-benchmark"]
+  "pages": ["index", "installation", "first-private-request", "first-local-benchmark", "inspect-a-plan"]
 }

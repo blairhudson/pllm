@@ -1,0 +1,63 @@
+---
+title: "Configuration files"
+description: "Declare an experiment as checked-in YAML and inspect or export it with the config commands."
+---
+
+`examples/pllm.yaml` is the same experiment as
+[first-request](/learn/examples/first-request/), expressed as a
+`pllm.experiment.v2` document:
+
+```yaml
+schema: pllm.experiment.v2
+name: qwen-local
+pipeline:
+  model:
+    source: Qwen/Qwen2.5-0.5B-Instruct
+  components:
+    linear:      {component: pllm/masked-linear, params: {}}
+    preparation: {component: pllm/model-aware-corrections, params: {}}
+    inference:   {component: pllm/inference, params: {}}
+    kernels:     {component: pllm/cpu, params: {threads: 4}}
+deployment:
+  kind: local
+  root: .pllm/qwen-local
+budget:
+  requests: 1
+  max_input_tokens: 128
+  max_new_tokens: 32
+```
+
+## Inspect it
+
+```bash
+pllm config show examples/pllm.yaml --format json
+```
+
+```json
+{
+  "command": "config.show",
+  "data": {
+    "configuration": {
+      "name": "qwen-local",
+      "deployment": {"kind": "local", "root": ".pllm/qwen-local"},
+      "budget": {"requests": 1, "max_input_tokens": 128, "max_new_tokens": 32}
+    }
+  }
+}
+```
+
+(output abbreviated; the full document echoes the resolved configuration)
+
+## Export a resolved copy
+
+```bash
+pllm config export examples/pllm.yaml --output experiment.resolved.json
+```
+
+The exported file is the resolved form other tools — CI, schedulers, the
+research harness — can consume without evaluating Python. Python configuration
+targets execute local code, so noninteractive runs require `--trust-python`.
+
+`examples/publication-assessment.json` is a checked-in assessment artifact the
+research tooling reads; see [evidence requirements](/research/evidence/) for
+what it records.

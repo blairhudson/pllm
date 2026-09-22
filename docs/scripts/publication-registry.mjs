@@ -1,4 +1,5 @@
 import { discoveredDocs } from './discovered-docs.mjs';
+import { packageVersion } from './package-version.mjs';
 import { canonicalDocsUrl, markdownUrlForCanonical } from '../lib/docs-routes.mjs';
 
 const page = (
@@ -95,7 +96,7 @@ const pythonModulePages = pythonModules.slice(1).map((module) => {
 
 const declaredPublicationRegistry = {
   schemaVersion: '2.0.0',
-  release: '0.1.0',
+  release: packageVersion,
   canonicalOrigin: 'https://pllm.run',
   pages: [
     page('pllm.home', 'content/home.html', '/', 'homepage'),
