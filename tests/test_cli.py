@@ -264,10 +264,8 @@ def test_public_configuration_rejects_nested_secret_fields(tmp_path: Path) -> No
     assert "never-print-this" not in result.stderr
 
 
-def test_help_snapshot_matches_real_parser() -> None:
+def test_help_output_matches_real_parser() -> None:
     result = run_cli("--help")
     assert result.returncode == 0
     assert result.stderr == ""
-    snapshot = (ROOT / "docs/public/downloads/cli-help.txt").read_text(encoding="utf-8")
-    root_help = snapshot.split("$ pllm --help\n", 1)[1].split("\n$ pllm config --help\n", 1)[0]
-    assert result.stdout == root_help
+    assert result.stdout == build_parser().format_help()

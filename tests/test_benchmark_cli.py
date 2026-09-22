@@ -118,6 +118,7 @@ class _RunningProcess:
         return None
 
 
+@pytest.mark.he
 @pytest.mark.integration
 def test_tiny_guarded_benchmark_runs_over_one_role_profile() -> None:
     import pllm

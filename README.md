@@ -192,7 +192,7 @@ privacy evidence, and deployment support are separate claims.
 
 ```bash
 uv sync --extra he --extra sdk
-cargo test --workspace
+cargo test
 cargo clippy --workspace --all-targets -- -D warnings
 uv run pytest
 uv run ruff check python/pllm scripts tests

@@ -96,7 +96,7 @@ Run from a clean checkout with the committed locks:
 
 ```bash
 uv sync --locked --extra he --extra sdk
-cargo test --locked --workspace
+cargo test --locked
 cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
 uv run pytest
 uv run ruff check python/pllm scripts tests

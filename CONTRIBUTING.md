@@ -38,7 +38,7 @@ uv run python scripts/build_papers.py
 Run checks relevant to your change before opening a pull request:
 
 ```bash
-cargo test --workspace
+cargo test
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 uv run ruff check python/pllm scripts tests

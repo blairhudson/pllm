@@ -279,7 +279,7 @@ The Cargo workspace version is inherited by all Rust crates. The Python source
 version and citation version are checked against it by `scripts/release.py`.
 Release changes use that script rather than independent manual edits.
 
-The root `cargo test --workspace` runs the Python-independent Rust workspace. The
+The root `cargo test` runs the Python-independent default Rust workspace. The
 wheel matrix compiles the binding for each platform and runs Python tests against
 the installed wheel.
 The publisher receives only validated artifacts and OIDC credentials; it does

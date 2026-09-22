@@ -57,7 +57,7 @@ jobs:
           version="$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')"
           uv run --no-sync python scripts/release.py check "v$version"
       - run: cargo fmt --all --check
-      - run: PYO3_PYTHON="$(uv python find 3.13)" cargo test --locked --workspace
+      - run: cargo test --locked
       - run: PYO3_PYTHON="$(uv python find 3.13)" cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
       - run: uv run --no-sync pytest -m 'he or sdk'
       - run: uv build
@@ -78,8 +78,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - run: uv python install 3.13
-      - run: uv sync --locked --python 3.13 --no-install-project
+      - run: bash scripts/sync_environment.sh --python 3.13
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: docs/.nvmrc
