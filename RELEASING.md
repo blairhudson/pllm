@@ -69,11 +69,11 @@ Use the single release setup command so Cargo, Python, citation, and lock versio
 move together:
 
 ```bash
-uv run python scripts/release.py prepare 0.1.0a1
+uv run python scripts/release.py prepare 0.1.0a2
 # Review the complete diff, then merge.
-uv run python scripts/release.py check v0.1.0a1 --require-locks --docs
-git tag -a v0.1.0a1 -m "PLLM 0.1.0a1"
-git push origin v0.1.0a1
+uv run python scripts/release.py check v0.1.0a2 --require-locks --docs
+git tag -a v0.1.0a2 -m "PLLM 0.1.0a2"
+git push origin v0.1.0a2
 ```
 
 Replace the example version with the intended new version. Do not recreate or
@@ -87,7 +87,7 @@ Trusted Publishing. Approval is not a dry run.
 After the workflow succeeds, verify the published package independently:
 
 ```bash
-uv run --isolated --no-project --with pllm.run==0.1.0a1 pllm --version
+uv run --isolated --no-project --with pllm.run==0.1.0a2 pllm --version
 ```
 
 ## Local release checks
