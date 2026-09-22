@@ -18,7 +18,7 @@ class Inference(InferenceRole):
     descriptor = ComponentDescriptor(
         component="pllm/inference",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/inference-role",
         category_version="1",

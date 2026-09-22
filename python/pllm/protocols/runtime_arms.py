@@ -7,7 +7,7 @@ class GuardedLinear(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/guarded-linear/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",
@@ -67,7 +67,7 @@ class BlindedLinear(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/blinded-linear/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",
@@ -93,7 +93,7 @@ class SecureLinear(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/secure-linear/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",
@@ -120,7 +120,7 @@ class DirectFHE(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/direct-fhe",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",
@@ -147,7 +147,7 @@ class CleartextLinear(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/cleartext-linear",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",

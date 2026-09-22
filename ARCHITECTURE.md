@@ -1,7 +1,8 @@
 # Architecture
 
-PLLM is a mixed Python and Rust project with one Python distribution. Maturin
-builds the PyO3 module `pllm._native` and packages it alongside `python/pllm`.
+PLLM is a mixed Python and Rust project with one Python distribution named
+`pllm.run`. Maturin builds the PyO3 module `pllm._native` and packages it
+alongside the `pllm` import package in `python/pllm`.
 
 ## Dependency direction
 
@@ -39,7 +40,7 @@ cryptographic dependency.
 | `pllm-assurance` | Scoped assurance results and checked public fixtures |
 | `pllm-bench` | Native and deployment measurement records tied to plan and environment digests |
 | `pllm-plugin-api` | Independently versioned C-compatible native provider vtables, statuses, handles, buffers, header, and conformance fixtures |
-| `pllm-python` | The PyO3 `pllm._native` boundary exposed through the single Python distribution |
+| `pllm-python` | The PyO3 `pllm._native` boundary exposed through the `pllm.run` distribution |
 
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
 runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,

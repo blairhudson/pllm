@@ -23,7 +23,7 @@ class ModelAwareCorrections(PreparationProvider):
     descriptor = ComponentDescriptor(
         component="pllm/model-aware-corrections",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/preparation-provider",
         category_version="1",
@@ -49,7 +49,7 @@ class BFVCorrelations(PreparationProvider):
     descriptor = ComponentDescriptor(
         component="pllm/bfv-correlations/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/preparation-provider",
         category_version="1",
@@ -88,7 +88,7 @@ class HEAuthenticatedPreprocessing(PreparationProvider):
     descriptor = ComponentDescriptor(
         component="pllm/he-authenticated-preprocessing",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/preparation-provider",
         category_version="1",

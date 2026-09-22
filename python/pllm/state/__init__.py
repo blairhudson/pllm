@@ -18,7 +18,7 @@ class ClientLocalKv(StateProtocol):
     descriptor = ComponentDescriptor(
         component="pllm/client-local-kv",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/state-protocol",
         category_version="1",

@@ -15,7 +15,7 @@ paths or component identity.
 
 ```text
 Cargo.toml, Cargo.lock            Rust workspace and reproducible dependency lock
-pyproject.toml, uv.lock           `pllm` distribution and Python dependency lock
+pyproject.toml, uv.lock           `pllm.run` distribution and Python dependency lock
 python/pllm/                      Python public facades and orchestration
 crates/                           Rust-owned compiler, execution, benchmark, and assurance code
 schemas/                          Canonical public serialized contracts and fixtures
@@ -41,7 +41,7 @@ MUST NOT be imported to execute a locked production plan.
 
 ## Distribution boundary
 
-PLLM ships one Python distribution named `pllm`, one import package named `pllm`, and one CLI named
+PLLM ships one Python distribution named `pllm.run`, one import package named `pllm`, and one CLI named
 `pllm`. Maturin builds private PyO3 module `pllm._native` from `crates/pllm-python`. `pllm._native` is
 an internal Python boundary, not the independently versioned native plugin ABI.
 

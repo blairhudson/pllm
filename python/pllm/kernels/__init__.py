@@ -18,7 +18,7 @@ class Cpu(KernelBackend):
     descriptor = ComponentDescriptor(
         component="pllm/cpu",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/kernel-backend",
         category_version="1",

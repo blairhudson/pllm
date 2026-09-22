@@ -20,7 +20,7 @@ class BoundedIndependentElementsProtectedTensorSchedule(ProtectedScheduler):
     descriptor = ComponentDescriptor(
         component="pllm/bounded-independent-elements/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protected-scheduler",
         category_version="1",
@@ -58,7 +58,7 @@ class ScalarProtectedTensorSchedule(ProtectedScheduler):
     descriptor = ComponentDescriptor(
         component="pllm/scalar/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protected-scheduler",
         category_version="1",
@@ -87,7 +87,7 @@ class IndependentLanesProtectedTensorSchedule(ProtectedScheduler):
     descriptor = ComponentDescriptor(
         component="pllm/independent-lanes/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protected-scheduler",
         category_version="1",
@@ -127,7 +127,7 @@ class ChunkedIndependentLanesProtectedTensorSchedule(ProtectedScheduler):
     descriptor = ComponentDescriptor(
         component="pllm/chunked-independent-lanes/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protected-scheduler",
         category_version="1",

@@ -4,10 +4,10 @@ description: "Install the Python package and verify the CLI without loading a mo
 ---
 
 PLLM supports Python 3.11 through 3.13. Install the command from
-[PyPI](https://pypi.org/project/pllm/) with [uv](https://docs.astral.sh/uv/):
+[PyPI](https://pypi.org/project/pllm.run/) with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install pllm
+uv tool install pllm.run
 pllm --version
 pllm --help
 ```
@@ -15,7 +15,7 @@ pllm --help
 For a Python project, add the same package as a project dependency:
 
 ```bash
-uv add pllm
+uv add pllm.run
 uv run python -c "import pllm; print(pllm.__version__)"
 ```
 

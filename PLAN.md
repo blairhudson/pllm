@@ -35,7 +35,7 @@ Environment: macOS arm64 (NEON active, no AVX2), Python 3.13 venv, Rust 1.85.1 p
 
 ## 2. What PLLM actually is (as-built, not as-described)
 
-Two systems share one `pllm` wheel (maturin/PyO3, abi3-py311):
+Two systems share one `pllm.run` distribution (maturin/PyO3, abi3-py311):
 
 **A. The prepared masked-linear runtime — works today.** Three roles: Client (owns plaintext, seeds, activation scales, attention state, sampling), Preparation (trusted; expands seeds→masks `r`,`s`, computes `W·r−s` offline, pushes corrections to Inference over WS, idle online), Inference (untrusted; holds public body, consumes one-use tickets, returns `W·x−s`). HTTP packed prefill + persistent-WS decode; u16/u24/u32 ring selected per stage from exact bounds; token lookup + output head are client-local; memory-only inventory with burn-on-reserve semantics. Validated end-to-end on `Qwen/Qwen2.5-0.5B-Instruct`; retained evidence: 30-token prompt → TTFT ~0.98s, 16-token gen in ~2.6–7.4s online, **63–433 MB client I/O per request** (Apple M5 loopback). Surfaces: `pllm serve inference|preparation`, `pllm gateway` (loopback Responses + Chat Completions APIs, verified against OpenAI SDK 3.8.0, Agents SDK 0.22.2, Codex 0.154, OpenCode 1.18.31 — 17 conformance tests), `pllm benchmark run`, `pllm dev dashboard` (OTLP-instrumented, SQLite history).
 
@@ -916,7 +916,7 @@ pllm — the package root; only the workflow surface lives at top level
 ### 8.2 File/area inventory
 - Tracked files: 823 (docs 457 incl. generated mirrors; python 123; tests 58; crates 55; schemas 36).
 - LOC: Python ~32k (biggest: `runtime/client.py` 3.3k, `runtime/server.py` 2.1k); Rust ~36.8k (biggest: `pllm-compiler/lib.rs` 4.9k, `pllm-models/lib.rs` 3.6k); tests ~13.9k; Rust tests ~7k.
-- Wheel: `pllm-0.1.0a1` abi3, 2.6 MB `.so`, includes dashboard assets + py.typed + stubs (+ `market.py`/`provider.py`, slated for removal per P1.8).
+- Wheel: `pllm_run-0.1.0a1` abi3, 2.6 MB `.so`, includes dashboard assets + py.typed + stubs (+ `market.py`/`provider.py`, slated for removal per P1.8).
 - Git: 41 commits, all within Sep 8–17 2026; current WIP staged (dense_qwen_mlp/rms_norm/provenance/boolean garbling).
 
 ### 8.3 Generated-artifact map (must stay fresh; regenerate on change)

@@ -33,7 +33,7 @@ class Latency(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/latency",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -71,7 +71,7 @@ class Throughput(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/throughput",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -101,7 +101,7 @@ class Communication(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/communication",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -139,7 +139,7 @@ class Memory(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/memory",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -169,7 +169,7 @@ class Energy(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/energy",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -207,7 +207,7 @@ class Accuracy(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/accuracy",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -245,7 +245,7 @@ class Perplexity(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/perplexity",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",
@@ -272,7 +272,7 @@ class Cost(Metric):
     descriptor = ComponentDescriptor(
         component="pllm/cost",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/benchmark-metric",
         category_version="1",

@@ -1500,7 +1500,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pllm"
+name = "pllm-run"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

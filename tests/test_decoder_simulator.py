@@ -230,11 +230,12 @@ def test_user_facing_source_has_no_retired_brand_or_proof_wording() -> None:
             assert phrase not in value, f"{phrase!r} remains in {path}"
 
 
-def test_public_package_is_named_pllm() -> None:
+def test_public_distribution_provides_pllm_package() -> None:
     import pllm
 
     assert pllm.__version__ == __import__("pllm._version", fromlist=["__version__"]).__version__
     pyproject = Path(__file__).parents[1] / "pyproject.toml"
     text = pyproject.read_text(encoding="utf-8")
-    assert 'name = "pllm"' in text
+    assert 'name = "pllm.run"' in text
+    assert 'import-names = ["pllm"]' in text
     assert 'dynamic = ["version"]' in text

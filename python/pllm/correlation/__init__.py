@@ -18,7 +18,7 @@ class SeededExpansion(CorrelationSource):
     descriptor = ComponentDescriptor(
         component="pllm/seeded-expansion",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/correlation-source",
         category_version="1",

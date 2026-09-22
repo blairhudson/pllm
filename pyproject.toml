@@ -3,7 +3,8 @@ requires = ["maturin>=1.9,<2"]
 build-backend = "maturin"
 
 [project]
-name = "pllm"
+name = "pllm.run"
+import-names = ["pllm"]
 dynamic = ["version"]
 description = "Private language model inference with a local Responses API and remote matrix execution"
 readme = "README.md"
@@ -43,6 +44,12 @@ huggingface = ["transformers>=5,<6"]
 
 [project.scripts]
 pllm = "pllm.cli:main"
+
+[project.urls]
+Homepage = "https://pllm.run"
+Documentation = "https://pllm.run"
+Repository = "https://github.com/blairhudson/pllm"
+Issues = "https://github.com/blairhudson/pllm/issues"
 
 [dependency-groups]
 dev = [

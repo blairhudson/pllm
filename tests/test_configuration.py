@@ -399,7 +399,8 @@ def test_concrete_components_have_distinct_descriptors_and_roundtrip(
     assert component.get_params() == params
     assert component.to_spec() == {"component": identity, "params": params}
     assert descriptor.category == category
-    assert descriptor.provider == descriptor.distribution == "pllm"
+    assert descriptor.provider == "pllm"
+    assert descriptor.distribution == "pllm.run"
     assert descriptor.capabilities
     assert descriptor.parameter_schema["additionalProperties"] is False
 

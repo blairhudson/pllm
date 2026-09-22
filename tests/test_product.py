@@ -10,7 +10,10 @@ from pllm.settings import ClientSettings, config_path
 
 def test_package_name_version_and_uv_metadata() -> None:
     text = Path("pyproject.toml").read_text(encoding="utf-8")
-    assert 'name = "pllm"' in text
+    assert 'name = "pllm.run"' in text
+    assert 'import-names = ["pllm"]' in text
+    assert 'Homepage = "https://pllm.run"' in text
+    assert 'Repository = "https://github.com/blairhudson/pllm"' in text
     assert 'dynamic = ["version"]' in text
     assert 'pllm = "pllm.cli:main"' in text
     assert "[tool.uv]" in text

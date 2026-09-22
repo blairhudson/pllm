@@ -105,7 +105,7 @@ PLLM supports Python 3.11 through 3.13. Install the command from PyPI with
 [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv tool install pllm
+uv tool install pllm.run
 pllm --version
 pllm --help
 pllm components list
@@ -114,14 +114,13 @@ pllm components list
 For the Python SDK, add the same package to a project:
 
 ```bash
-uv add pllm
+uv add pllm.run
 uv run python -c "import pllm; print(pllm.__version__)"
 ```
 
-The CLI currently inspects configurations, component descriptors, and research
-records. It does not yet expose production service lifecycle or chat commands.
-To exercise the real client, preparation, and inference roles on one machine,
-run the development dashboard:
+The CLI inspects configurations and research records, runs benchmarks, and starts
+the gateway, inference, and preparation roles. To exercise all roles on one
+machine, run the development dashboard:
 
 ```bash
 pllm dev dashboard --tiny --no-open

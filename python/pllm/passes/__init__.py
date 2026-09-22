@@ -44,7 +44,7 @@ class KvCacheEviction(PlanPass):
     descriptor = ComponentDescriptor(
         component="pllm/kv-cache-eviction",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/compiler-pass",
         category_version="1",

@@ -18,7 +18,7 @@ class ArithmeticGarblingSiluQ7(NonlinearProtocol):
     descriptor = ComponentDescriptor(
         component="pllm/arithmetic-garbling-silu-q7/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/nonlinear-protocol",
         category_version="1",
@@ -47,7 +47,7 @@ class BinaryTableGatedMultiplyQ7(NonlinearProtocol):
     descriptor = ComponentDescriptor(
         component="pllm/binary-table/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/nonlinear-protocol",
         category_version="1",
@@ -76,7 +76,7 @@ class R03CrtGatedMultiplyQ7(NonlinearProtocol):
     descriptor = ComponentDescriptor(
         component="pllm/r03-crt/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/nonlinear-protocol",
         category_version="1",

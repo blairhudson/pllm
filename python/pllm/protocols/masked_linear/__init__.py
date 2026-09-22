@@ -9,7 +9,7 @@ class MaskedLinear(ProtocolMethod):
     descriptor = ComponentDescriptor(
         component="pllm/masked-linear",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/protocol-method",
         category_version="1",

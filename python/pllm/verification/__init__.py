@@ -29,7 +29,7 @@ class LinearIntegrity(VerificationScheme):
     descriptor = ComponentDescriptor(
         component="pllm/linear-integrity",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/verification-scheme",
         category_version="1",
@@ -57,7 +57,7 @@ class FreivaldsVerify(VerificationScheme):
     descriptor = ComponentDescriptor(
         component="pllm/freivalds-verify/v1",
         provider="pllm",
-        distribution="pllm",
+        distribution="pllm.run",
         version="1",
         category="pllm/verification-scheme",
         category_version="1",

@@ -47,7 +47,7 @@ def main() -> None:
         wheel_metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/WHEEL"))))
         assert wheel_metadata["Root-Is-Purelib"] == "false"
         metadata = email.message_from_bytes(wheel.read(next(n for n in names if n.endswith(".dist-info/METADATA"))))
-        assert metadata["Name"] == "pllm" and metadata["Version"] == version()
+        assert metadata["Name"] == "pllm.run" and metadata["Version"] == version()
     with tarfile.open(sources[0]) as archive:
         names = archive.getnames()
         assert any(n.endswith("/pyproject.toml") for n in names)

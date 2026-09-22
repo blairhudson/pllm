@@ -15,7 +15,7 @@ The stable Python ABI starts at 3.11. Native Plugin ABI 1 is published as an ind
 from pllm.kernels import Cpu
 
 descriptor = Cpu.describe()
-assert descriptor.distribution == "pllm"
+assert descriptor.distribution == "pllm.run"
 assert "cpu" in descriptor.capabilities
 ```
 
