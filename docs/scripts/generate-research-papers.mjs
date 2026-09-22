@@ -220,13 +220,20 @@ const plan = JSON.parse(fs.readFileSync(path.join(dataRoot, 'reimplementation-pl
 validate(registry, plan);
 fs.mkdirSync(outputRoot, { recursive: true });
 const phaseByPaper = new Map(plan.phases.flatMap((phase) => phase.papers.map((id) => [id, phase])));
+const paperById = new Map(registry.papers.map((paper) => [paper.id, paper]));
+
+// Sidebar groups mirror the dependency-ordered plan instead of a flat R01-R24 list.
+const sidebarPages = plan.phases.flatMap((phase) => [
+  `--- ${phase.priority}. ${phase.name} ---`,
+  ...phase.papers.map((id) => outputSlug(paperById.get(id))),
+]);
 
 const generated = new Map([
   ['index.mdx', renderIndex(registry, plan, registry.papers)],
   ['meta.json', `${JSON.stringify({
     title: 'Research papers',
     root: true,
-    pages: ['index', ...registry.papers.map(outputSlug)],
+    pages: ['index', ...sidebarPages],
   }, null, 2)}\n`],
   ...registry.papers.map((paper) => [`${outputSlug(paper)}.mdx`, renderPaper(paper, phaseByPaper.get(paper.id))]),
 ]);
