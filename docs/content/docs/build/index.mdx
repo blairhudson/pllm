@@ -4,7 +4,7 @@ description: "Define a reproducible PLLM system from configuration, models, comp
 ---
 
 - [SDK configuration](/sdk/configuration/) records what you intend to build.
-- [Models](/sdk/build/model-adapters/) translate model-family settings into shared operations.
+- [Models](/sdk/models/families/) translate model-family settings into shared operations.
 - [Model plans](/sdk/plans/) separate model structure from compiler and runtime support.
 - [Components](/sdk/components/) select versioned capabilities.
 - [Research methods](/research/recipes/build-method/) record provenance and plan changes.
@@ -12,14 +12,21 @@ description: "Define a reproducible PLLM system from configuration, models, comp
 ## Python SDK example
 
 ```python
-from pllm import Cpu, Model, Pipeline
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.kernels import Cpu
+from pllm.profiles import MaskedLinearCpu
 
-pipeline = Pipeline.from_profile(
-    "public-weight-local",
-    model=Model("Qwen/Qwen2.5-0.5B-Instruct"),
-    components={"kernel": Cpu(threads=2)},
+experiment = Experiment(
+    name="cpu-model",
+    pipeline=MaskedLinearCpu(
+        Model("Qwen/Qwen2.5-0.5B-Instruct"),
+        kernels=Cpu(threads=2),
+    ),
+    deployment=Deployment.local(root="local://cpu-model"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
 )
-assert pipeline.to_spec()["components"]["kernel"]["params"]["threads"] == 2
+experiment.resolve()
+assert experiment.pipeline.kernels.params["threads"] == 2
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)

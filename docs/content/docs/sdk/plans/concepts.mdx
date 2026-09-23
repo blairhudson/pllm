@@ -1,0 +1,37 @@
+---
+title: "Plan records and identity"
+description: "Know which immutable facts belong in source, model, composition, and execution locks."
+---
+
+`Model` names an input source. `ModelPlan` contains a bounded semantic decoder
+graph. `Pipeline` serializes component choices and binds a composition digest;
+`Experiment` includes model, deployment, and workload bounds. Import records
+actual checkpoint source-file hashes. Compilation binds these facts to a
+verified plan, while live masks, credentials, seeds, sessions, and inventory
+stay opaque and one-use. Never treat a matching display label as identical
+execution identity; compare canonical content digests. See
+[experiment identity](/sdk/experiments/identity/) and
+[model sources](/sdk/models/sources/).
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="identity-guide",
+    pipeline=MaskedLinearCpu(Model.tiny()),
+    deployment=Deployment.local(root="local://identity-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.model.kind == "tiny"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+for a tiny transport test. Use a real checkpoint for model-quality evidence.
+
+API: [`Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

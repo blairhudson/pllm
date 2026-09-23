@@ -1,0 +1,18 @@
+{
+  "title": "Core concepts",
+  "root": true,
+  "pages": [
+    "index",
+    "privacy-and-threat-models",
+    "parties-and-offline-work",
+    "masked-linear-inference",
+    "garbling",
+    "numeric-semantics",
+    "research-and-evidence",
+    "architecture-and-trust",
+    "architecture",
+    "trust-boundary",
+    "privacy-assurance",
+    "evidence-claims"
+  ]
+}

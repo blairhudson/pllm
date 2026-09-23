@@ -4,7 +4,9 @@
       <span>Keep your data private.</span>
       <span>Open compute to the world.</span>
     </h1>
-    <p class="home-intro">PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.</p>
+    <p class="home-intro">PLLM is a high-performance private LLM multi-party inference runtime and extensible experimentation system.</p>
+    <p class="home-install"><code>uv tool install pllm.run</code></p>
+    <p class="home-meta">Latest release <a href="/sdk/reference/releases/">__PLLM_VERSION__</a> · <a href="https://pypi.org/project/pllm.run/">PyPI</a> · <a href="https://github.com/blairhudson/pllm">GitHub</a> · Apache-2.0</p>
     <div class="button-row" aria-label="Start with PLLM">
       <a class="button primary" href="#start-building">Start building <span aria-hidden="true">→</span></a>
       <a class="button" href="#run-research">Run research <span aria-hidden="true">→</span></a>
@@ -41,7 +43,7 @@
         </div>
       </dl>
       <p class="home-note">Neither remote service receives the full request. This depends on both services following the protocol and not colluding.</p>
-      <p><a class="home-text-link" href="/learn/masked-linear-inference/">Learn how private inference works</a></p>
+      <p><a class="home-text-link" href="/learn/concepts/masked-linear-inference/">Learn how private inference works</a></p>
     </div>
   </section>
 
@@ -49,15 +51,26 @@
     <div class="home-section home-shell" aria-labelledby="build-title">
       <h2 id="build-title">Start building.</h2>
       <div class="home-copy" data-tab-group>
-        <p>Install PLLM from PyPI, then run the trusted client-side gateway. It gives your apps one local OpenAI-compatible endpoint while PLLM handles the private protocol on the client.</p>
+        <p>Install PLLM from PyPI, then choose the required runtime variant in the <a href="/learn/installation/">installation guide</a> before running the trusted client-side gateway. It gives your apps one local OpenAI-compatible endpoint while PLLM handles the private protocol on the client.</p>
         <div class="home-tabs" role="tablist" aria-label="PLLM starter">
           <button type="button" role="tab" id="tab-start-local" aria-controls="panel-start-local" aria-selected="true" data-phase="start-local">Local gateway</button>
           <button type="button" role="tab" id="tab-start-client" aria-controls="panel-start-client" aria-selected="false" data-phase="start-client">Client config</button>
           <button type="button" role="tab" id="tab-start-services" aria-controls="panel-start-services" aria-selected="false" data-phase="start-services">Operate services</button>
         </div>
-        <div class="home-code" id="panel-start-local" role="tabpanel" aria-labelledby="tab-start-local" data-panel="start-local">
-          <button class="copy-code" type="button" data-copy aria-label="Copy local gateway command">Copy</button>
-          <pre><code>pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct</code></pre>
+        <div class="home-panels" id="panel-start-local" role="tabpanel" aria-labelledby="tab-start-local" data-panel="start-local">
+          <div class="home-code">
+            <button class="copy-code" type="button" data-copy aria-label="Copy local gateway command">Copy</button>
+            <pre><code>pllm gateway --local --model Qwen/Qwen2.5-0.5B-Instruct</code></pre>
+          </div>
+          <div class="home-code home-code-output">
+            <button class="copy-code" type="button" data-copy aria-label="Copy request example">Copy</button>
+            <pre><code>curl http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Authorization: Bearer local' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","messages":[{"role":"user","content":"Say hello in one word."}]}'
+
+# Generated content appears in choices[0].message.content.</code></pre>
+          </div>
         </div>
         <div class="home-code" id="panel-start-client" role="tabpanel" aria-labelledby="tab-start-client" data-panel="start-client" hidden>
           <button class="copy-code" type="button" data-copy aria-label="Copy configured gateway command">Copy</button>
@@ -70,9 +83,11 @@ pllm serve preparation --config preparation.json</code></pre>
         </div>
         <p class="home-note">Use client config to connect the gateway to separately operated services. Local mode co-locates the roles for development; co-location does not provide role separation or non-collusion.</p>
         <nav class="home-inline-links" aria-label="Build with PLLM">
-          <a href="/learn/start/installation/">Install PLLM</a>
-          <a href="/learn/start/first-private-request/">Send a private request</a>
-          <a href="/learn/understand/trust-boundary/">Review the trust boundary</a>
+          <a href="/learn/installation/">Install PLLM</a>
+          <a href="/learn/first-private-request/">Send a private request</a>
+          <a href="/learn/integrations/">Connect your tools</a>
+          <a href="/learn/concepts/trust-boundary/">Review the trust boundary</a>
+          <a href="/sdk/reference/releases/">Releases</a>
         </nav>
       </div>
     </div>
@@ -199,16 +214,16 @@ wire_api = "responses"</code></pre>
 
   <section class="home-band home-band-dark" id="run-research">
     <div class="home-section home-shell" aria-labelledby="research-title">
-      <h2 id="research-title">Run autonomous research.</h2>
+      <h2 id="research-title">Extend, test, and compare.</h2>
       <div class="home-copy">
-        <p>Use the paper catalog, ordered backlog, and public component APIs to find strong methods, add capability-based components, test them, and run fair benchmarks.</p>
+        <p>Use typed component and provider contracts, immutable experiments, search, and benchmarking to turn credible research into reproducible results.</p>
         <ol class="home-steps">
-          <li>Find the strongest relevant methods.</li>
-          <li>Add them to PLLM.</li>
-          <li>Test correctness, privacy, and model quality.</li>
-          <li>Compare them under the same conditions.</li>
+          <li>Add a method through the smallest compatible extension contract.</li>
+          <li>Compose and search only valid experiment candidates.</li>
+          <li>Gate them on correctness, privacy, and model quality.</li>
+          <li>Benchmark against the strongest eligible baseline under matched conditions.</li>
         </ol>
-        <p class="home-note">Comparisons must use the same model, workload, privacy rules, numeric settings, and hardware. Automation cannot invent claims or publish results without review.</p>
+        <p class="home-note">PLLM does not automate paper-to-code translation or invent cross-cohort rankings. Comparisons must use the same model, workload, privacy rules, numeric settings, and hardware.</p>
         <nav class="home-inline-links" aria-label="Research with PLLM">
           <a href="/research/">Research overview</a>
           <a href="/research/papers/">Research papers</a>
@@ -223,7 +238,10 @@ wire_api = "responses"</code></pre>
     <h2 id="continue-title">Continue with PLLM.</h2>
     <nav class="home-final-links" aria-label="PLLM resources">
       <a href="/">Documentation</a>
+      <a href="/learn/">Get started</a>
+      <a href="/sdk/reference/releases/">Releases</a>
       <a href="https://github.com/blairhudson/pllm">Source</a>
+      <a href="https://pypi.org/project/pllm.run/">PyPI</a>
       <a href="/research/paper/">Technical paper</a>
       <a href="/research/whitepaper/">Whitepaper</a>
       <a href="/sdk/research/benchmarks/">Benchmarks</a>

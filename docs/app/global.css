@@ -122,6 +122,47 @@
   background: color-mix(in srgb, var(--accent) 88%, white);
 }
 
+#nd-page .paper-timeline {
+  margin: 2.4rem 0;
+  padding-left: 1.35rem;
+  border-left: 2px solid var(--line);
+}
+
+#nd-page .paper-timeline-year {
+  position: relative;
+  margin: 0 0 2.25rem;
+}
+
+#nd-page .paper-timeline-year::before {
+  content: '';
+  position: absolute;
+  top: .45rem;
+  left: calc(-1.35rem - 7px);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--bg);
+}
+
+#nd-page .paper-timeline-year > h2 {
+  margin: 0 0 1.25rem;
+  color: var(--text);
+  font-size: 1.12rem;
+}
+
+#nd-page .paper-timeline-entry {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: var(--panel);
+}
+
+#nd-page .paper-timeline-entry > h3 { margin: 0 0 .6rem; font-size: 1.06rem; line-height: 1.4; }
+#nd-page .paper-timeline-entry > p { margin: .55rem 0 0; line-height: 1.65; }
+#nd-page .paper-timeline-entry > p:nth-of-type(1) { color: var(--muted); font-size: .83rem; }
+
 @media (max-width: 767px) {
   .content-site-header { display: none; }
   .docs-root { --fd-banner-height: 0px; --fd-layout-offset: 0px; }
@@ -130,6 +171,9 @@
   #nd-page .paper-actions {
     display: grid;
   }
+  #nd-page .paper-timeline { padding-left: 1rem; }
+  #nd-page .paper-timeline-year::before { left: calc(-1rem - 7px); }
+  #nd-page .paper-timeline-entry { padding: .8rem; overflow-wrap: anywhere; }
 }
 
 .docs-mobile-header {

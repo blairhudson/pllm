@@ -1,0 +1,35 @@
+---
+title: "Hugging Face source"
+description: "Pin a public checkpoint repository while preserving the separate import step."
+---
+
+[`Model.hf`](/sdk/reference/python/pllm/#objects-and-signatures) declares a
+repository, optional revision, and local-files-only policy. `load_model`
+resolves its actual source files, validates an importer, and records a
+path-independent checkpoint lock. For a supported Qwen2.5-0.5B-Instruct
+checkpoint, a public masked-linear experiment can run locally; generic HF
+repository names do not imply compatible tensor shapes or compiler coverage.
+The base package constructs and inspects the source without downloading it.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="hf-source-guide",
+    pipeline=MaskedLinearCpu(Model.hf("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://hf-source-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.model.kind == "huggingface"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` from
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+The model is resolved when serving, not during construction.
+
+API: [`Model.hf`](/sdk/reference/python/pllm/#objects-and-signatures)

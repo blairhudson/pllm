@@ -1,0 +1,35 @@
+---
+title: "Run the gateway"
+description: "Expose Responses and Chat Completions from the trusted client boundary."
+---
+
+`pllm gateway --local --experiment ...` resolves a typed experiment, starts
+local roles, and exposes an OpenResponses-compatible Responses API plus Chat
+Completions on loopback. The gateway terminates plaintext application requests
+inside the **client boundary**. Provider services are not application-facing
+OpenAI endpoints. See [first private request](/learn/first-private-request/)
+for the actual HTTP request and [integration guides](/learn/integrations/)
+for OpenAI-compatible SDKs and coding agents.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="gateway-guide",
+    pipeline=MaskedLinearCpu(Model.hf("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://gateway-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Use its loopback API key and base URL from the startup status, not provider URLs.
+For embedded Python-only use, see [native clients](/sdk/run/clients/).
+
+API: [`Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -148,7 +148,7 @@ assert experiment.pipeline.to_spec()["components"]["inference"]["component"] == 
 )
 ```
 
-The [parties and offline work](/learn/parties-and-offline-work/) guide maps this
+The [parties and offline work](/learn/concepts/parties-and-offline-work/) guide maps this
 placement record to the preparation and inference service boundaries.
 
 ### Describe client-owned KV state with `ClientLocalKv`
@@ -191,6 +191,7 @@ experiment = Experiment(
 assert experiment.resolve().verification_target_failure_bits == 48
 ```
 
+Install the optional `he` dependency from the [installation guide](/learn/installation/).
 Save this example as `experiment.py` and run `pllm gateway --local --experiment
 experiment.py:experiment --trust-python`. Configuration does not itself perform
 verification; the verified profile binds authenticated one-use projection material

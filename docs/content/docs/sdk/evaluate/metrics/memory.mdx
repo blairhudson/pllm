@@ -1,0 +1,28 @@
+---
+title: "Memory"
+description: "Separate process peak RSS from allocated and workspace bytes."
+---
+
+[`Memory`](/sdk/reference/python/pllm/metrics/#memory)
+(`pllm/memory`) declares peak RSS, allocated bytes, or workspace bytes; lower
+is better within the same kind. The native matrix snapshot may coexist with
+source weights and preparation buffers, so counting only Rust matrix storage
+understates whole-process memory. Compare identical models and workloads and
+record which process or role owns the measurement.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Memory
+
+metric = Memory(kind="peak_rss")
+assert metric.component == "pllm/memory"
+assert metric.get_params()["kind"] == "peak_rss"
+```
+
+To collect actual memory data, run a supported
+[Experiment](/sdk/experiments/) through
+[`pllm benchmark run`](/cli/reference/benchmark/run/) with the measurement
+environment recorded.
+
+API: [`Memory`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

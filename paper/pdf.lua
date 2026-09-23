@@ -24,6 +24,7 @@ function Table(element)
       if #pandoc.utils.stringify(cell.contents) > 32 then wide = true end
     end
   end
+  local spanning = wide or #element.colspecs > 4
 
   local columns = {}
   for _, spec in ipairs(element.colspecs) do
@@ -36,7 +37,7 @@ function Table(element)
   end
 
   local output = {
-    "\\begin{table*}[t]",
+    spanning and "\\begin{table*}[t]" or "\\begin{table}[htbp]",
     "\\centering\\small",
   }
   if #element.caption.long > 0 then
@@ -52,6 +53,6 @@ function Table(element)
   end
   table.insert(output, "\\bottomrule")
   table.insert(output, wide and "\\end{tabularx}" or "\\end{tabular}")
-  table.insert(output, "\\end{table*}")
+  table.insert(output, spanning and "\\end{table*}" or "\\end{table}")
   return pandoc.RawBlock("latex", table.concat(output, "\n"))
 end

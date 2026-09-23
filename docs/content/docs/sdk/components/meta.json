@@ -1,0 +1,4 @@
+{
+  "title": "Component options",
+  "pages": ["index", "protocols", "preparation", "correlation", "kernels", "nonlinear", "schedulers", "roles", "state", "verification", "passes"]
+}

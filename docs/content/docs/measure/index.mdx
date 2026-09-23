@@ -1,8 +1,10 @@
 ---
-title: "Research APIs"
-description: "Use the Python SDK to benchmark plans, run scoped assurance checks, and produce immutable evidence records."
+title: "Experiment and evidence APIs"
+description: "Search valid experiments, benchmark exact plans, run scoped assurance checks, and compare matched evidence."
 ---
 
+- [Search](/sdk/research/search/) documents bounded grid and seeded random search
+  over validated `Experiment` parameters.
 - [Benchmark](/sdk/research/benchmark/) documents `pllm.benchmark(...)` and
   `pllm.deployment_benchmark(...)`.
 - [Assure](/sdk/research/assure/) documents `pllm.assure()` and the limits of
@@ -17,6 +19,11 @@ description: "Use the Python SDK to benchmark plans, run scoped assurance checks
 For provenance and implementation boundaries, use
 [method implementations](/research/methods/). For measurement scope and claim
 limits, use [research evidence](/research/evidence/).
+
+Together these APIs support reproducible experimentation; they do not automate
+paper implementation or rank unmatched systems. A state-of-the-art comparison
+requires equivalent model, workload, environment, privacy, numeric, and metric
+cohorts.
 
 ## Python SDK example
 

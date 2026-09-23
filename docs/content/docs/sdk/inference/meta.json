@@ -1,0 +1,4 @@
+{
+  "title": "Inference options",
+  "pages": ["index", "compare", "masked-linear", "verified-masked-linear", "proprietary-guarded", "proprietary-blinded", "direct-fhe"]
+}

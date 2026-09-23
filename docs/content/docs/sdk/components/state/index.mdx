@@ -1,0 +1,28 @@
+---
+title: "Persistent state"
+description: "Keep KV state ownership and plan transformations distinct."
+---
+
+[Client-local KV](/sdk/components/state/client-local-kv/) declares the
+persistent-state contract for a fixed-capacity client cache. It is distinct
+from the [KV-cache eviction pass](/sdk/components/passes/kv-cache-eviction/):
+the latter changes a semantic plan and does not yet run as a protected
+whole-decoder composition. There is no user-selectable `state` slot in the
+shipped typed inference constructors.
+
+## Python SDK example
+
+```python
+from pllm.state import ClientLocalKv
+
+state = ClientLocalKv()
+assert state.component == "pllm/client-local-kv"
+assert state.describe().role_eligibility == ("client",)
+```
+
+For a complete request, start with
+[masked-linear inference](/sdk/inference/masked-linear/) and its
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+workflow; live KV state is created by the runtime, not by this descriptor.
+
+API: [State objects](/sdk/reference/python/pllm/state/#objects-and-signatures)

@@ -1,5 +1,5 @@
 {
-  "title": "Runtime pipeline",
+  "title": "Capability modules",
   "root": true,
-  "pages": ["index", "../compiler", "../runtime", "../protocols", "../preparation", "../kernels"]
+  "pages": ["index", "../runtime", "../protocols", "../preparation", "../kernels"]
 }

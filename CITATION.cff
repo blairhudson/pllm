@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "Cite the included research draft when using PLLM or its experimental results."
-title: "PLLM: Offline-Correlated Private Inference for Public-Weight Language Models"
+title: "PLLM: Private Inference and Reproducible LLM Experimentation"
 type: software
 authors:
   - family-names: Hudson
@@ -9,7 +9,8 @@ version: 0.1.0a2
 license: Apache-2.0
 abstract: >-
   A three-role private language-model runtime using offline seeded preparation,
-  one-time masked integer projections, and a client-local Responses interface.
+  one-use masked integer stages, a client-local Responses interface, and
+  composition-bound experiments with cohort-scoped evidence.
 keywords:
   - private inference
   - additive masking
@@ -17,8 +18,9 @@ keywords:
   - offline correlations
 preferred-citation:
   type: article
-  title: "PLLM: Offline-Correlated Private Inference for Public-Weight Language Models"
+  title: "PLLM: Prepared Private LLM Inference and Composition-Bound Experimentation"
   authors:
     - family-names: Hudson
       given-names: Blair
   year: 2026
+  url: https://pllm.run/research/paper/

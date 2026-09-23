@@ -1,0 +1,42 @@
+---
+title: "Linear integrity declaration"
+description: "Inspect the independent linear-check primitive without claiming whole-model verification support."
+---
+
+[`LinearIntegrity`](/sdk/reference/python/pllm/verification/#linearintegrity)
+(`pllm/linear-integrity`) is importable and serializable, with a client-side
+integrity-check contract. It is not the `FreivaldsVerify` component required by
+the supported verified masked-linear composition. Its lower-level checking
+primitive is distinct from an authenticated, inventory-bound, whole-model
+verifier. Do not serve it by replacing the verification slot in
+[`VerifiedMaskedLinearCpu`](/sdk/inference/verified-masked-linear/); that
+constructor fails closed. No eligible matched whole-model benchmark exists.
+
+## Python SDK example
+
+```python
+from pllm import ConfigurationError
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import LinearIntegrity
+
+check = LinearIntegrity()
+assert check.to_spec()["component"] == "pllm/linear-integrity"
+try:
+    VerifiedMaskedLinearCpu(
+        TinyModel(model_id="linear-integrity-guide-tiny"),
+        verification=check,
+    )
+except ConfigurationError:
+    pass
+else:
+    raise AssertionError("unsupported verification slot was accepted")
+```
+
+To run verified private inference instead, use the complete
+[Freivalds experiment](/sdk/components/verification/freivalds/) with
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+`LinearIntegrity` itself has no whole-model serving path. This component is
+PLLM-specific infrastructure, with no paper-level reproduction claim.
+
+API: [`LinearIntegrity`](/sdk/reference/python/pllm/verification/#objects-and-signatures)

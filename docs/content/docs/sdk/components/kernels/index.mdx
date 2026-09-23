@@ -1,0 +1,27 @@
+---
+title: "Kernel backends"
+description: "Select bounded CPU execution separately from protocol and model coverage."
+---
+
+[`Cpu`](/sdk/components/kernels/cpu/) is the shipped backend in the supported
+inference compositions. `threads` is an explicit positive bound, not evidence
+of a speedup. Native matrix execution, scalar/SIMD dispatch, conversions, and
+network protocol costs are measured separately under the
+[benchmark guide](/sdk/research/benchmark/). Changing kernels does not alter
+the model adapter, privacy contract, or verified component selection.
+
+## Python SDK example
+
+```python
+from pllm.kernels import Cpu
+
+backend = Cpu(threads=2)
+assert backend.component == "pllm/cpu"
+assert backend.params["threads"] == 2
+```
+
+For a complete local execution, apply this backend in the
+[CPU option guide](/sdk/components/kernels/cpu/) and run its `Experiment` via
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+
+API: [Kernel backend](/sdk/reference/python/pllm/kernels/#objects-and-signatures)

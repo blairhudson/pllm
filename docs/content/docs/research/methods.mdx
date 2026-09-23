@@ -13,7 +13,7 @@ gathers. It does not reproduce the paper's protected three-party runtime.
 
 Use the [component guide](/sdk/components/) and generated
 [component inventory](/sdk/reference/components/) for public parameters and
-capabilities. The [MPCache paper page](/research/papers/r23-mpcache/) records
+capabilities. The [MPCache paper summary](/research/papers/mpcache/) records
 provenance and limitations. Fidelity, protected execution, assurance, and
 matched benchmarks have not been evaluated for this structural adaptation.
 
@@ -23,7 +23,7 @@ Protected Q7 `SiLU(gate) * up` follows the same rule. Python exposes
 `BinaryTableGatedMultiplyQ7` and `R03CrtGatedMultiplyQ7` as interchangeable
 method components. `ScalarProtectedTensorSchedule` and
 `IndependentLanesProtectedTensorSchedule` select scheduling separately. All
-four are distinct component identities in two capability families; R03 is
-provenance for one implementation, not a package boundary. Four lanes are the
+four are distinct component identities in two capability families; the Garbling
+Gadgets paper is provenance for one implementation, not a package boundary. Four lanes are the
 current maximum, and no selection establishes complete-decoder coverage or
 cryptographic assurance.

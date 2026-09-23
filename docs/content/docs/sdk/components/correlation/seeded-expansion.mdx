@@ -1,0 +1,32 @@
+---
+title: "Seeded expansion"
+description: "Bind offline one-use masks to inventory, stage, and quantization domains."
+---
+
+[`SeededExpansion`](/sdk/reference/python/pllm/correlation/#seededexpansion)
+(`pllm/seeded-expansion`) is an importable and serializable correlation-source
+descriptor. Prepared inference uses fresh inventory root seeds to derive row
+material under separate inventory, model-body, stage, weight, shape, ring, and
+quantization commitments. Trusted Preparation receives seeds before online work;
+Inference does not. The live material and reservation ledger are opaque runtime
+state, not fields on this public object. Its correctness is covered by the
+prepared-path tests, but no standalone correlation component slot or benchmark
+can be selected in a shipped whole-model profile. This is PLLM-specific
+infrastructure, not a paper reproduction.
+
+## Python SDK example
+
+```python
+from pllm.correlation import SeededExpansion
+
+source = SeededExpansion()
+assert source.to_spec()["component"] == "pllm/seeded-expansion"
+assert source.describe().role_eligibility == ("client", "preparation")
+```
+
+For an executable pipeline, construct the full
+[masked-linear experiment](/sdk/inference/masked-linear/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+with optional `he` installed. This example never mints a live seed.
+
+API: [`SeededExpansion`](/sdk/reference/python/pllm/correlation/#objects-and-signatures)

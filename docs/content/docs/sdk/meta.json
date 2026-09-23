@@ -1,16 +1,19 @@
 {
-  "title": "Essentials",
+  "title": "Core SDK",
   "root": true,
   "pages": [
     "index",
-    "configuration",
-    "plans",
+    "experiments",
+    "models",
+    "inference",
     "components",
+    "run",
+    "plans",
+    "evaluate",
+    "configuration",
     "../build",
     "../pipeline",
     "../measure",
-    "../operate",
-    "../reference",
-    "../contribute"
+    "../reference"
   ]
 }

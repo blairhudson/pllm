@@ -10,7 +10,7 @@
     "generate": "node scripts/generate-research-papers.mjs && node scripts/discover-pages.mjs && node scripts/generate.mjs",
     "reference": "uv run --project .. --frozen python ../scripts/generate_developer_reference.py",
     "dev": "npm run reference && npm run generate && next dev",
-    "build": "npm run reference && npm run generate && next build",
+    "build": "npm run reference && npm run generate && next build && node scripts/check-rendered-navigation.mjs",
     "postinstall": "fumadocs-mdx",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "check:content": "node scripts/check-content.mjs",

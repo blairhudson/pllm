@@ -254,6 +254,36 @@ def _example(source: str) -> str:
     return textwrap.dedent(source).strip()
 
 
+def _masked_experiment(
+    *,
+    import_line: str,
+    setup: str,
+    pipeline_argument: str,
+    assertion: str,
+) -> str:
+    return _example(
+        f"""
+        import pllm
+        {import_line}
+        from pllm.profiles import MaskedLinearCpu
+        from pllm.sources import TinyModel
+
+        {setup}
+        experiment = pllm.Experiment(
+            name="focused-inference",
+            pipeline=MaskedLinearCpu(
+                TinyModel("qwen2", model_id="transport-smoke"),
+                {pipeline_argument}
+            ),
+            deployment=pllm.Deployment.local(root="local://focused-inference"),
+            budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+        )
+        experiment.resolve()
+        {assertion}
+        """
+    )
+
+
 MODEL_EXAMPLE = _example(
     """
     import pllm
@@ -344,14 +374,11 @@ PLAN_EXAMPLE = _example(
     """
 )
 
-COMPONENT_EXAMPLE = _example(
-    """
-    import pllm.components as components
-
-    reference = components.ComponentRef("pllm/cpu")
-    implementation = components.get(reference.component)
-    assert implementation.describe().component == "pllm/cpu"
-    """
+COMPONENT_EXAMPLE = _masked_experiment(
+    import_line="import pllm.components as components",
+    setup='backend = components.create_component("pllm/cpu", {"threads": 2})',
+    pipeline_argument="kernels=backend,",
+    assertion='assert experiment.pipeline.kernels.component == "pllm/cpu"',
 )
 
 CORRELATION_EXAMPLE = _example(
@@ -363,13 +390,11 @@ CORRELATION_EXAMPLE = _example(
     """
 )
 
-KERNEL_EXAMPLE = _example(
-    """
-    import pllm.kernels as kernels
-
-    backend = kernels.Cpu(threads=2)
-    assert backend.get_params() == {"threads": 2}
-    """
+KERNEL_EXAMPLE = _masked_experiment(
+    import_line="import pllm.kernels as kernels",
+    setup="backend = kernels.Cpu(threads=2)",
+    pipeline_argument="kernels=backend,",
+    assertion='assert experiment.pipeline.kernels.get_params() == {"threads": 2}',
 )
 
 NONLINEAR_EXAMPLE = _example(
@@ -441,32 +466,44 @@ RESEARCH_EXAMPLE = _example(
     """
 )
 
-PROTOCOL_EXAMPLE = _example(
-    """
-    import pllm.protocols as protocols
-
-    guarded = protocols.GuardedLinear(max_rows_per_request=128, output_dither_bound=1)
-    assert guarded.get_params()["max_rows_per_request"] == 128
-    """
+PROTOCOL_EXAMPLE = _masked_experiment(
+    import_line="import pllm.protocols as protocols",
+    setup="method = protocols.MaskedLinear()",
+    pipeline_argument="linear=method,",
+    assertion='assert experiment.pipeline.linear.component == "pllm/masked-linear"',
 )
 
 PROFILE_EXAMPLE = _example(
     """
+    import pllm
     import pllm.profiles as profiles
 
     from pllm.sources import TinyModel
 
-    selected = profiles.MaskedLinearCpu(TinyModel("qwen2"))
-    assert selected.to_spec()["components"]["linear"]["component"] == "pllm/masked-linear"
+    experiment = pllm.Experiment(
+        name="profile-inference",
+        pipeline=profiles.MaskedLinearCpu(TinyModel("qwen2", model_id="transport-smoke")),
+        deployment=pllm.Deployment.local(root="local://profile-inference"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    assert experiment.resolve().client_runtime == "masked_transformer_v1"
     """
 )
 
 SOURCE_EXAMPLE = _example(
     """
+    import pllm
+    from pllm.profiles import MaskedLinearCpu
     import pllm.sources as sources
 
     model = sources.TinyModel("qwen2", model_id="transport-smoke")
-    assert model.to_spec() == {"source": "qwen2", "kind": "tiny", "model_id": "transport-smoke"}
+    experiment = pllm.Experiment(
+        name="source-inference",
+        pipeline=MaskedLinearCpu(model),
+        deployment=pllm.Deployment.local(root="local://source-inference"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    assert experiment.resolve().model == "transport-smoke"
     """
 )
 
@@ -537,68 +574,90 @@ EVIDENCE_EXAMPLE = _example(
     """
 )
 
-MASKED_LINEAR_EXAMPLE = _example(
-    """
-    import pllm.protocols.masked_linear as masked_linear
-
-    method = masked_linear.MaskedLinear()
-    assert method.to_spec() == {"component": "pllm/masked-linear", "params": {}}
-    """
+MASKED_LINEAR_EXAMPLE = _masked_experiment(
+    import_line="import pllm.protocols.masked_linear as masked_linear",
+    setup="method = masked_linear.MaskedLinear()",
+    pipeline_argument="linear=method,",
+    assertion='assert experiment.pipeline.linear.component == "pllm/masked-linear"',
 )
 
-PREPARATION_EXAMPLE = _example(
-    """
-    import pllm.preparation as preparation
-
-    provider = preparation.ModelAwareCorrections()
-    assert provider.component == "pllm/model-aware-corrections"
-    """
+PREPARATION_EXAMPLE = _masked_experiment(
+    import_line="import pllm.preparation as preparation",
+    setup="provider = preparation.ModelAwareCorrections()",
+    pipeline_argument="preparation=provider,",
+    assertion='assert experiment.pipeline.preparation.component == "pllm/model-aware-corrections"',
 )
 
-ROLE_EXAMPLE = _example(
-    """
-    import pllm.roles as roles
-
-    inference = roles.Inference()
-    assert inference.component == "pllm/inference"
-    """
+ROLE_EXAMPLE = _masked_experiment(
+    import_line="import pllm.roles as roles",
+    setup="role = roles.Inference()",
+    pipeline_argument="inference=role,",
+    assertion='assert experiment.pipeline.inference.component == "pllm/inference"',
 )
 
 VERIFICATION_EXAMPLE = _example(
     """
+    import pllm
     import pllm.verification as verification
+    from pllm.profiles import VerifiedMaskedLinearCpu
+    from pllm.sources import TinyModel
 
     verifier = verification.FreivaldsVerify(target_failure_bits=48)
-    assert verifier.get_params()["target_failure_bits"] == 48
+    experiment = pllm.Experiment(
+        name="verified-inference",
+        pipeline=VerifiedMaskedLinearCpu(
+            TinyModel("qwen2", model_id="transport-smoke"),
+            verification=verifier,
+        ),
+        deployment=pllm.Deployment.local(root="local://verified-inference"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    assert experiment.resolve().verification_target_failure_bits == 48
     """
 )
 
 PIPELINE_EXAMPLE = _example(
     """
+    import pllm
     import pllm.pipeline as pipeline
     from pllm.sources import TinyModel
 
     configured = pipeline.VerifiedMaskedLinearCpu(TinyModel("qwen2"))
-    assert configured.to_spec()["components"]["verification"]["component"] == "pllm/freivalds-verify/v1"
+    experiment = pllm.Experiment(
+        name="pipeline-inference",
+        pipeline=configured,
+        deployment=pllm.Deployment.local(root="local://pipeline-inference"),
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    assert experiment.resolve().verification_component == "pllm/freivalds-verify/v1"
     """
 )
 
 DEPLOYMENT_EXAMPLE = _example(
     """
+    import pllm
     import pllm.deployment as deployment
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.sources import TinyModel
 
     local = deployment.Deployment(kind="local", root="/tmp/pllm-example")
-    assert local.kind == "local" and local.root.endswith("pllm-example")
+    experiment = pllm.Experiment(
+        name="local-inference",
+        pipeline=MaskedLinearCpu(TinyModel("qwen2", model_id="transport-smoke")),
+        deployment=local,
+        budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    assert experiment.resolve().model == "transport-smoke"
     """
 )
 
-DASH_CITATION = "[DASH](/research/papers/r01-dash/)"
-REDASH_CITATION = "[ReDASH](/research/papers/r02-redash/)"
-SLALOM_CITATION = "[Slalom](/research/papers/r07-slalom/)"
-MPCACHE_CITATION = "[MPCache](/research/papers/r23-mpcache/)"
-COMPACT_CITATION = "[Compact](/research/papers/r18-compact/)"
-R03_CITATION = "[Garbling Gadgets](/research/papers/r03-garbling-gadgets/)"
-HYCC_CITATION = "[HyCC](/research/papers/r09-hycc/)"
+DASH_CITATION = "[DASH](/research/papers/dash/)"
+REDASH_CITATION = "[ReDASH](/research/papers/redash/)"
+SLALOM_CITATION = "[Slalom](/research/papers/slalom/)"
+MPCACHE_CITATION = "[MPCache](/research/papers/mpcache/)"
+COMPACT_CITATION = "[Compact](/research/papers/compact/)"
+R03_CITATION = "[Garbling Gadgets](/research/papers/garbling-gadgets/)"
+HYCC_CITATION = "[HyCC](/research/papers/hycc/)"
 
 MODULE_GUIDES: dict[str, dict[str, object]] = {
     "pllm": {
@@ -758,6 +817,64 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
     },
 }
 
+RUNNABLE_EXPERIMENT_MODULES = {
+    "pllm",
+    "pllm.components",
+    "pllm.config",
+    "pllm.deployment",
+    "pllm.kernels",
+    "pllm.pipeline",
+    "pllm.preparation",
+    "pllm.profiles",
+    "pllm.protocols",
+    "pllm.protocols.masked_linear",
+    "pllm.roles",
+    "pllm.sources",
+    "pllm.verification",
+}
+
+UNCOMPOSED_RESEARCH_MODULES = {
+    "pllm.correlation",
+    "pllm.nonlinear",
+    "pllm.passes",
+    "pllm.schedulers",
+    "pllm.state",
+}
+
+INFERENCE_CLIENT_MODULES = {
+    "pllm.client",
+    "pllm.official",
+    "pllm.runtime",
+    "pllm.server",
+}
+
+
+def _example_context(module: str) -> str:
+    if module in RUNNABLE_EXPERIMENT_MODULES:
+        return (
+            "This example builds a complete supported `Experiment` with the module's object in "
+            "focus. Save it as `experiment.py`; after the assertions pass, serve the same object "
+            "with the command below. The gateway requires the optional `he` dependency from the "
+            "[installation guide](/learn/installation/)."
+        )
+    if module in UNCOMPOSED_RESEARCH_MODULES:
+        return (
+            "This capability is not a supported whole-model inference slot. The example validates "
+            "its bounded configuration only; use it for research inspection, not as a claim that "
+            "the component can serve a model."
+        )
+    if module in INFERENCE_CLIENT_MODULES:
+        return (
+            "This example exercises the module's inference-facing surface without opening a live "
+            "provider connection. Start a supported local experiment from the "
+            "[gateway guide](/cli/reference/gateway/local-experiments/) before sending a request."
+        )
+    return (
+        "This focused example checks the module's role around inference without downloading a "
+        "checkpoint or contacting a provider. Follow the linked SDK guide for the complete "
+        "runnable workflow."
+    )
+
 
 def _frontmatter(title: str, description: str) -> str:
     return (
@@ -912,6 +1029,8 @@ def render_gateway_local_guide() -> str:
             "`pllm gateway --local` resolves one typed `Experiment`, starts its required roles "
             "as child processes, and exposes the trusted loopback Responses and Chat Completions "
             "API. The gateway does not replace the experiment's pipeline or profile.\n\n",
+            "Local gateway execution requires the optional `he` dependency from the "
+            "[installation guide](/learn/installation/).\n\n",
             "## Target forms\n\n",
             "Use `file.py:object` for a Python file, `module:object` for an importable module, or "
             "`.json`/`.yaml` for declarative configuration. Python targets are imported code and "
@@ -1328,6 +1447,14 @@ def render_python_module_reference(module: str) -> str:
     items = _module_items(module)
     if not items:
         raise ValueError(f"public module {module!r} has no documented exports")
+    inference_command = ""
+    if module in RUNNABLE_EXPERIMENT_MODULES:
+        inference_command = (
+            "Run the focused experiment through the trusted local gateway:\n\n"
+            "```bash\n"
+            "pllm gateway --local --experiment experiment.py:experiment --trust-python --api-key local\n"
+            "```\n\n"
+        )
     body = [
         _frontmatter(
             f"{module} Python API",
@@ -1351,11 +1478,12 @@ def render_python_module_reference(module: str) -> str:
             "## Research context\n\n",
             _research_context(cast(tuple[str, ...], guide["citations"])),
             "\n\n## Python SDK example\n\n",
-            "The example performs a bounded offline task and checks an observable result. It does "
-            "not download a checkpoint or contact a provider.\n\n",
+            _example_context(module),
+            "\n\n",
             "```python\n",
             str(guide["example"]),
             "\n```\n\n",
+            inference_command,
             f"API: [`{module}`](/sdk/reference/python/pllm/{'' if slug == 'index' else slug + '/'}#objects-and-signatures)\n\n",
             "## Objects and signatures\n\n",
         )

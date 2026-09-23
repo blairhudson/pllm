@@ -1,0 +1,40 @@
+---
+title: "Choose a preparation provider"
+description: "Separate runtime-bound one-use corrections from legacy and research-only HE providers."
+---
+
+[Model-aware corrections](/sdk/components/preparation/model-aware-corrections/)
+are the trusted offline provider for both public-weight inference compositions.
+[BFV correlations](/sdk/components/preparation/bfv-correlations/) and
+[HE-authenticated preprocessing](/sdk/components/preparation/he-authenticated-preprocessing/)
+are separately constructible research/legacy providers. Neither can replace
+model-aware corrections in a shipped whole-model public runtime. The
+[parties and offline work](/learn/concepts/parties-and-offline-work/) guide
+explains why offline inventory commits before online inference.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.preparation import ModelAwareCorrections
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="preparation-choice",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="preparation-choice-tiny"),
+        preparation=ModelAwareCorrections(),
+    ),
+    deployment=Deployment.local(root="local://preparation-choice"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights validate transport only.
+
+API: [Preparation providers](/sdk/reference/python/pllm/preparation/#objects-and-signatures)

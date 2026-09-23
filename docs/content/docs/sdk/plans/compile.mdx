@@ -1,0 +1,41 @@
+---
+title: "Compile a request"
+description: "Compile strict canonical input only after operator and method contracts are covered."
+---
+
+[`pllm.compiler.compile`](/sdk/reference/python/pllm/compiler/#objects-and-signatures)
+accepts a strict `pllm.compile_request.v1` mapping or canonical JSON bytes
+and returns an opaque `CompiledPlan`. It is a low-level boundary: neither
+a bare model config nor an unvalidated Python dictionary is a runnable plan.
+The compiler binds numeric, security, placement, weight, and execution
+contracts; missing coverage rejects the request. For normal inference,
+construct an [Experiment](/sdk/experiments/) and use the
+[gateway](/sdk/run/gateway/) instead of writing compile documents by hand.
+
+## Python SDK example
+
+```python
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
+
+config = {
+    "model_type": "qwen2", "hidden_size": 64, "intermediate_size": 192,
+    "num_hidden_layers": 2, "num_attention_heads": 4,
+    "num_key_value_heads": 2, "vocab_size": 256,
+    "max_position_embeddings": 128, "hidden_act": "silu",
+    "rms_norm_eps": 1e-6, "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+plan = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+report = plan.coverage(MaskedLinearCpu(Model.tiny()))
+assert isinstance(report.complete, bool)
+assert len(plan.canonical_bytes()) > 0
+```
+
+This is a *preflight*, not a `compile` call: a model-only config lacks
+checkpoint/weight locks and bound execution inputs. See the
+[compile-request schema](/sdk/reference/schemas/) and
+[coverage walkthrough](/sdk/plans/coverage/) for the next gate. The complete
+[Qwen2 workflow](/sdk/inference/masked-linear/) serves an actual request.
+
+API: [`compile`](/sdk/reference/python/pllm/compiler/#objects-and-signatures)

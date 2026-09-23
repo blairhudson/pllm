@@ -105,6 +105,35 @@
   background: color-mix(in srgb, var(--accent) 88%, white);
 }
 
+.page :global(.home-install) {
+  margin: 28px 0 0;
+}
+
+.page :global(.home-install code) {
+  display: inline-block;
+  padding: 11px 15px;
+  border: 1px solid var(--home-rule);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--home-ink) 6%, transparent);
+  font: 0.92rem/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.page :global(.home-meta) {
+  margin: 16px 0 0;
+  color: var(--home-muted);
+  font-size: 0.88rem;
+}
+
+.page :global(.home-meta a) {
+  border-bottom: 1px solid currentColor;
+  color: inherit;
+  font-weight: 650;
+}
+
+.page :global(.home-meta a:hover) {
+  color: var(--accent);
+}
+
 .page :global(.home-learn-link) {
   margin-top: 24px;
 }
@@ -252,6 +281,10 @@
   color: inherit;
 }
 
+.page :global(.home-panels[hidden]) {
+  display: none;
+}
+
 .page :global(.home-code) {
   position: relative;
   min-height: 104px;
@@ -260,6 +293,17 @@
   border-radius: 0 0 8px 8px;
   background: #101510;
   color: #edf2e9;
+}
+
+.page :global(.home-code-output) {
+  min-height: 0;
+  margin-top: 14px;
+  border-top: 1px solid var(--home-rule);
+  border-radius: 8px;
+}
+
+.page :global(.home-code-output pre) {
+  color: #b7c4b2;
 }
 
 .page :global(.home-code[hidden]) {
@@ -296,7 +340,6 @@
 
 .page :global(.home-integration-links) {
   padding-top: 2px;
-  border-top: 1px solid var(--home-rule);
 }
 
 .page :global(.home-steps) {
@@ -369,11 +412,23 @@
 
 @media (max-width: 480px) {
   .page :global(.home-shell) {
-    width: calc(100% - 36px);
+    width: 100%;
+    padding-inline: 18px;
+    box-sizing: border-box;
+  }
+
+  .page :global(.home-hero) {
+    align-items: center;
+    text-align: center;
   }
 
   .page :global(.home-hero h1) {
+    width: 100%;
     font-size: clamp(2.9rem, 12vw, 3.35rem);
+  }
+
+  .page :global(.home-intro) {
+    margin-inline: auto;
   }
 
   .page :global(.home-hero .button-row) {
@@ -383,6 +438,25 @@
   .page :global(.home-hero .button-row),
   .page :global(.home-hero .button) {
     width: 100%;
+  }
+
+  .page :global(.home-hero .button) {
+    justify-content: center;
+  }
+
+  .page :global(.home-install) {
+    width: 100%;
+  }
+
+  .page :global(.home-install code) {
+    width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+  .page :global(.home-meta) {
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 
   .page :global(.home-section h2),
@@ -403,6 +477,15 @@
     font-size: 0.76rem;
   }
 
+  .page :global(.home-inline-links) {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .page :global(.home-final h2) {
+    text-align: center;
+  }
+
   .page :global(.home-final-links) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -412,7 +495,8 @@
   .page :global(.home-final-links a) {
     width: max-content;
     max-width: 100%;
-    justify-self: start;
+    justify-self: center;
+    text-align: center;
   }
 }
 

@@ -1,0 +1,27 @@
+---
+title: "Latency"
+description: "Measure offline, online, or full-request elapsed seconds with a named statistic."
+---
+
+[`Latency`](/sdk/reference/python/pllm/metrics/#latency)
+(`pllm/latency`) declares seconds, lower-is-better, a statistic (mean, median,
+p50, p95, or p99), and offline, online, or full phase. Use `full` for a complete
+request comparison; online-only numbers omit inventory preparation. The
+[benchmark CLI](/cli/reference/benchmark/run/) ranks matched candidates by
+measured median full latency rather than an unqualified per-kernel timing.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Latency
+
+metric = Latency(statistic="median", phase="full")
+assert metric.component == "pllm/latency"
+assert metric.get_params() == {"statistic": "median", "phase": "full"}
+```
+
+This declaration produces no sample; run a supported
+[Experiment](/sdk/experiments/) with `pllm benchmark run --experiment
+experiment.py:experiment --trust-python` for measured results.
+
+API: [`Latency`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

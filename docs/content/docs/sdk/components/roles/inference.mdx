@@ -1,0 +1,38 @@
+---
+title: "Inference role"
+description: "Bind remote linear stages to the provider role while keeping plaintext and live masks client-side."
+---
+
+[`Inference`](/sdk/reference/python/pllm/roles/#inference)
+(`pllm/inference`) is a serialized role contract accepted by the shipped
+inference compositions. The inference service executes stages; it is not an
+OpenAI-compatible provider endpoint. On the prepared public path, it sees only
+masked online values and committed corrections, not preparation root seeds.
+The trusted gateway owns application requests inside the client boundary.
+Local execution verifies the role protocol, not independent non-collusion.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import Inference
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="inference-role-guide",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="inference-role-guide-tiny"), inference=Inference(),
+    ),
+    deployment=Deployment.local(root="local://inference-role-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.inference.component == "pllm/inference"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+
+API: [`Inference`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

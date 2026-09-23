@@ -1,0 +1,31 @@
+---
+title: "Client-local KV state"
+description: "Declare client ownership of bounded decoder state without exposing live cache data in configuration."
+---
+
+[`ClientLocalKv`](/sdk/reference/python/pllm/state/#clientlocalkv)
+(`pllm/client-local-kv`) is an immutable and serializable state-protocol
+descriptor. The compiled reference handles initialize/append transitions,
+valid-length and absolute-position checks, and a bounded client KV view. A
+descriptor does not contain the live cache. The shipped runtime's state is
+bound by its execution graph; there is no independent user-facing state slot in
+the supported `Experiment` profiles. This is PLLM-specific runtime
+infrastructure, not MPCache or a protected eviction implementation.
+
+## Python SDK example
+
+```python
+from pllm.state import ClientLocalKv
+
+state = ClientLocalKv()
+assert state.to_spec()["component"] == "pllm/client-local-kv"
+assert state.describe().lifecycle_phase == "online"
+```
+
+For an actual client execution, use the complete
+[masked-linear experiment](/sdk/inference/masked-linear/) and its
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+command. To inspect a separate cache-policy plan transform, see
+[KV-cache eviction](/sdk/components/passes/kv-cache-eviction/).
+
+API: [`ClientLocalKv`](/sdk/reference/python/pllm/state/#objects-and-signatures)

@@ -1,0 +1,4 @@
+{
+  "title": "Metric options",
+  "pages": ["index", "latency", "throughput", "communication", "memory", "energy", "accuracy", "perplexity", "cost"]
+}

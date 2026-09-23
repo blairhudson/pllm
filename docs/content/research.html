@@ -1,11 +1,11 @@
 <section class="research-hero" aria-labelledby="research-title">
   <h1 id="research-title">Research for high-performance private LLM inference.</h1>
   <div class="research-copy">
-    <p><strong>PLLM is a high-performance private LLM multi-party inference runtime and autonomous research harness.</strong> We independently reimplement useful methods, compose compatible components, and benchmark complete plans to determine what improves the system.</p>
+    <p><strong>PLLM is a high-performance private LLM multi-party inference runtime and extensible experimentation system.</strong> Typed component and provider contracts, immutable experiments, search, and benchmarking turn credible research into reproducible results.</p>
     <div class="button-row">
-      <a class="button primary" href="/research/whitepaper/">Read the whitepaper <span>→</span></a>
-      <a class="button secondary" href="/research/paper/">Read the research paper <span>→</span></a>
-      <a class="button secondary" href="/research/papers/">Explore papers <span>→</span></a>
+      <a class="button primary" href="/research/papers/">Private Inference Papers <span>→</span></a>
+      <a class="button secondary" href="/research/whitepaper/">PLLM Whitepaper <span>→</span></a>
+      <a class="button secondary" href="/research/paper/">PLLM Research Paper <span>→</span></a>
     </div>
   </div>
 </section>
@@ -13,24 +13,24 @@
 <section class="research-section research-problem" aria-labelledby="system-title">
   <div class="section-intro">
     <h2 id="system-title">A runtime and a research system.</h2>
-    <p>The runtime keeps plaintext, model state, masks, and decoding inside the client boundary while separate services perform prepared masked computation. The research harness turns pinned papers and hypotheses into reusable components, immutable plans, assurance records, and matched benchmark evidence.</p>
+    <p>The runtime keeps plaintext, model state, masks, and decoding inside the client boundary while separate services perform prepared masked computation. The research system turns pinned methods into reusable extensions, immutable plans, assurance records, and matched benchmark evidence.</p>
   </div>
   <div class="problem-grid">
-    <article><h3>Reimplement independently</h3><p>Research papers are specification and provenance inputs. Implementations are built in PLLM's Rust and Python stack rather than imported as runtime dependencies.</p></article>
-    <article><h3>Compose by capability</h3><p>Like-for-like cache, numeric, protocol, preparation, kernel, and placement components live together behind stable typed contracts.</p></article>
-    <article><h3>Compare complete plans</h3><p>Correctness and privacy remain hard gates. Latency, throughput, traffic, memory, preparation, quality, energy, and cost remain separate measurements.</p></article>
+    <article><h3>Extend by capability</h3><p>Methods enter through stable component and provider contracts, not paper-specific runtime branches. Implementations remain independent of upstream research code.</p></article>
+    <article><h3>Search valid experiments</h3><p>Immutable configurations support bounded grid and seeded random search without bypassing compatibility, correctness, privacy, or quality gates.</p></article>
+    <article><h3>Compare matched evidence</h3><p>Benchmarks bind results to exact plans and cohorts so eligible state-of-the-art baselines can be compared under equivalent conditions.</p></article>
   </div>
+  <p><a href="/research/recipes/experiments/">Explore the experimentation system →</a> Follow methods from typed extensions and immutable configurations through valid search to matched benchmark evidence, with links to SDK and CLI workflows.</p>
 </section>
 
 <section class="research-section research-program" aria-labelledby="program-title">
   <div class="section-intro">
-    <h2 id="program-title">Three research records.</h2>
-    <p>Each record serves a different reader. The whitepaper explains why PLLM exists, the technical paper defines the implemented system and its limits, and the paper catalog tracks the methods that may improve it.</p>
+    <h2 id="program-title">Three research sections.</h2>
+    <p>The chronological private-inference bibliography explains each cited source and links related PLLM components in both directions. The whitepaper covers the system design, and the research paper records the current implementation and evidence.</p>
   </div>
   <div class="program-grid">
-    <a href="/research/whitepaper/"><span>01</span><h3>PLLM original research</h3><p>A concise, business-friendly whitepaper on private inference, the multi-party boundary, and the autonomous research loop.</p><b>Read the whitepaper →</b></a>
-    <a href="/research/paper/"><span>02</span><h3>PLLM research paper</h3><p>The current protocol, compiler and component architecture, security limits, implementation status, and retained evidence.</p><b>Read the technical paper →</b></a>
-    <a href="/research/papers/"><span>03</span><h3>Papers</h3><p>One PLLM-focused page per tracked source, with its contribution, boundary, status, original source, and implementation links where they exist.</p><b>Explore the catalog →</b></a>
-    <a href="/research/backlog/"><span>04</span><h3>Reimplementation backlog</h3><p>The ordered work needed to turn tracked methods into validated components and comparable plans.</p><b>See what comes next →</b></a>
+    <a href="/research/papers/"><span>01</span><h3>Private Inference Papers</h3><p>Plain-language summaries of every cited source, with links to related PLLM SDK components where implementations exist.</p><b>Read the paper summaries →</b></a>
+    <a href="/research/whitepaper/"><span>02</span><h3>PLLM Whitepaper</h3><p>The architecture, privacy boundary, protocol design, deployment model, and known limitations.</p><b>Read the whitepaper →</b></a>
+    <a href="/research/paper/"><span>03</span><h3>PLLM Research Paper</h3><p>The current protocol, compiler and component architecture, security limits, implementation status, and retained evidence.</p><b>Read the research paper →</b></a>
   </div>
 </section>

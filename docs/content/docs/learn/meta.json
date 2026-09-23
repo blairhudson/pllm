@@ -1,16 +1,13 @@
 {
-  "title": "Core concepts",
+  "title": "Start",
   "root": true,
   "pages": [
     "index",
-    "privacy-and-threat-models",
-    "parties-and-offline-work",
-    "masked-linear-inference",
-    "arithmetic-and-boolean-garbling",
-    "numeric-semantics-and-model-quality",
-    "reading-research-and-evidence",
-    "integrations",
-    "../start",
-    "../understand"
+    "installation",
+    "first-private-request",
+    "first-local-benchmark",
+    "inspect-a-plan",
+    "concepts",
+    "integrations"
   ]
 }

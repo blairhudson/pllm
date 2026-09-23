@@ -1,0 +1,28 @@
+---
+title: "Secure linear preview"
+description: "Inspect the bounded synthetic-shape authentication preview without presenting it as a serving protocol."
+---
+
+[`SecureLinear`](/sdk/reference/python/pllm/protocols/#securelinear)
+(`pllm/secure-linear/v1`) declares an authenticated fixed-shape synthetic
+preview. It is constructible and serializable; no shipped inference composition
+accepts it and no whole-model private-inference or matched benchmark path runs
+it. Its descriptor is not proof of protocol security or model coverage. The
+preview is PLLM-specific research infrastructure, not a paper reproduction.
+
+## Python SDK example
+
+```python
+from pllm.protocols import SecureLinear
+
+method = SecureLinear()
+assert method.component == "pllm/secure-linear/v1"
+assert method.describe().required_host_features == ("synthetic-fixed-shape-only",)
+```
+
+For a runnable experiment, use [masked linear](/sdk/components/protocols/masked-linear/)
+with the documented `pllm gateway --local --experiment
+experiment.py:experiment --trust-python` workflow. This preview cannot replace
+its `linear` slot in a supported whole-model composition.
+
+API: [`SecureLinear`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

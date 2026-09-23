@@ -47,8 +47,10 @@ test('publication identities, canonical routes, and Markdown twins are unique', 
     assert.equal(page.markdownUrl, page.canonicalUrl === '/'
       ? '/index.md'
       : `${page.canonicalUrl.slice(0, -1)}.md`);
-    assert.deepEqual(page.aliases, page.canonicalUrl === '/' ? [] : [page.canonicalUrl.slice(0, -1)]);
-    assert.deepEqual(page.markdownAliases, []);
+    assert.ok(page.canonicalUrl === '/' || page.aliases.includes(page.canonicalUrl.slice(0, -1)));
+    assert.deepEqual(page.markdownAliases, page.aliases
+      .filter((alias) => alias.endsWith('/'))
+      .map((alias) => `${alias.slice(0, -1)}.md`));
   }
 });
 
@@ -68,6 +70,7 @@ test('manifest is complete and versioned without generated hashes', () => {
   for (const [relative, content] of outputs) {
     if (!relative.endsWith('.md') && !relative.endsWith('.txt')) continue;
     assert.doesNotMatch(content, /^(?:Build|Source hash):/m, relative);
+    assert.doesNotMatch(content, /__PLLM_VERSION__/, relative);
   }
   assert.ok(manifest.pages.find((record) => record.id === 'pllm.docs.reference.python.pllm').publicModules.includes('pllm.runtime'));
   const componentIds = manifest.pages.find((record) => record.id === 'pllm.docs.reference.components').componentIds;
@@ -113,15 +116,23 @@ test('publication and search records follow canonical navigation groups', () => 
   }
 });
 
-test('redirects only normalize canonical HTML trailing slashes', () => {
-  assert.deepEqual(redirects, graph.pages
-    .filter((page) => page.canonicalUrl !== '/')
-    .map((page) => ({
-      from: page.canonicalUrl.slice(0, -1),
-      to: page.canonicalUrl,
-      status: 308,
-      representation: 'html',
-    })));
+test('redirects normalize canonical slashes and preserve moved Learn URLs', () => {
+  assert.deepEqual(redirects, graph.pages.flatMap((page) => [
+    ...page.aliases.map((from) => ({
+      from, to: page.canonicalUrl, status: 308, representation: 'html',
+    })),
+    ...page.markdownAliases.map((from) => ({
+      from, to: page.markdownUrl, status: 308, representation: 'markdown',
+    })),
+  ]));
+  for (const [from, to] of [
+    ['/learn/start/', '/learn/'],
+    ['/learn/start/installation/', '/learn/installation/'],
+    ['/learn/understand/trust-boundary/', '/learn/concepts/trust-boundary/'],
+    ['/learn/arithmetic-and-boolean-garbling/', '/learn/concepts/garbling/'],
+  ]) assert.ok(redirects.some((redirect) => redirect.from === from && redirect.to === to), from);
+  assert.ok(redirects.some((redirect) => redirect.from === '/learn/start/installation.md'
+    && redirect.to === '/learn/installation.md' && redirect.representation === 'markdown'));
 });
 
 test('generated surfaces are fresh and managed directories contain no orphans', () => {

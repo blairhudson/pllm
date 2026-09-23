@@ -1,0 +1,39 @@
+---
+title: "Run local roles"
+description: "Start the client, trusted preparation, and inference roles for one supported experiment."
+---
+
+[`build_roles`](/sdk/reference/python/pllm/runtime/#buildroles) accepts a typed
+`Experiment` and constructs one loopback topology. Its inference and preparation
+services run as separate child processes with distinct credentials; this
+development topology does not prove independent, non-colluding operators.
+Before chat, preparation loads one-use masked correction inventory and
+inference acknowledges it. Online requests contact inference, not preparation.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.runtime import LocalTopology, build_roles
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="local-roles-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="local-roles-guide")),
+    deployment=Deployment.local(root="local://local-roles-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+topology = build_roles(experiment)
+assert isinstance(topology, LocalTopology)
+assert not topology.started
+assert tuple(status.role for status in topology.statuses) == ("inference", "preparation")
+```
+
+Save as `experiment.py`; install optional `he` using
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+to start the roles and trusted gateway. Tiny weights test transport only; for
+real output use the pinned [Hugging Face source](/sdk/models/sources/hugging-face/).
+
+API: [`build_roles`](/sdk/reference/python/pllm/runtime/#objects-and-signatures)

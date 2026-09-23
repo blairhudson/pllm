@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "pllm.run"
 import-names = ["pllm"]
 dynamic = ["version"]
-description = "Private language model inference with a local Responses API and remote matrix execution"
+description = "Private LLM inference and reproducible experimentation"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = "Apache-2.0"

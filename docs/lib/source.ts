@@ -57,9 +57,35 @@ function nodeUrls(node: Node): string[] {
 }
 
 function researchPapers(): Folder {
-  const children = researchSource.getPageTree().children;
-  if (children.length === 0) throw new Error('Missing generated research papers');
-  return { type: 'folder', name: 'Papers', root: true, children };
+  function visit(nodes: Node[]): Folder | undefined {
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+      if (node.index?.url === '/research/papers' || node.children.some((child) =>
+        child.type === 'page' && child.url === '/research/papers')) return node;
+      const nested = visit(node.children);
+      if (nested) return nested;
+    }
+    return undefined;
+  }
+  const folder = visit(source.getPageTree().children);
+  if (!folder) {
+    throw new Error('Missing generated research paper pages');
+  }
+  return { ...folder, name: 'Private Inference Papers', root: true };
+}
+
+function researchDocument(name: string, url: string): Folder {
+  const page = researchSource.getPageTree().children.find((node) => nodeUrls(node).includes(url));
+  if (!page) throw new Error(`Missing research document ${url}`);
+  return { type: 'folder', name, root: true, children: [page] };
+}
+
+function researchFolders(): Folder[] {
+  return [
+    researchPapers(),
+    researchDocument('PLLM Whitepaper', '/research/whitepaper'),
+    researchDocument('PLLM Research Paper', '/research/paper'),
+  ];
 }
 
 export type AreaSection = {
@@ -68,26 +94,52 @@ export type AreaSection = {
   urls: string[];
 };
 
-export function getAreaSections(area: NavigationArea): AreaSection[] {
-  const root = getAreaRoot(area);
-  const localChildren = root.children.filter(
-    (node) => node.type !== 'folder' || node.root !== true,
-  );
-  const sectionRoots = root.children.filter(
-    (node): node is Folder => node.type === 'folder' && node.root === true,
-  );
-  const sections: Folder[] = [{ ...root, children: localChildren }, ...sectionRoots];
-  if (area === 'Research') sections.push(researchPapers());
+function areaFolders(area: NavigationArea, root: Folder): Folder[] {
+  const sections: Folder[] = [
+    {
+      ...root,
+      children: root.children.filter(
+        (node) => node.type !== 'folder' || node.root !== true,
+      ),
+    },
+    ...root.children.filter(
+      (node): node is Folder => node.type === 'folder' && node.root === true,
+    ),
+  ];
+  if (area !== 'Learn') return sections;
 
-  const result = sections.map((section, index) => {
+  const order = new Map([
+    ['Start', 0],
+    ['Core concepts', 1],
+    ['Working with PLLM', 2],
+  ]);
+  return sections.sort((left, right) => (
+    order.get(String(left.name)) ?? Number.MAX_SAFE_INTEGER
+  ) - (
+    order.get(String(right.name)) ?? Number.MAX_SAFE_INTEGER
+  ));
+}
+
+export function getAreaSections(area: NavigationArea): AreaSection[] {
+  if (area === 'Research') {
+    return researchFolders().map((section) => {
+      const urls = nodeUrls(section);
+      return { title: String(section.name), url: urls[0] ?? '/research/', urls };
+    });
+  }
+
+  const root = getAreaRoot(area);
+  const sections = areaFolders(area, root);
+
+  const result = sections.map((section) => {
     if (typeof section.name !== 'string') {
       throw new Error(`Section title must be text in ${area}`);
     }
-    const url = (index === 0 ? areaOverview[area] : section.index?.url)
+    const url = (section.name === root.name ? areaOverview[area] : section.index?.url)
       ?? section.children.find((node) => node.type === 'page')?.url;
     if (url === undefined) throw new Error(`Missing section index for ${section.name}`);
     const urls = nodeUrls(section);
-    if (index === 0 && !urls.includes(url)) urls.unshift(url);
+    if (section.name === root.name && !urls.includes(url)) urls.unshift(url);
     return { title: section.name, url, urls };
   });
 
@@ -105,20 +157,14 @@ export function getAreaSections(area: NavigationArea): AreaSection[] {
 }
 
 export function getAreaPageTree(area: NavigationArea): Root {
+  if (area === 'Research') {
+    return { name: area, children: researchFolders() };
+  }
+
   const root = getAreaRoot(area);
-  const localChildren = root.children.filter(
-    (node) => node.type !== 'folder' || node.root !== true,
-  );
-  const sectionRoots = root.children.filter(
-    (node) => node.type === 'folder' && node.root === true,
-  );
 
   return {
     name: area,
-    children: [
-      { ...root, children: localChildren },
-      ...sectionRoots,
-      ...(area === 'Research' ? [researchPapers()] : []),
-    ],
+    children: areaFolders(area, root),
   };
 }

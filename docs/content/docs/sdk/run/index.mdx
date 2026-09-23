@@ -1,0 +1,25 @@
+---
+title: "Run PLLM"
+description: "Assign client, preparation, and inference responsibilities without weakening the privacy design."
+---
+
+- [Python clients](/sdk/run/clients/) own plaintext, seeds, and model state.
+- [Local roles](/sdk/run/local/) run a supported experiment on loopback.
+- [Gateway](/sdk/run/gateway/) serves compatible API requests inside the client boundary.
+- [Embedded gateway](/sdk/run/embedded-gateway/) keeps application data trusted.
+- [Provider roles](/sdk/run/provider-roles/) separate preparation and inference.
+- [Plan-bound runtime](/sdk/run/plan-bound-runtime/) distinguishes plans from live state.
+- [Lifecycle](/sdk/run/lifecycle/) describes startup, inventory, and shutdown.
+
+## Python SDK example
+
+```python
+import pllm
+
+deployment = pllm.Deployment.local(root=".pllm/local")
+assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
+```
+
+API: [`pllm.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+This records local intent only; it does not start or authenticate services.

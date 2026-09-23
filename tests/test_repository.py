@@ -84,14 +84,13 @@ def test_release_jobs_separate_build_and_credentials():
     assert set(workflow["jobs"]["pypi"]["needs"]) == {"sdist", "wheels"}
     assert "PYPI_TOKEN" not in (ROOT / ".github/workflows/release.yml").read_text()
 
-def test_pages_deployment_targets_are_separate():
+def test_pages_deployment_is_manual_production_only():
     path = ROOT / ".github/workflows/pages.yml"
     workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
-    assert workflow["on"]["push"]["branches"] == ["main"]
-    assert "workflow_dispatch" in workflow["on"]
+    assert set(workflow["on"]) == {"workflow_dispatch"}
     text = path.read_text()
-    assert "pllm-non" in text and "PLLM_NON_PAGES_API_TOKEN" in text
     assert "pllm-production" in text and "PLLM_PRODUCTION_PAGES_API_TOKEN" in text
+    assert "PLLM_NON_PAGES_API_TOKEN" not in text
     assert "blairhudson/restack-action@" in text
 
 def test_docs_are_fumadocs_not_retired_mkdocs():

@@ -1,0 +1,33 @@
+---
+title: "Choose a metric"
+description: "Declare exact metric phase, unit, and comparison direction before benchmarking."
+---
+
+Performance: [latency](/sdk/evaluate/metrics/latency/),
+[throughput](/sdk/evaluate/metrics/throughput/),
+[communication](/sdk/evaluate/metrics/communication/), and
+[memory](/sdk/evaluate/metrics/memory/). Separate instruments and datasets:
+[energy](/sdk/evaluate/metrics/energy/),
+[accuracy](/sdk/evaluate/metrics/accuracy/),
+[perplexity](/sdk/evaluate/metrics/perplexity/), and
+[cost](/sdk/evaluate/metrics/cost/). Each option declares a unit or direction,
+not an observation. Never substitute missing energy, price, or quality data
+with an assumed value. Compare [benchmark cohorts](/sdk/research/benchmark/)
+only when model, token counts, execution mode, and environment match.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Communication, Latency
+
+full = Latency(statistic="median", phase="full")
+wire = Communication(direction="total", phase="full")
+assert full.get_params()["phase"] == "full"
+assert wire.get_params()["direction"] == "total"
+```
+
+To collect real observations, pass a supported [Experiment](/sdk/experiments/)
+to [`pllm benchmark run`](/cli/reference/benchmark/run/); the declarations
+above do not run the client or invent evidence.
+
+API: [Metric objects](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

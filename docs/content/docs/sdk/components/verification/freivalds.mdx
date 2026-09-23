@@ -1,0 +1,52 @@
+---
+title: "Freivalds stage verification"
+description: "Check prepared public-weight stage outputs with authenticated one-use client projections."
+---
+
+[`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify)
+(`pllm/freivalds-verify/v1`) is constructed, serialized, and accepted by
+`VerifiedMaskedLinearCpu` in the verification slot. Trusted Preparation authenticates
+projections for a bounded session attempt budget; the client verifies claimed
+integer stage results before dequantization and burns used material. This
+composition has tiny real-role transport coverage. Compiler-bound verified
+execution has its own fail-closed gate and cannot be inferred from baseline
+semantic scheduling. It cannot stop colluding or malicious Preparation; there is
+no whole-deployment cryptographic proof.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="freivalds-guide",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="freivalds-guide-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://freivalds-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.verification_target_failure_bits == 48
+assert resolved.requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+For comparable results replace tiny weights with a supported pinned checkpoint.
+
+API: [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#objects-and-signatures)
+
+<Callout type="info" title="Research citation">
+
+[Slalom](/research/papers/slalom/) motivates client verification of delegated
+linear work. PLLM uses authenticated projections with trusted offline Preparation
+and a different non-collusion boundary; this is not a TEE reproduction. Its
+current benchmark evidence does not establish Slalom's system-level claims.
+
+</Callout>

@@ -344,6 +344,9 @@ def test_each_public_module_reference_explains_every_export() -> None:
         assert "Public `" not in content
         assert "Unspecified run-time error" not in content
         assert "Represents " not in content
+        if module in reference.RUNNABLE_EXPERIMENT_MODULES:
+            assert "optional `he` dependency" in content
+            assert "pllm gateway --local" in content
         for members in re.findall(r"^- Public members: (.+)$", content, re.MULTILINE):
             assert not re.search(r"(?:^|; )`?_[A-Za-z]", members)
         exports = {

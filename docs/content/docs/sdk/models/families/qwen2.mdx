@@ -1,0 +1,33 @@
+---
+title: "Qwen2"
+description: "Dense Qwen2 semantic lowering and its present execution boundary."
+---
+
+`pllm.qwen2.v1` lowers bounded prefill and decode graphs for dense `qwen2` configurations. It records grouped-query attention, rotary positions, QKV bias, bias-free output and MLP projections, gated SiLU, KV-cache transitions, last-token output-head evaluation, greedy selection, and feedback.
+
+This adapter is structurally validated rather than bound to one repository revision. Checkpoint loading and complete compiler coverage remain separate. Qwen2.5-0.5B-Instruct is the current runtime and loopback benchmark target, not evidence that every Qwen2 semantic plan is executable.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="qwen2-family-guide",
+    pipeline=MaskedLinearCpu(Model.hf("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://qwen2-family-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.model.kind == "huggingface"
+assert experiment.resolve().requires_preparation
+```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Save as `experiment.py`; install optional `he` through
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+This pinned checkpoint's baseline path has a real-model native-kernel
+prefill-to-decode test; semantic adapter support still does not establish
+whole-model coverage for every other Qwen2 checkpoint.

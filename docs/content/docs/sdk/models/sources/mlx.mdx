@@ -1,0 +1,33 @@
+---
+title: "MLX source"
+description: "Import an MLX directory under the same model and runtime coverage gates."
+---
+
+[`BundleModel`](/sdk/reference/python/pllm/sources/#bundlemodel) declares an
+MLX or MLX-LM directory. The importer reads and validates model files; local
+topology admits the source kind but still requires a compatible model body,
+tokenizer, operators, and runtime binding. MLX format support alone does not
+mean every converted checkpoint can serve privately or match source quality.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="mlx-source-guide",
+    pipeline=MaskedLinearCpu(Model.path("./checkpoints/model-mlx", format="mlx")),
+    deployment=Deployment.local(root="local://mlx-source-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.model.kind == "mlx"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; supply a compatible imported checkpoint, install
+optional `he` via [Installation](/learn/installation/), then run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Construction and resolution above do not prove that the example path exists.
+
+API: [`Model.path`](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -1,0 +1,36 @@
+---
+title: "Identity and reproducibility"
+description: "Compare canonical experiment and component-composition digests without capturing live secrets."
+---
+
+The canonical experiment captures serialized public intent, including the model,
+components, deployment, and workload. The composition digest names the pipeline's
+model and component values. Neither digest contains credentials, correction
+inventory, prompt contents, or live runtime state. A matching configuration
+digest does not imply the same checkpoint bytes or deployment environment;
+consult [evidence records](/research/evidence/) for measurement comparability.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="identity-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="identity-guide-tiny")),
+    deployment=Deployment.local(root="local://identity-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+serialized = experiment.to_spec()
+assert Experiment.from_spec(serialized).configuration_digest() == experiment.configuration_digest()
+assert experiment.pipeline.digest() == Experiment.from_spec(serialized).pipeline.digest()
+```
+
+Save as `experiment.py`; after installing optional `he` via
+[Installation](/learn/installation/), run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny generated weights validate transport, not quality.
+
+API: [`Experiment.configuration_digest`](/sdk/reference/python/pllm/#objects-and-signatures)

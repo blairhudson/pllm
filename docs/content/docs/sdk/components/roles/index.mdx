@@ -1,0 +1,25 @@
+---
+title: "Runtime roles"
+description: "Choose a role contract without mistaking the inference service for an application-facing API."
+---
+
+[Inference](/sdk/components/roles/inference/) is the built-in role component
+for remote linear stages. For prepared public inference, trusted Preparation
+fills corrections before requests; for provider-owned paths, the chosen protocol
+uses a single inference role. Applications talk to the trusted
+[gateway](/learn/integrations/local-gateway/), not to the provider's stage API.
+
+## Python SDK example
+
+```python
+from pllm.roles import Inference
+
+role = Inference()
+assert role.component == "pllm/inference"
+assert role.describe().role_eligibility == ("inference",)
+```
+
+See the [role option](/sdk/components/roles/inference/) for a complete
+`Experiment` and the matching local gateway command.
+
+API: [Role objects](/sdk/reference/python/pllm/roles/#objects-and-signatures)

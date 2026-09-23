@@ -1,0 +1,49 @@
+---
+title: "Prepared masked linear"
+description: "Define the public-weight ticket and masked-activation exchange."
+---
+
+[`MaskedLinear`](/sdk/reference/python/pllm/protocols-masked-linear/#maskedlinear)
+(`pllm/masked-linear`) supplies the message contract used by
+[`MaskedLinearCpu`](/sdk/inference/masked-linear/) and the verified variant.
+Trusted Preparation computes one-use `W*r-s` corrections before chat; Inference
+receives ticket and `x-r` and returns `W*x-s`; client reconstructs. Runtime and
+tiny transport tests cover the shipped public-weight path. Its model-neutral
+compiled schedule is separately bounded by operator and verifier coverage. Both
+roles must follow the protocol and not collude when externally operated.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-protocol-guide",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="masked-protocol-guide-tiny"), linear=MaskedLinear(),
+    ),
+    deployment=Deployment.local(root="local://masked-protocol-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Use a pinned real checkpoint for generation and benchmark claims.
+
+API: [`MaskedLinear`](/sdk/reference/python/pllm/protocols-masked-linear/#objects-and-signatures)
+
+<Callout type="info" title="Research citation">
+
+[Slalom](/research/papers/slalom/) informs delegated linear verification and role
+separation. PLLM's prepared masked-linear path and trust boundary differ; the
+protocol is not a reproduction of Slalom's TEE-based deployment. Optional
+[Freivalds checks](/sdk/components/verification/freivalds/) have a separate
+component and evidence scope.
+
+</Callout>

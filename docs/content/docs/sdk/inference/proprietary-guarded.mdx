@@ -1,0 +1,40 @@
+---
+title: "Guarded provider-owned inference"
+description: "Apply bounded policy controls to the provider-owned guarded-linear runtime."
+---
+
+[`ProprietaryGuarded`](/sdk/reference/python/pllm/profiles/#proprietaryguarded)
+uses [`GuardedLinear`](/sdk/reference/python/pllm/protocols/#guardedlinear), one
+inference role, and CPU kernels. Provider owns weights; there is no separate
+public-weight correction inventory or preparation role. Row and request quotas
+bound accepted use. Quotas do not provide cryptographic confidentiality of
+activations or prove resistance to model extraction. See
+[trust boundaries](/learn/concepts/trust-boundary/) before exposing a provider.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryGuarded
+from pllm.protocols import GuardedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="guarded-guide",
+    pipeline=ProprietaryGuarded(
+        TinyModel(model_id="guarded-guide-tiny"),
+        linear=GuardedLinear(max_rows_per_request=32),
+    ),
+    deployment=Deployment.local(root="local://guarded-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().proprietary_protocol == "guarded"
+assert experiment.pipeline.linear.params["max_rows_per_request"] == 32
+```
+
+Save as `experiment.py`; install the optional `he` dependency via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny generated weights test transport only.
+
+API: [`ProprietaryGuarded`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

@@ -1,10 +1,8 @@
 {
   "title": "Research",
   "pages": [
-    "[Research](/research/)",
-    "[PLLM original research](/research/whitepaper/)",
-    "[PLLM research paper](/research/paper/)",
-    "[Papers](/research/papers/)",
-    "[Reimplementation backlog](/research/backlog/)"
+    "[Private Inference Papers](/research/papers/)",
+    "whitepaper",
+    "paper"
   ]
 }

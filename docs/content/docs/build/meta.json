@@ -1,5 +1,5 @@
 {
-  "title": "Models and components",
+  "title": "Models and compiler",
   "root": true,
-  "pages": ["index", "models", "../models", "../operators", "../numerics", "../representations", "../conversions", "../search"]
+  "pages": ["index", "models", "../operators", "../numerics", "../representations", "../conversions", "../compiler"]
 }

@@ -1,0 +1,36 @@
+---
+title: "Resolve a composition"
+description: "Check serialized component contracts before binding any live runtime."
+---
+
+`Experiment.resolve()` validates known combinations and returns immutable runtime
+requirements, including whether trusted preparation is needed. A compatible
+result does not load a checkpoint or guarantee compiler coverage. For example,
+the public-weight [verified option](/sdk/inference/verified-masked-linear/)
+requires Freivalds checks; a different registered verification component is
+not interchangeable without a supported composition.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="resolve-guide",
+    pipeline=VerifiedMaskedLinearCpu(TinyModel(model_id="resolve-guide-tiny")),
+    deployment=Deployment.local(root="local://resolve-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+resolved = experiment.resolve()
+assert resolved.requires_preparation
+assert resolved.verification_component == "pllm/freivalds-verify/v1"
+```
+
+Save as `experiment.py`; after installing optional `he` via
+[Installation](/learn/installation/), run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+The generated tiny model is a transport smoke test.
+
+API: [`Experiment.resolve`](/sdk/reference/python/pllm/#objects-and-signatures)

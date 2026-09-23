@@ -1,4 +1,5 @@
 import { discoveredDocs } from './discovered-docs.mjs';
+import { packageVersion } from './package-version.mjs';
 import { canonicalDocsUrl, markdownUrlForCanonical } from '../lib/docs-routes.mjs';
 
 const page = (
@@ -18,10 +19,14 @@ const page = (
     markdownUrl: markdownUrlForCanonical(resolvedCanonical),
     kind,
     aliases: [],
-    markdownAliases: [],
+    markdownAliases: (metadata.aliases ?? [])
+      .filter((alias) => alias.endsWith('/'))
+      .map((alias) => `${alias.slice(0, -1)}.md`),
     ...metadata,
   };
 };
+
+const legacyAliases = (route) => [route.replace(/\/$/, ''), `${route.replace(/\/$/, '')}/`];
 
 const cliCommands = [
   ['config'],
@@ -95,28 +100,38 @@ const pythonModulePages = pythonModules.slice(1).map((module) => {
 
 const declaredPublicationRegistry = {
   schemaVersion: '2.0.0',
-  release: '0.1.0',
+  release: packageVersion,
   canonicalOrigin: 'https://pllm.run',
   pages: [
     page('pllm.home', 'content/home.html', '/', 'homepage'),
 
-    page('pllm.docs.start', 'content/docs/start/index.mdx', '/start', 'guide'),
-    page('pllm.docs.start.installation', 'content/docs/start/installation.mdx', '/start/installation', 'guide'),
-    page('pllm.docs.start.first-private-request', 'content/docs/start/first-private-request.mdx', '/start/first-private-request', 'guide'),
+    page('pllm.docs.start', 'content/docs/learn/index.mdx', '/learn', 'guide', { aliases: legacyAliases('/learn/start') }),
+    page('pllm.docs.start.installation', 'content/docs/learn/installation.mdx', '/learn/installation', 'guide', { aliases: legacyAliases('/learn/start/installation') }),
+    page('pllm.docs.start.first-private-request', 'content/docs/learn/first-private-request.mdx', '/learn/first-private-request', 'guide', { aliases: legacyAliases('/learn/start/first-private-request') }),
+    page('pllm.docs.start.first-local-benchmark', 'content/docs/learn/first-local-benchmark.mdx', '/learn/first-local-benchmark', 'guide', { aliases: legacyAliases('/learn/start/first-local-benchmark') }),
+    page('pllm.docs.start.inspect-a-plan', 'content/docs/learn/inspect-a-plan.mdx', '/learn/inspect-a-plan', 'guide', { aliases: legacyAliases('/learn/start/inspect-a-plan') }),
+
+    page('pllm.docs.learn.concepts', 'content/docs/learn/concepts/index.mdx', '/learn/concepts', 'concept'),
+    page('pllm.docs.learn.concepts.privacy-and-threat-models', 'content/docs/learn/concepts/privacy-and-threat-models.mdx', '/learn/concepts/privacy-and-threat-models', 'concept', { aliases: legacyAliases('/learn/privacy-and-threat-models') }),
+    page('pllm.docs.learn.concepts.parties-and-offline-work', 'content/docs/learn/concepts/parties-and-offline-work.mdx', '/learn/concepts/parties-and-offline-work', 'concept', { aliases: legacyAliases('/learn/parties-and-offline-work') }),
+    page('pllm.docs.learn.concepts.masked-linear-inference', 'content/docs/learn/concepts/masked-linear-inference.mdx', '/learn/concepts/masked-linear-inference', 'concept', { aliases: legacyAliases('/learn/masked-linear-inference') }),
+    page('pllm.docs.learn.concepts.garbling', 'content/docs/learn/concepts/garbling.mdx', '/learn/concepts/garbling', 'concept', { aliases: legacyAliases('/learn/arithmetic-and-boolean-garbling') }),
+    page('pllm.docs.learn.concepts.numeric-semantics', 'content/docs/learn/concepts/numeric-semantics.mdx', '/learn/concepts/numeric-semantics', 'concept', { aliases: legacyAliases('/learn/numeric-semantics-and-model-quality') }),
+    page('pllm.docs.learn.concepts.research-and-evidence', 'content/docs/learn/concepts/research-and-evidence.mdx', '/learn/concepts/research-and-evidence', 'concept', { aliases: legacyAliases('/learn/reading-research-and-evidence') }),
 
     page('pllm.docs.sdk.configuration', 'content/docs/sdk/configuration.mdx', '/sdk/configuration', 'reference'),
-    page('pllm.docs.sdk.plans', 'content/docs/sdk/plans.mdx', '/sdk/plans', 'reference'),
-    page('pllm.docs.sdk.components', 'content/docs/sdk/components.mdx', '/sdk/components', 'component'),
+    page('pllm.docs.sdk.plans', 'content/docs/sdk/plans/index.mdx', '/sdk/plans', 'reference'),
+    page('pllm.docs.sdk.components', 'content/docs/sdk/components/index.mdx', '/sdk/components', 'component'),
 
     page('pllm.docs.build', 'content/docs/build/index.mdx', '/build', 'guide'),
     page('pllm.docs.build.models', 'content/docs/build/models.mdx', '/build/models', 'reference'),
     page('pllm.docs.build.research', 'content/docs/build/research.mdx', '/build/research', 'research'),
 
-    page('pllm.docs.understand', 'content/docs/understand/index.mdx', '/understand', 'concept'),
-    page('pllm.docs.understand.architecture', 'content/docs/understand/architecture.mdx', '/understand/architecture', 'concept'),
-    page('pllm.docs.understand.trust-boundary', 'content/docs/understand/trust-boundary.mdx', '/understand/trust-boundary', 'concept'),
-    page('pllm.docs.understand.privacy-assurance', 'content/docs/understand/privacy-assurance.mdx', '/understand/privacy-assurance', 'assurance'),
-    page('pllm.docs.understand.evidence-claims', 'content/docs/understand/evidence-claims.mdx', '/understand/evidence-claims', 'evidence'),
+    page('pllm.docs.understand', 'content/docs/learn/concepts/architecture-and-trust.mdx', '/learn/concepts/architecture-and-trust', 'concept', { aliases: legacyAliases('/learn/understand') }),
+    page('pllm.docs.understand.architecture', 'content/docs/learn/concepts/architecture.mdx', '/learn/concepts/architecture', 'concept', { aliases: legacyAliases('/learn/understand/architecture') }),
+    page('pllm.docs.understand.trust-boundary', 'content/docs/learn/concepts/trust-boundary.mdx', '/learn/concepts/trust-boundary', 'concept', { aliases: legacyAliases('/learn/understand/trust-boundary') }),
+    page('pllm.docs.understand.privacy-assurance', 'content/docs/learn/concepts/privacy-assurance.mdx', '/learn/concepts/privacy-assurance', 'assurance', { aliases: legacyAliases('/learn/understand/privacy-assurance') }),
+    page('pllm.docs.understand.evidence-claims', 'content/docs/learn/concepts/evidence-claims.mdx', '/learn/concepts/evidence-claims', 'evidence', { aliases: legacyAliases('/learn/understand/evidence-claims') }),
 
     page('pllm.docs.measure', 'content/docs/measure/index.mdx', '/measure', 'benchmark'),
     page('pllm.docs.measure.benchmark', 'content/docs/measure/benchmark.mdx', '/measure/benchmark', 'benchmark'),
@@ -124,10 +139,11 @@ const declaredPublicationRegistry = {
     page('pllm.docs.measure.reproduce', 'content/docs/measure/reproduce.mdx', '/measure/reproduce', 'research'),
     page('pllm.docs.measure.assure', 'content/docs/measure/assure.mdx', '/measure/assure', 'assurance'),
 
-    page('pllm.docs.operate', 'content/docs/operate/index.mdx', '/operate', 'deployment'),
-    page('pllm.docs.operate.client-boundary', 'content/docs/operate/client-boundary.mdx', '/operate/client-boundary', 'deployment'),
-    page('pllm.docs.operate.provider-roles', 'content/docs/operate/provider-roles.mdx', '/operate/provider-roles', 'deployment'),
-    page('pllm.docs.operate.deployment', 'content/docs/operate/deployment.mdx', '/operate/deployment', 'deployment'),
+    page('pllm.docs.operate', 'content/docs/sdk/run/index.mdx', '/sdk/run', 'deployment', { aliases: legacyAliases('/sdk/operate') }),
+    page('pllm.docs.operate.client', 'content/docs/sdk/run/clients.mdx', '/sdk/run/clients', 'deployment', { aliases: legacyAliases('/sdk/operate/client') }),
+    page('pllm.docs.operate.client-boundary', 'content/docs/sdk/run/embedded-gateway.mdx', '/sdk/run/embedded-gateway', 'deployment', { aliases: legacyAliases('/sdk/operate/client-boundary') }),
+    page('pllm.docs.operate.provider-roles', 'content/docs/sdk/run/provider-roles.mdx', '/sdk/run/provider-roles', 'deployment', { aliases: legacyAliases('/sdk/operate/provider-roles') }),
+    page('pllm.docs.operate.deployment', 'content/docs/sdk/run/lifecycle.mdx', '/sdk/run/lifecycle', 'deployment', { aliases: legacyAliases('/sdk/operate/deployment/status') }),
 
     page('pllm.docs.reference', 'content/docs/reference/index.mdx', '/reference', 'reference'),
     page('pllm.docs.reference.cli', 'content/docs/reference/cli/index.mdx', '/reference/cli', 'reference', cliProvenance('content/docs/reference/cli/index.mdx')),
@@ -150,7 +166,7 @@ const declaredPublicationRegistry = {
     page('pllm.research.paper', 'content/research/paper.mdx', '/research/paper', 'research-paper'),
     {
       ...page('pllm.research.whitepaper', 'content/research/whitepaper.mdx', '/research/whitepaper', 'whitepaper'),
-      citationLinks: ['/learn/understand/architecture/', '/learn/understand/privacy-assurance/'],
+      citationLinks: ['/learn/concepts/architecture/', '/learn/concepts/privacy-assurance/'],
       evidenceLinks: ['/downloads/current-runtime-2026-09-11.json'],
     },
   ],
@@ -163,11 +179,22 @@ function discoveredDocsPages() {
     if (declaredSources.has(sourcePath)) return [];
     const segments = relative.split('/');
     if (segments.at(-1) === 'index') segments.pop();
+    const oldFamilySlugs = {
+      'qwen3-5': 'qwen35',
+      'phi-4-mini': 'phi4-mini',
+      'gemma-4': 'gemma4',
+    };
+    const familySlug = relative.startsWith('sdk/models/families/')
+      ? relative.slice('sdk/models/families/'.length)
+      : null;
+    const oldFamilyRoute = familySlug === null ? null
+      : `/sdk/build/models${familySlug === 'index' ? '' : `/${oldFamilySlugs[familySlug] ?? familySlug}`}`;
     return [page(
       ['pllm', 'docs', ...segments].join('.'),
       sourcePath,
       '/',
       'guide',
+      oldFamilyRoute === null ? {} : { aliases: legacyAliases(oldFamilyRoute) },
     )];
   });
 }

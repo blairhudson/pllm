@@ -1,0 +1,27 @@
+---
+title: "Accuracy"
+description: "Bind a named dataset and task score, exact match, or pass@1."
+---
+
+[`Accuracy`](/sdk/reference/python/pllm/metrics/#accuracy)
+(`pllm/accuracy`) declares a dataset and measure (`exact_match`, `pass_at_1`,
+or `task_score`), a higher-is-better ratio. A numeric kernel error bound or
+tiny random-weight transport smoke test does not establish task quality.
+Version the dataset, decoding policy, checkpoint, and scoring code before
+comparing protected and clear execution.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Accuracy
+
+metric = Accuracy(dataset="example-eval-v1", measure="exact_match")
+assert metric.component == "pllm/accuracy"
+assert metric.get_params()["measure"] == "exact_match"
+```
+
+This declares the intended score; it does not run a dataset. Start with a
+supported [Experiment](/sdk/experiments/) and keep evaluation evidence
+separate from [benchmark throughput](/sdk/research/benchmark/).
+
+API: [`Accuracy`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

@@ -1,0 +1,29 @@
+---
+title: "Scalar protected schedule"
+description: "Bind one independently consumed nonlinear scalar to its method and plan."
+---
+
+[`ScalarProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#scalarprotectedtensorschedule)
+(`pllm/scalar/v1`) selects one scalar lane. In a bounded native gated-Q7
+region, authenticated method and plan identities prevent repurposing its
+one-use material. No shipped whole-decoder runtime accepts this as a gateway
+scheduling slot, and scalar tests are not evidence of tensor-scale throughput.
+This scheduler is PLLM-specific lifecycle infrastructure.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7
+from pllm.schedulers import ScalarProtectedTensorSchedule
+
+method = BinaryTableGatedMultiplyQ7()
+schedule = ScalarProtectedTensorSchedule()
+assert method.component == "pllm/binary-table/v1"
+assert schedule.component == "pllm/scalar/v1"
+```
+
+These objects only select a bounded region. For end-to-end private inference
+use the supported [masked-linear experiment](/sdk/inference/masked-linear/)
+and its gateway command, without this research scheduler.
+
+API: [`ScalarProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#objects-and-signatures)

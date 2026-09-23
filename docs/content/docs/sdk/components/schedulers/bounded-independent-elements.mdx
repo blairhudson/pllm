@@ -1,0 +1,30 @@
+---
+title: "Bounded independent elements"
+description: "Admit at most 128 independently consumed unary SiLU elements."
+---
+
+[`BoundedIndependentElementsProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#boundedindependentelementsprotectedtensorschedule)
+(`pllm/bounded-independent-elements/v1`) declares an authenticated one-use
+schedule for up to 128 unary elements. It is the scheduler required by the
+[Q7 SiLU method](/sdk/components/nonlinear/arithmetic-garbling-silu-q7/).
+Construction validates bounds; issuance and burn are separate opaque native
+operations. This supports a reference region, not full decoder execution.
+This lifecycle component is PLLM-specific infrastructure.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import ArithmeticGarblingSiluQ7
+from pllm.schedulers import BoundedIndependentElementsProtectedTensorSchedule
+
+method = ArithmeticGarblingSiluQ7()
+schedule = BoundedIndependentElementsProtectedTensorSchedule(max_elements=64)
+assert method.component == "pllm/arithmetic-garbling-silu-q7/v1"
+assert schedule.to_spec()["params"]["max_elements"] == 64
+```
+
+This pairing does not construct a whole-model `Experiment`. For the serving
+path use [masked linear](/sdk/inference/masked-linear/) and its documented
+gateway command while protected SiLU remains a bounded research region.
+
+API: [`BoundedIndependentElementsProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#objects-and-signatures)

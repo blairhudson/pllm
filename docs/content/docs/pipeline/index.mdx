@@ -10,7 +10,7 @@ normalized values, not live connections or provider state.
 Creating a pipeline does not run anything. Model lowering, research transforms,
 compilation, deployment, preparation, and session creation are separate steps.
 Each step returns a record or a structured error. The
-[parties and offline work](/learn/parties-and-offline-work/) overview explains why
+[parties and offline work](/learn/concepts/parties-and-offline-work/) overview explains why
 preparation and live inference remain distinct.
 
 Run [`pllm config show`](/cli/reference/config/show/) to inspect
@@ -28,6 +28,9 @@ composition, and compilation separately checks operator coverage.
 API: [Profile objects and signatures](/sdk/reference/python/pllm/profiles/#objects-and-signatures)
 
 ## Python SDK example
+
+Local gateway execution requires the optional `he` dependency from the
+[installation guide](/learn/installation/).
 
 Each example below is a complete `experiment.py` for the same generated tiny model,
 so the pipeline is the only important difference. Serve any runtime-backed profile
@@ -74,7 +77,7 @@ Use [`VerifiedMaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#verifiedmas
 when the trusted client must also check bounded integer stage outputs. It adds
 [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify)
 material to the prepared path; it does not reduce online traffic. This is PLLM's
-trusted-client adaptation of [Slalom](/research/papers/r07-slalom/), not a TEE
+trusted-client adaptation of [Slalom](/research/papers/slalom/), not a TEE
 reproduction.
 
 ```python

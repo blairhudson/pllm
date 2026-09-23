@@ -1,0 +1,40 @@
+---
+title: "Arithmetic-garbled Q7 SiLU"
+description: "Select bounded one-use signed-Q7 SiLU region material under an explicit scheduler."
+---
+
+[`ArithmeticGarblingSiluQ7`](/sdk/reference/python/pllm/nonlinear/#arithmeticgarblingsiluq7)
+(`pllm/arithmetic-garbling-silu-q7/v1`) is an importable, serializable method
+selector for signed Q7 SiLU over `[-1, 1]`. The native region authenticates
+plan and component provenance, uses one-use evaluator material, and rejects
+unsupported fallback or online preparation. It needs a bounded independent
+elements scheduler, not just a model with a SiLU operator. It has region-level
+numeric and lifecycle tests but no protected whole-Qwen execution or
+production-security review.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import ArithmeticGarblingSiluQ7
+from pllm.schedulers import BoundedIndependentElementsProtectedTensorSchedule
+
+method = ArithmeticGarblingSiluQ7()
+scheduler = BoundedIndependentElementsProtectedTensorSchedule(max_elements=64)
+assert method.component == "pllm/arithmetic-garbling-silu-q7/v1"
+assert scheduler.params["max_elements"] == 64
+```
+
+These declarations do not mint one-use material or create a runnable
+`Experiment`. For whole-model private inference use
+[masked linear](/sdk/inference/masked-linear/) and its gateway command;
+this protected SiLU method remains a separate bounded research slice.
+
+API: [`ArithmeticGarblingSiluQ7`](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+<Callout type="info" title="Research citation">
+
+[Dash](/research/papers/dash/) motivates arithmetic labels and projection
+gadgets. PLLM adapts bounded signed-Q7 SiLU as a one-use region, not the full
+CNN system, deployment, or security claims of Dash.
+
+</Callout>

@@ -8,7 +8,7 @@ messages, authentication, replay behavior, one-time material, visible informatio
 trust assumptions, and failure behavior. Model adapters and deployment policy are
 separate concerns.
 
-Start with [privacy and threat models](/learn/privacy-and-threat-models/) before
+Start with [privacy and threat models](/learn/concepts/privacy-and-threat-models/) before
 using these implementation interfaces to select a protocol.
 
 Current protocols include [masked-linear inference](/sdk/pipeline/protocols/masked-linear/)
@@ -27,6 +27,9 @@ the method to compatible preparation, role, kernel, and verification components.
 API: [Protocol objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
 
 ## Python SDK example
+
+Local gateway execution requires the optional `he` dependency from the
+[installation guide](/learn/installation/).
 
 The first four examples are complete `experiment.py` modules. Serve one through the
 real trusted loopback gateway with:

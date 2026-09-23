@@ -1,0 +1,34 @@
+---
+title: "Local safetensors source"
+description: "Point at a local HF-compatible checkpoint directory for validated import."
+---
+
+[`Model.path`](/sdk/reference/python/pllm/#objects-and-signatures) with
+`format="safetensors"` expects a local HF-compatible layout with configuration,
+tokenizer, and tensor files. `load_model` verifies source-file hashes and shape
+contracts at import; pointing at an arbitrary `.safetensors` file does not
+establish an executable decoder. Local topology supports this source kind for
+compatible checkpoints. No file is read by constructing a `Model`.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="safetensors-source-guide",
+    pipeline=MaskedLinearCpu(Model.path("./checkpoints/qwen", format="safetensors")),
+    deployment=Deployment.local(root="local://safetensors-source-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.model.kind == "safetensors"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; supply an actual supported checkpoint directory,
+install optional `he` via [Installation](/learn/installation/), and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Resolution validates the files; this example only validates configuration.
+
+API: [`Model.path`](/sdk/reference/python/pllm/#objects-and-signatures)

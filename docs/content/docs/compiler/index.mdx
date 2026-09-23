@@ -8,7 +8,7 @@ It checks operator support, value formats, conversions, numeric settings, party
 placement, preparation, native kernels, and assurance requirements. The result is
 an executable plan with a content digest.
 
-[Numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
+[Numeric semantics and model quality](/learn/concepts/numeric-semantics/)
 explains why compiling every operator still does not establish generation fidelity.
 
 The coverage report names every missing operator, conversion, party role, numeric
@@ -38,7 +38,7 @@ API does not yet compose them with a complete decoder into an executable plan.
 ### Transform compatible KV state with `KvCacheEviction`
 
 [`KvCacheEviction`](/sdk/reference/python/pllm/passes/#kvcacheeviction) applies the
-[MPCache adaptation](/research/papers/r23-mpcache/) to a semantic model plan. Use it
+[MPCache adaptation](/research/papers/mpcache/) to a semantic model plan. Use it
 only when the decoder has a compatible fixed-capacity KV topology; the compiler
 rejects incompatible state handoffs.
 
@@ -84,7 +84,7 @@ assert candidate["nonlinear"]["component"] == "pllm/binary-table/v1"
 
 [`R03CrtGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#r03crtgatedmultiplyq7)
 selects the mixed-modulus projection construction from the
-[R03 method record](/research/papers/r03-garbling-gadgets/). Compare its exact
+[Garbling Gadgets source](/research/papers/garbling-gadgets/). Compare its exact
 domain and maturity in the [arithmetic garbling guide](/sdk/pipeline/protocols/garbling/arithmetic/).
 
 ```python

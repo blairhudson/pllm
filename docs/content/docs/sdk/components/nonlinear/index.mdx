@@ -1,0 +1,34 @@
+---
+title: "Choose a nonlinear method"
+description: "Inspect bounded protected Q7 methods without implying whole-decoder coverage."
+---
+
+[`ArithmeticGarblingSiluQ7`](/sdk/components/nonlinear/arithmetic-garbling-silu-q7/)
+protects a bounded unary SiLU region. For gated multiplication,
+[`BinaryTableGatedMultiplyQ7`](/sdk/components/nonlinear/binary-table/) and
+[`R03CrtGatedMultiplyQ7`](/sdk/components/nonlinear/r03-crt/) implement
+alternative bounded Q7 reference constructions. Method identity and
+[scheduler](/sdk/components/schedulers/) are distinct capability contracts.
+Native region tests do not establish protected execution for a full decoder;
+none of these selectors is a supported whole-model gateway profile. Consult
+[current support](/sdk/reference/status/) and
+[research evidence](/research/evidence/) before interpreting region timings.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
+
+reference = BinaryTableGatedMultiplyQ7()
+compact = R03CrtGatedMultiplyQ7()
+assert reference.component == "pllm/binary-table/v1"
+assert compact.component == "pllm/r03-crt/v1"
+```
+
+These objects are bounded research selectors, not `Experiment` inference slots.
+For end-to-end private inference use the supported
+[masked-linear experiment](/sdk/inference/masked-linear/) and its
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+command. There is no protected-Q7 whole-decoder gateway path today.
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

@@ -1,0 +1,76 @@
+---
+title: "Make your first private request"
+description: "Start the trusted loopback gateway and get real generated text from a private inference endpoint."
+---
+
+This page starts the gateway plus co-located preparation and inference roles on
+your machine, then sends one chat request through the private protocol. You will
+see generated text — not a plan or a dry run.
+
+## Start the gateway
+
+This command requires the `he` extra from the [installation guide](/learn/installation/).
+The base package supports planning and inspection but does not include TenSEAL.
+
+Declare the public checkpoint and bounded request budget in `experiment.py`:
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="first-private-request",
+    pipeline=MaskedLinearCpu(Model("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://first-private-request"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=32),
+)
+assert experiment.resolve().client_runtime == "masked_transformer_v1"
+```
+
+```bash
+pllm gateway --local \
+  --experiment experiment.py:experiment \
+  --trust-python \
+  --api-key local
+```
+
+The first run downloads the public model weights (about 1 GB) and then starts
+three processes: the client-controlled gateway on `127.0.0.1:8080`, a preparation
+role, and an inference role. Leave it running in the foreground; stopping the
+gateway stops its children.
+
+`--local` co-locates every role under one operator. It exercises the real private
+protocol but cannot demonstrate non-collusion — see the
+[trust boundary](/learn/concepts/trust-boundary/) for what changes when roles
+are independently operated.
+
+## Send one request
+
+In a second terminal, call the OpenAI-compatible endpoint:
+
+```bash
+curl -s http://127.0.0.1:8080/v1/chat/completions \
+  -H "Authorization: Bearer local" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "messages": [{"role": "user", "content": "Say hello in one word."}],
+    "max_tokens": 8
+  }'
+```
+
+The response is a standard `chat.completion` whose `choices[0].message.content`
+holds the generated text. Exact text can vary with the model and runtime version.
+The gateway also exposes `/v1/responses`.
+
+## What just happened
+
+Your prompt stayed inside the client boundary: the gateway coordinated offline
+preparation and masked inference work, ran the request through the protocol, and
+returned only the completion. The
+[experiment configuration](/sdk/configuration/) is the declarative form of what
+just ran, and the [protocol options](/sdk/pipeline/protocols/) describe each
+role's contract. To see the component decomposition a request produces,
+[inspect the execution plan](/learn/inspect-a-plan/). To use the same
+endpoint from an SDK or a coding agent, continue to the
+[integration guides](/learn/integrations/).

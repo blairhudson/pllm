@@ -1,0 +1,26 @@
+---
+title: "Perplexity"
+description: "Specify the dataset for a lower-is-better language-model quality measure."
+---
+
+[`Perplexity`](/sdk/reference/python/pllm/metrics/#perplexity)
+(`pllm/perplexity`) declares a dataset and a lower-is-better ratio. Match
+checkpoint, tokenizer, token normalization, context window, and evaluation
+policy before comparing numeric or protected paths. Neither successful
+configuration nor generated tiny-weight text supplies a perplexity score.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Perplexity
+
+metric = Perplexity(dataset="example-heldout-v1")
+assert metric.component == "pllm/perplexity"
+assert metric.get_params()["dataset"] == "example-heldout-v1"
+```
+
+This descriptor does not execute an evaluation suite. Use a supported
+[Experiment](/sdk/experiments/) with a real checkpoint, then record dataset
+results separately from [benchmark latency](/sdk/research/benchmark/).
+
+API: [`Perplexity`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

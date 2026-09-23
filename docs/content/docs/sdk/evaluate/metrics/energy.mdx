@@ -1,0 +1,26 @@
+---
+title: "Energy"
+description: "Declare an external meter, RAPL, NVML, or explicit unavailability without inventing joules."
+---
+
+[`Energy`](/sdk/reference/python/pllm/metrics/#energy) (`pllm/energy`)
+declares a measurement source and joules, lower-is-better. `not_available`
+is a missing-data state, not a zero or a measured value. PLLM's published
+cohorts do not contain validated energy comparisons; instrument the entire
+relevant workload, including offline roles, before making such a claim.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Energy
+
+metric = Energy(source="not_available")
+assert metric.component == "pllm/energy"
+assert metric.get_params()["source"] == "not_available"
+```
+
+For real results, attach measured evidence to a supported
+[Experiment](/sdk/experiments/) and retain the source and workload cohort;
+[`pllm benchmark run`](/cli/reference/benchmark/run/) is not an energy meter.
+
+API: [`Energy`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

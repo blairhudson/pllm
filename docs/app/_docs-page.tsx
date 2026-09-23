@@ -17,7 +17,9 @@ export function renderDocsPage(slug: string[]) {
   return <DocsPage toc={page.data.toc} full={page.data.full}>
     <DocsTitle id="main-content" tabIndex={-1}>{page.data.title}</DocsTitle>
     <DocsDescription>{page.data.description}</DocsDescription>
-    <div className="doc-actions"><span>PLLM documentation</span><a href={withBasePath(markdownPathForRoute(canonical))}>View Markdown ↗</a></div>
+    <div className="doc-actions"><span>PLLM documentation</span>
+      <a href={withBasePath(markdownPathForRoute(canonical))}>View Markdown ↗</a>
+    </div>
     <DocsBody><MDX components={getMDXComponents()} /></DocsBody>
   </DocsPage>;
 }
@@ -32,6 +34,17 @@ export function docsMetadata(slug: string[]): Metadata {
     alternates: {
       canonical,
       types: { 'text/markdown': markdownPathForRoute(canonical) },
+    },
+    openGraph: {
+      type: 'article',
+      url: canonical,
+      title: page.data.title,
+      description: page.data.description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: page.data.title,
+      description: page.data.description,
     },
   };
 }

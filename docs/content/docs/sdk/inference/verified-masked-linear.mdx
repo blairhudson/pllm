@@ -1,0 +1,41 @@
+---
+title: "Verified masked linear (public weights)"
+description: "Add trusted-client Freivalds checks to prepared public-weight inference."
+---
+
+[`VerifiedMaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#verifiedmaskedlinearcpu)
+uses the same public-weight roles as [masked linear](/sdk/inference/masked-linear/),
+plus [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverify).
+Preparation authenticates per-row projections to the client; inference never
+receives challenges or projections. The client checks bounded integer stage
+results before dequantizing, and claimed material burns on success or failure.
+This checks inference against the trusted preparation result; it does not protect
+against malicious or colluding preparation, nor reduce online traffic. Inspired
+by [Slalom](/research/papers/slalom/); not its TEE deployment or security claim.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="verified-guide",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="verified-guide-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://verified-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().verification_component == "pllm/freivalds-verify/v1"
+```
+
+Save as `experiment.py`; install the optional `he` dependency from
+[Installation](/learn/installation/) and serve with
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights test the protocol, not generation quality.
+
+API: [`VerifiedMaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

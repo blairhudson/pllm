@@ -1,0 +1,28 @@
+---
+title: "GGUF source"
+description: "Import GGUF metadata and weights without claiming local gateway support for this source kind."
+---
+
+[`BundleModel`](/sdk/reference/python/pllm/sources/#bundlemodel) accepts a local
+GGUF file and `load_model` has a separate GGUF importer. The current local
+gateway topology rejects `gguf` and `llama.cpp` kinds before serving, so
+successful import or semantic inspection cannot be presented as private
+whole-model inference. Conversion would need an explicitly supported source
+and checkpoint binding; renaming a format does not provide that conversion.
+
+## Python SDK example
+
+```python
+from pllm import Model
+
+source = Model.path("./checkpoints/model.gguf", format="gguf")
+assert source.kind == "gguf"
+assert source.to_spec()["source"] == "./checkpoints/model.gguf"
+```
+
+This declaration does not read the example path. For a runnable workflow use
+a [supported Hugging Face source](/sdk/models/sources/hugging-face/) in a
+complete masked-linear `Experiment` and the documented gateway command;
+GGUF is not a local gateway source.
+
+API: [`Model.path`](/sdk/reference/python/pllm/#objects-and-signatures)

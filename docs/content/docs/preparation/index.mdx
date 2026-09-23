@@ -8,7 +8,7 @@ transferred, confirmed, erased, expired, and invalidated. They also identify who
 owns the material and how much can be stored. Protocol and kernel choices remain
 separate.
 
-The [parties and offline work](/learn/parties-and-offline-work/) overview explains
+The [parties and offline work](/learn/concepts/parties-and-offline-work/) overview explains
 the role boundary. For public masked-linear inference, the client sends seed batches
 to preparation. Preparation computes corrections, and inference stores them in a
 sealed inventory. The client refills inventory only while idle. A restart or idle
@@ -67,6 +67,7 @@ assert experiment.pipeline.to_spec()["components"]["preparation"]["component"] =
 assert resolved.requires_preparation
 ```
 
+Install the optional `he` dependency from the [installation guide](/learn/installation/).
 Save this example as `experiment.py`, then run `pllm gateway --local --experiment
 experiment.py:experiment --trust-python`. The runtime creates and fills inventory;
 constructing or resolving the experiment does not.
@@ -128,4 +129,4 @@ assert clear.tolist() == [3, 5]
 ```
 
 For operational behavior after selection, continue to [runtime](/sdk/pipeline/runtime/)
-and [parties and offline work](/learn/parties-and-offline-work/).
+and [parties and offline work](/learn/concepts/parties-and-offline-work/).

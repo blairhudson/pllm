@@ -1,0 +1,32 @@
+---
+title: "Binary-table gated Q7 multiplication"
+description: "Select the dense bounded reference method for protected SiLU(gate) × up."
+---
+
+[`BinaryTableGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#binarytablegatedmultiplyq7)
+(`pllm/binary-table/v1`) is the dense reference method for one-use Q7 gated
+multiplication. It has a distinct native method identity and authenticated
+material lifecycle from the [CRT method](/sdk/components/nonlinear/r03-crt/).
+Its exhaustive scalar coverage and bundle tests do not establish an efficient
+or reviewed whole-decoder backend. It cannot be installed as a gateway nonlinear
+slot. This baseline is PLLM-specific infrastructure, not a complete paper
+reproduction.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import BinaryTableGatedMultiplyQ7
+from pllm.schedulers import ScalarProtectedTensorSchedule
+
+method = BinaryTableGatedMultiplyQ7()
+scheduler = ScalarProtectedTensorSchedule()
+assert method.to_spec()["component"] == "pllm/binary-table/v1"
+assert scheduler.to_spec()["component"] == "pllm/scalar/v1"
+```
+
+The two identities are independently selectable for bounded native regions;
+constructing them is not a served `Experiment`. Use the runnable
+[masked-linear option](/sdk/inference/masked-linear/) for whole-model private
+inference and its documented gateway command.
+
+API: [`BinaryTableGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)

@@ -1,0 +1,42 @@
+---
+title: "Plan-bound runtime"
+description: "Separate immutable compiled identity from live inventory and request state."
+---
+
+[Experiments](/sdk/experiments/) and [plans](/sdk/plans/) bind model configuration,
+composition, workload, and coverage to digests. Live runtime state instead
+owns credentials, native executors, reservations, one-use corrections,
+connections, persistent KV state, and cancellation. Compiled Qwen2 and dense
+Qwen3 share a model-neutral semantic schedule; unsupported local operators,
+sliding attention, and verifier-bound execution fail closed rather than
+falling back to an unrecorded execution path. A syntactically valid pipeline
+is not whole-model coverage.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.runtime import LocalTopology, build_roles
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="plan-bound-runtime-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="plan-bound-runtime-guide")),
+    deployment=Deployment.local(root="local://plan-bound-runtime-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+topology = build_roles(experiment)
+assert isinstance(topology, LocalTopology)
+assert not topology.started
+assert experiment.resolve().client_runtime == "masked_transformer_v1"
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+This generated tiny model checks transport, not model quality. See
+[runtime API](/sdk/reference/python/pllm/runtime/) and
+[status](/sdk/reference/status/) for exact execution boundaries.
+
+API: [`build_roles`](/sdk/reference/python/pllm/runtime/#objects-and-signatures)

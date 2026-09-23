@@ -172,7 +172,7 @@ function anchorsFor(page) {
 export function buildPublicationGraph(root = siteRoot) {
   const pages = publicationRegistry.pages.map((definition) => {
     const file = path.join(root, definition.sourcePath);
-    const raw = fs.readFileSync(file, 'utf8');
+    const raw = fs.readFileSync(file, 'utf8').replaceAll('__PLLM_VERSION__', publicationRegistry.release);
     const parsed = definition.sourcePath.endsWith('.mdx')
       ? parseMdx(raw, file)
       : { title: titleForHtml(definition.id, raw), description: descriptionForHtml(definition.id, raw), content: raw };

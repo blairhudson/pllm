@@ -1,0 +1,28 @@
+---
+title: "Plan passes"
+description: "Transform semantic decoder plans while preserving immutable, digest-bound lineage."
+---
+
+The current built-in pass is
+[`KvCacheEviction`](/sdk/components/passes/kv-cache-eviction/). It changes a
+compatible decoder's cache topology during plan lowering; it does not download
+weights, create an execution session, or supply a protected selection backend.
+Inspect the transformation digest and coverage separately. Existing
+[inference options](/sdk/inference/) do not execute this transformed whole model.
+
+## Python SDK example
+
+```python
+from pllm import KvCacheEviction
+
+selection = KvCacheEviction()
+assert selection.component == "pllm/kv-cache-eviction"
+assert selection.describe().lifecycle_phase == "model-lowering"
+```
+
+For an executable untransformed model, start with a supported
+[inference option](/sdk/inference/masked-linear/) and its gateway experiment.
+This pass remains a research transformation until a compatible runtime executes
+its state and selection operators end to end.
+
+API: [`KvCacheEviction`](/sdk/reference/python/pllm/passes/#objects-and-signatures)

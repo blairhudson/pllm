@@ -5,7 +5,7 @@ import styles from './whitepaper.module.css';
 
 export const metadata: Metadata = {
   title: 'PLLM Whitepaper',
-  description: 'A concise guide to PLLM private inference and its research harness.',
+  description: 'A concise guide to PLLM private inference and reproducible experimentation.',
   alternates: {
     canonical: '/research/whitepaper/',
     types: { 'text/markdown': markdownPathForRoute('/research/whitepaper/') },
@@ -28,7 +28,7 @@ export default function WhitepaperPage() {
           <h1>Run an LLM without giving one provider the plaintext conversation.</h1>
           <p className={styles.lead}>
             PLLM is a high-performance private LLM multi-party inference runtime and
-            autonomous research harness. It keeps prompts, activations, and model
+            extensible experimentation system. It keeps prompts, activations, and model
             state inside the client boundary while separate services perform the
             expensive linear work.
           </p>
@@ -67,7 +67,7 @@ export default function WhitepaperPage() {
         <header className={styles.sectionHeader}>
           <span>01</span>
           <div>
-            <p>Runtime + research harness</p>
+            <p>Runtime + experimentation</p>
             <h2>One system for execution and improvement</h2>
           </div>
         </header>
@@ -98,17 +98,17 @@ export default function WhitepaperPage() {
 
         <div className={styles.harness}>
           <div>
-            <p className={styles.boxLabel}>Autonomous research loop</p>
-            <h3>Build a library of interchangeable research components.</h3>
+            <p className={styles.boxLabel}>Extensible experimentation loop</p>
+            <h3>Turn credible methods into reproducible comparisons.</h3>
             <p>
-              Papers are reimplemented behind capability-based contracts: cache
+              Methods are reimplemented behind component and provider contracts: cache
               policies, numeric approximations, nonlinear protocols, matrix
               protocols, preparation schemes, kernels, and placement strategies.
               New capability families can be added as research evolves.
             </p>
           </div>
           <div className={styles.loop} aria-label="Research workflow">
-            {['Specify', 'Implement', 'Assure', 'Benchmark', 'Compose', 'Search'].map((item, index) => (
+            {['Specify', 'Extend', 'Compose', 'Search', 'Assure', 'Benchmark'].map((item, index) => (
               <span key={item}><b>{String(index + 1).padStart(2, '0')}</b>{item}</span>
             ))}
           </div>
@@ -149,8 +149,8 @@ export default function WhitepaperPage() {
           </article>
           <article>
             <span>3</span>
-            <h3>Search compatible plans</h3>
-            <p>Start with constrained grid and randomized search, then add smarter search only when repeated benchmark data justifies it.</p>
+            <h3>Grow matched evidence</h3>
+            <p>Use grid and seeded random search to produce valid candidates, then compare only equivalent benchmark cohorts.</p>
           </article>
         </div>
 

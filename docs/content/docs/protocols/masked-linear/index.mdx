@@ -9,6 +9,15 @@ Inventory identity binds model, body, stage, weight, shape, quantization, ring, 
 
 This contract assumes protocol-following non-colluding roles and public body weights. Confidential-weight and shared-state protocols are separate.
 
+<Callout type="info" title="Research citation">
+
+The role separation and optional verification path are informed by
+[Slalom](/research/papers/slalom/).
+PLLM uses a different prepared public-weight protocol and trust boundary; this is
+not a claim that PLLM reproduces the complete Slalom system.
+
+</Callout>
+
 ## How the components cooperate
 
 The path has five distinct slots: the protocol defines the wire behavior,
@@ -25,6 +34,9 @@ Each section exports a complete `experiment.py` while changing one slot. Run any
 example with `pllm gateway --local --experiment experiment.py:experiment
 --trust-python`. Nothing contacts a service or creates inventory until the gateway
 passes the experiment to the [runtime](/sdk/pipeline/runtime/).
+
+Local gateway execution requires the optional `he` dependency from the
+[installation guide](/learn/installation/).
 
 ### Define the stage protocol with `MaskedLinear`
 
@@ -78,7 +90,7 @@ assert experiment.pipeline.to_spec()["components"]["preparation"]["component"] =
 
 [`Inference`](/sdk/reference/python/pllm/roles/#inference) is placement metadata for
 the role that owns the public transformer body and consumes tickets. It is not the
-running service itself; [parties and offline work](/learn/parties-and-offline-work/)
+running service itself; [parties and offline work](/learn/concepts/parties-and-offline-work/)
 explains the process boundary.
 
 ```python

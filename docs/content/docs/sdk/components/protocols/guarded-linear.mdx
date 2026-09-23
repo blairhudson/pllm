@@ -1,0 +1,40 @@
+---
+title: "Guarded linear"
+description: "Configure quotas for provider-owned weights without claiming cryptographic activation privacy."
+---
+
+[`GuardedLinear`](/sdk/reference/python/pllm/protocols/#guardedlinear)
+(`pllm/guarded-linear/v1`) validates request, stage, and rate bounds plus an
+optional output dither bound. It is serialized and accepted by the
+[one-role guarded inference composition](/sdk/inference/proprietary-guarded/).
+The guarded runtime and tiny transport path execute, but quotas do not hide
+activations cryptographically or establish model-extraction resistance. This is
+PLLM-specific policy infrastructure rather than a paper reproduction.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryGuarded
+from pllm.protocols import GuardedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="guarded-protocol-guide",
+    pipeline=ProprietaryGuarded(
+        TinyModel(model_id="guarded-protocol-guide-tiny"),
+        linear=GuardedLinear(max_rows_per_request=32),
+    ),
+    deployment=Deployment.local(root="local://guarded-protocol-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().proprietary_protocol == "guarded"
+assert experiment.pipeline.linear.params["max_rows_per_request"] == 32
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights test transport only.
+
+API: [`GuardedLinear`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

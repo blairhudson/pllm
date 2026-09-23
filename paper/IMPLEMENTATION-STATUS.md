@@ -18,3 +18,15 @@ The study does not establish WAN or GPU performance, energy use, token price,
 market operation, model quality, malicious security, operator independence, or
 secure erasure. Historical BFV results in the evidence archive are separate and
 are not reused as current-runtime evidence.
+
+The current model-neutral compiler binds baseline untransformed Qwen2 and tiny
+dense Qwen3 schedules. The pinned Qwen2.5 checkpoint passes a separate **clear
+native-kernel** prefill-to-decode test. That test is not a prepared-protocol
+benchmark or protected full-decoder execution.
+
+`docs/evidence/slalom-freivalds-tiny-baseline.json` and
+`docs/evidence/slalom-freivalds-tiny-verified.json` retain one completed run
+each on the same generated tiny workload. They demonstrate optional verified
+transport functionality only: no warmup, real-model check, PlanLock digest,
+performance conclusion, or malicious-Preparation guarantee follows. Neither
+cohort can be merged with the historical Qwen2.5 performance study.

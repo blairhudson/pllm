@@ -1,0 +1,40 @@
+---
+title: "Choose a verification component"
+description: "Distinguish runtime-bound Freivalds checks from independently declared integrity primitives."
+---
+
+Verification is an independent capability slot. The built-in
+[Freivalds verifier](/sdk/components/verification/freivalds/) is a supported
+addition to prepared public-weight [inference](/sdk/inference/verified-masked-linear/).
+[`LinearIntegrity`](/sdk/components/verification/linear-integrity/) is a separate
+declaration and primitive; it is not interchangeable with Freivalds in a
+whole-model runtime. Verification checks delegated results, not input secrecy or
+the honesty of preparation. Check resource budgets and the [trust
+boundary](/learn/concepts/trust-boundary/) before selecting an option.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.sources import TinyModel
+from pllm.verification import FreivaldsVerify
+
+experiment = Experiment(
+    name="verification-choice",
+    pipeline=VerifiedMaskedLinearCpu(
+        TinyModel(model_id="verification-choice-tiny"),
+        verification=FreivaldsVerify(target_failure_bits=48),
+    ),
+    deployment=Deployment.local(root="local://verification-choice"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().verification_component == "pllm/freivalds-verify/v1"
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/), then run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Generated tiny weights test transport only.
+
+API: [Verification objects](/sdk/reference/python/pllm/verification/#objects-and-signatures)

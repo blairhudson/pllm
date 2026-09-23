@@ -1,0 +1,28 @@
+---
+title: "Cleartext linear control"
+description: "Use an explicit non-private declaration for isolated tests without serving it as private inference."
+---
+
+[`CleartextLinear`](/sdk/reference/python/pllm/protocols/#cleartextlinear)
+(`pllm/cleartext-linear`) is an importable, serializable control whose executor
+may see inputs. No shipped private-inference composition accepts it, so a
+descriptor alone cannot turn it into a gateway or benchmark runtime. Never use
+cleartext results as evidence of private activation handling. This control is
+PLLM-specific test infrastructure, not a research-paper implementation.
+
+## Python SDK example
+
+```python
+from pllm.protocols import CleartextLinear
+
+control = CleartextLinear()
+assert control.component == "pllm/cleartext-linear"
+assert control.describe().role_eligibility == ("inference",)
+```
+
+For a supported private workflow, use the complete
+[masked-linear experiment](/sdk/inference/masked-linear/) and its
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+command. The cleartext control itself has no private serving path.
+
+API: [`CleartextLinear`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

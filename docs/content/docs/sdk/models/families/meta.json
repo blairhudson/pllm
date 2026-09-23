@@ -1,0 +1,4 @@
+{
+  "title": "Model families",
+  "pages": ["index", "qwen2", "qwen3", "qwen3-5", "phi-4-mini", "gemma-4"]
+}

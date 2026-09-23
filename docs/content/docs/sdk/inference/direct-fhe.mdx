@@ -1,0 +1,35 @@
+---
+title: "Direct FHE (provider-owned weights)"
+description: "Use the separate encrypted-linear transport rather than prepared public-weight masking."
+---
+
+[`DirectFHEProfile`](/sdk/reference/python/pllm/profiles/#directfheprofile)
+selects [`DirectFHE`](/sdk/reference/python/pllm/protocols/#directfhe), one
+inference role, and CPU kernels. Client encrypts linear inputs; provider owns
+weights. This path uses ciphertext transport, not the public-weight masked
+correction inventory. HE is an optional runtime dependency; the base SDK still
+supports configuration and plan inspection without it. Coverage and performance
+depend on the actual checkpoint and environment, not on constructor resolution.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import DirectFHEProfile
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="direct-fhe-guide",
+    pipeline=DirectFHEProfile(TinyModel(model_id="direct-fhe-guide-tiny")),
+    deployment=Deployment.local(root="local://direct-fhe-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert not experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install the optional `he` dependency via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Use a supported pinned checkpoint for meaningful generation or measurement.
+
+API: [`DirectFHEProfile`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

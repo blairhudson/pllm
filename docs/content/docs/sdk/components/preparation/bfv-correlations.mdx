@@ -1,0 +1,31 @@
+---
+title: "BFV correlations"
+description: "Inspect legacy packed-BFV preparation without implying public-inference runtime selection."
+---
+
+[`BFVCorrelations`](/sdk/reference/python/pllm/preparation/#bfvcorrelations)
+(`pllm/bfv-correlations/v1`) validates the BFV polynomial degree and declares
+the optional TenSEAL host feature. It remains available to research and
+confidential-weight protocol work; the public-weight prepared online path uses
+model-aware seeded corrections instead. No shipped public inference composition
+accepts BFV correlations in its preparation slot, so this component has no
+whole-model public serving or matched evidence claim. This is PLLM-specific
+preprocessing infrastructure, not an upstream paper reproduction.
+
+## Python SDK example
+
+```python
+from pllm.preparation import BFVCorrelations
+
+provider = BFVCorrelations(poly_modulus_degree=8192)
+assert provider.to_spec()["params"]["poly_modulus_degree"] == 8192
+assert provider.describe().required_host_features == ("tenseal-backend",)
+```
+
+For an executable public-weight experiment use
+[model-aware corrections](/sdk/components/preparation/model-aware-corrections/)
+and its `pllm gateway --local --experiment experiment.py:experiment
+--trust-python` workflow. Constructing `BFVCorrelations` alone does not load HE
+or contact preparation.
+
+API: [`BFVCorrelations`](/sdk/reference/python/pllm/preparation/#objects-and-signatures)

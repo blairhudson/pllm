@@ -70,7 +70,7 @@ def test_settings_environment_overrides_file(tmp_path: Path, monkeypatch: pytest
 
 def test_docs_and_manuscript_exist() -> None:
     assert Path("docs/package.json").exists()
-    assert Path("docs/content/docs/start/first-private-request.mdx").exists()
+    assert Path("docs/content/docs/learn/first-private-request.mdx").exists()
     assert Path("docs/content/research/paper.mdx").exists()
     manuscript = Path("paper/manuscript.md").read_text(encoding="utf-8")
     assert "abstract: |" in manuscript

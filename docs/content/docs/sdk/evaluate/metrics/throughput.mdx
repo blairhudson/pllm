@@ -1,0 +1,28 @@
+---
+title: "Throughput"
+description: "Name the tokens, requests, or regions counted per second."
+---
+
+[`Throughput`](/sdk/reference/python/pllm/metrics/#throughput)
+(`pllm/throughput`) is higher-is-better and requires a basis: tokens, requests,
+or regions. These are different denominators and must not be ranked together.
+For decoder results, record input and output tokens and whether the run was
+prefill or sustained cached decode; a single forward pass is not steady-state
+generation. Pair with [latency](/sdk/evaluate/metrics/latency/) and exact
+[cohort rules](/sdk/research/benchmark/).
+
+## Python SDK example
+
+```python
+from pllm.metrics import Throughput
+
+metric = Throughput(basis="tokens")
+assert metric.component == "pllm/throughput"
+assert metric.to_spec()["params"]["basis"] == "tokens"
+```
+
+The metric does not emit a throughput observation; run an
+[Experiment](/sdk/experiments/) through
+[`pllm benchmark run`](/cli/reference/benchmark/run/) for evidence.
+
+API: [`Throughput`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

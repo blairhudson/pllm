@@ -1,0 +1,42 @@
+---
+title: "Choose a linear protocol"
+description: "Match method contracts to weight ownership and compatible inference compositions."
+---
+
+Linear protocol methods describe messages and trust, not a complete model runtime.
+Choose [prepared masked linear](/sdk/components/protocols/masked-linear/) for public
+weights, or [guarded](/sdk/components/protocols/guarded-linear/),
+[blinded](/sdk/components/protocols/blinded-linear/), and
+[direct FHE](/sdk/components/protocols/direct-fhe/) for provider-owned weight
+paths. [Secure linear](/sdk/components/protocols/secure-linear/) is a synthetic
+preview; [cleartext](/sdk/components/protocols/cleartext-linear/) is an explicit
+non-private control. Only the first four participate in shipped
+[inference compositions](/sdk/inference/). Preparation, verification, kernels,
+and roles are independently selected components; a method declaration alone
+does not prove private execution.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="protocol-choice",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="protocol-choice-tiny"), linear=MaskedLinear(),
+    ),
+    deployment=Deployment.local(root="local://protocol-choice"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; after installing optional `he` from
+[Installation](/learn/installation/), run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights validate transport, not generation quality.
+
+API: [Protocol methods](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

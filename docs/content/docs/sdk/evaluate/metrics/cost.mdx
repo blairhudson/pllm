@@ -1,0 +1,27 @@
+---
+title: "Cost"
+description: "Declare currency and request or token basis before attaching external price evidence."
+---
+
+[`Cost`](/sdk/reference/python/pllm/metrics/#cost) (`pllm/cost`)
+declares a three-letter currency and a basis: request, million input tokens,
+or million output tokens. Lower is better only within the same currency,
+basis, pricing period, and deployment. PLLM does not currently publish
+validated price or ROI claims; this descriptor does not infer provider rates,
+amortized setup, or hardware costs.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Cost
+
+metric = Cost(currency="USD", basis="request")
+assert metric.component == "pllm/cost"
+assert metric.get_params()["basis"] == "request"
+```
+
+For any later deployment estimate, start from matched
+[benchmark evidence](/sdk/research/benchmark/) on a supported
+[Experiment](/sdk/experiments/) and record external pricing separately.
+
+API: [`Cost`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

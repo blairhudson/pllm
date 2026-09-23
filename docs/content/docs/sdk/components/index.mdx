@@ -1,0 +1,64 @@
+---
+title: "Components"
+description: "Inspect versioned capabilities and apply compatible components to a model plan."
+---
+
+A component identifies one versioned capability and its public parameters. The
+record also states its implementation status, compatible value formats, roles,
+model coverage, evidence, and known limits.
+
+Components are PLLM's primary research extension boundary. A new method should
+implement an existing capability contract, or introduce a new contract only when
+its semantics or lifecycle are genuinely different. Provider manifests and the
+separate native plugin ABI extend provider capabilities without making paper or
+model-family names part of runtime identity.
+
+Start with [protocols](/sdk/components/protocols/) for linear message contracts,
+[preparation](/sdk/components/preparation/) for offline material,
+[correlation](/sdk/components/correlation/) for mask expansion,
+[kernels](/sdk/components/kernels/) for native execution,
+[nonlinear methods](/sdk/components/nonlinear/) for protected region research,
+[schedulers](/sdk/components/schedulers/) for one-use lane lifecycle,
+[roles](/sdk/components/roles/) and [state](/sdk/components/state/) for
+runtime ownership, [verification](/sdk/components/verification/) for
+client-side result checks, and [plan passes](/sdk/components/passes/) for
+semantic transformations.
+Each option page identifies its exact component ID, where it may be composed,
+what can run end to end, and relevant research sources. Supported whole-model
+[inference options](/sdk/inference/) are the entry point for serving; a component
+descriptor alone is not an executable pipeline.
+
+List the built-in records with
+[`pllm components list`](/cli/reference/components/list/):
+
+```bash
+uv run pllm components list
+```
+
+Inspect one record as JSON with
+[`pllm components show`](/cli/reference/components/show/):
+
+```bash
+uv run pllm --format json components show pllm/kv-cache-eviction
+```
+
+Concrete component classes live in capability families such as `pllm.protocols`, `pllm.preparation`, `pllm.correlation`, `pllm.kernels`, `pllm.metrics`, `pllm.nonlinear`, `pllm.schedulers`, `pllm.state`, `pllm.passes`, `pllm.roles`, and `pllm.verification`; model-source specializations live in `pllm.sources` outside component slots. `pllm.components` contains the generic `ComponentRef`/`ComponentDescriptor` machinery and the class-derived registry. `get(identity)` returns the registered class; `get_component(identity)` returns that class's descriptor. Python users construct a concrete class and apply it to a compatible `ModelPlan` or profile slot. Compatibility alone does not prove compiler coverage, runtime support, performance, privacy, or generation quality.
+
+## Python SDK example
+
+```python
+from pllm.components import get, get_component
+from pllm.passes import KvCacheEviction
+
+component_class = get("pllm/kv-cache-eviction")
+descriptor = get_component("pllm/kv-cache-eviction")
+assert component_class is KvCacheEviction
+assert component_class.describe() is descriptor
+assert descriptor.lifecycle_phase == "model-lowering"
+```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+See the generated [component inventory](/sdk/reference/components/) for current
+versions and status. Interpret any linked measurements and limitations under the
+[research evidence](/research/evidence/) rules.

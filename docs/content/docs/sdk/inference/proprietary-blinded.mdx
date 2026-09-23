@@ -1,0 +1,36 @@
+---
+title: "Blinded provider-owned inference"
+description: "Select the one-role blinded linear transport for provider-owned weights."
+---
+
+[`ProprietaryBlinded`](/sdk/reference/python/pllm/profiles/#proprietaryblinded)
+composes [`BlindedLinear`](/sdk/reference/python/pllm/protocols/#blindedlinear)
+with one inference role and CPU kernels. It has no public-weight preparation
+inventory. The client still owns prompt, local state, and decoding. The blinded
+transport's leakage and support claims apply only to this runtime arm and its
+declared deployment; do not transfer the public-weight masked protocol's trust
+claims. Compare against [guarded](/sdk/inference/proprietary-guarded/) and
+[direct FHE](/sdk/inference/direct-fhe/) before selecting a weight-owner path.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryBlinded
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="blinded-guide",
+    pipeline=ProprietaryBlinded(TinyModel(model_id="blinded-guide-tiny")),
+    deployment=Deployment.local(root="local://blinded-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().proprietary_protocol == "blinded"
+```
+
+Save as `experiment.py`; install the optional `he` dependency via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny generated weights test transport, not text quality.
+
+API: [`ProprietaryBlinded`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

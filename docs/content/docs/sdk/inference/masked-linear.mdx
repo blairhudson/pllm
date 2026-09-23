@@ -1,0 +1,41 @@
+---
+title: "Masked linear (public weights)"
+description: "Run the public-weight baseline with trusted offline preparation and masked online inference."
+---
+
+[`MaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#maskedlinearcpu) composes
+[`MaskedLinear`](/sdk/reference/python/pllm/protocols/#maskedlinear),
+model-aware corrections, an inference role, and CPU kernels. The trusted client
+owns prompt, masks, state, and decoding. Preparation and inference both hold the
+public transformer body. Preparation fills one-use corrections offline; online
+stages carry masked activations to inference, with no preparation contact during
+active responses. Both roles must follow the protocol and must not collude when
+operated separately. Local roles share an operator.
+
+Choose this when weights are public and the client can trust preparation. Use
+[verified masked linear](/sdk/inference/verified-masked-linear/) if bounded stage
+output integrity checks are required. A compiled semantic plan does not imply
+all model architectures execute; consult [support status](/sdk/reference/status/).
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="masked-linear-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="masked-linear-guide-tiny")),
+    deployment=Deployment.local(root="local://masked-linear-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`. Install the optional `he` dependency via
+[Installation](/learn/installation/), then run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+For real text use a supported pinned checkpoint instead of generated tiny weights.
+
+API: [`MaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

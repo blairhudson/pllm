@@ -1,0 +1,55 @@
+---
+title: "KV-cache eviction"
+description: "Apply a model-neutral cache policy to a semantic plan without implying protected whole-model execution."
+---
+
+[`KvCacheEviction`](/sdk/reference/python/pllm/passes/#kvcacheeviction)
+(`pllm/kv-cache-eviction`) is constructible and serializable. The model-plan
+transform accepts compatible dense Qwen2 and Qwen3 cache topology, records its
+component and parameters, and binds new static-selection and bounded dynamic
+gather state into immutable plan lineage. Incompatible architectures fail before
+mutation. Current runtime does **not** execute the transformed plan end to end;
+the compiler and protected selection handoff remain incomplete. Therefore this
+option cannot be substituted into a serving or matched performance claim.
+
+## Python SDK example
+
+```python
+from pllm import KvCacheEviction, lower_model
+
+config = {
+    "model_type": "qwen2",
+    "hidden_size": 64,
+    "intermediate_size": 192,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "num_key_value_heads": 2,
+    "vocab_size": 256,
+    "max_position_embeddings": 128,
+    "hidden_act": "silu",
+    "rms_norm_eps": 1e-6,
+    "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+base = lower_model(config, batch=1, max_input_tokens=16, max_new_tokens=4)
+transformed = base.apply(KvCacheEviction())
+assert transformed.digest != base.digest
+assert transformed.to_dict()["transformations"][-1]["component"] == "pllm/kv-cache-eviction"
+```
+
+For private inference today, leave this pass out of the complete
+[masked-linear experiment](/sdk/inference/masked-linear/); that page has the
+exact `pllm gateway --local --experiment experiment.py:experiment --trust-python`
+workflow. Inspect transformed plans with the [plan guide](/sdk/plans/), not a
+gateway call.
+
+API: [`KvCacheEviction`](/sdk/reference/python/pllm/passes/#objects-and-signatures)
+
+<Callout type="info" title="Research citation">
+
+[MPCache](/research/papers/mpcache/) informs the cache-eviction strategy. PLLM's
+model-neutral plan transform is an adaptation, not MPCache's protected three-party
+runtime or an end-to-end reproduction. There is no matched transformed-runtime
+benchmark or protected-execution evidence yet.
+
+</Callout>

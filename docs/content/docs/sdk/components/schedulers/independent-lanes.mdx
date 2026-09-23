@@ -1,0 +1,29 @@
+---
+title: "Independent protected lanes"
+description: "Authenticate a two-to-four-lane gated-Q7 bundle and burn it atomically."
+---
+
+[`IndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#independentlanesprotectedtensorschedule)
+(`pllm/independent-lanes/v1`) validates `max_elements` between two and four.
+Each lane has independently materialized evaluator state; the bundle commits
+the method, lane order, and plan before any lane is interpreted or burned.
+This is bounded native research scheduling, not a whole-model runtime or
+matched throughput result. No separate paper-level reproduction is claimed.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
+
+method = R03CrtGatedMultiplyQ7()
+schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
+assert method.component == "pllm/r03-crt/v1"
+assert schedule.to_spec()["params"] == {"max_elements": 4}
+```
+
+The two selectors do not issue material or create a gateway `Experiment`.
+Use [masked-linear inference](/sdk/inference/masked-linear/) for a supported
+whole-model request while protected nonlinear scheduling remains experimental.
+
+API: [`IndependentLanesProtectedTensorSchedule`](/sdk/reference/python/pllm/schedulers/#objects-and-signatures)

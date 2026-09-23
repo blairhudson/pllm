@@ -1,0 +1,33 @@
+---
+title: "HE-authenticated preprocessing"
+description: "Configure experimental HE preparation separately from seeded public inventory."
+---
+
+[`HEAuthenticatedPreprocessing`](/sdk/reference/python/pllm/preparation/#heauthenticatedpreprocessing)
+(`pllm/he-authenticated-preprocessing`) declares BFV degree, worker count, and
+whether linear correlations are enabled. It is a constructible, serializable
+research provider with an optional TenSEAL host dependency; it is not the
+model-aware correction provider recognized by shipped public-weight inference.
+Neither constructor validation nor descriptor metadata establishes a complete
+protected runtime, a matched benchmark, or malicious-preparation security.
+This is PLLM-specific infrastructure without a paper reproduction claim.
+
+## Python SDK example
+
+```python
+from pllm.preparation import HEAuthenticatedPreprocessing
+
+provider = HEAuthenticatedPreprocessing(
+    poly_modulus_degree=8192, threads=2, enable_linear_correlations=True,
+)
+assert provider.to_spec()["params"]["threads"] == 2
+assert provider.describe().required_host_features == ("tenseal-backend",)
+```
+
+For runnable private inference use
+[model-aware corrections](/sdk/components/preparation/model-aware-corrections/)
+with its documented `pllm gateway --local --experiment
+experiment.py:experiment --trust-python` command. This provider has no
+whole-model serving path.
+
+API: [`HEAuthenticatedPreprocessing`](/sdk/reference/python/pllm/preparation/#objects-and-signatures)

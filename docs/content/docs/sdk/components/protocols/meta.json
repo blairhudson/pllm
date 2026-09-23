@@ -1,0 +1,4 @@
+{
+  "title": "Protocol methods",
+  "pages": ["index", "masked-linear", "guarded-linear", "blinded-linear", "direct-fhe", "secure-linear", "cleartext-linear"]
+}

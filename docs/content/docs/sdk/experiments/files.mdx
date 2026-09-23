@@ -1,0 +1,36 @@
+---
+title: "Load experiment targets"
+description: "Use explicit Python objects or validated serialized experiments for gateway and benchmark commands."
+---
+
+For Python targets, save a module that exports an `Experiment`, then pass
+`file.py:object` with `--trust-python`. The trust flag acknowledges that importing
+the file executes its code. For data-only targets, export canonical JSON or YAML
+and omit that flag. Both the [gateway](/cli/reference/gateway/) and
+[benchmark driver](/cli/reference/benchmark/run/) load the same typed experiment;
+provider-role commands have their own target contracts. See
+[configuration commands](/cli/reference/config/) for document inspection.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="file-target-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="file-target-guide-tiny")),
+    deployment=Deployment.local(root="local://file-target-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+restored = Experiment.from_spec(experiment.to_spec())
+assert restored.configuration_digest() == experiment.configuration_digest()
+```
+
+Save this as `experiment.py`, install optional `he` via
+[Installation](/learn/installation/), then run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Use a real pinned checkpoint instead of tiny weights for quality testing.
+
+API: [`Experiment.from_spec`](/sdk/reference/python/pllm/#objects-and-signatures)

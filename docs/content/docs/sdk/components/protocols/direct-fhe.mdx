@@ -1,0 +1,39 @@
+---
+title: "Direct FHE linear transport"
+description: "Encrypt linear inputs for the one-role provider-owned direct-FHE runtime."
+---
+
+[`DirectFHE`](/sdk/reference/python/pllm/protocols/#directfhe)
+(`pllm/direct-fhe`) is the method in
+[`DirectFHEProfile`](/sdk/inference/direct-fhe/). It selects a distinct
+encrypted-input transport and requires the optional TenSEAL/HE backend when
+executing. There is no public-weight preparation inventory. The composition is
+runtime-bound, but whole-model coverage and performance are checkpoint- and
+environment-scoped. This implementation is not evidence for all FHE-based
+inference schemes.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import DirectFHEProfile
+from pllm.protocols import DirectFHE
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="fhe-protocol-guide",
+    pipeline=DirectFHEProfile(
+        TinyModel(model_id="fhe-protocol-guide-tiny"), linear=DirectFHE(),
+    ),
+    deployment=Deployment.local(root="local://fhe-protocol-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert not experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights validate transport only.
+
+API: [`DirectFHE`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

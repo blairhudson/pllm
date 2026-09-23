@@ -2,10 +2,12 @@
   "title": "Research guide",
   "root": true,
   "pages": [
-    "clean-room",
+    "--- Contribute research ---",
     "methods",
     "compositions",
+    "clean-room",
     "publications",
+    "--- Track the work ---",
     "backlog",
     "../recipes",
     "papers",

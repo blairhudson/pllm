@@ -1,0 +1,32 @@
+---
+title: "Choose a model source"
+description: "Pick a checkpoint locator without assuming import and runtime support are identical."
+---
+
+[Hugging Face](/sdk/models/sources/hugging-face/) identifies a repository or
+local HF layout; [safetensors](/sdk/models/sources/safetensors/) identifies a
+local HF-compatible checkpoint. [MLX](/sdk/models/sources/mlx/) and
+[GGUF](/sdk/models/sources/gguf/) have distinct importers, while
+[Ollama](/sdk/models/sources/ollama/) queries a running provider's metadata.
+[TinyModel](/sdk/models/sources/tiny/) is deterministic generated Qwen2 test
+material, not a quality baseline. `Model` values are public source
+specifications; `load_model` resolves/imports checkpoint bytes separately and
+records source-file hashes. Local serving admits only supported source kinds,
+models, and runtime operators.
+
+## Python SDK example
+
+```python
+from pllm import Model
+
+source = Model.hf("Qwen/Qwen2.5-0.5B-Instruct")
+assert source.to_spec()["source"] == "Qwen/Qwen2.5-0.5B-Instruct"
+assert source.kind == "huggingface"
+```
+
+This only configures a locator. Follow the complete
+[masked-linear experiment](/sdk/inference/masked-linear/) and its
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+workflow to run a supported checkpoint after installing optional `he`.
+
+API: [`Model`](/sdk/reference/python/pllm/#objects-and-signatures)

@@ -1,0 +1,40 @@
+---
+title: "Concepts"
+description: "Understand PLLM's private inference runtime, experimentation system, trust assumptions, and evidence."
+---
+
+PLLM is a Rust-first, Python-friendly runtime and experimentation system for private
+large language model inference across multiple parties. Its goal is to let a
+client use remote compute without giving any one compute party the complete
+request, model state, and output.
+
+PLLM combines two systems:
+
+- **The inference runtime** assigns work to the client, preparation service, and
+  inference service while preserving an explicit trust boundary.
+- **The experimentation system** lets researchers add methods through typed
+  component and provider contracts, compose immutable experiments, search valid
+  candidates, and compare matched benchmark evidence. Papers remain provenance,
+  not executable dependencies.
+
+PLLM is being built for high performance, but performance depends on the exact
+model, protocol, hardware, network, and workload. Privacy depends on the selected
+protocol, correct implementation, and stated non-collusion assumptions. Treat
+the project's economic and safety benefits as goals; use evidence records for
+measured results and current support for executable coverage.
+
+Start here if you need to decide whether a PLLM workflow matches your privacy,
+performance, or deployment requirements:
+
+1. [Privacy and threat models](/learn/concepts/privacy-and-threat-models/)
+2. [Parties and offline work](/learn/concepts/parties-and-offline-work/)
+3. [Masked linear inference](/learn/concepts/masked-linear-inference/)
+4. [Arithmetic and Boolean garbling](/learn/concepts/garbling/)
+5. [Numeric semantics and model quality](/learn/concepts/numeric-semantics/)
+6. [Reading research and evidence](/learn/concepts/research-and-evidence/)
+7. [Architecture and trust](/learn/concepts/architecture-and-trust/)
+
+These pages explain the concepts. The [reference](/sdk/reference/) section lists
+exact APIs and schemas. [Current support](/sdk/reference/status/) reports which
+combinations are available. [Integrations](/learn/integrations/) shows how the
+trusted local gateway serves OpenAI-compatible SDKs and coding agents.

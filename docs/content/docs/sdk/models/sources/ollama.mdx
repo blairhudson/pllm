@@ -1,0 +1,27 @@
+---
+title: "Ollama metadata source"
+description: "Inspect an Ollama model without routing it into the local private serving topology."
+---
+
+[`Model.ollama`](/sdk/reference/python/pllm/#objects-and-signatures) records an
+Ollama name and endpoint; `load_model` can query Ollama metadata. Ollama is
+not a model weight format admitted by `pllm gateway --local`'s preparation
+and inference roles. Pointing PLLM or an unmodified SDK at an ordinary provider
+URL does not make provider-hosted inference private. The model constructor
+performs no network call.
+
+## Python SDK example
+
+```python
+from pllm import Model
+
+source = Model.ollama("qwen2.5:0.5b")
+assert source.kind == "ollama"
+assert source.endpoint == "http://127.0.0.1:11434"
+```
+
+For runnable private inference, use a supported
+[Hugging Face checkpoint](/sdk/models/sources/hugging-face/) with a complete
+[masked-linear experiment](/sdk/inference/masked-linear/), not an Ollama URL.
+
+API: [`Model.ollama`](/sdk/reference/python/pllm/#objects-and-signatures)

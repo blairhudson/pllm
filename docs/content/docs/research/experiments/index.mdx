@@ -1,15 +1,80 @@
 ---
-title: "Experiments"
-description: "Design reproducible experiments with fixed plans, comparable runs, and recorded failures."
+title: "The experimentation system"
+description: "Extend PLLM by capability, compose immutable experiments, search compatible candidates, and compare matched evidence."
 ---
 
-Before execution, an experiment records its hypothesis, baseline, changed
-component, model and workload limits, plan digests, environment, metrics, quality
-requirements, assurance work, stopping rule, and expected artifacts.
+PLLM connects a private-inference runtime to an extensible research workflow.
+Researchers reimplement ideas behind [private-inference papers](/research/papers/)
+as versioned capability implementations, combine them in bounded experiments,
+and evaluate results under explicit comparison rules. Papers establish provenance
+and research questions. Their repositories are **not** executable PLLM dependencies;
+a citation does not establish reproduction, runtime support, security, or speed.
 
-Report throughput, latency, memory, CPU, online and offline network traffic, disk,
-preparation work, quality, and assurance separately. Keep failed and negative
-results. A publication claim must isolate the contribution from its baseline and
-identify the method unambiguously.
+## Extend through contracts
 
-See [benchmarks](/sdk/research/benchmarks/), [metrics](/research/records/metrics/), and [publication assessment](/research/publications/).
+An implementation belongs to a typed [component capability](/sdk/components/)
+such as a protocol, preparation method, scheduler, kernel, or verifier. New
+providers advertise static manifests and package-confined resources through the
+[provider API](/sdk/reference/python/pllm/providers/); native implementations
+use the [independent plugin ABI](/sdk/reference/native/). A new paper does not
+automatically require a new model family, profile, or compiler branch. The
+[component inventory](/sdk/reference/components/) and
+[`pllm components list`](/cli/reference/components/list/) expose current
+identities. [Method implementations](/research/methods/) distinguish an
+independent PLLM adaptation from its source; [source records](/research/sources/)
+retain attribution and restrictions.
+
+Importing a component and building its descriptor do not mean it compiles, binds
+to a runtime, executes a complete model, or has measured security and quality.
+Those are separate gates recorded by [current support](/sdk/reference/status/).
+
+## Compose an immutable experiment
+
+An [SDK `Experiment`](/sdk/experiments/) binds model source, named components,
+deployment, and a bounded workload. Its canonical configuration and pipeline
+digests identify the selections, while live seeds, credentials, activation state,
+and prepared inventory remain outside configuration. Start with a supported
+[inference composition](/sdk/inference/) or construct compatible values from
+the [component guides](/sdk/components/). The
+[experiment target guide](/sdk/experiments/files/) explains data-only JSON/YAML
+and trusted `file.py:object` inputs; the same typed target reaches
+[`pllm gateway`](/cli/reference/gateway/local-experiments/) for serving and
+[`pllm benchmark run`](/cli/reference/benchmark/run/) for measurement. Neither
+path silently activates an unsupported research component.
+
+Before running, write down the hypothesis, baseline, changed component, exact
+model and workload, expected metric and direction, stopping rule, required
+assurance/quality checks, and failure policy. The [plan guide](/sdk/plans/)
+explains why semantic model lowering is distinct from executable operator
+coverage and a live checkpoint.
+
+## Search valid candidates
+
+[`pllm.search`](/sdk/research/search/) generates validated, immutable candidates
+over explicit parameter paths. Bounded grid and seeded random search check
+parameter names, candidate count, and combination validity before evaluation.
+Candidate generation alone performs no inference or benchmarking; a newly
+assembled method remains ineligible until it passes its runtime and evidence
+gates. Persist candidate digests and invalid configurations, including failures,
+instead of reporting only a winning configuration.
+
+## Measure and compare matched evidence
+
+[Benchmarking](/sdk/research/benchmark/) has distinct scopes: native region
+measurements and a local real-role diagnostic via
+[`pllm benchmark run`](/cli/reference/benchmark/run/). The command can run
+multiple `--experiment` targets and rank latency only when model fingerprint,
+input and output token counts, output cap, and warm state match exactly. The
+[benchmark record API](/sdk/research/benchmarks/) ties samples to plan and
+environment digests; [metrics](/research/records/metrics/) define what each
+number means. Search and benchmark results do not repair a mismatched privacy,
+numeric, quality, or deployment cohort.
+
+A state-of-the-art comparison requires an eligible baseline with equivalent
+model, workload, environment, protection boundary, and metrics. Publish the
+changed component, exact digests and provenance, measured online and offline
+work, throughput, latency, memory, traffic, quality, failures, and assurance
+separately. [Evidence limits](/research/evidence/) and
+[publication assessment](/research/publications/) explain which claims current
+records can actually support; historical measurements must not be presented as
+new native or multi-host results.

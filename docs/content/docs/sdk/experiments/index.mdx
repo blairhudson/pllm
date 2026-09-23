@@ -1,0 +1,37 @@
+---
+title: "Experiments"
+description: "Bind a model, component composition, deployment, and bounded workload in one reproducible document."
+---
+
+`Experiment` is the entry point for serving and measurement. Its `Pipeline`
+contains a model source and named capability components; `Deployment` and
+`ExecutionBudget` supply placement and workload bounds. Constructing an experiment
+does not load weights or create masks. Start with [define](/sdk/experiments/define/),
+then choose [Python or document targets](/sdk/experiments/files/),
+[resolve](/sdk/experiments/resolve/) compatibility, and inspect
+[canonical identity](/sdk/experiments/identity/). Select a supported
+[inference option](/sdk/inference/) before serving.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="experiment-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="experiment-guide-tiny")),
+    deployment=Deployment.local(root="local://experiment-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` dependency using
+[Installation](/learn/installation/), then run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Use [benchmarking](/sdk/research/benchmark/) for matched measurements; tiny
+generated weights demonstrate transport only.
+
+API: [`Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

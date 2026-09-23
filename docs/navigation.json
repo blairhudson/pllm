@@ -26,12 +26,11 @@
       "id": "get-started",
       "label": "Get started",
       "entries": [
-        {"label": "Get started", "href": "/learn/start/", "sidebar": "start"},
-        {"label": "Learn", "href": "/learn/", "sidebar": "learn"},
-        {"label": "Integrations", "href": "/learn/integrations/", "sidebar": "learn/integrations"},
-        {"label": "CLI", "href": "/cli/", "sidebar": "cli"},
-        {"label": "SDK", "href": "/sdk/", "sidebar": "sdk"},
-        {"label": "Concept guides", "href": "/learn/understand/", "sidebar": "understand", "visible": false}
+        {"label": "Start", "href": "/learn/", "sidebar": "learn"},
+        {"label": "Core concepts", "href": "/learn/concepts/", "sidebar": "learn/concepts"},
+        {"label": "Working with PLLM", "href": "/learn/integrations/", "sidebar": "learn/integrations"},
+        {"label": "CLI", "href": "/cli/", "sidebar": "cli", "visible": false},
+        {"label": "SDK", "href": "/sdk/", "sidebar": "sdk", "visible": false}
       ]
     },
     {
@@ -39,7 +38,7 @@
       "label": "Define",
       "entries": [
         {"label": "Build with PLLM", "href": "/sdk/build/", "sidebar": "build", "visible": false},
-        {"label": "Models", "href": "/sdk/build/models/", "sidebar": "models"},
+        {"label": "Models", "href": "/sdk/models/families/", "sidebar": "sdk/models/families"},
         {"label": "Operators", "href": "/sdk/build/operators/", "sidebar": "operators"},
         {"label": "Numerics", "href": "/sdk/build/numerics/", "sidebar": "numerics"},
         {"label": "Representations", "href": "/sdk/build/representations/", "sidebar": "representations"},
@@ -56,8 +55,8 @@
         {"label": "Compiler", "href": "/sdk/pipeline/compiler/", "sidebar": "compiler"},
         {"label": "Pipeline", "href": "/sdk/pipeline/", "sidebar": "pipeline"},
         {"label": "Runtime", "href": "/sdk/pipeline/runtime/", "sidebar": "runtime"},
-        {"label": "Deployment", "href": "/sdk/operate/deployment/", "sidebar": "deployment"},
-        {"label": "Operations guides", "href": "/sdk/operate/", "sidebar": "operate", "visible": false}
+        {"label": "Deployment", "href": "/sdk/run/lifecycle/", "sidebar": "sdk/run"},
+        {"label": "Operations guides", "href": "/sdk/run/", "sidebar": "sdk/run", "visible": false}
       ]
     },
     {
@@ -86,9 +85,9 @@
   ],
   "guideMappings": [
     {"prefix": "/sdk/build/", "group": "define", "root": "/sdk/build/"},
-    {"prefix": "/learn/understand/", "group": "get-started", "root": "/learn/"},
+    {"prefix": "/learn/concepts/", "group": "get-started", "root": "/learn/"},
     {"prefix": "/sdk/research/", "group": "evaluate", "root": "/sdk/research/"},
-    {"prefix": "/sdk/operate/", "group": "execute", "root": "/sdk/operate/"},
+    {"prefix": "/sdk/run/", "group": "execute", "root": "/sdk/run/"},
     {"prefix": "/research/", "group": "evaluate", "root": "/research/"}
   ]
 }

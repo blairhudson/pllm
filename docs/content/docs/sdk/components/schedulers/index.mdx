@@ -1,0 +1,34 @@
+---
+title: "Choose a protected scheduler"
+description: "Separate one-use lane order and resource limits from the nonlinear method."
+---
+
+[Bounded independent elements](/sdk/components/schedulers/bounded-independent-elements/)
+schedules the unary SiLU reference. For gated Q7 methods, choose
+[scalar](/sdk/components/schedulers/scalar/),
+[independent lanes](/sdk/components/schedulers/independent-lanes/), or
+[chunked independent lanes](/sdk/components/schedulers/chunked-independent-lanes/)
+according to the authenticated lane count. These are method-independent
+composition selectors: one-use material authenticates method, schedule, order,
+and plan provenance together. All are bounded native research regions, not
+interchangeable whole-decoder gateway or benchmark backends. Schedulers are
+PLLM-specific lifecycle infrastructure rather than paper reproductions.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
+
+method = R03CrtGatedMultiplyQ7()
+schedule = IndependentLanesProtectedTensorSchedule(max_elements=4)
+assert method.component == "pllm/r03-crt/v1"
+assert schedule.params["max_elements"] == 4
+```
+
+These selectors describe a bounded research region; for a runnable complete
+private inference path, use [masked linear](/sdk/inference/masked-linear/) and
+its `pllm gateway --local --experiment experiment.py:experiment --trust-python`
+command.
+
+API: [Scheduler objects](/sdk/reference/python/pllm/schedulers/#objects-and-signatures)

@@ -1,0 +1,28 @@
+---
+title: "Correlation sources"
+description: "Understand seed expansion and one-use material without exposing client mask seeds to inference."
+---
+
+The [seeded-expansion option](/sdk/components/correlation/seeded-expansion/)
+describes the domain-separated source used by prepared public inference. The
+client sends root seeds to trusted Preparation before chat, not to Inference.
+This capability has no independent slot in the shipped inference constructors;
+choosing an [inference option](/sdk/inference/masked-linear/) composes the
+matching protocol and preparation lifecycle.
+
+## Python SDK example
+
+```python
+from pllm.correlation import SeededExpansion
+
+source = SeededExpansion()
+assert source.component == "pllm/seeded-expansion"
+assert source.describe().lifecycle_phase == "preparation"
+```
+
+For a complete request, use the
+[masked-linear experiment](/sdk/inference/masked-linear/) and
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+This descriptor does not create or expose a seed.
+
+API: [Correlation objects](/sdk/reference/python/pllm/correlation/#objects-and-signatures)

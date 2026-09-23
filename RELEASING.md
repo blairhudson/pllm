@@ -28,13 +28,13 @@ values: owner `blairhudson`, repository `pllm`, workflow `release.yml`, environm
 limit deployment to protected `v*` tags. The release workflow uses OIDC; no GitHub
 or PyPI secret is required. Do not add a long-lived `PYPI_TOKEN`.
 
-Cloudflare Pages hosts static documentation only. Every `main` push builds the
-site and deploys it to `pllm-non` at `non.pllm.run`. A manual dispatch from
-`main` builds and deploys production to `pllm-production` at `pllm.run`. Set
-repository variable `CLOUDFLARE_ACCOUNT_ID` and environment secrets
-`PLLM_NON_PAGES_API_TOKEN` and `PLLM_PRODUCTION_PAGES_API_TOKEN`; each token
-needs Pages write access to its project. The pinned Restack Action performs the
-deployment. Infrastructure provisioning remains separate from deployment.
+Cloudflare Pages hosts static documentation only. Documentation deployment is
+manual: dispatch `pages.yml` from `main` to build and deploy `pllm-production` at
+`pllm.run`. Set repository variable `CLOUDFLARE_ACCOUNT_ID` and environment secret
+`PLLM_PRODUCTION_PAGES_API_TOKEN`; the token needs Pages write access to that
+project. The pinned Restack Action performs the deployment. Pull requests and
+`main` pushes do not consume Actions minutes for CI or documentation deployment.
+Infrastructure provisioning remains separate from deployment.
 
 ## Locked dependencies
 

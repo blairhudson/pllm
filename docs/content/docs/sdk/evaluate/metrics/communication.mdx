@@ -1,0 +1,28 @@
+---
+title: "Communication"
+description: "Account for protocol bytes by direction and offline/online phase."
+---
+
+[`Communication`](/sdk/reference/python/pllm/metrics/#communication)
+(`pllm/communication`) measures bytes, lower-is-better, and distinguishes
+upload, download, or total across offline, online, or full execution. Prepared
+public inference shifts correction traffic offline rather than eliminating
+it. Report client, preparation, and inference channels according to the
+[benchmark contract](/sdk/research/benchmark/) so a phase-only traffic claim
+does not hide setup.
+
+## Python SDK example
+
+```python
+from pllm.metrics import Communication
+
+metric = Communication(direction="total", phase="full")
+assert metric.component == "pllm/communication"
+assert metric.get_params()["phase"] == "full"
+```
+
+This selects a metric, not network instrumentation; measure with a supported
+[Experiment](/sdk/experiments/) and
+[`pllm benchmark run`](/cli/reference/benchmark/run/).
+
+API: [`Communication`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)

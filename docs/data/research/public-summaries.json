@@ -1,0 +1,94 @@
+{
+  "R01": {
+    "overview": "Dash uses arithmetic garbling to prepare encoded CNN computation ahead of time. Its LabelTensor representation makes repeated arithmetic on encoded values practical while leaving the evaluator to run the prepared circuit.",
+    "reading": "For PLLM, distinguish the paper's CNN evaluation and setup costs from any adapted decoder operator; related arithmetic-garbling components are bounded references, not the full Dash system."
+  },
+  "R02": {
+    "overview": "ReDASH tackles scaling in arithmetic-garbled inference, where fixed-point values must move between residue-number-system encodings without losing their intended signed meaning. Its ScaleQuant+ policy addresses the cost of those conversions alongside the circuit computation.",
+    "reading": "PLLM has bounded numeric conversion primitives, but not ReDASH's complete scaling protocol. Compare exact rounding, sign handling, and conversion cost before claiming equivalence."
+  },
+  "R03": {
+    "overview": "Garbling Gadgets develops arithmetic-label constructions alongside Boolean garbling. Additions can be handled directly on labels, while nonlinear or cross-modulus operations require specific gadgets with their own security assumptions.",
+    "reading": "PLLM's CRT-garbled multiplication adapts some of these ideas for bounded Q7 regions; functional truth tables alone do not establish security for an entire inference protocol."
+  },
+  "R04": {
+    "overview": "Half Gates cuts the ciphertext cost of garbled-circuit AND gates while retaining compatibility with free XOR. The result targets Boolean circuits, where a large number of AND gates otherwise dominates communication.",
+    "reading": "PLLM has bounded half-gate reference primitives, not a reviewed full-model Boolean backend. Count circuit freshness and the complete gate stream when comparing costs."
+  },
+  "R05": {
+    "overview": "This lookup-table construction reduces the number of full-size ciphertexts needed for a garbled lookup by organizing the selection logarithmically. The table's data still has to be represented and transmitted, so fewer ciphertexts do not imply logarithmic total bytes.",
+    "reading": "A PLLM comparison would need matched table width, encoded values, input/output conversions, and full payload size; this construction is not a shipped lookup backend."
+  },
+  "R06": {
+    "overview": "Duty-Free Bits studies how Yao-style Boolean labels can be converted into projective or affine encodings used by other garbling schemes. It also examines connections to vector-OLE, making representation changes the central contribution.",
+    "reading": "This is relevant to crossing Boolean and arithmetic regions, but it does not supply a free bidirectional conversion or a drop-in protected decoder runtime for PLLM."
+  },
+  "R07": {
+    "overview": "Slalom partitions neural-network work between a trusted execution environment and an untrusted accelerator. It masks outsourced linear operations and checks returned results within the trusted boundary, keeping private inputs and verification state out of the accelerator's view.",
+    "reading": "PLLM's prepared masking and Freivalds verification use a trusted client and a separate preparation role instead of reproducing Slalom's TEE deployment. Their trust and performance claims must be evaluated independently."
+  },
+  "R08": {
+    "overview": "Carnival explores masks derived from public knowledge to reduce preprocessing costs for outsourced linear inference. Its mask distribution and concrete instantiation matter: a later attack analyzes one Carnival construction.",
+    "reading": "PLLM treats this as an attack-aware research target, not a default preparation choice; assess the published variant and its assumptions rather than treating every subset-sum mask as equivalent."
+  },
+  "R09": {
+    "overview": "HyCC compiles a program into regions evaluated by different secure-computation protocols instead of forcing every operation through one backend. Conversion between those regions is part of the design and can dominate a superficially faster local choice.",
+    "reading": "For PLLM, typed operator and privacy contracts must constrain any placement search; a candidate should include conversions, setup, memory, and traffic before comparison."
+  },
+  "R10": {
+    "overview": "These protocols evaluate a decision program without revealing the selected path in the same way as an ordinary branch traversal. Oblivious transfer supports protected choices over a fixed decision structure.",
+    "reading": "Applying the technique to decoder lookups would require separate accounting for public depth, visible topology, path access, and arithmetic input/output conversion."
+  },
+  "R11": {
+    "overview": "Factored edge-valued binary decision diagrams compress repeated subfunctions using additive and multiplicative edge factors. The contribution concerns representing a function with fewer graph nodes, not hiding its inputs by itself.",
+    "reading": "PLLM could compare equivalent public lookup graphs by node count and compile memory, then measure protected execution separately; graph compression is not a privacy guarantee."
+  },
+  "R12": {
+    "overview": "Piranha organizes secure computation around GPU kernels, protocols, and applications so multiple secret-sharing workloads can reuse accelerated operations. Its performance depends on communication, device transfers, and work across the participating parties.",
+    "reading": "A kernel port into PLLM would not make a two-party online protocol into a one-evaluator private-inference composition. Compare full protocol and device costs."
+  },
+  "R13": {
+    "overview": "SIGMA uses function secret sharing and preprocessing for private transformer operations, with GPU-oriented implementation choices. The cooperating online roles and preprocessing material are part of its protocol, not optional implementation details.",
+    "reading": "For PLLM, a fair comparison fixes model, token workload, all roles, and key traffic; a single forward pass does not establish sustained autoregressive decode."
+  },
+  "R14": {
+    "overview": "FuseFSS studies fusion of helper and nonlinear operations in function-secret-sharing-based LLM inference. The aim is to reduce redundant protected-operation overhead without making the surrounding private computation disappear.",
+    "reading": "A PLLM adaptation would compare the complete fused sequence, fresh keys, widths, and online dependencies under the same multi-party topology."
+  },
+  "R15": {
+    "overview": "This paper constructs pseudorandom correlation generators over integer rings, including multiplication-related correlations. Parties can expand compact correlated seeds into material needed by an arithmetic protocol.",
+    "reading": "Such a generator is not a generic compressor for garbled tables. PLLM would need correct ring identities and attack-aware parameters before treating it as a preparation option."
+  },
+  "R16": {
+    "overview": "Trapdoored matrices provide a structured pseudorandom construction for delegated linear algebra under an LPN-based approach. The construction's trapdoor and security assumptions matter to both efficiency and what a server can infer.",
+    "reading": "PLLM cannot replace the construction with a convenient public low-rank mask: nullspace projections would leak information. Any adaptation needs separate correctness and leakage evaluation."
+  },
+  "R17": {
+    "overview": "Curl represents private nonlinear functions with wavelet-encoded lookup tables and discusses probabilistic truncation. Compression of a function's representation does not automatically make private table access or reconstruction free.",
+    "reading": "For PLLM, measure protected access, conversions, setup, and numeric accuracy on the same model; a stand-alone truncation argument is not a whole-session security claim."
+  },
+  "R18": {
+    "overview": "Compact builds piecewise polynomial approximations for costly activation functions, choosing intervals with knowledge of the input distribution. The polynomial's scalar error and a full model's generation quality are different measurements.",
+    "reading": "A PLLM candidate would need protected interval selection, truncation, range checks, and full-checkpoint quality evidence before serving as an alternative nonlinear component."
+  },
+  "R19": {
+    "overview": "The available abstract describes outsourcing open-weight LLM inference to two malicious, non-colluding servers with public information supplied by the model owner. It claims both privacy and verifiability, but the abstract alone does not supply enough protocol detail to reproduce those claims.",
+    "reading": "This remains source-acquisition-gated in PLLM; do not interpret abstract performance language as a measured autoregressive benchmark."
+  },
+  "R20": {
+    "overview": "Oblivious ciphertext compression uses linear codes and syndrome decoding to reduce protected payloads under a stated input domain. Correct recovery depends on that domain and side information; an arbitrary ciphertext stream is not necessarily compressible without loss.",
+    "reading": "PLLM would need explicit out-of-domain collision cases, encoder/decoder costs, and matched uncompressed controls before using the technique on protocol messages."
+  },
+  "R21": {
+    "overview": "NEXUS combines approximate homomorphic encryption with lighter garbled-circuit work to make two-party transformer forward inference non-interactive. Its evaluated forward workloads do not by themselves cover decoder state or token-by-token autoregressive feedback.",
+    "reading": "A PLLM LLM-serving adaptation would have to implement and measure KV state, recurrent token generation, and the complete conversion boundary separately."
+  },
+  "R22": {
+    "overview": "BumbleBee provides a secure two-party framework for large transformer inference, including specialized nonlinear protocols. Both parties remain online and hold shares; the protocol and measured workloads must be understood together.",
+    "reading": "For PLLM, this is a different trust topology from one-evaluator serving. Repeated generation without a cache is not evidence of sustained cached decode."
+  },
+  "R23": {
+    "overview": "MPCache studies static and dynamic KV-cache eviction to reduce private attention costs. Its three-party SecretFlow/SPU artifact emphasizes state selection and operator measurements rather than complete private language-model serving.",
+    "reading": "PLLM adapts cache eviction as a model-neutral plan transformation, but transformed state and protected attention do not yet execute together end to end."
+  }
+}

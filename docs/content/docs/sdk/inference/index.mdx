@@ -1,0 +1,42 @@
+---
+title: "Choose an inference option"
+description: "Select a supported composition by weight ownership, trust boundary, and required roles."
+---
+
+Choose who owns transformer weights before choosing a protocol. For public weights,
+[masked linear](/sdk/inference/masked-linear/) prepares one-use corrections before
+requests; [verified masked linear](/sdk/inference/verified-masked-linear/) adds
+client-side stage checks. For provider-owned weights, compare
+[guarded](/sdk/inference/proprietary-guarded/),
+[blinded](/sdk/inference/proprietary-blinded/), and
+[direct FHE](/sdk/inference/direct-fhe/) execution. The
+[comparison guide](/sdk/inference/compare/) explains roles and limits side by side.
+
+These constructors fill component slots; their names are convenience labels, not
+the execution identity. `Experiment.resolve()` recognizes supported component
+values. Compiling a model, running a checkpoint, proving a security property, and
+measuring a deployment are separate gates. Local roles test function but cannot
+establish independent operators.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="choose-inference",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="choose-inference-tiny")),
+    deployment=Deployment.local(root="local://choose-inference"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; with the optional `he` dependency from
+[Installation](/learn/installation/), run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+The tiny model tests transport, not generation quality.
+
+API: [Profile constructors](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

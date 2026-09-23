@@ -1,0 +1,41 @@
+---
+title: "CRT-garbled Q7 multiplication"
+description: "Select the compact mixed-modulus reference for one-use gated multiplication."
+---
+
+[`R03CrtGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#r03crtgatedmultiplyq7)
+(`pllm/r03-crt/v1`) implements bounded Q7 `SiLU(gate) * up` with mixed-modulus
+projection gadgets and a canonically packed scalar transport. Native tests
+cover the complete Q7 scalar pair domain and authenticate one-use evaluator
+material. A [scheduler](/sdk/components/schedulers/) selects lane ordering
+separately. This experimental reference is neither a full-model protected
+runtime nor a reviewed production-security method; payload size and complete
+decoder performance must be measured before comparison.
+
+## Python SDK example
+
+```python
+from pllm.nonlinear import R03CrtGatedMultiplyQ7
+from pllm.schedulers import IndependentLanesProtectedTensorSchedule
+
+method = R03CrtGatedMultiplyQ7()
+scheduler = IndependentLanesProtectedTensorSchedule(max_elements=4)
+assert method.component == "pllm/r03-crt/v1"
+assert scheduler.params["max_elements"] == 4
+```
+
+This selects research identities without issuing material or executing a
+whole-model `Experiment`. Use a supported
+[masked-linear experiment](/sdk/inference/masked-linear/) for the gateway
+workflow while protected decoder composition remains incomplete.
+
+API: [`R03CrtGatedMultiplyQ7`](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+<Callout type="info" title="Research citation">
+
+[Garbling Gadgets](/research/papers/garbling-gadgets/) informs mixed-modulus
+arithmetic-label projections. PLLM adapts them to a bounded Q7 scalar gadget;
+it does not reproduce the paper's complete scheme or establish full-decoder
+security and performance.
+
+</Callout>

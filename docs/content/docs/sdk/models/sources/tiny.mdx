@@ -1,0 +1,35 @@
+---
+title: "Tiny Qwen2 source"
+description: "Generate deterministic Qwen2 transport-test weights for local role exercises."
+---
+
+[`TinyModel`](/sdk/reference/python/pllm/sources/#tinymodel) is a generated
+Qwen2 checkpoint with random weights and a byte tokenizer. It exercises real
+client, preparation, inference, and gateway transport without downloading a
+public checkpoint. It cannot establish generation quality, realistic
+performance, or compatibility for other model families. Use a pinned real
+checkpoint for comparisons and user-facing text examples.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="tiny-source-guide",
+    pipeline=MaskedLinearCpu(TinyModel(model_id="tiny-source-guide")),
+    deployment=Deployment.local(root="local://tiny-source-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.model.kind == "tiny"
+assert experiment.resolve().client_runtime == "masked_transformer_v1"
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+The generated checkpoint is a transport smoke test only.
+
+API: [`TinyModel`](/sdk/reference/python/pllm/sources/#objects-and-signatures)

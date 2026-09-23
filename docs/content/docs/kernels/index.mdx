@@ -51,6 +51,7 @@ assert kernel["component"] == "pllm/cpu"
 assert kernel["params"] == {"threads": 2}
 ```
 
+Install the optional `he` dependency from the [installation guide](/learn/installation/).
 Save the module as `experiment.py` and run `pllm gateway --local --experiment
 experiment.py:experiment --trust-python` to use that exact kernel choice in private
 loopback inference. Use `pllm benchmark run --experiment experiment.py:experiment

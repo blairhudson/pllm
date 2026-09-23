@@ -31,7 +31,7 @@ test('trusted HTML links work on GitHub project Pages', () => {
 test('canonical routes map to stable Markdown alternates without index leaves', () => {
   assert.equal(markdownPathForRoute('/'), '/index.md');
   assert.equal(markdownPathForRoute('/sdk/components/'), '/sdk/components.md');
-  assert.equal(markdownPathForRoute('/learn/start/installation'), '/learn/start/installation.md');
+  assert.equal(markdownPathForRoute('/learn/installation'), '/learn/installation.md');
   assert.equal(markdownPathForRoute('/research/'), '/research.md');
   assert.equal(markdownPathForRoute('/sdk/reference/components/'), '/sdk/reference/components.md');
   assert.equal(markdownPathForRoute('/research/whitepaper'), '/research/whitepaper.md');

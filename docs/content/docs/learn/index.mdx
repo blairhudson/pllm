@@ -1,38 +1,25 @@
 ---
-title: "Learn"
-description: "Understand PLLM's private inference runtime, research harness, trust assumptions, and evidence."
+title: "Learn PLLM"
+description: "Install PLLM, make a real private inference request, and measure it — in about ten minutes."
 ---
 
-PLLM is a Rust-first, Python-friendly runtime and research harness for private
-large language model inference across multiple parties. Its goal is to let a
-client use remote compute without giving any one compute party the complete
-request, model state, and output.
+By the end of this sequence you will have:
 
-PLLM combines two systems:
+- Installed the `pllm` command and Python package.
+- Made a real private inference request and read generated text.
+- Run the local development benchmark and learned what it does and does not measure.
 
-- **The inference runtime** assigns work to the client, preparation service, and
-  inference service while preserving an explicit trust boundary.
-- **The research harness** turns papers and hypotheses into independent Rust and
-  Python implementations, then records provenance, plans, tests, benchmarks,
-  limitations, and publication review separately.
+1. [Install PLLM](/learn/installation/) with a supported Python version.
+2. [Make your first private request](/learn/first-private-request/) — start the trusted
+   loopback gateway and get real generated text from an OpenAI-compatible endpoint.
+3. [Run the local development benchmark](/learn/first-local-benchmark/) through the
+   client, preparation, and inference roles on one machine.
+4. Optional: [inspect the execution plan](/learn/inspect-a-plan/) to see how PLLM
+   decomposed that request into components before it ran.
+5. [Connect an SDK or coding agent](/learn/integrations/) — the same gateway serves the
+   Responses and Chat Completions APIs, OpenAI-compatible clients, and coding agents.
 
-PLLM is being built for high performance, but performance depends on the exact
-model, protocol, hardware, network, and workload. Privacy depends on the selected
-protocol, correct implementation, and stated non-collusion assumptions. Treat
-the project's economic and safety benefits as goals; use evidence records for
-measured results and current support for executable coverage.
-
-Start here if you need to decide whether a PLLM workflow matches your privacy,
-performance, or deployment requirements:
-
-1. [Privacy and threat models](/learn/privacy-and-threat-models/)
-2. [Parties and offline work](/learn/parties-and-offline-work/)
-3. [Masked linear inference](/learn/masked-linear-inference/)
-4. [Arithmetic and Boolean garbling](/learn/arithmetic-and-boolean-garbling/)
-5. [Numeric semantics and model quality](/learn/numeric-semantics-and-model-quality/)
-6. [Reading research and evidence](/learn/reading-research-and-evidence/)
-
-These pages explain the concepts. The [reference](/sdk/reference/) section lists
-exact APIs and schemas. [Current support](/sdk/reference/status/) reports which
-combinations are available. [Integrations](/learn/integrations/) shows how the
-trusted local gateway serves OpenAI-compatible SDKs and coding agents.
+One honest caveat before you start: running every role on one machine validates the private
+protocol and your setup. It does not demonstrate non-collusion between operators — that
+requires independently operated roles, covered under
+[running PLLM](/sdk/operate/).

@@ -1,5 +1,0 @@
-{
-  "title": "Architecture and trust",
-  "root": true,
-  "pages": ["index", "architecture", "trust-boundary", "privacy-assurance", "evidence-claims"]
-}

@@ -1,0 +1,33 @@
+---
+title: "Define an experiment"
+description: "Combine a model source, typed pipeline, local deployment, and explicit token budget."
+---
+
+Use an [inference option](/sdk/inference/) as a compatible starting composition.
+Profiles supply defaults but serialize as their component values: their display
+labels do not authorize execution. Set workload bounds before attempting a local
+gateway or benchmark; resolution checks supported combinations, not checkpoint
+availability, numerical quality, or whole-model coverage.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="define-qwen",
+    pipeline=MaskedLinearCpu(Model("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://define-qwen"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.pipeline.model.to_spec()["source"] == "Qwen/Qwen2.5-0.5B-Instruct"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py` and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+after installing optional `he` via [Installation](/learn/installation/).
+Real checkpoint weights download separately at runtime.
+
+API: [`Experiment`](/sdk/reference/python/pllm/#objects-and-signatures)

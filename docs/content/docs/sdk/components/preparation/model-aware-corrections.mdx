@@ -1,0 +1,41 @@
+---
+title: "Model-aware corrections"
+description: "Prepare stage-bound, one-use public-weight corrections before serving."
+---
+
+[`ModelAwareCorrections`](/sdk/reference/python/pllm/preparation/#modelawarecorrections)
+(`pllm/model-aware-corrections`) is the runtime-bound provider in
+[public masked inference](/sdk/inference/masked-linear/) and its verified
+variant. It expands client root seeds into one-use corrections committed to
+inventory, model body, stage, shape, quantization, and attempt budget. Inference
+accepts every stage before sealing inventory READY; reserved unused rows burn on
+failure or early termination. Preparation must follow the protocol, erase masks,
+and not collude with inference. A descriptor alone never creates inventory.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.preparation import ModelAwareCorrections
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="correction-guide",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="correction-guide-tiny"),
+        preparation=ModelAwareCorrections(),
+    ),
+    deployment=Deployment.local(root="local://correction-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.components["preparation"].component == "pllm/model-aware-corrections"
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+For matched measurements use a pinned real checkpoint.
+
+API: [`ModelAwareCorrections`](/sdk/reference/python/pllm/preparation/#objects-and-signatures)

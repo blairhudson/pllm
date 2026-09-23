@@ -1,0 +1,90 @@
+{
+  "citations": [
+    {
+      "paper_id": "R01",
+      "summary": "PLLM's bounded arithmetic-garbling references adapt mixed-modulus labels and projection-gate ideas under separate one-use and plan-binding contracts.",
+      "components": [
+        {
+          "title": "Arithmetic garbling",
+          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
+          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+        },
+        {
+          "title": "Arithmetic-garbled Q7 SiLU",
+          "href": "/sdk/components/nonlinear/arithmetic-garbling-silu-q7/",
+          "source": "content/docs/sdk/components/nonlinear/arithmetic-garbling-silu-q7.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R02",
+      "summary": "PLLM's bounded ties-to-even rescaling and Q7 arithmetic provide related fixed-point conversion primitives; they are not an implementation of ReDASH's complete protocol.",
+      "components": [
+        {
+          "title": "Numeric semantics",
+          "href": "/sdk/build/numerics/",
+          "source": "content/docs/numerics/index.mdx"
+        },
+        {
+          "title": "Arithmetic garbling",
+          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
+          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R03",
+      "summary": "PLLM's experimental CRT-garbled multiplication is a clean-room adaptation of the paper's arithmetic-garbling technique, not a reproduction of the complete system.",
+      "components": [
+        {
+          "title": "Arithmetic garbling",
+          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
+          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+        },
+        {
+          "title": "CRT-garbled Q7 multiplication",
+          "href": "/sdk/components/nonlinear/r03-crt/",
+          "source": "content/docs/sdk/components/nonlinear/r03-crt.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R04",
+      "summary": "PLLM documents the half-gate circuit category and equations; it does not expose a reviewed half-gate runtime backend.",
+      "components": [
+        {
+          "title": "Half-gates",
+          "href": "/sdk/pipeline/protocols/garbling/half-gates/",
+          "source": "content/docs/protocols/garbling/half-gates.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R07",
+      "summary": "PLLM's prepared masked-linear path and optional Freivalds verification draw on related separation and verification ideas; its protocol and trust assumptions differ from Slalom.",
+      "components": [
+        {
+          "title": "Prepared masked linear",
+          "href": "/sdk/components/protocols/masked-linear/",
+          "source": "content/docs/sdk/components/protocols/masked-linear.mdx"
+        },
+        {
+          "title": "Freivalds stage verification",
+          "href": "/sdk/components/verification/freivalds/",
+          "source": "content/docs/sdk/components/verification/freivalds.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R23",
+      "summary": "PLLM exposes KV-cache eviction as a model-neutral plan transformation. It does not yet execute the transformed plan end to end.",
+      "components": [
+        {
+          "title": "KV-cache eviction",
+          "href": "/sdk/components/passes/kv-cache-eviction/",
+          "source": "content/docs/sdk/components/passes/kv-cache-eviction.mdx"
+        }
+      ]
+    }
+  ]
+}

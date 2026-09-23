@@ -1,0 +1,38 @@
+---
+title: "CPU kernel backend"
+description: "Set the validated executor thread count for a supported masked-linear experiment."
+---
+
+[`Cpu`](/sdk/reference/python/pllm/kernels/#cpu) (`pllm/cpu`) is constructible,
+serialized in the pipeline digest, and accepted by shipped runtime compositions.
+The native core owns bounded integer matrices and a persistent Rayon executor;
+vector dispatch depends on host capabilities. A `threads` parameter selects an
+executor bound, not model compatibility or latency dominance. Attribute any
+speed claim to a matched [benchmark cohort](/sdk/research/benchmark/).
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.kernels import Cpu
+from pllm.profiles import MaskedLinearCpu
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="cpu-guide",
+    pipeline=MaskedLinearCpu(
+        TinyModel(model_id="cpu-guide-tiny"), kernels=Cpu(threads=2),
+    ),
+    deployment=Deployment.local(root="local://cpu-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.kernels.params["threads"] == 2
+assert experiment.resolve().client_runtime == "masked_transformer_v1"
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Tiny weights validate the path, not generation quality or performance.
+
+API: [`Cpu`](/sdk/reference/python/pllm/kernels/#objects-and-signatures)

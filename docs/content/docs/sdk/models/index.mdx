@@ -1,0 +1,36 @@
+---
+title: "Choose a model"
+description: "Separate model source resolution, semantic family lowering, and checkpoint execution."
+---
+
+Start with [source options](/sdk/models/sources/) to locate checkpoint files
+or create a deterministic tiny transport fixture. [Family adapters](/sdk/models/families/)
+turn bounded configuration into a model-neutral plan; they do not by themselves
+load weights or guarantee every operator executes. Qwen2.5-0.5B-Instruct is the
+current pinned real public-weight benchmark target. Dense Qwen3 has a tiny
+synthetic compiled-path test. Hybrid Qwen3.5, Phi-4-mini, and Gemma 4 have
+semantic plan coverage but incomplete compiler/runtime checkpoint execution.
+Always check [support status](/sdk/reference/status/) and choose a compatible
+[inference option](/sdk/inference/) before serving.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    name="model-choice-guide",
+    pipeline=MaskedLinearCpu(Model("Qwen/Qwen2.5-0.5B-Instruct")),
+    deployment=Deployment.local(root="local://model-choice-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().requires_preparation
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+The checkpoint downloads at runtime; configuration alone loads no files.
+
+API: [`Model`](/sdk/reference/python/pllm/#objects-and-signatures)

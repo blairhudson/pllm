@@ -1,15 +1,13 @@
 name: Deploy docs
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-pages-${{ github.event_name == 'push' && 'non-production' || 'production' }}
+  group: cloudflare-pages-production
   cancel-in-progress: true
 
 jobs:
@@ -17,11 +15,11 @@ jobs:
     name: Cloudflare Pages
     runs-on: ubuntu-24.04
     environment:
-      name: ${{ github.event_name == 'push' && 'non-production' || 'production' }}
-      url: ${{ github.event_name == 'push' && 'https://non.pllm.run' || 'https://pllm.run' }}
+      name: production
+      url: https://pllm.run
     env:
       NEXT_TELEMETRY_DISABLED: "1"
-      PAGES_PROJECT: ${{ github.event_name == 'push' && 'pllm-non' || 'pllm-production' }}
+      PAGES_PROJECT: pllm-production
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -45,9 +43,8 @@ jobs:
           path: docs/out/
           if-no-files-found: error
       - name: Require main for production
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
             echo "Production deployments must be dispatched from main." >&2
             exit 1
           fi
@@ -75,4 +72,4 @@ jobs:
             4.126.0
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ github.event_name == 'push' && secrets.PLLM_NON_PAGES_API_TOKEN || secrets.PLLM_PRODUCTION_PAGES_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PLLM_PRODUCTION_PAGES_API_TOKEN }}

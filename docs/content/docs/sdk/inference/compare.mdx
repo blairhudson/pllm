@@ -1,0 +1,49 @@
+---
+title: "Compare inference options"
+description: "Compare public and provider-owned weight paths before selecting a runnable composition."
+---
+
+Public-body [masked linear](/sdk/inference/masked-linear/) and
+[verified masked linear](/sdk/inference/verified-masked-linear/) require trusted
+offline preparation and one inference role. The verifier checks bounded stage
+outputs before dequantization; it does not hide more data or remove traffic.
+Provider-owned [guarded](/sdk/inference/proprietary-guarded/),
+[blinded](/sdk/inference/proprietary-blinded/), and
+[direct FHE](/sdk/inference/direct-fhe/) use one inference role without the public
+correction inventory. Guarded quotas alone provide no cryptographic activation
+confidentiality. Their weight-ownership and leakage assumptions differ; do not
+compare their benchmark numbers unless model, workload, environment, privacy,
+numeric, and metric cohorts match.
+
+All five constructor compositions resolve for supported inputs. Resolution is
+not evidence of full semantic-compiler coverage for every architecture. See
+[support status](/sdk/reference/status/) and
+[benchmarking](/sdk/research/benchmark/) before making a deployment claim.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import MaskedLinearCpu, ProprietaryGuarded
+from pllm.sources import TinyModel
+
+def option(pipeline, name):
+    return Experiment(
+        name=name,
+        pipeline=pipeline,
+        deployment=Deployment.local(root=f"local://{name}"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+    )
+
+public = option(MaskedLinearCpu(TinyModel(model_id="compare-public")), "compare-public")
+private_weights = option(ProprietaryGuarded(TinyModel(model_id="compare-private")), "compare-private")
+assert public.resolve().requires_preparation
+assert not private_weights.resolve().requires_preparation
+```
+
+To serve one, save its `Experiment` as `experiment` in `experiment.py` and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`
+after installing the optional `he` dependency. This example checks composition,
+not a measured comparison; tiny weights validate transport only.
+
+API: [Profile constructors](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

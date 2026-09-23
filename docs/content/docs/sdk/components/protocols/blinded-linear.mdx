@@ -1,0 +1,39 @@
+---
+title: "Blinded linear"
+description: "Select the provider-owned one-role blinded stage transport."
+---
+
+[`BlindedLinear`](/sdk/reference/python/pllm/protocols/#blindedlinear)
+(`pllm/blinded-linear/v1`) is a method component accepted by
+[proprietary blinded inference](/sdk/inference/proprietary-blinded/). It is
+constructible, serializable, and runtime-bound with one inference role; it does
+not require the public-weight correction inventory. Its privacy and leakage
+claims belong to this runtime arm, not the separate masked-linear protocol.
+Tiny transport execution does not establish matched model quality or deployment
+performance. This component is PLLM-specific, without a paper reproduction claim.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ProprietaryBlinded
+from pllm.protocols import BlindedLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="blinded-protocol-guide",
+    pipeline=ProprietaryBlinded(
+        TinyModel(model_id="blinded-protocol-guide-tiny"), linear=BlindedLinear(),
+    ),
+    deployment=Deployment.local(root="local://blinded-protocol-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().proprietary_protocol == "blinded"
+```
+
+Save as `experiment.py`; install optional `he` via
+[Installation](/learn/installation/) and run
+`pllm gateway --local --experiment experiment.py:experiment --trust-python`.
+Choose a pinned checkpoint for quality or speed measurements.
+
+API: [`BlindedLinear`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
