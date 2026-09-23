@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import navigation from '../navigation.json' with { type: 'json' };
 import { readPages, readSearchPages, readStandalonePages, validate, siteRoot, walk } from '../scripts/content.mjs';
@@ -81,8 +82,10 @@ test('retired SDK phase URLs redirect to capability guides without duplicate can
 test('private inference papers are newest-first sidebar pages with reciprocal component citations', () => {
   const dataRoot = path.join(siteRoot, 'data/research');
   const registry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'papers.json'), 'utf8'));
+  const library = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library.json'), 'utf8'));
   const citationRegistry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'component-citations.json'), 'utf8'));
   const summaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'public-summaries.json'), 'utf8'));
+  const newSummaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library-notes.json'), 'utf8'));
   const citations = new Map(citationRegistry.citations.map((citation) => [citation.paper_id, citation]));
   const index = fs.readFileSync(path.join(siteRoot, 'content/docs/research/papers/index.mdx'), 'utf8');
 
@@ -90,16 +93,22 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.ok(!index.includes('<!-- Generated'));
   assert.doesNotMatch(index, /\bR\d{2}\b/);
   const papersById = new Map(registry.papers.map((paper) => [paper.id, paper]));
-  const publicPapers = registry.public_bibliography_ids.map((id) => papersById.get(id));
-  assert.equal(publicPapers.length, registry.public_bibliography_ids.length);
+  const publicPapers = library.papers;
+  assert.equal(publicPapers.length, 84);
+  assert.equal(publicPapers.filter((paper) => paper.status === 'available').length, 81);
+  assert.deepEqual(publicPapers.filter((paper) => paper.status === 'pdf_unavailable').map((paper) => paper.id).sort(),
+    ['moai', 'mozzarella']);
+  assert.deepEqual(publicPapers.filter((paper) => paper.status === 'unverified_primary').map((paper) => paper.id),
+    ['ripple']);
   const chronological = [...publicPapers].sort((left, right) => right.year - left.year || left.title.localeCompare(right.title));
+  const slug = (paper) => papersById.get(paper.registry_id)?.slug.replaceAll('_', '-') ?? paper.id;
   assert.deepEqual(
     [...index.matchAll(/^## (\d{4})$/gm)].map((match) => Number(match[1])),
     [...new Set(chronological.map((paper) => paper.year))],
   );
   const meta = JSON.parse(fs.readFileSync(path.join(siteRoot, 'content/docs/research/papers/meta.json'), 'utf8'));
   assert.deepEqual(meta.pages.filter((entry) => !entry.startsWith('---') && entry !== 'index'),
-    chronological.map((paper) => paper.slug.replaceAll('_', '-')));
+    chronological.map(slug));
   assert.match(index, /className="paper-timeline"/);
   assert.match(index, /className="paper-timeline-entry"/);
   assert.match(fs.readFileSync(path.join(siteRoot, 'app/global.css'), 'utf8'), /\.paper-timeline-year::before/);
@@ -107,21 +116,42 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     /return \{ \.\.\.folder, name: 'Private Inference Papers', root: true \}/);
   let priorPosition = -1;
   for (const paper of chronological) {
-    const slug = paper.slug.replaceAll('_', '-');
-    const route = `/research/papers/${slug}/`;
+    const route = `/research/papers/${slug(paper)}/`;
     const position = index.indexOf(`<a href="${route}">`);
     assert.ok(position > priorPosition, paper.title);
     priorPosition = position;
-    assert.ok(index.includes(summaries[paper.id].overview), paper.id);
-    const pagePath = path.join(siteRoot, `content/docs/research/papers/${slug}.mdx`);
+    const summary = summaries[paper.registry_id] ?? newSummaries[paper.id];
+    assert.ok(summary?.overview && summary?.reading, paper.id);
+    assert.ok(index.includes(summary.overview), paper.id);
+    const pagePath = path.join(siteRoot, `content/docs/research/papers/${slug(paper)}.mdx`);
     const page = fs.readFileSync(pagePath, 'utf8');
-    assert.ok(page.includes(summaries[paper.id].overview), paper.id);
-    assert.ok(page.includes(summaries[paper.id].reading), paper.id);
+    assert.ok(page.includes(summary.overview), paper.id);
+    assert.ok(page.includes(summary.reading), paper.id);
     assert.doesNotMatch(page, /Back to the chronological bibliography/);
-    assert.ok(page.includes(`[Read the original publication](${paper.primary_url})`), paper.id);
+    if (paper.status === 'unverified_primary') {
+      assert.ok(page.includes('[Citing source: Curl](/research/papers/curl/)'));
+      assert.ok(!page.includes(`[Original publication](${paper.source_url})`));
+    } else {
+      assert.ok(page.includes(`[Original publication](${paper.source_url})`), paper.id);
+    }
+    if (paper.status === 'available') {
+      assert.ok(paper.authors?.length > 0 || paper.registry_id, `Missing publication authors: ${paper.id}`);
+      assert.match(paper.sha256, /^[a-f0-9]{64}$/, paper.id);
+      assert.ok(paper.bytes > 2048, paper.id);
+      // papers/ is an intentionally ignored research cache, absent on CI.
+      const localCopy = path.join(siteRoot, '..', paper.file);
+      if (fs.existsSync(localCopy)) {
+        const bytes = fs.readFileSync(localCopy);
+        assert.equal(bytes.subarray(0, 5).toString(), '%PDF-', paper.id);
+        assert.equal(createHash('sha256').update(bytes).digest('hex'), paper.sha256, paper.id);
+        assert.equal(bytes.length, paper.bytes, paper.id);
+      }
+    } else {
+      assert.equal(paper.file, null, paper.id);
+    }
     assert.ok(byRoute.has(route), route);
 
-    const citation = citations.get(paper.id);
+    const citation = citations.get(paper.registry_id);
     if (citation) {
       assert.ok(page.includes('title="Related PLLM components"'), paper.id);
       assert.ok(page.includes(citation.summary), paper.id);
@@ -136,9 +166,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   }
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
-  for (const paper of registry.papers.filter((paper) => !registry.public_bibliography_ids.includes(paper.id))) {
-    assert.ok(!index.includes(paper.title), `${paper.title} is not cited publicly`);
-  }
+  assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
   assert.equal(citations.size, 6);
   for (const file of walk(path.join(siteRoot, 'content/docs/research')).filter((item) => item.endsWith('.mdx'))) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\bR\d{2}\b/, file);

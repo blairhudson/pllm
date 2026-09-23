@@ -36,10 +36,11 @@ assert.doesNotMatch(sdk.sidebar, /href="\/sdk\/(?:build|pipeline|research|operat
 
 const { page, sidebar } = rendered('research/papers');
 const papers = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/research/papers.json'), 'utf8'));
+const library = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/research/paper-library.json'), 'utf8'));
 const byId = new Map(papers.papers.map((paper) => [paper.id, paper]));
-const expected = papers.public_bibliography_ids.map((id) => byId.get(id))
+const expected = library.papers
   .sort((left, right) => right.year - left.year || left.title.localeCompare(right.title))
-  .map((paper) => paper.slug.replaceAll('_', '-'));
+  .map((paper) => byId.get(paper.registry_id)?.slug.replaceAll('_', '-') ?? paper.id);
 const actual = [...sidebar.matchAll(/href="\/research\/papers\/([a-z0-9-]+)\/"/g)]
   .map((match) => match[1]);
 assert.deepEqual(actual, expected, 'Research paper sidebar must list all cited papers newest first');
