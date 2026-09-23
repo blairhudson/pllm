@@ -473,8 +473,15 @@ RESEARCH_EXAMPLE = _example(
 
 ASSURANCE_EXAMPLE = _example(
     """
+    from pllm.assurance import PublicSubspaceMaskRegression
     from pllm.assurance import SubspaceLeakageRegression
     from pllm.components import NotYetImplementedError
+
+    witness = PublicSubspaceMaskRegression(ring_bits=16).evaluate(
+        ((1, 1, 0), (0, 1, 1)), (20, 28, 38)
+    )
+    assert witness is not None and witness.indices == (0, 1, 2)
+    assert witness.leaked_parity == 0
 
     try:
         SubspaceLeakageRegression()
@@ -716,8 +723,8 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": COMPONENT_EXAMPLE,
     },
     "pllm.assurance": {
-        "purpose": "Assurance controls specify paper-derived attack regressions and threat-model comparisons separately from runnable inference components.",
-        "citations": ("[Breaking Euston](/research/papers/breaking-euston/)",),
+        "purpose": "Assurance controls run bounded paper-derived attack regressions and specify pending threat-model checks separately from inference components.",
+        "citations": ("[Slalom at the Carnival](/research/papers/carnival/)", "[Maverick](/research/papers/maverick/)", "[Breaking Euston](/research/papers/breaking-euston/)"),
         "example": ASSURANCE_EXAMPLE,
     },
     "pllm.correlation": {
@@ -877,8 +884,8 @@ INFERENCE_CLIENT_MODULES = {
 def _example_context(module: str) -> str:
     if module == "pllm.assurance":
         return (
-            "This example verifies that a planned assurance control cannot be run or selected. "
-            "The paper-linked class exposes its missing gate without asserting an attack reproduction."
+            "This example produces a concrete bounded public-mask leakage witness, then verifies "
+            "that a separate pending assurance control still fails closed. Neither is an inference slot."
         )
     if module in RUNNABLE_EXPERIMENT_MODULES:
         return (

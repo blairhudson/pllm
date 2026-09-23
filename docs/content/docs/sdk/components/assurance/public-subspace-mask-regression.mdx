@@ -1,0 +1,49 @@
+---
+title: "Public mask subspace leakage"
+description: "Construct a concrete leaked-parity witness for a public mask basis in a 2^k ring."
+---
+
+Use [`PublicSubspaceMaskRegression`](/sdk/reference/python/pllm/assurance/#publicsubspacemaskregression)
+to reject a proposal that generates every input mask from a published collection
+of vectors. This is an independent, bounded assurance control, not an inference
+component, a verifier for server arithmetic, or a substitute for a privacy proof.
+
+The fixture follows the subset-sum mask construction in
+[Slalom at the Carnival](/research/papers/carnival/) and the public-subspace
+attack in [Maverick](/research/papers/maverick/), Appendix E. When the public
+mask vectors have deficient rank modulo 2, the control computes a nonzero
+projection that annihilates **every** combination of those masks. Its parity on
+the masked input therefore equals the same parity of the private input.
+
+### When to use it
+
+Run this check before admitting a public-basis masking proposal for a u16, u24,
+or u32 stage. Supply the *actual* public generating vectors and the observed
+masked activation; the caller must confirm that they generate every possible
+mask. No plaintext activation is needed. The returned
+[`PublicSubspaceLeakageWitness`](/sdk/reference/python/pllm/assurance/#publicsubspaceleakagewitness)
+gives the indices and leaked parity. If the method returns `None`, it found no
+**modulo-2 linear witness**; it has not established privacy against other
+attacks, rings, or distributions. PLLM's seeded preparation inventory does not
+expose its client mask seed to Inference and does not instantiate this public
+mask-basis design.
+
+API: [pllm.assurance](/sdk/reference/python/pllm/assurance/#objects-and-signatures)
+
+## Python SDK example
+
+The toy basis has only two public vectors for a three-element activation. A
+masked value could be `private + first_public_vector` in the u16 ring. The
+regression recovers an input parity without receiving the private vector:
+
+```python
+from pllm.assurance import PublicSubspaceMaskRegression
+
+public_basis = ((1, 1, 0), (0, 1, 1))
+masked_activation = (20, 28, 38)
+witness = PublicSubspaceMaskRegression(ring_bits=16).evaluate(public_basis, masked_activation)
+assert witness is not None
+assert witness.indices == (0, 1, 2)
+assert witness.leaked_parity == 0
+assert witness.public_rank_mod2 == 2
+```

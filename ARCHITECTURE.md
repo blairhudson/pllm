@@ -165,6 +165,10 @@ evidence cohorts without implicit ranking. `pllm.search` generates validated
 immutable candidates and applies explicit cohort-safe Pareto directions.
 `pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
 and promotion gates static and non-executable. Public objects are imported on demand.
+`pllm.assurance.PublicSubspaceMaskRegression` independently constructs a bounded
+mod-2 leakage witness for public mask bases over exact u16/u24/u32 rings. It
+follows the Carnival construction and Maverick Appendix E attack but is neither
+an inference component nor a privacy proof when no witness is found.
 `pllm.runtime` holds the separate
 runtime model graph, HE preparation, transport, protocol, scheduling and
 importers. Applications should not depend on internal module locations.

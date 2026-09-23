@@ -1,5 +1,5 @@
 {
   "title": "Assurance controls",
   "root": true,
-  "pages": ["index"]
+  "pages": ["index", "public-subspace-mask-regression"]
 }

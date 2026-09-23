@@ -89,8 +89,8 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
     throw new Error('Each paper may have only one related-component citation');
   }
   for (const citation of citationRegistry.citations) {
-    if (!reviewedIds.includes(citation.paper_id)) {
-      throw new Error(`Component citation is not in the public bibliography: ${citation.paper_id}`);
+    if (!ids.includes(citation.paper_id)) {
+      throw new Error(`Component citation is not a registered public paper: ${citation.paper_id}`);
     }
     if (!citation.summary?.trim() || !citation.components?.length) {
       throw new Error(`Incomplete component citation: ${citation.paper_id}`);
@@ -128,14 +128,18 @@ function escapeHtmlText(value) {
 
 function renderRelatedComponents(citation) {
   if (citation === undefined) return '';
+  const assurance = citation.components.every((component) =>
+    component.href.startsWith('/sdk/components/assurance/'));
+  const title = assurance ? 'Related PLLM assurance' : 'Related PLLM components';
+  const label = assurance ? 'Control' : 'Components';
   const links = citation.components
     .map((component) => `[${component.title}](${component.href})`)
     .join(', ');
-  return `<Callout type="info" title="Related PLLM components">
+  return `<Callout type="info" title="${title}">
 
 ${citation.summary}
 
-Components: ${links}.
+${label}: ${links}.
 
 </Callout>
 
@@ -155,8 +159,10 @@ function renderPlannedApi(stub) {
   if (implemented) return `<Callout type="info" title="Related Python API">
 
 [${stub.module}.${stub.name}](${plannedApiLink(stub)}) records the reviewed
-implementation scope. Its public API and evidence define which experiments
-may select it; the paper remains provenance, not an executable dependency.
+implementation scope. ${stub.kind === 'candidate'
+    ? 'Its public API and evidence define which experiments may select it.'
+    : 'This assurance API is independent of inference and is not an executable experiment slot.'}
+The paper remains provenance, not an executable dependency.
 
 </Callout>
 

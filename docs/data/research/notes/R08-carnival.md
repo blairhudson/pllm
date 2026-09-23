@@ -1,10 +1,10 @@
 # R08 · Slalom at the Carnival: Privacy-preserving Inference with Masks from Public Knowledge
 
-**Priority 8 · 2024 · quarantined_comparison · source checked 2026-09-14**
+**Priority 8 · 2024 · quarantined_comparison · source checked 2026-09-23**
 
 Authors: Ida Bruhns, Sebastian Berndt, Jonas Sander, Thomas Eisenbarth.  
 Primary source: https://cic.iacr.org/p/1/3/40  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+The primary full text is fingerprinted in the paper library. The complete Carnival method remains unimplemented.
 
 ## What the source contributes
 
@@ -14,7 +14,7 @@ This short source summary is separate from the proposed PLLM design below. The s
 
 ## Native implementation scope
 
-Implement the exact published parameterized variant in an isolated comparison backend. Reproduce the reported Maverick attack before eligibility review.
+The bounded mod-2 public-subspace leakage witness from Maverick Appendix E is available through `pllm.assurance.PublicSubspaceMaskRegression`. Implementing an unaffected Carnival variant requires separate source-specific review and comparison.
 
 Data flow: **Published subset-sum mask/setup variant; isolated from eligible production methods.**
 
@@ -47,13 +47,13 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Prior discussion identified this attack; no claim that our fresh full-ring masks instantiate Carnival.
+PLLM's assurance control demonstrates leaked input parity for deficient public mask bases over u16/u24/u32 rings. It does not implement Carnival or claim that PLLM's private seeded inventory exposes such a basis.
 
-The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
+The original experiments and limitations are under `legacy/`. This control is **not a completed native reproduction of Carnival**.
 
 ## Reproduction gates
 
-`R08.acquire → R08.specify → R08.reference → R08.native → R08.assure → R08.benchmark → R08.document`.
+`R08.acquire` is complete for the paper PDF. The remaining method gates are `R08.specify → R08.reference → R08.native → R08.assure → R08.benchmark → R08.document`.
 
 The public research backlog records the remaining implementation and validation work. Native integration requires the actual PLLM command, source locks, raw measurements, and assurance report.
 

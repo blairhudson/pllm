@@ -29,7 +29,7 @@
   },
   "R08": {
     "overview": "Carnival explores masks derived from public knowledge to reduce preprocessing costs for outsourced linear inference. Its mask distribution and concrete instantiation matter: a later attack analyzes one Carnival construction.",
-    "reading": "PLLM treats this as an attack-aware research target, not a default preparation choice; assess the published variant and its assumptions rather than treating every subset-sum mask as equivalent."
+    "reading": "PLLM implements the bounded public-mask subspace leakage witness from Maverick Appendix E as an independent assurance control; Carnival remains a research target, not a default preparation choice, and the witness does not cover every mask variant."
   },
   "R09": {
     "overview": "HyCC compiles a program into regions evaluated by different secure-computation protocols instead of forcing every operation through one backend. Conversion between those regions is part of the design and can dominate a superficially faster local choice.",

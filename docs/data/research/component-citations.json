@@ -76,6 +76,17 @@
       ]
     },
     {
+      "paper_id": "R08",
+      "summary": "PLLM exposes a bounded mod-2 public-subspace leakage witness for Carnival-style masks. The control follows the later attack in Maverick, not an implementation of Carnival's protocol.",
+      "components": [
+        {
+          "title": "Public mask subspace leakage",
+          "href": "/sdk/components/assurance/public-subspace-mask-regression/",
+          "source": "content/docs/sdk/components/assurance/public-subspace-mask-regression.mdx"
+        }
+      ]
+    },
+    {
       "paper_id": "R23",
       "summary": "PLLM exposes KV-cache eviction as a model-neutral plan transformation. It does not yet execute the transformed plan end to end.",
       "components": [
@@ -83,6 +94,17 @@
           "title": "KV-cache eviction",
           "href": "/sdk/components/passes/kv-cache-eviction/",
           "source": "content/docs/sdk/components/passes/kv-cache-eviction.mdx"
+        }
+      ]
+    },
+    {
+      "paper_id": "R24",
+      "summary": "PLLM tests the public-subspace leakage described in Maverick Appendix E for bounded u16/u24/u32 mask bases. It does not implement Maverick's verified delegation or make its field-based soundness claim.",
+      "components": [
+        {
+          "title": "Public mask subspace leakage",
+          "href": "/sdk/components/assurance/public-subspace-mask-regression/",
+          "source": "content/docs/sdk/components/assurance/public-subspace-mask-regression.mdx"
         }
       ]
     }

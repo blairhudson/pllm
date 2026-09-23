@@ -196,7 +196,9 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
 
     const citation = citations.get(paper.registry_id);
     if (citation) {
-      assert.ok(page.includes('title="Related PLLM components"'), paper.id);
+      const assurance = citation.components.every((component) =>
+        component.href.startsWith('/sdk/components/assurance/'));
+      assert.ok(page.includes(`title="Related PLLM ${assurance ? 'assurance' : 'components'}"`), paper.id);
       assert.ok(page.includes(citation.summary), paper.id);
       for (const component of citation.components) {
         assert.ok(page.includes(`[${component.title}](${component.href})`), `${paper.id}: ${component.href}`);
@@ -205,12 +207,14 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
       }
     } else {
       assert.ok(!page.includes('title="Related PLLM components"'), paper.id);
+      assert.ok(!page.includes('title="Related PLLM assurance"'), paper.id);
     }
   }
   assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
-  assert.equal(citations.size, 6);
+  assert.equal(citations.size, 8);
+  assert.ok(citations.has('R08') && citations.has('R24'));
   const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
   assert.ok(roadmap);
   for (const method of planned) {
@@ -800,7 +804,8 @@ test('authored copy uses direct technical English and SDK status is derived from
   const planned = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/planned_methods.json'), 'utf8')).entries;
   const rows = [...status.matchAll(/^\| \[`(pllm(?:\.[^`]+)?)`\]\([^)]+\) \| (\d+) \| (\d+) \| (\d+) \| ([\d.]+%|—) \|$/gm)];
   assert.equal(rows.length, modules.length);
-  assert.equal(rows.reduce((sum, row) => sum + Number(row[3]), 0), planned.length);
+  assert.equal(rows.reduce((sum, row) => sum + Number(row[3]), 0),
+    planned.filter((method) => method.status !== 'implemented').length);
   for (const row of rows) {
     assert.equal(Number(row[2]) + Number(row[3]), Number(row[4]), row[1]);
   }

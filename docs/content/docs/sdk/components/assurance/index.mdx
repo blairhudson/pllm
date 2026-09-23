@@ -1,14 +1,14 @@
 ---
 title: "Assurance controls"
-description: "Paper-linked adversarial checks and threat-model comparisons for future PLLM experiments."
+description: "Paper-linked adversarial checks and threat-model comparisons, separate from inference."
 ---
 
 Assurance controls test whether a proposed protocol preserves its declared
 security boundary. They are distinct from online output verification: a
 regression exposing leaked inputs does not itself become an inference method.
-The following public [assurance API declarations](/sdk/reference/python/pllm/assurance/)
-are planned symbols; each raises `NotYetImplementedError` until an independently
-checked fixture and its evaluation contract exist.
+The [assurance API](/sdk/reference/python/pllm/assurance/) contains one
+implemented, bounded attack witness and several pending declarations. A check
+can be run independently; it is not an inference component or a privacy proof.
 
 ## Attack regressions
 
@@ -18,7 +18,10 @@ checked fixture and its evaluation contract exist.
   tracks the [Game of Arrows](/research/papers/game-of-arrows/) weight-obfuscation
   attack.
 - [`PublicSubspaceMaskRegression`](/sdk/reference/python/pllm/assurance/#publicsubspacemaskregression)
-  tracks the mask-leakage boundary in [Slalom at the Carnival](/research/papers/carnival/).
+  [constructs a concrete leaked-parity witness](/sdk/components/assurance/public-subspace-mask-regression/)
+  for public mask subspaces over PLLM's exact rings. The mask construction comes
+  from [Slalom at the Carnival](/research/papers/carnival/) and the published
+  attack is in [Maverick](/research/papers/maverick/), Appendix E.
 
 ## Reviews and comparisons
 
@@ -34,8 +37,19 @@ API: [pllm.assurance](/sdk/reference/python/pllm/assurance/#objects-and-signatur
 
 ## Python SDK example
 
-The declaration is discoverable while construction fails before an experiment
-could accidentally treat the attack fixture as an implemented check:
+Run the implemented regression against a public mask basis and a masked value:
+
+```python
+from pllm.assurance import PublicSubspaceMaskRegression
+
+control = PublicSubspaceMaskRegression(ring_bits=16)
+witness = control.evaluate(((1, 1, 0), (0, 1, 1)), (20, 28, 38))
+assert witness is not None
+assert witness.indices == (0, 1, 2)
+assert witness.leaked_parity == 0
+```
+
+The remaining controls are discoverable declarations; construction still fails:
 
 ```python
 from pllm.assurance import SubspaceLeakageRegression

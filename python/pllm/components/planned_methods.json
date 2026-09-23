@@ -76,7 +76,7 @@
     {"paper": "sok-transformers", "module": "pllm.assurance", "name": "PrivateTransformerTaxonomy", "kind": "survey", "gate": "Curate independently checked system and threat-model comparisons"},
     {"paper": "game-of-arrows", "module": "pllm.assurance", "name": "WeightObfuscationRegression", "kind": "security_control", "gate": "Reproduce the weight-obfuscation attack as a regression fixture"},
     {"paper": "ripple", "module": "pllm.nonlinear", "name": "WaveletHomomorphicLookup", "kind": "unverified", "gate": "Locate an independent primary publication instead of citing Curl"},
-    {"paper": "carnival", "module": "pllm.assurance", "name": "PublicSubspaceMaskRegression", "kind": "security_control", "gate": "Validate mask leakage under the published public-subspace attack"},
+    {"paper": "carnival", "module": "pllm.assurance", "name": "PublicSubspaceMaskRegression", "kind": "security_control", "status": "implemented", "gate": "The bounded mod-2 leakage witness is implemented; reviewing other mask distributions and Carnival variants remains separate"},
     {"paper": "private-gpt-no-autoregression", "module": "pllm.state", "name": "SpeculativePrivateDecode", "gate": "Define private draft acceptance and rollback state"},
     {"paper": "piranha", "module": "pllm.kernels", "name": "SecureGpuBackend", "gate": "Bind GPU kernels to one protected protocol and measure transfers"},
     {"paper": "cachemir", "module": "pllm.state", "name": "EncryptedKvState", "gate": "Implement encrypted KV append, read and capacity transitions"},

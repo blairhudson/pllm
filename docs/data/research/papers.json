@@ -307,12 +307,12 @@
         "Thomas Eisenbarth"
       ],
       "primary_url": "https://cic.iacr.org/p/1/3/40",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "source_access": "primary_full_text",
+      "verified_on": "2026-09-23",
       "track": "quarantined_comparison",
       "family": "preparation",
       "source_summary": "Carnival uses subset-sum-based masks to accelerate preprocessing for linear outsourcing.",
-      "proposed_implementation": "Implement the exact published parameterized variant in an isolated comparison backend. Reproduce the reported Maverick attack before eligibility review.",
+      "proposed_implementation": "A bounded public-subspace mod-2 leakage witness reproduces the algebraic boundary reported by Maverick Appendix E. The Carnival masking method remains unimplemented; any unaffected parameterized variant needs separate review and comparison.",
       "modules": [
         "prepare.subset_sum",
         "attack.carnival_projection"
@@ -322,9 +322,9 @@
       ],
       "benchmark_contract": "Preparation time, traffic, distribution tests and the specific published attack, with the attacked variant and assumptions identified.",
       "security_boundary": "Maverick reports a privacy flaw for a Carnival instantiation. This is an attack-reproduction target, not an approved default or a blanket rejection of every variant.",
-      "prior_evidence": "Prior discussion identified this attack; no claim that our fresh full-ring masks instantiate Carnival.",
+      "prior_evidence": "PLLM has a bounded ring-parity witness for publicly generated mask subspaces, not a reproduction of Carnival's complete protocol. PLLM's seeded private inventory does not expose a public mask basis to Inference.",
       "source_lock": {
-        "paper_sha256": null,
+        "paper_sha256": "96b0417a8973df01d485073f0b6f247ecec25eff06a9dd96df8f3dffc590e69f",
         "artifact_commit": null,
         "license_review": "required_before_vendoring"
       },
@@ -332,8 +332,8 @@
       "assurance_status": "not_reviewed",
       "eligible_default": false,
       "native_owner": "Rust",
-      "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "python_role": "configuration, bounded attack regression and result presentation; no inference method",
+      "fulltext_gate": false,
       "card": "notes/R08-carnival.md"
     },
     {
@@ -946,7 +946,7 @@
       "depends_on": [],
       "benchmark_contract": "Original Qwen3-4B end-to-end throughput and client microbenchmarks with the paper's server, client-thread, masking, verification, preprocessing, and simulated-network configurations reported separately.",
       "security_boundary": "The paper's input-privacy and verifiability claims depend on its exact transparent-preprocessing, LPN, and verification constructions. Similarity to PLLM's prepared matrix path does not transfer those claims to PLLM.",
-      "prior_evidence": "No PLLM Maverick reproduction or implementation has been executed.",
+      "prior_evidence": "No PLLM vMVMD/pvMVMD reproduction or implementation has been executed. A bounded Python assurance control reproduces Maverick Appendix E's public-mask-subspace parity witness, without enabling the Maverick delegation method.",
       "source_acquisition_status": "identified",
       "workflow_status": "not_executed",
       "implementation_status": "planned",
