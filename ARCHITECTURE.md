@@ -73,6 +73,11 @@ public denominator with exact ties-to-even rounding. An isolated one-use
 Compact circuit composes that primitive with private interval selection to
 compute a Q20 normalized Chebyshev coordinate, but does not yet evaluate
 coefficients or connect to a compiler plan.
+A further bounded half-gates reference combines private selection, Q20
+coordinate and public-coefficient Chebyshev arithmetic in one one-use circuit,
+returning an opaque encoded Q7 result. It matches the fitted numeric profile
+at checked intervals, but is an in-process research reference with no native
+compiler binding, transport, model-quality evidence or performance claim.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

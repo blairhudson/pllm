@@ -647,6 +647,48 @@ impl BooleanCircuitBuilder {
         self.conditional_negate(&rounded, sign)
     }
 
+    /// Signed secret times bounded public coefficient, divided by 2^shift
+    /// with ties-to-even rounding. The full product is kept before rounding;
+    /// caller-supplied widths must retain its rounded result including carry.
+    pub fn multiply_signed_by_public_round_ties_even(
+        &mut self,
+        input: &[BooleanWire],
+        factor: i64,
+        shift: usize,
+        output_width: usize,
+    ) -> Result<Vec<BooleanWire>, String> {
+        let factor_magnitude = factor.unsigned_abs();
+        let product_width = input
+            .len()
+            .checked_add(28)
+            .ok_or("Boolean product width overflow")?;
+        let minimum_output_width = product_width.saturating_sub(shift).saturating_add(1);
+        if !(2..=32).contains(&input.len())
+            || factor_magnitude > 1 << 27
+            || !(1..=30).contains(&shift)
+            || output_width < minimum_output_width
+            || output_width > 64
+        {
+            return Err("Boolean signed/public multiplication dimensions are invalid".into());
+        }
+        for &bit in input {
+            self.encoding(bit)?;
+        }
+        if factor == 0 {
+            return self.constant_word(0, output_width);
+        }
+        let sign = if factor < 0 {
+            self.not(input[input.len() - 1])?
+        } else {
+            input[input.len() - 1]
+        };
+        let magnitude = self.absolute_signed(input)?;
+        let product =
+            self.multiply_by_public(&magnitude, u128::from(factor_magnitude), product_width)?;
+        let rounded = self.round_shift_ties_even(&product, shift, output_width)?;
+        self.conditional_negate(&rounded, sign)
+    }
+
     pub fn select_word(
         &mut self,
         condition: BooleanWire,
@@ -1540,6 +1582,67 @@ mod tests {
         let other = foreign.input_word(8).unwrap();
         assert!(builder
             .divide_signed_by_public_ties_even(&other, 1)
+            .is_err());
+    }
+
+    #[test]
+    fn signed_public_multiplication_matches_independent_exact_rounding() {
+        let values = [-1_048_576_i32, -513, -3, -2, -1, 0, 1, 2, 3, 513, 1_048_576];
+        for factor in [-67_108_864_i64, -3, -1, 0, 1, 3, 67_108_864] {
+            for value in values {
+                let mut builder = BooleanCircuitBuilder::new().unwrap();
+                let input = builder.input_word(22).unwrap();
+                let result = builder
+                    .multiply_signed_by_public_round_ties_even(&input, factor, 20, 32)
+                    .unwrap();
+                let (client, program) = builder.finish(&result).unwrap();
+                let raw = value as u32;
+                let input_bits = (0..22)
+                    .map(|bit| raw & (1_u32 << bit) != 0)
+                    .collect::<Vec<_>>();
+                let (labels, decoder) = client.encode(&input_bits).unwrap();
+                let output = decoder
+                    .decode(program.evaluate(labels).unwrap())
+                    .unwrap()
+                    .iter()
+                    .enumerate()
+                    .fold(0u32, |word, (bit, flag)| word | (u32::from(*flag) << bit))
+                    as i32;
+                let product = i128::from(value) * i128::from(factor);
+                let magnitude = product.unsigned_abs();
+                let quotient = magnitude >> 20;
+                let remainder = magnitude & ((1 << 20) - 1);
+                let rounded = quotient
+                    + u128::from(
+                        remainder > 1 << 19 || (remainder == 1 << 19 && quotient & 1 != 0),
+                    );
+                let expected = if product < 0 {
+                    -(rounded as i128)
+                } else {
+                    rounded as i128
+                };
+                assert_eq!(i128::from(output), expected, "{value}*{factor}/2^20");
+            }
+        }
+    }
+
+    #[test]
+    fn signed_public_multiplication_rejects_foreign_wires_and_unsafe_widths() {
+        let mut builder = BooleanCircuitBuilder::new().unwrap();
+        let input = builder.input_word(22).unwrap();
+        assert!(builder
+            .multiply_signed_by_public_round_ties_even(&input, 1 << 28, 20, 32)
+            .is_err());
+        assert!(builder
+            .multiply_signed_by_public_round_ties_even(&input, 1, 0, 32)
+            .is_err());
+        assert!(builder
+            .multiply_signed_by_public_round_ties_even(&input, 1, 20, 30)
+            .is_err());
+        let mut foreign = BooleanCircuitBuilder::new().unwrap();
+        let other = foreign.input_word(22).unwrap();
+        assert!(builder
+            .multiply_signed_by_public_round_ties_even(&other, 0, 20, 32)
             .is_err());
     }
 

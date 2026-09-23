@@ -55,8 +55,13 @@ An isolated half-gates circuit also selects the piece and computes its
 normalized Q20 coordinate with exact ties-to-even division, without opening
 the coordinate to its evaluator. It does not evaluate the Chebyshev
 coefficients or run in the compiled decoder.
+Another in-process, one-use Rust reference combines that selection and
+coordinate with fixed-point Chebyshev coefficient arithmetic, producing an
+opaque Q7 output. It agrees with the fitted numeric profile on checked
+interval boundaries and midpoints; it has no Python execution API, transport,
+compiler binding, full-checkpoint quality measurement or speed claim.
 [The method roadmap](/sdk/components/research-method-roadmap/)
-tracks protected polynomial arithmetic, compiler binding, model-quality and
+tracks compiler binding, model-quality and
 matched-cost gates. Until those pass, use a supported
 [masked-linear experiment](/sdk/inference/masked-linear/) for private requests.
 

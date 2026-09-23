@@ -62,6 +62,15 @@ independent integer rounding oracle at boundaries, including negative ties.
 This still does not multiply protected coordinates by public coefficients,
 evaluate the polynomial, or produce a compiler-bound whole-model component.
 
+A further standalone one-use circuit now performs the full bounded Q20
+Chebyshev arithmetic—private selection and normalization, exact signed
+coefficient multiplication, square, ties-to-even rescaling and final Q7
+rounding—without opening intermediate values to the evaluator. Checked
+uniform and skewed public fits agree with the fitted numeric profile at
+endpoints, internal boundaries and midpoints. This is **in-process reference
+evidence**, not exhaustive protected-domain parity, a transportable method,
+checkpoint execution, a model-quality study, or a demonstrated speedup.
+
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
 The target capability slots, **not yet registered runtime components**, are:

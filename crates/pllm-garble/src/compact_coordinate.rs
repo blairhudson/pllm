@@ -36,7 +36,7 @@ pub struct CompactQ7CoordinateProgram {
     program: BooleanCircuitProgram,
 }
 
-fn piece_coordinate(
+pub(crate) fn piece_coordinate(
     builder: &mut BooleanCircuitBuilder,
     input: &[BooleanWire],
     lower: i16,

@@ -725,7 +725,7 @@
       "track": "numeric_transform",
       "family": "approximation",
       "source_summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations.",
-      "proposed_implementation": "A bounded Q7 numeric fit, protected selector, normalized Q20 coordinate and lookup-based output oracle exist as isolated references. The lookup is not Compact's polynomial-cost method: add protected coefficient arithmetic, bind it to a compiler plan, and measure full-checkpoint quality and matched execution cost before promotion.",
+      "proposed_implementation": "A bounded Q7 numeric fit, isolated one-use protected polynomial circuit, and lookup-based output oracle exist. Bind the polynomial to a compiler plan and transport boundary, then measure full-checkpoint quality and matched execution cost before promotion.",
       "modules": [
         "numeric.piecewise_fit",
         "compiler.approximation_profile"
