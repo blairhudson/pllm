@@ -252,8 +252,10 @@ do not change with the packaging layout.
 Fumadocs lives in `docs` and has its own npm manifest. It is deployed as a static
 site and is not bundled into the Python wheel. `paper/manuscript.md` and
 `paper/whitepaper.md` are the canonical Pandoc Markdown paper sources. Pandoc
-generates each website article and PDF, using Tectonic locally or pdfLaTeX in CI;
-only shared PDF layout details remain in TeX. Historical measurements are kept
+generates both website articles and the technical PDF, using Tectonic locally or
+pdfLaTeX in CI for the latter. The whitepaper PDF uses a dedicated Pandoc HTML/CSS
+print layout rendered by Chrome or Chromium; only technical-paper layout details
+remain in TeX. Historical measurements are kept
 under `docs/evidence` and are not rewritten as native Rust results.
 
 The loopback benchmark dashboard runs the real client, preparation, and inference

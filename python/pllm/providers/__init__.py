@@ -23,6 +23,7 @@ from pllm.configuration import (
     ComponentRef,
     ConfigurationError,
 )
+from pllm.components._planned import require_implemented_identity
 
 PROVIDER_ENTRY_POINT_GROUP = "pllm.providers.v1"
 PROVIDER_MANIFEST_SCHEMA = "pllm.provider_manifest.v1"
@@ -396,6 +397,8 @@ def _discover_one(entry_point: Any, *, allow_editable: bool, host_version: str) 
     if host_version not in value["host_versions"]:
         raise ProviderDiscoveryError(f"provider {value['provider']!r} does not support host version {host_version}")
     components = tuple(sorted((_component_descriptor(item) for item in value["components"]), key=lambda item: item.component))
+    for component in components:
+        require_implemented_identity(component.component)
     component_ids = [component.component for component in components]
     if len(component_ids) != len(set(component_ids)):
         raise ProviderDiscoveryError(f"provider {value['provider']!r} repeats a component identity")
@@ -539,6 +542,7 @@ def provider_component_classes(
     identities: set[str] = set()
     for component in classes:
         identity = component.describe().component
+        require_implemented_identity(identity)
         if identity in builtins or identity in identities:
             raise ProviderDiscoveryError(f"component identity collision {identity!r}")
         identities.add(identity)
@@ -551,6 +555,7 @@ def load_component_factory(
     *,
     approved_providers: Collection[str],
 ) -> Any:
+    require_implemented_identity(component)
     if not isinstance(provider, ProviderDescriptor) or not provider._verified:
         raise ProviderDiscoveryError("provider descriptor was not produced by verified discovery")
     if isinstance(approved_providers, (str, bytes)):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from zipfile import ZipFile
@@ -62,7 +63,9 @@ def test_whitepaper_archive_contains_its_figure_and_web_rebuild_inputs() -> None
             "paper/whitepaper.md",
             "paper/web.lua",
             "paper/web.template.md",
-            "paper/pdf.lua",
+            "paper/whitepaper_print.lua",
+            "paper/whitepaper_print.html",
+            "paper/whitepaper_print.css",
             "scripts/build_papers.py",
             "scripts/render_paper_figures.py",
             "docs/evidence/current-runtime-2026-09-11.json",
@@ -72,3 +75,20 @@ def test_whitepaper_archive_contains_its_figure_and_web_rebuild_inputs() -> None
         assert expected <= set(archive.namelist())
         for relative in expected:
             assert archive.read(relative) == (ROOT / relative).read_bytes()
+
+
+def test_whitepaper_pdf_keeps_each_intentional_spread_and_final_caveat() -> None:
+    assert (ROOT / "docs/public/downloads/whitepaper.pdf").read_bytes() == (
+        ROOT / "paper/whitepaper.pdf"
+    ).read_bytes()
+    text = subprocess.check_output(
+        ["pdftotext", "-layout", str(ROOT / "paper/whitepaper.pdf"), "-"], text=True
+    )
+    pages = [page for page in text.split("\f") if page.strip()]
+    assert len(pages) == 3
+    assert "Why PLLM" in pages[0] and "One private request" in pages[0]
+    assert "not collude" in pages[0]
+    assert "Research becomes a candidate capability" in pages[1]
+    assert "Economic value needs an honest denominator" in pages[1]
+    assert "Measured baseline; open comparison" in pages[2]
+    assert "technical paper" in pages[2]

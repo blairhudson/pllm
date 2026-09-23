@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 
 class CorrelationSource(ComponentRef, ABC):
@@ -40,3 +41,49 @@ class SeededExpansion(CorrelationSource):
 
 
 __all__ = ["CorrelationSource", "SeededExpansion"]
+
+
+@pending("pcf-secret-replication")
+class SecretReplicationPcf(PendingMethod):
+    pass
+
+
+@pending("finite-field-pcg")
+class FiniteFieldPcg(PendingMethod):
+    pass
+
+
+@pending("ring-pcg")
+class RingPcg(PendingMethod):
+    pass
+
+
+@pending("sparse-unit-correlations")
+class SparseUnitVectorCorrelation(PendingMethod):
+    pass
+
+
+@pending("mozzarella")
+class RingVectorOle(PendingMethod):
+    pass
+
+
+@pending("ring-lpn-pcg")
+class RingLpnPcg(PendingMethod):
+    pass
+
+
+@pending("silent-ot")
+class SilentOtExtension(PendingMethod):
+    pass
+
+
+@pending("compressing-vole")
+class CompressedVectorOle(PendingMethod):
+    pass
+
+
+__all__ += [
+    "SecretReplicationPcf", "FiniteFieldPcg", "RingPcg", "SparseUnitVectorCorrelation",
+    "RingVectorOle", "RingLpnPcg", "SilentOtExtension", "CompressedVectorOle",
+]

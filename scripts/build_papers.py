@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import signal
 import shutil
 import subprocess
+import tempfile
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,11 +57,37 @@ def pdf_engine(requested: str | None) -> str:
     raise SystemExit("Install Tectonic or pdfLaTeX to build the papers")
 
 
+def browser_engine(requested: str | None) -> str:
+    if requested:
+        if path := shutil.which(requested):
+            return path
+        raise SystemExit(f"Browser executable not found: {requested}")
+    for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+        if path := shutil.which(name):
+            return path
+    mac_chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    if mac_chrome.is_file():
+        return str(mac_chrome)
+    raise SystemExit("Install Chrome or Chromium to build the whitepaper PDF")
+
+
 def pandoc_args(spec: Paper) -> list[str]:
     args = [executable("pandoc"), str(PAPER_DIR / spec.source), "--from=markdown+raw_tex"]
     if spec.bibliography:
         args.append("--citeproc")
     return args
+
+
+def validate_pdf(output: Path, spec: Paper) -> None:
+    info = subprocess.check_output([executable("pdfinfo"), str(output)], text=True)
+    pages_match = re.search(r"^Pages:\s+(\d+)$", info, re.MULTILINE)
+    if pages_match is None:
+        raise SystemExit(f"Could not read page count from {output}")
+    pages = int(pages_match.group(1))
+    if pages > spec.max_pages:
+        raise SystemExit(f"{output} has {pages} pages; limit is {spec.max_pages}")
+    if not re.search(r"^Page size:\s+612 x 792 pts", info, re.MULTILINE):
+        raise SystemExit(f"{output} is not US Letter")
 
 
 def build_pdf(spec: Paper, engine: str) -> Path:
@@ -76,16 +105,80 @@ def build_pdf(spec: Paper, engine: str) -> Path:
         ],
         env=env,
     )
+    validate_pdf(output, spec)
+    return output
 
-    info = subprocess.check_output([executable("pdfinfo"), str(output)], text=True)
-    pages_match = re.search(r"^Pages:\s+(\d+)$", info, re.MULTILINE)
-    if pages_match is None:
-        raise SystemExit(f"Could not read page count from {output}")
-    pages = int(pages_match.group(1))
-    if pages > spec.max_pages:
-        raise SystemExit(f"{output} has {pages} pages; limit is {spec.max_pages}")
-    if not re.search(r"^Page size:\s+612 x 792 pts", info, re.MULTILINE):
-        raise SystemExit(f"{output} is not US Letter")
+
+def build_whitepaper_pdf(spec: Paper, browser: str) -> Path:
+    output = PAPER_DIR / spec.output
+    with tempfile.TemporaryDirectory(prefix="pllm-whitepaper-") as temporary:
+        temp = Path(temporary)
+        html = temp / "whitepaper.html"
+        pdf = temp / spec.output
+        run([
+            *pandoc_args(spec),
+            "--standalone",
+            "--to=html5",
+            "--embed-resources",
+            f"--resource-path={ROOT}",
+            f"--template={PAPER_DIR / 'whitepaper_print.html'}",
+            f"--css={PAPER_DIR / 'whitepaper_print.css'}",
+            f"--lua-filter={PAPER_DIR / 'whitepaper_print.lua'}",
+            f"--output={html}",
+        ])
+        command = [
+            browser,
+            "--headless=new",
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-extensions",
+            "--disable-sync",
+            "--no-default-browser-check",
+            "--no-first-run",
+            "--no-pdf-header-footer",
+            f"--user-data-dir={temp / 'profile'}",
+            f"--print-to-pdf={pdf}",
+            html.as_uri(),
+        ]
+        # Chrome on macOS sometimes writes a complete PDF but leaves background
+        # services running. Wait for the PDF trailer, then own process shutdown.
+        with (temp / "browser.log").open("wb") as log:
+            process = subprocess.Popen(
+                command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            try:
+                deadline = time.monotonic() + 40
+                while time.monotonic() < deadline:
+                    if pdf.is_file() and b"%%EOF" in pdf.read_bytes()[-1024:]:
+                        break
+                    if process.poll() is not None:
+                        break
+                    time.sleep(0.2)
+                else:
+                    raise SystemExit(
+                        "Browser timed out printing whitepaper:\n"
+                        + (temp / "browser.log").read_text(encoding="utf-8", errors="replace")[-1200:]
+                    )
+                if not pdf.is_file() or b"%%EOF" not in pdf.read_bytes()[-1024:]:
+                    raise SystemExit(
+                        "Browser did not print whitepaper:\n"
+                        + (temp / "browser.log").read_text(encoding="utf-8", errors="replace")[-1200:]
+                    )
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+        if preview := os.environ.get("PLLM_WHITEPAPER_PREVIEW"):
+            shutil.copyfile(pdf, preview)
+        validate_pdf(pdf, spec)
+        shutil.copyfile(pdf, output)
     return output
 
 
@@ -111,15 +204,16 @@ def source_archive(name: str, spec: Paper) -> Path:
         Path("LICENSE"),
         Path("scripts/build_papers.py"),
         Path("paper") / spec.source,
-        Path("paper/header.tex"),
-        Path("paper/pdf.lua"),
         Path("paper/web.lua"),
         Path("paper/web.template.md"),
     ]
     if spec.bibliography:
-        files.append(Path("paper/references.bib"))
+        files.extend((Path("paper/header.tex"), Path("paper/pdf.lua"), Path("paper/references.bib")))
     if name == "whitepaper":
         files.extend([
+            Path("paper/whitepaper_print.lua"),
+            Path("paper/whitepaper_print.html"),
+            Path("paper/whitepaper_print.css"),
             Path("scripts/render_paper_figures.py"),
             Path("docs/evidence/current-runtime-2026-09-11.json"),
         ])
@@ -139,17 +233,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", choices=["all", *PAPERS], nargs="?", default="all")
     parser.add_argument("--pdf-engine")
+    parser.add_argument("--browser", help="Chrome or Chromium binary for whitepaper print layout")
     parser.add_argument("--pdf-only", action="store_true")
     args = parser.parse_args()
 
     names = PAPERS if args.target == "all" else (args.target,)
-    engine = pdf_engine(args.pdf_engine)
+    engine = pdf_engine(args.pdf_engine) if "paper" in names else None
+    browser = browser_engine(args.browser) if "whitepaper" in names else None
     if not args.pdf_only:
         DOWNLOADS.mkdir(parents=True, exist_ok=True)
         WEB_DIR.mkdir(parents=True, exist_ok=True)
     for name in names:
         spec = PAPERS[name]
-        pdf = build_pdf(spec, engine)
+        if name == "whitepaper":
+            assert browser is not None
+            pdf = build_whitepaper_pdf(spec, browser)
+        else:
+            assert engine is not None
+            pdf = build_pdf(spec, engine)
         if not args.pdf_only:
             shutil.copyfile(pdf, DOWNLOADS / spec.output)
             if name == "whitepaper":

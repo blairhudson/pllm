@@ -5,6 +5,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 if TYPE_CHECKING:
     from pllm.runtime.linear_integrity import (
@@ -122,3 +123,29 @@ def __getattr__(name: str) -> Any:
     value = getattr(import_module("pllm.runtime.linear_integrity"), name)
     globals()[name] = value
     return value
+
+
+@pending("deepprove")
+class EndToEndInferenceProof(PendingMethod):
+    pass
+
+
+@pending("lamp")
+class ProximityMatrixVerify(PendingMethod):
+    pass
+
+
+@pending("laminate")
+class VerifiableFheProof(PendingMethod):
+    pass
+
+
+@pending("matrix-coding-verification")
+class CodingMatrixProductVerify(PendingMethod):
+    pass
+
+
+__all__ += [
+    "EndToEndInferenceProof", "ProximityMatrixVerify", "VerifiableFheProof",
+    "CodingMatrixProductVerify",
+]

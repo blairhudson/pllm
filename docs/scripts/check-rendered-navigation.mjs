@@ -66,4 +66,14 @@ for (const name of ['mechanics', 'research-loop', 'qwen-baseline']) {
 }
 assert.ok(whitepaper.includes('Economic value needs an honest denominator'));
 
-console.log(`Rendered Learn and SDK sections and ${expected.length} Research paper links are ordered correctly.`);
+const experimentGuide = rendered('sdk/experiments').page;
+const exampleCode = [...experimentGuide.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map((match) => match[1]);
+assert.ok(exampleCode.some((code) => /<a\b(?=[^>]*data-import-link)(?=[^>]*href="\/sdk\/reference\/python\/pllm\/)[^>]*>/.test(code)),
+  'Python imports must link to API entries inline inside rendered code');
+assert.doesNotMatch(experimentGuide, /data-import-links|Imports: <a/, 'Do not duplicate links under code examples');
+
+const apiReference = rendered('sdk/reference/python/pllm').page;
+assert.ok(apiReference.includes('href="/sdk/experiments/"'), 'Experiment API needs a user-guide backlink');
+assert.ok(apiReference.includes('href="/sdk/models/"'), 'Model API needs a user-guide backlink');
+
+console.log(`Rendered navigation, inline import links, API backlinks, and ${expected.length} Research paper links passed.`);

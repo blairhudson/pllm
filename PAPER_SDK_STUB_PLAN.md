@@ -1,33 +1,43 @@
 # Paper-to-SDK capability plan
 
-Status: proposal, 23 September 2026. The paper landing map is
+Status: staged paper-linked SDK symbols, 23 September 2026. The paper landing map is
 `pllm-paper-module-landing-map-2026-09-23.md`; the 84-entry source/fingerprint
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
 to populate it, never during documentation builds. The existing 24 locked
 research records in `docs/data/research/papers.json` are separate. A source in
-the chronology is **not** an implementation, an SDK class, or an eligible
-inference profile.
+the chronology is **not** an implementation or an eligible inference profile.
+The packaged `python/pllm/components/planned_methods.json` binds every paper to one
+importable Python symbol. The [generated research method roadmap](https://pllm.run/sdk/components/research-method-roadmap/)
+lists those symbols and their next gates.
 
-## The first stub is a proposal, not an executable component
+## Importable Python stubs are not executable components
 
-Add a validated, immutable `CapabilityProposal` record in `pllm.research` (and
-an SDK documentation view of it) before adding methods. Its fields should
-include source ID and PDF hash, source/review status, proposed capability
-family, semantic operator or lifecycle, input/output type and numeric domain,
-state/freshness policy, role/placement and trust assumptions, proposed
-dependencies, first bounded experiment, measured evidence IDs, and missing
-promotion gates. The existing 24 locked records keep their identities; the
-additional bibliographic entries must not be silently converted into reviewed
+Every pending class has a stable public import, paper URL, reserved identity,
+and missing first gate. Constructing it raises `NotYetImplementedError`, and
+its identity is rejected through component factory, serialized `Pipeline`,
+provider, and search entry points. Pending classes are absent from executable
+component discovery; the existing 24 locked records keep their identities.
+The additional bibliographic entries are not silently converted into reviewed
 source locks. Ripple remains an unverified *lead*, and MOAI/MoZZarella lack
-verified local full texts.
+verified local full texts. Later method proposals need explicit semantic
+operator, numeric domain, state/freshness, trust, dependencies, and evidence
+contracts before any pending class is promoted.
 
-Generate **proposed capability** callouts on paper pages and family-level SDK
-landings from these records. Label them `source only`, `bounded prototype`,
-`compiled`, `whole-model executable`, or `measured` with independently checked
-axes. Existing six scoped paper/component citation callouts keep their exact,
-reciprocal links. Do not expose proposal IDs in the runtime component registry,
-`Pipeline` selectors, `pllm.components` discovery, or runnable examples.
+Paper pages have **Planned Python API** callouts to the generated SDK reference;
+SDK reference entries link back to the exact Research paper, and the roadmap
+groups the missing first gates. The six scoped implemented-component citations
+keep their separate reciprocal links. Do not expose pending identities in the
+runtime component registry, `Pipeline` selectors, `pllm.components` discovery,
+or runnable examples.
+
+To promote a method, replace its placeholder with a real capability-family
+class, give it a reviewed executable component identity, and set that paper's
+manifest `status` to `implemented` with an accurate scope/evidence description
+in `gate`. The paper link persists, while the `pllm/planned/...` reservation
+remains unusable; generated status percentages and paper callouts follow the
+manifest and the exported class. A partial primitive alone does not pass this
+promotion gate.
 
 ## Land proposals in shared capability contracts
 
@@ -39,7 +49,7 @@ reciprocal links. Do not expose proposal IDs in the runtime component registry,
 | `pllm.protocols`, `pllm.roles`, and `pllm.schedulers` | Bifrost, NEXUS, SIGMA, FuseFSS, Euston, THOR, MOAI | Topology, online parties, privacy contract, required offline material, message and state lifecycle |
 | `pllm.verification` and Rust `pllm-assurance` | Maverick, EMVP, LAMP, DeepProve, matrix coding | Exact checked claim, soundness/attempt budget, challenge secrecy, trusted verifier and failure burn |
 | `pllm.state` and `pllm.passes` | MPCache, Cachemir, non-autoregressive GPT | Valid-prefix/state handoff, token feedback, protected selection and generation quality |
-| `pllm.research` and `pllm.verification` review records | Breaking Euston, Game of Arrows, Carnival, SoK, Ripple | Negative controls or provenance only; no executable candidate from a survey, attack, or unverified lead |
+| `pllm.assurance` controls and `pllm.nonlinear` source leads | Breaking Euston, Game of Arrows, Carnival, SoK, Ripple | Negative controls or source provenance only; no executable candidate from a survey, attack, or unverified lead |
 
 The homes are capability families, **not paper-named models, profiles, or
 compiler switches**. Different trust topologies cannot share an executable
@@ -86,8 +96,7 @@ loading is not yet available; a provider proposal must not imply it can run.
 4. Run **Breaking Euston** and **Game of Arrows** as attack-aware controls on
    proposed masks or model partitioning; they are not execution backends.
 
-These slices create tested reusable contracts, then option pages and examples
-under `/sdk/components/` and `/sdk/inference/` once executable. Source-only
-proposals can appear in the paper chronology and a clearly non-runnable SDK
-research index without pretending that all 84 papers provide an installed
-Python API.
+These slices create tested reusable contracts, then executable option pages and
+examples under `/sdk/components/` and `/sdk/inference/`. The 84 paper-linked
+symbols are already installed as importable, fail-closed declarations; their
+presence does not mean that any corresponding method can run or join search.

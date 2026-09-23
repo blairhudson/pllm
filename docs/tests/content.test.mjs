@@ -6,10 +6,35 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import navigation from '../navigation.json' with { type: 'json' };
 import { readPages, readSearchPages, readStandalonePages, validate, siteRoot, walk } from '../scripts/content.mjs';
+import { importReferences } from '../lib/import-links.mjs';
 
 const pages = readPages();
 const standalone = readStandalonePages();
 const byRoute = new Map(readSearchPages().map((page) => [page.canonicalUrl, page]));
+
+test('every Python example import links to an existing API or upstream reference', () => {
+  let linked = 0;
+  for (const page of readSearchPages()) {
+    for (const snippet of page.content.matchAll(/```(?:python\d*|py)(?:[^\n]*)\n([\s\S]*?)\n```/g)) {
+      for (const ref of importReferences(snippet[1])) {
+        linked++;
+        if (!ref.href.startsWith('/')) {
+          assert.match(ref.href, /^https:\/\//, `${page.canonicalUrl}: ${ref.label}`);
+          continue;
+        }
+        const [route, anchor] = ref.href.split('#');
+        const reference = byRoute.get(route)?.content;
+        assert.ok(reference, `${page.canonicalUrl}: ${ref.label} has no documentation at ${route}`);
+        if (anchor && route.startsWith('/sdk/reference/python/pllm/')) {
+          const name = ref.label.split('.').at(-1);
+          assert.ok(reference.includes(`### \`${name}\``),
+            `${page.canonicalUrl}: ${ref.label} has no API entry at ${ref.href}`);
+        }
+      }
+    }
+  }
+  assert.ok(linked > 200, `Only ${linked} imports checked`);
+});
 
 test('canonical domain hierarchy and research journeys exist', () => {
   for (const route of [
@@ -83,6 +108,8 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   const dataRoot = path.join(siteRoot, 'data/research');
   const registry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'papers.json'), 'utf8'));
   const library = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library.json'), 'utf8'));
+  const planned = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/planned_methods.json'), 'utf8')).entries;
+  const plannedByPaper = new Map(planned.map((method) => [method.paper, method]));
   const citationRegistry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'component-citations.json'), 'utf8'));
   const summaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'public-summaries.json'), 'utf8'));
   const newSummaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library-notes.json'), 'utf8'));
@@ -94,6 +121,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.doesNotMatch(index, /\bR\d{2}\b/);
   const papersById = new Map(registry.papers.map((paper) => [paper.id, paper]));
   const publicPapers = library.papers;
+  assert.deepEqual([...plannedByPaper.keys()].sort(), publicPapers.map((paper) => paper.id).sort());
   assert.equal(publicPapers.length, 84);
   assert.equal(publicPapers.filter((paper) => paper.status === 'available').length, 81);
   assert.deepEqual(publicPapers.filter((paper) => paper.status === 'pdf_unavailable').map((paper) => paper.id).sort(),
@@ -125,6 +153,19 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     assert.ok(index.includes(summary.overview), paper.id);
     const pagePath = path.join(siteRoot, `content/docs/research/papers/${slug(paper)}.mdx`);
     const page = fs.readFileSync(pagePath, 'utf8');
+    const method = plannedByPaper.get(paper.id);
+    assert.ok(method, paper.id);
+    const referenceRoute = `/sdk/reference/python/pllm/${method.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/`;
+    const classLink = `${referenceRoute}#${method.name.toLowerCase()}`;
+    assert.equal(method.slug || paper.id, slug(paper));
+    const implemented = method.status === 'implemented';
+    assert.ok(page.includes(implemented ? 'title="Related Python API"' : 'title="Planned Python API"'), paper.id);
+    assert.ok(page.includes(`[${method.module}.${method.name}](${classLink})`), paper.id);
+    const reference = byRoute.get(referenceRoute)?.content;
+    assert.ok(reference?.includes(`[paper and provenance](${route})`), `${classLink} must cite ${route}`);
+    assert.ok(reference?.includes(implemented ? 'Status: **Implemented Python API**' : 'Status: **Not yet implemented**'),
+      `${classLink} must report its current API status`);
+    assert.doesNotMatch(page, /verified research PDF|ignored local papers\/|PDF fingerprint/i, paper.id);
     assert.ok(page.includes(summary.overview), paper.id);
     assert.ok(page.includes(summary.reading), paper.id);
     assert.doesNotMatch(page, /Back to the chronological bibliography/);
@@ -168,6 +209,12 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   assert.ok(index.includes('Maverick: Private and Verifiable LLM Inference Made Practical'));
   assert.equal(citations.size, 6);
+  const roadmap = byRoute.get('/sdk/components/research-method-roadmap/')?.content;
+  assert.ok(roadmap);
+  for (const method of planned) {
+    assert.ok(roadmap.includes(`[\`${method.name}\`](/sdk/reference/python/pllm/${method.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/#${method.name.toLowerCase()})`), method.paper);
+    assert.ok(roadmap.includes(`| ${method.status === 'implemented' ? 'Implemented' : 'Pending'} | ${method.gate} |`), method.paper);
+  }
   for (const file of walk(path.join(siteRoot, 'content/docs/research')).filter((item) => item.endsWith('.mdx'))) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\bR\d{2}\b/, file);
   }
@@ -711,7 +758,7 @@ test('global navigation and local Fumadocs sidebars have separate ownership', ()
   assert.equal(owner(''), undefined);
 });
 
-test('mobile documentation navigation is bounded, scrollable, and state-aware', () => {
+test('documentation sections and pages share one bounded, state-aware sidebar scroll', () => {
   const header = fs.readFileSync(path.join(siteRoot, 'components/docs-mobile-header.tsx'), 'utf8');
   const css = fs.readFileSync(path.join(siteRoot, 'app/global.css'), 'utf8');
   const source = fs.readFileSync(path.join(siteRoot, 'lib/source.ts'), 'utf8');
@@ -720,7 +767,10 @@ test('mobile documentation navigation is bounded, scrollable, and state-aware', 
   assert.ok(header.includes("event.key === 'Escape'"));
   assert.match(css, /\.docs-area-switcher nav\s*{[^}]*display:\s*none/s);
   assert.match(css, /\.docs-area-switcher\[open\] nav\s*{\s*display:\s*grid/s);
-  assert.match(css, /\.docs-section-switcher-list\s*{[^}]*overflow-y:\s*auto/s);
+  const sectionList = css.match(/\.docs-section-switcher-list\s*{([^}]*)}/)?.[1] ?? '';
+  assert.doesNotMatch(sectionList, /max-height|overflow-y/);
+  assert.match(css, /\.docs-root :is\(#nd-sidebar, #nd-sidebar-mobile\)\s*{[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\[data-radix-scroll-area-viewport\]\s*{[^}]*height:\s*auto !important;[^}]*overflow:\s*visible !important/s);
   assert.match(css, /#nd-sidebar-mobile\[data-state='open'\]/);
   assert.ok(source.includes("return { name: area, children: researchFolders() }"));
 });
@@ -734,7 +784,7 @@ test('authored navigation is tracked and generated navigation is rebuilt', () =>
   assert.ok(fs.existsSync(path.join(siteRoot, 'content/docs/research/papers/meta.json')));
 });
 
-test('authored copy uses direct technical English and standard status labels', () => {
+test('authored copy uses direct technical English and SDK status is derived from public modules', () => {
   const generated = new Set([
     'content/docs/reference/components.mdx',
     'content/docs/reference/python/pllm/index.mdx',
@@ -744,9 +794,15 @@ test('authored copy uses direct technical English and standard status labels', (
     assert.doesNotMatch(page.content, /\b(?:inert|non-normative|organisations|behaviour|catalogue|authorise|optimise|centre)\b/i, page.canonicalUrl);
   }
   const status = byRoute.get('/sdk/reference/status/').content;
-  for (const label of ['Available', 'Experimental', 'Planned', 'Not supported', 'Not evaluated', 'Not applicable']) {
-    assert.ok(status.includes(label), label);
+  const modules = JSON.parse(fs.readFileSync(path.join(siteRoot, 'content/docs/reference/python/pllm/meta.json'), 'utf8')).pages;
+  const planned = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/planned_methods.json'), 'utf8')).entries;
+  const rows = [...status.matchAll(/^\| \[`(pllm(?:\.[^`]+)?)`\]\([^)]+\) \| (\d+) \| (\d+) \| (\d+) \| ([\d.]+%|—) \|$/gm)];
+  assert.equal(rows.length, modules.length);
+  assert.equal(rows.reduce((sum, row) => sum + Number(row[3]), 0), planned.length);
+  for (const row of rows) {
+    assert.equal(Number(row[2]) + Number(row[3]), Number(row[4]), row[1]);
   }
+  assert.match(status, /\*\*not\*\* a whole-decoder, security,/);
 });
 
 test('every docs source is publication-discovered without registry duplication', () => {
@@ -971,18 +1027,13 @@ test('claim language guard rejects unsupported absolutes', () => {
   }
 });
 
-test('public copy uses standard technical English and fixed support labels', () => {
+test('public copy uses standard technical English', () => {
   for (const page of readSearchPages()) {
     assert.doesNotMatch(
       page.content,
       /\b(?:inert|non-normative|organisations|behaviour|catalogue|authorise|optimise|centre)\b/i,
       page.canonicalUrl,
     );
-  }
-
-  const status = byRoute.get('/sdk/reference/status/').content;
-  for (const label of ['Available', 'Experimental', 'Planned', 'Not supported', 'Not evaluated', 'Not applicable']) {
-    assert.ok(status.includes(label), label);
   }
 });
 

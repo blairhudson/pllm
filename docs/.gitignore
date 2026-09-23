@@ -5,3 +5,4 @@ out/
 preview/
 *.tsbuildinfo
 .env.local
+content/docs/sdk/components/research-method-roadmap.mdx

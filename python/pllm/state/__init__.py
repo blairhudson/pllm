@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 
 class StateProtocol(ComponentRef, ABC):
@@ -39,4 +40,19 @@ class ClientLocalKv(StateProtocol):
         return cls.descriptor
 
 
-__all__ = ["ClientLocalKv", "StateProtocol"]
+@pending("cachemir")
+class EncryptedKvState(PendingMethod):
+    pass
+
+
+@pending("mpcache")
+class ProtectedKvSelection(PendingMethod):
+    pass
+
+
+@pending("private-gpt-no-autoregression")
+class SpeculativePrivateDecode(PendingMethod):
+    pass
+
+
+__all__ = ["ClientLocalKv", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode"]

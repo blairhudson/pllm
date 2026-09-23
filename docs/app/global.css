@@ -47,9 +47,24 @@
   grid-template-columns: minmax(0, 1fr);
   gap: .35rem;
   min-width: 0;
-  max-height: min(38dvh, 18rem);
+}
+
+/* The section list and page tree share one sidebar scroll surface. */
+.docs-root :is(#nd-sidebar, #nd-sidebar-mobile) {
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+}
+
+.docs-root :is(#nd-sidebar, #nd-sidebar-mobile) > div:nth-child(2) {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+}
+
+.docs-root :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] {
+  height: auto !important;
+  overflow: visible !important;
+  mask-image: none;
 }
 
 .docs-section-switcher-list a {
@@ -143,6 +158,17 @@
   color: var(--muted);
   font-size: .82rem;
   line-height: 1.45;
+}
+
+#nd-page pre code a[data-import-link] {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+#nd-page pre code a[data-import-link]:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 #nd-page .paper-timeline {

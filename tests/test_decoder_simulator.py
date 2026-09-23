@@ -220,7 +220,7 @@ def test_user_facing_source_has_no_retired_brand_or_proof_wording() -> None:
     root = Path(__file__).parents[1]
     files = [
         root / "README.md",
-        root / "docs" / "content" / "docs" / "assurance" / "index.mdx",
+        root / "docs" / "content" / "docs" / "sdk" / "components" / "assurance" / "index.mdx",
         root / "SECURITY.md",
     ]
     forbidden = ("zero" + " knowledge", "zk" + "ai", "pllm" + "-inference")

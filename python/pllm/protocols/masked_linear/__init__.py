@@ -1,6 +1,7 @@
 """Masked-linear protocol declarations."""
 
 from pllm.configuration import ComponentDescriptor
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 from pllm.protocols.base import ProtocolMethod
 
 
@@ -30,4 +31,9 @@ class MaskedLinear(ProtocolMethod):
         return cls.descriptor
 
 
-__all__ = ["MaskedLinear"]
+@pending("slalom")
+class SlalomTeeVerifiableInference(PendingMethod):
+    pass
+
+
+__all__ = ["MaskedLinear", "SlalomTeeVerifiableInference"]

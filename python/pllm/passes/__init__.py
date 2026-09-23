@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 
 def _integer(value: object, path: str) -> int:
@@ -133,3 +134,71 @@ class KvCacheEviction(PlanPass):
 
 
 __all__ = ["KvCacheEviction", "PlanPass"]
+
+
+@pending("atlas")
+class AtlasApproximationSearch(PendingMethod):
+    pass
+
+
+@pending("encformer")
+class EncformerRepresentationAssignment(PendingMethod):
+    pass
+
+
+@pending("fusefss")
+class FuseFssPredicateFusion(PendingMethod):
+    pass
+
+
+@pending("rosetta")
+class RosettaCkksTfheAssignment(PendingMethod):
+    pass
+
+
+@pending("breaking-layer-barrier")
+class BreakingLayerBarrierAssignment(PendingMethod):
+    pass
+
+
+@pending("cipherprune")
+class CipherPruneTokenPruning(PendingMethod):
+    pass
+
+
+@pending("redash")
+class RedashGarbledScaling(PendingMethod):
+    pass
+
+
+@pending("ditto")
+class DittoQuantizationAwareTransform(PendingMethod):
+    pass
+
+
+@pending("mpc-minimized")
+class MpcMinimizedClientServerPartition(PendingMethod):
+    pass
+
+
+@pending("mpcformer")
+class MpcFormerDistillation(PendingMethod):
+    pass
+
+
+@pending("hycc")
+class HyccHybridProtocolAssignment(PendingMethod):
+    pass
+
+
+@pending("fevbdd")
+class FevBddDecisionDiagramFactoring(PendingMethod):
+    pass
+
+
+__all__ += [
+    "AtlasApproximationSearch", "EncformerRepresentationAssignment", "FuseFssPredicateFusion",
+    "RosettaCkksTfheAssignment", "BreakingLayerBarrierAssignment", "CipherPruneTokenPruning",
+    "RedashGarbledScaling", "DittoQuantizationAwareTransform", "MpcMinimizedClientServerPartition",
+    "MpcFormerDistillation", "HyccHybridProtocolAssignment", "FevBddDecisionDiagramFactoring",
+]

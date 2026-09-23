@@ -338,6 +338,7 @@ def test_each_public_module_reference_explains_every_export() -> None:
         path = reference.PYTHON_REFERENCE_ROOT / f"{reference._module_slug(module)}.mdx"
         content = outputs[path]
         assert "## Research context" in content
+        assert "## User guide" in content
         assert "## Python SDK example" in content
         assert content.count("```python\n") == 1
         assert "## Objects and signatures" in content
@@ -356,6 +357,7 @@ def test_each_public_module_reference_explains_every_export() -> None:
             if export.rsplit(".", 1)[0] == module
         }
         assert exports
+        assert content.count("- User guide: ") == len(exports)
         for export in exports:
             assert f"`{export}`" in content
         example = PYTHON_FENCE.search(content)
@@ -367,6 +369,21 @@ def test_each_public_module_reference_explains_every_export() -> None:
                 rf"(?:from\s+{re.escape(module)}\s+import|import\s+{re.escape(module)}\b)",
                 example.group(1),
             ), module
+
+
+def test_reference_backlinks_point_to_the_relevant_user_guides() -> None:
+    outputs = reference.render_python_reference_outputs()
+    cases = (
+        ("pllm", "Model", "/sdk/models/"),
+        ("pllm", "Experiment", "/sdk/experiments/"),
+        ("pllm.client", "OpenAI", "/sdk/run/clients/"),
+        ("pllm.verification", "FreivaldsVerify", "/sdk/components/verification/freivalds/"),
+        ("pllm.assurance", "SubspaceLeakageRegression", "/sdk/components/research-method-roadmap/"),
+    )
+    for module, symbol, guide in cases:
+        page = outputs[reference.PYTHON_REFERENCE_ROOT / f"{reference._module_slug(module)}.mdx"]
+        section = page.split(f"### `{symbol}`\n\n", 1)[1].split("\n### `", 1)[0]
+        assert f"]({guide})" in section, (module, symbol, guide)
 
 
 def test_generator_prunes_orphaned_reference_pages() -> None:

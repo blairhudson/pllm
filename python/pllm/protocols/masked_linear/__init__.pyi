@@ -1,4 +1,5 @@
 from pllm.configuration import ComponentDescriptor
+from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.protocols.base import ProtocolMethod
 
 class MaskedLinear(ProtocolMethod):
@@ -6,3 +7,5 @@ class MaskedLinear(ProtocolMethod):
     def __init__(self) -> None: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
+
+class SlalomTeeVerifiableInference(PendingMethod): ...

@@ -7,6 +7,7 @@ import argparse
 import ast
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
+from functools import cache
 import importlib
 import inspect
 import json
@@ -20,8 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PYTHON_ROOT = ROOT / "python"
 if str(PYTHON_ROOT) not in sys.path:
     sys.path.insert(0, str(PYTHON_ROOT))
+from pllm.components._planned import PendingComponent, planned_components
+from pllm.configuration import ComponentRef
 
 CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
+SDK_GUIDES_ROOT = ROOT / "docs/content/docs/sdk"
 CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "benchmark", "dev")
 
 
@@ -221,6 +225,7 @@ PUBLIC_MODULES = (
     "pllm.native",
     "pllm.plan",
     "pllm.components",
+    "pllm.assurance",
     "pllm.correlation",
     "pllm.kernels",
     "pllm.metrics",
@@ -466,6 +471,21 @@ RESEARCH_EXAMPLE = _example(
     """
 )
 
+ASSURANCE_EXAMPLE = _example(
+    """
+    from pllm.assurance import SubspaceLeakageRegression
+    from pllm.components import NotYetImplementedError
+
+    try:
+        SubspaceLeakageRegression()
+    except NotYetImplementedError as error:
+        assert error.paper_id == "breaking-euston"
+        assert error.kind == "security_control"
+    else:
+        raise AssertionError("unimplemented assurance must fail closed")
+    """
+)
+
 PROTOCOL_EXAMPLE = _masked_experiment(
     import_line="import pllm.protocols as protocols",
     setup="method = protocols.MaskedLinear()",
@@ -695,6 +715,11 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "citations": (),
         "example": COMPONENT_EXAMPLE,
     },
+    "pllm.assurance": {
+        "purpose": "Assurance controls specify paper-derived attack regressions and threat-model comparisons separately from runnable inference components.",
+        "citations": ("[Breaking Euston](/research/papers/breaking-euston/)",),
+        "example": ASSURANCE_EXAMPLE,
+    },
     "pllm.correlation": {
         "purpose": "Correlation components describe offline cryptographic material sources independently from online protocol scheduling.",
         "citations": (DASH_CITATION, REDASH_CITATION),
@@ -850,6 +875,11 @@ INFERENCE_CLIENT_MODULES = {
 
 
 def _example_context(module: str) -> str:
+    if module == "pllm.assurance":
+        return (
+            "This example verifies that a planned assurance control cannot be run or selected. "
+            "The paper-linked class exposes its missing gate without asserting an attack reproduction."
+        )
     if module in RUNNABLE_EXPERIMENT_MODULES:
         return (
             "This example builds a complete supported `Experiment` with the module's object in "
@@ -1207,6 +1237,8 @@ def _function_declaration(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
 
 
 def _typed_details(exports: list[str], value: object) -> tuple[str, tuple[str, ...]]:
+    if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+        return "raises NotYetImplementedError on construction", ()
     node = None
     for export in exports:
         module_name, name = export.rsplit(".", 1)
@@ -1314,10 +1346,129 @@ def _module_slug(module: str) -> str:
     return module.removeprefix("pllm.").replace(".", "-").replace("_", "-")
 
 
+MODULE_USER_GUIDES = {
+    "pllm": "/sdk/",
+    "pllm.client": "/sdk/run/clients/",
+    "pllm.config": "/sdk/experiments/",
+    "pllm.models": "/sdk/models/",
+    "pllm.native": "/sdk/components/kernels/native-matrix/",
+    "pllm.plan": "/sdk/plans/",
+    "pllm.components": "/sdk/components/",
+    "pllm.assurance": "/sdk/components/assurance/",
+    "pllm.correlation": "/sdk/components/correlation/",
+    "pllm.kernels": "/sdk/components/kernels/",
+    "pllm.metrics": "/sdk/evaluate/metrics/",
+    "pllm.nonlinear": "/sdk/components/nonlinear/",
+    "pllm.official": "/sdk/run/clients/",
+    "pllm.passes": "/sdk/components/passes/",
+    "pllm.profiles": "/sdk/inference/",
+    "pllm.providers": "/sdk/extend/provider/",
+    "pllm.research": "/research/records/",
+    "pllm.protocols": "/sdk/components/protocols/",
+    "pllm.protocols.masked_linear": "/sdk/inference/prepared-protocol/",
+    "pllm.preparation": "/sdk/components/preparation/",
+    "pllm.roles": "/sdk/components/roles/",
+    "pllm.schedulers": "/sdk/components/schedulers/",
+    "pllm.search": "/sdk/evaluate/search/",
+    "pllm.server": "/sdk/run/gateway/",
+    "pllm.sources": "/sdk/models/sources/",
+    "pllm.state": "/sdk/components/state/",
+    "pllm.verification": "/sdk/components/verification/",
+    "pllm.pipeline": "/sdk/experiments/",
+    "pllm.deployment": "/sdk/run/deployment/",
+    "pllm.runtime": "/sdk/run/",
+    "pllm.compiler": "/sdk/plans/compile/",
+    "pllm.evidence": "/sdk/evaluate/evidence/",
+}
+
+OBJECT_USER_GUIDES = {
+    ("pllm", "Experiment"): "/sdk/experiments/",
+    ("pllm", "Model"): "/sdk/models/",
+    ("pllm", "Deployment"): "/sdk/run/deployment/",
+    ("pllm", "ExecutionBudget"): "/sdk/experiments/define/",
+    ("pllm", "lower_model"): "/sdk/plans/lower/",
+    ("pllm", "OpenAI"): "/sdk/run/clients/",
+}
+
+_REFERENCE_LINK = re.compile(
+    r"\[`(?P<name>[A-Za-z_]\w*(?:\(\))?)`\]"
+    r"\(/sdk/reference/python/pllm/(?:(?P<slug>[a-z0-9-]+)/)?#(?P<anchor>[a-z0-9-]+)\)"
+)
+
+
+@cache
+def _guide_backlinks() -> dict[tuple[str, str], tuple[tuple[str, str], ...]]:
+    """Reuse authored API links rather than maintaining a second option index."""
+    modules = {_module_slug(module): module for module in PUBLIC_MODULES}
+    links: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for source in sorted(SDK_GUIDES_ROOT.rglob("*.mdx")):
+        if source.name == "research-method-roadmap.mdx":
+            continue  # Generated after this reference; pending classes use its route below.
+        relative = source.relative_to(SDK_GUIDES_ROOT).with_suffix("")
+        parts = relative.parts[:-1] if relative.name == "index" else relative.parts
+        route = "/sdk/" + ("/".join(parts) + "/" if parts else "")
+        content = source.read_text(encoding="utf-8")
+        title_match = re.search(r"^title:\s*(.+)$", content, re.MULTILINE)
+        title = title_match.group(1).strip().strip('"\'') if title_match else route
+        for match in _REFERENCE_LINK.finditer(content):
+            module = modules.get(match.group("slug") or "index")
+            name = match.group("name").removesuffix("()")
+            if module and name.lower() == match.group("anchor"):
+                links.setdefault((module, name), set()).add((title, route))
+    return {key: tuple(sorted(value, key=lambda guide: (-guide[1].count("/"), guide[1])))
+            for key, value in links.items()}
+
+
+@cache
+def _guide_title(route: str) -> str:
+    if route == "/research/records/":
+        return "Research records"
+    relative = route.removeprefix("/sdk/").strip("/")
+    source = SDK_GUIDES_ROOT / relative
+    candidates = (source / "index.mdx", source.with_suffix(".mdx"))
+    for candidate in candidates:
+        if candidate.is_file():
+            title = re.search(r"^title:\s*(.+)$", candidate.read_text(encoding="utf-8"), re.MULTILINE)
+            if title:
+                return title.group(1).strip().strip('"\'')
+    raise ValueError(f"user guide has no authored source: {route}")
+
+
+def _object_user_guides(
+    module: str, name: str, value: object, exports: list[str]
+) -> tuple[tuple[str, str], ...]:
+    if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+        return (("Research method roadmap", "/sdk/components/research-method-roadmap/"),)
+    fallback = OBJECT_USER_GUIDES.get((module, name), MODULE_USER_GUIDES[module])
+    if module == "pllm" and (module, name) not in OBJECT_USER_GUIDES:
+        for export in exports:
+            alias = export.rsplit(".", 1)[0]
+            if alias != module and alias in MODULE_USER_GUIDES:
+                direct = _guide_backlinks().get((alias, name), ())
+                if direct:
+                    return direct[:3]
+                fallback = MODULE_USER_GUIDES[alias]
+                break
+    direct = _guide_backlinks().get((module, name), ())
+    if direct:
+        if not any(route == fallback or route.startswith(fallback) for _, route in direct):
+            return ((_guide_title(fallback), fallback), *direct[:2])
+        return direct[:3]
+    return ((_guide_title(fallback), fallback),)
+
+
+_PAPER_METHODS = {(plan.module, plan.name): plan for plan in planned_components()}
+
+
 def _object_summary(item: dict[str, Any], public_module: str) -> str:
     value = item["value"]
     canonical = str(item["canonical"])
     name = canonical.rsplit(".", 1)[-1]
+    if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+        return (
+            f"`{name}` reserves a paper-linked Python API but cannot be constructed or used "
+            f"in an experiment. Research source: [paper]({value.paper_route})."
+        )
     if not callable(value) and is_dataclass(value):
         public_values = ", ".join(
             f"`{field.name}={getattr(value, field.name)!r}`"
@@ -1447,6 +1598,8 @@ def render_python_module_reference(module: str) -> str:
     items = _module_items(module)
     if not items:
         raise ValueError(f"public module {module!r} has no documented exports")
+    if set(MODULE_USER_GUIDES) != set(PUBLIC_MODULES):
+        raise ValueError("public module user-guide mapping is incomplete")
     inference_command = ""
     if module in RUNNABLE_EXPERIMENT_MODULES:
         inference_command = (
@@ -1461,8 +1614,9 @@ def render_python_module_reference(module: str) -> str:
             f"Public objects, practical usage, and research context for {module}.",
         ),
         str(guide["purpose"]),
-        " Presence documents API availability, not complete model, security, or deployment "
-        "coverage; check [implementation status](/sdk/reference/status/) before relying on a path.\n\n",
+         " Presence documents API identity, not executable availability. Planned classes "
+         "raise `NotYetImplementedError`; check [implementation status](/sdk/reference/status/) "
+         "before relying on a path.\n\n",
     ]
     if module == "pllm":
         body.extend(("## Modules\n\n", "Every public module has its own executable reference page:\n\n"))
@@ -1477,6 +1631,8 @@ def render_python_module_reference(module: str) -> str:
         (
             "## Research context\n\n",
             _research_context(cast(tuple[str, ...], guide["citations"])),
+            "\n\n## User guide\n\n",
+            f"For practical usage, see [{_guide_title(MODULE_USER_GUIDES[module])}]({MODULE_USER_GUIDES[module]}).",
             "\n\n## Python SDK example\n\n",
             _example_context(module),
             "\n\n",
@@ -1506,6 +1662,29 @@ def render_python_module_reference(module: str) -> str:
                 + "\n",
             )
         )
+        value = item["value"]
+        body.append(
+            "- User guide: "
+            + ", ".join(
+                f"[{title}]({route})"
+                for title, route in _object_user_guides(module, display_name, value, item["exports"])
+            )
+            + "\n"
+        )
+        paper_method = _PAPER_METHODS.get((module, display_name))
+        if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+            body.extend((
+                f"- Status: **Not yet implemented** (`NotYetImplementedError` on construction).\n",
+                f"- Research source: [paper and provenance]({value.paper_route}).\n",
+                f"- Next gate: {value.next_gate}.\n",
+                "- Search: excluded until implementation, compatible runtime coverage, and evidence.\n",
+            ))
+        elif paper_method is not None:
+            body.extend((
+                "- Status: **Implemented Python API**; exact runtime and evidence scope depends on the registered component.\n",
+                f"- Research source: [paper and provenance]({paper_method.paper_route}).\n",
+                f"- Reviewed scope: {paper_method.gate}.\n",
+            ))
         if item["members"]:
             body.append(
                 "- Public members: "
@@ -1533,6 +1712,83 @@ def render_python_reference_outputs() -> dict[Path, str]:
         indent=2,
     ) + "\n"
     return outputs
+
+
+def render_python_status() -> str:
+    """Summarize the entire public Python namespace from its actual exports."""
+    exports = public_exports()
+    declared = len(exports)
+    pending_count = sum(
+        inspect.isclass(item["value"])
+        and issubclass(item["value"], PendingComponent)
+        and item["value"] is not PendingComponent
+        for item in exports
+    )
+    for plan in planned_components():
+        cls = getattr(importlib.import_module(plan.module), plan.name)
+        pending = inspect.isclass(cls) and issubclass(cls, PendingComponent)
+        if pending != (plan.status == "pending"):
+            raise ValueError(f"Component plan status does not match {plan.module}.{plan.name}")
+        if plan.status == "implemented" and plan.kind == "candidate" and not issubclass(cls, ComponentRef):
+            raise ValueError(f"Implemented candidate must have a component contract: {plan.name}")
+    if pending_count != sum(plan.status == "pending" for plan in planned_components()):
+        raise ValueError("Pending component count must match the public Python exports")
+
+    def percent(completed: int, total: int) -> str:
+        return f"{100 * completed / total:.1f}%" if total else "—"
+
+    body = [
+        _frontmatter(
+            "Python SDK implementation status",
+            "Generated per-module Python API and pending-component statistics.",
+        ),
+        f"The SDK exposes **{len(PUBLIC_MODULES)} public Python modules** and **{declared} module exports**. "
+        f"**{declared - pending_count}** exports are implemented Python symbols or public contracts; "
+        f"**{pending_count}** are paper-linked classes that raise `NotYetImplementedError`. "
+        f"That makes **{percent(declared - pending_count, declared)}** of the declared Python "
+        "API implemented at the API surface. An implemented export can still be an abstract "
+        "contract, a bounded primitive, "
+        "or a narrow experimental implementation: this is **not** a whole-decoder, security, "
+        "or benchmark-coverage percentage.\n\n",
+        "The [research method roadmap](/sdk/components/research-method-roadmap/) describes each "
+        "pending symbol's next gate. The [component catalog](/sdk/reference/components/) "
+        "separately lists executable component descriptors.\n\n",
+        "## Python SDK example\n\n",
+        "```python\n",
+        "from pllm.components import planned_component, planned_components\n\n",
+        "assert len(planned_components()) == 84\n",
+        'assert planned_component("ring-pcg").module == "pllm.correlation"\n',
+        "```\n\n",
+        "API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signatures)\n\n",
+        "## Public modules\n\n",
+        "| Python module | Implemented API symbols | Pending classes | Declared exports | Implemented API % |\n",
+        "| --- | ---: | ---: | ---: | ---: |\n",
+    ]
+    for module in PUBLIC_MODULES:
+        values = [item["value"] for item in exports if item["module"] == module]
+        pending = sum(
+            inspect.isclass(value)
+            and issubclass(value, PendingComponent)
+            and value is not PendingComponent
+            for value in values
+        )
+        ready = len(values) - pending
+        route = (
+            "/sdk/reference/python/pllm/"
+            if module == "pllm"
+            else f"/sdk/reference/python/pllm/{_module_slug(module)}/"
+        )
+        body.append(
+            f"| [`{module}`]({route}) | {ready} | {pending} | {len(values)} | "
+            f"{percent(ready, len(values))} |\n"
+        )
+    body.append(
+        "\nRows count each module's own `__all__` exports, so names re-exported across "
+        "modules can appear in multiple rows. The total above counts those public "
+        "module exports, not unique Python object identities. Pending classes are "
+        "never registered as executable components or admitted to experiment search.\n"
+    )
+    return "".join(body)
 
 
 def component_catalog() -> tuple[dict[str, Any], ...]:
@@ -1591,6 +1847,7 @@ def render_outputs() -> dict[Path, str]:
     outputs.update(
         {
             ROOT / "docs/content/docs/reference/components.mdx": render_component_catalog(),
+            ROOT / "docs/content/docs/reference/status.mdx": render_python_status(),
             ROOT / "docs/public/downloads/cli-help.txt": render_cli_help(),
         }
     )

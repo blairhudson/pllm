@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 
 class KernelBackend(ComponentRef, ABC):
@@ -46,4 +47,9 @@ class Cpu(KernelBackend):
         return cls.descriptor
 
 
-__all__ = ["Cpu", "KernelBackend"]
+@pending("piranha")
+class SecureGpuBackend(PendingMethod):
+    pass
+
+
+__all__ = ["Cpu", "KernelBackend", "SecureGpuBackend"]

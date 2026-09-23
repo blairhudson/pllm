@@ -447,7 +447,11 @@ class ComponentRef(_Configuration):
     params: Mapping[str, Any]
 
     def __init__(self, component: str, params: Mapping[str, Any] | None = None) -> None:
-        object.__setattr__(self, "component", _string(component, "component.component"))
+        component = _string(component, "component.component")
+        from pllm.components._planned import require_implemented_identity
+
+        require_implemented_identity(component)
+        object.__setattr__(self, "component", component)
         frozen = _freeze_json({} if params is None else params, "component.params")
         if "component" in frozen or "params" in frozen:
             raise ConfigurationError("component parameter names cannot be 'component' or 'params'")

@@ -1,0 +1,55 @@
+---
+title: "Assurance controls"
+description: "Paper-linked adversarial checks and threat-model comparisons for future PLLM experiments."
+---
+
+Assurance controls test whether a proposed protocol preserves its declared
+security boundary. They are distinct from online output verification: a
+regression exposing leaked inputs does not itself become an inference method.
+The following public [assurance API declarations](/sdk/reference/python/pllm/assurance/)
+are planned symbols; each raises `NotYetImplementedError` until an independently
+checked fixture and its evaluation contract exist.
+
+## Attack regressions
+
+- [`SubspaceLeakageRegression`](/sdk/reference/python/pllm/assurance/#subspaceleakageregression)
+  tracks the attack in [Breaking Euston](/research/papers/breaking-euston/).
+- [`WeightObfuscationRegression`](/sdk/reference/python/pllm/assurance/#weightobfuscationregression)
+  tracks the [Game of Arrows](/research/papers/game-of-arrows/) weight-obfuscation
+  attack.
+- [`PublicSubspaceMaskRegression`](/sdk/reference/python/pllm/assurance/#publicsubspacemaskregression)
+  tracks the mask-leakage boundary in [Slalom at the Carnival](/research/papers/carnival/).
+
+## Reviews and comparisons
+
+- [`EustonVariantReview`](/sdk/reference/python/pllm/assurance/#eustonvariantreview)
+  records the security review required before any repaired
+  [Euston](/research/papers/euston/) variant can be considered for execution.
+- [`PrivateTransformerTaxonomy`](/sdk/reference/python/pllm/assurance/#privatetransformertaxonomy)
+  would make the [private-transformer survey](/research/papers/sok-transformers/)
+  useful for comparing explicit threat models. A survey is provenance, not a
+  runnable protocol.
+
+API: [pllm.assurance](/sdk/reference/python/pllm/assurance/#objects-and-signatures)
+
+## Python SDK example
+
+The declaration is discoverable while construction fails before an experiment
+could accidentally treat the attack fixture as an implemented check:
+
+```python
+from pllm.assurance import SubspaceLeakageRegression
+from pllm.components import NotYetImplementedError
+
+try:
+    SubspaceLeakageRegression()
+except NotYetImplementedError as error:
+    assert error.paper_id == "breaking-euston"
+    assert error.paper_url.endswith("/research/papers/breaking-euston/")
+else:
+    raise AssertionError("unimplemented assurance control was constructed")
+```
+
+The [research method roadmap](/sdk/components/research-method-roadmap/)
+tracks the first missing gate for each declaration. Only completed checks with
+real adversarial fixtures and a compatible claim can enter experiment evidence.

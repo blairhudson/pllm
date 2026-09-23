@@ -3,106 +3,74 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
+from pllm.components._planned import (
+    NotYetImplementedError,
+    PlannedComponent,
+    planned_component,
+    planned_components,
+    require_implemented_identity,
+)
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
-from pllm.correlation import SeededExpansion as _SeededExpansion
-from pllm.kernels import Cpu as _Cpu
-from pllm.metrics import (
-    Accuracy as _Accuracy,
-    Communication as _Communication,
-    Cost as _Cost,
-    Energy as _Energy,
-    Latency as _Latency,
-    Memory as _Memory,
-    Perplexity as _Perplexity,
-    Throughput as _Throughput,
-)
-from pllm.nonlinear import (
-    ArithmeticGarblingSiluQ7 as _ArithmeticGarblingSiluQ7,
-    BinaryTableGatedMultiplyQ7 as _BinaryTableGatedMultiplyQ7,
-    R03CrtGatedMultiplyQ7 as _R03CrtGatedMultiplyQ7,
-)
-from pllm.passes import KvCacheEviction as _KvCacheEviction
-from pllm.preparation import (
-    BFVCorrelations as _BFVCorrelations,
-    HEAuthenticatedPreprocessing as _HEAuthenticatedPreprocessing,
-    ModelAwareCorrections as _ModelAwareCorrections,
-)
-from pllm.protocols import (
-    BlindedLinear as _BlindedLinear,
-    CleartextLinear as _CleartextLinear,
-    DirectFHE as _DirectFHE,
-    GuardedLinear as _GuardedLinear,
-    MaskedLinear as _MaskedLinear,
-    SecureLinear as _SecureLinear,
-)
-from pllm.roles import Inference as _Inference
-from pllm.schedulers import (
-    BoundedIndependentElementsProtectedTensorSchedule as _BoundedIndependentElementsProtectedTensorSchedule,
-    ChunkedIndependentLanesProtectedTensorSchedule as _ChunkedIndependentLanesProtectedTensorSchedule,
-    IndependentLanesProtectedTensorSchedule as _IndependentLanesProtectedTensorSchedule,
-    ScalarProtectedTensorSchedule as _ScalarProtectedTensorSchedule,
-)
-from pllm.state import ClientLocalKv as _ClientLocalKv
-from pllm.verification import FreivaldsVerify as _FreivaldsVerify
-from pllm.verification import LinearIntegrity as _LinearIntegrity
 
 if TYPE_CHECKING:
     from pllm.providers import ProviderDescriptor
 
-_BUILTIN_CLASSES: tuple[type[ComponentRef], ...] = (
-    _Accuracy,
-    _ArithmeticGarblingSiluQ7,
-    _BFVCorrelations,
-    _BinaryTableGatedMultiplyQ7,
-    _BlindedLinear,
-    _BoundedIndependentElementsProtectedTensorSchedule,
-    _ChunkedIndependentLanesProtectedTensorSchedule,
-    _CleartextLinear,
-    _ClientLocalKv,
-    _Communication,
-    _Cost,
-    _Cpu,
-    _DirectFHE,
-    _Energy,
-    _FreivaldsVerify,
-    _GuardedLinear,
-    _HEAuthenticatedPreprocessing,
-    _IndependentLanesProtectedTensorSchedule,
-    _Inference,
-    _KvCacheEviction,
-    _Latency,
-    _LinearIntegrity,
-    _MaskedLinear,
-    _Memory,
-    _ModelAwareCorrections,
-    _Perplexity,
-    _R03CrtGatedMultiplyQ7,
-    _ScalarProtectedTensorSchedule,
-    _SeededExpansion,
-    _SecureLinear,
-    _Throughput,
-)
-_BUILTINS = {component.describe().component: component for component in _BUILTIN_CLASSES}
-if len(_BUILTINS) != len(_BUILTIN_CLASSES):
-    raise RuntimeError("built-in component identities must be unique")
+@lru_cache(maxsize=1)
+def _builtin_classes() -> tuple[type[ComponentRef], ...]:
+    """Delay family imports so each family can expose planned component symbols."""
+    from pllm.correlation import SeededExpansion
+    from pllm.kernels import Cpu
+    from pllm.metrics import Accuracy, Communication, Cost, Energy, Latency, Memory, Perplexity, Throughput
+    from pllm.nonlinear import ArithmeticGarblingSiluQ7, BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
+    from pllm.passes import KvCacheEviction
+    from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
+    from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
+    from pllm.roles import Inference
+    from pllm.schedulers import (
+        BoundedIndependentElementsProtectedTensorSchedule,
+        ChunkedIndependentLanesProtectedTensorSchedule,
+        IndependentLanesProtectedTensorSchedule,
+        ScalarProtectedTensorSchedule,
+    )
+    from pllm.state import ClientLocalKv
+    from pllm.verification import FreivaldsVerify, LinearIntegrity
+
+    classes = (
+        Accuracy, ArithmeticGarblingSiluQ7, BFVCorrelations, BinaryTableGatedMultiplyQ7,
+        BlindedLinear, BoundedIndependentElementsProtectedTensorSchedule,
+        ChunkedIndependentLanesProtectedTensorSchedule, CleartextLinear, ClientLocalKv,
+        Communication, Cost, Cpu, DirectFHE, Energy, FreivaldsVerify, GuardedLinear,
+        HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
+        KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
+        Perplexity, R03CrtGatedMultiplyQ7, ScalarProtectedTensorSchedule, SeededExpansion,
+        SecureLinear, Throughput,
+    )
+    if len({component.describe().component for component in classes}) != len(classes):
+        raise RuntimeError("built-in component identities must be unique")
+    return classes
 
 __all__ = [
     "ComponentDescriptor",
     "ComponentRef",
+    "NotYetImplementedError",
+    "PlannedComponent",
     "create_component",
     "get",
     "get_component",
     "list_component_classes",
     "list_components",
+    "planned_component",
+    "planned_components",
 ]
 
 
 def list_component_classes(
     *, providers: Iterable[ProviderDescriptor] = ()
 ) -> tuple[type[ComponentRef], ...]:
-    classes = list(_BUILTIN_CLASSES)
+    classes = list(_builtin_classes())
     providers = tuple(providers)
     if providers:
         from pllm.providers import provider_component_classes
@@ -124,6 +92,7 @@ def list_components(
 def get(identity: str, *, providers: Iterable[ProviderDescriptor] = ()) -> type[ComponentRef]:
     if type(identity) is not str:
         raise TypeError("component identity must be a string")
+    require_implemented_identity(identity)
     providers = tuple(providers)
     by_identity = {
         component.describe().component: component

@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 
 class NonlinearProtocol(ComponentRef, ABC):
@@ -103,4 +104,40 @@ __all__ = [
     "BinaryTableGatedMultiplyQ7",
     "NonlinearProtocol",
     "R03CrtGatedMultiplyQ7",
+]
+
+
+@pending("shaft")
+class ShaftFixedPointTransformerOps(PendingMethod):
+    pass
+
+
+@pending("compact")
+class CompactPiecewiseActivation(PendingMethod):
+    pass
+
+
+@pending("curl")
+class CurlWaveletEncodedTable(PendingMethod):
+    pass
+
+
+@pending("llama-math")
+class LlamaSecureMath(PendingMethod):
+    pass
+
+
+@pending("sirnn")
+class SirnnSecureMath(PendingMethod):
+    pass
+
+
+@pending("ripple")
+class WaveletHomomorphicLookup(PendingMethod):
+    pass
+
+
+__all__ += [
+    "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable",
+    "LlamaSecureMath", "SirnnSecureMath", "WaveletHomomorphicLookup",
 ]
