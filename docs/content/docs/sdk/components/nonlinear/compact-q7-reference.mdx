@@ -1,0 +1,62 @@
+---
+title: "Compact Q7 numeric reference"
+description: "Fit a bounded public-calibration SiLU profile; private interval selection remains pending."
+---
+
+[`fit_compact_silu_q7_reference`](/sdk/reference/python/pllm/nonlinear/#fit_compact_silu_q7_reference)
+fits a small, immutable Chebyshev piecewise profile for the signed-Q7 SiLU
+domain `[-128, 128]`. It runs the fitting and reference arithmetic in Rust. The
+input is **public offline calibration only**: exactly 257 little-endian `u32`
+counts ordered from encoded `-128` to `128`. Do not calibrate on a private
+prompt or a live client activation. A zero-filled histogram is a uniform
+control, with one count assigned to every point for tail measurement.
+
+The search admits at most eight degree-two pieces, checks all 257 encoded
+inputs, binds the coefficients, intervals and calibration to a digest, and
+rejects values outside the locked Q7 domain. `weighted_error` gives the
+encoded-domain numerator and denominator; `maximum_encoded_error` counts
+encoded Q7 steps, not a floating-point percentage. The profile has no
+checkpoint, protected interval-selection, or whole-decoder execution claim.
+The offline fitter uses floating-point transcendental functions; its digest
+locks the *resulting* fixed-point coefficients, but cross-platform
+bit-identical fitting has not been established.
+
+## Python SDK example
+
+```python
+from struct import pack
+from pllm.nonlinear import fit_compact_silu_q7_reference
+
+# Public synthetic calibration centered near zero, not private request data.
+counts = [0] * 257
+for value in range(-16, 17):
+    counts[value + 128] = 10
+
+profile = fit_compact_silu_q7_reference(pack("<257I", *counts), max_pieces=4)
+assert profile.evaluate(0) == 0
+assert profile.pieces[0][0] == -128 and profile.pieces[-1][1] == 128
+assert profile.weighted_error[1] == 257 + 33 * 10
+assert len(profile.digest) == 32
+assert len(profile.source_sha256) == 64
+```
+
+API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signatures)
+
+The returned profile is **not** a `ComponentRef` and cannot be used in an
+`Experiment` or with `pllm gateway`. The planned
+[`CompactPiecewiseActivation`](/sdk/reference/python/pllm/nonlinear/#compactpiecewiseactivation)
+still raises `NotYetImplementedError`. [The method roadmap](/sdk/components/research-method-roadmap/)
+tracks protected comparison, fixed-point multiplication, model-quality and
+matched-cost gates. Until those pass, use a supported
+[masked-linear experiment](/sdk/inference/masked-linear/) for private requests.
+
+<Callout type="info" title="Research citation">
+
+[Compact](/research/papers/compact/) contributes the density-aware Chebyshev
+piecewise fitting idea. Its published performance results use different
+classification models, MPC platforms and batch-normalized inputs. Qwen's
+RMSNorm does not justify importing its Gaussian prior: this PLLM numeric
+reference instead requires an explicit public calibration histogram and makes
+no protected-execution or performance claim.
+
+</Callout>

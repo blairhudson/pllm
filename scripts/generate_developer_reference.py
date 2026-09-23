@@ -1392,7 +1392,7 @@ OBJECT_USER_GUIDES = {
 
 _REFERENCE_LINK = re.compile(
     r"\[`(?P<name>[A-Za-z_]\w*(?:\(\))?)`\]"
-    r"\(/sdk/reference/python/pllm/(?:(?P<slug>[a-z0-9-]+)/)?#(?P<anchor>[a-z0-9-]+)\)"
+    r"\(/sdk/reference/python/pllm/(?:(?P<slug>[a-z0-9-]+)/)?#(?P<anchor>[a-z0-9_-]+)\)"
 )
 
 
@@ -1438,7 +1438,8 @@ def _object_user_guides(
     module: str, name: str, value: object, exports: list[str]
 ) -> tuple[tuple[str, str], ...]:
     if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
-        return (("Research method roadmap", "/sdk/components/research-method-roadmap/"),)
+        direct = _guide_backlinks().get((module, name), ())
+        return (*direct[:2], ("Research method roadmap", "/sdk/components/research-method-roadmap/"))
     fallback = OBJECT_USER_GUIDES.get((module, name), MODULE_USER_GUIDES[module])
     if module == "pllm" and (module, name) not in OBJECT_USER_GUIDES:
         for export in exports:

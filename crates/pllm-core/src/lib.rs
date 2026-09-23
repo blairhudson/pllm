@@ -7,6 +7,7 @@ pub mod activation;
 mod attention;
 mod attention_values;
 pub mod codec;
+pub mod compact;
 pub mod fixed_point;
 mod freivalds;
 pub mod kernels;
@@ -31,6 +32,7 @@ pub use attention_values::{
     ATTENTION_VALUE_Q10_MAX_OUTPUT_ELEMENTS, ATTENTION_VALUE_Q10_MAX_ROUNDING_ERROR_RAW,
     ATTENTION_VALUE_Q30_Q10_PROFILE,
 };
+pub use compact::{fit_compact_silu_q7, CompactQ7Error, CompactQ7Piece, CompactQ7Profile};
 pub use fixed_point::{
     gated_multiply_q7, multiply_q7, multiply_q7_tensor, rescale_q14_to_q10,
     rescale_q14_to_q10_centered_u32, rescale_q14_to_q10_centered_u32_tensor, rescale_q14_to_q7,

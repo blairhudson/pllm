@@ -9,6 +9,10 @@ protects a bounded unary SiLU region. For gated multiplication,
 [`R03CrtGatedMultiplyQ7`](/sdk/components/nonlinear/r03-crt/) implement
 alternative bounded Q7 reference constructions. Method identity and
 [scheduler](/sdk/components/schedulers/) are distinct capability contracts.
+The [Compact Q7 numeric reference](/sdk/components/nonlinear/compact-q7-reference/)
+fits a density-aware public-calibration profile for bounded SiLU. Its fit is
+inspectable, but private interval selection and the planned Compact method
+remain unavailable.
 Native region tests do not establish protected execution for a full decoder;
 none of these selectors is a supported whole-model gateway profile. Consult
 [current support](/sdk/reference/status/) and

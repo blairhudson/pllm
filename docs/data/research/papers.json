@@ -720,12 +720,12 @@
         "Maliheh Shirvanian"
       ],
       "primary_url": "https://arxiv.org/abs/2309.04664",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "source_access": "primary_full_text_pdf",
+      "verified_on": "2026-09-23",
       "track": "numeric_transform",
       "family": "approximation",
       "source_summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations.",
-      "proposed_implementation": "Implement its fitting objective and published approximation profile separately from protected evaluation. Freeze coefficient/interval hashes and add explicit tail policy.",
+      "proposed_implementation": "A bounded Q7 numeric fit is available for public calibration. Add protected interval selection, bind its fixed-point coefficients to the compiler plan, and measure full-checkpoint quality and matched execution cost before promotion.",
       "modules": [
         "numeric.piecewise_fit",
         "compiler.approximation_profile"
@@ -735,7 +735,7 @@
       "security_boundary": "Calibration is not a proof of a worst-case range. Model quality and exact agreement with the chosen approximation are distinct.",
       "prior_evidence": "Our Fourier/boundary-matched fits are distinct hypotheses, not Compact reproductions.",
       "source_lock": {
-        "paper_sha256": null,
+        "paper_sha256": "e4497a81055e60cca1c462dac5ae04b4504c5f3fc76e392e170cc32bf8fee86c",
         "artifact_commit": null,
         "license_review": "required_before_vendoring"
       },
@@ -743,8 +743,8 @@
       "assurance_status": "not_reviewed",
       "eligible_default": false,
       "native_owner": "Rust",
-      "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "python_role": "public offline calibration input and bounded numeric reference inspection only",
+      "fulltext_gate": false,
       "card": "notes/R18-compact.md"
     },
     {

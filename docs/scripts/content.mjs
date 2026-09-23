@@ -157,7 +157,7 @@ export function navigationForRoute(route) {
 }
 
 function headingSlug(value) {
-  return value.toLowerCase().replace(/[`*_]/g, '').replace(/[^a-z0-9 -]/g, '')
+  return value.toLowerCase().replace(/[`*]/g, '').replace(/[^a-z0-9_ -]/g, '')
     .trim().replace(/\s+/g, '-').replace(/-+/g, '-');
 }
 

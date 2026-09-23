@@ -48,6 +48,10 @@ test('highlighted Python imports link in place without changing copyable code', 
     { label: 'pllm.Model', href: '/sdk/reference/python/pllm/#model' },
     { label: 'pllm.Experiment', href: '/sdk/reference/python/pllm/#experiment' },
   ]);
+  assert.deepEqual(importReferences('from pllm.nonlinear import fit_compact_silu_q7_reference'), [
+    { label: 'pllm.nonlinear', href: '/sdk/reference/python/pllm/nonlinear/' },
+    { label: 'pllm.nonlinear.fit_compact_silu_q7_reference', href: '/sdk/reference/python/pllm/nonlinear/#fit_compact_silu_q7_reference' },
+  ]);
 });
 
 test('undocumented imported modules fail at build time', () => {

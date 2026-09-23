@@ -221,6 +221,84 @@ fn exact_16(bytes: &[u8], kind: &str) -> PyResult<[u8; 16]> {
         .map_err(|_| invalid(format!("{kind} must contain exactly 16 bytes")))
 }
 
+#[pyclass(name = "CompactQ7Reference", frozen, module = "pllm._native")]
+struct CompactQ7Reference {
+    inner: pllm_core::CompactQ7Profile,
+}
+
+#[pymethods]
+impl CompactQ7Reference {
+    #[getter]
+    fn digest<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.digest())
+    }
+
+    #[getter]
+    fn calibration_digest<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.calibration_digest())
+    }
+
+    #[getter]
+    fn source_sha256(&self) -> &'static str {
+        self.inner.source_sha256()
+    }
+
+    #[getter]
+    fn requested_pieces(&self) -> u8 {
+        self.inner.requested_pieces()
+    }
+
+    #[getter]
+    fn pieces(&self) -> Vec<(i16, i16, [i64; 3])> {
+        self.inner
+            .pieces()
+            .iter()
+            .map(|piece| (piece.lower(), piece.upper(), piece.coefficients_q20()))
+            .collect()
+    }
+
+    #[getter]
+    fn weighted_error(&self) -> (u64, u64) {
+        self.inner.weighted_error()
+    }
+
+    #[getter]
+    fn maximum_encoded_error(&self) -> u16 {
+        self.inner.maximum_encoded_error()
+    }
+
+    fn evaluate(&self, value: i16) -> PyResult<i16> {
+        self.inner
+            .evaluate(value)
+            .map_err(|error| invalid(error.to_string()))
+    }
+}
+
+/// Numeric reference fitting only. The input is exactly 257 little-endian
+/// u32 public calibration counts; private activations must never be passed.
+#[pyfunction]
+fn fit_compact_silu_q7_reference(
+    py: Python<'_>,
+    public_calibration_counts: &Bound<'_, PyBytes>,
+    max_pieces: u8,
+) -> PyResult<CompactQ7Reference> {
+    let bytes = public_calibration_counts.as_bytes();
+    if bytes.len() != pllm_core::compact::COMPACT_Q7_POINTS * 4 {
+        return Err(invalid(
+            "Compact Q7 calibration must contain exactly 1028 bytes".into(),
+        ));
+    }
+    let mut counts = [0u32; pllm_core::compact::COMPACT_Q7_POINTS];
+    for (slot, raw) in counts.iter_mut().zip(bytes.chunks_exact(4)) {
+        *slot = u32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]);
+    }
+    Ok(CompactQ7Reference {
+        inner: py
+            .detach(move || pllm_core::fit_compact_silu_q7(&counts, max_pieces))
+            .map_err(|error| invalid(error.to_string()))?,
+    })
+}
+
 #[pyclass(name = "FreivaldsPolicy", frozen, module = "pllm._native")]
 struct PyFreivaldsPolicy {
     policy: pllm_core::FreivaldsPolicy,
@@ -1561,6 +1639,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Matrix>()?;
+    module.add_class::<CompactQ7Reference>()?;
     module.add_class::<CompiledPlan>()?;
     module.add_class::<ResolvedExperimentComposition>()?;
     module.add_class::<GarbledSiluQ7Material>()?;
@@ -1573,6 +1652,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<FreivaldsVerifierHandle>()?;
     module.add_class::<Executor>()?;
     module.add_function(wrap_pyfunction!(compile_plan, module)?)?;
+    module.add_function(wrap_pyfunction!(fit_compact_silu_q7_reference, module)?)?;
     module.add_function(wrap_pyfunction!(silu_q7_contract, module)?)?;
     module.add_function(wrap_pyfunction!(resolve_experiment, module)?)?;
     module.add_function(wrap_pyfunction!(assurance_report, module)?)?;

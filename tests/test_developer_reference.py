@@ -379,6 +379,8 @@ def test_reference_backlinks_point_to_the_relevant_user_guides() -> None:
         ("pllm.client", "OpenAI", "/sdk/run/clients/"),
         ("pllm.verification", "FreivaldsVerify", "/sdk/components/verification/freivalds/"),
         ("pllm.assurance", "SubspaceLeakageRegression", "/sdk/components/research-method-roadmap/"),
+        ("pllm.nonlinear", "fit_compact_silu_q7_reference", "/sdk/components/nonlinear/compact-q7-reference/"),
+        ("pllm.nonlinear", "CompactPiecewiseActivation", "/sdk/components/nonlinear/compact-q7-reference/"),
     )
     for module, symbol, guide in cases:
         page = outputs[reference.PYTHON_REFERENCE_ROOT / f"{reference._module_slug(module)}.mdx"]

@@ -29,6 +29,8 @@ test('every Python example import links to an existing API or upstream reference
           const name = ref.label.split('.').at(-1);
           assert.ok(reference.includes(`### \`${name}\``),
             `${page.canonicalUrl}: ${ref.label} has no API entry at ${ref.href}`);
+          assert.equal(anchor, name.toLowerCase(),
+            `${page.canonicalUrl}: ${ref.label} links the wrong API fragment`);
         }
       }
     }

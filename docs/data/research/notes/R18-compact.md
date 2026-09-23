@@ -1,24 +1,45 @@
 # R18 · Compact: Approximating Complex Activation Functions for Secure Computation
 
-**Priority 18 · 2024 · numeric_transform · source checked 2026-09-14**
+**Priority 18 · 2024 · numeric_transform · source checked 2026-09-23**
 
 Authors: Mazharul Islam, Sunpreet S. Arora, Rahul Chatterjee, Peter Rindal, Maliheh Shirvanian.  
 Primary source: https://arxiv.org/abs/2309.04664  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Source: complete 17-page arXiv v2 PDF, SHA-256 `e4497a81055e60cca1c462dac5ae04b4504c5f3fc76e392e170cc32bf8fee86c`. The paper is an implementation specification, not a runtime dependency.
 
 ## What the source contributes
 
 Compact builds input-density-aware piecewise polynomial approximations for complex activations.
+Its weighted mean objective is defined in Eq. (6); Chebyshev interpolation,
+piecewise boundaries, and an accuracy-constrained search are described in
+Sections 4.1–4.3. The reported 2–5× gain is for the paper's classification
+models and MPC libraries, not for PLLM or Qwen. Its normal input-density prior
+depends on batch normalization (Sections 4.2.1, 6); RMSNorm decoder activations
+do not satisfy that assumption without separate calibration evidence.
 
 This short source summary is separate from the proposed PLLM design below. The source has not been reproduced merely by adding this card.
 
 ## Native implementation scope
 
-Implement its fitting objective and published approximation profile separately from protected evaluation. Freeze coefficient/interval hashes and add explicit tail policy.
+Implement its fitting objective separately from protected evaluation. Lock coefficient/interval hashes and specify an explicit tail policy.
+
+The first independent PLLM slice fits the existing **signed Q7 SiLU** domain
+`[-128, 128]` using explicit *public, offline* calibration counts and
+Chebyshev quadratic pieces. It uses the weighted absolute-error objective from
+Eq. (6), plus a unit pseudocount for each encoded input so unobserved tails
+remain measured. Splits are deterministic and bounded; coefficients and
+intervals are fixed-point, digest-bound and checked on all 257 encoded inputs.
+The offline fitter uses floating-point transcendental functions. Its digest
+locks the resulting Q20 coefficients, but identical outputs across platforms
+are not yet established.
+Out-of-domain inputs fail instead of borrowing Compact's `[-5, 5]` tail policy.
+This is a scoped numeric adaptation, **not** the paper's approximate
+continuous-range optimizer, its 2PC/3PC evaluation, model accuracy, or a
+private interval selector. The `CompactPiecewiseActivation` SDK class remains
+pending while those composition and evidence gates remain open.
 
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
-Register the following independently versioned native components:
+The target capability slots, **not yet registered runtime components**, are:
 
 - `numeric.piecewise_fit`
 - `compiler.approximation_profile`
