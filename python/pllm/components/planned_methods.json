@@ -11,7 +11,7 @@
     {"paper": "compressing-vole", "module": "pllm.correlation", "name": "CompressedVectorOle", "gate": "Verify compressed VOLE output against a live consumer"},
     {"paper": "bifrost", "module": "pllm.deployment", "name": "TeeFheTopology", "gate": "Specify attestation, key provisioning and measured topology"},
     {"paper": "shaft", "module": "pllm.nonlinear", "name": "ShaftFixedPointTransformerOps", "gate": "Define numeric domains and protected operator fidelity"},
-    {"paper": "compact", "module": "pllm.nonlinear", "name": "CompactPiecewiseActivation", "gate": "Bind the bounded Q7 numeric fit to private interval selection, then measure checkpoint quality and matched cost"},
+    {"paper": "compact", "module": "pllm.nonlinear", "name": "CompactPiecewiseActivation", "gate": "Compose the isolated protected selector with polynomial arithmetic and a locked compiler plan, then measure checkpoint quality and matched cost"},
     {"paper": "curl", "module": "pllm.nonlinear", "name": "CurlWaveletEncodedTable", "gate": "Compose the wavelet representation with private lookup"},
     {"paper": "llama-math", "module": "pllm.nonlinear", "name": "LlamaSecureMath", "gate": "Specify signed numeric domains and exact primitive tests"},
     {"paper": "sirnn", "module": "pllm.nonlinear", "name": "SirnnSecureMath", "gate": "Test bounded fixed-point math in a protected sequence"},

@@ -725,7 +725,7 @@
       "track": "numeric_transform",
       "family": "approximation",
       "source_summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations.",
-      "proposed_implementation": "A bounded Q7 numeric fit is available for public calibration. Add protected interval selection, bind its fixed-point coefficients to the compiler plan, and measure full-checkpoint quality and matched execution cost before promotion.",
+      "proposed_implementation": "A bounded Q7 numeric fit and isolated one-use protected interval selector exist. Compose selection with protected polynomial arithmetic, bind coefficients to the compiler plan, and measure full-checkpoint quality and matched execution cost before promotion.",
       "modules": [
         "numeric.piecewise_fit",
         "compiler.approximation_profile"

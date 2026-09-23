@@ -58,7 +58,12 @@ The Compact-inspired Q7 SiLU numeric reference fits at most eight Chebyshev
 pieces from bounded public offline calibration counts, hashes the source,
 calibration and fitted coefficients, and evaluates through plaintext interval
 selection. Its planned nonlinear component remains non-executable until
-protected interval selection and whole-model evidence are available.
+protected selection and polynomial evaluation are composed with whole-model
+evidence.
+`pllm-garble` also has a bounded, one-use, in-process half-gates reference that
+selects a piece from a private Q7 input and returns opaque output labels to the
+evaluator. Only the trusted client decodes the index. This selection circuit is
+not yet composed with protected polynomial arithmetic or a compiler plan.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

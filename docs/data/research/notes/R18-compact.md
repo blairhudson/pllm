@@ -32,10 +32,18 @@ The offline fitter uses floating-point transcendental functions. Its digest
 locks the resulting Q20 coefficients, but identical outputs across platforms
 are not yet established.
 Out-of-domain inputs fail instead of borrowing Compact's `[-5, 5]` tail policy.
-This is a scoped numeric adaptation, **not** the paper's approximate
+This first slice is a scoped numeric adaptation, **not** the paper's approximate
 continuous-range optimizer, its 2PC/3PC evaluation, model accuracy, or a
 private interval selector. The `CompactPiecewiseActivation` SDK class remains
 pending while those composition and evidence gates remain open.
+
+A second independent Rust reference uses a one-use half-gates circuit to select
+one of the fitted intervals without opening the Q7 input or the selected index
+to its evaluator. It consumes circuit material on evaluation; output labels
+can be decoded only by the trusted client. This **isolated selection circuit**
+does not evaluate the polynomial, transport material between roles, bind a
+compiler plan, or establish a reviewed private method. The SDK stub remains
+pending, and the Python API exposes only the public numeric reference.
 
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 

@@ -45,8 +45,10 @@ API: [Nonlinear methods](/sdk/reference/python/pllm/nonlinear/#objects-and-signa
 The returned profile is **not** a `ComponentRef` and cannot be used in an
 `Experiment` or with `pllm gateway`. The planned
 [`CompactPiecewiseActivation`](/sdk/reference/python/pllm/nonlinear/#compactpiecewiseactivation)
-still raises `NotYetImplementedError`. [The method roadmap](/sdk/components/research-method-roadmap/)
-tracks protected comparison, fixed-point multiplication, model-quality and
+still raises `NotYetImplementedError`. A separate, in-process Rust half-gates
+reference can select an interval without opening it to the evaluator, but does
+not evaluate the polynomial or run in a compiled decoder. [The method roadmap](/sdk/components/research-method-roadmap/)
+tracks protected polynomial arithmetic, compiler binding, model-quality and
 matched-cost gates. Until those pass, use a supported
 [masked-linear experiment](/sdk/inference/masked-linear/) for private requests.
 
