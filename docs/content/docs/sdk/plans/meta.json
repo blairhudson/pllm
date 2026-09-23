@@ -1,5 +1,5 @@
 {
   "title": "Plans",
   "root": true,
-  "pages": ["index", "lower", "inspect", "transform", "coverage", "compile", "concepts"]
+  "pages": ["index", "lower", "inspect", "transform", "coverage", "compile", "concepts", "operators", "numerics", "representations", "conversions", "compiler-internals"]
 }

@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "Cite the included research draft when using PLLM or its experimental results."
-title: "PLLM: Private Inference and Reproducible LLM Experimentation"
+title: "PLLM: Private Multi-Party Inference and an Extensible Research Harness"
 type: software
 authors:
   - family-names: Hudson
@@ -18,7 +18,7 @@ keywords:
   - offline correlations
 preferred-citation:
   type: article
-  title: "PLLM: Prepared Private LLM Inference and Composition-Bound Experimentation"
+  title: "PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition"
   authors:
     - family-names: Hudson
       given-names: Blair

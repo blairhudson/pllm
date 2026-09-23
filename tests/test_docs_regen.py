@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,3 +54,21 @@ def test_check_mode_materializes_ignored_references_then_runs_freshness_gates(
         (["npm", "test"], module.DOCS, True),
         (["npm", "run", "check:content"], module.DOCS, True),
     ]
+
+
+def test_whitepaper_archive_contains_its_figure_and_web_rebuild_inputs() -> None:
+    with ZipFile(ROOT / "docs/public/downloads/whitepaper-source.zip") as archive:
+        expected = {
+            "paper/whitepaper.md",
+            "paper/web.lua",
+            "paper/web.template.md",
+            "paper/pdf.lua",
+            "scripts/build_papers.py",
+            "scripts/render_paper_figures.py",
+            "docs/evidence/current-runtime-2026-09-11.json",
+        }
+        for name in ("mechanics", "research-loop", "qwen-baseline"):
+            expected |= {f"paper/figures/{name}.{extension}" for extension in ("svg", "png")}
+        assert expected <= set(archive.namelist())
+        for relative in expected:
+            assert archive.read(relative) == (ROOT / relative).read_bytes()

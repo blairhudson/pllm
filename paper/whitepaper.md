@@ -1,83 +1,97 @@
 ---
-title: "PLLM: Private Inference and Reproducible LLM Experimentation"
+title: "PLLM: Private Multi-Party Inference and an Extensible Research Harness"
 author: |
   Blair Hudson  
   deployscience labs  
   [blair@deployscience.com](mailto:blair@deployscience.com)
 date: 23 September 2026
 web-date: September 2026
-edition: "07"
-description: A short introduction to PLLM's prepared private-inference runtime and composable research system.
+edition: "08"
+description: How PLLM separates private LLM inference roles and turns independently implemented research into measurable capabilities.
 pdf: whitepaper.pdf
-subject: private LLM inference, multi-party systems, reproducible experimentation
+subject: private LLM inference, multi-party systems, autonomous research harness, reproducible benchmarks
 documentclass: article
-classoption: [10pt, twocolumn]
+classoption: [10pt]
 papersize: letter
-geometry: [margin=0.72in, columnsep=0.28in]
+geometry: [margin=0.74in]
 colorlinks: false
 indent: false
 ---
 
 ## Why PLLM
 
-Ordinary hosted inference protects requests in transit but gives the endpoint
-access to plaintext prompts and model state. Private-inference research offers
-alternatives; its results often use different models, hardware, trust assumptions,
-and metrics. Those results cannot be ranked by latency alone.
+PLLM is a **high-performance private LLM multi-party inference runtime and
+extensible autonomous research harness**. A hosted endpoint ordinarily receives
+the request it computes on. PLLM instead aims to give separate operators useful
+work without granting either remote role the complete activation. Its second
+job: turn independently implemented research into compatible components that
+can be tested against a common baseline, rather than accepting paper-reported
+speedups across different models and trust assumptions.
 
-PLLM combines a working, **public-weight private-inference path** with an
-experimentation system for testing compatible research methods on comparable
-workloads. An ordinary provider endpoint does not become private by changing
-its URL: the computation and the trust boundary must change.
+High performance and economic value are **objectives**, not conclusions drawn
+from the present measurements. A faster isolated kernel is not automatically a
+faster, private, deployable model.
 
-## A private-inference path
+## One private request
 
-The current public-weight path separates three roles:
+Client keeps prompts, tokenization, nonlinear and attention state, masks,
+sampling, and output. Before generation, trusted Preparation expands fresh
+stage seeds and uploads one-use masked corrections for public model matrices.
+Online, Inference receives a ticket and masked activation; Client reconstructs
+the result. Preparation is idle online. A trusted local gateway can expose
+Responses and Chat Completions APIs without turning the remote roles into
+application endpoints.
 
-- **Client** keeps plaintext prompts, tokenization, nonlinear and attention
-  state, sampling, and output decoding. A local Responses and Chat Completions
-  gateway can serve existing applications inside this trusted boundary.
-- **Preparation** receives one-use seeds before generation, computes masked
-  corrections for the public model's matrix stages, and uploads them to Inference.
-- **Inference** holds the public transformer body and evaluates masked integer
-  activations online. It never receives the corresponding plaintext activation.
+![Offline and online work across Client, Preparation, and Inference. Each correction row is used once.](paper/figures/mechanics.png)
 
-Client reserves each prepared row once; unused rows burn on cancellation or
-failure. Preparation is idle during online generation. This is an explicit
-trust arrangement: Preparation must follow the protocol, erase masks, and **not
-collude** with Inference. A single operator controlling both services could
-reconstruct activations. Running all roles on one machine tests functionality,
-not independent deployment.
+Preparation must follow the protocol, erase masks, and **not collude** with
+Inference; co-located loopback processes do not demonstrate independent
+operators. The current public path keeps attention, nonlinear work, and token
+boundaries local to Client. It does not establish malicious-provider security.
 
-## A way to test research
+## Research becomes a candidate capability
 
-PLLM treats papers as provenance, not executable dependencies. Researchers can
-reimplement a method behind a typed component contract, combine compatible
-choices into an immutable experiment, search a bounded set of valid candidates,
-and benchmark them. Static provider manifests allow discovery without loading
-provider code; extension is subject to the same capability and execution checks.
+Researchers implement pinned papers through typed component or provider
+contracts. Immutable experiments bind model, composition, workload, and
+deployment. Bounded search proposes **valid** candidates; matched benchmarks
+retain failures. Functional, numeric, privacy, quality, and deployment checks
+gate adoption.
 
-Evidence is useful only within a matched cohort: model and checkpoint, workload,
-warm state, environment, numeric policy, trust assumptions, and metric meaning
-must be comparable. Search proposes candidates; it does not certify their
-privacy, output quality, or security. PLLM has **not** demonstrated a
-state-of-the-art cross-system comparison.
+![From paper provenance to a typed implementation, compatible plan, matched evidence, and an eligible deployment choice.](paper/figures/research-loop.png)
 
-## Status and next step
+This is an autonomous *experiment-enabling* loop, not automatic paper-to-code
+translation or security certification. Papers are provenance, never executable
+dependencies. Static provider manifests support discovery; native provider
+runtime loading is not yet exposed. New research can improve a deployed choice
+only when an implementation passes these gates and beats its **eligible matched
+baseline**. No winner crosses different model, privacy, numeric, hardware,
+input/output-token, output-cap, or warm-state cohorts by assumption.
 
-The prepared runtime, local gateway, one-use inventory, and loopback benchmark
-driver work today. A pinned Qwen2.5-0.5B checkpoint has historical three-role
-runtime measurements and a separate clear compiled-kernel functionality test.
-An optional trusted-client Freivalds check has matched **tiny-model** functional
-evidence, not a real-checkpoint performance study.
+## Economic value needs an honest denominator
 
-Semantic adapters cover additional model configurations, and experimental
-garbling and cache transforms exist as components. They are **not** a complete
-protected decoder or proof that those checkpoints run privately end to end.
-The nine retained Qwen2.5 measurements come from one Apple M5 CPU loopback host;
-they establish neither WAN/GPU performance nor production non-collusion.
+A candidate can be economically useful if it meets the same privacy, model
+quality, and service constraints while reducing *total cost per successful
+response*: client work, offline preparation (including burned rows), online
+compute, network, and operator resources. Latency, throughput, traffic, and
+quality have different units; a single speed number cannot replace this
+accounting. PLLM represents metrics and matched benchmark results, but **has
+not measured prices, energy, or an economic return**, nor established an
+external state-of-the-art winner. Economic value is a testable hypothesis.
 
-Next: complete protected whole-model execution, measure matched alternatives
-at realistic scale, and review security and quality claims against that evidence.
-The [technical paper](https://pllm.run/research/paper/) records the protocol,
-exact cohorts, implementation status, and limits.
+## Measured baseline; open comparison
+
+One retained study ran Client, Preparation, and Inference on an Apple M5
+loopback host using a pinned Qwen2.5-0.5B-Instruct checkpoint. Three warm
+measurements per *different* input/output-token cohort give these full-response
+medians (including offline preparation). They are historical measurements from
+an earlier runtime revision, not current compiler or WAN results.
+
+![Historical Qwen2.5-0.5B full-response medians for three distinct token cohorts; no cross-system performance claim.](paper/figures/qwen-baseline.png)
+
+An optional verification component has only a separate, one-run **tiny-model**
+functional comparison. Garbling and cache transformations remain bounded or
+uncomposed, not whole-model Qwen speedups. Next: complete protected decoder
+coverage, deploy genuinely independent roles, and compare alternatives on the
+same checkpoint and workload with measured cost and quality. The
+[technical paper](https://pllm.run/research/paper/) records precise methods,
+paper-derived components, evidence, and missing comparisons.

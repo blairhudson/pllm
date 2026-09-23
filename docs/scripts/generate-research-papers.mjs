@@ -53,6 +53,10 @@ function escapeFrontmatter(value) {
   return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
+function escapeHtmlText(value) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
 function renderRelatedComponents(citation) {
   if (citation === undefined) return '';
   const links = citation.components
@@ -102,7 +106,7 @@ function renderIndex(papers, summaries) {
 
 ${papers.filter((paper) => paper.year === year).map((paper) => `<div className="paper-timeline-entry">
 
-### [${paper.title}](/research/papers/${publicSlug(paper)}/)
+<div className="paper-timeline-title"><a href="/research/papers/${publicSlug(paper)}/">${escapeHtmlText(paper.title)}</a></div>
 
 **${paper.authors.join(', ')} · [Original publication](${paper.primary_url})**
 

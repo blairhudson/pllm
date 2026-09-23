@@ -28,7 +28,7 @@ export function navigationAreaForPathname(pathname: string): NavigationArea | un
 }
 
 export const footerNavigation: readonly NavigationItem[] = [
-  { href: '/sdk/research/assurance/', label: 'Privacy and assurance' },
+  { href: '/sdk/evaluate/assurance/', label: 'Privacy and assurance' },
   { href: '/sdk/reference/status/', label: 'Current support' },
   { href: '/research/', label: 'Research methods' },
 ];

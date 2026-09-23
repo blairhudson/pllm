@@ -119,13 +119,13 @@ const declaredPublicationRegistry = {
     page('pllm.docs.learn.concepts.numeric-semantics', 'content/docs/learn/concepts/numeric-semantics.mdx', '/learn/concepts/numeric-semantics', 'concept', { aliases: legacyAliases('/learn/numeric-semantics-and-model-quality') }),
     page('pllm.docs.learn.concepts.research-and-evidence', 'content/docs/learn/concepts/research-and-evidence.mdx', '/learn/concepts/research-and-evidence', 'concept', { aliases: legacyAliases('/learn/reading-research-and-evidence') }),
 
-    page('pllm.docs.sdk.configuration', 'content/docs/sdk/configuration.mdx', '/sdk/configuration', 'reference'),
+    page('pllm.docs.sdk', 'content/docs/sdk/index.mdx', '/sdk', 'guide', { aliases: legacyAliases('/sdk/build') }),
+    page('pllm.docs.sdk.experiments.files', 'content/docs/sdk/experiments/files.mdx', '/sdk/experiments/files', 'guide', { aliases: legacyAliases('/sdk/configuration') }),
     page('pllm.docs.sdk.plans', 'content/docs/sdk/plans/index.mdx', '/sdk/plans', 'reference'),
     page('pllm.docs.sdk.components', 'content/docs/sdk/components/index.mdx', '/sdk/components', 'component'),
 
-    page('pllm.docs.build', 'content/docs/build/index.mdx', '/build', 'guide'),
-    page('pllm.docs.build.models', 'content/docs/build/models.mdx', '/build/models', 'reference'),
-    page('pllm.docs.build.research', 'content/docs/build/research.mdx', '/build/research', 'research'),
+    page('pllm.docs.build.models', 'content/docs/sdk/extend/model-adapter.mdx', '/sdk/extend/model-adapter', 'guide', { aliases: legacyAliases('/sdk/build/model-adapters') }),
+    page('pllm.docs.build.research', 'content/docs/recipes/build-method.mdx', '/research/recipes/build-method', 'research'),
 
     page('pllm.docs.understand', 'content/docs/learn/concepts/architecture-and-trust.mdx', '/learn/concepts/architecture-and-trust', 'concept', { aliases: legacyAliases('/learn/understand') }),
     page('pllm.docs.understand.architecture', 'content/docs/learn/concepts/architecture.mdx', '/learn/concepts/architecture', 'concept', { aliases: legacyAliases('/learn/understand/architecture') }),
@@ -133,17 +133,18 @@ const declaredPublicationRegistry = {
     page('pllm.docs.understand.privacy-assurance', 'content/docs/learn/concepts/privacy-assurance.mdx', '/learn/concepts/privacy-assurance', 'assurance', { aliases: legacyAliases('/learn/understand/privacy-assurance') }),
     page('pllm.docs.understand.evidence-claims', 'content/docs/learn/concepts/evidence-claims.mdx', '/learn/concepts/evidence-claims', 'evidence', { aliases: legacyAliases('/learn/understand/evidence-claims') }),
 
-    page('pllm.docs.measure', 'content/docs/measure/index.mdx', '/measure', 'benchmark'),
-    page('pllm.docs.measure.benchmark', 'content/docs/measure/benchmark.mdx', '/measure/benchmark', 'benchmark'),
-    page('pllm.docs.measure.compare', 'content/docs/measure/compare.mdx', '/measure/compare', 'benchmark'),
-    page('pllm.docs.measure.reproduce', 'content/docs/measure/reproduce.mdx', '/measure/reproduce', 'research'),
-    page('pllm.docs.measure.assure', 'content/docs/measure/assure.mdx', '/measure/assure', 'assurance'),
+    page('pllm.docs.evaluate', 'content/docs/sdk/evaluate/index.mdx', '/sdk/evaluate', 'benchmark', { aliases: legacyAliases('/sdk/research') }),
+    page('pllm.docs.measure.benchmark', 'content/docs/sdk/evaluate/benchmark.mdx', '/sdk/evaluate/benchmark', 'benchmark', { aliases: legacyAliases('/sdk/research/benchmark') }),
+    page('pllm.docs.measure.compare', 'content/docs/recipes/compare.mdx', '/research/recipes/compare', 'benchmark'),
+    page('pllm.docs.measure.reproduce', 'content/docs/recipes/reproduce.mdx', '/research/recipes/reproduce', 'research'),
+    page('pllm.docs.measure.assure', 'content/docs/sdk/evaluate/assurance.mdx', '/sdk/evaluate/assurance', 'assurance', { aliases: [...legacyAliases('/sdk/research/assure'), ...legacyAliases('/sdk/research/assurance')] }),
 
     page('pllm.docs.operate', 'content/docs/sdk/run/index.mdx', '/sdk/run', 'deployment', { aliases: legacyAliases('/sdk/operate') }),
     page('pllm.docs.operate.client', 'content/docs/sdk/run/clients.mdx', '/sdk/run/clients', 'deployment', { aliases: legacyAliases('/sdk/operate/client') }),
     page('pllm.docs.operate.client-boundary', 'content/docs/sdk/run/embedded-gateway.mdx', '/sdk/run/embedded-gateway', 'deployment', { aliases: legacyAliases('/sdk/operate/client-boundary') }),
     page('pllm.docs.operate.provider-roles', 'content/docs/sdk/run/provider-roles.mdx', '/sdk/run/provider-roles', 'deployment', { aliases: legacyAliases('/sdk/operate/provider-roles') }),
     page('pllm.docs.operate.deployment', 'content/docs/sdk/run/lifecycle.mdx', '/sdk/run/lifecycle', 'deployment', { aliases: legacyAliases('/sdk/operate/deployment/status') }),
+    page('pllm.docs.sdk.run.deployment', 'content/docs/sdk/run/deployment.mdx', '/sdk/run/deployment', 'deployment', { aliases: legacyAliases('/sdk/operate/deployment') }),
 
     page('pllm.docs.reference', 'content/docs/reference/index.mdx', '/reference', 'reference'),
     page('pllm.docs.reference.cli', 'content/docs/reference/cli/index.mdx', '/reference/cli', 'reference', cliProvenance('content/docs/reference/cli/index.mdx')),
@@ -172,6 +173,30 @@ const declaredPublicationRegistry = {
   ],
 };
 
+const legacySdkRoutes = new Map([
+  ['sdk/inference/index', ['/sdk/pipeline']],
+  ['sdk/inference/prepared-protocol', ['/sdk/pipeline/protocols/masked-linear']],
+  ['sdk/components/protocols/index', ['/sdk/pipeline/protocols']],
+  ['sdk/components/preparation/index', ['/sdk/pipeline/preparation']],
+  ['sdk/components/kernels/native-matrix', ['/sdk/pipeline/kernels']],
+  ['sdk/plans/compiler-internals', ['/sdk/pipeline/compiler']],
+  ['sdk/run/runtime-internals', ['/sdk/pipeline/runtime']],
+  ['sdk/plans/operators/index', ['/sdk/build/operators']],
+  ['sdk/plans/numerics', ['/sdk/build/numerics']],
+  ['sdk/plans/representations', ['/sdk/build/representations']],
+  ['sdk/plans/conversions', ['/sdk/build/conversions']],
+  ['sdk/evaluate/evidence', ['/sdk/research/benchmarks']],
+  ['sdk/evaluate/search', ['/sdk/research/search', '/sdk/build/search']],
+  ['sdk/extend/index', ['/sdk/contribute']],
+  ['sdk/extend/component', ['/sdk/contribute/component-standard']],
+  ['sdk/extend/provider', ['/sdk/contribute/publish-a-provider']],
+  ['sdk/extend/add-a-category', ['/sdk/contribute/add-a-category']],
+  ['sdk/extend/native-plugin', ['/sdk/contribute/native-plugin-abi']],
+  ['sdk/extend/upstreaming', ['/sdk/contribute/upstreaming']],
+  ['sdk/extend/agents/index', ['/sdk/contribute/agents']],
+  ['sdk/extend/agents/implementation-map', ['/sdk/contribute/agents/implementation-map']],
+]);
+
 function discoveredDocsPages() {
   const declaredSources = new Set(declaredPublicationRegistry.pages.map((item) => item.sourcePath));
   return discoveredDocs.flatMap((relative) => {
@@ -189,12 +214,19 @@ function discoveredDocsPages() {
       : null;
     const oldFamilyRoute = familySlug === null ? null
       : `/sdk/build/models${familySlug === 'index' ? '' : `/${oldFamilySlugs[familySlug] ?? familySlug}`}`;
+    const oldGarblingRoute = relative.startsWith('sdk/components/nonlinear/garbling/')
+      ? `/sdk/pipeline/protocols/garbling${relative.endsWith('/index') ? '' : `/${relative.split('/').at(-1)}`}`
+      : null;
+    const oldOperatorRoute = relative.startsWith('sdk/plans/operators/') && !relative.endsWith('/index')
+      ? `/sdk/build/operators/${relative.split('/').at(-1)}` : null;
+    const previousRoutes = [oldFamilyRoute, oldGarblingRoute, oldOperatorRoute,
+      ...(legacySdkRoutes.get(relative) ?? [])].filter((route) => route !== null);
     return [page(
       ['pllm', 'docs', ...segments].join('.'),
       sourcePath,
       '/',
       'guide',
-      oldFamilyRoute === null ? {} : { aliases: legacyAliases(oldFamilyRoute) },
+      previousRoutes.length === 0 ? {} : { aliases: previousRoutes.flatMap(legacyAliases) },
     )];
   });
 }

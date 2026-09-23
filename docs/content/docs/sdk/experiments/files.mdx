@@ -9,7 +9,17 @@ the file executes its code. For data-only targets, export canonical JSON or YAML
 and omit that flag. Both the [gateway](/cli/reference/gateway/) and
 [benchmark driver](/cli/reference/benchmark/run/) load the same typed experiment;
 provider-role commands have their own target contracts. See
-[configuration commands](/cli/reference/config/) for document inspection.
+[configuration commands](/cli/reference/config/) for document inspection:
+[`config show`](/cli/reference/config/show/) and
+[`config export`](/cli/reference/config/export/).
+
+Inspect the checked-in declarative example with `pllm config show
+examples/pllm.yaml`; export its normalized, credential-free JSON with
+`pllm config export examples/pllm.yaml --output /tmp/pllm-normalized.json`.
+Neither command loads weights or prepares live material. A Python `Model.hf`
+may pin a checkpoint revision; `Model.tiny()` instead selects a deterministic
+transport fixture. Component preset names are convenience labels, not the
+canonical identity of an experiment.
 
 ## Python SDK example
 

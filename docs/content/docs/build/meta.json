@@ -1,5 +1,0 @@
-{
-  "title": "Models and compiler",
-  "root": true,
-  "pages": ["index", "models", "../operators", "../numerics", "../representations", "../conversions", "../compiler"]
-}

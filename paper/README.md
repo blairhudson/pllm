@@ -17,10 +17,17 @@ Pass `paper` or `whitepaper` to build one document. Pass `--pdf-only` when
 building an extracted source archive without the documentation tree.
 
 The build enforces US Letter output and page limits of four pages for the
-technical paper and two pages for the whitepaper. It writes PDFs under `paper/`,
+technical paper and three pages for the whitepaper. It writes PDFs under `paper/`,
 copies downloadable PDFs and deterministic source archives to
 `docs/public/downloads/`, and renders the website pages under
 `docs/content/research/`.
+
+The whitepaper includes three checked chart images under `paper/figures/`.
+Rebuild those images after changing their data or design with
+`uv run python scripts/render_paper_figures.py` (ImageMagick and fontconfig
+required). Regular Pandoc and website builds use checked PNGs and need neither
+graphics tool. Figure generator reads the pinned historical evidence JSON;
+the source archive includes generator, SVGs, PNGs, and that evidence record.
 
 ## Scope boundary
 

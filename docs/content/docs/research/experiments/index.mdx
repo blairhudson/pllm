@@ -50,7 +50,7 @@ coverage and a live checkpoint.
 
 ## Search valid candidates
 
-[`pllm.search`](/sdk/research/search/) generates validated, immutable candidates
+[`pllm.search`](/sdk/evaluate/search/) generates validated, immutable candidates
 over explicit parameter paths. Bounded grid and seeded random search check
 parameter names, candidate count, and combination validity before evaluation.
 Candidate generation alone performs no inference or benchmarking; a newly
@@ -60,12 +60,12 @@ instead of reporting only a winning configuration.
 
 ## Measure and compare matched evidence
 
-[Benchmarking](/sdk/research/benchmark/) has distinct scopes: native region
+[Benchmarking](/sdk/evaluate/benchmark/) has distinct scopes: native region
 measurements and a local real-role diagnostic via
 [`pllm benchmark run`](/cli/reference/benchmark/run/). The command can run
 multiple `--experiment` targets and rank latency only when model fingerprint,
 input and output token counts, output cap, and warm state match exactly. The
-[benchmark record API](/sdk/research/benchmarks/) ties samples to plan and
+[benchmark record API](/sdk/evaluate/evidence/) ties samples to plan and
 environment digests; [metrics](/research/records/metrics/) define what each
 number means. Search and benchmark results do not repair a mismatched privacy,
 numeric, quality, or deployment cohort.

@@ -1,0 +1,45 @@
+---
+title: "Operators"
+description: "Learn how PLLM describes model operations independently of model family and runtime."
+---
+
+Operators describe what a model does without depending on model-family names or a
+specific runtime. Plans represent projections, normalization, rotary embeddings,
+attention, recurrent and convolutional state, nonlinear activation, residuals,
+selection, and input or output boundaries with explicit shapes and settings.
+
+A compiler profile lists the operators it can execute. Unknown or unsupported
+operations appear in `PlanCoverage` and stop compilation. PLLM never silently
+replaces them with plaintext or approximate work. Research methods also use these
+shared operators instead of relying on model-specific weight names.
+
+An operator in a model plan shows only that PLLM can describe it. Read
+[numeric semantics and model quality](/learn/concepts/numeric-semantics/)
+for why operator coverage alone is insufficient. See
+[compiler](/sdk/plans/compiler-internals/) for execution support and
+[numerics](/sdk/plans/numerics/) for integer and approximation requirements.
+
+The bounded [SiLU activation](/sdk/plans/operators/activation-silu/) is the first
+operator with an experimental plan-bound protected executor. Other listed
+operators remain semantic records until their compiler and runtime coverage is
+implemented.
+
+## Python SDK example
+
+```python
+from pathlib import Path
+
+from pllm import lower_model
+
+fixture = Path("crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json")
+plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+operators = {operation["operator"] for operation in plan.prefill["operations"]}
+assert {"linear", "rotary_embedding", "silu", "softmax"} <= operators
+assert plan.coverage().complete is False
+```
+
+API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Run this example from a PLLM source checkout; package installations do not include
+the checked-in fixture. This inspects semantic operators; it does not establish
+execution coverage.

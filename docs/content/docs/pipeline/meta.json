@@ -1,5 +1,0 @@
-{
-  "title": "Capability modules",
-  "root": true,
-  "pages": ["index", "../runtime", "../protocols", "../preparation", "../kernels"]
-}

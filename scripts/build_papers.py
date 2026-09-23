@@ -28,8 +28,10 @@ class Paper:
 
 PAPERS = {
     "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 4, True),
-    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2),
+    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 3),
 }
+
+WHITEPAPER_FIGURES = ("mechanics", "research-loop", "qwen-baseline")
 
 
 def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
@@ -111,9 +113,19 @@ def source_archive(name: str, spec: Paper) -> Path:
         Path("paper") / spec.source,
         Path("paper/header.tex"),
         Path("paper/pdf.lua"),
+        Path("paper/web.lua"),
+        Path("paper/web.template.md"),
     ]
     if spec.bibliography:
         files.append(Path("paper/references.bib"))
+    if name == "whitepaper":
+        files.extend([
+            Path("scripts/render_paper_figures.py"),
+            Path("docs/evidence/current-runtime-2026-09-11.json"),
+        ])
+        for figure in WHITEPAPER_FIGURES:
+            files.extend([Path("paper/figures") / f"{figure}.{extension}"
+                          for extension in ("svg", "png")])
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for relative in sorted(files):
             info = zipfile.ZipInfo(relative.as_posix(), (1980, 1, 1, 0, 0, 0))
@@ -140,6 +152,12 @@ def main() -> None:
         pdf = build_pdf(spec, engine)
         if not args.pdf_only:
             shutil.copyfile(pdf, DOWNLOADS / spec.output)
+            if name == "whitepaper":
+                figure_downloads = DOWNLOADS / "figures"
+                figure_downloads.mkdir(parents=True, exist_ok=True)
+                for figure in WHITEPAPER_FIGURES:
+                    shutil.copyfile(PAPER_DIR / "figures" / f"{figure}.png",
+                                    figure_downloads / f"{figure}.png")
             build_web(spec)
             source_archive(name, spec)
         print(f"Built {name} from paper/{spec.source}")

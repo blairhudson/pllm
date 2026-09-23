@@ -6,8 +6,8 @@
       "components": [
         {
           "title": "Arithmetic garbling",
-          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
-          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+          "href": "/sdk/components/nonlinear/garbling/arithmetic/",
+          "source": "content/docs/sdk/components/nonlinear/garbling/arithmetic.mdx"
         },
         {
           "title": "Arithmetic-garbled Q7 SiLU",
@@ -22,13 +22,13 @@
       "components": [
         {
           "title": "Numeric semantics",
-          "href": "/sdk/build/numerics/",
-          "source": "content/docs/numerics/index.mdx"
+          "href": "/sdk/plans/numerics/",
+          "source": "content/docs/sdk/plans/numerics.mdx"
         },
         {
           "title": "Arithmetic garbling",
-          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
-          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+          "href": "/sdk/components/nonlinear/garbling/arithmetic/",
+          "source": "content/docs/sdk/components/nonlinear/garbling/arithmetic.mdx"
         }
       ]
     },
@@ -38,8 +38,8 @@
       "components": [
         {
           "title": "Arithmetic garbling",
-          "href": "/sdk/pipeline/protocols/garbling/arithmetic/",
-          "source": "content/docs/protocols/garbling/arithmetic.mdx"
+          "href": "/sdk/components/nonlinear/garbling/arithmetic/",
+          "source": "content/docs/sdk/components/nonlinear/garbling/arithmetic.mdx"
         },
         {
           "title": "CRT-garbled Q7 multiplication",
@@ -54,8 +54,8 @@
       "components": [
         {
           "title": "Half-gates",
-          "href": "/sdk/pipeline/protocols/garbling/half-gates/",
-          "source": "content/docs/protocols/garbling/half-gates.mdx"
+          "href": "/sdk/components/nonlinear/garbling/half-gates/",
+          "source": "content/docs/sdk/components/nonlinear/garbling/half-gates.mdx"
         }
       ]
     },

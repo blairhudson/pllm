@@ -1,0 +1,34 @@
+---
+title: "Assure"
+description: "Run a defined assurance check and report exactly what its result supports."
+---
+
+`pllm.assure()` runs implemented native fixtures, including negative controls, and returns `EvidenceReport`. Report production is not universal privacy proof. Each finding retains model or observed view, assumptions, resource bound, implementation/refinement boundary, and exact outcome.
+
+An assurance record also identifies the exact plan, component versions, threat
+model, protected values, visible information, corruption and collusion
+assumptions, numeric policy, environment, procedure, and limitations. Reference
+tests, formal analysis, cryptographic review, transport hardening, deployment
+inspection, and leakage tests answer different questions. Missing assurance
+is neither a failed test nor a pass. Evidence for protocol-conforming
+participants does not establish security against malicious participants.
+
+CLI `assure run` is unavailable because scoped assurance command/output contract is incomplete. Python support applies only to fixtures present in current native package. See [privacy semantics](/learn/concepts/privacy-assurance/).
+
+## Python SDK example
+
+```python
+import pllm
+
+report = pllm.assure()
+document = report.to_dict()
+findings = {finding["id"]: finding for finding in document["findings"]}
+assert findings["missing_truncation_carry"]["outcome"] == "refuted_in_scope"
+assert document["ideal_uniform_control"]["outcome"] == "proved_in_model"
+assert findings["affine_label_reuse"]["outcome"] == "refuted_in_scope"
+assert "production runtime not attacked" in document["limitations"]
+```
+
+API: [`pllm.assure`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Result covers bundled fixtures only, not a production runtime attack.

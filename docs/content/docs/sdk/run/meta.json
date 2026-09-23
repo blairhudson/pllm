@@ -1,5 +1,5 @@
 {
   "title": "Run PLLM",
   "root": true,
-  "pages": ["index", "clients", "local", "gateway", "embedded-gateway", "provider-roles", "plan-bound-runtime", "lifecycle"]
+  "pages": ["index", "clients", "local", "gateway", "embedded-gateway", "provider-roles", "plan-bound-runtime", "lifecycle", "deployment", "runtime-internals"]
 }

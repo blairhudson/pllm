@@ -18,19 +18,64 @@ test('canonical domain hierarchy and research journeys exist', () => {
     '/learn/integrations/openai-python/', '/learn/integrations/openai-agents/', '/learn/integrations/codex/', '/learn/integrations/opencode/',
     '/cli/', '/cli/reference/', '/cli/reference/config/', '/cli/reference/config/show/',
     '/cli/reference/benchmark/run/', '/cli/reference/components/list/',
-    '/sdk/', '/sdk/configuration/', '/sdk/plans/', '/sdk/components/',
-    '/sdk/build/', '/sdk/build/model-adapters/', '/sdk/models/families/', '/sdk/models/families/qwen2/', '/sdk/models/families/qwen3-5/', '/sdk/build/operators/', '/sdk/build/numerics/', '/sdk/build/representations/', '/sdk/build/conversions/', '/sdk/build/search/',
-    '/sdk/pipeline/', '/sdk/pipeline/protocols/', '/sdk/pipeline/protocols/masked-linear/', '/sdk/pipeline/protocols/garbling/', '/sdk/pipeline/protocols/garbling/arithmetic/',
-    '/sdk/pipeline/protocols/garbling/half-gates/', '/sdk/pipeline/protocols/garbling/lookup-tables/', '/sdk/pipeline/protocols/garbling/weighted-path/',
-    '/sdk/pipeline/preparation/', '/sdk/pipeline/kernels/', '/sdk/pipeline/compiler/', '/sdk/pipeline/runtime/',
-    '/sdk/research/', '/sdk/research/benchmark/', '/sdk/research/search/', '/sdk/research/assure/', '/sdk/research/benchmarks/', '/sdk/research/assurance/',
-    '/sdk/run/', '/sdk/run/clients/', '/sdk/run/local/', '/sdk/run/gateway/', '/sdk/run/embedded-gateway/', '/sdk/run/provider-roles/', '/sdk/run/plan-bound-runtime/', '/sdk/run/lifecycle/', '/sdk/operate/deployment/',
+    '/sdk/', '/sdk/experiments/', '/sdk/models/', '/sdk/inference/', '/sdk/components/',
+    '/sdk/run/', '/sdk/plans/', '/sdk/evaluate/', '/sdk/extend/', '/sdk/reference/',
+    '/sdk/extend/model-adapter/', '/sdk/models/families/', '/sdk/models/families/qwen2/', '/sdk/models/families/qwen3-5/',
+    '/sdk/plans/operators/', '/sdk/plans/numerics/', '/sdk/plans/representations/', '/sdk/plans/conversions/',
+    '/sdk/components/protocols/', '/sdk/inference/prepared-protocol/', '/sdk/components/nonlinear/garbling/',
+    '/sdk/components/protocols/composition/', '/sdk/components/preparation/reference-paths/',
+    '/sdk/components/nonlinear/garbling/arithmetic/', '/sdk/components/nonlinear/garbling/half-gates/',
+    '/sdk/components/nonlinear/garbling/lookup-tables/', '/sdk/components/nonlinear/garbling/weighted-path/',
+    '/sdk/components/preparation/', '/sdk/components/kernels/native-matrix/', '/sdk/plans/compiler-internals/', '/sdk/run/runtime-internals/',
+    '/sdk/evaluate/benchmark/', '/sdk/evaluate/search/', '/sdk/evaluate/evidence/', '/sdk/evaluate/assurance/',
+    '/sdk/run/clients/', '/sdk/run/local/', '/sdk/run/gateway/', '/sdk/run/embedded-gateway/',
+    '/sdk/run/provider-roles/', '/sdk/run/plan-bound-runtime/', '/sdk/run/lifecycle/', '/sdk/run/deployment/',
     '/sdk/reference/', '/sdk/reference/python/pllm/', '/sdk/reference/native/', '/sdk/reference/schemas/', '/sdk/reference/components/', '/sdk/reference/status/',
-    '/sdk/contribute/', '/sdk/contribute/agents/',
+    '/sdk/extend/agents/',
     '/research/', '/research/papers/', '/research/records/', '/research/records/metrics/',
     '/research/recipes/', '/research/recipes/build-method/', '/research/recipes/compare/', '/research/recipes/reproduce/', '/research/recipes/experiments/', '/research/recipes/reproductions/', '/research/recipes/agent-map/', '/research/recipes/reproduction-checklist/',
     '/research/sources/', '/research/methods/', '/research/compositions/', '/research/evidence/', '/research/publications/', '/research/clean-room/',
   ]) assert.ok(byRoute.has(route), route);
+});
+
+test('retired SDK phase URLs redirect to capability guides without duplicate canonical pages', () => {
+  const redirects = fs.readFileSync(path.join(siteRoot, 'public/_redirects'), 'utf8');
+  const migrations = new Map([
+    ['/sdk/build/', '/sdk/'],
+    ['/sdk/configuration/', '/sdk/experiments/files/'],
+    ['/sdk/build/model-adapters/', '/sdk/extend/model-adapter/'],
+    ['/sdk/build/models/qwen35/', '/sdk/models/families/qwen3-5/'],
+    ['/sdk/build/operators/activation-silu/', '/sdk/plans/operators/activation-silu/'],
+    ['/sdk/build/numerics/', '/sdk/plans/numerics/'],
+    ['/sdk/build/search/', '/sdk/evaluate/search/'],
+    ['/sdk/pipeline/', '/sdk/inference/'],
+    ['/sdk/pipeline/protocols/', '/sdk/components/protocols/'],
+    ['/sdk/pipeline/protocols/masked-linear/', '/sdk/inference/prepared-protocol/'],
+    ['/sdk/pipeline/protocols/garbling/half-gates/', '/sdk/components/nonlinear/garbling/half-gates/'],
+    ['/sdk/pipeline/preparation/', '/sdk/components/preparation/'],
+    ['/sdk/pipeline/kernels/', '/sdk/components/kernels/native-matrix/'],
+    ['/sdk/pipeline/compiler/', '/sdk/plans/compiler-internals/'],
+    ['/sdk/pipeline/runtime/', '/sdk/run/runtime-internals/'],
+    ['/sdk/research/', '/sdk/evaluate/'],
+    ['/sdk/research/assure/', '/sdk/evaluate/assurance/'],
+    ['/sdk/research/benchmarks/', '/sdk/evaluate/evidence/'],
+    ['/sdk/operate/deployment/status/', '/sdk/run/lifecycle/'],
+    ['/sdk/contribute/publish-a-provider/', '/sdk/extend/provider/'],
+  ]);
+  for (const [oldRoute, canonical] of migrations) {
+    assert.ok(!byRoute.has(oldRoute), `${oldRoute} remains canonical`);
+    assert.ok(byRoute.has(canonical), canonical);
+    assert.ok(redirects.includes(`${oldRoute} ${canonical} 308\n`), oldRoute);
+    const oldMarkdown = `${oldRoute.slice(0, -1)}.md`;
+    const newMarkdown = `${canonical.slice(0, -1)}.md`;
+    assert.ok(redirects.includes(`${oldMarkdown} ${newMarkdown} 308\n`), oldMarkdown);
+  }
+  for (const page of readSearchPages()) {
+    assert.doesNotMatch(page.canonicalUrl, /^\/sdk\/(?:build|pipeline|research|operate|contribute)(?:\/|$)/);
+    if (page.sourcePath.startsWith('content/docs/') || page.sourcePath === 'content/home.html') {
+      assert.doesNotMatch(page.content, /\/sdk\/(?:build|pipeline|research|operate|contribute)\//, page.sourcePath);
+    }
+  }
 });
 
 test('private inference papers are newest-first sidebar pages with reciprocal component citations', () => {
@@ -64,7 +109,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   for (const paper of chronological) {
     const slug = paper.slug.replaceAll('_', '-');
     const route = `/research/papers/${slug}/`;
-    const position = index.indexOf(`### [${paper.title}](${route})`);
+    const position = index.indexOf(`<a href="${route}">`);
     assert.ok(position > priorPosition, paper.title);
     priorPosition = position;
     assert.ok(index.includes(summaries[paper.id].overview), paper.id);
@@ -89,6 +134,8 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
       assert.ok(!page.includes('title="Related PLLM components"'), paper.id);
     }
   }
+  assert.doesNotMatch(index, /^### \[.*\]\(\/research\/papers\//m,
+    'Fumadocs wraps headings in anchors; timeline paper links must not be inside headings');
   for (const paper of registry.papers.filter((paper) => !registry.public_bibliography_ids.includes(paper.id))) {
     assert.ok(!index.includes(paper.title), `${paper.title} is not cited publicly`);
   }
@@ -168,6 +215,27 @@ test('experiment guides construct and round-trip supported configuration', () =>
       timeout: 120_000,
     });
     assert.equal(execution.status, 0, `${route}:\n${execution.stdout}\n${execution.stderr}`);
+  }
+});
+
+test('relocated evaluation guides execute their real SDK examples', () => {
+  for (const route of [
+    '/sdk/evaluate/benchmark/', '/sdk/evaluate/search/',
+    '/sdk/evaluate/evidence/', '/sdk/evaluate/assurance/',
+  ]) {
+    const content = byRoute.get(route)?.content;
+    assert.ok(content, route);
+    const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
+    assert.ok(examples.length > 0, route);
+    for (const [index, example] of examples.entries()) {
+      const execution = spawnSync('uv', ['run', 'python', '-c', example[1]], {
+        cwd: path.join(siteRoot, '..'), encoding: 'utf8',
+        env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
+        timeout: 120_000,
+      });
+      assert.equal(execution.status, 0,
+        `${route} example ${index + 1}:\n${execution.stdout}\n${execution.stderr}`);
+    }
   }
 });
 
@@ -271,8 +339,8 @@ test('research experimentation guide bridges provenance, SDK, CLI, and matched e
   for (const destination of [
     '/research/papers/', '/research/methods/', '/research/evidence/',
     '/sdk/components/', '/sdk/reference/python/pllm/providers/', '/sdk/experiments/',
-    '/sdk/experiments/files/', '/sdk/inference/', '/sdk/research/search/',
-    '/sdk/research/benchmark/', '/cli/reference/gateway/local-experiments/',
+    '/sdk/experiments/files/', '/sdk/inference/', '/sdk/evaluate/search/',
+    '/sdk/evaluate/benchmark/', '/cli/reference/gateway/local-experiments/',
     '/cli/reference/benchmark/run/', '/cli/reference/components/list/',
   ]) assert.ok(guide.includes(`](${destination})`), destination);
   assert.match(guide, /not\*\* executable PLLM dependencies/);
@@ -282,32 +350,28 @@ test('research experimentation guide bridges provenance, SDK, CLI, and matched e
   }
 });
 
-test('pipeline guides explain each public component in linked subsections', () => {
+test('relocated advanced guides retain executable component walkthroughs', () => {
   const guides = new Map([
-    ['/sdk/pipeline/', [
-      'MaskedLinearCpu', 'VerifiedMaskedLinearCpu', 'DirectFHEProfile',
-      'ProprietaryGuarded', 'ProprietaryBlinded',
-    ]],
-    ['/sdk/pipeline/compiler/', [
+    ['/sdk/plans/compiler-internals/', [
       'KvCacheEviction', 'BinaryTableGatedMultiplyQ7',
       'R03CrtGatedMultiplyQ7', 'ScalarProtectedTensorSchedule',
     ]],
-    ['/sdk/pipeline/runtime/', [
+    ['/sdk/run/runtime-internals/', [
       'OpenAI', 'build_roles', 'Inference', 'ClientLocalKv', 'FreivaldsVerify',
     ]],
-    ['/sdk/pipeline/protocols/', [
+    ['/sdk/components/protocols/composition/', [
       'MaskedLinear', 'DirectFHE', 'GuardedLinear', 'BlindedLinear',
       'SecureLinear', 'CleartextLinear',
     ]],
-    ['/sdk/pipeline/protocols/masked-linear/', [
+    ['/sdk/inference/prepared-protocol/', [
       'MaskedLinear', 'ModelAwareCorrections', 'Inference', 'Cpu', 'FreivaldsVerify',
     ]],
-    ['/sdk/pipeline/preparation/', [
+    ['/sdk/components/preparation/reference-paths/', [
       'ModelAwareCorrections', 'BFVCorrelations', 'HEAuthenticatedPreprocessing',
       'TrustedPreprocessor',
     ]],
-    ['/sdk/pipeline/kernels/', ['Cpu', 'MaskedGEMM', 'CompiledMatrix', 'capabilities']],
-    ['/sdk/pipeline/protocols/garbling/', [
+    ['/sdk/components/kernels/native-matrix/', ['Cpu', 'MaskedGEMM', 'CompiledMatrix', 'capabilities']],
+    ['/sdk/components/nonlinear/garbling/', [
       'BinaryTableGatedMultiplyQ7', 'R03CrtGatedMultiplyQ7',
       'ScalarProtectedTensorSchedule', 'IndependentLanesProtectedTensorSchedule',
       'ChunkedIndependentLanesProtectedTensorSchedule',
@@ -354,19 +418,15 @@ test('pipeline guides explain each public component in linked subsections', () =
 
 test('runtime-backed component examples reach a private inference workflow', () => {
   const experimentComponents = new Map([
-    ['/sdk/pipeline/', [
-      'MaskedLinearCpu', 'VerifiedMaskedLinearCpu', 'DirectFHEProfile',
-      'ProprietaryGuarded', 'ProprietaryBlinded',
-    ]],
-    ['/sdk/pipeline/protocols/', [
+    ['/sdk/components/protocols/composition/', [
       'MaskedLinear', 'DirectFHE', 'GuardedLinear', 'BlindedLinear',
     ]],
-    ['/sdk/pipeline/protocols/masked-linear/', [
+    ['/sdk/inference/prepared-protocol/', [
       'MaskedLinear', 'ModelAwareCorrections', 'Inference', 'Cpu', 'FreivaldsVerify',
     ]],
-    ['/sdk/pipeline/preparation/', ['ModelAwareCorrections']],
-    ['/sdk/pipeline/kernels/', ['Cpu']],
-    ['/sdk/pipeline/runtime/', ['build_roles', 'Inference', 'FreivaldsVerify']],
+    ['/sdk/components/preparation/reference-paths/', ['ModelAwareCorrections']],
+    ['/sdk/components/kernels/native-matrix/', ['Cpu']],
+    ['/sdk/run/runtime-internals/', ['build_roles', 'Inference', 'FreivaldsVerify']],
   ]);
 
   for (const [route, components] of experimentComponents) {
@@ -376,7 +436,7 @@ test('runtime-backed component examples reach a private inference workflow', () 
       `${route} does not disclose the local gateway dependency`,
     );
     assert.ok(
-      content.includes('pllm gateway --local') || route === '/sdk/pipeline/runtime/',
+      content.includes('pllm gateway --local') || route === '/sdk/run/runtime-internals/',
       `${route} does not show the gateway execution path`,
     );
     for (const component of components) {
@@ -390,7 +450,7 @@ test('runtime-backed component examples reach a private inference workflow', () 
     }
   }
 
-  const runtime = byRoute.get('/sdk/pipeline/runtime/').content;
+  const runtime = byRoute.get('/sdk/run/runtime-internals/').content;
   const openAIStart = runtime.indexOf('### Send a synchronous streaming request with `OpenAI`');
   const openAIEnd = runtime.indexOf('\n### ', openAIStart + 5);
   assert.match(runtime.slice(openAIStart, openAIEnd), /responses\.create\(/);
@@ -403,8 +463,8 @@ test('primary reader journeys cross areas at the decision point', () => {
       '/research/evidence/',
     ]],
     ['learn/first-private-request.mdx', [
-      '/sdk/configuration/',
-      '/sdk/pipeline/protocols/',
+      '/sdk/experiments/files/',
+      '/sdk/components/protocols/',
       '/learn/integrations/',
     ]],
     ['learn/index.mdx', ['/learn/integrations/']],
@@ -412,11 +472,11 @@ test('primary reader journeys cross areas at the decision point', () => {
     ['sdk/index.mdx', ['/learn/integrations/openai-python/']],
     ['sdk/run/lifecycle.mdx', ['/learn/integrations/local-gateway/']],
     ['learn/concepts/privacy-and-threat-models.mdx', ['/research/evidence/']],
-    ['sdk/configuration.mdx', [
+    ['sdk/experiments/files.mdx', [
       '/cli/reference/config/show/',
       '/cli/reference/config/export/',
     ]],
-    ['measure/benchmark.mdx', [
+    ['sdk/evaluate/benchmark.mdx', [
       '/cli/reference/benchmark/run/',
       '/research/evidence/',
     ]],
@@ -430,8 +490,8 @@ test('primary reader journeys cross areas at the decision point', () => {
       '/sdk/reference/components/',
     ]],
     ['research/evidence.mdx', [
-      '/sdk/research/benchmarks/',
-      '/sdk/research/assurance/',
+      '/sdk/evaluate/evidence/',
+      '/sdk/evaluate/assurance/',
     ]],
   ]);
 
@@ -467,7 +527,7 @@ test('homepage consumption modes separate the native client from the trusted gat
   assert.match(home, /id="start-building"[^]*?<\/section>\s*<section class="home-section home-shell home-consume-section"/);
 
   const modes = [
-    ['pllm', '/sdk/operate/client-boundary/'],
+    ['pllm', '/sdk/run/embedded-gateway/'],
     ['responses', '/learn/integrations/responses-api/'],
     ['chat', '/learn/integrations/chat-completions/'],
     ['openai', '/learn/integrations/openai-python/'],
@@ -542,14 +602,17 @@ test('each top-level journey owns an isolated Fumadocs sidebar', () => {
   assert.deepEqual(navigation.publicationGroups.find((group) => group.id === 'get-started')
     .entries.slice(0, 3).map((entry) => entry.label), ['Start', 'Core concepts', 'Working with PLLM']);
   assert.deepEqual(cli.pages.slice(-1), ['../reference/cli']);
-  assert.deepEqual(sdk.pages.slice(-4), [
-    '../build', '../pipeline', '../measure', '../reference',
+  assert.deepEqual(sdk.pages, [
+    'index', 'experiments', 'models', 'inference', 'components',
+    'run', 'plans', 'evaluate', 'extend', '../reference',
   ]);
   assert.deepEqual(research.pages.slice(-3), ['../recipes', 'papers', 'records']);
 
   for (const branch of [
-    'learn/integrations', 'learn/concepts', 'reference/cli', 'build', 'pipeline', 'measure',
-    'sdk/run', 'reference', 'contribute', 'recipes', 'research/papers',
+    'learn/integrations', 'learn/concepts', 'reference/cli',
+    'sdk/experiments', 'sdk/models', 'sdk/inference', 'sdk/components',
+    'sdk/run', 'sdk/plans', 'sdk/evaluate', 'sdk/extend',
+    'reference', 'recipes', 'research/papers',
     'research/records',
   ]) {
     const meta = readMeta(branch);
@@ -559,7 +622,8 @@ test('each top-level journey owns an isolated Fumadocs sidebar', () => {
   }
   assert.equal(readMeta('learn/concepts').title, 'Core concepts');
   const sectionOrder = fs.readFileSync(path.join(siteRoot, 'lib/source.ts'), 'utf8');
-  assert.match(sectionOrder, /\['Start', 0\][\s\S]*\['Core concepts', 1\][\s\S]*\['Working with PLLM', 2\]/);
+  assert.match(sectionOrder, /\['Start', 'Core concepts', 'Working with PLLM'\]/);
+  assert.match(sectionOrder, /\['SDK', 'Experiments', 'Models', 'Inference options', 'Component options',/);
 
   const docsLayout = fs.readFileSync(path.join(siteRoot, 'components/docs-shell.tsx'), 'utf8');
   const source = fs.readFileSync(path.join(siteRoot, 'lib/source.ts'), 'utf8');
@@ -611,7 +675,7 @@ test('global navigation and local Fumadocs sidebars have separate ownership', ()
   assert.equal(owner('/learn/installation'), 'Learn');
   assert.equal(owner('/cli/reference'), 'CLI');
   assert.equal(owner('/sdk/models/families/qwen2'), 'SDK');
-  assert.equal(owner('/sdk/research/benchmark'), 'SDK');
+  assert.equal(owner('/sdk/evaluate/benchmark'), 'SDK');
   assert.equal(owner('/research/recipes/compare'), 'Research');
   assert.equal(owner('/research/recipes/build-method'), 'Research');
   assert.equal(owner('/research/recipes/agent-map'), 'Research');
@@ -709,8 +773,8 @@ test('CLI navigation lists tasks directly with command and cross-area links', ()
   }
 
   const expected = new Map([
-    ['/cli/private-inference/', ['/cli/reference/gateway/', '/learn/integrations/', '/sdk/operate/client-boundary/']],
-    ['/cli/provider-roles/', ['/cli/reference/serve/inference/', '/cli/reference/serve/preparation/', '/sdk/operate/deployment/']],
+    ['/cli/private-inference/', ['/cli/reference/gateway/', '/learn/integrations/', '/sdk/run/embedded-gateway/']],
+    ['/cli/provider-roles/', ['/cli/reference/serve/inference/', '/cli/reference/serve/preparation/', '/sdk/run/deployment/']],
     ['/cli/benchmarking/', ['/cli/reference/benchmark/run/', '/cli/reference/dev/dashboard/', '/research/records/']],
     ['/cli/inspect-and-research/', ['/cli/reference/config/', '/cli/reference/components/', '/research/papers/', '/research/backlog/', '/research/methods/']],
   ]);
@@ -920,13 +984,15 @@ test('technical paper keeps historical and tiny verified cohorts separate and re
     assert.equal(record.repetitions, 1);
     assert.equal(record.plan_lock_digest, null);
   }
-  assert.match(paper, /historical masked-protocol evidence is separate/i);
-  assert.match(paper, /no matched external comparison exists/i);
-  assert.match(whitepaper, /\*\*not\*\* demonstrated a\s+state-of-the-art cross-system comparison/i);
-  assert.doesNotMatch(whitepaper, /\$\$|high-performance/i);
+  assert.match(paper, /historical masked-protocol measurements are separate/i);
+  assert.match(paper, /\*\*not\*\* a security proof or a matched external SOTA benchmark/i);
+  assert.match(paper, /no cited method has pinned-Qwen comparative evidence/i);
+  assert.match(whitepaper, /\*\*has\s+not measured prices, energy, or an economic return\*\*/i);
+  assert.match(whitepaper, /high-performance private LLM multi-party inference runtime and\s+extensible autonomous research harness/i);
+  assert.doesNotMatch(whitepaper, /\$\$/);
   for (const [title, source] of [
-    ['PLLM: Private Inference and Reproducible LLM Experimentation', whitepaper],
-    ['PLLM: Prepared Private LLM Inference and Composition-Bound Experimentation', paper],
+    ['PLLM: Private Multi-Party Inference and an Extensible Research Harness', whitepaper],
+    ['PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition', paper],
   ]) {
     assert.ok(source.includes(`title: "${title}"`));
     assert.ok(citation.includes(`title: "${title}"`));
@@ -936,6 +1002,24 @@ test('technical paper keeps historical and tiny verified cohorts separate and re
 test('paper, whitepaper, evidence, and generated CLI help remain downloadable', () => {
   for (const file of ['paper.pdf', 'paper-source.zip', 'whitepaper.pdf', 'whitepaper-source.zip', 'current-runtime-2026-09-11.json', 'evidence.zip', 'cli-help.txt']) {
     assert.ok(fs.statSync(path.join(siteRoot, 'public/downloads', file)).size > 0, file);
+  }
+});
+
+test('whitepaper figures are readable, exported, and backed by pinned baseline runs', () => {
+  const paperRoot = path.join(siteRoot, '..', 'paper');
+  const web = fs.readFileSync(path.join(siteRoot, 'content/research/whitepaper.mdx'), 'utf8');
+  const record = JSON.parse(fs.readFileSync(path.join(siteRoot, 'evidence/current-runtime-2026-09-11.json'), 'utf8'));
+  const svg = fs.readFileSync(path.join(paperRoot, 'figures/qwen-baseline.svg'), 'utf8');
+  for (const name of ['mechanics', 'research-loop', 'qwen-baseline']) {
+    const source = fs.readFileSync(path.join(paperRoot, `figures/${name}.png`));
+    const published = fs.readFileSync(path.join(siteRoot, `public/downloads/figures/${name}.png`));
+    assert.ok(source.length > 1000, name);
+    assert.deepEqual(source, published, name);
+    assert.ok(web.includes(`<img src="/downloads/figures/${name}.png" alt="`), name);
+  }
+  for (const result of record.results) {
+    assert.ok(svg.includes(`${result.median.full_seconds.toFixed(3)} s`));
+    assert.ok(svg.includes(`${result.context_tokens} in / ${result.output_tokens[0]} out`));
   }
 });
 

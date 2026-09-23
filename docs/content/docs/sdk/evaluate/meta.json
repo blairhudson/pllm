@@ -1,4 +1,5 @@
 {
   "title": "Evaluate",
-  "pages": ["index", "metrics"]
+  "root": true,
+  "pages": ["index", "benchmark", "search", "evidence", "assurance", "metrics"]
 }

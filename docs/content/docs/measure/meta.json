@@ -1,5 +1,0 @@
-{
-  "title": "Metrics and search",
-  "root": true,
-  "pages": ["index", "benchmark", "search", "assure", "../benchmarks", "../assurance"]
-}

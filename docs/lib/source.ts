@@ -106,13 +106,13 @@ function areaFolders(area: NavigationArea, root: Folder): Folder[] {
       (node): node is Folder => node.type === 'folder' && node.root === true,
     ),
   ];
-  if (area !== 'Learn') return sections;
+  if (area !== 'Learn' && area !== 'SDK') return sections;
 
-  const order = new Map([
-    ['Start', 0],
-    ['Core concepts', 1],
-    ['Working with PLLM', 2],
-  ]);
+  const names = area === 'Learn'
+    ? ['Start', 'Core concepts', 'Working with PLLM']
+    : ['SDK', 'Experiments', 'Models', 'Inference options', 'Component options',
+      'Run PLLM', 'Plans', 'Evaluate', 'Extend PLLM', 'API reference'];
+  const order = new Map(names.map((name, index) => [name, index]));
   return sections.sort((left, right) => (
     order.get(String(left.name)) ?? Number.MAX_SAFE_INTEGER
   ) - (

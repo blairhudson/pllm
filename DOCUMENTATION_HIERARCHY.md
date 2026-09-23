@@ -84,6 +84,14 @@ CLI keeps one task-oriented guide group and one command-reference tree.
     └── dev/
 ```
 
+The retired `/sdk/build/`, `/sdk/pipeline/`, `/sdk/research/`,
+`/sdk/operate/`, and `/sdk/contribute/` hierarchies are redirect-only. Preserve
+their HTML and Markdown links as permanent aliases of the corresponding
+capability guide. Advanced multi-component walkthroughs belong under
+`/sdk/components/protocols/composition/`,
+`/sdk/components/preparation/reference-paths/`, or the related plans, inference,
+and runtime sections; they do not form a second SDK navigation tree.
+
 Command children follow the actual parser hierarchy. CLI reference pages may be
 generated, but their public paths must remain command-shaped.
 

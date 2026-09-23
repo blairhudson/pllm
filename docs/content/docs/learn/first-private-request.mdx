@@ -68,8 +68,8 @@ The gateway also exposes `/v1/responses`.
 Your prompt stayed inside the client boundary: the gateway coordinated offline
 preparation and masked inference work, ran the request through the protocol, and
 returned only the completion. The
-[experiment configuration](/sdk/configuration/) is the declarative form of what
-just ran, and the [protocol options](/sdk/pipeline/protocols/) describe each
+[experiment configuration](/sdk/experiments/files/) is the declarative form of what
+just ran, and the [protocol options](/sdk/components/protocols/) describe each
 role's contract. To see the component decomposition a request produces,
 [inspect the execution plan](/learn/inspect-a-plan/). To use the same
 endpoint from an SDK or a coding agent, continue to the

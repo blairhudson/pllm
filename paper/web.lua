@@ -12,3 +12,9 @@ function Link(element)
   end
   return element
 end
+
+function Image(element)
+  local figure = element.src:match("^paper/figures/([%w%-]+%.png)$")
+  if figure then element.src = "/downloads/figures/" .. figure end
+  return element
+end

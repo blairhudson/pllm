@@ -76,7 +76,7 @@ evidence, or rank incomparable systems. Start with the
 - [Use the Python SDK](https://pllm.run/sdk/)
 - [Use the CLI](https://pllm.run/cli/)
 - [Extend components](https://pllm.run/sdk/components/)
-- [Search and benchmark](https://pllm.run/sdk/research/)
+- [Search and benchmark](https://pllm.run/sdk/evaluate/)
 - [Check current support](https://pllm.run/sdk/reference/status/)
 - [Read the research](https://pllm.run/research/)
 

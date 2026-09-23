@@ -37,40 +37,28 @@
       "id": "define",
       "label": "Define",
       "entries": [
-        {"label": "Build with PLLM", "href": "/sdk/build/", "sidebar": "build", "visible": false},
-        {"label": "Models", "href": "/sdk/models/families/", "sidebar": "sdk/models/families"},
-        {"label": "Operators", "href": "/sdk/build/operators/", "sidebar": "operators"},
-        {"label": "Numerics", "href": "/sdk/build/numerics/", "sidebar": "numerics"},
-        {"label": "Representations", "href": "/sdk/build/representations/", "sidebar": "representations"},
-        {"label": "Protocols", "href": "/sdk/pipeline/protocols/", "sidebar": "protocols"},
-        {"label": "Conversions", "href": "/sdk/build/conversions/", "sidebar": "conversions"}
+        {"label": "Experiments", "href": "/sdk/experiments/", "sidebar": "sdk/experiments"},
+        {"label": "Models", "href": "/sdk/models/", "sidebar": "sdk/models"},
+        {"label": "Plans", "href": "/sdk/plans/", "sidebar": "sdk/plans"}
       ]
     },
     {
       "id": "execute",
       "label": "Execute",
       "entries": [
-        {"label": "Preparation", "href": "/sdk/pipeline/preparation/", "sidebar": "preparation"},
-        {"label": "Kernels", "href": "/sdk/pipeline/kernels/", "sidebar": "kernels"},
-        {"label": "Compiler", "href": "/sdk/pipeline/compiler/", "sidebar": "compiler"},
-        {"label": "Pipeline", "href": "/sdk/pipeline/", "sidebar": "pipeline"},
-        {"label": "Runtime", "href": "/sdk/pipeline/runtime/", "sidebar": "runtime"},
-        {"label": "Deployment", "href": "/sdk/run/lifecycle/", "sidebar": "sdk/run"},
-        {"label": "Operations guides", "href": "/sdk/run/", "sidebar": "sdk/run", "visible": false}
+        {"label": "Inference options", "href": "/sdk/inference/", "sidebar": "sdk/inference"},
+        {"label": "Component options", "href": "/sdk/components/", "sidebar": "sdk/components"},
+        {"label": "Run PLLM", "href": "/sdk/run/", "sidebar": "sdk/run"}
       ]
     },
     {
       "id": "evaluate",
       "label": "Evaluate",
       "entries": [
-        {"label": "Benchmarks", "href": "/sdk/research/benchmarks/", "sidebar": "benchmarks"},
-        {"label": "Metrics", "href": "/research/records/metrics/", "sidebar": "metrics"},
-        {"label": "Search", "href": "/sdk/build/search/", "sidebar": "search"},
-        {"label": "Assurance", "href": "/sdk/research/assurance/", "sidebar": "assurance"},
+        {"label": "Evaluation", "href": "/sdk/evaluate/", "sidebar": "sdk/evaluate"},
         {"label": "Research", "href": "/research/", "sidebar": "research"},
         {"label": "Evidence and records", "href": "/research/records/", "sidebar": "research/records", "visible": false},
-        {"label": "Recipes", "href": "/research/recipes/", "sidebar": "recipes"},
-        {"label": "Evaluation guides", "href": "/sdk/research/", "sidebar": "measure", "visible": false}
+        {"label": "Recipes", "href": "/research/recipes/", "sidebar": "recipes"}
       ]
     },
     {
@@ -78,16 +66,21 @@
       "label": "Reference",
       "entries": [
         {"label": "Reference", "href": "/sdk/reference/", "sidebar": "reference"},
-        {"label": "Contribute", "href": "/sdk/contribute/", "sidebar": "contribute"},
-        {"label": "Agent maps", "href": "/sdk/contribute/agents/", "sidebar": "agents"}
+        {"label": "Extend PLLM", "href": "/sdk/extend/", "sidebar": "sdk/extend"},
+        {"label": "Agent maps", "href": "/sdk/extend/agents/", "sidebar": "sdk/extend/agents"}
       ]
     }
   ],
   "guideMappings": [
-    {"prefix": "/sdk/build/", "group": "define", "root": "/sdk/build/"},
+    {"prefix": "/sdk/experiments/", "group": "define", "root": "/sdk/experiments/"},
+    {"prefix": "/sdk/models/", "group": "define", "root": "/sdk/models/"},
+    {"prefix": "/sdk/plans/", "group": "define", "root": "/sdk/plans/"},
     {"prefix": "/learn/concepts/", "group": "get-started", "root": "/learn/"},
-    {"prefix": "/sdk/research/", "group": "evaluate", "root": "/sdk/research/"},
+    {"prefix": "/sdk/inference/", "group": "execute", "root": "/sdk/inference/"},
+    {"prefix": "/sdk/components/", "group": "execute", "root": "/sdk/components/"},
     {"prefix": "/sdk/run/", "group": "execute", "root": "/sdk/run/"},
+    {"prefix": "/sdk/evaluate/", "group": "evaluate", "root": "/sdk/evaluate/"},
+    {"prefix": "/sdk/extend/", "group": "reference", "root": "/sdk/extend/"},
     {"prefix": "/research/", "group": "evaluate", "root": "/research/"}
   ]
 }

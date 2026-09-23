@@ -1,30 +1,30 @@
 ---
-title: "PLLM: Prepared Private LLM Inference and Composition-Bound Experimentation"
+title: "PLLM: Private Multi-Party LLM Inference and Evidence-Bound Research Composition"
 author: |
   Blair Hudson  
   deployscience labs  
   [blair@deployscience.com](mailto:blair@deployscience.com)
 date: 23 September 2026
 web-date: September 2026
-edition: "07"
-description: Prepared public-weight inference, component-bound compilation, and scoped reproducible evidence.
+edition: "08"
+description: A prepared private-inference runtime, independent paper-derived components, and matched evidence for capability selection.
 pdf: paper.pdf
-subject: private language-model inference, multi-party computation, reproducible experimentation, semantic compilation, additive masking
-web-note: Implemented prepared inference, compiler coverage, and scoped historical and tiny-model evidence; not a cross-system performance comparison.
+subject: private language-model inference, multi-party systems, autonomous research harness, reproducible benchmarking, additive masking
+web-note: Paper-derived methods are partial and independently implemented; measured real-model baseline and tiny verification belong to separate cohorts.
 abstract: |
-  PLLM implements public-weight private inference with a trusted Client,
-  non-colluding Preparation, and Inference. Preparation uploads one-use
-  $Wr-s$ corrections offline; online stage data comprise tickets, masked
-  activations $x-r$, and masked outputs $Wx-s$. The Client retains plaintext,
-  state, and decoding. A model-neutral semantic IR and canonical component
-  composition bind the untransformed Qwen2 and synthetic dense-Qwen3 baseline
-  schedules; protected whole-decoder execution remains incomplete. An optional
-  trusted-client Freivalds check verifies prepared linear results before
-  dequantization. Independent Q7 garbling methods remain bounded experiments.
-  We report nine retained warm Qwen2.5-0.5B CPU-loopback runs from an earlier
-  revision and a separate matched tiny-model verified/unverified functional
-  cohort. These do not establish current compiler performance, WAN behavior,
-  operator independence, or superiority to other systems.
+  PLLM is a private LLM multi-party inference runtime and extensible autonomous
+  research harness. Its public-weight path uses trusted Client, non-colluding
+  Preparation, and Inference: offline one-use $Wr-s$ corrections permit online
+  masked linear work while Client retains plaintext, state, and decoding.
+  Model-neutral compilation binds typed component composition to a plan; bounded
+  search and matched evidence enable comparison of eligible candidates. We map
+  six cited research directions to independently implemented *portions* of
+  PLLM, not complete reproductions. Historical CPU-loopback measurements cover
+  nine Qwen2.5-0.5B baseline responses; optional verified linear work has only
+  a separate one-run tiny-model matched control. Garbling and cache components
+  lack whole-model comparative measurements. Thus these data neither establish
+  economic value nor rank PLLM against external state of the art. We define
+  comparability and metric gates required to make such a claim.
 bibliography: paper/references.bib
 link-citations: true
 reference-section-title: References
@@ -46,13 +46,12 @@ encryption, secret sharing, or secure two-party computation
 [@huang2022cheetah; @chen2022thex; @hao2022iron].
 
 PLLM combines a prepared masked-linear runtime with model-neutral compilation
-and a typed experimentation system. We contribute (1) one-use offline
-corrections with explicit trust and inventory boundaries, (2) canonical
-component-bound model schedules that reject missing capabilities, and (3)
-cohort-scoped evidence separating functional tests from historical performance
-measurements. This is a systems report, **not** a new security proof or a
-matched state-of-the-art benchmark. A semantic plan does not imply executable
-private inference.
+and an extensible autonomous research harness. Its automation generates bounded
+valid candidates and repeats experiments; researchers still implement methods
+independently. We contribute (1) one-use corrections and explicit trust
+boundaries, (2) canonical component-bound schedules with fail-closed coverage,
+and (3) evidence rules and metrics for comparing eligible alternatives. This
+systems report is **not** a security proof or a matched external SOTA benchmark.
 
 ## Prepared inference protocol
 
@@ -140,43 +139,56 @@ the client-local regions protected components.
 
 ### Semantic IR and compiler
 
-Adapters lower Qwen2, dense Qwen3, exact Qwen3.5-4B text, Phi-4-mini, and
-Gemma 4 E2B/E4B text configurations into a model-neutral decoder IR with
-explicit operators, layers, and persistent state. Compiler passes use this
-vocabulary instead of parsing adapter-specific names. Semantic lowering alone
-establishes neither checkpoint import nor executable, quality, or privacy
-coverage.
+Adapters lower Qwen2, dense Qwen3, and bounded Qwen3.5, Phi, and Gemma text
+configurations into a model-neutral IR of operators, layers, and persistent
+state. Compiler passes avoid adapter-specific node names. Semantic lowering
+alone proves neither checkpoint import nor executable or private coverage.
 
 For untransformed plans, baseline components schedule independent weighted
-operators sharing one input and order remaining local operators by dependency.
-Binding checks plan, tokenizer, runtime configuration, local tensors, quantized
-stage bytes, scales, and preparation commitments. A plan-bound session enforces
-token feedback, bounds, stage shapes, and failure poisoning. The pinned
-Qwen2.5-0.5B checkpoint passes a **clear native-kernel** prefill-to-decode
-check; historical masked-protocol evidence is separate. Tiny Qwen2 and dense
-Qwen3 use the same compiled binding. Gemma 4 fails closed on unsupported local
-operators. Verified compiled execution, transformed cache execution, Qwen3.5,
-Phi, and protected whole-decoder composition remain incomplete.
+operators sharing an input and order local operators by dependency. Binding
+checks tokenizer, runtime, local tensors, quantized stages, scales, and
+preparation commitments. A plan-bound session enforces feedback and bounds.
+The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel**
+prefill-to-decode check; historical masked-protocol measurements are separate.
+Tiny dense Qwen3 uses the same compiled binding. Verified compiled execution,
+transformed cache, and protected whole-decoder composition remain incomplete.
+
+### Cited work versus runnable baseline
+
+Table 1 maps **independent PLLM adaptations**, not original authors' code, to
+the strongest evidence available. The pinned Qwen2.5-0.5B baseline is the only
+row with real-checkpoint masked-runtime timing. A paper citation is neither
+evidence of a whole-paper reimplementation nor a cross-method speedup.
+
+| Source | PLLM part | Current measurement | Pinned Qwen? |
+|:---|:---|:---|:---:|
+| PLLM baseline | Prepared masked linear | Nine warm responses | Yes, older revision |
+| DASH [@sander2024dash] | Q7 garbled SiLU reference | Error at most 0.02285 | No |
+| ReDASH [@maurer2025redash] | Bounded Q7 rescale/arithmetic | Numeric tests only | No |
+| CRT garbling [@ball2017garbling] | Q7 multiply gadget | 245,397 B scalar payload | No |
+| Half-gates [@zahur2015halfgates] | Boolean circuit reference | Correctness tests only | No |
+| Slalom [@tramer2019slalom] | Freivalds stage check | One-run tiny paired control | No |
+| MPCache [@zeng2025mpcache] | KV-eviction plan pass | Plan lineage only | No |
+
+: Scope of independent research adaptations. The masked baseline is PLLM's
+protocol, not a Slalom reproduction. Payload bytes are not response traffic
+or latency; no cited method has pinned-Qwen comparative evidence.
 
 ### Component extensions, search, and evidence
 
-Research methods enter capability families rather than paper-specific runtime
-branches. Canonical `Pipeline` identity depends on serialized model and
-component values, not a preset class or display label. The compiler binds
-operator, numeric, state, method, and scheduling contracts to the resulting
-plan; incomplete combinations fail closed. Provider manifests are discovered
-without importing code; native provider loading is not exposed. Research
-papers remain specification inputs, not executable dependencies. The
-`KvCacheEviction` pass records lineage but its transformed plan does not run
-as a complete decoder [@zeng2025mpcache].
+Research methods enter capability families instead of paper-specific runtime
+branches. Canonical `Pipeline` identity uses serialized model and component
+values; the compiler binds operator, numeric, state, method, and schedule
+contracts to the plan and fails closed on gaps. Provider manifests are
+discoverable without importing code, but native provider loading is not
+exposed. Papers are attribution and specification, not executable dependencies.
 
 `Experiment` binds composition, workload, and deployment. Grid and seeded
-random search generate validated candidates. Latency ranks only inside exact
-model/body, token-count, output-cap, and warm-state cohorts. Metric semantics
-and privacy assumptions must also agree for cross-system comparison. Historical
-measurements predate plan-lock evidence; no matched external comparison exists.
-The [experiment workflow](https://pllm.run/research/recipes/experiments/)
-documents the SDK and CLI routes for repeating supported comparisons.
+random search generate validated candidates. Evidence records actual results;
+their identity includes plan and environment digests. Historical baseline
+measurements predate those plan locks. The
+[experiment workflow](https://pllm.run/research/recipes/experiments/)
+documents the runnable SDK and CLI paths.
 
 ### Optional verified linear work
 
@@ -210,10 +222,10 @@ telemetry were included. These records **predate** the semantic compiler.
 | 63 / 16 | 1.374 | 5.347 | 126.29 |
 | 255 / 16 | 5.158 | 13.059 | 432.71 |
 
-: Historical cohort medians (three runs each); MB is decimal. TTFT starts
-after inventory readiness; full time includes offline preparation and
-transition. Online medians were 2.618, 3.194, and 7.442 s; offline correction
-pushes to Inference were 59.80, 72.88, and 252.18 MB, respectively.
+: Historical cohort medians (three runs each); decimal MB is total Client
+traffic. TTFT starts after inventory readiness; full time includes offline
+preparation. Online medians were 2.618, 3.194, and 7.442 s; offline correction
+pushes were 59.80, 72.88, and 252.18 MB, respectively.
 
 All nine records report zero Preparation requests and protocol operations during
 the online interval, and zero literal plaintext prompt or token-ID bytes in the
@@ -240,6 +252,26 @@ cross-system matched cohort exists. Offline preparation incurs substantial
 traffic and full latency. These results cannot be extrapolated to other models,
 current compiled execution, operating cost, or provider-level security.
 
+## Defining an eligible state-of-the-art comparison
+
+PLLM's metric definitions cover latency, throughput, communication, memory,
+energy, accuracy, perplexity, and cost with explicit units and optimization
+directions. A defined metric is **not a measured value**. The retained Qwen
+study reports latency and protocol traffic, but no price, energy, quality, or
+external-system result. Search validates candidate configurations; benchmark
+records preserve exact cohorts, and Pareto comparison uses declared metric
+directions without implicitly ranking incomparable evidence.
+
+We define an eligible comparison as the *same* checkpoint/body, numeric policy,
+input and output counts, output cap, warm state, hardware/network environment,
+quality threshold, and compatible privacy and assurance contract. Candidates
+must first pass correctness and trust gates. Within that cohort, a candidate
+dominates another only on **measured** metrics with explicit directions and at
+least one strict gain. Absent measurements cannot be imputed; a cheaper
+response must count client work, offline rows used or burned, online compute,
+network, and deployment resources. This defines how a future external SOTA
+claim could be tested, not a claim that one currently exists.
+
 ## Bounded research components
 
 Inspired by arithmetic garbling [@sander2024dash; @maurer2025redash], a
@@ -260,9 +292,8 @@ replace the prepared additive-masking protocol.
 
 ## Conclusion
 
-PLLM supplies prepared public-weight private inference, composition-bound
-semantic compilation, and a framework for reproducible comparison. Its
-three-role runtime and optional trusted-client linear check have different
-evidence cohorts. Protected whole-decoder execution, verified compiled
-execution, and matched external performance comparisons remain open. Any
-stronger performance or security claim requires new revision-bound evidence.
+PLLM combines prepared private inference with independently implemented,
+composition-bound research components. Its Qwen baseline, tiny verified
+control, and isolated numeric/garbling tests are **different evidence levels**.
+Protected whole-decoder execution, matched method measurements on the pinned
+model, and external SOTA and economic comparisons remain open.

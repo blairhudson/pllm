@@ -1,4 +1,4 @@
 {
   "title": "Nonlinear methods",
-  "pages": ["index", "arithmetic-garbling-silu-q7", "binary-table", "r03-crt"]
+  "pages": ["index", "arithmetic-garbling-silu-q7", "binary-table", "r03-crt", "garbling"]
 }

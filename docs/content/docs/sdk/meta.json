@@ -1,5 +1,5 @@
 {
-  "title": "Core SDK",
+  "title": "SDK",
   "root": true,
   "pages": [
     "index",
@@ -10,10 +10,7 @@
     "run",
     "plans",
     "evaluate",
-    "configuration",
-    "../build",
-    "../pipeline",
-    "../measure",
+    "extend",
     "../reference"
   ]
 }
