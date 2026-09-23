@@ -45,6 +45,15 @@ does not evaluate the polynomial, transport material between roles, bind a
 compiler plan, or establish a reviewed private method. The SDK stub remains
 pending, and the Python API exposes only the public numeric reference.
 
+An additional in-process half-gates lookup oracle evaluates the fitted Q7
+profile on a hidden client input and returns an output label decoded only by
+the client. It precomputes all 257 encoded results from the immutable profile
+and costs 2,304 AND gates (73,728 half-gate ciphertext bytes) per scalar,
+excluding constants, instructions, and input/output labels. This oracle tests
+protected encoded-domain fidelity; **it is not Compact's piecewise-polynomial
+evaluation or a measured speedup**. The separate selector and lookup are not
+composed into a compiled runtime method.
+
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
 The target capability slots, **not yet registered runtime components**, are:

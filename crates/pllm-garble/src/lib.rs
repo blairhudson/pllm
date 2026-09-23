@@ -5,6 +5,7 @@
 pub mod boolean;
 pub mod boolean_stream;
 pub mod compact;
+pub mod compact_lookup;
 pub mod gated_multiply_q7;
 
 pub use gated_multiply_q7::{

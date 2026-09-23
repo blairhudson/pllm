@@ -47,7 +47,11 @@ The returned profile is **not** a `ComponentRef` and cannot be used in an
 [`CompactPiecewiseActivation`](/sdk/reference/python/pllm/nonlinear/#compactpiecewiseactivation)
 still raises `NotYetImplementedError`. A separate, in-process Rust half-gates
 reference can select an interval without opening it to the evaluator, but does
-not evaluate the polynomial or run in a compiled decoder. [The method roadmap](/sdk/components/research-method-roadmap/)
+not evaluate the polynomial or run in a compiled decoder. Another Rust-only
+oracle evaluates the bounded profile by a 257-row Boolean lookup, with 73,728
+half-gate ciphertext bytes per scalar before other material. That checks
+protected-output fidelity, **not** the polynomial method or a speedup.
+[The method roadmap](/sdk/components/research-method-roadmap/)
 tracks protected polynomial arithmetic, compiler binding, model-quality and
 matched-cost gates. Until those pass, use a supported
 [masked-linear experiment](/sdk/inference/masked-linear/) for private requests.

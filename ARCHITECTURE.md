@@ -64,6 +64,10 @@ evidence.
 selects a piece from a private Q7 input and returns opaque output labels to the
 evaluator. Only the trusted client decodes the index. This selection circuit is
 not yet composed with protected polynomial arithmetic or a compiler plan.
+A separate one-use Boolean lookup oracle evaluates the committed Q7 profile on
+hidden client input, leaving its output opaque to the evaluator. Its 257-row
+table checks encoded fidelity, not Compact's polynomial execution cost; it
+likewise has no transport, compiler binding, or whole-model coverage.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,
