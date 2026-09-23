@@ -54,6 +54,14 @@ protected encoded-domain fidelity; **it is not Compact's piecewise-polynomial
 evaluation or a measured speedup**. The separate selector and lookup are not
 composed into a compiled runtime method.
 
+The next bounded Rust circuit combines private piece selection with exact
+signed ties-to-even division by each public interval width. It returns the
+selected piece and its Q20 normalized Chebyshev coordinate as opaque labels,
+decoded only by the trusted client. Uniform and skewed profiles match the
+independent integer rounding oracle at boundaries, including negative ties.
+This still does not multiply protected coordinates by public coefficients,
+evaluate the polynomial, or produce a compiler-bound whole-model component.
+
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
 The target capability slots, **not yet registered runtime components**, are:

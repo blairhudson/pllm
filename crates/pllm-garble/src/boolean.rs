@@ -586,6 +586,67 @@ impl BooleanCircuitBuilder {
         Ok((difference, borrow))
     }
 
+    /// Divide a signed two's-complement secret by a positive public divisor,
+    /// rounding to the nearest integer with exact ties to even. In particular,
+    /// a negative half-tie is rounded symmetrically rather than toward zero.
+    /// The public divisor is bounded because restoring division adds a fixed
+    /// 9-bit remainder circuit for every input bit.
+    pub fn divide_signed_by_public_ties_even(
+        &mut self,
+        input: &[BooleanWire],
+        divisor: u16,
+    ) -> Result<Vec<BooleanWire>, String> {
+        if !(2..=64).contains(&input.len()) || !(1..=256).contains(&divisor) {
+            return Err("Boolean signed/public division dimensions are invalid".into());
+        }
+        for &bit in input {
+            self.encoding(bit)?;
+        }
+        if divisor == 1 {
+            return Ok(input.to_vec());
+        }
+
+        let sign = input[input.len() - 1];
+        let magnitude = self.absolute_signed(input)?;
+        let zero = self.constant(false)?;
+        let denominator = self.constant_word(u128::from(divisor), 9)?;
+        let mut remainder = vec![zero; 9];
+        let mut quotient = vec![zero; input.len()];
+        for index in (0..magnitude.len()).rev() {
+            let mut shifted = Vec::new();
+            shifted
+                .try_reserve_exact(9)
+                .map_err(|_| "Boolean signed division remainder allocation failed")?;
+            shifted.push(magnitude[index]);
+            shifted.extend_from_slice(&remainder[..8]);
+            let (less, _) = self.compare_unsigned_to_constant(&shifted, u128::from(divisor))?;
+            let greater_or_equal = self.not(less)?;
+            let difference = self.subtract_unsigned(&shifted, &denominator)?.0;
+            remainder = self.select_word(greater_or_equal, &shifted, &difference)?;
+            quotient[index] = greater_or_equal;
+        }
+        let (below_half, at_half) =
+            self.compare_unsigned_to_constant(&remainder, u128::from(divisor / 2))?;
+        let at_or_below_half = self.xor(below_half, at_half)?;
+        let above_half = self.not(at_or_below_half)?;
+        // For odd divisors 2*remainder never equals the divisor.
+        let tie_and_odd = if divisor % 2 == 0 {
+            self.and(at_half, quotient[0])?
+        } else {
+            zero
+        };
+        let mut carry = self.xor(above_half, tie_and_odd)?;
+        let mut rounded = Vec::new();
+        rounded
+            .try_reserve_exact(quotient.len())
+            .map_err(|_| "Boolean signed division quotient allocation failed")?;
+        for bit in quotient {
+            rounded.push(self.xor(bit, carry)?);
+            carry = self.and(bit, carry)?;
+        }
+        self.conditional_negate(&rounded, sign)
+    }
+
     pub fn select_word(
         &mut self,
         condition: BooleanWire,
@@ -1388,6 +1449,98 @@ mod tests {
                 });
             assert_eq!(decoded, i32::from(value).unsigned_abs().pow(2));
         }
+    }
+
+    #[test]
+    fn signed_public_division_matches_exact_ties_even_at_boundaries() {
+        let inputs = [
+            -128_i8, -127, -64, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 64, 127,
+        ];
+        for divisor in [1_u16, 2, 3, 5, 7, 15, 31, 127, 128, 255, 256] {
+            for value in inputs {
+                let mut builder = BooleanCircuitBuilder::new().unwrap();
+                let input = builder.input_word(8).unwrap();
+                let result = builder
+                    .divide_signed_by_public_ties_even(&input, divisor)
+                    .unwrap();
+                let (client, program) = builder.finish(&result).unwrap();
+                let raw = value as u8;
+                let input_bits = (0..8)
+                    .map(|bit| raw & (1_u8 << bit) != 0)
+                    .collect::<Vec<_>>();
+                let (labels, decoder) = client.encode(&input_bits).unwrap();
+                let bits = decoder.decode(program.evaluate(labels).unwrap()).unwrap();
+                let output = bits
+                    .iter()
+                    .enumerate()
+                    .fold(0u8, |word, (bit, flag)| word | (u8::from(*flag) << bit))
+                    as i8;
+                let absolute = i32::from(value).abs();
+                let divisor = i32::from(divisor);
+                let quotient = absolute / divisor;
+                let remainder = absolute % divisor;
+                let rounded = quotient
+                    + i32::from(
+                        remainder * 2 > divisor || (remainder * 2 == divisor && quotient % 2 != 0),
+                    );
+                let expected = if value < 0 { -rounded } else { rounded };
+                assert_eq!(i32::from(output), expected, "{value}/{divisor}");
+            }
+        }
+    }
+
+    #[test]
+    fn signed_public_division_admits_i64_minimum_without_overflow() {
+        for (value, divisor) in [(i64::MIN, 1_u16), (i64::MIN, 3), (i64::MAX, 256)] {
+            let mut builder = BooleanCircuitBuilder::new().unwrap();
+            let input = builder.input_word(64).unwrap();
+            let result = builder
+                .divide_signed_by_public_ties_even(&input, divisor)
+                .unwrap();
+            let (client, program) = builder.finish(&result).unwrap();
+            let raw = value as u64;
+            let bits = (0..64)
+                .map(|bit| raw & (1_u64 << bit) != 0)
+                .collect::<Vec<_>>();
+            let (labels, decoder) = client.encode(&bits).unwrap();
+            let output = decoder
+                .decode(program.evaluate(labels).unwrap())
+                .unwrap()
+                .iter()
+                .enumerate()
+                .fold(0u64, |word, (bit, flag)| word | (u64::from(*flag) << bit))
+                as i64;
+            let absolute = i128::from(value).abs();
+            let divisor = i128::from(divisor);
+            let quotient = absolute / divisor;
+            let remainder = absolute % divisor;
+            let rounded = quotient
+                + i128::from(
+                    remainder * 2 > divisor || (remainder * 2 == divisor && quotient % 2 != 0),
+                );
+            let expected = if value < 0 { -rounded } else { rounded };
+            assert_eq!(i128::from(output), expected, "{value}/{divisor}");
+        }
+    }
+
+    #[test]
+    fn signed_public_division_rejects_invalid_width_divisor_and_foreign_wires() {
+        let mut builder = BooleanCircuitBuilder::new().unwrap();
+        let input = builder.input_word(8).unwrap();
+        assert!(builder
+            .divide_signed_by_public_ties_even(&input, 0)
+            .is_err());
+        assert!(builder
+            .divide_signed_by_public_ties_even(&input, 257)
+            .is_err());
+        assert!(builder
+            .divide_signed_by_public_ties_even(&input[..1], 2)
+            .is_err());
+        let mut foreign = BooleanCircuitBuilder::new().unwrap();
+        let other = foreign.input_word(8).unwrap();
+        assert!(builder
+            .divide_signed_by_public_ties_even(&other, 1)
+            .is_err());
     }
 
     #[test]

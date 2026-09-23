@@ -68,6 +68,11 @@ A separate one-use Boolean lookup oracle evaluates the committed Q7 profile on
 hidden client input, leaving its output opaque to the evaluator. Its 257-row
 table checks encoded fidelity, not Compact's polynomial execution cost; it
 likewise has no transport, compiler binding, or whole-model coverage.
+The half-gates Boolean builder now supports bounded signed division by a
+public denominator with exact ties-to-even rounding. An isolated one-use
+Compact circuit composes that primitive with private interval selection to
+compute a Q20 normalized Chebyshev coordinate, but does not yet evaluate
+coefficients or connect to a compiler plan.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

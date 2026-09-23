@@ -51,6 +51,10 @@ not evaluate the polynomial or run in a compiled decoder. Another Rust-only
 oracle evaluates the bounded profile by a 257-row Boolean lookup, with 73,728
 half-gate ciphertext bytes per scalar before other material. That checks
 protected-output fidelity, **not** the polynomial method or a speedup.
+An isolated half-gates circuit also selects the piece and computes its
+normalized Q20 coordinate with exact ties-to-even division, without opening
+the coordinate to its evaluator. It does not evaluate the Chebyshev
+coefficients or run in the compiled decoder.
 [The method roadmap](/sdk/components/research-method-roadmap/)
 tracks protected polynomial arithmetic, compiler binding, model-quality and
 matched-cost gates. Until those pass, use a supported
