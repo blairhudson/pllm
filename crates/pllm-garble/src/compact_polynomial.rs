@@ -164,6 +164,14 @@ impl CompactQ7PolynomialProgram {
         self.profile_digest
     }
 
+    pub fn issuance_id(&self) -> [u8; 32] {
+        self.program.issuance_id()
+    }
+
+    pub fn and_gate_count(&self) -> usize {
+        self.program.and_gate_count()
+    }
+
     pub fn evaluator_ciphertext_bytes(&self) -> Result<u64, String> {
         self.program.evaluator_ciphertext_bytes()
     }

@@ -1107,6 +1107,10 @@ pub struct BooleanCircuitProgram {
 }
 
 impl BooleanCircuitProgram {
+    pub fn issuance_id(&self) -> [u8; CIRCUIT_ID_BYTES] {
+        self.circuit_id
+    }
+
     pub fn and_gate_count(&self) -> usize {
         self.instructions
             .iter()

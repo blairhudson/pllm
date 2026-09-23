@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
+mod compact_protected;
 mod decoder_runtime_schedule;
 mod dense_qwen_attention;
 mod dense_qwen_layer;
@@ -28,6 +29,10 @@ mod gated_tensor;
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
+pub use compact_protected::{
+    prepare_bound_compact_q7_element, BoundCompactQ7ClientMaterial, BoundCompactQ7Decoder,
+    BoundCompactQ7Evaluation, BoundCompactQ7Outputs, ExperimentalCompactQ7Policy,
+};
 pub use decoder_runtime_schedule::{
     lower_decoder_runtime_schedule, DecoderRuntimeExecutor, DecoderRuntimeOutput,
     DecoderRuntimePhaseSchedule, DecoderRuntimeSchedule, DecoderRuntimeStep,

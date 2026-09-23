@@ -77,7 +77,13 @@ A further bounded half-gates reference combines private selection, Q20
 coordinate and public-coefficient Chebyshev arithmetic in one one-use circuit,
 returning an opaque encoded Q7 result. It matches the fitted numeric profile
 at checked intervals, but is an in-process research reference with no native
-compiler binding, transport, model-quality evidence or performance claim.
+tensor schedule, transport, model-quality evidence or performance claim.
+The compiler also binds one protected Q7 SiLU element to a validated semantic
+decoder plan, phase, operation, tensor index, immutable Compact profile, code
+digest, policy bound, and unique issuance. This experimental Rust-only API
+checks context again before one-use evaluation; it does not activate a
+Pipeline component, execute a tensor schedule, or transport material between
+roles.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

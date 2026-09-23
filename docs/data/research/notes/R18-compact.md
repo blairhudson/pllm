@@ -71,6 +71,14 @@ endpoints, internal boundaries and midpoints. This is **in-process reference
 evidence**, not exhaustive protected-domain parity, a transportable method,
 checkpoint execution, a model-quality study, or a demonstrated speedup.
 
+The specialized Rust compiler reference now binds **one element** to an exact
+semantic SiLU operator and decoder-plan digest, prefill/decode mode, tensor
+index, public profile and implementation artifact, explicit unreviewed policy,
+resource limit and one-use issuance. It rejects different Qwen2/Qwen3 plan
+contexts, modes, indices and profiles before evaluation. This is not the
+generic `Experiment`/`Pipeline` resolver, batched tensor execution, a material
+transport protocol, or a whole-checkpoint comparison.
+
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
 The target capability slots, **not yet registered runtime components**, are:

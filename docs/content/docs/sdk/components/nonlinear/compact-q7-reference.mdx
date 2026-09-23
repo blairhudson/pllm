@@ -59,9 +59,13 @@ Another in-process, one-use Rust reference combines that selection and
 coordinate with fixed-point Chebyshev coefficient arithmetic, producing an
 opaque Q7 output. It agrees with the fitted numeric profile on checked
 interval boundaries and midpoints; it has no Python execution API, transport,
-compiler binding, full-checkpoint quality measurement or speed claim.
+full-checkpoint quality measurement or speed claim.
+The Rust compiler can bind one such reference element to an immutable decoder
+plan and semantic SiLU operator, with one-use issuance and an explicit
+unreviewed resource policy. That specialized research API still has no
+`Experiment` slot, tensor execution schedule or provider transport.
 [The method roadmap](/sdk/components/research-method-roadmap/)
-tracks compiler binding, model-quality and
+tracks protected tensor composition, model-quality and
 matched-cost gates. Until those pass, use a supported
 [masked-linear experiment](/sdk/inference/masked-linear/) for private requests.
 
