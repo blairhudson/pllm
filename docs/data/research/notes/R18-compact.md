@@ -79,6 +79,15 @@ contexts, modes, indices and profiles before evaluation. This is not the
 generic `Experiment`/`Pipeline` resolver, batched tensor execution, a material
 transport protocol, or a whole-checkpoint comparison.
 
+A deterministic material-cost check compares one-use protected polynomial
+circuits with the 257-row lookup oracle for uniform public calibration at one,
+four and eight requested pieces. Each polynomial circuit has **more**
+half-gate ciphertext bytes than the lookup; constants, instructions, input
+labels, offline computation and online time are additional costs. The current
+Boolean polynomial should not be scaled to tensors or presented as a Compact
+performance win. Reducing per-element material and measuring complete cost is
+the next engineering gate before that comparison can be revisited.
+
 Data flow: **Public fitting/calibration data → immutable piecewise polynomial profile; protected evaluation separate.**
 
 The target capability slots, **not yet registered runtime components**, are:

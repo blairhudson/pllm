@@ -725,7 +725,7 @@
       "track": "numeric_transform",
       "family": "approximation",
       "source_summary": "Compact builds input-density-aware piecewise polynomial approximations for complex activations.",
-      "proposed_implementation": "A bounded Q7 numeric fit, one-use protected polynomial, lookup oracle and specialized single-element semantic-plan binding exist. Add a protected tensor schedule and material transport before attempting full-checkpoint quality and matched-cost studies; the generic component remains pending.",
+      "proposed_implementation": "A bounded Q7 numeric fit, one-use protected polynomial, lookup oracle and specialized single-element semantic-plan binding exist. The current polynomial ciphertext body exceeds the lookup oracle in checked uniform cases: reduce its material cost before attempting tensor transport, checkpoint quality or matched-cost promotion.",
       "modules": [
         "numeric.piecewise_fit",
         "compiler.approximation_profile"

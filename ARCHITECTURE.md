@@ -84,6 +84,10 @@ digest, policy bound, and unique issuance. This experimental Rust-only API
 checks context again before one-use evaluation; it does not activate a
 Pipeline component, execute a tensor schedule, or transport material between
 roles.
+For public uniform calibration with one, four or eight requested pieces, its
+half-gate ciphertext body exceeds the 257-row lookup oracle's body. The
+polynomial reference has not earned tensor-scale resource admission or a
+performance claim.
 
 `crates/pllm-python` contains only the Python binding. Maturin builds this crate
 as `pllm._native`. It binds `pllm-core`, `pllm-models`, `pllm-compiler`,

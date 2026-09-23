@@ -224,7 +224,23 @@ impl CompactQ7PolynomialDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compact_lookup::prepare_compact_q7_lookup;
     use pllm_core::fit_compact_silu_q7;
+
+    #[test]
+    fn fitted_polynomial_cost_is_compared_to_the_small_domain_lookup_oracle() {
+        for requested in [1, 4, 8] {
+            let profile = fit_compact_silu_q7(&[0; 257], requested).unwrap();
+            let (_, polynomial) = prepare_compact_q7_polynomial(&profile).unwrap();
+            let (_, lookup) = prepare_compact_q7_lookup(&profile).unwrap();
+            let polynomial_bytes = polynomial.evaluator_ciphertext_bytes().unwrap();
+            let lookup_bytes = lookup.evaluator_ciphertext_bytes().unwrap();
+            assert!(
+                polynomial_bytes > lookup_bytes,
+                "{requested} requested pieces unexpectedly beat the lookup material bound"
+            );
+        }
+    }
 
     #[test]
     fn private_polynomial_matches_the_exact_locked_numeric_reference() {
