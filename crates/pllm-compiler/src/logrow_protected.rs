@@ -4,15 +4,19 @@
 use crate::{canonical_digest, digest_bytes, lower_model_silu_operation, tensor_elements, Digest};
 use pllm_core::{compact::COMPACT_SILU_Q7_PROFILE, CompactQ7Profile};
 use pllm_garble::logrow::{
-    prepare_compact_q7_logrow, CompactQ7LogRowClient, CompactQ7LogRowDecoder,
-    CompactQ7LogRowProgram, LogRowInputs, LogRowOutputs,
+    prepare_compact_q7_logrow, prepare_compact_q7_logrow_elements, CompactQ7LogRowClient,
+    CompactQ7LogRowDecoder, CompactQ7LogRowProgram, LogRowInputs, LogRowOutputs,
+    COMPACT_Q7_LOGROW_MATERIAL_BYTES,
 };
 use pllm_models::{DecoderMode, DecoderPlan};
 use serde::Serialize;
 
 const CONTEXT_DOMAIN: &str = "pllm.protected.logrow_q7.element_context.v1";
 const MATERIAL_DOMAIN: &str = "pllm.protected.logrow_q7.element_material.v1";
+const TENSOR_CONTEXT_DOMAIN: &str = "pllm.protected.logrow_q7.tensor_context.v1";
+const TENSOR_MATERIAL_DOMAIN: &str = "pllm.protected.logrow_q7.tensor_material.v1";
 const HARD_MAX_MATERIAL_BYTES: usize = 64 * 1024;
+const HARD_MAX_TENSOR_MATERIAL_BYTES: usize = 64 * 1024 * 1024;
 
 /// Explicit acknowledgement of unreviewed, in-process material and a maximum
 /// evaluator body size; zero and unbounded limits fail before material issuance.
@@ -30,6 +34,33 @@ impl ExperimentalLogRowQ7Policy {
             return Err("protected LogRow Q7 material limit must be in (0, 64 KiB]".into());
         }
         Ok(Self {
+            max_evaluator_material_bytes,
+        })
+    }
+}
+
+/// Per-tensor resource admission for a bounded, in-process research reference.
+/// Neither a production-security claim nor an inference component selection.
+pub struct ExperimentalLogRowQ7TensorPolicy {
+    max_elements: usize,
+    max_evaluator_material_bytes: usize,
+}
+
+impl ExperimentalLogRowQ7TensorPolicy {
+    pub fn acknowledge_unreviewed_public_profile(
+        max_elements: usize,
+        max_evaluator_material_bytes: usize,
+    ) -> Result<Self, String> {
+        if max_elements == 0
+            || max_evaluator_material_bytes == 0
+            || max_evaluator_material_bytes > HARD_MAX_TENSOR_MATERIAL_BYTES
+        {
+            return Err(
+                "protected LogRow Q7 tensor bounds must be positive and at most 64 MiB".into(),
+            );
+        }
+        Ok(Self {
+            max_elements,
             max_evaluator_material_bytes,
         })
     }
@@ -53,6 +84,41 @@ struct MaterialContext<'a> {
     evaluator_material_bytes: usize,
     issuance_id: [u8; 32],
 }
+
+#[derive(Serialize)]
+struct TensorContext<'a> {
+    plan_digest: Digest,
+    mode: DecoderMode,
+    operation_id: &'a str,
+    shape: &'a [u64],
+    profile_id: &'static str,
+    profile_digest: [u8; 32],
+    artifact_digest: Digest,
+    max_elements: usize,
+    max_evaluator_material_bytes: usize,
+}
+
+#[derive(Serialize)]
+struct TensorMaterialContext<'a> {
+    tensor_context: &'a Digest,
+    issuance_ids: &'a [[u8; 32]],
+    evaluator_material_bytes: usize,
+}
+
+pub struct BoundLogRowQ7TensorMaterial {
+    context_digest: Digest,
+    binding_digest: Digest,
+    elements: Vec<(CompactQ7LogRowClient, CompactQ7LogRowProgram)>,
+}
+
+pub struct BoundLogRowQ7TensorEvaluation {
+    context_digest: Digest,
+    binding_digest: Digest,
+    elements: Vec<(LogRowInputs, CompactQ7LogRowProgram)>,
+}
+
+pub struct BoundLogRowQ7TensorDecoder(Vec<CompactQ7LogRowDecoder>);
+pub struct BoundLogRowQ7TensorOutputs(Vec<LogRowOutputs>);
 
 pub struct BoundLogRowQ7ClientMaterial {
     context_digest: Digest,
@@ -125,6 +191,154 @@ fn validate_context(
             max_evaluator_material_bytes: policy.max_evaluator_material_bytes,
         },
     ))
+}
+
+fn validate_tensor_context(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    operation_id: &str,
+    profile: &CompactQ7Profile,
+    policy: &ExperimentalLogRowQ7TensorPolicy,
+) -> Result<(Digest, usize), String> {
+    let (tensor, _) = lower_model_silu_operation(plan, mode, operation_id)?;
+    let elements = tensor_elements(&tensor.shape)?;
+    if elements > policy.max_elements {
+        return Err("protected LogRow Q7 tensor exceeds its element limit".into());
+    }
+    let bytes = elements
+        .checked_mul(COMPACT_Q7_LOGROW_MATERIAL_BYTES)
+        .ok_or("protected LogRow Q7 tensor material size overflowed")?;
+    if bytes > policy.max_evaluator_material_bytes {
+        return Err("protected LogRow Q7 tensor exceeds its material limit".into());
+    }
+    Ok((
+        canonical_digest(
+            TENSOR_CONTEXT_DOMAIN,
+            &TensorContext {
+                plan_digest: plan.digest(),
+                mode,
+                operation_id,
+                shape: &tensor.shape,
+                profile_id: COMPACT_SILU_Q7_PROFILE,
+                profile_digest: profile.digest(),
+                artifact_digest: method_artifact_digest(),
+                max_elements: policy.max_elements,
+                max_evaluator_material_bytes: policy.max_evaluator_material_bytes,
+            },
+        ),
+        elements,
+    ))
+}
+
+/// Admit the complete semantic tensor before issuing any one-use material.
+pub fn prepare_bound_logrow_q7_tensor(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    operation_id: &str,
+    profile: &CompactQ7Profile,
+    policy: &ExperimentalLogRowQ7TensorPolicy,
+) -> Result<BoundLogRowQ7TensorMaterial, String> {
+    let (context_digest, count) =
+        validate_tensor_context(plan, mode, operation_id, profile, policy)?;
+    let elements = prepare_compact_q7_logrow_elements(profile, count)?;
+    let issuance_ids = elements
+        .iter()
+        .map(|(_, program)| program.issuance_id())
+        .collect::<Vec<_>>();
+    let binding_digest = canonical_digest(
+        TENSOR_MATERIAL_DOMAIN,
+        &TensorMaterialContext {
+            tensor_context: &context_digest,
+            issuance_ids: &issuance_ids,
+            evaluator_material_bytes: count * COMPACT_Q7_LOGROW_MATERIAL_BYTES,
+        },
+    );
+    Ok(BoundLogRowQ7TensorMaterial {
+        context_digest,
+        binding_digest,
+        elements,
+    })
+}
+
+impl BoundLogRowQ7TensorMaterial {
+    pub fn binding_digest(&self) -> &Digest {
+        &self.binding_digest
+    }
+
+    pub fn evaluator_material_bytes(&self) -> usize {
+        self.elements.len() * COMPACT_Q7_LOGROW_MATERIAL_BYTES
+    }
+
+    pub fn elements(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Invalid length or any invalid element burns the *entire* tensor.
+    pub fn encode(
+        self,
+        values: &[i16],
+    ) -> Result<(BoundLogRowQ7TensorEvaluation, BoundLogRowQ7TensorDecoder), String> {
+        if values.len() != self.elements.len()
+            || values.iter().any(|value| !(-128..=128).contains(value))
+        {
+            return Err("protected LogRow Q7 tensor input shape or domain differs".into());
+        }
+        let mut encoded = Vec::with_capacity(self.elements.len());
+        let mut decoders = Vec::with_capacity(self.elements.len());
+        for ((client, program), &value) in self.elements.into_iter().zip(values) {
+            let (input, decoder) = client.encode(value)?;
+            encoded.push((input, program));
+            decoders.push(decoder);
+        }
+        Ok((
+            BoundLogRowQ7TensorEvaluation {
+                context_digest: self.context_digest,
+                binding_digest: self.binding_digest,
+                elements: encoded,
+            },
+            BoundLogRowQ7TensorDecoder(decoders),
+        ))
+    }
+}
+
+impl BoundLogRowQ7TensorEvaluation {
+    pub fn binding_digest(&self) -> &Digest {
+        &self.binding_digest
+    }
+
+    /// Revalidate the complete context before interpreting any row; failure
+    /// drops all one-use material, including rows not yet evaluated.
+    pub fn evaluate(
+        self,
+        plan: &DecoderPlan,
+        mode: DecoderMode,
+        operation_id: &str,
+        profile: &CompactQ7Profile,
+        policy: &ExperimentalLogRowQ7TensorPolicy,
+    ) -> Result<BoundLogRowQ7TensorOutputs, String> {
+        let (expected, count) = validate_tensor_context(plan, mode, operation_id, profile, policy)?;
+        if expected != self.context_digest || count != self.elements.len() {
+            return Err("protected LogRow Q7 tensor differs from its semantic context".into());
+        }
+        self.elements
+            .into_iter()
+            .map(|(input, program)| program.evaluate(input))
+            .collect::<Result<Vec<_>, _>>()
+            .map(BoundLogRowQ7TensorOutputs)
+    }
+}
+
+impl BoundLogRowQ7TensorDecoder {
+    pub fn decode(self, outputs: BoundLogRowQ7TensorOutputs) -> Result<Vec<i16>, String> {
+        if self.0.len() != outputs.0.len() {
+            return Err("protected LogRow Q7 tensor outputs differ from its decoder".into());
+        }
+        self.0
+            .into_iter()
+            .zip(outputs.0)
+            .map(|(decoder, output)| decoder.decode(output))
+            .collect()
+    }
 }
 
 /// Bind exactly one semantic SiLU element to the fitted-table reference.

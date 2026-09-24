@@ -17,6 +17,9 @@ const TREE_DOMAIN: u64 = 1 << 48;
 const TREE_ROW_DOMAIN: u64 = 2 << 48;
 const MASK_DOMAIN: u64 = 3 << 48;
 const MASK_ROW_DOMAIN: u64 = 4 << 48;
+/// Evaluator material for the fixed 512-entry, signed-9-bit Compact table.
+/// Tree: 17 blocks; mask rows: 81 blocks; masked table: 512 * 9 bits.
+pub const COMPACT_Q7_LOGROW_MATERIAL_BYTES: usize = (17 + 81) * 16 + 512 * 9 / 8;
 
 /// Client-only input encodings; consuming encoding burns this reference.
 pub struct LogRowClient {
@@ -80,6 +83,32 @@ pub struct CompactQ7LogRowDecoder {
 pub fn prepare_compact_q7_logrow(
     profile: &CompactQ7Profile,
 ) -> Result<(CompactQ7LogRowClient, CompactQ7LogRowProgram), String> {
+    let table = compact_q7_table(profile)?;
+    prepare_compact_q7_logrow_table(profile.digest(), &table)
+}
+
+/// Prepare bounded independent elements without fitting/evaluating the table
+/// once per element. The complete admitted body is checked by the caller.
+pub fn prepare_compact_q7_logrow_elements(
+    profile: &CompactQ7Profile,
+    count: usize,
+) -> Result<Vec<(CompactQ7LogRowClient, CompactQ7LogRowProgram)>, String> {
+    if count == 0 || count > (64 * 1024 * 1024) / COMPACT_Q7_LOGROW_MATERIAL_BYTES {
+        return Err("Compact Q7 LogRow tensor body exceeds 64 MiB".into());
+    }
+    let table = compact_q7_table(profile)?;
+    let profile_digest = profile.digest();
+    let mut elements = Vec::new();
+    elements
+        .try_reserve_exact(count)
+        .map_err(|_| "Compact Q7 LogRow element allocation failed")?;
+    for _ in 0..count {
+        elements.push(prepare_compact_q7_logrow_table(profile_digest, &table)?);
+    }
+    Ok(elements)
+}
+
+fn compact_q7_table(profile: &CompactQ7Profile) -> Result<Zeroizing<Vec<u16>>, String> {
     let mut table = Zeroizing::new(vec![0_u16; 512]);
     for (offset, value) in (-128..=128).enumerate() {
         let output = profile.evaluate(value).map_err(|error| error.to_string())?;
@@ -88,14 +117,24 @@ pub fn prepare_compact_q7_logrow(
         }
         table[offset] = u16::from_le_bytes(output.to_le_bytes()) & 0x01ff;
     }
-    let (client, program) = prepare_logrow(9, 9, &table)?;
+    Ok(table)
+}
+
+fn prepare_compact_q7_logrow_table(
+    profile_digest: [u8; 32],
+    table: &[u16],
+) -> Result<(CompactQ7LogRowClient, CompactQ7LogRowProgram), String> {
+    let (client, program) = prepare_logrow(9, 9, table)?;
+    if program.evaluator_material_bytes() != COMPACT_Q7_LOGROW_MATERIAL_BYTES {
+        return Err("Compact Q7 LogRow material layout changed".into());
+    }
     Ok((
         CompactQ7LogRowClient {
-            profile_digest: profile.digest(),
+            profile_digest,
             client,
         },
         CompactQ7LogRowProgram {
-            profile_digest: profile.digest(),
+            profile_digest,
             program,
         },
     ))

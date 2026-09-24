@@ -27,11 +27,12 @@ PLLM has a bounded in-process Rust reference in `pllm-garble::logrow` for
 a 9-bit wrapper for the public-calibrated Compact Q7 SiLU table. The masked
 index is exposed only inside the reference evaluator; original input, mask,
 and plaintext table remain client-owned. A specialized compiler reference binds
-one fitted-Q7 element to a semantic SiLU operation, phase, tensor index, plan
-and profile digests, implementation source, resource policy and fresh issuance.
-No reviewed distributed 2PC, secure provider input transfer, Rust-to-Python
-execution API, arithmetic conversion, tensor schedule or complete compiled
-decoder is established.
+one fitted-Q7 element or one **complete bounded semantic SiLU tensor** to the
+operation, phase, plan and profile digests, implementation source, resource
+policy and fresh issuance. The tensor preflights the complete body before
+issuance and burns all rows together on invalid input. No reviewed distributed
+2PC, secure provider input transfer, Rust-to-Python execution API, arithmetic
+conversion, whole-session schedule or complete compiled decoder is established.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 
@@ -73,7 +74,12 @@ framing and local workspace are additional. The older Compact oracle has
 controlled network, CPU, memory, disk, generation-quality, or checkpoint
 measurements; the `LogRowGarbledLookup` Python class stays pending.
 
-This is an adapted native scalar reference, **not a reproduction of the paper's
+Bounded Qwen2 and dense Qwen3 compiler tests evaluate 32-element prefill and
+16-element decode tensors, with exact 68,608- and 34,304-byte evaluator-body
+preflight. A 64 MiB per-tensor hard ceiling protects this research reference;
+it is **not** a measured per-token or full-decoder memory bound.
+
+This is an adapted native bounded-tensor reference, **not a reproduction of the paper's
 optimized setup, measured experiments or whole-system security**.
 
 ## Reproduction gates

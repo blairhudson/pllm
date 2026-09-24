@@ -15,13 +15,14 @@ table. The implementation uses the two-row one-hot setup from
 [Heath and Kolesnikov's *One Hot Garbling*](https://eprint.iacr.org/2022/798),
 not the more efficient one-row setup in the LogRow paper.
 
-The Rust compiler can bind **one fitted Q7 lookup element** to a semantic SiLU
-operator, a decoder-plan digest, prefill/decode phase, tensor position, fitted
-profile, implementation source, resource policy and fresh circuit identity.
-It rejects mismatches before evaluation and burns the one-use material. A
-caller must explicitly acknowledge an unreviewed public profile and admit at
-least 2,144 evaluator-material bytes per element (with a 64 KiB hard ceiling).
-This does not provide a tensor schedule or model execution.
+The Rust compiler binds a fitted Q7 lookup either to **one SiLU element** or to
+the **entire bounded semantic SiLU tensor** for one prefill/decode phase. Both
+bind the decoder plan, operation, profile, implementation source, policy and
+fresh circuit identity; the scalar path additionally binds its tensor position.
+The tensor path preflights every row and the full evaluator-body budget before
+issuing material, revalidates the whole context before evaluation, and burns
+the entire one-use tensor on invalid input. The experimental hard ceiling is
+64 MiB per tensor. This is not yet a session-wide scheduler or model execution.
 
 This is an **in-process Rust reference**, not a deployment boundary: it has no
 transport, independent provider, Python execution API, security review, or
@@ -37,10 +38,10 @@ actual private response.
 
 | Resource | Current 9-bit fitted Q7 reference |
 | --- | --- |
-| Evaluator material | **2,144 bytes per scalar**: 272 one-hot setup bytes, 1,296 random-function row bytes, 576 masked table bytes. |
+| Evaluator material | **2,144 bytes per scalar**: 272 one-hot setup bytes, 1,296 random-function row bytes, 576 masked table bytes. A 32-element tensor requires exactly 68,608 body bytes, preflighted before issuance. |
 | Input / output labels | Nine 16-byte input labels and nine 16-byte output labels per scalar. These are **additional** to the 2,144-byte material; protocol framing is not included. |
 | Prior oracle | The 257-row protected Compact lookup oracle uses 73,728 half-gate ciphertext bytes alone; these counts are **not** matched end-to-end traffic measurements. |
-| Memory | Bounded 512-row table and one-hot seed vectors in-process; peak heap and allocator overhead have **not** been measured. |
+| Memory | Bounded 512-row table and one-hot seed vectors in-process; per-tensor evaluator material is capped at 64 MiB. Peak heap and allocator overhead have **not** been measured. |
 | CPU | Full tree preparation, random-function masking, table packing and evaluator XOR/hash work; no controlled wall-time or throughput measurement. |
 | Disk | No persistent material is written by the reference; a caller's checkpoint/calibration storage is separate. |
 | Network | No network path exists. The 2,144-byte body and 144-byte input/output labels are potential payload terms, **not** observed network traffic. |
@@ -48,12 +49,13 @@ actual private response.
 
 Native tests exhaust all 257 signed-Q7 inputs for a fitted profile and check
 cross-circuit rejection, output-label tampering, width limits and one-use
-consumption. Qwen2 and dense Qwen3 single-element compiler tests check plan,
-phase, operator, tensor index, fitted profile and material-budget binding.
-This establishes functional parity at the scalar boundary, not checkpoint
-quality or production privacy. The next gates are reviewed provider input
-transfer, an authenticated *tensor* binding, a composable protected decoder
-operator, complete transport-cost measurement, and matched model
+consumption. Qwen2 and dense Qwen3 compiler tests exercise complete 16- and
+32-element semantic SiLU tensors in decode and prefill, verify material and
+element-limit preflight, and reject plan, phase, profile, policy and circuit
+mismatches. This establishes bounded tensor parity, not checkpoint quality or
+production privacy. The next gates are whole-session admission, a float-to-Q7
+numeric bridge, reviewed provider input transfer, a composable protected
+decoder operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)
 tracks the pending Python component independently of this reference.
 
