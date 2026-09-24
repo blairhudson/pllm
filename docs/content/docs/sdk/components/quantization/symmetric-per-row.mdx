@@ -28,6 +28,10 @@ numeric options against the same locked reference and token cohort. Use
 [`benchmark run`](/cli/reference/benchmark/run/) for separate masked-protocol
 cost reports. Its current latency comparator requires an identical quantized
 body fingerprint, so it does not rank W4A4 against W8A8 automatically.
+The retained two-prompt [Qwen2.5-0.5B](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json)
+and [Qwen3-0.6B](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
+quality cohorts both scored 0/2 W4A4 and 1/2 W8A8 top-token agreement. Their
+distinct checkpoint digests prevent treating them as a single cohort.
 
 ## Python SDK example
 

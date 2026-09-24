@@ -50,7 +50,9 @@ against one locked float32 checkpoint and emits only digests, cohort token
 counts and aggregate prefill scores. It needs the optional `quality` dependencies
 (Torch and Transformers). The
 [pinned Qwen3-0.6B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
-measured W4A4 and W8A8 on the same two-prompt cohort. It is separate
+and [pinned Qwen2.5-0.5B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json)
+each measured W4A4 and W8A8 on the same two-prompt text. Each has its own
+checkpoint/reference cohort. This diagnostic is separate
 from the [provider transport benchmark](/sdk/evaluate/benchmark/).
 
 API: [`ReferenceAgreement` and `measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).

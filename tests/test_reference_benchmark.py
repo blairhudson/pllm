@@ -99,32 +99,50 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
 
 @pytest.mark.rust
 @pytest.mark.slow
-@pytest.mark.skipif(
-    not os.getenv("PLLM_REAL_QWEN3_PATH"), reason="pinned Qwen3 checkpoint is not configured"
+@pytest.mark.parametrize(
+    ("env_name", "model_id", "model_key", "evidence_file"),
+    [
+        (
+            "PLLM_REAL_QWEN_PATH",
+            "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+            "qwen2",
+            "qwen2.5-0.5b-reference-quality-2026-09-24.json",
+        ),
+        (
+            "PLLM_REAL_QWEN3_PATH",
+            "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            "qwen3",
+            "qwen3-0.6b-reference-quality-2026-09-24.json",
+        ),
+    ],
 )
-def test_pinned_qwen3_reference_cohort_matches_retained_report() -> None:
+def test_pinned_reference_cohort_matches_retained_report(
+    env_name: str, model_id: str, model_key: str, evidence_file: str
+) -> None:
+    if not os.getenv(env_name):
+        pytest.skip(f"pinned checkpoint path is not configured: {env_name}")
     pytest.importorskip("transformers")
     source = pllm.Model.path(
-        os.environ["PLLM_REAL_QWEN3_PATH"],
-        model_id="Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+        os.environ[env_name],
+        model_id=model_id,
     )
     candidates = [
         pllm.Experiment(
-            name=f"qwen3-w{bits}a{bits}",
+            name=f"{model_key}-w{bits}a{bits}",
             pipeline=MaskedLinearCpu(
                 source,
                 quantization=SymmetricPerRow(weight_bits=bits, activation_bits=bits),
             ),
-            deployment=pllm.Deployment.local(root="local://qwen3-reference-quality"),
+            deployment=pllm.Deployment.local(root=f"local://{model_key}-reference-quality"),
             budget=pllm.ExecutionBudget(requests=2, max_input_tokens=16, max_new_tokens=2),
         )
         for bits in (4, 8)
     ]
     root = Path(__file__).resolve().parents[1]
     prompts = json.loads((root / "examples/benchmarks/reference_prompts.json").read_text())
-    expected = json.loads(
-        (root / "docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json").read_text()
-    )
+    evidence_text = (root / "docs/evidence" / evidence_file).read_text()
+    assert all(prompt not in evidence_text for prompt in prompts)
+    expected = json.loads(evidence_text)
     report = run_reference_benchmark(candidates, prompts)
     assert report["model"] == expected["model"]
     assert report["cohort"] == expected["cohort"]

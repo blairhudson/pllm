@@ -57,6 +57,17 @@ network metrics. Neither setting meets a general model-quality gate from
 these two prompts. For interpretation and the typed metric, see
 [reference agreement](/sdk/evaluate/metrics/reference-agreement/).
 
+The same source-locked two-prompt comparison was also run for
+[Qwen2.5-0.5B-Instruct](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json):
+
+```bash
+pllm benchmark quality --experiment examples/benchmarks/qwen2_reference_quality.py:w4a4 --experiment examples/benchmarks/qwen2_reference_quality.py:w8a8 --trust-python --prompts-file examples/benchmarks/reference_prompts.json --top-k 5 --format json
+```
+
+It also scored 0/2 W4A4 and 1/2 W8A8, with a larger worst-logit difference
+than Qwen3. Each model binds its own checkpoint and reference; do not pool
+their scores as one cohort.
+
 An Experiment can instead be built with the SDK in a Python module:
 
 ```bash
