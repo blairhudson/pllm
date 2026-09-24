@@ -155,3 +155,46 @@ fn resolves_only_exact_verified_composition_with_bounded_freivalds_parameters() 
         .unwrap_err()
         .contains("target_failure_bits from 1 to 80"));
 }
+
+#[test]
+fn quantization_is_a_bound_numeric_choice_not_an_unchecked_extra_slot() {
+    let baseline = experiment();
+    let baseline_digest = pipeline_digest(&baseline["pipeline"]);
+    for (weights, activations) in [(4, 4), (4, 8), (8, 4), (8, 8)] {
+        let mut selected = baseline.clone();
+        selected["pipeline"]["components"]["quantization"] = json!({
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {"weight_bits": weights, "activation_bits": activations}
+        });
+        let resolved = resolve_experiment(&canonical_bytes(&selected)).unwrap();
+        assert_ne!(resolved.composition_digest(), &baseline_digest);
+        assert_eq!(
+            resolved.composition_digest(),
+            &pipeline_digest(&selected["pipeline"])
+        );
+        selected["pipeline"]["components"]["verification"] = json!({
+            "component": "pllm/freivalds-verify/v1",
+            "params": {"target_failure_bits": 40}
+        });
+        assert!(resolve_experiment(&canonical_bytes(&selected)).is_ok());
+    }
+
+    for invalid in [
+        json!({"component": "pllm/other", "params": {"weight_bits": 4, "activation_bits": 4}}),
+        json!({"component": "pllm/symmetric-per-row-quantization/v1", "params": {"weight_bits": 4, "activation_bits": 3}}),
+        json!({"component": "pllm/symmetric-per-row-quantization/v1", "params": {"weight_bits": 4, "activation_bits": 8, "unused": true}}),
+    ] {
+        let mut selected = baseline.clone();
+        selected["pipeline"]["components"]["quantization"] = invalid;
+        assert!(resolve_experiment(&canonical_bytes(&selected)).is_err());
+    }
+    let mut unused = baseline;
+    unused["pipeline"]["components"]["quantization"] = json!({
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {"weight_bits": 8, "activation_bits": 8}
+    });
+    unused["pipeline"]["components"]["unrecognized"] = json!({
+        "component": "pllm/other", "params": {}
+    });
+    assert!(resolve_experiment(&canonical_bytes(&unused)).is_err());
+}

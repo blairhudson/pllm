@@ -27,6 +27,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     from pllm.nonlinear import ArithmeticGarblingSiluQ7, BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
     from pllm.passes import KvCacheEviction
     from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
+    from pllm.quantization import SymmetricPerRow
     from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
     from pllm.roles import Inference
     from pllm.schedulers import (
@@ -46,7 +47,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
         KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
         Perplexity, R03CrtGatedMultiplyQ7, ScalarProtectedTensorSchedule, SeededExpansion,
-        SecureLinear, Throughput,
+        SecureLinear, SymmetricPerRow, Throughput,
     )
     if len({component.describe().component for component in classes}) != len(classes):
         raise RuntimeError("built-in component identities must be unique")

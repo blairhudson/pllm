@@ -8,6 +8,7 @@ from typing import Any
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import Cpu, KernelBackend
 from pllm.preparation import ModelAwareCorrections, PreparationProvider
+from pllm.quantization import QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
     DirectFHE as DirectFHEMethod,
@@ -49,9 +50,11 @@ class _TypedPipeline(Pipeline):
 
     def get_params(self, deep: bool = True) -> dict[str, Any]:
         values: dict[str, Any] = {"model": self.model}
-        values.update({name: self.components[name] for name in self.SLOT_NAMES})
+        values.update({name: self.components.get(name) for name in self.SLOT_NAMES})
         if deep:
             for name, value in tuple(values.items()):
+                if value is None:
+                    continue
                 for nested_name, nested_value in value.get_params(deep=True).items():
                     values[f"{name}__{nested_name}"] = nested_value
         return values
@@ -84,7 +87,7 @@ class _TypedPipeline(Pipeline):
 
 class MaskedLinearCpu(_TypedPipeline):
     PROFILE = "baseline.masked_linear_cpu"
-    SLOT_NAMES = ("linear", "preparation", "inference", "kernels")
+    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "quantization")
     __slots__ = ()
 
     def __init__(
@@ -95,7 +98,15 @@ class MaskedLinearCpu(_TypedPipeline):
         preparation: PreparationProvider = _DEFAULT_PREPARATION,
         inference: InferenceRole = _DEFAULT_INFERENCE,
         kernels: KernelBackend = _DEFAULT_KERNELS,
+        quantization: QuantizationScheme | None = None,
     ) -> None:
+        if quantization is not None:
+            _slot(
+                "quantization",
+                quantization,
+                QuantizationScheme,
+                SymmetricPerRow.descriptor.component,
+            )
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -104,6 +115,7 @@ class MaskedLinearCpu(_TypedPipeline):
                 "preparation": _slot("preparation", preparation, PreparationProvider),
                 "inference": _slot("inference", inference, InferenceRole),
                 "kernels": _slot("kernels", kernels, KernelBackend),
+                **({"quantization": quantization} if quantization is not None else {}),
             },
         )
 
@@ -123,10 +135,14 @@ class MaskedLinearCpu(_TypedPipeline):
     def kernels(self) -> KernelBackend:
         return self.components["kernels"]
 
+    @property
+    def quantization(self) -> SymmetricPerRow | None:
+        return self.components.get("quantization")
+
 
 class VerifiedMaskedLinearCpu(_TypedPipeline):
     PROFILE = "research.verified_masked_linear_cpu"
-    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "verification")
+    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "verification", "quantization")
     __slots__ = ()
 
     def __init__(
@@ -138,7 +154,15 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
         inference: InferenceRole = _DEFAULT_INFERENCE,
         kernels: KernelBackend = _DEFAULT_KERNELS,
         verification: VerificationScheme = _DEFAULT_FREIVALDS,
+        quantization: QuantizationScheme | None = None,
     ) -> None:
+        if quantization is not None:
+            _slot(
+                "quantization",
+                quantization,
+                QuantizationScheme,
+                SymmetricPerRow.descriptor.component,
+            )
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -152,6 +176,7 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
                 "verification": _slot(
                     "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
                 ),
+                **({"quantization": quantization} if quantization is not None else {}),
             },
         )
 
@@ -174,6 +199,10 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
     @property
     def verification(self) -> FreivaldsVerify:
         return self.components["verification"]
+
+    @property
+    def quantization(self) -> SymmetricPerRow | None:
+        return self.components.get("quantization")
 
 
 class ProprietaryGuarded(_TypedPipeline):
@@ -298,10 +327,33 @@ class RuntimeComposition:
     output_dither_bound: int = 0
     verification_component: str | None = None
     verification_target_failure_bits: int = 0
+    weight_bits: int = 8
+    activation_bits: int = 8
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    quantization = pipeline.components.get("quantization")
+    if quantization is not None:
+        if (
+            quantization.component != SymmetricPerRow.descriptor.component
+            or set(quantization.params) != {"weight_bits", "activation_bits"}
+            or any(
+                type(value) is not int or value not in {4, 8}
+                for value in quantization.params.values()
+            )
+            or identities.get("linear") != "pllm/masked-linear"
+        ):
+            return None
+        del identities["quantization"]
+    bits = (
+        {
+            "weight_bits": quantization.params["weight_bits"],
+            "activation_bits": quantization.params["activation_bits"],
+        }
+        if quantization is not None
+        else {}
+    )
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
     if identities == {
@@ -334,6 +386,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             privacy_protocol=None,
             verification_component="pllm/freivalds-verify/v1",
             verification_target_failure_bits=verification.params["target_failure_bits"],
+            **bits,
         )
     if (
         identities
@@ -349,7 +402,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         and not pipeline.components["inference"].params
     ):
         return RuntimeComposition(
-            "public", "guarded", True, "bfv", "masked_transformer_v1", None
+            "public", "guarded", True, "bfv", "masked_transformer_v1", None, **bits
         )
     if (
         identities

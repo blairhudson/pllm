@@ -1676,32 +1676,45 @@ fn validate_masked_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<MaskedLinearComposition, String> {
     validate_masked_linear_core(pipeline)?;
-    match pipeline.components.len() {
-        4 => Ok(MaskedLinearComposition::Baseline),
-        5 => {
-            let verification = pipeline.components.get("verification").ok_or_else(|| {
-                "unsupported masked-linear component composition; fifth slot must be verification"
-                    .to_string()
-            })?;
-            if verification.component != "pllm/freivalds-verify/v1" {
-                return Err(
-                    "verified masked-linear composition requires verification component pllm/freivalds-verify/v1"
-                        .into(),
-                );
-            }
-            let target = verification
+    let quantization = pipeline.components.get("quantization");
+    if let Some(quantization) = quantization {
+        let bits = |key: &str| {
+            quantization
                 .params
-                .get("target_failure_bits")
-                .and_then(serde_json::Value::as_u64);
-            if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
-                return Err(
-                    "Freivalds verification requires target_failure_bits from 1 to 80".into(),
-                );
-            }
-            Ok(MaskedLinearComposition::Verified)
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+        };
+        if quantization.component != "pllm/symmetric-per-row-quantization/v1"
+            || quantization.params.len() != 2
+            || !matches!(bits("weight_bits"), Some(4 | 8))
+            || !matches!(bits("activation_bits"), Some(4 | 8))
+        {
+            return Err("masked-linear quantization requires exact 4- or 8-bit symmetric per-row weight and activation settings".into());
         }
-        _ => Err("unsupported masked-linear component composition; expected exact baseline four slots or verified five slots".into()),
     }
+    let verification = pipeline.components.get("verification");
+    if pipeline.components.len()
+        != 4 + usize::from(quantization.is_some()) + usize::from(verification.is_some())
+    {
+        return Err("unsupported masked-linear component composition; expected exact core, optional quantization, and optional verification slots".into());
+    }
+    let Some(verification) = verification else {
+        return Ok(MaskedLinearComposition::Baseline);
+    };
+    if verification.component != "pllm/freivalds-verify/v1" {
+        return Err(
+            "verified masked-linear composition requires verification component pllm/freivalds-verify/v1"
+                .into(),
+        );
+    }
+    let target = verification
+        .params
+        .get("target_failure_bits")
+        .and_then(serde_json::Value::as_u64);
+    if verification.params.len() != 1 || !matches!(target, Some(1..=80)) {
+        return Err("Freivalds verification requires target_failure_bits from 1 to 80".into());
+    }
+    Ok(MaskedLinearComposition::Verified)
 }
 
 fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), String> {

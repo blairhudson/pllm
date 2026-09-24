@@ -3,6 +3,7 @@ from typing import Any
 from pllm.configuration import Pipeline
 from pllm.kernels import KernelBackend
 from pllm.preparation import PreparationProvider
+from pllm.quantization import QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
     DirectFHE,
@@ -26,6 +27,8 @@ class RuntimeComposition:
     output_dither_bound: int
     verification_component: str | None
     verification_target_failure_bits: int
+    weight_bits: int
+    activation_bits: int
     def __init__(
         self,
         privacy_mode: str,
@@ -40,6 +43,8 @@ class RuntimeComposition:
         output_dither_bound: int = ...,
         verification_component: str | None = ...,
         verification_target_failure_bits: int = ...,
+        weight_bits: int = ...,
+        activation_bits: int = ...,
     ) -> None: ...
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None: ...
@@ -54,6 +59,7 @@ class MaskedLinearCpu(Pipeline):
         preparation: PreparationProvider = ...,
         inference: InferenceRole = ...,
         kernels: KernelBackend = ...,
+        quantization: QuantizationScheme | None = ...,
     ) -> None: ...
     @property
     def linear(self) -> ProtocolMethod: ...
@@ -63,6 +69,8 @@ class MaskedLinearCpu(Pipeline):
     def inference(self) -> InferenceRole: ...
     @property
     def kernels(self) -> KernelBackend: ...
+    @property
+    def quantization(self) -> SymmetricPerRow | None: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> MaskedLinearCpu: ...
 
@@ -77,6 +85,7 @@ class VerifiedMaskedLinearCpu(Pipeline):
         inference: InferenceRole = ...,
         kernels: KernelBackend = ...,
         verification: VerificationScheme = ...,
+        quantization: QuantizationScheme | None = ...,
     ) -> None: ...
     @property
     def linear(self) -> ProtocolMethod: ...
@@ -88,6 +97,8 @@ class VerifiedMaskedLinearCpu(Pipeline):
     def kernels(self) -> KernelBackend: ...
     @property
     def verification(self) -> FreivaldsVerify: ...
+    @property
+    def quantization(self) -> SymmetricPerRow | None: ...
     def with_params(self, **changes: object) -> VerifiedMaskedLinearCpu: ...
 
 class ProprietaryGuarded(Pipeline):

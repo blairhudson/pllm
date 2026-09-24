@@ -1,0 +1,42 @@
+---
+title: "Quantization"
+description: "Choose masked-linear numeric precision as a versioned Experiment component."
+---
+
+[`SymmetricPerRow`](/sdk/components/quantization/symmetric-per-row/) selects
+weight and activation precision for public prepared masked-linear stages. The
+choice lives in `Pipeline.components["quantization"]`: different bit widths get
+different composition and `Experiment` digests. Omitting the slot preserves old
+pipeline identities and uses the existing eight-bit local-role default.
+
+Available choices: four or eight bits for each dimension, independently. Only
+the masked-linear public baseline and its opt-in verified counterpart admit this
+component. Incompatible protocols and unknown numeric implementations fail
+closed at resolution. Selection binds the same settings across client,
+preparation and inference; a conflicting explicit role override is rejected.
+
+This is an execution choice, not a quality score. See
+[reference fidelity](/sdk/evaluate/metrics/) and compare measurements on the
+same pinned checkpoint and token workload before favoring a setting.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
+
+model = Model.tiny("qwen2")
+w4 = MaskedLinearCpu(model, quantization=SymmetricPerRow(weight_bits=4, activation_bits=4))
+w8 = MaskedLinearCpu(model, quantization=SymmetricPerRow(weight_bits=8, activation_bits=8))
+experiment = Experiment(
+    name="w4a4",
+    pipeline=w4,
+    deployment=Deployment.local(root="local://numeric-options"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+)
+assert experiment.resolve().composition_digest == w4.digest()
+assert w4.digest() != w8.digest()
+```
+
+API: [`pllm.quantization`](/sdk/reference/python/pllm/quantization/#objects-and-signatures).

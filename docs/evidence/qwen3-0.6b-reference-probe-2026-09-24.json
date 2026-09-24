@@ -16,5 +16,5 @@
     {"prompt": "The capital of France is", "token_ids": [785, 6722, 315, 9625, 374], "mode": "W8A8", "prefill_top1": 12095, "reference_top1": 12095, "prefill_top5_overlap": 5, "prefill_max_absolute_logit_difference": 2.4757, "decode_top1": 13, "reference_decode_top1": 13, "decode_top5_overlap": 5, "decode_max_absolute_logit_difference": 1.6127},
     {"prompt": "Hello", "token_ids": [9707], "mode": "W8 token/head, FP32 body", "prefill_top1": 21806, "reference_top1": 21806, "prefill_top5_overlap": 4, "prefill_max_absolute_logit_difference": 0.3754}
   ],
-  "limitations": "One local run per prompt/mode, no matched deployment benchmark, no network/memory/cost measurement, and no population-level generation-quality claim. Default W4A4 and short-prompt W8A8 fail the checked top-token fidelity test; FP32 body is a diagnostic, not a protected option. Provider transport and protected whole-decoder coverage were not tested."
+  "limitations": "One local run per prompt/mode, no matched deployment benchmark, no network/memory/cost measurement, and no population-level generation-quality claim. W4A4 and short-prompt W8A8 fail the checked top-token fidelity test; W8A8 is the local-role default, while the standalone engine defaults to W4A4. FP32 body is a diagnostic, not a protected option. Provider transport and protected whole-decoder coverage were not tested."
 }

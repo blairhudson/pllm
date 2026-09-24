@@ -1,0 +1,51 @@
+---
+title: "Symmetric per-row"
+description: "Select W4/W8 and A4/A8 prepared-stage numeric precision without changing the privacy topology."
+---
+
+[`SymmetricPerRow`](/sdk/reference/python/pllm/quantization/#symmetricperrow)
+is the executable `pllm/symmetric-per-row-quantization/v1` component for the
+public masked-linear baseline. Weights use symmetric per-output-row scales;
+activations use symmetric per-token-row scales. Both are represented by signed
+integer bytes in the current native matrix snapshot. Prepared masks and
+corrections use the selected stage widths and the smallest admitted exact
+ring; online masked messages bind the same bits. Private activation scales
+stay with the client. Selecting four bits does **not** change which party can
+see the prompt or plaintext activations.
+
+The baseline local roles default to W8A8 if no numeric component is present.
+Select W4A4, W8A8, W4A8 or W8A4 explicitly to compare numeric choices as
+distinct immutable experiments. A lower bit width can increase quantization
+error and may change ring width, traffic and offline work. Current native
+storage is still one byte per weight; smaller bit count alone is not a measured
+memory or disk saving. Measure CPU, offline material, network and generation
+quality on exact cohorts. A small pinned [Qwen3-0.6B probe](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-probe-2026-09-24.json)
+shows W4A4 failing checked reference top-token parity and W8A8 still missing
+one short prompt; it is not a population-level quality result.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
+
+model = Model.tiny("qwen2")
+pipeline = MaskedLinearCpu(
+    model, quantization=SymmetricPerRow(weight_bits=8, activation_bits=8)
+)
+experiment = Experiment(
+    name="numeric-w8a8",
+    pipeline=pipeline,
+    deployment=Deployment.local(root="local://numeric-w8a8"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+)
+assert experiment.resolve().composition_digest == pipeline.digest()
+assert pipeline.quantization.get_params() == {
+    "component": "pllm/symmetric-per-row-quantization/v1",
+    "weight_bits": 8,
+    "activation_bits": 8,
+}
+```
+
+API: [`SymmetricPerRow`](/sdk/reference/python/pllm/quantization/#objects-and-signatures).

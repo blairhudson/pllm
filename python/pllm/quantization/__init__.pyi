@@ -1,0 +1,9 @@
+from pllm.configuration import ComponentDescriptor, ComponentRef
+
+class QuantizationScheme(ComponentRef): ...
+
+class SymmetricPerRow(QuantizationScheme):
+    descriptor: ComponentDescriptor
+    def __init__(self, *, weight_bits: int = 8, activation_bits: int = 8) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...

@@ -14,6 +14,7 @@ from pllm.profiles import (
     resolve_runtime_composition,
 )
 from pllm.protocols import BlindedLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
+from pllm.quantization import SymmetricPerRow
 from pllm.roles import Inference
 from pllm.runtime import build_roles
 from pllm.sources import TinyModel
@@ -72,6 +73,53 @@ def test_verified_masked_profile_resolves_exact_verification_slot() -> None:
     assert resolved.verification_target_failure_bits == 48
     with pytest.raises(ValueError, match="target_failure_bits"):
         FreivaldsVerify(0)
+
+
+def test_masked_linear_quantization_is_selectable_and_binds_role_bits() -> None:
+    base = MaskedLinearCpu(TinyModel())
+    assert base.quantization is None
+    with pytest.raises(ValueError, match="pipeline quantization"):
+        build_roles(base, weight_bits=4)
+    w4 = base.with_params(quantization=SymmetricPerRow(weight_bits=4, activation_bits=4))
+    w8 = base.with_params(quantization=SymmetricPerRow(weight_bits=8, activation_bits=8))
+    assert w4.digest() != w8.digest() != base.digest()
+    assert w4.get_params()["quantization__weight_bits"] == 4
+    for pipeline, bits in ((w4, 4), (w8, 8)):
+        restored = pllm.Pipeline.from_spec(pipeline.to_spec())
+        assert restored.digest() == pipeline.digest()
+        experiment = pllm.Experiment(
+            name=f"w{bits}a{bits}",
+            pipeline=restored,
+            deployment=pllm.Deployment.local(root="local://numeric-test"),
+            budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+        )
+        assert experiment.resolve().composition_digest == pipeline.digest()
+        topology = build_roles(experiment)
+        assert (topology._weight_bits, topology._activation_bits) == (bits, bits)
+        for command in topology._commands(9101, 9102).values():
+            assert command[command.index("--weight-bits") + 1] == str(bits)
+            assert command[command.index("--activation-bits") + 1] == str(bits)
+        topology.close()
+        with pytest.raises(ValueError, match="conflicts with the pipeline quantization"):
+            build_roles(experiment, weight_bits=8 if bits == 4 else 4)
+
+    verified = VerifiedMaskedLinearCpu(
+        TinyModel(), quantization=SymmetricPerRow(weight_bits=4, activation_bits=4)
+    )
+    assert verified.quantization is not None
+    assert (
+        pllm.Experiment(
+            name="verified-w4a4",
+            pipeline=verified,
+            deployment=pllm.Deployment.local(root="local://verified-numeric-test"),
+            budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+        ).resolve().composition_digest
+        == verified.digest()
+    )
+    with pytest.raises(pllm.ConfigurationError, match="weight_bits"):
+        SymmetricPerRow(weight_bits=True)
+    with pytest.raises(pllm.ConfigurationError, match="activation_bits"):
+        SymmetricPerRow(activation_bits=16)
 
 
 def test_profile_accepts_structural_model_sources() -> None:

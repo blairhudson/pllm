@@ -360,8 +360,12 @@ def run_local_gateway(args: argparse.Namespace) -> None:
     with build_roles(
         model,
         model_id=model_id,
-        weight_bits=argument_or_default("weight_bits", 8),
-        activation_bits=argument_or_default("activation_bits", 8),
+        weight_bits=getattr(args, "weight_bits", None)
+        if experiment is not None
+        else argument_or_default("weight_bits", 8),
+        activation_bits=getattr(args, "activation_bits", None)
+        if experiment is not None
+        else argument_or_default("activation_bits", 8),
         correlation_mode=argument_or_default("correlation_mode", "bfv"),
         tenseal_path=getattr(args, "tenseal_path", None),
         hf_cache_dir=getattr(args, "hf_cache_dir", None),

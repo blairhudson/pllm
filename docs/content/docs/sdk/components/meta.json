@@ -1,5 +1,5 @@
 {
   "title": "Component options",
   "root": true,
-  "pages": ["index", "research-method-roadmap", "protocols", "preparation", "correlation", "kernels", "nonlinear", "schedulers", "roles", "state", "verification", "assurance", "passes"]
+  "pages": ["index", "research-method-roadmap", "protocols", "preparation", "correlation", "quantization", "kernels", "nonlinear", "schedulers", "roles", "state", "verification", "assurance", "passes"]
 }

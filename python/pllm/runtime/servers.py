@@ -611,8 +611,8 @@ def build_roles(
     *,
     model_id: str | None = None,
     engine_threads: int | None = None,
-    weight_bits: int = 8,
-    activation_bits: int = 8,
+    weight_bits: int | None = None,
+    activation_bits: int | None = None,
     correlation_mode: str = "bfv",
     tenseal_path: str | None = None,
     hf_cache_dir: str | None = None,
@@ -643,6 +643,12 @@ def build_roles(
         if resolved_options is None:
             raise ValueError("local topology does not support this component composition")
         runtime_options = resolved_options
+        for name, explicit, selected in (
+            ("weight_bits", weight_bits, runtime_options.weight_bits),
+            ("activation_bits", activation_bits, runtime_options.activation_bits),
+        ):
+            if explicit is not None and explicit != selected:
+                raise ValueError(f"{name} conflicts with the pipeline quantization")
         kernels = pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             configured_threads = kernels.params.get("threads")
@@ -667,6 +673,10 @@ def build_roles(
         raise ValueError("model_id must be a nonempty printable string of at most 512 characters")
     if engine_threads is not None and (type(engine_threads) is not int or engine_threads <= 0):
         raise ValueError("engine_threads must be a positive integer")
+    if weight_bits is None:
+        weight_bits = runtime_options.weight_bits
+    if activation_bits is None:
+        activation_bits = runtime_options.activation_bits
     if weight_bits not in {4, 8} or activation_bits not in {4, 8}:
         raise ValueError("weight_bits and activation_bits must be 4 or 8")
     if correlation_mode not in {"bfv", "local-test"}:
@@ -756,8 +766,8 @@ def serve_local(
     *,
     model_id: str | None = None,
     engine_threads: int | None = None,
-    weight_bits: int = 8,
-    activation_bits: int = 8,
+    weight_bits: int | None = None,
+    activation_bits: int | None = None,
     correlation_mode: str = "bfv",
     tenseal_path: str | None = None,
     hf_cache_dir: str | None = None,

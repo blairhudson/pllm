@@ -151,7 +151,7 @@ SiLU/multiply material, but those protected and fixed-scale components are not y
 composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,
 Phi and compiler-bound Gemma checkpoint execution remain incomplete; the pinned
 Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
-functionality check, but default W4A4 and one tested short-prompt W8A8 case
+functionality check, but W4A4 and one tested short-prompt W8A8 case
 diverge from the FP32 reference. Provider deployment, quality and matched-cost
 evidence remain open. Existing runtime support for a checkpoint family is a
 separate axis unless an exact schedule, binding and execution test say otherwise.
@@ -167,7 +167,7 @@ state. `pllm.Model` is the shared source specification, while `pllm.load_model`
 performs the separate resolver/import step and records actual source-file hashes in
 a path-independent checkpoint lock. Generic immutable configuration stays in
 `pllm.configuration`; concrete implementation classes live in capability families
-(`protocols`, `preparation`, `correlation`, `kernels`, `roles`, `nonlinear`,
+(`protocols`, `preparation`, `correlation`, `quantization`, `kernels`, `roles`, `nonlinear`,
 `schedulers`, `state`, `passes`, and `verification`), and `pllm.components`
 derives descriptor discovery from those classes. `pllm.profiles` provides typed
 slot contracts for the two-role public baseline and shipped one-role proprietary
@@ -205,6 +205,12 @@ documents and trusted Python targets as the benchmark CLI, then passes the compl
 experiment to `build_roles`. Every shipped runtime-backed profile therefore uses
 the same gateway command and fails through profile resolution rather than a
 gateway-specific profile branch.
+Public masked-linear experiments may select `pllm.quantization.SymmetricPerRow`
+in their immutable Pipeline for W4/W8 weights and A4/A8 activations. The numeric
+choice binds local-role preparation and inference settings as part of the
+composition identity. Without it, existing Pipeline digests and the local-role
+W8A8 default are preserved. A conflicting out-of-band bit override fails
+closed; neither selection establishes real-model generation quality.
 
 ## Hot operations
 

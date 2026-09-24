@@ -239,6 +239,7 @@ PUBLIC_MODULES = (
     "pllm.protocols",
     "pllm.protocols.masked_linear",
     "pllm.preparation",
+    "pllm.quantization",
     "pllm.roles",
     "pllm.schedulers",
     "pllm.search",
@@ -401,6 +402,13 @@ KERNEL_EXAMPLE = _masked_experiment(
     setup="backend = kernels.Cpu(threads=2)",
     pipeline_argument="kernels=backend,",
     assertion='assert experiment.pipeline.kernels.get_params() == {"threads": 2}',
+)
+
+QUANTIZATION_EXAMPLE = _masked_experiment(
+    import_line="import pllm.quantization as quantization",
+    setup="numeric = quantization.SymmetricPerRow(weight_bits=4, activation_bits=4)",
+    pipeline_argument="quantization=numeric,",
+    assertion='assert experiment.pipeline.quantization.component == "pllm/symmetric-per-row-quantization/v1"',
 )
 
 NONLINEAR_EXAMPLE = _example(
@@ -788,6 +796,11 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "citations": (DASH_CITATION, REDASH_CITATION),
         "example": PREPARATION_EXAMPLE,
     },
+    "pllm.quantization": {
+        "purpose": "Numeric components select symmetric per-row stage bit widths and bind them to the immutable pipeline before offline preparation or online inference.",
+        "citations": (),
+        "example": QUANTIZATION_EXAMPLE,
+    },
     "pllm.roles": {
         "purpose": "Role components make client, preparation, inference, and single-evaluator placement explicit in pipeline configuration.",
         "citations": (DASH_CITATION,),
@@ -858,6 +871,7 @@ RUNNABLE_EXPERIMENT_MODULES = {
     "pllm.kernels",
     "pllm.pipeline",
     "pllm.preparation",
+    "pllm.quantization",
     "pllm.profiles",
     "pllm.protocols",
     "pllm.protocols.masked_linear",
@@ -1375,6 +1389,7 @@ MODULE_USER_GUIDES = {
     "pllm.protocols": "/sdk/components/protocols/",
     "pllm.protocols.masked_linear": "/sdk/inference/prepared-protocol/",
     "pllm.preparation": "/sdk/components/preparation/",
+    "pllm.quantization": "/sdk/components/quantization/",
     "pllm.roles": "/sdk/components/roles/",
     "pllm.schedulers": "/sdk/components/schedulers/",
     "pllm.search": "/sdk/evaluate/search/",

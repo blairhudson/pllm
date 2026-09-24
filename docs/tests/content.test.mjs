@@ -332,6 +332,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],
     ['/sdk/components/preparation/he-authenticated-preprocessing/', 'pllm/he-authenticated-preprocessing', null],
     ['/sdk/components/correlation/seeded-expansion/', 'pllm/seeded-expansion', null],
+    ['/sdk/components/quantization/symmetric-per-row/', 'pllm/symmetric-per-row-quantization/v1', null],
     ['/sdk/components/kernels/cpu/', 'pllm/cpu', null],
     ['/sdk/components/nonlinear/arithmetic-garbling-silu-q7/', 'pllm/arithmetic-garbling-silu-q7/v1', '/research/papers/dash/'],
     ['/sdk/components/nonlinear/binary-table/', 'pllm/binary-table/v1', null],
