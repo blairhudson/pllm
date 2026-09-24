@@ -810,6 +810,20 @@ test('authored copy uses direct technical English and SDK status is derived from
     assert.equal(Number(row[2]) + Number(row[3]), Number(row[4]), row[1]);
   }
   assert.match(status, /\*\*not\*\* a whole-decoder, security,/);
+  const compatibility = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/model-compatibility.json'), 'utf8'));
+  assert.equal(compatibility.schema, 'pllm.model_compatibility.v1');
+  for (const row of compatibility.adapters) {
+    assert.ok(status.includes(`| [${row.name}](${row.guide}) (\`${row.adapter}\`) | Checked config | ${row.baseline_schedule ? 'Complete' : 'Incomplete'} |`), row.adapter);
+    for (const requirement of row.requires) assert.ok(status.includes(`\`${requirement}\``), requirement);
+    assert.ok(row.baseline_blockers.every((blocker) => row.requires.includes(blocker)), row.adapter);
+  }
+  for (const [identity, piece] of Object.entries(compatibility.capabilities)) {
+    assert.ok(status.includes(`| \`${identity}\` — ${piece.name} |`), identity);
+  }
+  for (const row of compatibility.candidates) {
+    assert.ok(status.includes(`[${row.name}](${row.source})`), row.name);
+  }
+  assert.match(status, /No protected whole-decoder model execution is established/);
 });
 
 test('every docs source is publication-discovered without registry duplication', () => {

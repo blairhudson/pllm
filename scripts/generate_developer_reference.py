@@ -26,6 +26,7 @@ from pllm.configuration import ComponentRef
 
 CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
 SDK_GUIDES_ROOT = ROOT / "docs/content/docs/sdk"
+MODEL_COMPATIBILITY = ROOT / "docs/data/model-compatibility.json"
 CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "benchmark", "dev")
 
 
@@ -1722,8 +1723,76 @@ def render_python_reference_outputs() -> dict[Path, str]:
     return outputs
 
 
+def model_compatibility() -> dict[str, Any]:
+    """Curated claims checked against the native adapter and schedule in tests."""
+    document = json.loads(MODEL_COMPATIBILITY.read_text(encoding="utf-8"))
+    if document.get("schema") != "pllm.model_compatibility.v1":
+        raise ValueError("unsupported model compatibility schema")
+    adapters = document.get("adapters")
+    candidates = document.get("candidates")
+    capabilities = document.get("capabilities")
+    if (
+        not isinstance(adapters, list) or not adapters
+        or not isinstance(candidates, list)
+        or not isinstance(capabilities, dict) or not capabilities
+    ):
+        raise ValueError("model compatibility inventory is incomplete")
+    for identity, capability in capabilities.items():
+        if (
+            not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", identity)
+            or not isinstance(capability, dict)
+            or set(capability) != {"name", "operator", "contract"}
+            or any(type(capability[field]) is not str or not capability[field] for field in ("name", "contract"))
+            or (capability["operator"] is not None and type(capability["operator"]) is not str)
+        ):
+            raise ValueError("invalid model-neutral capability contract")
+    if len({item.get("adapter") for item in adapters}) != len(adapters):
+        raise ValueError("model compatibility adapters must be unique")
+    required = {"name", "adapter", "model_family", "baseline_schedule", "runtime_evidence", "remaining", "guide", "requires", "baseline_blockers"}
+    for item in adapters:
+        if (
+            not isinstance(item, dict)
+            or set(item) not in (required | {"fixture"}, required | {"config"})
+            or any(type(item[field]) is not str or not item[field] for field in required - {"baseline_schedule", "requires", "baseline_blockers"})
+            or type(item["baseline_schedule"]) is not bool
+            or not item["guide"].startswith("/sdk/models/families/")
+            or not isinstance(item["requires"], list)
+            or not item["requires"]
+            or any(type(value) is not str for value in item["requires"])
+            or len(item["requires"]) != len(set(item["requires"]))
+            or not set(item["requires"]) <= capabilities.keys()
+            or not isinstance(item["baseline_blockers"], list)
+            or any(type(value) is not str for value in item["baseline_blockers"])
+            or not set(item["baseline_blockers"]) <= set(item["requires"])
+            or item["baseline_schedule"] == bool(item["baseline_blockers"])
+        ):
+            raise ValueError("invalid model compatibility adapter")
+        if "fixture" in item and (
+            type(item["fixture"]) is not str
+            or not item["fixture"].startswith("crates/pllm-models/tests/fixtures/")
+            or not (ROOT / item["fixture"]).is_file()
+        ):
+            raise ValueError("model compatibility fixture is missing")
+        if "config" in item and not isinstance(item["config"], dict):
+            raise ValueError("invalid inline model compatibility config")
+    for item in candidates:
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"name", "model_type", "source", "priority", "gap", "requires"}
+            or any(type(item[field]) is not str or not item[field] for field in ("name", "model_type", "source", "priority", "gap"))
+            or not isinstance(item["requires"], list)
+            or any(type(value) is not str for value in item["requires"])
+            or not item["requires"] or not set(item["requires"]) <= capabilities.keys()
+            or not item["source"].startswith("https://")
+        ):
+            raise ValueError("invalid model evaluation candidate")
+    return document
+
+
 def render_python_status() -> str:
     """Summarize the entire public Python namespace from its actual exports."""
+    compatibility = model_compatibility()
+    adapters = compatibility["adapters"]
     exports = public_exports()
     declared = len(exports)
     pending_count = sum(
@@ -1747,8 +1816,8 @@ def render_python_status() -> str:
 
     body = [
         _frontmatter(
-            "Python SDK implementation status",
-            "Generated per-module Python API and pending-component statistics.",
+            "SDK implementation and model compatibility",
+            "Checked model architecture requirements, runtime evidence, and Python API status.",
         ),
         f"The SDK exposes **{len(PUBLIC_MODULES)} public Python modules** and **{declared} module exports**. "
         f"**{declared - pending_count}** exports are implemented Python symbols or public contracts; "
@@ -1768,10 +1837,72 @@ def render_python_status() -> str:
         'assert planned_component("ring-pcg").module == "pllm.correlation"\n',
         "```\n\n",
         "API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signatures)\n\n",
+        "## Decoder architecture compatibility\n\n",
+        f"**{len(adapters)} checked semantic adapters**, "
+        f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
+        "and **one pinned real-checkpoint functionality path** (Qwen2.5-0.5B). "
+        "No protected whole-decoder model execution is established. Lowering a config does not "
+        "load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic "
+        "test does not establish real-model quality. Rows describe text decoder scope only.\n\n",
+        "| Architecture scope | Semantic plan | Baseline schedule | Checkpoint/runtime evidence | Remaining uplift |\n",
+        "| --- | --- | --- | --- | --- |\n",
+    ]
+    for item in adapters:
+        body.append(
+            f"| [{item['name']}]({item['guide']}) (`{item['adapter']}`) | "
+            f"Checked config | {'Complete' if item['baseline_schedule'] else 'Incomplete'} | "
+            f"{item['runtime_evidence']} | {item['remaining']} |\n"
+        )
+    body.extend((
+        "\nBaseline schedule means untransformed, batch-one `baseline.masked_linear_cpu` "
+        "semantic schedule only. It does **not** authorize verified or experimental methods. "
+        "See [model families](/sdk/models/families/) for adapter limits.\n\n",
+        "### Reusable requirements per architecture\n\n",
+        "Each row names **generic** semantic/numeric/state or import contracts, not "
+        "a family-named compiler implementation. Baseline blockers identify principal "
+        "missing capabilities; other checkpoint, trust and quality gaps remain above. "
+        "Existing named source readers normalize upstream config into the shared decoder IR.\n\n",
+        "| Source configuration | Reusable requirements | Principal baseline blockers |\n",
+        "| --- | --- | --- |\n",
+    ))
+    for item in adapters:
+        body.append(
+            f"| [{item['name']}]({item['guide']}) | "
+            f"{', '.join(f'`{identity}`' for identity in item['requires'])} | "
+            f"{', '.join(f'`{identity}`' for identity in item['baseline_blockers']) or 'None for the tested semantic schedule'} |\n"
+        )
+    body.extend((
+        "\n### Shared capability contracts\n\n",
+        "| Piece | Current semantic IR | Reusable contract |\n",
+        "| --- | --- | --- |\n",
+    ))
+    for identity, capability in compatibility["capabilities"].items():
+        operator = f"`{capability['operator']}`" if capability["operator"] else "New IR/numeric contract needed"
+        body.append(f"| `{identity}` — {capability['name']} | {operator} | {capability['contract']} |\n")
+    body.extend((
+        "\nA listed semantic operator only describes a plan, not executable coverage. "
+        "Model-specific configuration readers may be needed to parse external schemas, "
+        "but shared compiler/runtime passes must use these typed contracts rather than "
+        "source family names.\n\n",
+        "### Architectures to evaluate next\n\n",
+        "Candidate list is implementation triage, not model support or a popularity ranking. "
+        "These candidates lack a checked PLLM semantic adapter, complete baseline binding, "
+        "and real-model inference evidence.\n\n",
+        "| Candidate | Evaluation scope | Reusable requirements | First missing capabilities |\n",
+        "| --- | --- | --- | --- |\n",
+    ))
+    for item in compatibility["candidates"]:
+        body.append(
+            f"| [{item['name']}]({item['source']}) | {item['priority']} | "
+            f"{', '.join(f'`{identity}`' for identity in item['requires'])} | {item['gap']} |\n"
+        )
+    body.extend((
+        "\nPrefer reusable semantic operators and tested checkpoint binding over model-name "
+        "dispatch. Require generation/quality evidence before entering a matched benchmark cohort.\n\n",
         "## Public modules\n\n",
         "| Python module | Implemented API symbols | Pending classes | Declared exports | Implemented API % |\n",
         "| --- | ---: | ---: | ---: | ---: |\n",
-    ]
+    ))
     for module in PUBLIC_MODULES:
         values = [item["value"] for item in exports if item["module"] == module]
         pending = sum(

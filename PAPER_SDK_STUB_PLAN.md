@@ -1,12 +1,12 @@
 # Paper-to-SDK capability plan
 
 Status: staged paper-linked SDK symbols, 23 September 2026. The paper landing map is
-`pllm-paper-module-landing-map-2026-09-23.md`; the 84-entry source/fingerprint
+`pllm-paper-module-landing-map-2026-09-23.md`; the 84-entry source/citation
 inventory is `docs/data/research/paper-library.json`. `papers/` is an ignored
 local research cache; run `uv run python scripts/sync_paper_library.py --fetch`
 to populate it, never during documentation builds. The existing 24 locked
 research records in `docs/data/research/papers.json` are separate. A source in
-the chronology is **not** an implementation or an eligible inference profile.
+the chronology is **not** an implementation or an eligible inference composition.
 The packaged `python/pllm/components/planned_methods.json` binds every paper to one
 importable Python symbol. The [generated research method roadmap](https://pllm.run/sdk/components/research-method-roadmap/)
 lists those symbols and their next gates.
@@ -26,7 +26,7 @@ contracts before any pending class is promoted.
 
 Paper pages have **Planned Python API** callouts to the generated SDK reference;
 SDK reference entries link back to the exact Research paper, and the roadmap
-groups the missing first gates. The six scoped implemented-component citations
+groups the missing first gates. Scoped implemented-component citations
 keep their separate reciprocal links. Do not expose pending identities in the
 runtime component registry, `Pipeline` selectors, `pllm.components` discovery,
 or runnable examples.
@@ -60,27 +60,40 @@ loading is not yet available; a provider proposal must not imply it can run.
 
 ## Promote one vertical slice at a time
 
-1. **Source gate:** verify the primary paper and authors, exact PDF/version
-   hash, license/provenance, claimed protocol and role assumptions. A
+1. **Source gate:** verify the primary paper, source URL, authors, citation,
+   license/provenance, claimed protocol and role assumptions. A PDF fingerprint
+   can help when needed, but is not a general publication gate. A
    bibliographic record is insufficient for a security claim.
 2. **Reference gate:** implement one bounded method independently in the
    existing Rust/Python stack; test against exact/independent numeric and
    adversarial controls, account for setup and retained material. Upstream
    artifacts are oracles/provenance, never linked dependencies.
 3. **Composition gate:** register a typed component only after its input,
-   output, trust, state, numeric, one-use and resource contracts are enforced.
-   Bind its serialized selection, lineage and implementation digest to a
-   `Pipeline` and fail closed on missing operators or incompatible roles.
+    output, trust, state, numeric, one-use and resource contracts are enforced.
+    Bind its serialized selection, lineage and implementation digest to a
+    `Pipeline` and fail closed on missing operators or incompatible roles. A
+    narrow native reference alone stays a pending public component, not a
+    default or a search candidate.
 4. **Execution gate:** demonstrate the complete required path, including
    preparation, transport, recurrent state and error/cancellation burns. A
    scalar primitive or semantic plan is not whole-decoder support.
-5. **Evidence gate:** check parity and generation quality on an exact locked
-   model, then benchmark against `baseline.masked_linear_cpu` with the same
-   body, tokens, output cap, warm state, environment and trust/assurance
-   contract. Record full latency, TTFT, throughput, protocol bytes, offline
-   material, client work and failures. Price, energy, WAN/GPU and external SOTA
-   remain unmeasured until an eligible cohort exists. Promotion requires
-   human review; search cannot waive these gates.
+5. **Evidence gate:** an inference-applicable method becomes an explicit,
+    optional `Pipeline`/`Experiment` choice only with complete operator and
+    runtime coverage. Check parity and generation quality on an exact locked
+    model, then benchmark against an eligible baseline with the same body,
+    tokens, output cap, warm state, environment and privacy/assurance contract.
+    Measure latency, TTFT, throughput, CPU, memory, disk, protocol bytes,
+    offline material, quality and failures; price/energy and external SOTA
+    remain unmeasured until comparable cohorts exist. Search varies compatible
+    options, never paper names; promotion to a default requires review and
+    evidence. Attack and assurance controls stay independent research checks,
+    not fake inference backends.
+
+LogRow currently stops at a bounded one-element Rust/compiler reference: its
+`pllm.protocols.LogRowGarbledLookup` symbol is *not* an `Experiment` option.
+Its 2,144-byte material count alone cannot prove an inference speedup. Next
+gate is a protected tensor/decoder execution contract before matched benchmarks
+or candidate admission.
 
 ## Useful first slices
 

@@ -1,6 +1,6 @@
 ---
-title: "Python SDK implementation status"
-description: "Generated per-module Python API and pending-component statistics."
+title: "SDK implementation and model compatibility"
+description: "Checked model architecture requirements, runtime evidence, and Python API status."
 ---
 
 The SDK exposes **32 public Python modules** and **345 module exports**. **262** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **75.9%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
@@ -17,6 +17,81 @@ assert planned_component("ring-pcg").module == "pllm.correlation"
 ```
 
 API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signatures)
+
+## Decoder architecture compatibility
+
+**6 checked semantic adapters**, **2 complete baseline schedule paths**, and **one pinned real-checkpoint functionality path** (Qwen2.5-0.5B). No protected whole-decoder model execution is established. Lowering a config does not load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic test does not establish real-model quality. Rows describe text decoder scope only.
+
+| Architecture scope | Semantic plan | Baseline schedule | Checkpoint/runtime evidence | Remaining uplift |
+| --- | --- | --- | --- | --- |
+| [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/) (`pllm.qwen2.v1`) | Checked config | Complete | Pinned Qwen2.5-0.5B real-checkpoint prefill/decode functionality test; local role path and historical baseline cohort | Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent |
+| [Dense Qwen3](/sdk/models/families/qwen3/) (`pllm.qwen3.v1`) | Checked config | Complete | Tiny synthetic checkpoint compiled-runtime execution; pinned mini-coder fixture is configuration/semantic evidence only | Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent |
+| [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) (`pllm.qwen3_5_text.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution |
+| [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) (`pllm.phi4_mini.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Partial LongRoPE, fused-weight checkpoint binding, baseline and protected execution |
+| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e2b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests only | Gemma local operators and shared KV suffix, checkpoint binding, baseline and protected execution |
+| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e4b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests only | PLE, softcap and Gemma local operators, checkpoint binding, baseline and protected execution |
+
+Baseline schedule means untransformed, batch-one `baseline.masked_linear_cpu` semantic schedule only. It does **not** authorize verified or experimental methods. See [model families](/sdk/models/families/) for adapter limits.
+
+### Reusable requirements per architecture
+
+Each row names **generic** semantic/numeric/state or import contracts, not a family-named compiler implementation. Baseline blockers identify principal missing capabilities; other checkpoint, trust and quality gaps remain above. Existing named source readers normalize upstream config into the shared decoder IR.
+
+| Source configuration | Reusable requirements | Principal baseline blockers |
+| --- | --- | --- |
+| [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/) | `gqa`, `rotary`, `qkv-bias`, `rmsnorm`, `gated-silu`, `kv-cache` | None for the tested semantic schedule |
+| [Dense Qwen3](/sdk/models/families/qwen3/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `head-width`, `qk-norm` | None for the tested semantic schedule |
+| [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `qk-norm`, `gated-delta`, `causal-convolution`, `partial-mrope` | `gated-delta`, `causal-convolution`, `partial-mrope` |
+| [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `fused-qkv`, `longrope` | `fused-qkv`, `longrope` |
+| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` |
+| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` |
+
+### Shared capability contracts
+
+| Piece | Current semantic IR | Reusable contract |
+| --- | --- | --- |
+| `gqa` — Grouped-query attention | `attention_scores` | Head grouping, scoring and attention-value shapes |
+| `rotary` — Rotary positions | `rotary_embedding` | Position bases and rotated head dimensions |
+| `qkv-bias` — Attention projection biases | `linear` | Authenticated Q/K/V bias after each weight projection |
+| `rmsnorm` — RMSNorm | `rms_norm` | Public weight and bounded normalization semantics |
+| `gated-silu` — Gated SiLU MLP | `silu` | SiLU and gated multiplication with explicit numeric conversions |
+| `kv-cache` — Persistent KV cache | `kv_cache_append` | Bounded valid-prefix attention state |
+| `head-width` — Explicit attention head width | `reshape` | Projection width independent of hidden width |
+| `qk-norm` — Per-head Q/K normalization | `rms_norm` | Normalization between Q/K projection and rotary position |
+| `gated-delta` — Gated-delta recurrence | `gated_delta_rule` | Stateful recurrent update and decay |
+| `causal-convolution` — Causal convolution | `causal_convolution` | Finite-window convolution state and update |
+| `partial-mrope` — Partial multimodal rotary | `rotary_embedding` | Sectioned rotary coordinates for text decoder heads |
+| `fused-qkv` — Fused QKV projections | `slice` | One fused checkpoint artifact, separate typed Q/K/V slices |
+| `longrope` — Partial LongRoPE | `rotary_embedding` | Short/long factors, partial rotation, context and scale |
+| `local-global` — Local and global attention | `causal_mask` | Layer-specific windows and correct global attention |
+| `shared-kv` — Cross-layer KV sharing | `cache_suffix` | Shared valid-prefix KV suffix and state ownership |
+| `gelu-tanh` — GeLU-tanh branch | `gelu_tanh` | Bounded GeLU-tanh activation and numeric representation |
+| `branch-norm` — Branch-output normalization | `rms_norm` | Post-branch normalization and weight mapping |
+| `ple` — Per-layer embedding path | `token_lookup` | Per-layer embedding input and compatible state |
+| `softcap` — Logit softcap | `softcap` | Bounded final score softcap and numeric semantics |
+| `untied-head` — Untied output head | `output_head` | Distinct embedding and output matrices with exact checkpoint ownership |
+| `sliding-window` — Sliding-window attention | `causal_mask` | Per-layer window and valid-prefix attention state |
+| `rope-scaling` — Scaled rotary positions | `rotary_embedding` | Explicit scaling type and bounded position transforms |
+| `expert-routing` — Sparse expert routing | New IR/numeric contract needed | Model-neutral expert selection, private dispatch and aggregation |
+| `latent-attention` — Latent attention | New IR/numeric contract needed | Compressed latent KV state and query/value projection semantics |
+| `mxfp4-import` — MXFP4 checkpoint import | New IR/numeric contract needed | Numeric and packed-weight import with exact artifact binding |
+| `fp8-import` — FP8 checkpoint import | New IR/numeric contract needed | Block-scale numeric and packed-weight import with exact artifact binding |
+
+A listed semantic operator only describes a plan, not executable coverage. Model-specific configuration readers may be needed to parse external schemas, but shared compiler/runtime passes must use these typed contracts rather than source family names.
+
+### Architectures to evaluate next
+
+Candidate list is implementation triage, not model support or a popularity ranking. These candidates lack a checked PLLM semantic adapter, complete baseline binding, and real-model inference evidence.
+
+| Candidate | Evaluation scope | Reusable requirements | First missing capabilities |
+| --- | --- | --- | --- |
+| [Mistral 7B Instruct v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3/blob/main/config.json) | Near-term dense capability bridge | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `untied-head` | Untied embeddings and Mistral checkpoint layout; this exact v0.3 config has no sliding window, while other variants need explicit window policy |
+| [Llama 3.x text decoders](https://huggingface.co/docs/transformers/model_doc/llama) | Near-term dense capability bridge | `gqa`, `rmsnorm`, `gated-silu`, `kv-cache`, `untied-head`, `rope-scaling` | Exact per-checkpoint RoPE scaling and weight/tokenizer contract; do not alias Llama configs to Qwen2 |
+| [Qwen3 MoE](https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507/blob/main/config.json) | Sparse-expert extension | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `expert-routing` | Routed/shared experts, expert selection, protected state, distribution and checkpoint import |
+| [gpt-oss 20B](https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json) | Hybrid/MoE extension | `gqa`, `rmsnorm`, `kv-cache`, `expert-routing`, `sliding-window`, `rope-scaling`, `mxfp4-import` | Alternating sliding/full attention, MoE routing, YaRN, MXFP4 weight representation and checkpoint binding |
+| [DeepSeek-V3 family](https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json) | Major architecture extension | `rotary`, `rmsnorm`, `kv-cache`, `expert-routing`, `latent-attention`, `rope-scaling`, `fp8-import` | Multi-head latent attention, routed/shared experts, YaRN, FP8 import and complete protected/quality coverage |
+
+Prefer reusable semantic operators and tested checkpoint binding over model-name dispatch. Require generation/quality evidence before entering a matched benchmark cohort.
 
 ## Public modules
 

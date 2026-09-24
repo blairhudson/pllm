@@ -1,0 +1,153 @@
+{
+  "schema": "pllm.model_compatibility.v1",
+  "capabilities": {
+    "gqa": {"name": "Grouped-query attention", "operator": "attention_scores", "contract": "Head grouping, scoring and attention-value shapes"},
+    "rotary": {"name": "Rotary positions", "operator": "rotary_embedding", "contract": "Position bases and rotated head dimensions"},
+    "qkv-bias": {"name": "Attention projection biases", "operator": "linear", "contract": "Authenticated Q/K/V bias after each weight projection"},
+    "rmsnorm": {"name": "RMSNorm", "operator": "rms_norm", "contract": "Public weight and bounded normalization semantics"},
+    "gated-silu": {"name": "Gated SiLU MLP", "operator": "silu", "contract": "SiLU and gated multiplication with explicit numeric conversions"},
+    "kv-cache": {"name": "Persistent KV cache", "operator": "kv_cache_append", "contract": "Bounded valid-prefix attention state"},
+    "head-width": {"name": "Explicit attention head width", "operator": "reshape", "contract": "Projection width independent of hidden width"},
+    "qk-norm": {"name": "Per-head Q/K normalization", "operator": "rms_norm", "contract": "Normalization between Q/K projection and rotary position"},
+    "gated-delta": {"name": "Gated-delta recurrence", "operator": "gated_delta_rule", "contract": "Stateful recurrent update and decay"},
+    "causal-convolution": {"name": "Causal convolution", "operator": "causal_convolution", "contract": "Finite-window convolution state and update"},
+    "partial-mrope": {"name": "Partial multimodal rotary", "operator": "rotary_embedding", "contract": "Sectioned rotary coordinates for text decoder heads"},
+    "fused-qkv": {"name": "Fused QKV projections", "operator": "slice", "contract": "One fused checkpoint artifact, separate typed Q/K/V slices"},
+    "longrope": {"name": "Partial LongRoPE", "operator": "rotary_embedding", "contract": "Short/long factors, partial rotation, context and scale"},
+    "local-global": {"name": "Local and global attention", "operator": "causal_mask", "contract": "Layer-specific windows and correct global attention"},
+    "shared-kv": {"name": "Cross-layer KV sharing", "operator": "cache_suffix", "contract": "Shared valid-prefix KV suffix and state ownership"},
+    "gelu-tanh": {"name": "GeLU-tanh branch", "operator": "gelu_tanh", "contract": "Bounded GeLU-tanh activation and numeric representation"},
+    "branch-norm": {"name": "Branch-output normalization", "operator": "rms_norm", "contract": "Post-branch normalization and weight mapping"},
+    "ple": {"name": "Per-layer embedding path", "operator": "token_lookup", "contract": "Per-layer embedding input and compatible state"},
+    "softcap": {"name": "Logit softcap", "operator": "softcap", "contract": "Bounded final score softcap and numeric semantics"},
+    "untied-head": {"name": "Untied output head", "operator": "output_head", "contract": "Distinct embedding and output matrices with exact checkpoint ownership"},
+    "sliding-window": {"name": "Sliding-window attention", "operator": "causal_mask", "contract": "Per-layer window and valid-prefix attention state"},
+    "rope-scaling": {"name": "Scaled rotary positions", "operator": "rotary_embedding", "contract": "Explicit scaling type and bounded position transforms"},
+    "expert-routing": {"name": "Sparse expert routing", "operator": null, "contract": "Model-neutral expert selection, private dispatch and aggregation"},
+    "latent-attention": {"name": "Latent attention", "operator": null, "contract": "Compressed latent KV state and query/value projection semantics"},
+    "mxfp4-import": {"name": "MXFP4 checkpoint import", "operator": null, "contract": "Numeric and packed-weight import with exact artifact binding"},
+    "fp8-import": {"name": "FP8 checkpoint import", "operator": null, "contract": "Block-scale numeric and packed-weight import with exact artifact binding"}
+  },
+  "adapters": [
+    {
+      "name": "Dense Qwen2 (Qwen2.5-0.5B-Instruct)",
+      "adapter": "pllm.qwen2.v1",
+      "model_family": "qwen2",
+      "config": {
+        "model_type": "qwen2", "hidden_size": 896, "intermediate_size": 4864,
+        "num_hidden_layers": 24, "num_attention_heads": 14, "num_key_value_heads": 2,
+        "vocab_size": 151936, "max_position_embeddings": 32768,
+        "hidden_act": "silu", "rms_norm_eps": 0.000001,
+        "rope_theta": 1000000.0, "tie_word_embeddings": true
+      },
+      "baseline_schedule": true,
+      "requires": ["gqa", "rotary", "qkv-bias", "rmsnorm", "gated-silu", "kv-cache"],
+      "baseline_blockers": [],
+      "runtime_evidence": "Pinned Qwen2.5-0.5B real-checkpoint prefill/decode functionality test; local role path and historical baseline cohort",
+      "remaining": "Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent",
+      "guide": "/sdk/models/families/qwen2/"
+    },
+    {
+      "name": "Dense Qwen3",
+      "adapter": "pllm.qwen3.v1",
+      "model_family": "qwen3",
+      "fixture": "crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json",
+      "baseline_schedule": true,
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "head-width", "qk-norm"],
+      "baseline_blockers": [],
+      "runtime_evidence": "Tiny synthetic checkpoint compiled-runtime execution; pinned mini-coder fixture is configuration/semantic evidence only",
+      "remaining": "Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent",
+      "guide": "/sdk/models/families/qwen3/"
+    },
+    {
+      "name": "Qwen3.5-4B text decoder",
+      "adapter": "pllm.qwen3_5_text.v1",
+      "model_family": "qwen3_5_text",
+      "fixture": "crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json",
+      "baseline_schedule": false,
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "qk-norm", "gated-delta", "causal-convolution", "partial-mrope"],
+      "baseline_blockers": ["gated-delta", "causal-convolution", "partial-mrope"],
+      "runtime_evidence": "Pinned configuration and semantic-plan tests only",
+      "remaining": "Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution",
+      "guide": "/sdk/models/families/qwen3-5/"
+    },
+    {
+      "name": "Phi-4-mini-instruct",
+      "adapter": "pllm.phi4_mini.v1",
+      "model_family": "phi4_mini",
+      "fixture": "crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json",
+      "baseline_schedule": false,
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "fused-qkv", "longrope"],
+      "baseline_blockers": ["fused-qkv", "longrope"],
+      "runtime_evidence": "Pinned configuration and semantic-plan tests only",
+      "remaining": "Partial LongRoPE, fused-weight checkpoint binding, baseline and protected execution",
+      "guide": "/sdk/models/families/phi-4-mini/"
+    },
+    {
+      "name": "Gemma 4 E2B text decoder",
+      "adapter": "pllm.gemma4_e2b_text.v1",
+      "model_family": "gemma4_text",
+      "fixture": "crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json",
+      "baseline_schedule": false,
+      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
+      "baseline_blockers": ["local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
+      "runtime_evidence": "Exact pinned outer-config semantic-plan tests only",
+      "remaining": "Gemma local operators and shared KV suffix, checkpoint binding, baseline and protected execution",
+      "guide": "/sdk/models/families/gemma-4/"
+    },
+    {
+      "name": "Gemma 4 E4B text decoder",
+      "adapter": "pllm.gemma4_e4b_text.v1",
+      "model_family": "gemma4_text",
+      "fixture": "crates/pllm-models/tests/fixtures/gemma-4-E4B-it-ee0ef602-config.json",
+      "baseline_schedule": false,
+      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
+      "baseline_blockers": ["local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
+      "runtime_evidence": "Exact pinned outer-config semantic-plan tests only",
+      "remaining": "PLE, softcap and Gemma local operators, checkpoint binding, baseline and protected execution",
+      "guide": "/sdk/models/families/gemma-4/"
+    }
+  ],
+  "candidates": [
+    {
+      "name": "Mistral 7B Instruct v0.3",
+      "model_type": "mistral",
+      "source": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3/blob/main/config.json",
+      "priority": "Near-term dense capability bridge",
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "untied-head"],
+      "gap": "Untied embeddings and Mistral checkpoint layout; this exact v0.3 config has no sliding window, while other variants need explicit window policy"
+    },
+    {
+      "name": "Llama 3.x text decoders",
+      "model_type": "llama",
+      "source": "https://huggingface.co/docs/transformers/model_doc/llama",
+      "priority": "Near-term dense capability bridge",
+      "requires": ["gqa", "rmsnorm", "gated-silu", "kv-cache", "untied-head", "rope-scaling"],
+      "gap": "Exact per-checkpoint RoPE scaling and weight/tokenizer contract; do not alias Llama configs to Qwen2"
+    },
+    {
+      "name": "Qwen3 MoE",
+      "model_type": "qwen3_moe",
+      "source": "https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507/blob/main/config.json",
+      "priority": "Sparse-expert extension",
+      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "expert-routing"],
+      "gap": "Routed/shared experts, expert selection, protected state, distribution and checkpoint import"
+    },
+    {
+      "name": "gpt-oss 20B",
+      "model_type": "gpt_oss",
+      "source": "https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json",
+      "priority": "Hybrid/MoE extension",
+      "requires": ["gqa", "rmsnorm", "kv-cache", "expert-routing", "sliding-window", "rope-scaling", "mxfp4-import"],
+      "gap": "Alternating sliding/full attention, MoE routing, YaRN, MXFP4 weight representation and checkpoint binding"
+    },
+    {
+      "name": "DeepSeek-V3 family",
+      "model_type": "deepseek_v3",
+      "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json",
+      "priority": "Major architecture extension",
+      "requires": ["rotary", "rmsnorm", "kv-cache", "expert-routing", "latent-attention", "rope-scaling", "fp8-import"],
+      "gap": "Multi-head latent attention, routed/shared experts, YaRN, FP8 import and complete protected/quality coverage"
+    }
+  ]
+}

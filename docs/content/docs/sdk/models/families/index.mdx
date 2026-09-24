@@ -7,11 +7,16 @@ description: "See which model configurations PLLM can describe and what model su
 turns model configuration and workload limits into a `ModelPlan`. It does not
 download weights or tokenizers, choose a device, or start a runtime.
 
-Each adapter validates a specific architecture and produces the same model-neutral
-plan format. The plan records operators, layers, weight references, persistent
-state, workload limits, and source identity. When a new model needs a new
-operation, PLLM extends the shared vocabulary instead of adding model-specific
-logic to the compiler.
+Current source readers validate exact upstream configuration contracts and
+produce the same model-neutral plan format. The plan records operators, layers,
+weight references, persistent state, workload limits, and source identity.
+The [architecture compatibility matrix](/sdk/reference/status/#decoder-architecture-compatibility)
+breaks each source configuration into reusable semantic, numeric, state, and
+import requirements with explicit runtime blockers. When a model needs a new
+piece, PLLM extends that shared contract instead of implementing a family-named
+compiler method. Even a feature used by one checkpoint receives a reusable
+operator contract. Future source-schema differences should prefer declarative
+mapping into those contracts, not one-off execution adapters.
 
 | Adapter | Validated configuration scope | Added semantics |
 | --- | --- | --- |
