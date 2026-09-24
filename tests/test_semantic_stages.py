@@ -11,11 +11,17 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from pllm import lower_model
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
 from pllm.runtime.models import StageSpec
 from pllm.runtime.safetensors_store import SafeTensorStore
 from pllm.runtime.semantic_executor import SemanticDecoderRuntime
-from pllm.runtime.semantic_stages import _linear_stage, _token_lookup_stage, semantic_stage_role
+from pllm.runtime.semantic_stages import (
+    _linear_stage,
+    _token_lookup_stage,
+    scheduled_stage_specs,
+    semantic_stage_role,
+)
 from pllm.runtime.semantic_tensors import SemanticTensorError, preflight_semantic_checkpoint
 from pllm.runtime.transformer_client import TransformerClientError
 
@@ -100,6 +106,26 @@ def test_pinned_projection_roles_follow_nearest_semantic_producers() -> None:
     role, qkv = grouped(["layer.0.q_linear", "layer.0.k_linear", "layer.0.v_linear"], 44)
     assert role == "qkv_projection"
     assert qkv.id == "layers.0.self_attn.qkv_proj"
+
+
+def test_pinned_gemma_stage_inventory_is_completely_semantic() -> None:
+    config = json.loads(Path("crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json").read_text())
+    plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=2)
+    composition = MaskedLinearCpu(Model("org/model"))
+    schedule = plan.runtime_schedule(composition)
+    assert schedule.complete
+    stages = scheduled_stage_specs(plan, composition)
+    assert stages[0].role == "token_lookup"
+    assert stages[-1].role == "lm_head"
+    assert stages[0].metadata["ple_width"] == 8960
+    assert len({stage.id for stage in stages}) == len(stages)
+    expected_weights = {
+        weight
+        for operation in plan.prefill["operations"]
+        if operation["operator"] in {"token_lookup", "linear", "output_head"}
+        for weight in (operation["attributes"]["weight"],)
+    }
+    assert {weight for stage in stages for weight in stage.weight_keys} == expected_weights
 
 
 def test_pinned_token_stage_matches_real_checkpoint_headers(monkeypatch: pytest.MonkeyPatch) -> None:

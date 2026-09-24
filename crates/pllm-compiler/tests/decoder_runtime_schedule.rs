@@ -25,6 +25,9 @@ const QWEN3: &[u8] = br#"{
     "layer_types":["full_attention","full_attention"]
 }"#;
 
+const GEMMA4_E2B: &[u8] =
+    include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json");
+
 fn plan(config: &[u8]) -> DecoderPlan {
     lower_model_json(
         config,
@@ -138,6 +141,41 @@ fn schedules_multiple_dense_decoder_adapters_through_one_contract() {
             step.executor == DecoderRuntimeExecutor::ClientLocal || !step.weight_ids.is_empty()
         }));
     }
+}
+
+#[test]
+fn bounded_gemma_text_decoder_uses_the_same_schedule_contract() {
+    let plan = plan(GEMMA4_E2B);
+    let schedule = lower_schedule(&plan).unwrap();
+    assert!(schedule.complete);
+    let first = schedule
+        .prefill
+        .steps
+        .iter()
+        .find(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+        .unwrap();
+    assert_eq!(
+        first.operation_ids,
+        ["main_embedding", "ple_token_embedding"]
+    );
+    assert_eq!(first.outputs[0].stage_offset, 0);
+    assert_eq!(first.outputs[1].stage_offset, first.outputs[0].stage_width);
+    assert_eq!(
+        schedule
+            .prefill
+            .steps
+            .iter()
+            .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+            .count(),
+        schedule
+            .decode
+            .steps
+            .iter()
+            .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+            .count()
+    );
+    assert!(schedule.prefill.state_inputs.is_empty());
+    assert!(!schedule.decode.state_inputs.is_empty());
 }
 
 #[test]

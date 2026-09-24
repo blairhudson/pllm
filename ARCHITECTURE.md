@@ -145,8 +145,9 @@ role re-lowers the bounded plan and checks its digest, body, stage and runtime
 configuration commitments before accepting a compiler-bound session. This
 covers `gateway --local`, bare public client requests and loopback benchmarks;
 standalone experiment-backed provider roles receive the same numeric choices.
-Gemma 4 semantic plans enter the same compiler scheduler but fail closed on
-unsupported local operators. Generic local BF16 scale, tanh-GeLU, softcap,
+Gemma 4 E2B/E4B semantic plans now pass the same bounded baseline prefill/decode
+compiler scheduler. This is operator/schedule coverage, not provider or client
+whole-decoder execution. Generic local BF16 scale, tanh-GeLU, softcap,
 permutation and slice primitives have isolated schedule contracts and a
 finite-BF16 numeric oracle: on the checked PyTorch CPU implementation the
 tanh-GeLU result differs by at most 0.0000305 over all 65,280 finite BF16
@@ -171,9 +172,9 @@ execution digest.
 The standalone semantic sliding-KV reference retains only the valid `W−1`
 prefix, constructs query-relative windows on demand, rejects overlarge views
 before state mutation, and preflights declared windowed state against a 2 GiB
-client-memory ceiling before runtime construction. It has no whole-model stage
-or PLE admission yet; the compiler continues to reject the incomplete Gemma
-schedule.
+client-memory ceiling before runtime construction. The compiler admits its
+bounded operation schedule; provider stage binding and whole-model PLE
+execution remain unvalidated.
 Pinned default and proportional RoPE descriptors now bind sequence-before-heads
 layout and BF16-stepwise arithmetic; checked positions match a PyTorch CPU
 oracle, while real-checkpoint and full-context rotary fidelity remain unproven.
@@ -182,7 +183,7 @@ table are physically separate, share token IDs, and form one ordered public
 boundary stage with two output slices. Before any stage quantization, semantic
 import checks the shapes and floating-point dtypes of all 540 required text
 decoder artifacts against the cached official checkpoint's headers. This does
-not load their values, bind a complete schedule, or validate generation quality.
+not load their values, bind provider/client execution, or validate generation quality.
 An explicit in-process LogRow research override can evaluate all SiLU tensors
 of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
 material and a separate execution digest. The wider public-range profile

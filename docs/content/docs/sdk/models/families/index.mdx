@@ -36,8 +36,9 @@ Start with a [source kind](/sdk/models/sources/) and choose a family: Qwen2
 supports the pinned public-weight checkpoint path and a tiny test model;
 dense Qwen3 has pinned compiled-checkpoint functionality; the bounded unscaled
 Llama-style source has tiny compiled-runtime and two-role tests, but no real
-checkpoint evidence. Llama 3 RoPE scaling remains unsupported. Qwen3.5, Phi-4-mini, and
-Gemma 4 currently have semantic plan coverage only. A supported importer and
+checkpoint evidence. Llama 3 RoPE scaling remains unsupported. Qwen3.5 and Phi-4-mini
+have semantic plan coverage only. Gemma 4 E2B/E4B additionally have complete
+baseline compiler schedules, but no bound whole-decoder execution. A supported importer and
 runtime binding must still be verified separately. The
 [model workflow](/sdk/models/) shows a complete Qwen2.5 experiment.
 

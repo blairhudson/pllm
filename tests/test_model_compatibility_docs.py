@@ -24,7 +24,12 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     assert {row["adapter"] for row in adapters} == EXPECTED_ADAPTERS
     assert {row["adapter"] for row in adapters if row["baseline_schedule"]} == {
         "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.dense_gated_decoder.v1",
+        "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
     }
+    for row in adapters:
+        if row["model_family"] == "gemma4_text":
+            assert "whole-decoder execution" in row["runtime_evidence"]
+            assert "provider stage binding" in row["remaining"].lower()
     assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(INVENTORY["candidates"])
 
 

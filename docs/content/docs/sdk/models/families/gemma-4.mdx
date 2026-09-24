@@ -12,24 +12,32 @@ The Gemma 4 adapter validates exact outer text-decoder contracts for:
 
 Both plans preserve alternating local/global attention, two head widths, Q/K normalization, PLE, shared-KV suffix state, GeLU-tanh branches, branch-output normalization, and final softcap. E2B additionally doubles effective MLP width in its shared suffix. Variant dimensions and layer schedules are data-driven; compiler paths remain model-neutral.
 
-PLLM has isolated client-local BF16 reference operations for public scaling,
-GeLU-tanh, softcap, permutation, and slicing. Its checked PyTorch CPU comparison
+PLLM has a complete baseline compiler schedule for both pinned text-decoder
+configurations, with public resource bounds and ordered main/PLE token-boundary
+outputs. The official E2B checkpoint passes a header-only shape and dtype
+preflight for all 540 required text-decoder tensors. Separately, isolated
+client-local BF16 operators cover scaling, GeLU-tanh, softcap, RMSNorm,
+attention and rotary math. Its checked PyTorch CPU comparison
 found at most `0.0000305` absolute GeLU difference over all finite BF16 inputs;
 softcap with cap 30 matched exactly. These operations use client CPU and
 temporary buffers; they add no provider network exchange or stored material by
-themselves. Learned checkpoint scalars, full BF16 edge composition, local/global
-attention, shared KV state, and PLE remain unbound. Consequently neither the
-compiled Gemma decoder nor a private, benchmarkable Gemma experiment is enabled.
+themselves. The schedule and header check do not establish provider stage
+binding, full local/global and shared-KV execution, PLE fidelity, generation
+quality or a private, benchmarkable Gemma experiment. The older tiny transport
+runtime remains separate until those runtime and evidence checks pass.
 
 ## Python SDK example
 
 ```python
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
 
 fixture = Path("crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json")
 plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
+schedule = plan.runtime_schedule(MaskedLinearCpu(Model("org/model")))
+assert schedule.complete
 operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
 assert operations["layer.14.gate_proj"]["output_shape"][-1] == 6144
 assert operations["layer.15.gate_proj"]["output_shape"][-1] == 12288
@@ -39,4 +47,4 @@ assert operations["layer.34.attention_scores"]["inputs"][1] == "layer.14.key_app
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Run this example from a PLLM source checkout; package installations do not include
-the pinned E2B fixture. Lowering does not execute weights.
+the pinned E2B fixture. Lowering and scheduling do not execute weights.

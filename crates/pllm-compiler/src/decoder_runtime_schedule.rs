@@ -1,5 +1,5 @@
 use pllm_models::{
-    DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator, StateTensor,
+    DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator, StateKind, StateTensor,
 };
 use pllm_types::{canonical_digest, pipeline_digest_bytes, Digest};
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v2";
 const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v2";
+const MAX_WINDOW_STATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_WINDOW_VIEW_ELEMENTS: u64 = 1 << 24;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -154,16 +156,45 @@ fn local_operator(operation: &ModelOperation) -> bool {
                 && (weight.is_some() || offset == Some(0))
         }
         ModelOperator::CacheSuffix => {
-            operation
-                .attributes
-                .get("axis")
-                .and_then(serde_json::Value::as_u64)
-                == Some(2)
-                && operation
-                    .attributes
-                    .get("semantics")
-                    .and_then(serde_json::Value::as_str)
+            let attrs = &operation.attributes;
+            if attrs.get("axis").and_then(serde_json::Value::as_u64) == Some(2)
+                && attrs.get("semantics").and_then(serde_json::Value::as_str)
                     == Some("visible_valid_prefix")
+            {
+                return true;
+            }
+            attrs.get("axis").and_then(serde_json::Value::as_u64) == Some(3)
+                && attrs.get("output_axis").and_then(serde_json::Value::as_u64) == Some(2)
+                && attrs.get("semantics").and_then(serde_json::Value::as_str)
+                    == Some("persist_last_valid_past_tokens")
+                && attrs
+                    .get("absolute_write_positions_input")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("input.positions")
+                && attrs
+                    .get("padding_mask_input")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("input.attention_mask")
+                && attrs
+                    .get("valid_lengths_input")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("input.sequence_lengths")
+                && operation.inputs.len() == 4
+                && operation.inputs[1..]
+                    == [
+                        "input.positions",
+                        "input.attention_mask",
+                        "input.sequence_lengths",
+                    ]
+                && operation.output_shape.len() == 4
+                && attrs
+                    .get("maximum_sequence")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(operation.output_shape[2])
+                && matches!(
+                    operation.state_kind.as_ref(),
+                    Some(StateKind::Key | StateKind::Value)
+                )
         }
         ModelOperator::AttentionScores | ModelOperator::AttentionValues => {
             let key = if operation.operator == ModelOperator::AttentionScores {
@@ -747,6 +778,47 @@ fn remote_signature(phase: &DecoderRuntimePhaseSchedule) -> Vec<RemoteSignature>
         .collect()
 }
 
+fn validate_window_resources(graph: &DecoderGraph) -> Result<(), String> {
+    if !graph.operations.iter().any(|operation| {
+        operation.operator == ModelOperator::CacheSuffix
+            && operation
+                .attributes
+                .get("axis")
+                .and_then(serde_json::Value::as_u64)
+                == Some(3)
+    }) {
+        return Ok(());
+    }
+    let mut state_bytes = 0_u64;
+    for state in &graph.state_outputs {
+        let bytes = state
+            .shape
+            .iter()
+            .try_fold(4_u64, |product, dimension| product.checked_mul(*dimension))
+            .ok_or("bounded decoder state size overflowed")?;
+        state_bytes = state_bytes
+            .checked_add(bytes)
+            .ok_or("bounded decoder state size overflowed")?;
+        if state_bytes > MAX_WINDOW_STATE_BYTES {
+            return Err("bounded decoder state exceeds the client memory ceiling".into());
+        }
+    }
+    for operation in &graph.operations {
+        if operation.operator != ModelOperator::KvCacheAppend || operation.output_shape.len() != 5 {
+            continue;
+        }
+        let shape = &operation.output_shape;
+        let view_elements = [shape[0], shape[1], shape[3], shape[4]]
+            .into_iter()
+            .try_fold(1_u64, |product, dimension| product.checked_mul(dimension))
+            .ok_or("bounded window view size overflowed")?;
+        if view_elements > MAX_WINDOW_VIEW_ELEMENTS {
+            return Err("bounded window view exceeds the client memory ceiling".into());
+        }
+    }
+    Ok(())
+}
+
 pub fn lower_decoder_runtime_schedule(
     plan: &DecoderPlan,
     canonical_composition: &[u8],
@@ -774,6 +846,8 @@ pub fn lower_decoder_runtime_schedule(
     if plan.prefill.batch != 1 || plan.decode.batch != 1 {
         return Err("masked-linear runtime schedule requires batch one".into());
     }
+    validate_window_resources(&plan.prefill)?;
+    validate_window_resources(&plan.decode)?;
     let prefill = lower_phase(&plan.prefill)?;
     let decode = lower_phase(&plan.decode)?;
     if remote_signature(&prefill) != remote_signature(&decode) {
@@ -872,10 +946,17 @@ mod numeric_contract_tests {
             .iter()
             .find(|row| row.id == "layer.0.key_suffix")
             .unwrap();
-        assert!(
-            !local_operator(suffix),
-            "cache suffix lacks an executable shape/numeric contract"
-        );
+        assert!(local_operator(suffix));
+        let mut forged_suffix = suffix.clone();
+        forged_suffix.attributes["maximum_sequence"] = serde_json::json!(0);
+        assert!(!local_operator(&forged_suffix));
+        validate_window_resources(&plan.prefill).unwrap();
+        validate_window_resources(&plan.decode).unwrap();
+        let mut oversize = plan.decode.clone();
+        oversize.state_outputs[0].shape[2] = 1 << 30;
+        assert!(validate_window_resources(&oversize)
+            .unwrap_err()
+            .contains("memory ceiling"));
         let sliding_mask = operations
             .iter()
             .find(|row| row.id == "layer.0.causal_mask")
