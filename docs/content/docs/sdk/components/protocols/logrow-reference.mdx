@@ -44,10 +44,14 @@ Q7 elements exactly once. Calibration counts are public offline inputs, not
 private prompt activations. The little-endian signed-i16 format is explicit.
 
 ```python
+import math
 import struct
 
 from pllm import lower_model
-from pllm.nonlinear import fit_compact_silu_q7_reference
+from pllm.nonlinear import (
+    create_logrow_scaled_silu_q7_reference,
+    fit_compact_silu_q7_reference,
+)
 from pllm.protocols import (
     estimate_logrow_q7_session_reference,
     prepare_logrow_q7_session_reference,
@@ -102,6 +106,22 @@ decode_output = session_material.evaluate_float32(
 )
 assert len(prefill_output) == 128 and len(decode_output) == 64
 assert session_material.remaining_tensors == 0
+
+# A declared public range can cover wider gates without clipping. This is a
+# different numeric profile and one-use issuance, not a hidden scale change.
+wide_profile = create_logrow_scaled_silu_q7_reference(4)
+wide_session = prepare_logrow_q7_session_reference(
+    plan, wide_profile, max_elements=32, max_evaluator_material_bytes=32 * 2144,
+    max_decode_steps=1, max_session_evaluator_material_bytes=48 * 2144,
+)
+wide_input = [2.0] * 32
+wide_output = wide_session.evaluate_float32(
+    "prefill", 0, prefill_operation, struct.pack("<32f", *wide_input)
+)
+assert abs(
+    struct.unpack("<32f", wide_output)[0] - 2 / (1 + math.exp(-2))
+) < wide_profile.maximum_absolute_error_bound
+wide_session.abort()  # burn the unused decode material
 ```
 
 API: [`pllm.protocols` objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
@@ -126,11 +146,12 @@ Independent tensor preparation does not require this session gate.
 | Evaluator material | **2,144 bytes per scalar**: 272 one-hot setup bytes, 1,296 random-function row bytes, 576 masked table bytes. A 32-element tensor requires exactly 68,608 body bytes, preflighted before issuance. |
 | Whole-response estimate | An admitted tiny two-token prefill plus one decode step needs **102,912 evaluator-body bytes** for one 16-wide SiLU per phase. The estimator rejects total budgets below that amount; this is not peak resident memory or network usage. The experimental per-session limit is 512 MiB. |
 | Float32 bridge | Ties-to-even Q7 quantization only within `[-1, 1]`; no clipping or private range/scale disclosure. Input quantization error is at most 1/256. The returned float32 is exactly the decoded Q7 result divided by 128; against continuous SiLU, absolute error is at most `1/256 + (profile.maximum_encoded_error + 0.5)/128` over the admitted domain. Inputs outside it fail and burn the tensor. |
-| Wider-range numeric reference | Rust also has a **separate, non-executable** public-range SiLU Q7 table profile for integer `M` in `1..=16`. It maps `[-M, M]` to 257 signed input codes, returns a signed 9-bit code scaled back by `M`, and rejects values outside the public range. Its conservative absolute error bound is `2.1 M / 256 + 0.000002`; larger ranges cover more inputs but reduce precision. This reference is **not wired** into the protected material, Python handle, compiled runtime, or Experiment. |
+| Wider-range numeric reference | [`create_logrow_scaled_silu_q7_reference`](/sdk/reference/python/pllm/nonlinear/#create_logrow_scaled_silu_q7_reference) fixes a **public** integer `M` in `1..=16`. Its independent, source-bound profile maps `[-M, M]` to 257 signed input codes, returns a signed 9-bit code scaled back by `M`, and rejects values outside the public range. The conservative absolute error bound is `2.1 M / 256 + 0.000002`; larger ranges cover more inputs but reduce precision. It reuses the same one-use offline session. This is still not an `Experiment` option. |
 | Input / output labels | Nine 16-byte input labels and nine 16-byte output labels per scalar. These are **additional** to the 2,144-byte material; protocol framing is not included. |
 | Prior oracle | The 257-row protected Compact lookup oracle uses 73,728 half-gate ciphertext bytes alone; these counts are **not** matched end-to-end traffic measurements. |
 | Memory | Bounded 512-row table and one-hot seed vectors in-process; per-tensor evaluator material is capped at 64 MiB. Peak heap and allocator overhead have **not** been measured. |
 | CPU / latency | A retained three-pair **synthetic, in-process** cohort per model recorded LogRow online medians of **693 ms (Qwen2)** and **699 ms (Qwen3)** versus clear local baselines of **72 ms** and **77 ms**; offline issuance took **834 ms** and **840 ms** per response. CPU medians show the same direction. This is slower in the tested setup; no provider throughput or real-model comparison is established. [Inspect exact cohorts and environment](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-local-reference-2026-09-24.json). |
+| Wider-range cohort | With public `M=4` and ordinary generated tiny weights, three matched pairs per model selected identical tokens. Qwen2 online medians were **694 ms** versus **73 ms** clear; Qwen3 **698 ms** versus **78 ms** clear. Offline issuance was **834–838 ms**. Maximum absolute prefill logit deltas were **0.1122** and **0.1114**. These are different checkpoint bodies from the narrower cohort: compare only **within** each pair. [Inspect measured records](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-public-range-local-2026-09-24.json). |
 | Disk | No persistent material is written by the reference; a caller's checkpoint/calibration storage is separate. |
 | Network | No network path exists. The 2,144-byte body and 144-byte input/output labels are potential payload terms, **not** observed network traffic. |
 | Privacy | A fresh one-use circuit hides the input row and table under the stated garbler/evaluator model. Cryptographic assurance for this PLLM adaptation has not been established. |
@@ -151,9 +172,13 @@ verify material and element-limit preflight, and reject plan, phase, profile,
 policy and circuit mismatches. A separately controlled tiny Qwen2/Qwen3
 checkpoint passes full prefill and decode through the opt-in compiled client
 when its public gate weights keep activations inside `[-1, 1]`. Even the
-ordinary generated tiny checkpoint **fails closed** on out-of-range gates, so
-this does not establish general checkpoint quality or production privacy. The
-next gates are publicly calibrated support for wider activations, reviewed provider input
+ordinary generated tiny checkpoint **fails closed** on out-of-range gates with
+the fixed `[-1, 1]` profile. A **separate** public `[-4, 4]` profile executes
+that tiny checkpoint end-to-end without saturation, with matched token sequences
+in the retained three-pair local cohorts; its maximum prefill logit delta
+is about 0.112 on each model. It does not establish real-checkpoint quality or
+production privacy. The next gates are public checkpoint-calibration evidence,
+reviewed provider input
 transfer, a composable protected
 decoder operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)

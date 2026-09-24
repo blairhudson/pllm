@@ -7,7 +7,7 @@
 //! The masked index is revealed to the evaluator, never the index or mask.
 
 use crate::boolean::fixed_key_hash;
-use pllm_core::CompactQ7Profile;
+use pllm_core::{logrow_numeric::ScaledSiluQ7Profile, CompactQ7Profile};
 use zeroize::{Zeroize, Zeroizing};
 
 type Block = [u8; 16];
@@ -62,21 +62,25 @@ pub struct LogRowProgram {
     masked_table: Vec<u8>,
 }
 
-/// Client-owned, digest-bound Q7 reference to the fitted Compact table.
-pub struct CompactQ7LogRowClient {
+/// Client-owned, digest-bound signed-Q7 input / signed-9-bit output table.
+pub struct SignedQ7LogRowClient {
     profile_digest: [u8; 32],
     client: LogRowClient,
 }
 
-pub struct CompactQ7LogRowProgram {
+pub struct SignedQ7LogRowProgram {
     profile_digest: [u8; 32],
     program: LogRowProgram,
 }
 
-pub struct CompactQ7LogRowDecoder {
+pub struct SignedQ7LogRowDecoder {
     profile_digest: [u8; 32],
     decoder: LogRowDecoder,
 }
+
+pub type CompactQ7LogRowClient = SignedQ7LogRowClient;
+pub type CompactQ7LogRowProgram = SignedQ7LogRowProgram;
+pub type CompactQ7LogRowDecoder = SignedQ7LogRowDecoder;
 
 /// This reference evaluates the **fitted table**, not Compact's polynomial
 /// construction. It is in-process, one-use, and not an Experiment component.
@@ -93,17 +97,40 @@ pub fn prepare_compact_q7_logrow_elements(
     profile: &CompactQ7Profile,
     count: usize,
 ) -> Result<Vec<(CompactQ7LogRowClient, CompactQ7LogRowProgram)>, String> {
-    if count == 0 || count > (64 * 1024 * 1024) / COMPACT_Q7_LOGROW_MATERIAL_BYTES {
-        return Err("Compact Q7 LogRow tensor body exceeds 64 MiB".into());
-    }
     let table = compact_q7_table(profile)?;
-    let profile_digest = profile.digest();
+    prepare_signed_q7_logrow_table_elements(profile.digest(), &table, count)
+}
+
+/// A separate public-range SiLU table, with the same one-use LogRow material
+/// and signed-Q7 input codes. This does not publish a compiler session.
+pub fn prepare_scaled_silu_q7_logrow_elements(
+    profile: &ScaledSiluQ7Profile,
+    count: usize,
+) -> Result<Vec<(SignedQ7LogRowClient, SignedQ7LogRowProgram)>, String> {
+    let mut table = Zeroizing::new(vec![0_u16; 512]);
+    for (offset, code) in (-128..=128).enumerate() {
+        let output = profile
+            .encoded_output(code)
+            .map_err(|error| error.to_string())?;
+        table[offset] = u16::from_le_bytes(output.to_le_bytes()) & 0x01ff;
+    }
+    prepare_signed_q7_logrow_table_elements(profile.digest(), &table, count)
+}
+
+fn prepare_signed_q7_logrow_table_elements(
+    profile_digest: [u8; 32],
+    table: &[u16],
+    count: usize,
+) -> Result<Vec<(SignedQ7LogRowClient, SignedQ7LogRowProgram)>, String> {
+    if count == 0 || count > (64 * 1024 * 1024) / COMPACT_Q7_LOGROW_MATERIAL_BYTES {
+        return Err("signed Q7 LogRow tensor body exceeds 64 MiB".into());
+    }
     let mut elements = Vec::new();
     elements
         .try_reserve_exact(count)
         .map_err(|_| "Compact Q7 LogRow element allocation failed")?;
     for _ in 0..count {
-        elements.push(prepare_compact_q7_logrow_table(profile_digest, &table)?);
+        elements.push(prepare_compact_q7_logrow_table(profile_digest, table)?);
     }
     Ok(elements)
 }
@@ -123,36 +150,36 @@ fn compact_q7_table(profile: &CompactQ7Profile) -> Result<Zeroizing<Vec<u16>>, S
 fn prepare_compact_q7_logrow_table(
     profile_digest: [u8; 32],
     table: &[u16],
-) -> Result<(CompactQ7LogRowClient, CompactQ7LogRowProgram), String> {
+) -> Result<(SignedQ7LogRowClient, SignedQ7LogRowProgram), String> {
     let (client, program) = prepare_logrow(9, 9, table)?;
     if program.evaluator_material_bytes() != COMPACT_Q7_LOGROW_MATERIAL_BYTES {
         return Err("Compact Q7 LogRow material layout changed".into());
     }
     Ok((
-        CompactQ7LogRowClient {
+        SignedQ7LogRowClient {
             profile_digest,
             client,
         },
-        CompactQ7LogRowProgram {
+        SignedQ7LogRowProgram {
             profile_digest,
             program,
         },
     ))
 }
 
-impl CompactQ7LogRowClient {
+impl SignedQ7LogRowClient {
     pub const fn profile_digest(&self) -> [u8; 32] {
         self.profile_digest
     }
 
     pub fn encode(self, value: i16) -> Result<(LogRowInputs, CompactQ7LogRowDecoder), String> {
         if !(-128..=128).contains(&value) {
-            return Err("Compact Q7 LogRow input is outside [-128, 128]".into());
+            return Err("signed Q7 LogRow input is outside [-128, 128]".into());
         }
         let (labels, decoder) = self.client.encode((value + 128) as u16)?;
         Ok((
             labels,
-            CompactQ7LogRowDecoder {
+            SignedQ7LogRowDecoder {
                 profile_digest: self.profile_digest,
                 decoder,
             },
@@ -160,7 +187,7 @@ impl CompactQ7LogRowClient {
     }
 }
 
-impl CompactQ7LogRowProgram {
+impl SignedQ7LogRowProgram {
     pub const fn profile_digest(&self) -> [u8; 32] {
         self.profile_digest
     }
@@ -178,7 +205,7 @@ impl CompactQ7LogRowProgram {
     }
 }
 
-impl CompactQ7LogRowDecoder {
+impl SignedQ7LogRowDecoder {
     pub const fn profile_digest(&self) -> [u8; 32] {
         self.profile_digest
     }
@@ -671,6 +698,24 @@ mod tests {
         }
         let (client, _) = prepare_compact_q7_logrow(&profile).unwrap();
         assert!(client.encode(129).is_err());
+    }
+
+    #[test]
+    fn scaled_silu_uses_independent_public_range_and_signed_table() {
+        for max_abs in [1, 4, 16] {
+            let profile = ScaledSiluQ7Profile::new(max_abs).unwrap();
+            for value in -128..=128 {
+                let mut elements = prepare_scaled_silu_q7_logrow_elements(&profile, 1).unwrap();
+                let (client, program) = elements.pop().unwrap();
+                assert_eq!(client.profile_digest(), profile.digest());
+                assert_eq!(program.profile_digest(), profile.digest());
+                let (inputs, decoder) = client.encode(value).unwrap();
+                assert_eq!(
+                    decoder.decode(program.evaluate(inputs).unwrap()),
+                    Ok(profile.encoded_output(value).unwrap())
+                );
+            }
+        }
     }
 
     #[test]

@@ -9,7 +9,7 @@ from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 
 if TYPE_CHECKING:
-    from pllm._native import CompactQ7Reference
+    from pllm._native import CompactQ7Reference, ScaledSiluQ7Reference
 
 
 class NonlinearProtocol(ComponentRef, ABC):
@@ -167,3 +167,19 @@ def fit_compact_silu_q7_reference(
 
 
 __all__.append("fit_compact_silu_q7_reference")
+
+
+def create_logrow_scaled_silu_q7_reference(max_abs: int) -> ScaledSiluQ7Reference:
+    """Fix a public integer SiLU range for one-use LogRow research sessions.
+
+    ``max_abs`` is a public/offline range in 1..=16, not a statistic derived
+    from a private request. No clipping occurs; a gate outside the selected
+    range fails and burns the remaining session material. The profile is not
+    an executable Pipeline component.
+    """
+    from pllm import _native
+
+    return _native.create_logrow_scaled_silu_q7_reference(max_abs)
+
+
+__all__.append("create_logrow_scaled_silu_q7_reference")

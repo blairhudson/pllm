@@ -2,11 +2,15 @@
 //! These are not Python Experiment slots or protected decoder runtimes.
 
 use crate::{canonical_digest, digest_bytes, lower_model_silu_operation, tensor_elements, Digest};
-use pllm_core::{compact::COMPACT_SILU_Q7_PROFILE, CompactQ7Profile};
+use pllm_core::{
+    compact::COMPACT_SILU_Q7_PROFILE,
+    logrow_numeric::{ScaledSiluQ7Profile, LOGROW_SCALED_SILU_Q7_PROFILE},
+    CompactQ7Profile,
+};
 use pllm_garble::logrow::{
-    prepare_compact_q7_logrow, prepare_compact_q7_logrow_elements, CompactQ7LogRowClient,
-    CompactQ7LogRowDecoder, CompactQ7LogRowProgram, LogRowInputs, LogRowOutputs,
-    COMPACT_Q7_LOGROW_MATERIAL_BYTES,
+    prepare_compact_q7_logrow, prepare_compact_q7_logrow_elements,
+    prepare_scaled_silu_q7_logrow_elements, CompactQ7LogRowClient, CompactQ7LogRowDecoder,
+    CompactQ7LogRowProgram, LogRowInputs, LogRowOutputs, COMPACT_Q7_LOGROW_MATERIAL_BYTES,
 };
 use pllm_models::{DecoderMode, DecoderPlan, ModelOperator};
 use serde::Serialize;
@@ -19,6 +23,60 @@ const SESSION_ESTIMATE_DOMAIN: &str = "pllm.protected.logrow_q7.session_estimate
 const HARD_MAX_MATERIAL_BYTES: usize = 64 * 1024;
 const HARD_MAX_TENSOR_MATERIAL_BYTES: usize = 64 * 1024 * 1024;
 const HARD_MAX_SESSION_MATERIAL_BYTES: usize = 512 * 1024 * 1024;
+
+/// A fixed public numeric contract. Scaled and fitted Q7 tables have distinct
+/// IDs and digests even when their sampled outputs happen to be identical.
+#[derive(Clone)]
+pub enum LogRowSiluProfile {
+    Compact(CompactQ7Profile),
+    Scaled(ScaledSiluQ7Profile),
+}
+
+impl LogRowSiluProfile {
+    pub fn id(&self) -> &'static str {
+        match self {
+            Self::Compact(_) => COMPACT_SILU_Q7_PROFILE,
+            Self::Scaled(_) => LOGROW_SCALED_SILU_Q7_PROFILE,
+        }
+    }
+
+    pub fn digest(&self) -> [u8; 32] {
+        match self {
+            Self::Compact(profile) => profile.digest(),
+            Self::Scaled(profile) => profile.digest(),
+        }
+    }
+
+    pub fn encode_float32(&self, value: f32) -> Result<i16, String> {
+        match self {
+            Self::Compact(_) => {
+                pllm_core::compact::compact_q7_from_f32(value).map_err(|error| error.to_string())
+            }
+            Self::Scaled(profile) => profile
+                .encode_float32(value)
+                .map_err(|error| error.to_string()),
+        }
+    }
+
+    pub fn decode_float32(&self, value: i16) -> Result<f32, String> {
+        match self {
+            Self::Compact(_) => Ok(pllm_core::compact::compact_q7_to_f32(value)),
+            Self::Scaled(profile) => profile
+                .decode_float32(value)
+                .map_err(|error| error.to_string()),
+        }
+    }
+
+    fn prepare_elements(
+        &self,
+        count: usize,
+    ) -> Result<Vec<(CompactQ7LogRowClient, CompactQ7LogRowProgram)>, String> {
+        match self {
+            Self::Compact(profile) => prepare_compact_q7_logrow_elements(profile, count),
+            Self::Scaled(profile) => prepare_scaled_silu_q7_logrow_elements(profile, count),
+        }
+    }
+}
 
 /// Explicit acknowledgement of unreviewed, in-process material and a maximum
 /// evaluator body size; zero and unbounded limits fail before material issuance.
@@ -139,6 +197,7 @@ pub struct BoundLogRowQ7TensorOutputs(Vec<LogRowOutputs>);
 pub struct BoundLogRowQ7SessionEstimate {
     pub schema_version: &'static str,
     pub plan_digest: Digest,
+    pub profile_id: &'static str,
     pub profile_digest: [u8; 32],
     pub max_decode_steps: u64,
     pub prefill_elements: usize,
@@ -173,6 +232,10 @@ fn method_artifact_digest() -> Digest {
                 "pllm.artifact.rust-source.v1",
                 include_bytes!("logrow_protected.rs"),
             ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("logrow_session.rs"),
+            ),
             digest_bytes("pllm.artifact.rust-source.v1", include_bytes!("lib.rs")),
             digest_bytes(
                 "pllm.artifact.rust-source.v1",
@@ -181,6 +244,10 @@ fn method_artifact_digest() -> Digest {
             digest_bytes(
                 "pllm.artifact.rust-source.v1",
                 include_bytes!("../../pllm-core/src/compact.rs"),
+            ),
+            digest_bytes(
+                "pllm.artifact.rust-source.v1",
+                include_bytes!("../../pllm-core/src/logrow_numeric.rs"),
             ),
             digest_bytes(
                 "pllm.artifact.rust-source.v1",
@@ -221,11 +288,12 @@ fn validate_context(
     ))
 }
 
-fn validate_tensor_context(
+fn validate_profile_tensor_context(
     plan: &DecoderPlan,
     mode: DecoderMode,
     operation_id: &str,
-    profile: &CompactQ7Profile,
+    profile_id: &'static str,
+    profile_digest: [u8; 32],
     policy: &ExperimentalLogRowQ7TensorPolicy,
 ) -> Result<(Digest, usize), String> {
     let (tensor, _) = lower_model_silu_operation(plan, mode, operation_id)?;
@@ -247,8 +315,8 @@ fn validate_tensor_context(
                 mode,
                 operation_id,
                 shape: &tensor.shape,
-                profile_id: COMPACT_SILU_Q7_PROFILE,
-                profile_digest: profile.digest(),
+                profile_id,
+                profile_digest,
                 artifact_digest: method_artifact_digest(),
                 max_elements: policy.max_elements,
                 max_evaluator_material_bytes: policy.max_evaluator_material_bytes,
@@ -263,6 +331,22 @@ fn validate_tensor_context(
 pub fn estimate_bound_logrow_q7_session(
     plan: &DecoderPlan,
     profile: &CompactQ7Profile,
+    tensor_policy: &ExperimentalLogRowQ7TensorPolicy,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> Result<BoundLogRowQ7SessionEstimate, String> {
+    estimate_bound_logrow_profile_session(
+        plan,
+        &LogRowSiluProfile::Compact(profile.clone()),
+        tensor_policy,
+        max_decode_steps,
+        max_session_evaluator_material_bytes,
+    )
+}
+
+pub fn estimate_bound_logrow_profile_session(
+    plan: &DecoderPlan,
+    profile: &LogRowSiluProfile,
     tensor_policy: &ExperimentalLogRowQ7TensorPolicy,
     max_decode_steps: u64,
     max_session_evaluator_material_bytes: usize,
@@ -297,8 +381,14 @@ pub fn estimate_bound_logrow_q7_session(
             .iter()
             .filter(|operation| operation.operator == ModelOperator::Silu)
         {
-            let (digest, elements) =
-                validate_tensor_context(plan, mode, &operation.id, profile, tensor_policy)?;
+            let (digest, elements) = validate_profile_tensor_context(
+                plan,
+                mode,
+                &operation.id,
+                profile.id(),
+                profile.digest(),
+                tensor_policy,
+            )?;
             let bytes = elements
                 .checked_mul(COMPACT_Q7_LOGROW_MATERIAL_BYTES)
                 .ok_or("protected LogRow Q7 tensor material size overflowed")?;
@@ -339,6 +429,7 @@ pub fn estimate_bound_logrow_q7_session(
     Ok(BoundLogRowQ7SessionEstimate {
         schema_version: "pllm.logrow_q7_session_estimate.v1",
         plan_digest,
+        profile_id: profile.id(),
         profile_digest: profile.digest(),
         max_decode_steps,
         prefill_elements: totals[0],
@@ -357,9 +448,31 @@ pub fn prepare_bound_logrow_q7_tensor(
     profile: &CompactQ7Profile,
     policy: &ExperimentalLogRowQ7TensorPolicy,
 ) -> Result<BoundLogRowQ7TensorMaterial, String> {
-    let (context_digest, count) =
-        validate_tensor_context(plan, mode, operation_id, profile, policy)?;
-    let elements = prepare_compact_q7_logrow_elements(profile, count)?;
+    prepare_bound_logrow_profile_tensor(
+        plan,
+        mode,
+        operation_id,
+        &LogRowSiluProfile::Compact(profile.clone()),
+        policy,
+    )
+}
+
+pub fn prepare_bound_logrow_profile_tensor(
+    plan: &DecoderPlan,
+    mode: DecoderMode,
+    operation_id: &str,
+    profile: &LogRowSiluProfile,
+    policy: &ExperimentalLogRowQ7TensorPolicy,
+) -> Result<BoundLogRowQ7TensorMaterial, String> {
+    let (context_digest, count) = validate_profile_tensor_context(
+        plan,
+        mode,
+        operation_id,
+        profile.id(),
+        profile.digest(),
+        policy,
+    )?;
+    let elements = profile.prepare_elements(count)?;
     let issuance_ids = elements
         .iter()
         .map(|(_, program)| program.issuance_id())
@@ -435,7 +548,31 @@ impl BoundLogRowQ7TensorEvaluation {
         profile: &CompactQ7Profile,
         policy: &ExperimentalLogRowQ7TensorPolicy,
     ) -> Result<BoundLogRowQ7TensorOutputs, String> {
-        let (expected, count) = validate_tensor_context(plan, mode, operation_id, profile, policy)?;
+        self.evaluate_profile(
+            plan,
+            mode,
+            operation_id,
+            &LogRowSiluProfile::Compact(profile.clone()),
+            policy,
+        )
+    }
+
+    pub fn evaluate_profile(
+        self,
+        plan: &DecoderPlan,
+        mode: DecoderMode,
+        operation_id: &str,
+        profile: &LogRowSiluProfile,
+        policy: &ExperimentalLogRowQ7TensorPolicy,
+    ) -> Result<BoundLogRowQ7TensorOutputs, String> {
+        let (expected, count) = validate_profile_tensor_context(
+            plan,
+            mode,
+            operation_id,
+            profile.id(),
+            profile.digest(),
+            policy,
+        )?;
         if expected != self.context_digest || count != self.elements.len() {
             return Err("protected LogRow Q7 tensor differs from its semantic context".into());
         }

@@ -9,7 +9,10 @@ import numpy as np
 import pytest
 
 import pllm
-from pllm.nonlinear import fit_compact_silu_q7_reference
+from pllm.nonlinear import (
+    create_logrow_scaled_silu_q7_reference,
+    fit_compact_silu_q7_reference,
+)
 from pllm.protocols import prepare_logrow_q7_session_reference
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
@@ -133,6 +136,34 @@ def test_bounded_logrow_research_refuses_out_of_domain_checkpoint_gates(tmp_path
         session.prefill_ids([0, 2])
     assert session.status == "poisoned"
     assert material.remaining_tensors == 0
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_public_range_logrow_reference_runs_ordinary_tiny_checkpoint(
+    tmp_path: Path, model_type: str
+) -> None:
+    compiled, _, remote = _compiled(tmp_path, max_input=2, max_new=2, model_type=model_type)
+    profile = create_logrow_scaled_silu_q7_reference(4)
+    material = prepare_logrow_q7_session_reference(
+        compiled._plan,
+        profile,
+        max_elements=128,
+        max_evaluator_material_bytes=128 * 2144,
+        max_decode_steps=1,
+        max_session_evaluator_material_bytes=384 * 2144,
+    )
+    session = compiled.session(remote, research_logrow_material=material)
+    assert session.nonlinear_method == "pllm/logrow-q7-local-reference/v1"
+    assert not session.complete
+    logits = session.prefill_ids([0, 2])
+    assert np.all(np.isfinite(logits))
+    assert material.remaining_tensors == 2
+    session.select_next()
+    decoded = session.decode_selected()
+    assert np.all(np.isfinite(decoded))
+    assert material.remaining_tensors == 0
+    session.select_next()
+    assert session.status == "exhausted"
 
 
 def test_bounded_logrow_research_rejects_unbound_and_replayed_material(tmp_path: Path) -> None:

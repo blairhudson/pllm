@@ -18,7 +18,12 @@ from pllm.protocols.runtime_arms import (
 )
 
 if TYPE_CHECKING:
-    from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference
+    from pllm._native import (
+        CompactQ7Reference,
+        LogRowQ7SessionReference,
+        LogRowQ7TensorReference,
+        ScaledSiluQ7Reference,
+    )
     from pllm.modeling import ModelPlan
 
 __all__ = [
@@ -41,6 +46,7 @@ class LogRowQ7SessionEstimate:
     """Worst-case SiLU evaluator-body bytes; no material or execution rights."""
 
     plan_digest: str
+    profile_id: str
     profile_digest: bytes
     max_decode_steps: int
     prefill_elements: int
@@ -52,7 +58,7 @@ class LogRowQ7SessionEstimate:
 
 def estimate_logrow_q7_session_reference(
     plan: ModelPlan,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     *,
     max_elements: int,
     max_evaluator_material_bytes: int,
@@ -89,7 +95,7 @@ def estimate_logrow_q7_session_reference(
 
 def prepare_logrow_q7_session_reference(
     plan: ModelPlan,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     *,
     max_elements: int,
     max_evaluator_material_bytes: int,
@@ -129,7 +135,7 @@ def prepare_logrow_q7_tensor_reference(
 
     The profile must come from public offline calibration. The handle consumes
     exactly one little-endian signed-i16 Q7 tensor (one value per plan element).
-    It has no general float32 activation bridge or provider transport.
+    Its float32 bridge rejects values outside [-1, 1]; it has no provider transport.
     """
     from pllm import _native
     from pllm.modeling import ModelPlan

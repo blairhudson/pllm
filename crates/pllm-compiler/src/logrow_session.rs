@@ -3,16 +3,13 @@
 
 use std::collections::VecDeque;
 
-use pllm_core::{
-    compact::{compact_q7_from_f32, compact_q7_to_f32},
-    CompactQ7Profile,
-};
+use pllm_core::{logrow_numeric::ScaledSiluQ7Profile, CompactQ7Profile};
 use pllm_models::{DecoderMode, DecoderPlan, ModelOperator};
 
 use crate::{
-    canonical_digest, estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor,
+    canonical_digest, estimate_bound_logrow_profile_session, prepare_bound_logrow_profile_tensor,
     BoundLogRowQ7SessionEstimate, BoundLogRowQ7TensorMaterial, Digest,
-    ExperimentalLogRowQ7TensorPolicy,
+    ExperimentalLogRowQ7TensorPolicy, LogRowSiluProfile,
 };
 use serde::Serialize;
 
@@ -35,7 +32,7 @@ struct PendingTensor {
 /// burns all remaining material; errors burn the whole remainder immediately.
 pub struct BoundLogRowQ7Session {
     plan: DecoderPlan,
-    profile: CompactQ7Profile,
+    profile: LogRowSiluProfile,
     tensor_policy: ExperimentalLogRowQ7TensorPolicy,
     estimate: BoundLogRowQ7SessionEstimate,
     issuance_digest: Digest,
@@ -50,7 +47,39 @@ pub fn prepare_bound_logrow_q7_session(
     max_decode_steps: u64,
     max_session_evaluator_material_bytes: usize,
 ) -> Result<BoundLogRowQ7Session, String> {
-    let estimate = estimate_bound_logrow_q7_session(
+    prepare_bound_logrow_profile_session(
+        plan,
+        &LogRowSiluProfile::Compact(profile.clone()),
+        tensor_policy,
+        max_decode_steps,
+        max_session_evaluator_material_bytes,
+    )
+}
+
+pub fn prepare_bound_logrow_scaled_session(
+    plan: &DecoderPlan,
+    profile: &ScaledSiluQ7Profile,
+    tensor_policy: &ExperimentalLogRowQ7TensorPolicy,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> Result<BoundLogRowQ7Session, String> {
+    prepare_bound_logrow_profile_session(
+        plan,
+        &LogRowSiluProfile::Scaled(profile.clone()),
+        tensor_policy,
+        max_decode_steps,
+        max_session_evaluator_material_bytes,
+    )
+}
+
+pub fn prepare_bound_logrow_profile_session(
+    plan: &DecoderPlan,
+    profile: &LogRowSiluProfile,
+    tensor_policy: &ExperimentalLogRowQ7TensorPolicy,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> Result<BoundLogRowQ7Session, String> {
+    let estimate = estimate_bound_logrow_profile_session(
         plan,
         profile,
         tensor_policy,
@@ -93,7 +122,7 @@ pub fn prepare_bound_logrow_q7_session(
                 .iter()
                 .filter(|operation| operation.operator == ModelOperator::Silu)
             {
-                let material = prepare_bound_logrow_q7_tensor(
+                let material = prepare_bound_logrow_profile_tensor(
                     plan,
                     mode,
                     &operation.id,
@@ -175,22 +204,21 @@ impl BoundLogRowQ7Session {
             let input = values
                 .iter()
                 .copied()
-                .map(|value| compact_q7_from_f32(value).map_err(|error| error.to_string()))
+                .map(|value| self.profile.encode_float32(value))
                 .collect::<Result<Vec<_>, _>>()?;
             let (evaluation, decoder) = current.material.encode(&input)?;
-            let output = evaluation.evaluate(
+            let output = evaluation.evaluate_profile(
                 &self.plan,
                 mode,
                 operation_id,
                 &self.profile,
                 &self.tensor_policy,
             )?;
-            decoder.decode(output).map(|values| {
-                values
-                    .into_iter()
-                    .map(compact_q7_to_f32)
-                    .collect::<Vec<_>>()
-            })
+            decoder
+                .decode(output)?
+                .into_iter()
+                .map(|value| self.profile.decode_float32(value))
+                .collect::<Result<Vec<_>, _>>()
         })();
         if result.is_err() {
             self.abort();

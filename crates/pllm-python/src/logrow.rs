@@ -3,11 +3,13 @@
 
 use crate::{invalid, CompactQ7Reference};
 use pllm_compiler::{
-    prepare_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor, BoundLogRowQ7Session,
-    BoundLogRowQ7TensorMaterial, ExperimentalLogRowQ7TensorPolicy,
+    estimate_bound_logrow_profile_session, prepare_bound_logrow_profile_session,
+    prepare_bound_logrow_q7_tensor, BoundLogRowQ7Session, BoundLogRowQ7TensorMaterial,
+    ExperimentalLogRowQ7TensorPolicy, LogRowSiluProfile,
 };
 use pllm_core::{
     compact::{compact_q7_from_f32, compact_q7_to_f32},
+    logrow_numeric::ScaledSiluQ7Profile,
     CompactQ7Profile,
 };
 use pllm_models::{DecoderMode, DecoderPlan};
@@ -21,6 +23,48 @@ use std::sync::{
 
 const MAX_PLAN_BYTES: usize = 16 * 1024 * 1024;
 const MAX_FLOAT32_TENSOR_BYTES: usize = (64 * 1024 * 1024 / 2144) * 4;
+
+#[pyclass(name = "ScaledSiluQ7Reference", frozen, module = "pllm._native")]
+pub(crate) struct ScaledSiluQ7Reference {
+    inner: ScaledSiluQ7Profile,
+}
+
+#[pymethods]
+impl ScaledSiluQ7Reference {
+    #[getter]
+    fn max_abs(&self) -> u8 {
+        self.inner.max_abs()
+    }
+
+    #[getter]
+    fn digest<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.digest())
+    }
+
+    #[getter]
+    fn maximum_absolute_error_bound(&self) -> f64 {
+        self.inner.maximum_absolute_error_bound()
+    }
+}
+
+#[pyfunction]
+fn create_logrow_scaled_silu_q7_reference(max_abs: u8) -> PyResult<ScaledSiluQ7Reference> {
+    Ok(ScaledSiluQ7Reference {
+        inner: ScaledSiluQ7Profile::new(max_abs).map_err(|error| invalid(error.to_string()))?,
+    })
+}
+
+fn numeric_profile(profile: &Bound<'_, PyAny>) -> PyResult<LogRowSiluProfile> {
+    if let Ok(compact) = profile.extract::<PyRef<'_, CompactQ7Reference>>() {
+        return Ok(LogRowSiluProfile::Compact(compact.inner.clone()));
+    }
+    if let Ok(scaled) = profile.extract::<PyRef<'_, ScaledSiluQ7Reference>>() {
+        return Ok(LogRowSiluProfile::Scaled(scaled.inner.clone()));
+    }
+    Err(invalid(
+        "LogRow numeric profile must be a fitted Compact or public-range scaled profile".into(),
+    ))
+}
 
 #[pyclass(name = "LogRowQ7TensorReference", frozen, module = "pllm._native")]
 pub(crate) struct LogRowQ7TensorReference {
@@ -306,7 +350,7 @@ fn prepare_logrow_q7_tensor_reference(
 fn estimate_logrow_q7_session_reference<'py>(
     py: Python<'py>,
     plan: &Bound<'_, PyBytes>,
-    profile: PyRef<'_, CompactQ7Reference>,
+    profile: &Bound<'_, PyAny>,
     max_elements: usize,
     max_evaluator_material_bytes: usize,
     max_decode_steps: u64,
@@ -322,10 +366,10 @@ fn estimate_logrow_q7_session_reference<'py>(
         max_evaluator_material_bytes,
     )
     .map_err(invalid)?;
-    let profile = profile.inner.clone();
+    let profile = numeric_profile(profile)?;
     let estimate = py
         .detach(|| {
-            pllm_compiler::estimate_bound_logrow_q7_session(
+            estimate_bound_logrow_profile_session(
                 &plan,
                 &profile,
                 &policy,
@@ -341,7 +385,7 @@ fn estimate_logrow_q7_session_reference<'py>(
 fn prepare_logrow_q7_session_reference(
     py: Python<'_>,
     plan: &Bound<'_, PyBytes>,
-    profile: PyRef<'_, CompactQ7Reference>,
+    profile: &Bound<'_, PyAny>,
     max_elements: usize,
     max_evaluator_material_bytes: usize,
     max_decode_steps: u64,
@@ -357,10 +401,10 @@ fn prepare_logrow_q7_session_reference(
         max_evaluator_material_bytes,
     )
     .map_err(invalid)?;
-    let profile = profile.inner.clone();
+    let profile = numeric_profile(profile)?;
     let material = py
         .detach(|| {
-            prepare_bound_logrow_q7_session(
+            prepare_bound_logrow_profile_session(
                 &plan,
                 &profile,
                 &policy,
@@ -382,6 +426,11 @@ fn prepare_logrow_q7_session_reference(
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<LogRowQ7TensorReference>()?;
     module.add_class::<LogRowQ7SessionReference>()?;
+    module.add_class::<ScaledSiluQ7Reference>()?;
+    module.add_function(wrap_pyfunction!(
+        create_logrow_scaled_silu_q7_reference,
+        module
+    )?)?;
     module.add_function(wrap_pyfunction!(
         prepare_logrow_q7_tensor_reference,
         module

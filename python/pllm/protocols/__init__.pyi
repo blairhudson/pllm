@@ -7,11 +7,12 @@ from pllm.protocols.runtime_arms import GuardedLinear as GuardedLinear
 from pllm.protocols.runtime_arms import SecureLinear as SecureLinear
 from pllm.components._planned import PendingComponent as PendingMethod
 from typing import Literal
-from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference
+from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference, ScaledSiluQ7Reference
 from pllm.modeling import ModelPlan
 
 class LogRowQ7SessionEstimate:
     plan_digest: str
+    profile_id: str
     profile_digest: bytes
     max_decode_steps: int
     prefill_elements: int
@@ -22,6 +23,7 @@ class LogRowQ7SessionEstimate:
     def __init__(
         self,
         plan_digest: str,
+        profile_id: str,
         profile_digest: bytes,
         max_decode_steps: int,
         prefill_elements: int,
@@ -33,7 +35,7 @@ class LogRowQ7SessionEstimate:
 
 def estimate_logrow_q7_session_reference(
     plan: ModelPlan,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     *,
     max_elements: int,
     max_evaluator_material_bytes: int,
@@ -42,7 +44,7 @@ def estimate_logrow_q7_session_reference(
 ) -> LogRowQ7SessionEstimate: ...
 def prepare_logrow_q7_session_reference(
     plan: ModelPlan,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     *,
     max_elements: int,
     max_evaluator_material_bytes: int,

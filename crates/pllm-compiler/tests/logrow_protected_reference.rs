@@ -1,9 +1,12 @@
 use pllm_compiler::{
-    estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_element,
-    prepare_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor, ExperimentalLogRowQ7Policy,
-    ExperimentalLogRowQ7TensorPolicy,
+    estimate_bound_logrow_profile_session, estimate_bound_logrow_q7_session,
+    prepare_bound_logrow_profile_tensor, prepare_bound_logrow_q7_element,
+    prepare_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor,
+    prepare_bound_logrow_scaled_session, ExperimentalLogRowQ7Policy,
+    ExperimentalLogRowQ7TensorPolicy, LogRowSiluProfile,
 };
 use pllm_core::fit_compact_silu_q7;
+use pllm_core::logrow_numeric::ScaledSiluQ7Profile;
 use pllm_models::{lower_model_json, DecoderMode, DecoderPlan, DecoderWorkload, ModelOperator};
 
 const QWEN2: &[u8] = br#"{
@@ -464,4 +467,80 @@ fn offline_session_burns_every_remaining_tensor_on_mismatch_failure_or_abort() {
     assert!(session
         .evaluate_float32(DecoderMode::Decode, 0, operation, &[0.0; 16])
         .is_err());
+}
+
+#[test]
+fn scaled_public_range_reuses_one_use_session_without_compact_profile_confusion() {
+    let compact = fit_compact_silu_q7(&[0; 257], 4).unwrap();
+    let policy =
+        ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(32, 68_608)
+            .unwrap();
+    for model in [QWEN2, QWEN3] {
+        let plan = plan_with_decode(model, 2, 2);
+        let profile = ScaledSiluQ7Profile::new(4).unwrap();
+        let other = ScaledSiluQ7Profile::new(8).unwrap();
+        let budget = 137_216;
+        let estimate = estimate_bound_logrow_profile_session(
+            &plan,
+            &LogRowSiluProfile::Scaled(profile.clone()),
+            &policy,
+            2,
+            budget,
+        )
+        .unwrap();
+        let changed = estimate_bound_logrow_profile_session(
+            &plan,
+            &LogRowSiluProfile::Scaled(other),
+            &policy,
+            2,
+            budget,
+        )
+        .unwrap();
+        let compact_estimate =
+            estimate_bound_logrow_q7_session(&plan, &compact, &policy, 2, budget).unwrap();
+        assert_ne!(estimate.estimate_digest, changed.estimate_digest);
+        assert_ne!(estimate.estimate_digest, compact_estimate.estimate_digest);
+        let prefill = silu(&plan);
+        let tensor = prepare_bound_logrow_profile_tensor(
+            &plan,
+            DecoderMode::Prefill,
+            prefill,
+            &LogRowSiluProfile::Scaled(profile.clone()),
+            &policy,
+        )
+        .unwrap();
+        let (evaluation, _decoder) = tensor.encode(&[0; 32]).unwrap();
+        assert!(evaluation
+            .evaluate(&plan, DecoderMode::Prefill, prefill, &compact, &policy)
+            .is_err());
+
+        let mut session =
+            prepare_bound_logrow_scaled_session(&plan, &profile, &policy, 2, budget).unwrap();
+        assert_eq!(session.estimate().estimate_digest, estimate.estimate_digest);
+        for (mode, step, count) in [
+            (DecoderMode::Prefill, 0, 32),
+            (DecoderMode::Decode, 0, 16),
+            (DecoderMode::Decode, 1, 16),
+        ] {
+            let values = (0..count)
+                .map(|index| (index as f32 / count as f32 * 6.0) - 3.0)
+                .collect::<Vec<_>>();
+            let output = session
+                .evaluate_float32(mode, step, prefill, &values)
+                .unwrap();
+            for (actual, value) in output.into_iter().zip(values) {
+                let exact = f64::from(value) / (1.0 + (-f64::from(value)).exp());
+                assert!(
+                    (f64::from(actual) - exact).abs() <= profile.maximum_absolute_error_bound()
+                );
+            }
+        }
+        assert_eq!(session.remaining_tensors(), 0);
+        let mut invalid =
+            prepare_bound_logrow_scaled_session(&plan, &profile, &policy, 2, budget).unwrap();
+        assert!(invalid
+            .evaluate_float32(DecoderMode::Prefill, 0, prefill, &[4.1; 32])
+            .is_err());
+        assert_eq!(invalid.remaining_tensors(), 0);
+    }
 }

@@ -18,7 +18,10 @@ from pathlib import Path
 import numpy as np
 
 import pllm
-from pllm.nonlinear import fit_compact_silu_q7_reference
+from pllm.nonlinear import (
+    create_logrow_scaled_silu_q7_reference,
+    fit_compact_silu_q7_reference,
+)
 from pllm.protocols import prepare_logrow_q7_session_reference
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
@@ -37,9 +40,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--model-type", choices=("qwen2", "qwen3"), default="qwen2")
+    parser.add_argument("--numeric", choices=("compact", "scaled"), default="compact")
+    parser.add_argument("--public-range", type=int, default=4)
     arguments = parser.parse_args()
     if not 1 <= arguments.repeats <= 20:
         parser.error("--repeats must be between 1 and 20")
+    if arguments.numeric == "scaled" and not 1 <= arguments.public_range <= 16:
+        parser.error("--public-range must be an integer from 1 through 16")
+    gate_weight_scale = 0.008 if arguments.numeric == "compact" else 0.08
 
     with tempfile.TemporaryDirectory(prefix="pllm-logrow-reference-") as root:
         checkpoint = create_tiny_llama_checkpoint(
@@ -48,7 +56,7 @@ def main() -> None:
             model_type=arguments.model_type,
             with_qkv_bias=arguments.model_type == "qwen2",
             qk_norm=arguments.model_type == "qwen3",
-            gate_weight_scale=0.008,
+            gate_weight_scale=gate_weight_scale,
         )
         model_id = "tiny-logrow-reference"
         manifest = load_hf_directory(checkpoint, model_id=model_id)
@@ -60,7 +68,11 @@ def main() -> None:
             config, batch=1, max_input_tokens=len(INPUT_IDS), max_new_tokens=MAX_NEW
         )
         compiled = compile_runtime_model(plan, bundle)
-        profile = fit_compact_silu_q7_reference(bytes(257 * 4))
+        profile = (
+            fit_compact_silu_q7_reference(bytes(257 * 4))
+            if arguments.numeric == "compact"
+            else create_logrow_scaled_silu_q7_reference(arguments.public_range)
+        )
         timing: dict[str, list[float]] = {
             "baseline_setup_wall_ms": [],
             "baseline_online_wall_ms": [],
@@ -145,7 +157,9 @@ def main() -> None:
             "baseline_binding_digest": compiled.digest,
             "method": "pllm/logrow-q7-local-reference/v1",
             "profile_digest": profile.digest.hex(),
-            "gate_weight_scale": 0.008,
+            "numeric_profile": arguments.numeric,
+            "public_range": arguments.public_range if arguments.numeric == "scaled" else 1,
+            "gate_weight_scale": gate_weight_scale,
             "input_tokens": len(INPUT_IDS),
             "output_tokens": MAX_NEW,
             "repeats": arguments.repeats,

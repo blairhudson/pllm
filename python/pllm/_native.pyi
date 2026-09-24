@@ -24,6 +24,18 @@ def fit_compact_silu_q7_reference(
 ) -> CompactQ7Reference: ...
 
 @final
+class ScaledSiluQ7Reference:
+    def __new__(cls) -> Never: ...
+    @property
+    def max_abs(self) -> int: ...
+    @property
+    def digest(self) -> bytes: ...
+    @property
+    def maximum_absolute_error_bound(self) -> float: ...
+
+def create_logrow_scaled_silu_q7_reference(max_abs: int) -> ScaledSiluQ7Reference: ...
+
+@final
 class LogRowQ7TensorReference:
     def __new__(cls) -> Never: ...
     @property
@@ -35,7 +47,9 @@ class LogRowQ7TensorReference:
     def evaluate(self, values: bytes) -> bytes: ...
     def evaluate_float32(self, values: bytes) -> bytes: ...
 
+@final
 class LogRowQ7SessionReference:
+    def __new__(cls) -> Never: ...
     @property
     def issuance_digest(self) -> str: ...
     @property
@@ -57,7 +71,7 @@ def prepare_logrow_q7_tensor_reference(
 ) -> LogRowQ7TensorReference: ...
 def estimate_logrow_q7_session_reference(
     plan: bytes,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     max_elements: int,
     max_evaluator_material_bytes: int,
     max_decode_steps: int,
@@ -65,7 +79,7 @@ def estimate_logrow_q7_session_reference(
 ) -> bytes: ...
 def prepare_logrow_q7_session_reference(
     plan: bytes,
-    profile: CompactQ7Reference,
+    profile: CompactQ7Reference | ScaledSiluQ7Reference,
     max_elements: int,
     max_evaluator_material_bytes: int,
     max_decode_steps: int,

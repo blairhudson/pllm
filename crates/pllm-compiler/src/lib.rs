@@ -80,13 +80,18 @@ pub use gated_tensor::{
     GatedMultiplyQ7TensorEvaluator, GatedMultiplyQ7TensorTicket, TensorResourcePolicy,
 };
 pub use logrow_protected::{
-    estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_element,
+    estimate_bound_logrow_profile_session, estimate_bound_logrow_q7_session,
+    prepare_bound_logrow_profile_tensor, prepare_bound_logrow_q7_element,
     prepare_bound_logrow_q7_tensor, BoundLogRowQ7ClientMaterial, BoundLogRowQ7Decoder,
     BoundLogRowQ7Evaluation, BoundLogRowQ7Outputs, BoundLogRowQ7SessionEstimate,
     BoundLogRowQ7TensorDecoder, BoundLogRowQ7TensorEvaluation, BoundLogRowQ7TensorMaterial,
     BoundLogRowQ7TensorOutputs, ExperimentalLogRowQ7Policy, ExperimentalLogRowQ7TensorPolicy,
+    LogRowSiluProfile,
 };
-pub use logrow_session::{prepare_bound_logrow_q7_session, BoundLogRowQ7Session};
+pub use logrow_session::{
+    prepare_bound_logrow_profile_session, prepare_bound_logrow_q7_session,
+    prepare_bound_logrow_scaled_session, BoundLogRowQ7Session,
+};
 pub use provenance_primitives::{
     append_model_kv_cache_q10, execute_model_kv_cache_view_q10, execute_model_rope_q10,
     initialize_model_kv_cache_q10, lower_model_kv_cache_append_q10_regions,

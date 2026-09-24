@@ -33,29 +33,34 @@ policy and fresh issuance. The tensor preflights the complete body before
 issuance and burns all rows together on invalid input. The public
 `pllm.protocols.prepare_logrow_q7_tensor_reference` API exercises the bound
 tensor in-process through an opaque one-use native handle. No reviewed
-distributed 2PC, secure provider input transfer, general arithmetic conversion,
-whole-session schedule or complete compiled decoder is established.
-The opt-in float32 bridge is only defined on `[-1, 1]`: ties-to-even Q7
+distributed 2PC, secure provider input transfer or general arithmetic conversion
+is established. The original Compact float32 bridge is defined on `[-1, 1]`: ties-to-even Q7
 quantization rejects out-of-range values rather than saturating, adds at most
 1/256 input error, and burns the complete tensor when any input is invalid.
-This does not establish a wider-range conversion for actual checkpoint MLPs.
+It cannot run gates outside that range.
 An immutable session-cost estimator counts all semantic SiLU evaluator bodies
 for bounded prefill and decode steps and rejects totals above an explicit cap.
 The separate offline `prepare_logrow_q7_session_reference` preissues bounded
 material for all those tensors, orders one-use consumption, and burns the
 remainder on failure or abort. A bounded research override runs full prefill
 and decode on controlled tiny Qwen2/Qwen3 checkpoints with in-range gate
-weights; the ordinary generated tiny checkpoint fails closed on out-of-range
-gates. This is not a general checkpoint method or a protected provider path.
+weights. The ordinary generated tiny checkpoint fails closed with the Compact
+range, while the separately bound public `[-4, 4]` profile executes it without
+clipping. This is not a general checkpoint method or a protected provider path.
 The retained [synthetic local measurement](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-local-reference-2026-09-24.json)
 compares three matched prefill/decode pairs per model: LogRow is roughly an
 order of magnitude slower online than clear local SiLU in that setup, with
 separate offline material-issuance costs. These runs are not provider-network
 or state-of-the-art evidence.
-The next numeric prerequisite is implemented only as a bounded Rust oracle:
-`ScaledSiluQ7Profile` uses a public integer range `[-M, M]`, `1 <= M <= 16`,
-to encode a wider SiLU table with explicit output scaling and a conservative
-error bound. It does not yet issue LogRow material or authorize decoder use.
+The [`ScaledSiluQ7Profile` user API](/sdk/components/protocols/logrow-reference/)
+uses a public integer range `[-M, M]`, `1 <= M <= 16`, to prepare an independently
+digested wider SiLU table with output scaling and a conservative error bound.
+It uses the same bounded, one-use tensor/session lifecycle; no private-request
+range choice or saturation is permitted. The retained
+[wider-range tiny cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-public-range-local-2026-09-24.json)
+shows the same two-token output selections in three matched pairs per model,
+with prefill logit deltas about 0.112 and nearly tenfold local online slowdown.
+This is not real-checkpoint quality or provider-network evidence.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

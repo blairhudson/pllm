@@ -9,6 +9,7 @@ import math
 import pytest
 
 from pllm import _native, lower_model
+from pllm.nonlinear import create_logrow_scaled_silu_q7_reference
 from pllm.protocols import (
     LogRowGarbledLookup,
     estimate_logrow_q7_session_reference,
@@ -282,3 +283,64 @@ def test_session_burns_remaining_material_on_invalid_python_types_and_abort() ->
     handle = session()
     handle.abort()
     assert handle.remaining_tensors == 0
+
+
+@pytest.mark.parametrize("source", [QWEN2, QWEN3], ids=["qwen2", "qwen3"])
+def test_scaled_public_silu_profile_executes_full_native_session_and_burns_excess(
+    source: dict,
+) -> None:
+    plan = lower_model(source, batch=1, max_input_tokens=2, max_new_tokens=2)
+    compact = _profile()
+    scaled = create_logrow_scaled_silu_q7_reference(4)
+    assert scaled.max_abs == 4
+    assert len(scaled.digest) == 32
+    assert scaled.digest != compact.digest
+    with pytest.raises(ValueError, match="RangeOutOfBounds"):
+        create_logrow_scaled_silu_q7_reference(17)
+    with pytest.raises(ValueError, match="numeric profile"):
+        estimate_logrow_q7_session_reference(
+            plan,
+            object(),
+            max_elements=32,
+            max_evaluator_material_bytes=68608,
+            max_decode_steps=2,
+            max_session_evaluator_material_bytes=137216,
+        )
+    bounds = dict(
+        max_elements=32,
+        max_evaluator_material_bytes=68608,
+        max_decode_steps=2,
+        max_session_evaluator_material_bytes=137216,
+    )
+    estimate = estimate_logrow_q7_session_reference(plan, scaled, **bounds)
+    assert estimate.profile_id == "pllm.numeric.logrow_scaled_silu_q7.reference.v1"
+    assert estimate.profile_digest == scaled.digest
+    assert (
+        estimate.estimate_digest
+        != estimate_logrow_q7_session_reference(plan, compact, **bounds).estimate_digest
+    )
+    session = prepare_logrow_q7_session_reference(plan, scaled, **bounds)
+    assert json.loads(session.estimate())["estimate_digest"] == estimate.estimate_digest
+    for mode, step, count in [("prefill", 0, 32), ("decode", 0, 16), ("decode", 1, 16)]:
+        operation = next(
+            item["id"] for item in getattr(plan, mode)["operations"] if item["operator"] == "silu"
+        )
+        values = [-3.5, -1.5, 0.5, 3.5] * (count // 4)
+        outputs = struct.unpack(
+            f"<{count}f",
+            session.evaluate_float32(mode, step, operation, struct.pack(f"<{count}f", *values)),
+        )
+        for input_value, output in zip(values, outputs, strict=True):
+            exact = input_value / (1.0 + math.exp(-input_value))
+            assert abs(output - exact) <= scaled.maximum_absolute_error_bound
+    assert session.remaining_tensors == 0
+
+    burned = prepare_logrow_q7_session_reference(plan, scaled, **bounds)
+    prefill_operation = next(
+        item["id"] for item in plan.prefill["operations"] if item["operator"] == "silu"
+    )
+    with pytest.raises(ValueError, match="FloatInputOutOfRange"):
+        burned.evaluate_float32(
+            "prefill", 0, prefill_operation, struct.pack("<32f", *([0.0] * 31 + [4.01]))
+        )
+    assert burned.remaining_tensors == 0

@@ -60,6 +60,11 @@ calibration and fitted coefficients, and evaluates through plaintext interval
 selection. Its planned nonlinear component remains non-executable until
 protected selection and polynomial evaluation are composed with whole-model
 evidence.
+For LogRow research, core also defines a distinct public-range scaled SiLU
+reference over `[-M, M]` for integer `M` from 1 to 16. Input and output use
+Q7 scaling, ties-to-even rounding and strict domain rejection; its
+conservative float32 absolute-error bound is `2.1 M / 256 + 0.000002`.
+The range must be set from public offline information, never a private prompt.
 `pllm-garble` also has a bounded, one-use, in-process half-gates reference that
 selects a piece from a private Q7 input and returns opaque output labels to the
 evaluator. Only the trusted client decodes the index. This selection circuit is
@@ -131,6 +136,13 @@ Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
 stage protocol. Gemma 4 semantic plans enter the same compiler scheduler but fail
 closed on local operators that the compiled runtime has not implemented.
+An explicit in-process LogRow research override can evaluate all SiLU tensors
+of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
+material and a separate execution digest. The wider public-range profile
+executes the ordinary generated tiny checkpoint. This override is not an
+executable Pipeline/Experiment choice, does not expose a provider-protected
+nonlinear path, and does not establish real-checkpoint quality. Retained matched
+local cohorts show higher online CPU and offline issuance cost than clear SiLU.
 
 There is no `research.single_evaluator` profile. The fixed-Q10 research path is an
 ordinary component composition with executable regions for dense gated-decoder operators, graph-derived
