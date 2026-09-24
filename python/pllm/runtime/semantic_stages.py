@@ -36,6 +36,10 @@ def _graph_reaches(
                 continue
             if operation.get("operator") == target:
                 return True
+            if reverse and operation_id != start and operation.get("operator") in {
+                "linear", "token_lookup", "output_head"
+            }:
+                continue
             if reverse:
                 next_frontier.extend(
                     source for source in operation.get("inputs") or () if source in operations
@@ -69,19 +73,39 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
         and all(
             _graph_reaches(operation_id, "multiply", operations) for operation_id in operation_ids
         )
-        and sum(_graph_reaches(operation_id, "silu", operations) for operation_id in operation_ids)
+        and sum(
+            any(
+                _graph_reaches(operation_id, activation, operations)
+                for activation in ("silu", "gelu_tanh")
+            )
+            for operation_id in operation_ids
+        )
         == 1
     ):
         return "mlp_gate_up"
-    if len(operation_ids) == 1:
+    if len(operation_ids) == 1 and operators == ["linear"]:
         input_ids = step.get("input_ids")
         if not isinstance(input_ids, list) or len(input_ids) != 1:
             raise ValueError("remote linear stage must have one semantic input")
         source = input_ids[0]
         if _graph_reaches(source, "attention_values", operations, reverse=True):
             return "attention_output"
-        if _graph_reaches(source, "multiply", operations, reverse=True):
+        producer = operations.get(source)
+        if (
+            producer is not None
+            and producer.get("operator") == "multiply"
+            and len(producer.get("inputs") or ()) == 2
+            and sum(
+                operations.get(input_id, {}).get("operator") in {"silu", "gelu_tanh"}
+                for input_id in producer["inputs"]
+            ) == 1
+            and sum(
+                operations.get(input_id, {}).get("operator") == "linear"
+                for input_id in producer["inputs"]
+            ) == 1
+        ):
             return "mlp_down"
+        return "semantic_linear"
     raise ValueError("remote stage topology is not implemented")
 
 
@@ -150,6 +174,40 @@ def _token_lookup_stage(
     )
 
 
+def _linear_stage(
+    step: dict[str, Any], operations: dict[str, dict[str, Any]], role: str
+) -> StageSpec:
+    layer = step["layer"]
+    inputs = step["input_ids"]
+    op_ids = step["operation_ids"]
+    if len(inputs) != 1 or inputs[0] not in operations:
+        raise ValueError("decoder stage lacks one semantic input")
+    if role == "semantic_linear":
+        order = step.get("order")
+        if type(order) is not int or order < 0 or (layer is not None and type(layer) is not int):
+            raise ValueError("semantic linear stage is missing its bound order")
+        prefix = "boundary" if layer is None else f"layer.{layer}"
+        stage_id = f"semantic.{prefix}.linear.{order}"
+    elif type(layer) is int and role in _STAGE_NAMES:
+        stage_id = f"layers.{layer}.{_STAGE_NAMES[role]}"
+    else:
+        raise ValueError("decoder schedule declares an unsupported stage layout")
+    declared_biases = tuple(
+        operations[op_id]["attributes"].get("bias") or "" for op_id in op_ids
+    )
+    return StageSpec(
+        id=stage_id,
+        op="linear",
+        in_features=int(operations[inputs[0]]["output_shape"][-1]),
+        out_features=sum(int(operations[op_id]["output_shape"][-1]) for op_id in op_ids),
+        fused_from=semantic_fused_roles(role),
+        weight_keys=tuple(step["weight_ids"]),
+        bias_keys=declared_biases if any(declared_biases) else (),
+        layer_index=layer,
+        role=role,
+    )
+
+
 def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageSpec]:
     """Issue the exact stage table required by a complete baseline schedule."""
     schedule = plan.runtime_schedule(composition)
@@ -173,7 +231,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
             continue
         role = semantic_stage_role(step, operations)
         layer = step["layer"]
-        key = (role, layer)
+        key = (role, step["order"] if role == "semantic_linear" else layer)
         if key in seen:
             raise ValueError("decoder schedule contains a duplicate stage role")
         seen.add(key)
@@ -202,22 +260,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
                 role=role,
             )
         else:
-            if type(layer) is not int or role not in _STAGE_NAMES:
-                raise ValueError("decoder schedule declares an unsupported stage layout")
-            inputs = step["input_ids"]
-            if len(inputs) != 1 or inputs[0] not in operations:
-                raise ValueError("decoder stage lacks one semantic input")
-            spec = StageSpec(
-                id=f"layers.{layer}.{_STAGE_NAMES[role]}",
-                op="linear",
-                in_features=int(operations[inputs[0]]["output_shape"][-1]),
-                out_features=sum(int(operations[op_id]["output_shape"][-1]) for op_id in op_ids),
-                fused_from=semantic_fused_roles(role),
-                weight_keys=weights,
-                bias_keys=declared_biases if any(declared_biases) else (),
-                layer_index=layer,
-                role=role,
-            )
+            spec = _linear_stage(step, operations, role)
         stages.append(spec)
     if not stages or stages[0].role != "token_lookup" or stages[-1].role != "lm_head":
         raise ValueError("decoder schedule lacks its token boundary stages")

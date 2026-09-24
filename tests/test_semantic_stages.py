@@ -12,9 +12,10 @@ import numpy as np
 import pytest
 
 from pllm import lower_model
+from pllm.runtime.models import StageSpec
 from pllm.runtime.safetensors_store import SafeTensorStore
 from pllm.runtime.semantic_executor import SemanticDecoderRuntime
-from pllm.runtime.semantic_stages import _token_lookup_stage
+from pllm.runtime.semantic_stages import _linear_stage, _token_lookup_stage, semantic_stage_role
 from pllm.runtime.semantic_tensors import SemanticTensorError, preflight_semantic_checkpoint
 from pllm.runtime.transformer_client import TransformerClientError
 
@@ -62,6 +63,43 @@ def test_pinned_token_tables_form_one_ordered_boundary_stage() -> None:
     forged["weight_ids"].reverse()
     with pytest.raises(ValueError, match="weights"):
         _token_lookup_stage(forged, operations, vocabulary)
+
+
+def test_pinned_projection_roles_follow_nearest_semantic_producers() -> None:
+    _, operations, _ = _pinned_token_group()
+
+    def grouped(op_ids: list[str], order: int) -> tuple[str, StageSpec]:
+        source = operations[op_ids[0]]
+        step = {
+            "operation_ids": op_ids,
+            "operators": ["linear"] * len(op_ids),
+            "input_ids": list(source["inputs"]),
+            "layer": source["layer"],
+            "order": order,
+            "weight_ids": [operations[op_id]["attributes"]["weight"] for op_id in op_ids],
+        }
+        role = semantic_stage_role(step, operations)
+        return role, _linear_stage(step, operations, role)
+
+    role, boundary = grouped(["ple_context_projection"], 2)
+    assert role == "semantic_linear"
+    assert boundary.id == "semantic.boundary.linear.2"
+    assert boundary.out_features == operations["ple_context_projection"]["output_shape"][-1]
+    role, gate = grouped(["layer.0.ple_gate"], 40)
+    assert role == "semantic_linear"
+    assert gate.id == "semantic.layer.0.linear.40"
+    role, projection = grouped(["layer.0.ple_projection"], 41)
+    assert role == "semantic_linear"
+    assert projection.id == "semantic.layer.0.linear.41"
+    role, down = grouped(["layer.0.down_proj"], 42)
+    assert role == "mlp_down"
+    assert down.id == "layers.0.mlp.down_proj"
+    role, gate_up = grouped(["layer.0.gate_proj", "layer.0.up_proj"], 43)
+    assert role == "mlp_gate_up"
+    assert gate_up.id == "layers.0.mlp.gate_up_proj"
+    role, qkv = grouped(["layer.0.q_linear", "layer.0.k_linear", "layer.0.v_linear"], 44)
+    assert role == "qkv_projection"
+    assert qkv.id == "layers.0.self_attn.qkv_proj"
 
 
 def test_pinned_token_stage_matches_real_checkpoint_headers(monkeypatch: pytest.MonkeyPatch) -> None:
