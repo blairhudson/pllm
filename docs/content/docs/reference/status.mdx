@@ -3,7 +3,7 @@ title: "SDK implementation and model compatibility"
 description: "Checked model architecture requirements, runtime evidence, and Python API status."
 ---
 
-The SDK exposes **33 public Python modules** and **352 module exports**. **269** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **76.4%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
+The SDK exposes **33 public Python modules** and **354 module exports**. **271** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **76.6%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
 
 The [research method roadmap](/sdk/components/research-method-roadmap/) describes each pending symbol's next gate. The [component catalog](/sdk/reference/components/) separately lists executable component descriptors.
 
@@ -107,7 +107,7 @@ Prefer reusable semantic operators and tested checkpoint binding over model-name
 | [`pllm.assurance`](/sdk/reference/python/pllm/assurance/) | 2 | 4 | 6 | 33.3% |
 | [`pllm.correlation`](/sdk/reference/python/pllm/correlation/) | 2 | 8 | 10 | 20.0% |
 | [`pllm.kernels`](/sdk/reference/python/pllm/kernels/) | 2 | 1 | 3 | 66.7% |
-| [`pllm.metrics`](/sdk/reference/python/pllm/metrics/) | 9 | 0 | 9 | 100.0% |
+| [`pllm.metrics`](/sdk/reference/python/pllm/metrics/) | 11 | 0 | 11 | 100.0% |
 | [`pllm.nonlinear`](/sdk/reference/python/pllm/nonlinear/) | 6 | 6 | 12 | 50.0% |
 | [`pllm.official`](/sdk/reference/python/pllm/official/) | 2 | 0 | 2 | 100.0% |
 | [`pllm.passes`](/sdk/reference/python/pllm/passes/) | 2 | 12 | 14 | 14.3% |

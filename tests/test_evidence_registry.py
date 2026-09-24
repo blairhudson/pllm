@@ -119,7 +119,7 @@ def test_metric_components_are_typed_registered_and_immutable() -> None:
         Perplexity(dataset="fixture"),
         Cost(),
     )
-    assert len(list_component_classes()) == 31
+    assert len(list_component_classes()) == 33
     for metric in metrics:
         assert get(metric.component) is type(metric)
         assert metric.describe().category == "pllm/benchmark-metric"
@@ -177,6 +177,23 @@ def test_benchmark_result_rejects_semantic_mismatch(change) -> None:
     document = result_document()
     change(document)
     with pytest.raises((TypeError, ValueError)):
+        pllm.BenchmarkResult.from_dict(document)
+
+
+def test_reference_agreement_cannot_be_inserted_into_unmatched_v1_evidence() -> None:
+    document = result_document()
+    document["metrics"][0].update(
+        component="pllm/reference-agreement/v1",
+        parameters={
+            "dataset_digest": "a" * 64,
+            "reference_checkpoint_digest": "b" * 64,
+            "top_k": 5,
+        },
+        value=1.0,
+        unit="ratio",
+        origin="reference_executed",
+    )
+    with pytest.raises(ValueError, match="unsupported by benchmark_result.v1"):
         pllm.BenchmarkResult.from_dict(document)
 
 

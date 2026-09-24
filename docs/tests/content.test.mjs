@@ -368,7 +368,7 @@ test('component option guides execute supported examples and cite bounded resear
   assert.equal(inventory.status, 0, inventory.stderr);
   const metricIds = [
     'pllm/accuracy', 'pllm/communication', 'pllm/cost', 'pllm/energy',
-    'pllm/latency', 'pllm/memory', 'pllm/perplexity', 'pllm/throughput',
+    'pllm/latency', 'pllm/memory', 'pllm/perplexity', 'pllm/reference-agreement/v1', 'pllm/throughput',
   ];
   assert.deepEqual([...options.map(([, identity]) => identity), ...metricIds].sort(),
     JSON.parse(inventory.stdout), 'every built-in component must have an option guide or a metric option');
@@ -377,11 +377,11 @@ test('component option guides execute supported examples and cite bounded resear
 test('all metric option guides execute declarations without invented measurements', () => {
   for (const slug of [
     'latency', 'throughput', 'communication', 'memory',
-    'energy', 'accuracy', 'perplexity', 'cost',
+    'energy', 'reference-agreement', 'accuracy', 'perplexity', 'cost',
   ]) {
     const route = `/sdk/evaluate/metrics/${slug}/`;
     const content = byRoute.get(route)?.content;
-    assert.ok(content?.includes(`pllm/${slug}`), route);
+    assert.ok(content?.includes(slug === 'reference-agreement' ? 'pllm/reference-agreement/v1' : `pllm/${slug}`), route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.equal(examples.length, 1, route);
     const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {

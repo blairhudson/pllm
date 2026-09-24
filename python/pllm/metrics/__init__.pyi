@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+import numpy as np
 from pllm.configuration import ComponentDescriptor, ComponentRef
 
 class Metric(ComponentRef): ...
@@ -43,6 +45,19 @@ class Perplexity(Metric):
     def __init__(self, *, dataset: str) -> None: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
+
+class ReferenceAgreement(Metric):
+    descriptor: ComponentDescriptor
+    def __init__(self, *, dataset_digest: str, reference_checkpoint_digest: str, top_k: int = 5) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+def measure_reference_agreement(
+    candidate_logits: Sequence[float] | np.ndarray,
+    reference_logits: Sequence[float] | np.ndarray,
+    *,
+    top_k: int = 5,
+) -> dict[str, float]: ...
 
 class Cost(Metric):
     descriptor: ComponentDescriptor

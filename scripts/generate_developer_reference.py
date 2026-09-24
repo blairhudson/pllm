@@ -444,6 +444,9 @@ METRIC_EXAMPLE = _example(
 
     latency = metrics.Latency(statistic="p95", phase="online")
     assert latency.to_spec()["params"] == {"phase": "online", "statistic": "p95"}
+    agreement = metrics.ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64)
+    assert agreement.component == "pllm/reference-agreement/v1"
+    assert metrics.measure_reference_agreement([1.0, 0.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0, 0.0])["top1_agreement"] == 1.0
     """
 )
 
@@ -747,7 +750,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": KERNEL_EXAMPLE,
     },
     "pllm.metrics": {
-        "purpose": "Metric definitions attach units and optimization direction to measurements so evidence and Pareto search do not guess whether larger or smaller is better.",
+        "purpose": "Metric definitions attach units and optimization direction to measurements; reference agreement also scores bounded same-token logits without retaining their payloads.",
         "citations": (),
         "example": METRIC_EXAMPLE,
     },

@@ -221,8 +221,8 @@ def test_valid_discovery_is_inert_deterministic_and_registry_aware(tmp_path: Pat
         experiment.resolve()
     with pytest.raises(pllm.ConfigurationError, match="invalid|integer"):
         component_class(limit=0)
-    assert len(list_component_classes()) == 31
-    assert len(list_component_classes(providers=providers)) == 32
+    assert len(list_component_classes()) == 33
+    assert len(list_component_classes(providers=providers)) == 34
 
 
 def test_discovery_rejects_duplicate_keys_and_unknown_fields(tmp_path: Path) -> None:

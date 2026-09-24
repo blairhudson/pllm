@@ -23,7 +23,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     """Delay family imports so each family can expose planned component symbols."""
     from pllm.correlation import SeededExpansion
     from pllm.kernels import Cpu
-    from pllm.metrics import Accuracy, Communication, Cost, Energy, Latency, Memory, Perplexity, Throughput
+    from pllm.metrics import Accuracy, Communication, Cost, Energy, Latency, Memory, Perplexity, ReferenceAgreement, Throughput
     from pllm.nonlinear import ArithmeticGarblingSiluQ7, BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
     from pllm.passes import KvCacheEviction
     from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
@@ -46,7 +46,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         Communication, Cost, Cpu, DirectFHE, Energy, FreivaldsVerify, GuardedLinear,
         HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
         KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
-        Perplexity, R03CrtGatedMultiplyQ7, ScalarProtectedTensorSchedule, SeededExpansion,
+        Perplexity, R03CrtGatedMultiplyQ7, ReferenceAgreement, ScalarProtectedTensorSchedule, SeededExpansion,
         SecureLinear, SymmetricPerRow, Throughput,
     )
     if len({component.describe().component for component in classes}) != len(classes):

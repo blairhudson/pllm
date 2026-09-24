@@ -8,10 +8,12 @@ Performance: [latency](/sdk/evaluate/metrics/latency/),
 [communication](/sdk/evaluate/metrics/communication/), and
 [memory](/sdk/evaluate/metrics/memory/). Separate instruments and datasets:
 [energy](/sdk/evaluate/metrics/energy/),
+[reference agreement](/sdk/evaluate/metrics/reference-agreement/),
 [accuracy](/sdk/evaluate/metrics/accuracy/),
 [perplexity](/sdk/evaluate/metrics/perplexity/), and
 [cost](/sdk/evaluate/metrics/cost/). Each option declares a unit or direction,
-not an observation. Never substitute missing energy, price, or quality data
+not an observation; reference agreement additionally offers a same-token
+logit comparison function. Never substitute missing energy, price, or quality data
 with an assumed value. Compare [benchmark cohorts](/sdk/evaluate/benchmark/)
 only when model, token counts, execution mode, and environment match.
 

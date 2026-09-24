@@ -1,6 +1,10 @@
 """Typed benchmark metric declarations."""
 
 from abc import ABC, abstractmethod
+import re
+from collections.abc import Sequence
+
+import numpy as np
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 
@@ -122,9 +126,7 @@ class Communication(Metric):
         super().__init__(
             self.descriptor.component,
             {
-                "direction": _choice(
-                    direction, {"upload", "download", "total"}, "direction"
-                ),
+                "direction": _choice(direction, {"upload", "download", "total"}, "direction"),
                 "phase": _choice(phase, {"offline", "online", "full"}, "phase"),
             },
         )
@@ -176,9 +178,7 @@ class Energy(Metric):
         lifecycle_phase="benchmark",
         parameter_schema={
             "type": "object",
-            "properties": {
-                "source": {"enum": ["external_meter", "rapl", "nvml", "not_available"]}
-            },
+            "properties": {"source": {"enum": ["external_meter", "rapl", "nvml", "not_available"]}},
             "required": ["source"],
             "additionalProperties": False,
         },
@@ -229,9 +229,7 @@ class Accuracy(Metric):
             self.descriptor.component,
             {
                 "dataset": _text(dataset, "dataset"),
-                "measure": _choice(
-                    measure, {"exact_match", "pass_at_1", "task_score"}, "measure"
-                ),
+                "measure": _choice(measure, {"exact_match", "pass_at_1", "task_score"}, "measure"),
             },
         )
 
@@ -290,7 +288,12 @@ class Cost(Metric):
     )
 
     def __init__(self, *, currency: str = "USD", basis: str = "request") -> None:
-        if type(currency) is not str or len(currency) != 3 or not currency.isascii() or not currency.isupper():
+        if (
+            type(currency) is not str
+            or len(currency) != 3
+            or not currency.isascii()
+            or not currency.isupper()
+        ):
             raise ConfigurationError("currency must be a three-letter uppercase ASCII code")
         super().__init__(
             self.descriptor.component,
@@ -309,6 +312,98 @@ class Cost(Metric):
         return cls.descriptor
 
 
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+class ReferenceAgreement(Metric):
+    """Opt-in same-token FP32 reference top-k agreement, not task accuracy."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/reference-agreement/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/benchmark-metric",
+        category_version="1",
+        lifecycle_phase="benchmark",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "dataset_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "reference_checkpoint_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "top_k": {"type": "integer", "minimum": 1, "maximum": 100},
+            },
+            "required": ["dataset_digest", "reference_checkpoint_digest", "top_k"],
+            "additionalProperties": False,
+        },
+        capabilities=("ratio", "higher-is-better", "reference-executed", "same-token"),
+    )
+
+    def __init__(
+        self, *, dataset_digest: str, reference_checkpoint_digest: str, top_k: int = 5
+    ) -> None:
+        for name, value in (
+            ("dataset_digest", dataset_digest),
+            ("reference_checkpoint_digest", reference_checkpoint_digest),
+        ):
+            if type(value) is not str or _SHA256.fullmatch(value) is None:
+                raise ConfigurationError(f"{name} must be a lowercase SHA-256 digest")
+        if type(top_k) is not int or not 1 <= top_k <= 100:
+            raise ConfigurationError("top_k must be an integer between 1 and 100")
+        super().__init__(
+            self.descriptor.component,
+            {
+                "dataset_digest": dataset_digest,
+                "reference_checkpoint_digest": reference_checkpoint_digest,
+                "top_k": top_k,
+            },
+        )
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+def measure_reference_agreement(
+    candidate_logits: Sequence[float] | np.ndarray,
+    reference_logits: Sequence[float] | np.ndarray,
+    *,
+    top_k: int = 5,
+) -> dict[str, float]:
+    """Compare complete same-token vocabulary logits; retain no logit payload."""
+    if type(top_k) is not int or not 1 <= top_k <= 100:
+        raise ValueError("top_k must be an integer between 1 and 100")
+    try:
+        candidate = np.asarray(candidate_logits, dtype=np.float64)
+        reference = np.asarray(reference_logits, dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("reference logits must be numeric") from exc
+    if (
+        candidate.ndim != 1
+        or reference.ndim != 1
+        or candidate.shape != reference.shape
+        or candidate.size < top_k
+        or candidate.size > 1_000_000
+        or not np.all(np.isfinite(candidate))
+        or not np.all(np.isfinite(reference))
+    ):
+        raise ValueError("reference logits must be matching finite bounded vocabulary vectors")
+    # Break ties by vocabulary ID, including highly quantized flat logits.
+    ids = np.arange(candidate.size)
+    candidate_rank = np.lexsort((ids, -candidate))[:top_k]
+    reference_rank = np.lexsort((ids, -reference))[:top_k]
+    with np.errstate(over="ignore"):
+        max_error = float(np.max(np.abs(candidate - reference)))
+    if not np.isfinite(max_error):
+        raise ValueError("reference logits difference is outside the finite domain")
+    return {
+        "top1_agreement": float(candidate_rank[0] == reference_rank[0]),
+        "top_k_recall": float(np.isin(reference_rank, candidate_rank).sum() / top_k),
+        "max_abs_logit_error": max_error,
+    }
+
+
 __all__ = [
     "Accuracy",
     "Communication",
@@ -318,5 +413,7 @@ __all__ = [
     "Memory",
     "Metric",
     "Perplexity",
+    "ReferenceAgreement",
     "Throughput",
+    "measure_reference_agreement",
 ]

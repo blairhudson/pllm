@@ -187,6 +187,8 @@ def _metric(record: object, index: int) -> dict[str, Any]:
         "pllm/perplexity": "ratio",
         "pllm/cost": "currency",
     }
+    if component_id not in expected_units:
+        raise ValueError(f"{path}.component is unsupported by benchmark_result.v1")
     if value["unit"] != expected_units[component_id]:
         raise ValueError(f"{path}.unit does not match its metric")
     if component_id == "pllm/latency" and (

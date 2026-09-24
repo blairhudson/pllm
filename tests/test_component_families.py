@@ -21,6 +21,7 @@ from pllm.metrics import (
     Memory,
     Metric,
     Perplexity,
+    ReferenceAgreement,
     Throughput,
 )
 from pllm.nonlinear import (
@@ -36,6 +37,7 @@ from pllm.preparation import (
     ModelAwareCorrections,
     PreparationProvider,
 )
+from pllm.quantization import SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
     CleartextLinear,
@@ -87,9 +89,11 @@ def _instances():
         ModelAwareCorrections(),
         Perplexity(dataset="fixture"),
         R03CrtGatedMultiplyQ7(),
+        ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
         ScalarProtectedTensorSchedule(),
         SeededExpansion(),
         SecureLinear(),
+        SymmetricPerRow(),
         Throughput(),
     )
 

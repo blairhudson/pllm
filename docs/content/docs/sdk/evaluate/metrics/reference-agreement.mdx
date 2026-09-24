@@ -1,0 +1,49 @@
+---
+title: "Reference agreement"
+description: "Measure same-token top-1 and top-k agreement with a pinned float32 model reference."
+---
+
+[`ReferenceAgreement`](/sdk/reference/python/pllm/metrics/#referenceagreement)
+declares the exact dataset and reference-checkpoint SHA-256 digests, plus the
+top-k cutoff. [`measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#measure_reference_agreement)
+computes top-1 agreement, top-k reference-token recall and maximum absolute
+logit difference on two complete, finite vocabulary vectors evaluated on the
+**same preceding tokens**. Ties resolve by token ID. Aggregating those scores
+over a pinned prompt cohort can reveal numeric drift when comparing W4A4 and
+W8A8, even if both runs return plausible text. This is neither task accuracy
+nor perplexity; logit errors across different reference models are not
+comparable.
+
+The model, tokenizer, prompt/token cohort, reference implementation, numeric
+choice and inference phase must be recorded together. For an in-process
+reference diagnostic, the reference model sees the prompt at the trusted
+client; no provider should receive its plaintext logits. Keeping both logits
+in memory avoids putting prompts, token IDs or activation payloads in the
+benchmark archive. The scoring step itself uses O(vocabulary) client memory,
+CPU and no network or disk material; loading and evaluating a full float32
+reference model costs additional CPU and memory and must be accounted for
+separately from online provider latency. A good score does **not** establish
+provider privacy or general generation quality.
+
+## Python SDK example
+
+```python
+from pllm.metrics import ReferenceAgreement, measure_reference_agreement
+
+metric = ReferenceAgreement(
+    dataset_digest="a" * 64,
+    reference_checkpoint_digest="b" * 64,
+    top_k=3,
+)
+score = measure_reference_agreement(
+    [2.0, 1.0, 1.0, 0.0], [2.0, 1.0, 1.0, 0.0], top_k=3
+)
+assert metric.component == "pllm/reference-agreement/v1"
+assert score["top1_agreement"] == 1.0
+assert score["top_k_recall"] == 1.0
+```
+
+The vectors above exercise scoring only; no model was evaluated. The
+[benchmark guide](/sdk/evaluate/benchmark/) describes measured runs.
+
+API: [`ReferenceAgreement` and `measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
