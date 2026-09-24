@@ -129,10 +129,18 @@ Independent tensor preparation does not require this session gate.
 | Input / output labels | Nine 16-byte input labels and nine 16-byte output labels per scalar. These are **additional** to the 2,144-byte material; protocol framing is not included. |
 | Prior oracle | The 257-row protected Compact lookup oracle uses 73,728 half-gate ciphertext bytes alone; these counts are **not** matched end-to-end traffic measurements. |
 | Memory | Bounded 512-row table and one-hot seed vectors in-process; per-tensor evaluator material is capped at 64 MiB. Peak heap and allocator overhead have **not** been measured. |
-| CPU | Full tree preparation, random-function masking, table packing and evaluator XOR/hash work; no controlled wall-time or throughput measurement. |
+| CPU / latency | A retained three-pair **synthetic, in-process** cohort per model recorded LogRow online medians of **693 ms (Qwen2)** and **699 ms (Qwen3)** versus clear local baselines of **72 ms** and **77 ms**; offline issuance took **834 ms** and **840 ms** per response. CPU medians show the same direction. This is slower in the tested setup; no provider throughput or real-model comparison is established. [Inspect exact cohorts and environment](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-local-reference-2026-09-24.json). |
 | Disk | No persistent material is written by the reference; a caller's checkpoint/calibration storage is separate. |
 | Network | No network path exists. The 2,144-byte body and 144-byte input/output labels are potential payload terms, **not** observed network traffic. |
 | Privacy | A fresh one-use circuit hides the input row and table under the stated garbler/evaluator model. Cryptographic assurance for this PLLM adaptation has not been established. |
+
+The matched tiny cohorts used the same public checkpoint and plan within each
+pair, two input and two output tokens, and one-use material per response. All
+three pairs per model selected identical token sequences; maximum prefill
+absolute logit differences were 0.00169 (Qwen2) and 0.00798 (Qwen3). In-process
+stage tensor byte counts were the same (**9,984**) for both methods; they are
+not network measurements. No peak heap, disk delta or provider traffic was
+measured, and real-checkpoint activation ranges remain unsupported.
 
 Native tests exhaust all 257 signed-Q7 inputs for a fitted profile and check
 cross-circuit rejection, output-label tampering, width limits and one-use

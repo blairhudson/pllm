@@ -47,6 +47,11 @@ remainder on failure or abort. A bounded research override runs full prefill
 and decode on controlled tiny Qwen2/Qwen3 checkpoints with in-range gate
 weights; the ordinary generated tiny checkpoint fails closed on out-of-range
 gates. This is not a general checkpoint method or a protected provider path.
+The retained [synthetic local measurement](https://github.com/blairhudson/pllm/blob/main/docs/evidence/logrow-local-reference-2026-09-24.json)
+compares three matched prefill/decode pairs per model: LogRow is roughly an
+order of magnitude slower online than clear local SiLU in that setup, with
+separate offline material-issuance costs. These runs are not provider-network
+or state-of-the-art evidence.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

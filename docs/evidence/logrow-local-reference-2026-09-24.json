@@ -1,0 +1,80 @@
+{
+  "schema_version": "pllm.logrow_local_reference_measurement_set.v1",
+  "scope": "Synthetic, in-process, single-host research references; neither a pllm BenchmarkResult nor a provider-transport comparison. Each within-model pair uses the same checkpoint, plan, two input tokens, two generated tokens, and warm in-process matrix callback. Preparation is counted separately from online execution. No external SOTA, memory-peak, disk, provider-network, or real-checkpoint claim follows.",
+  "reproducer": [
+    "uv run python scripts/benchmark_logrow_reference.py --repeats 3 --model-type qwen2",
+    "uv run python scripts/benchmark_logrow_reference.py --repeats 3 --model-type qwen3"
+  ],
+  "records": [
+    {
+      "schema_version": "pllm.logrow_local_reference_measurement.v1",
+      "execution_scope": "in_process_synthetic_research_only",
+      "paper": "https://pllm.run/research/papers/logrow/",
+      "model_family": "qwen2",
+      "checkpoint_body_fingerprint": "efd2f6eeb5f315264e79f99f82bebd67acf7912cf5cbf06586222aacc8fc6384",
+      "plan_digest": "e099320db97e396372ecaa93c83f978981e5e34c1e0041f5102f1eb6b715a0ac",
+      "baseline_binding_digest": "17a4f603d0e60727c77dab88c7049d9f88fa84d6d2c65c837a485cf728c0e7d6",
+      "method": "pllm/logrow-q7-local-reference/v1",
+      "profile_digest": "34b39050907637d2065b0d19feca2f31e4435cf1a3cc079885c67e5043a9735c",
+      "gate_weight_scale": 0.008,
+      "input_tokens": 2,
+      "output_tokens": 2,
+      "repeats": 3,
+      "token_sequences_match_each_pair": true,
+      "prefill_max_absolute_logit_delta": 0.0016858577728271484,
+      "evaluator_body_bytes_per_response": 823296,
+      "unique_issuance_per_response": true,
+      "session_estimate_digest": "cebeea52dab9ad07103ba7c54dc4b3bf02abc822d5b34709e91b157b206ef27e",
+      "session_estimate_matches_all_repeats": true,
+      "inprocess_stage_tensor_bytes_median": {"baseline": 9984, "logrow": 9984},
+      "wall_and_cpu_ms_median": {
+        "baseline_online_cpu_ms": 74.47,
+        "baseline_online_wall_ms": 72.026291,
+        "baseline_setup_wall_ms": 71.638958,
+        "logrow_offline_cpu_ms": 834.424,
+        "logrow_offline_wall_ms": 834.474125,
+        "logrow_online_cpu_ms": 695.261,
+        "logrow_online_wall_ms": 693.410875
+      },
+      "network_bytes_measured": false,
+      "peak_memory_measured": false,
+      "disk_bytes_measured": false,
+      "environment": {"python": "3.13.15", "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"}
+    },
+    {
+      "schema_version": "pllm.logrow_local_reference_measurement.v1",
+      "execution_scope": "in_process_synthetic_research_only",
+      "paper": "https://pllm.run/research/papers/logrow/",
+      "model_family": "qwen3",
+      "checkpoint_body_fingerprint": "6496178b25184d8e5b89e8fdaa820bf966db4dd455e634cfdeb66c9ae309d453",
+      "plan_digest": "265f77d87d6678ceb4e221f14cce920e83d9daf26f5471b02b99c993cab9078c",
+      "baseline_binding_digest": "3231857edf5e76a75e0bbeb73cd94562492b05cf4a7000e362f6eee1de0c50ea",
+      "method": "pllm/logrow-q7-local-reference/v1",
+      "profile_digest": "34b39050907637d2065b0d19feca2f31e4435cf1a3cc079885c67e5043a9735c",
+      "gate_weight_scale": 0.008,
+      "input_tokens": 2,
+      "output_tokens": 2,
+      "repeats": 3,
+      "token_sequences_match_each_pair": true,
+      "prefill_max_absolute_logit_delta": 0.007972240447998047,
+      "evaluator_body_bytes_per_response": 823296,
+      "unique_issuance_per_response": true,
+      "session_estimate_digest": "605c9655055ee679d9fbc22c6783d25e0a803f2b98fc607aaa4db8ee772508e9",
+      "session_estimate_matches_all_repeats": true,
+      "inprocess_stage_tensor_bytes_median": {"baseline": 9984, "logrow": 9984},
+      "wall_and_cpu_ms_median": {
+        "baseline_online_cpu_ms": 79.733,
+        "baseline_online_wall_ms": 77.472584,
+        "baseline_setup_wall_ms": 77.109333,
+        "logrow_offline_cpu_ms": 840.179,
+        "logrow_offline_wall_ms": 840.213125,
+        "logrow_online_cpu_ms": 701.49,
+        "logrow_online_wall_ms": 699.326084
+      },
+      "network_bytes_measured": false,
+      "peak_memory_measured": false,
+      "disk_bytes_measured": false,
+      "environment": {"python": "3.13.15", "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"}
+    }
+  ]
+}
