@@ -146,7 +146,13 @@ configuration commitments before accepting a compiler-bound session. This
 covers `gateway --local`, bare public client requests and loopback benchmarks;
 standalone experiment-backed provider roles receive the same numeric choices.
 Gemma 4 semantic plans enter the same compiler scheduler but fail closed on
-unsupported local operators; its older runtime graph remains separate for
+unsupported local operators. Generic local BF16 scale, tanh-GeLU, softcap,
+permutation and slice primitives have isolated schedule contracts and a
+finite-BF16 numeric oracle: on the checked PyTorch CPU implementation the
+tanh-GeLU result differs by at most 0.0000305 over all 65,280 finite BF16
+inputs, and softcap with cap 30 agrees exactly. Learned scalars, BF16
+composition, local/global attention, shared KV state and PLE still block
+whole-decoder binding; its older runtime graph remains separate for
 existing tiny transport tests. Sources without semantic lowering adapters still
 retain their older inspection/runtime graph; an adapter with incomplete compiled
 coverage cannot silently activate that graph, except for the separately labeled

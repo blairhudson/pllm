@@ -12,6 +12,15 @@ The Gemma 4 adapter validates exact outer text-decoder contracts for:
 
 Both plans preserve alternating local/global attention, two head widths, Q/K normalization, PLE, shared-KV suffix state, GeLU-tanh branches, branch-output normalization, and final softcap. E2B additionally doubles effective MLP width in its shared suffix. Variant dimensions and layer schedules are data-driven; compiler paths remain model-neutral.
 
+PLLM has isolated client-local BF16 reference operations for public scaling,
+GeLU-tanh, softcap, permutation, and slicing. Its checked PyTorch CPU comparison
+found at most `0.0000305` absolute GeLU difference over all finite BF16 inputs;
+softcap with cap 30 matched exactly. These operations use client CPU and
+temporary buffers; they add no provider network exchange or stored material by
+themselves. Learned checkpoint scalars, full BF16 edge composition, local/global
+attention, shared KV state, and PLE remain unbound. Consequently neither the
+compiled Gemma decoder nor a private, benchmarkable Gemma experiment is enabled.
+
 ## Python SDK example
 
 ```python

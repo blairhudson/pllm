@@ -88,13 +88,22 @@ fn remote_operator(operator: ModelOperator) -> bool {
 }
 
 fn local_operator(operation: &ModelOperation) -> bool {
+    let bfloat16 = |value: &serde_json::Value| {
+        value
+            .get("compute_dtype")
+            .and_then(serde_json::Value::as_str)
+            == Some("bfloat16")
+            && value
+                .get("output_dtype")
+                .and_then(serde_json::Value::as_str)
+                == Some("bfloat16")
+    };
     match operation.operator {
         ModelOperator::Reshape
         | ModelOperator::RmsNorm
         | ModelOperator::CacheSuffix
         | ModelOperator::KvCacheAppend
         | ModelOperator::AttentionScores
-        | ModelOperator::AttentionScale
         | ModelOperator::CausalMask
         | ModelOperator::Softmax
         | ModelOperator::AttentionValues
@@ -104,6 +113,105 @@ fn local_operator(operation: &ModelOperation) -> bool {
         | ModelOperator::LastToken
         | ModelOperator::GreedyTokenSelection
         | ModelOperator::TokenFeedback => true,
+        ModelOperator::Scale | ModelOperator::AttentionScale => {
+            if operation.operator == ModelOperator::AttentionScale
+                && operation.attributes.get("factor").is_none()
+            {
+                return operation
+                    .attributes
+                    .get("head_dim")
+                    .and_then(serde_json::Value::as_u64)
+                    .is_some_and(|value| value > 0);
+            }
+            let Some(factor) = operation.attributes.get("factor") else {
+                return false;
+            };
+            if !bfloat16(factor)
+                || factor
+                    .get("factor_rounding_dtype")
+                    .and_then(serde_json::Value::as_str)
+                    != Some("bfloat16")
+            {
+                return false;
+            }
+            match factor.get("kind").and_then(serde_json::Value::as_str) {
+                Some("sqrt" | "inverse_sqrt") => {
+                    factor
+                        .get("radicand")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|value| value > 0)
+                        && matches!(
+                            factor
+                                .get("factor_source_dtype")
+                                .and_then(serde_json::Value::as_str),
+                            Some("float32_buffer" | "python_float64")
+                        )
+                }
+                Some("rational") => {
+                    factor
+                        .get("numerator")
+                        .and_then(serde_json::Value::as_i64)
+                        .is_some()
+                        && factor
+                            .get("denominator")
+                            .and_then(serde_json::Value::as_i64)
+                            .is_some_and(|value| value > 0)
+                        && factor
+                            .get("factor_source_dtype")
+                            .and_then(serde_json::Value::as_str)
+                            == Some("exact_integer")
+                }
+                _ => false,
+            }
+        }
+        ModelOperator::GeluTanh => {
+            bfloat16(&operation.attributes)
+                && operation
+                    .attributes
+                    .get("approximation")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("tanh")
+        }
+        ModelOperator::Softcap => {
+            bfloat16(&operation.attributes)
+                && operation
+                    .attributes
+                    .get("cap")
+                    .and_then(serde_json::Value::as_i64)
+                    .is_some_and(|value| value > 0)
+                && operation
+                    .attributes
+                    .get("formula")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("cap*tanh(input/cap)")
+        }
+        ModelOperator::Permute => {
+            operation.attributes.get("permutation") == Some(&serde_json::json!([0, 2, 1, 3]))
+                && operation.output_shape.len() == 4
+        }
+        ModelOperator::Slice => {
+            let start = operation
+                .attributes
+                .get("start")
+                .and_then(serde_json::Value::as_u64);
+            start.is_some_and(|start| {
+                operation
+                    .attributes
+                    .get("end")
+                    .and_then(serde_json::Value::as_u64)
+                    == start.checked_add(1)
+            }) && operation
+                .attributes
+                .get("axis")
+                .and_then(serde_json::Value::as_i64)
+                == Some(2)
+                && operation
+                    .attributes
+                    .get("squeeze")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && operation.output_shape.len() == 3
+        }
         ModelOperator::RotaryEmbedding => operation
             .attributes
             .get("rope_type")
@@ -377,4 +485,54 @@ pub fn lower_decoder_runtime_schedule(
         protected_execution: false,
         complete: true,
     })
+}
+
+#[cfg(test)]
+mod numeric_contract_tests {
+    use super::*;
+    use pllm_models::{lower_model_json, DecoderWorkload};
+
+    #[test]
+    fn checked_semantic_numeric_operations_are_admitted_but_unbound_scalars_are_not() {
+        let plan = lower_model_json(
+            include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json"),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 2,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap();
+        let operations = &plan.prefill.operations;
+        for id in [
+            "main_embedding_scaled",
+            "ple_context_scaled",
+            "layer.0.attention_scale",
+            "layer.0.gelu_tanh",
+            "layer.0.q_permute",
+            "layer.0.ple_slice",
+            "logit_softcap",
+        ] {
+            let operation = operations.iter().find(|row| row.id == id).unwrap();
+            assert!(
+                local_operator(operation),
+                "{id} needs a generic client-local contract"
+            );
+        }
+        let scalar = operations
+            .iter()
+            .find(|row| row.id == "layer.0.layer_scalar")
+            .unwrap();
+        assert!(
+            !local_operator(scalar),
+            "unbound learned weights cannot be admitted"
+        );
+        let mut forged = operations
+            .iter()
+            .find(|row| row.id == "main_embedding_scaled")
+            .unwrap()
+            .clone();
+        forged.attributes["factor"]["factor_rounding_dtype"] = serde_json::json!("float16");
+        assert!(!local_operator(&forged));
+    }
 }

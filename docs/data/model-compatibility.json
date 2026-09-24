@@ -17,6 +17,8 @@
     "local-global": {"name": "Local and global attention", "operator": "causal_mask", "contract": "Layer-specific windows and correct global attention"},
     "shared-kv": {"name": "Cross-layer KV sharing", "operator": "cache_suffix", "contract": "Shared valid-prefix KV suffix and state ownership"},
     "gelu-tanh": {"name": "GeLU-tanh branch", "operator": "gelu_tanh", "contract": "Bounded GeLU-tanh activation and numeric representation"},
+    "bf16-operator-composition": {"name": "BF16 operator composition", "operator": "scale", "contract": "Consistent BF16 rounding at every local and remote numeric edge"},
+    "learned-scalar-binding": {"name": "Learned scalar binding", "operator": "scale", "contract": "Client-owned learned factors bound to exact checkpoint tensors and scale operations"},
     "branch-norm": {"name": "Branch-output normalization", "operator": "rms_norm", "contract": "Post-branch normalization and weight mapping"},
     "ple": {"name": "Per-layer embedding path", "operator": "token_lookup", "contract": "Per-layer embedding input and compatible state"},
     "softcap": {"name": "Logit softcap", "operator": "softcap", "contract": "Bounded final score softcap and numeric semantics"},
@@ -101,10 +103,10 @@
       "model_family": "gemma4_text",
       "fixture": "crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json",
       "baseline_schedule": false,
-      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
-      "baseline_blockers": ["local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
-      "runtime_evidence": "Exact pinned outer-config semantic-plan tests only",
-      "remaining": "Gemma local operators and shared KV suffix, checkpoint binding, baseline and protected execution",
+      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "learned-scalar-binding", "branch-norm", "ple", "softcap"],
+      "baseline_blockers": ["local-global", "shared-kv", "bf16-operator-composition", "learned-scalar-binding", "branch-norm", "ple"],
+      "runtime_evidence": "Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding",
+      "remaining": "Local/global attention, shared KV suffix, BF16 composition, learned weights and PLE need a bound decoder and real-checkpoint evidence",
       "guide": "/sdk/models/families/gemma-4/"
     },
     {
@@ -113,10 +115,10 @@
       "model_family": "gemma4_text",
       "fixture": "crates/pllm-models/tests/fixtures/gemma-4-E4B-it-ee0ef602-config.json",
       "baseline_schedule": false,
-      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
-      "baseline_blockers": ["local-global", "shared-kv", "gelu-tanh", "branch-norm", "ple", "softcap"],
-      "runtime_evidence": "Exact pinned outer-config semantic-plan tests only",
-      "remaining": "PLE, softcap and Gemma local operators, checkpoint binding, baseline and protected execution",
+      "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "learned-scalar-binding", "branch-norm", "ple", "softcap"],
+      "baseline_blockers": ["local-global", "shared-kv", "bf16-operator-composition", "learned-scalar-binding", "branch-norm", "ple"],
+      "runtime_evidence": "Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding",
+      "remaining": "Local/global attention, shared KV suffix, BF16 composition, learned weights and PLE need a bound decoder and real-checkpoint evidence",
       "guide": "/sdk/models/families/gemma-4/"
     }
   ],

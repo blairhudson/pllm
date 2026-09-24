@@ -29,8 +29,8 @@ API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signat
 | [Bounded dense bias-free decoder (tiny Llama-style fixture)](/sdk/models/families/) (`pllm.dense_gated_decoder.v1`) | Checked config | Complete | Generated tiny bias-free checkpoint: compiled local prefill/decode parity for tied and untied heads; compiled two-role SDK and gateway smoke tests | No real Llama checkpoint/quality evidence; scaled RoPE, variants with sliding attention or projection bias, and protected execution remain unsupported |
 | [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) (`pllm.qwen3_5_text.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution |
 | [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) (`pllm.phi4_mini.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Partial LongRoPE, fused-weight checkpoint binding, baseline and protected execution |
-| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e2b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests only | Gemma local operators and shared KV suffix, checkpoint binding, baseline and protected execution |
-| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e4b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests only | PLE, softcap and Gemma local operators, checkpoint binding, baseline and protected execution |
+| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e2b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding | Local/global attention, shared KV suffix, BF16 composition, learned weights and PLE need a bound decoder and real-checkpoint evidence |
+| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e4b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding | Local/global attention, shared KV suffix, BF16 composition, learned weights and PLE need a bound decoder and real-checkpoint evidence |
 
 Baseline schedule means untransformed, batch-one `baseline.masked_linear_cpu` semantic schedule only. It does **not** authorize verified or experimental methods. See [model families](/sdk/models/families/) for adapter limits.
 
@@ -45,8 +45,8 @@ Each row names **generic** semantic/numeric/state or import contracts, not a fam
 | [Bounded dense bias-free decoder (tiny Llama-style fixture)](/sdk/models/families/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `untied-head` | None for the tested semantic schedule |
 | [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `qk-norm`, `gated-delta`, `causal-convolution`, `partial-mrope` | `gated-delta`, `causal-convolution`, `partial-mrope` |
 | [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `fused-qkv`, `longrope` | `fused-qkv`, `longrope` |
-| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` |
-| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` |
+| [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `bf16-operator-composition`, `learned-scalar-binding`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `bf16-operator-composition`, `learned-scalar-binding`, `branch-norm`, `ple` |
+| [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `bf16-operator-composition`, `learned-scalar-binding`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `bf16-operator-composition`, `learned-scalar-binding`, `branch-norm`, `ple` |
 
 ### Shared capability contracts
 
@@ -68,6 +68,8 @@ Each row names **generic** semantic/numeric/state or import contracts, not a fam
 | `local-global` — Local and global attention | `causal_mask` | Layer-specific windows and correct global attention |
 | `shared-kv` — Cross-layer KV sharing | `cache_suffix` | Shared valid-prefix KV suffix and state ownership |
 | `gelu-tanh` — GeLU-tanh branch | `gelu_tanh` | Bounded GeLU-tanh activation and numeric representation |
+| `bf16-operator-composition` — BF16 operator composition | `scale` | Consistent BF16 rounding at every local and remote numeric edge |
+| `learned-scalar-binding` — Learned scalar binding | `scale` | Client-owned learned factors bound to exact checkpoint tensors and scale operations |
 | `branch-norm` — Branch-output normalization | `rms_norm` | Post-branch normalization and weight mapping |
 | `ple` — Per-layer embedding path | `token_lookup` | Per-layer embedding input and compatible state |
 | `softcap` — Logit softcap | `softcap` | Bounded final score softcap and numeric semantics |

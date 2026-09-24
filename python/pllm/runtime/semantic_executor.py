@@ -12,6 +12,12 @@ import numpy as np
 
 from pllm.modeling import ModelPlan
 
+from .semantic_numeric import (
+    SemanticNumericError,
+    bfloat16_gelu_tanh,
+    bfloat16_scale,
+    bfloat16_softcap,
+)
 from .transformer_client import ClientBundle, MaskedTransformerClientRuntime, TransformerClientError
 
 
@@ -100,6 +106,60 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         attrs = operation["attributes"]
         layer = operation.get("layer")
         source = values[inputs[0]]
+        if kind == "scale" or (kind == "attention_scale" and "factor" in attrs):
+            factor = attrs.get("factor")
+            if not isinstance(factor, dict):
+                raise TransformerClientError("semantic scale factor is missing")
+            try:
+                weight = (
+                    self._weight(factor["weight"])
+                    if factor.get("kind") == "learned" and isinstance(factor.get("weight"), str)
+                    else None
+                )
+                return bfloat16_scale(source, factor, weight)
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
+        if kind == "gelu_tanh":
+            if attrs != {
+                "approximation": "tanh",
+                "compute_dtype": "bfloat16",
+                "output_dtype": "bfloat16",
+            }:
+                raise TransformerClientError("semantic GELU numeric contract is unsupported")
+            try:
+                return bfloat16_gelu_tanh(source)
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
+        if kind == "softcap":
+            if (
+                attrs.get("formula") != "cap*tanh(input/cap)"
+                or attrs.get("compute_dtype") != "bfloat16"
+                or attrs.get("output_dtype") != "bfloat16"
+            ):
+                raise TransformerClientError("semantic softcap numeric contract is unsupported")
+            try:
+                return bfloat16_softcap(source, attrs.get("cap"))
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
+        if kind == "permute":
+            order = attrs.get("permutation")
+            if order != [0, 2, 1, 3] or source.ndim != 4:
+                raise TransformerClientError("semantic permutation is unsupported")
+            return source.transpose(order)
+        if kind == "slice":
+            start, end = attrs.get("start"), attrs.get("end")
+            if (
+                attrs.get("axis") != 2
+                or attrs.get("squeeze") is not True
+                or type(start) is not int
+                or type(end) is not int
+                or end != start + 1
+                or start < 0
+                or source.ndim != 4
+                or end > source.shape[2]
+            ):
+                raise TransformerClientError("semantic slice is unsupported")
+            return source[:, :, start, :]
         if kind == "reshape":
             layout = attrs.get("layout")
             if layout == "batch_heads_sequence_feature":
@@ -232,6 +292,12 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         state_kinds = {state["id"]: state["kind"] for state in graph["state_outputs"]}
         steps = self._schedule[phase]["steps"]
         remaining = Counter(input_id for step in steps for input_id in step["input_ids"])
+        selections = [
+            op for op in graph["operations"] if op["operator"] == "greedy_token_selection"
+        ]
+        if len(selections) != 1 or len(selections[0]["inputs"]) != 1:
+            raise TransformerClientError("semantic plan has no unique logit selection source")
+        logits_id = selections[0]["inputs"][0]
         pending_keys: dict[int, np.ndarray] = {}
         for step in steps:
             op_ids = step["operation_ids"]
@@ -266,12 +332,12 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError("semantic runtime executor is unsupported")
             for input_id in step["input_ids"]:
                 remaining[input_id] -= 1
-                if remaining[input_id] == 0 and input_id != "output_head":
+                if remaining[input_id] == 0 and input_id != logits_id:
                     values.pop(input_id, None)
         if pending_keys:
             raise TransformerClientError("semantic cache key has no matching value")
         self.position += ids.size
-        return np.asarray(values["output_head"], dtype=np.float32)
+        return np.asarray(values[logits_id], dtype=np.float32)
 
 
 __all__ = ["SemanticDecoderRuntime"]
