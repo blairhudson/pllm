@@ -200,6 +200,25 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             validate_resolution=True,
         ),
     ),
+    "pllm benchmark quality": (
+        CliExample(
+            "Inspect two numeric candidates",
+            "Resolve the W4A4 and W8A8 Experiments and bounded prompt cohort without loading the model.",
+            "pllm benchmark quality --experiment examples/benchmarks/qwen3_reference_quality.py:w4a4 "
+            "--experiment examples/benchmarks/qwen3_reference_quality.py:w8a8 "
+            "--trust-python --prompts-file examples/benchmarks/reference_prompts.json --dry-run",
+            validate_resolution=True,
+        ),
+        CliExample(
+            "Measure same-token reference agreement",
+            "Load the pinned Qwen3-0.6B checkpoint and a local float32 reference; report only "
+            "digests and prefill aggregate scores. Requires the optional quality dependencies.",
+            "pllm benchmark quality --experiment examples/benchmarks/qwen3_reference_quality.py:w4a4 "
+            "--experiment examples/benchmarks/qwen3_reference_quality.py:w8a8 "
+            "--trust-python --prompts-file examples/benchmarks/reference_prompts.json --top-k 5 --format json",
+            validate_resolution=True,
+        ),
+    ),
     "pllm dev dashboard": (
         CliExample(
             "Open the real-model development dashboard",

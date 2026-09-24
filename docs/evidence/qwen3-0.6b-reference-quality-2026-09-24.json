@@ -1,0 +1,66 @@
+{
+  "schema_version": "pllm.reference_quality_benchmark.v1",
+  "scope": "local-compiled-clear-kernel-prefill-reference",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+    "checkpoint_digest": "c46c0f5ceb32be8830dae8b4e102f2e9c3222c6ab3e1f92959a4871a2a3c1ddb",
+    "source_lock_digest": "eb80beecc6789e73a12ac16147ed7dc3b5ce6a449183ce10ac9568ed4c9d8cb8"
+  },
+  "cohort": {
+    "dataset_digest": "f34b9ea1f089f2a3afdd711736c38d31eafbf526c8ab44ac249f724c393ce245",
+    "token_cohort_digest": "81b6eaca1562395c524e887d929658665e9362eaf363b3d218f1acdd4940f275",
+    "prompt_count": 2,
+    "input_token_counts": [1, 5],
+    "phase": "prefill",
+    "metric": {
+      "component": "pllm/reference-agreement/v1",
+      "params": {
+        "dataset_digest": "f34b9ea1f089f2a3afdd711736c38d31eafbf526c8ab44ac249f724c393ce245",
+        "reference_checkpoint_digest": "c46c0f5ceb32be8830dae8b4e102f2e9c3222c6ab3e1f92959a4871a2a3c1ddb",
+        "top_k": 5
+      }
+    }
+  },
+  "environment": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_reference": "transformers/5.16.1",
+    "torch": "2.14.0",
+    "numpy": "2.5.3",
+    "reference_dtype": "float32",
+    "reference_attention": "eager",
+    "reference_threads": 4
+  },
+  "environment_digest": "166317d6511596fabc36f80da2c4878f3fb7bc8b2b90f96bb7ae28dde49e7d2b",
+  "candidates": [
+    {
+      "name": "qwen3-w4a4",
+      "configuration_digest": "09c8baff5a3b1edd6559684518fd490a38ac1b908cc5fcc9c15f850cdb7b9ead",
+      "pipeline_digest": "db7b3278dd3ade0c4eb531aacfb788bdf34522afee2e5888bfd5c6abc25d0d01",
+      "weight_bits": 4,
+      "activation_bits": 4,
+      "kernel_threads": 1,
+      "sample_count": 2,
+      "top1_agreement": 0.0,
+      "top_k_recall": 0.0,
+      "max_abs_logit_error": 22.827993392944336
+    },
+    {
+      "name": "qwen3-w8a8",
+      "configuration_digest": "dda4c744d6a65f303fdb2cbc4db9c199f5e3c054593f4b63e51bd6deeec95a38",
+      "pipeline_digest": "6d1b51702cdd334e51845db547d936781a35fb96572f6f0747b75a8b4cac4a33",
+      "weight_bits": 8,
+      "activation_bits": 8,
+      "kernel_threads": 1,
+      "sample_count": 2,
+      "top1_agreement": 0.5,
+      "top_k_recall": 0.5,
+      "max_abs_logit_error": 5.060000419616699
+    }
+  ],
+  "limitations": [
+    "local clear integer kernels, not a provider transport or privacy measurement",
+    "prefill next-token reference agreement, not full-generation or task accuracy",
+    "float32 reference loading and evaluation excluded from provider latency and cost"
+  ]
+}

@@ -345,6 +345,25 @@ def build_parser() -> _Parser:
     )
     benchmark_run.add_argument("--force", action="store_true", help="replace --output if it exists")
 
+    benchmark_quality = _command(
+        benchmark_commands,
+        "quality",
+        help="compare pinned Experiments to a local float32 reference on the same prompt cohort",
+    )
+    benchmark_quality.add_argument(
+        "--experiment",
+        action="append",
+        required=True,
+        metavar="TARGET",
+        help="Experiment JSON/YAML or explicit trusted Python target; repeat for comparison",
+    )
+    benchmark_quality.add_argument("--factory", action="store_true")
+    benchmark_quality.add_argument("--trust-python", action="store_true")
+    benchmark_quality.add_argument("--prompts-file", type=Path, required=True, metavar="PATH")
+    benchmark_quality.add_argument("--top-k", type=int, default=5)
+    benchmark_quality.add_argument("--output", type=Path, help="write the prompt-free JSON report")
+    benchmark_quality.add_argument("--force", action="store_true", help="replace --output")
+
     dev = _command(commands, "dev", help="development tools")
     dev_commands = dev.add_subparsers(dest="dev_command", metavar="COMMAND", required=True)
     dashboard = _command(
@@ -699,6 +718,101 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             print(f"Saved lowest-latency Experiment to {args.save_best.expanduser()}")
     else:
         emit_machine("benchmark.run", data, output_format)
+
+
+def _benchmark_quality(
+    args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool
+) -> None:
+    from pllm.configuration import Experiment
+
+    from .targets import resolve_target
+
+    if not 1 <= len(args.experiment) <= 8 or not 1 <= args.top_k <= 100:
+        raise ResolutionError("QUALITY_BOUNDS", "quality requires 1-8 Experiments and top-k 1-100")
+    experiments = []
+    for target_name in args.experiment:
+        target = resolve_target(
+            target_name,
+            factory=args.factory,
+            no_input=no_input,
+            trust_python=args.trust_python,
+            output_format=output_format,
+        )
+        if not isinstance(target.configuration, Experiment):
+            raise ResolutionError("QUALITY_EXPERIMENT_TYPE", "quality target is not an Experiment")
+        try:
+            target.configuration.resolve()
+        except (TypeError, ValueError) as exc:
+            raise ResolutionError("QUALITY_EXPERIMENT_INVALID", str(exc)) from exc
+        experiments.append(target.configuration)
+    try:
+        prompt_file = args.prompts_file.expanduser()
+        if prompt_file.stat().st_size > 131_072:
+            raise ResolutionError("QUALITY_PROMPTS", "prompt cohort exceeds 131072 bytes")
+        prompts = json.loads(prompt_file.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise LocalIOError(
+            "QUALITY_PROMPTS", "prompt cohort file is unavailable or invalid"
+        ) from exc
+    if (
+        not isinstance(prompts, list)
+        or not 1 <= len(prompts) <= 32
+        or any(
+            type(prompt) is not str or not prompt.strip() or len(prompt.encode("utf-8")) > 4096
+            for prompt in prompts
+        )
+    ):
+        raise ResolutionError("QUALITY_PROMPTS", "prompt cohort needs 1-32 bounded strings")
+    output = args.output.expanduser() if args.output is not None else None
+    if output is not None and output.exists() and not args.force:
+        raise LocalIOError("OUTPUT_EXISTS", "output exists; use --force to replace it")
+    if dry_run:
+        data = {
+            "dry_run": True,
+            "candidate_digests": [item.configuration_digest() for item in experiments],
+            "prompt_count": len(prompts),
+            "top_k": args.top_k,
+        }
+        if output_format == "human":
+            print("Would compare pinned local compiled decoder logits with the FP32 reference")
+        else:
+            emit_machine("benchmark.quality", data, output_format)
+        return
+
+    from pllm.runtime.reference_benchmark import (
+        ReferenceBenchmarkError,
+        run_reference_benchmark,
+    )
+
+    try:
+        report = run_reference_benchmark(experiments, prompts, top_k=args.top_k)
+    except (ReferenceBenchmarkError, TypeError, ValueError) as exc:
+        raise RuntimeFailure("QUALITY_FAILED", str(exc)) from exc
+    if output is not None:
+        mode = "w" if args.force else "x"
+        try:
+            with output.open(mode, encoding="utf-8") as destination:
+                json.dump(report, destination, allow_nan=False, indent=2, sort_keys=True)
+                destination.write("\n")
+        except FileExistsError as exc:
+            raise LocalIOError("OUTPUT_EXISTS", "output exists; use --force to replace it") from exc
+        except OSError as exc:
+            raise LocalIOError("OUTPUT_WRITE", "cannot write quality report") from exc
+    if output_format == "human":
+        for candidate in report["candidates"]:
+            print(
+                f"{candidate['name']}: top-1 {candidate['top1_agreement']:.3f}, "
+                f"top-{args.top_k} recall {candidate['top_k_recall']:.3f}, "
+                f"max logit error {candidate['max_abs_logit_error']:.3f}"
+            )
+        if output is not None:
+            print(f"Wrote {output}")
+    else:
+        emit_machine(
+            "benchmark.quality",
+            {"report": report, "output": str(output) if output else None},
+            output_format,
+        )
 
 
 def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:
@@ -1084,7 +1198,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         elif args.command == "serve":
             _serve(args, output_format, no_input, dry_run)
         elif args.command == "benchmark":
-            _benchmark(args, output_format, no_input, dry_run)
+            if args.benchmark_command == "quality":
+                _benchmark_quality(args, output_format, no_input, dry_run)
+            else:
+                _benchmark(args, output_format, no_input, dry_run)
         elif args.command == "dev":
             _dev(args, output_format, dry_run)
     except KeyboardInterrupt:

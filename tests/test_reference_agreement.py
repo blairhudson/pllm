@@ -39,6 +39,7 @@ def test_reference_agreement_is_a_bound_metric_and_scores_same_token_logits() ->
         ([0.0, 1.0], [[0.0, 1.0]], 1),
         ([0.0, 1.0], [0.0, 1.0], 3),
         (np.zeros(1_000_001), np.zeros(1_000_001), 1),
+        (np.zeros((1, 2)), np.zeros((1, 2)), 1),
         ([1e308], [-1e308], 1),
     ],
 )

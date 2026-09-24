@@ -1537,6 +1537,10 @@ he = [
 huggingface = [
     { name = "transformers" },
 ]
+quality = [
+    { name = "torch" },
+    { name = "transformers" },
+]
 sdk = [
     { name = "openai" },
 ]
@@ -1580,11 +1584,13 @@ requires-dist = [
     { name = "sentencepiece", specifier = ">=0.2,<1" },
     { name = "tenseal", marker = "extra == 'he'", specifier = "==0.3.17" },
     { name = "tokenizers", specifier = ">=0.21,<1" },
+    { name = "torch", marker = "extra == 'quality'", specifier = ">=2.7,<3" },
     { name = "transformers", marker = "extra == 'huggingface'", specifier = ">=5,<6" },
+    { name = "transformers", marker = "extra == 'quality'", specifier = ">=5,<6" },
     { name = "uvicorn", specifier = ">=0.30,<1" },
     { name = "websockets", specifier = ">=15,<16" },
 ]
-provides-extras = ["he", "huggingface", "sdk"]
+provides-extras = ["he", "huggingface", "quality", "sdk"]
 
 [package.metadata.requires-dev]
 dev = [

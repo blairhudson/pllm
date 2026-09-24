@@ -23,6 +23,12 @@ quality on exact cohorts. A small pinned [Qwen3-0.6B probe](https://github.com/b
 shows W4A4 failing checked reference top-token parity and W8A8 still missing
 one short prompt; it is not a population-level quality result.
 
+Use [`benchmark quality`](/cli/reference/benchmark/quality/) to score these
+numeric options against the same locked reference and token cohort. Use
+[`benchmark run`](/cli/reference/benchmark/run/) for separate masked-protocol
+cost reports. Its current latency comparator requires an identical quantized
+body fingerprint, so it does not rank W4A4 against W8A8 automatically.
+
 ## Python SDK example
 
 ```python

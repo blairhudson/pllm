@@ -44,6 +44,13 @@ assert score["top_k_recall"] == 1.0
 ```
 
 The vectors above exercise scoring only; no model was evaluated. The
-[benchmark guide](/sdk/evaluate/benchmark/) describes measured runs.
+[benchmark quality command](/cli/reference/benchmark/quality/) accepts
+multiple immutable Experiments, runs their compiled local clear-kernel path
+against one locked float32 checkpoint and emits only digests, cohort token
+counts and aggregate prefill scores. It needs the optional `quality` dependencies
+(Torch and Transformers). The
+[pinned Qwen3-0.6B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
+measured W4A4 and W8A8 on the same two-prompt cohort. It is separate
+from the [provider transport benchmark](/sdk/evaluate/benchmark/).
 
 API: [`ReferenceAgreement` and `measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).

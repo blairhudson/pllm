@@ -32,6 +32,30 @@ throughput only when model fingerprint, input and output token counts, token cap
 and warm state match. Add `--save-best winner.json` to export the lowest-median
 full-latency Experiment for a later rerun. Checked candidate and winner files live
 under `examples/benchmarks/`.
+Different numeric options produce different quantized body fingerprints, so the
+current transport comparator reports their individual costs without ranking
+W4A4 against W8A8.
+
+## Compare numeric quality
+
+[`pllm benchmark quality`](/cli/reference/benchmark/quality/) compares
+Experiment quantization choices against the same pinned float32 reference,
+tokenizer and public prompt cohort. To reproduce the two-prompt Qwen3-0.6B
+numeric diagnostic (a local copy can be supplied through
+`PLLM_REAL_QWEN3_PATH`). In a source checkout, install its optional reference
+dependencies with `uv sync --extra quality` before running:
+
+```bash
+pllm benchmark quality --experiment examples/benchmarks/qwen3_reference_quality.py:w4a4 --experiment examples/benchmarks/qwen3_reference_quality.py:w8a8 --trust-python --prompts-file examples/benchmarks/reference_prompts.json --top-k 5 --format json
+```
+
+The [retained aggregate report](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
+records top-1 agreement of 0/2 for W4A4 and 1/2 for W8A8. No prompt text,
+token IDs or logits enter that report. It uses local compiled clear integer
+kernels; reference loading is excluded from provider latency, CPU, memory and
+network metrics. Neither setting meets a general model-quality gate from
+these two prompts. For interpretation and the typed metric, see
+[reference agreement](/sdk/evaluate/metrics/reference-agreement/).
 
 An Experiment can instead be built with the SDK in a Python module:
 

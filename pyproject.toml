@@ -41,6 +41,7 @@ he = ["tenseal==0.3.17"]
 sdk = ["openai>=3,<4"]
 # Transformers is only required for experiments that use its model classes.
 huggingface = ["transformers>=5,<6"]
+quality = ["torch>=2.7,<3", "transformers>=5,<6"]
 
 [project.scripts]
 pllm = "pllm.cli:main"

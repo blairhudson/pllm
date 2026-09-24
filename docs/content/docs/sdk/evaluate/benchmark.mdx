@@ -32,6 +32,14 @@ These targets may be declarative JSON/YAML files or explicit SDK objects such as
 `examples/benchmarks/qwen_prepared.py:cpu_4`; Python targets require
 `--trust-python` because their module is executed during resolution.
 
+For numeric fidelity, the separate
+[`pllm benchmark quality`](/cli/reference/benchmark/quality/) compares the
+same token cohort against a pinned float32 model reference, including
+[W4A4/W8A8 examples](/sdk/components/quantization/). Its local clear-kernel
+scores cannot be substituted for online role latency, memory, disk or network
+measurements; match configuration and source-lock digests before interpreting
+the two reports together.
+
 This SDK example requires a PLLM source checkout because it reads the checked-in
 `schemas/fixtures/compile-request.valid.json` compile request.
 

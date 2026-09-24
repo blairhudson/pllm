@@ -332,6 +332,14 @@ and records both configuration and Pipeline digests. It ranks latency and throug
 only when measured model fingerprint, input and output token counts, output cap, and
 warm state match exactly. An explicitly requested winner export writes the
 lowest-median-full-latency Experiment as canonical JSON for later reruns.
+The separate opt-in `pllm benchmark quality` path scores the same prefill token
+cohort against a pinned local float32 checkpoint for up to eight immutable
+Experiments, using their selected W4/W8 and A4/A8 settings. It records exact
+checkpoint, dataset, token-cohort, configuration and environment digests plus
+aggregate top-1, top-k and worst-logit-error scores, without archiving prompt
+text, token IDs or logits. This is a compiled local clear-kernel numeric
+diagnostic; reference loading, provider traffic, privacy and whole-generation
+quality are outside its measured scope.
 
 ## Build and release boundaries
 

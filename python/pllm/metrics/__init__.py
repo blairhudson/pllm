@@ -1,10 +1,14 @@
 """Typed benchmark metric declarations."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import re
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 
@@ -372,8 +376,15 @@ def measure_reference_agreement(
     top_k: int = 5,
 ) -> dict[str, float]:
     """Compare complete same-token vocabulary logits; retain no logit payload."""
+    import numpy as np
+
     if type(top_k) is not int or not 1 <= top_k <= 100:
         raise ValueError("top_k must be an integer between 1 and 100")
+    for values in (candidate_logits, reference_logits):
+        if isinstance(values, np.ndarray) and (values.ndim != 1 or values.size > 1_000_000):
+            raise ValueError("reference logits exceed the bounded vocabulary domain")
+        if isinstance(values, Sequence) and len(values) > 1_000_000:
+            raise ValueError("reference logits exceed the bounded vocabulary domain")
     try:
         candidate = np.asarray(candidate_logits, dtype=np.float64)
         reference = np.asarray(reference_logits, dtype=np.float64)
