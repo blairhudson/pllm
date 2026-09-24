@@ -23,6 +23,26 @@ def fit_compact_silu_q7_reference(
     public_calibration_counts: bytes, max_pieces: int
 ) -> CompactQ7Reference: ...
 
+@final
+class LogRowQ7TensorReference:
+    def __new__(cls) -> Never: ...
+    @property
+    def elements(self) -> int: ...
+    @property
+    def evaluator_material_bytes(self) -> int: ...
+    @property
+    def binding_digest(self) -> str: ...
+    def evaluate(self, values: bytes) -> bytes: ...
+
+def prepare_logrow_q7_tensor_reference(
+    plan: bytes,
+    mode: str,
+    operation_id: str,
+    profile: CompactQ7Reference,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+) -> LogRowQ7TensorReference: ...
+
 class Matrix:
     def __init__(self, data: bytes, rows: int, cols: int) -> None: ...
     @property

@@ -1,5 +1,9 @@
 """Public protocol component declarations."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
+
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 from pllm.protocols.base import ProtocolMethod
 from pllm.protocols.masked_linear import MaskedLinear
@@ -11,6 +15,10 @@ from pllm.protocols.runtime_arms import (
     SecureLinear,
 )
 
+if TYPE_CHECKING:
+    from pllm._native import CompactQ7Reference, LogRowQ7TensorReference
+    from pllm.modeling import ModelPlan
+
 __all__ = [
     "BlindedLinear",
     "CleartextLinear",
@@ -19,7 +27,38 @@ __all__ = [
     "MaskedLinear",
     "ProtocolMethod",
     "SecureLinear",
+    "prepare_logrow_q7_tensor_reference",
 ]
+
+
+def prepare_logrow_q7_tensor_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    mode: Literal["prefill", "decode"],
+    operation_id: str,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+) -> LogRowQ7TensorReference:
+    """Issue one bounded Q7 SiLU tensor; not an Experiment or deployed 2PC method.
+
+    The profile must come from public offline calibration. The handle consumes
+    exactly one little-endian signed-i16 Q7 tensor (one value per plan element).
+    It has no general float32 activation bridge or provider transport.
+    """
+    from pllm import _native
+    from pllm.modeling import ModelPlan
+
+    if type(plan) is not ModelPlan:
+        raise TypeError("plan must be an immutable ModelPlan")
+    return _native.prepare_logrow_q7_tensor_reference(
+        plan.canonical_bytes(),
+        mode,
+        operation_id,
+        profile,
+        max_elements,
+        max_evaluator_material_bytes,
+    )
 
 
 @pending("duty-free-bits")

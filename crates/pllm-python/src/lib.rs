@@ -3,6 +3,8 @@
 //! once at compilation. Arithmetic runs without the Python interpreter lock.
 use pllm_core::{codec, kernels};
 
+mod logrow;
+
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
@@ -1638,6 +1640,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 }
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    logrow::register(module)?;
     module.add_class::<Matrix>()?;
     module.add_class::<CompactQ7Reference>()?;
     module.add_class::<CompiledPlan>()?;

@@ -30,9 +30,11 @@ and plaintext table remain client-owned. A specialized compiler reference binds
 one fitted-Q7 element or one **complete bounded semantic SiLU tensor** to the
 operation, phase, plan and profile digests, implementation source, resource
 policy and fresh issuance. The tensor preflights the complete body before
-issuance and burns all rows together on invalid input. No reviewed distributed
-2PC, secure provider input transfer, Rust-to-Python execution API, arithmetic
-conversion, whole-session schedule or complete compiled decoder is established.
+issuance and burns all rows together on invalid input. The public
+`pllm.protocols.prepare_logrow_q7_tensor_reference` API exercises the bound
+tensor in-process through an opaque one-use native handle. No reviewed
+distributed 2PC, secure provider input transfer, arithmetic conversion,
+whole-session schedule or complete compiled decoder is established.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

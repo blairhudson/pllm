@@ -6,6 +6,19 @@ from pllm.protocols.runtime_arms import DirectFHE as DirectFHE
 from pllm.protocols.runtime_arms import GuardedLinear as GuardedLinear
 from pllm.protocols.runtime_arms import SecureLinear as SecureLinear
 from pllm.components._planned import PendingComponent as PendingMethod
+from typing import Literal
+from pllm._native import CompactQ7Reference, LogRowQ7TensorReference
+from pllm.modeling import ModelPlan
+
+def prepare_logrow_q7_tensor_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    mode: Literal["prefill", "decode"],
+    operation_id: str,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+) -> LogRowQ7TensorReference: ...
 
 class ProjectiveLabelConversion(PendingMethod): ...
 class MosaicMaskedGpuOutsourcing(PendingMethod): ...
