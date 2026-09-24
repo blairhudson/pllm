@@ -149,10 +149,12 @@ ordinary component composition with executable regions for dense gated-decoder o
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
 composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,
-Phi and compiler-bound Gemma checkpoint execution remain incomplete; dense Qwen3
-has only tiny synthetic compiled-runtime evidence. Existing runtime support for a
-checkpoint family is a separate axis unless an exact schedule, binding and execution
-test say otherwise.
+Phi and compiler-bound Gemma checkpoint execution remain incomplete; the pinned
+Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
+functionality check, but default W4A4 and one tested short-prompt W8A8 case
+diverge from the FP32 reference. Provider deployment, quality and matched-cost
+evidence remain open. Existing runtime support for a checkpoint family is a
+separate axis unless an exact schedule, binding and execution test say otherwise.
 
 ## Python package
 

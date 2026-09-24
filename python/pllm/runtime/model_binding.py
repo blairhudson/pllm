@@ -362,10 +362,10 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
         or not all(isinstance(item, str) for item in layer_types)
     ):
         raise RuntimeBindingError("config layer_types must be a per-layer string list")
-    sliding_window = cfg.get("sliding_window")
-    if sliding_window is not None:
-        _require_int(sliding_window, "config sliding_window")
-        raise RuntimeBindingError("compiled runtime profile does not support sliding windows")
+    source_sliding_window = cfg.get("sliding_window")
+    if source_sliding_window is not None:
+        if _require_int(source_sliding_window, "config sliding_window") <= 0:
+            raise RuntimeBindingError("config sliding_window must be positive")
     shared_count = _require_int(
         cfg.get("num_kv_shared_layers", 0) or 0, "config num_kv_shared_layers"
     )
@@ -395,8 +395,11 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
     else:
         raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
-    if use_sliding_window:
+    if use_sliding_window or any(layer != "full_attention" for layer in layer_types):
         raise RuntimeBindingError("compiled runtime profile does not support sliding windows")
+    # Some dense checkpoint configs declare a dormant window. The exact value
+    # participates in the native source-plan digest; no window is applied at
+    # runtime when the declared mode and every layer are full attention.
     attention_bias = bool(cfg.get("attention_bias", True))
     if block_style not in {"llama", "gemma4"}:
         raise RuntimeBindingError("compiled runtime profile does not implement this block style")
@@ -416,7 +419,7 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
         "rms_norm_eps": float(eps),
         "norm_offset": float(norm_offset),
         "layer_types": list(layer_types),
-        "sliding_window": sliding_window,
+        "sliding_window": None,
         "num_kv_shared_layers": shared_count,
         "attention_k_eq_v": k_eq_v,
         "hidden_size_per_layer_input": ple_dim,

@@ -1,0 +1,20 @@
+{
+  "schema": "pllm.qwen3_reference_probe.v1",
+  "model": {
+    "repository": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "config_sha256": "660db3b73d788119c04535e48cf9be5f55bc3100841a718637ae695b442f27dd",
+    "model_safetensors_sha256": "f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b"
+  },
+  "reference": "Transformers 5.16.1 Qwen3ForCausalLM, FP32 CPU, eager attention; identical token IDs and decode-selected token",
+  "pllm": "Compiled baseline decoder and local clear native-kernel stage callback; float32-body diagnostic uses unquantized checkpoint projection matrices and is not a private execution mode",
+  "environment": "Python 3.13.15; NumPy 2.5.3; PyTorch 2.14.0; macOS arm64",
+  "observations": [
+    {"prompt": "Hello", "token_ids": [9707], "mode": "W4A4", "prefill_top1": 124362, "reference_top1": 21806, "prefill_top5_overlap": 0, "prefill_max_absolute_logit_difference": 20.4546, "decode_top1": 1112, "reference_decode_top1": 220, "decode_top5_overlap": 0, "decode_max_absolute_logit_difference": 19.1252},
+    {"prompt": "The capital of France is", "token_ids": [785, 6722, 315, 9625, 374], "mode": "W4A4", "prefill_top1": 220, "reference_top1": 12095, "prefill_top5_overlap": 0, "prefill_max_absolute_logit_difference": 22.8280, "decode_top1": 220, "reference_decode_top1": 16, "decode_top5_overlap": 0, "decode_max_absolute_logit_difference": 17.7615},
+    {"prompt": "Hello", "token_ids": [9707], "mode": "W8A8", "prefill_top1": 9, "reference_top1": 21806, "prefill_top5_overlap": 0, "prefill_max_absolute_logit_difference": 5.0600, "decode_top1": 0, "reference_decode_top1": 0, "decode_top5_overlap": 4, "decode_max_absolute_logit_difference": 1.8549},
+    {"prompt": "The capital of France is", "token_ids": [785, 6722, 315, 9625, 374], "mode": "W8A8", "prefill_top1": 12095, "reference_top1": 12095, "prefill_top5_overlap": 5, "prefill_max_absolute_logit_difference": 2.4757, "decode_top1": 13, "reference_decode_top1": 13, "decode_top5_overlap": 5, "decode_max_absolute_logit_difference": 1.6127},
+    {"prompt": "Hello", "token_ids": [9707], "mode": "W8 token/head, FP32 body", "prefill_top1": 21806, "reference_top1": 21806, "prefill_top5_overlap": 4, "prefill_max_absolute_logit_difference": 0.3754}
+  ],
+  "limitations": "One local run per prompt/mode, no matched deployment benchmark, no network/memory/cost measurement, and no population-level generation-quality claim. Default W4A4 and short-prompt W8A8 fail the checked top-token fidelity test; FP32 body is a diagnostic, not a protected option. Provider transport and protected whole-decoder coverage were not tested."
+}

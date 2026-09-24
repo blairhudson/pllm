@@ -63,7 +63,7 @@ The `pllm.run` Python distribution includes native Rust kernels. Python owns che
 
 Adapters lower Qwen2, dense Qwen3, and bounded Qwen3.5, Phi, and Gemma text configurations into a model-neutral IR of operators, layers, and persistent state. Compiler passes avoid adapter-specific node names. Semantic lowering alone proves neither checkpoint import nor executable or private coverage.
 
-For untransformed plans, baseline components schedule independent weighted operators sharing an input and order local operators by dependency. Binding checks tokenizer, runtime, local tensors, quantized stages, scales, and preparation commitments. A plan-bound session enforces feedback and bounds. The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel** prefill-to-decode check; historical masked-protocol measurements are separate. Tiny dense Qwen3 uses the same compiled binding. Verified compiled execution, transformed cache, and protected whole-decoder composition remain incomplete.
+For untransformed plans, baseline components schedule independent weighted operators sharing an input and order local operators by dependency. Binding checks tokenizer, runtime, local tensors, quantized stages, scales, and preparation commitments. A plan-bound session enforces feedback and bounds. The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel** prefill-to-decode check; historical masked-protocol measurements are separate. Pinned Qwen3-0.6B passes the same clear compiled prefill-to-decode functionality check; its W4A4 output fails a small FP32 next-token parity probe, so model quality remains unestablished. Verified compiled execution, transformed cache, and protected whole-decoder composition remain incomplete.
 
 ### Cited work versus runnable baseline
 

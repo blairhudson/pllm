@@ -31,6 +31,10 @@ pub struct QwenConfig {
     #[serde(deserialize_with = "integral_u64")]
     pub rope_theta: u64,
     pub tie_word_embeddings: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sliding_window: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_sliding_window: Option<bool>,
 }
 
 impl QwenConfig {
@@ -79,6 +83,16 @@ impl QwenConfig {
         if !epsilon.is_finite() || epsilon <= 0.0 {
             return Err(ModelError::InvalidConfig(
                 "rms_norm_eps must be a positive finite decimal".into(),
+            ));
+        }
+        if self.sliding_window == Some(0) {
+            return Err(ModelError::InvalidConfig(
+                "sliding_window must be positive when declared".into(),
+            ));
+        }
+        if self.use_sliding_window == Some(true) {
+            return Err(ModelError::Unsupported(
+                "sliding-window attention requires a semantic window operator".into(),
             ));
         }
         Ok(())
@@ -3120,6 +3134,8 @@ mod tests {
             rms_norm_eps: "0.000001".into(),
             rope_theta: 1_000_000,
             tie_word_embeddings: true,
+            sliding_window: None,
+            use_sliding_window: None,
         }
     }
 
@@ -3472,6 +3488,33 @@ mod tests {
             assert!(lower_model_json(&serde_json::to_vec(&source).unwrap(), workload).is_err());
             source[field] = prior;
         }
+    }
+
+    #[test]
+    fn binds_dormant_window_metadata_without_admitting_sliding_attention() {
+        let workload = DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 4,
+            max_new_tokens: 2,
+        };
+        let mut source = serde_json::to_value(config()).unwrap();
+        let old_plan = lower_model_json(&serde_json::to_vec(&source).unwrap(), workload).unwrap();
+        source["sliding_window"] = json!(32768);
+        source["use_sliding_window"] = json!(false);
+        let dense = lower_model_json(&serde_json::to_vec(&source).unwrap(), workload).unwrap();
+        dense.validate().unwrap();
+        assert_ne!(dense.config_digest, old_plan.config_digest);
+        source["use_sliding_window"] = json!(true);
+        assert!(matches!(
+            lower_model_json(&serde_json::to_vec(&source).unwrap(), workload),
+            Err(ModelError::Unsupported(_))
+        ));
+        source["use_sliding_window"] = json!(false);
+        source["sliding_window"] = json!(0);
+        assert!(matches!(
+            lower_model_json(&serde_json::to_vec(&source).unwrap(), workload),
+            Err(ModelError::InvalidConfig(_))
+        ));
     }
 
     #[test]

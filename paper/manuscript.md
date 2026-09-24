@@ -150,8 +150,10 @@ checks tokenizer, runtime, local tensors, quantized stages, scales, and
 preparation commitments. A plan-bound session enforces feedback and bounds.
 The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel**
 prefill-to-decode check; historical masked-protocol measurements are separate.
-Tiny dense Qwen3 uses the same compiled binding. Verified compiled execution,
-transformed cache, and protected whole-decoder composition remain incomplete.
+Pinned Qwen3-0.6B passes the same clear compiled prefill-to-decode functionality
+check; its W4A4 output fails a small FP32 next-token parity probe, so model
+quality remains unestablished. Verified compiled execution, transformed cache,
+and protected whole-decoder composition remain incomplete.
 
 ### Cited work versus runnable baseline
 

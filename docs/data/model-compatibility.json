@@ -55,8 +55,8 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "head-width", "qk-norm"],
       "baseline_blockers": [],
-      "runtime_evidence": "Tiny synthetic checkpoint compiled-runtime execution; pinned Qwen3-0.6B and mini-coder fixtures are configuration/semantic evidence only",
-      "remaining": "Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent",
+      "runtime_evidence": "Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; scoped clear-reference probes, no provider benchmark",
+      "remaining": "Default W4A4 fails top-token parity on two checked prompts; W8A8 also fails one short prompt. Quantization-quality, serving and matched benchmark evidence, and protected whole-decoder execution remain open",
       "guide": "/sdk/models/families/qwen3/"
     },
     {

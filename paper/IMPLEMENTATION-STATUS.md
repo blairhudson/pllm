@@ -19,10 +19,13 @@ market operation, model quality, malicious security, operator independence, or
 secure erasure. Historical BFV results in the evidence archive are separate and
 are not reused as current-runtime evidence.
 
-The current model-neutral compiler binds baseline untransformed Qwen2 and tiny
-dense Qwen3 schedules. The pinned Qwen2.5 checkpoint passes a separate **clear
-native-kernel** prefill-to-decode test. That test is not a prepared-protocol
-benchmark or protected full-decoder execution.
+The current model-neutral compiler binds baseline untransformed Qwen2 and dense
+Qwen3 schedules. Pinned Qwen2.5-0.5B and Qwen3-0.6B checkpoints pass separate
+**clear native-kernel** prefill-to-decode functionality tests. Qwen3-0.6B's
+default W4A4 path differs from the FP32 reference on two checked prompts, and
+its W8A8 path differs on a short prompt. These tests do not establish real-model
+generation quality, a prepared-protocol benchmark or protected full-decoder
+execution; see `docs/evidence/qwen3-0.6b-reference-probe-2026-09-24.json`.
 
 `docs/evidence/slalom-freivalds-tiny-baseline.json` and
 `docs/evidence/slalom-freivalds-tiny-verified.json` retain one completed run
