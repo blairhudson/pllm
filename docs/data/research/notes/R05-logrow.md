@@ -52,6 +52,10 @@ compares three matched prefill/decode pairs per model: LogRow is roughly an
 order of magnitude slower online than clear local SiLU in that setup, with
 separate offline material-issuance costs. These runs are not provider-network
 or state-of-the-art evidence.
+The next numeric prerequisite is implemented only as a bounded Rust oracle:
+`ScaledSiluQ7Profile` uses a public integer range `[-M, M]`, `1 <= M <= 16`,
+to encode a wider SiLU table with explicit output scaling and a conservative
+error bound. It does not yet issue LogRow material or authorize decoder use.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

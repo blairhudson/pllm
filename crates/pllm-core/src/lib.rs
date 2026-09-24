@@ -12,6 +12,7 @@ pub mod fixed_point;
 mod freivalds;
 pub mod kernels;
 pub mod kv_cache;
+pub mod logrow_numeric;
 pub mod rms_norm;
 pub mod rope;
 mod softmax;
