@@ -1,24 +1,38 @@
 # R05 · Garbled Circuit Lookup Tables with Logarithmic Number of Ciphertexts
 
-**Priority 5 · 2024 · single_evaluator · source checked 2026-09-14**
+**Priority 5 · 2024 · single_evaluator · full text reviewed 2026-09-23**
 
 Authors: David Heath, Vladimir Kolesnikov, Lucien K. L. Ng.  
 Primary source: https://eprint.iacr.org/2024/369  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Full-text source: `papers/r05-logrow.pdf` (ignored local library). The related
+one-hot setup source is David Heath and Vladimir Kolesnikov, *One Hot Garbling*,
+CCS 2021; [ePrint 2022/798](https://eprint.iacr.org/2022/798), retained locally as
+`papers/one-hot-garbling.pdf`.
 
 ## What the source contributes
 
-The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term.
+The evaluator can see a randomly masked row index, but not the true row. A
+punctured one-hot encoding selects the row privately; a random-function pad
+allows masked table bits to be sent without revealing its plaintext entries.
+The optimized paper cost is `(n−1)κ + nmκ + Nm` bits for an N-row m-bit table
+with `n = ⌈log2 N⌉`; the table-data term is unavoidable.
 
 This short source summary is separate from the proposed PLLM design below. The source has not been reproduced merely by adding this card.
 
 ## Native implementation scope
 
-Reproduce the original lookup construction, not its headline complexity. Provide Boolean input/output contracts and explicit arithmetic conversion edges.
+PLLM has a bounded in-process Rust reference in `pllm-garble::logrow` for
+1–9-bit inputs/outputs. It uses the 2022 **two-row** one-hot setup (so costs
+`[2(n−1)+1+nm]κ+Nm` bits), one-use input/program/decoder ownership, and
+a 9-bit wrapper for the public-calibrated Compact Q7 SiLU table. The masked
+index is exposed only inside the reference evaluator; original input, mask,
+and plaintext table remain client-owned. No reviewed distributed 2PC,
+secure input transfer, Rust-to-Python execution API, arithmetic conversion,
+or compiled-decoder binding is established.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 
-Register the following independently versioned native components:
+Remaining candidate components, pending full contract admission:
 
 - `gate.logrow`
 - `convert.lookup_io`
@@ -47,9 +61,17 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Analytical formulas only in previous work; no original or PLLM logrow execution.
+Functional parity holds on all 257 signed-Q7 values for a fitted Compact
+profile. For the padded 512-row by 9-bit table, evaluator material is 2,144
+bytes: 272 one-hot tree bytes, 1,296 random-function row bytes, and 576
+masked table bytes. Input labels (144 bytes), output labels (144 bytes),
+framing and local workspace are additional. The older Compact oracle has
+73,728 half-gate ciphertext bytes before other material. These are not
+controlled network, CPU, memory, disk, generation-quality, or checkpoint
+measurements; the `LogRowGarbledLookup` Python class stays pending.
 
-The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
+This is an adapted native scalar reference, **not a reproduction of the paper's
+optimized setup, measured experiments or whole-system security**.
 
 ## Reproduction gates
 

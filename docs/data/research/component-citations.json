@@ -60,6 +60,17 @@
       ]
     },
     {
+      "paper_id": "R05",
+      "summary": "PLLM adapts LogRow's random-function-masked lookup with the earlier two-row one-hot setup for a one-use, in-process 9-bit fitted Q7 SiLU table. It measures complete evaluator material but has not implemented LogRow's optimized setup or a protected decoder backend.",
+      "components": [
+        {
+          "title": "Bounded LogRow lookup reference",
+          "href": "/sdk/components/protocols/logrow-reference/",
+          "source": "content/docs/sdk/components/protocols/logrow-reference.mdx"
+        }
+      ]
+    },
+    {
       "paper_id": "R07",
       "summary": "PLLM's prepared masked-linear path and optional Freivalds verification draw on related separation and verification ideas; its protocol and trust assumptions differ from Slalom.",
       "components": [

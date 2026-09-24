@@ -185,12 +185,12 @@
         "Lucien K. L. Ng"
       ],
       "primary_url": "https://eprint.iacr.org/2024/369",
-      "source_access": "primary_abstract",
-      "verified_on": "2026-09-14",
+      "source_access": "primary_full_text_pdf",
+      "verified_on": "2026-09-23",
       "track": "single_evaluator",
       "family": "lookup",
-      "source_summary": "The lookup construction reduces the number of security-parameter-sized ciphertexts; total communication retains a table-data term.",
-      "proposed_implementation": "Reproduce the original lookup construction, not its headline complexity. Provide Boolean input/output contracts and explicit arithmetic conversion edges.",
+      "source_summary": "A one-hot garbled row masks the lookup index; a random-function pad hides the table. Full evaluator material includes logarithmically many large rows and all masked table bits.",
+      "proposed_implementation": "Advance the bounded two-row one-hot lookup reference to the paper's optimized setup, with secure input transfer, Boolean/arithmetic conversion, and typed decoder composition.",
       "modules": [
         "gate.logrow",
         "convert.lookup_io"
@@ -199,19 +199,19 @@
         "R04"
       ],
       "benchmark_contract": "Matched 8/12/16-bit tables versus flat, Boolean and weighted-path variants. Include the table-data term and both conversion directions.",
-      "security_boundary": "Do not translate logarithmic ciphertext count into logarithmic total bytes or claim our flat-table improvements beat this unimplemented baseline.",
-      "prior_evidence": "Analytical formulas only in previous work; no original or PLLM logrow execution.",
+      "security_boundary": "Do not translate logarithmic ciphertext count into logarithmic total bytes or interpret an in-process functional reference as a reviewed or deployed privacy protocol.",
+      "prior_evidence": "Bounded Rust one-use 9-bit reference over the fitted Q7 SiLU table; not the optimized one-row setup, a reviewed 2PC protocol or a decoder execution path.",
       "source_lock": {
         "paper_sha256": null,
         "artifact_commit": null,
         "license_review": "required_before_vendoring"
       },
-      "implementation_status": "reproduction_target_not_implemented_in_this_bundle",
+      "implementation_status": "bounded_native_reference_only",
       "assurance_status": "not_reviewed",
       "eligible_default": false,
       "native_owner": "Rust",
       "python_role": "configuration and result presentation only",
-      "fulltext_gate": true,
+      "fulltext_gate": false,
       "card": "notes/R05-logrow.md"
     },
     {

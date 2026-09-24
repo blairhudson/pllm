@@ -1,6 +1,6 @@
 ---
 title: "Compact Q7 numeric reference"
-description: "Fit a bounded public-calibration SiLU profile; private interval selection remains pending."
+description: "Fit a bounded public-calibration SiLU profile; whole-decoder protected execution remains pending."
 ---
 
 [`fit_compact_silu_q7_reference`](/sdk/reference/python/pllm/nonlinear/#fit_compact_silu_q7_reference)
@@ -69,6 +69,11 @@ For checked uniform calibration profiles, the polynomial circuit has a
 research reference has no demonstrated efficiency advantage; a cheaper
 protected composition and complete cost accounting are needed before scaling
 it across model tensors.
+A separate [bounded LogRow lookup reference](/sdk/components/protocols/logrow-reference/)
+evaluates the *fitted table* with 2,144 bytes of in-process evaluator material
+per scalar, plus input/output labels and unmeasured setup, memory, and transport
+costs. It is **not** Compact's piecewise-polynomial method or an executable
+whole-decoder component.
 [The method roadmap](/sdk/components/research-method-roadmap/)
 tracks material reduction, protected tensor composition, model-quality and
 matched-cost gates. Until those pass, use a supported

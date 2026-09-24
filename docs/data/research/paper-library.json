@@ -1128,11 +1128,11 @@
       "owner": "pllm.protocols",
       "id": "logrow",
       "track": "component_candidate",
-      "source_evidence": "abstract_or_publication_record_reviewed",
+      "source_evidence": "primary_full_text_reviewed",
       "contribution": "Private lookup execution primitive used by nonlinear methods and other protected-selection workloads.",
       "first_experiment": "Complete private lookup, including the table payload and output reconstruction.",
       "promotion_gate": "Ciphertext count alone is not total communication.",
-      "evidence_boundary": "Ciphertext count is not total represented table bytes. Full PDF not accessible in this search.",
+      "evidence_boundary": "Bounded in-process reference uses the older two-row one-hot setup; masked table bits remain in the material count. No full protected decoding or security review.",
       "map_year": 2024,
       "registry_id": "R05",
       "authors": [

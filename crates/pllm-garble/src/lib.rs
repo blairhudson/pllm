@@ -9,6 +9,7 @@ pub mod compact_coordinate;
 pub mod compact_lookup;
 pub mod compact_polynomial;
 pub mod gated_multiply_q7;
+pub mod logrow;
 
 pub use gated_multiply_q7::{
     Method as GatedMultiplyQ7Method,
