@@ -26,9 +26,12 @@ PLLM has a bounded in-process Rust reference in `pllm-garble::logrow` for
 `[2(n−1)+1+nm]κ+Nm` bits), one-use input/program/decoder ownership, and
 a 9-bit wrapper for the public-calibrated Compact Q7 SiLU table. The masked
 index is exposed only inside the reference evaluator; original input, mask,
-and plaintext table remain client-owned. No reviewed distributed 2PC,
-secure input transfer, Rust-to-Python execution API, arithmetic conversion,
-or compiled-decoder binding is established.
+and plaintext table remain client-owned. A specialized compiler reference binds
+one fitted-Q7 element to a semantic SiLU operation, phase, tensor index, plan
+and profile digests, implementation source, resource policy and fresh issuance.
+No reviewed distributed 2PC, secure provider input transfer, Rust-to-Python
+execution API, arithmetic conversion, tensor schedule or complete compiled
+decoder is established.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

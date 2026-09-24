@@ -15,6 +15,14 @@ table. The implementation uses the two-row one-hot setup from
 [Heath and Kolesnikov's *One Hot Garbling*](https://eprint.iacr.org/2022/798),
 not the more efficient one-row setup in the LogRow paper.
 
+The Rust compiler can bind **one fitted Q7 lookup element** to a semantic SiLU
+operator, a decoder-plan digest, prefill/decode phase, tensor position, fitted
+profile, implementation source, resource policy and fresh circuit identity.
+It rejects mismatches before evaluation and burns the one-use material. A
+caller must explicitly acknowledge an unreviewed public profile and admit at
+least 2,144 evaluator-material bytes per element (with a 64 KiB hard ceiling).
+This does not provide a tensor schedule or model execution.
+
 This is an **in-process Rust reference**, not a deployment boundary: it has no
 transport, independent provider, Python execution API, security review, or
 whole-decoder composition. The Python symbol
@@ -40,10 +48,12 @@ actual private response.
 
 Native tests exhaust all 257 signed-Q7 inputs for a fitted profile and check
 cross-circuit rejection, output-label tampering, width limits and one-use
-consumption. This establishes functional parity at the scalar boundary, not
-checkpoint quality or production privacy. The next gates are reviewed input
-transfer, an authenticated plan/region binding, a composable protected
-decoder operator, complete transport-cost measurement, and matched model
+consumption. Qwen2 and dense Qwen3 single-element compiler tests check plan,
+phase, operator, tensor index, fitted profile and material-budget binding.
+This establishes functional parity at the scalar boundary, not checkpoint
+quality or production privacy. The next gates are reviewed provider input
+transfer, an authenticated *tensor* binding, a composable protected decoder
+operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)
 tracks the pending Python component independently of this reference.
 

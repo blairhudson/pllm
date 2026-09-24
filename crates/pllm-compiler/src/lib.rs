@@ -26,6 +26,7 @@ mod dense_qwen_layer;
 mod dense_qwen_mlp;
 mod dense_qwen_mlp_protected;
 mod gated_tensor;
+mod logrow_protected;
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
@@ -76,6 +77,10 @@ pub use dense_qwen_mlp_protected::{
 pub use gated_tensor::{
     prepare_bound_gated_multiply_q7_tensor_material, BoundGatedMultiplyQ7TensorMaterial,
     GatedMultiplyQ7TensorEvaluator, GatedMultiplyQ7TensorTicket, TensorResourcePolicy,
+};
+pub use logrow_protected::{
+    prepare_bound_logrow_q7_element, BoundLogRowQ7ClientMaterial, BoundLogRowQ7Decoder,
+    BoundLogRowQ7Evaluation, BoundLogRowQ7Outputs, ExperimentalLogRowQ7Policy,
 };
 pub use provenance_primitives::{
     append_model_kv_cache_q10, execute_model_kv_cache_view_q10, execute_model_rope_q10,

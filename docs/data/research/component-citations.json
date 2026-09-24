@@ -61,7 +61,7 @@
     },
     {
       "paper_id": "R05",
-      "summary": "PLLM adapts LogRow's random-function-masked lookup with the earlier two-row one-hot setup for a one-use, in-process 9-bit fitted Q7 SiLU table. It measures complete evaluator material but has not implemented LogRow's optimized setup or a protected decoder backend.",
+      "summary": "PLLM adapts LogRow's random-function-masked lookup with the earlier two-row one-hot setup for a one-use, in-process 9-bit fitted Q7 SiLU table. A specialized compiler binds one semantic element to a decoder plan. It measures complete evaluator material but has not implemented LogRow's optimized setup or a protected whole-decoder backend.",
       "components": [
         {
           "title": "Bounded LogRow lookup reference",

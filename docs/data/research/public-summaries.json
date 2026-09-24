@@ -17,7 +17,7 @@
   },
   "R05": {
     "overview": "LogRow privately looks up a value without sending a full encrypted row for every possible input. It reveals only a randomly masked row index, uses one-hot garbled labels to select that row, and hides the table behind a random function. Its full cost still includes the masked table bits: fewer full-size ciphertexts do not mean constant total traffic.",
-    "reading": "PLLM now has a bounded, in-process Rust reference for 1–9-bit tables and the fitted Q7 SiLU table. It uses the earlier two-row One Hot Garbling setup rather than LogRow's optimized one-row setup, so its material size is not the paper's optimum. It has no Python execution API, remote protocol, full-decoder integration, or security review; compare full material, input/output labels, setup CPU, and numeric fidelity before choosing it as a serving component."
+    "reading": "PLLM now has a bounded, in-process Rust reference for 1–9-bit tables and the fitted Q7 SiLU table, with a one-element semantic SiLU binding for Qwen2/Qwen3 plans. It uses the earlier two-row One Hot Garbling setup rather than LogRow's optimized one-row setup, so its material size is not the paper's optimum. It has no Python execution API, remote protocol, tensor schedule, full-decoder integration, or security review; compare full material, input/output labels, setup CPU, and numeric fidelity before choosing it as a serving component."
   },
   "R06": {
     "overview": "Duty-Free Bits studies how Yao-style Boolean labels can be converted into projective or affine encodings used by other garbling schemes. It also examines connections to vector-OLE, making representation changes the central contribution.",

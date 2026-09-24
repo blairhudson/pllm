@@ -200,7 +200,7 @@
       ],
       "benchmark_contract": "Matched 8/12/16-bit tables versus flat, Boolean and weighted-path variants. Include the table-data term and both conversion directions.",
       "security_boundary": "Do not translate logarithmic ciphertext count into logarithmic total bytes or interpret an in-process functional reference as a reviewed or deployed privacy protocol.",
-      "prior_evidence": "Bounded Rust one-use 9-bit reference over the fitted Q7 SiLU table; not the optimized one-row setup, a reviewed 2PC protocol or a decoder execution path.",
+      "prior_evidence": "Bounded Rust one-use 9-bit reference over the fitted Q7 SiLU table and specialized one-element semantic-plan binding; not the optimized one-row setup, a reviewed 2PC protocol or a whole-decoder execution path.",
       "source_lock": {
         "paper_sha256": null,
         "artifact_commit": null,

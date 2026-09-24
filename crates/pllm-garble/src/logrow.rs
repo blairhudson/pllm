@@ -130,6 +130,10 @@ impl CompactQ7LogRowProgram {
         self.program.evaluator_material_bytes()
     }
 
+    pub const fn issuance_id(&self) -> [u8; CIRCUIT_ID_BYTES] {
+        self.program.issuance_id()
+    }
+
     pub fn evaluate(self, inputs: LogRowInputs) -> Result<LogRowOutputs, String> {
         self.program.evaluate(inputs)
     }
@@ -403,6 +407,11 @@ impl LogRowClient {
 }
 
 impl LogRowProgram {
+    /// Fresh circuit identity binds this one-use material to its client input.
+    pub const fn issuance_id(&self) -> [u8; CIRCUIT_ID_BYTES] {
+        self.id
+    }
+
     /// Includes tree and random-function rows, masked table, and final tree
     /// block; excludes input labels, framing, and local workspace.
     pub fn evaluator_material_bytes(&self) -> usize {
