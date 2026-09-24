@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import struct
 import math
 
@@ -11,6 +12,7 @@ from pllm import _native, lower_model
 from pllm.protocols import (
     LogRowGarbledLookup,
     estimate_logrow_q7_session_reference,
+    prepare_logrow_q7_session_reference,
     prepare_logrow_q7_tensor_reference,
 )
 
@@ -217,3 +219,66 @@ def test_session_estimate_admits_total_before_any_one_use_material(source: dict)
             max_decode_steps=3,
             max_session_evaluator_material_bytes=200000,
         )
+
+
+@pytest.mark.parametrize("source", [QWEN2, QWEN3], ids=["qwen2", "qwen3"])
+def test_session_preissues_and_consumes_all_float32_silu_tensors(source: dict) -> None:
+    plan = lower_model(source, batch=1, max_input_tokens=2, max_new_tokens=2)
+    profile = _profile()
+    session = prepare_logrow_q7_session_reference(
+        plan,
+        profile,
+        max_elements=32,
+        max_evaluator_material_bytes=68608,
+        max_decode_steps=2,
+        max_session_evaluator_material_bytes=137216,
+    )
+    assert session.remaining_tensors == 3
+    assert len(session.issuance_digest) == 64
+    assert json.loads(session.estimate())["reserved_evaluator_material_bytes"] == 137216
+    for mode, step, count in [("prefill", 0, 32), ("decode", 0, 16), ("decode", 1, 16)]:
+        operation = next(
+            item["id"] for item in getattr(plan, mode)["operations"] if item["operator"] == "silu"
+        )
+        values = [-1.0, 0.0, 1.0, 0.5] * (count // 4)
+        output = struct.unpack(
+            f"<{count}f",
+            session.evaluate_float32(mode, step, operation, struct.pack(f"<{count}f", *values)),
+        )
+        assert output == tuple(profile.evaluate(round(value * 128)) / 128 for value in values)
+    assert session.remaining_tensors == 0
+    with pytest.raises(ValueError, match="no unconsumed material"):
+        session.evaluate_float32("decode", 1, operation, bytes(64))
+
+
+def test_session_burns_remaining_material_on_invalid_python_types_and_abort() -> None:
+    plan = lower_model(QWEN2, batch=1, max_input_tokens=2, max_new_tokens=2)
+    profile = _profile()
+    operation = next(
+        item["id"] for item in plan.prefill["operations"] if item["operator"] == "silu"
+    )
+
+    def session():
+        return prepare_logrow_q7_session_reference(
+            plan,
+            profile,
+            max_elements=32,
+            max_evaluator_material_bytes=68608,
+            max_decode_steps=2,
+            max_session_evaluator_material_bytes=137216,
+        )
+
+    for bad_values in ([0.0] * 32, bytes(127), struct.pack("<32f", *([0.0] * 31 + [1.01]))):
+        handle = session()
+        with pytest.raises((TypeError, ValueError)):
+            handle.evaluate_float32("prefill", 0, operation, bad_values)
+        assert handle.remaining_tensors == 0
+        with pytest.raises(ValueError, match="no unconsumed material"):
+            handle.evaluate_float32("prefill", 0, operation, bytes(128))
+    handle = session()
+    with pytest.raises(ValueError, match="operation order"):
+        handle.evaluate_float32("decode", 0, operation, bytes(64))
+    assert handle.remaining_tensors == 0
+    handle = session()
+    handle.abort()
+    assert handle.remaining_tensors == 0

@@ -49,6 +49,7 @@ from pllm import lower_model
 from pllm.nonlinear import fit_compact_silu_q7_reference
 from pllm.protocols import (
     estimate_logrow_q7_session_reference,
+    prepare_logrow_q7_session_reference,
     prepare_logrow_q7_tensor_reference,
 )
 
@@ -82,16 +83,36 @@ float_material = prepare_logrow_q7_tensor_reference(
 floats = [-1.0, -0.5, 0.0, 0.5, 1.0] + [0.0] * 11
 float_output = float_material.evaluate_float32(struct.pack("<16f", *floats))
 assert struct.unpack("<16f", float_output)[2] == 0.0
+
+# An offline session preissues the whole 2-token prefill + 1 decode step.
+# Order is semantic: prefill's SiLU tensor, then decode's SiLU tensor.
+session_material = prepare_logrow_q7_session_reference(
+    plan, profile, max_elements=32, max_evaluator_material_bytes=32 * 2144,
+    max_decode_steps=1, max_session_evaluator_material_bytes=48 * 2144,
+)
+prefill_operation = next(
+    op["id"] for op in plan.prefill["operations"] if op["operator"] == "silu"
+)
+prefill_output = session_material.evaluate_float32(
+    "prefill", 0, prefill_operation, struct.pack("<32f", *([0.0] * 32))
+)
+decode_output = session_material.evaluate_float32(
+    "decode", 0, operation, struct.pack("<16f", *([0.0] * 16))
+)
+assert len(prefill_output) == 128 and len(decode_output) == 64
+assert session_material.remaining_tensors == 0
 ```
 
 API: [`pllm.protocols` objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
 
 The [session estimator](/sdk/reference/python/pllm/protocols/#estimate_logrow_q7_session_reference)
 checks the **sum** of prefill bodies and every permitted decode-step body
-without creating one-use material. It returns an immutable plan/profile-bound
-cost report, not a reservation or execution permit. Independent tensor
-preparation does not enforce this report; cancellation and burning of a full
-request remain unimplemented.
+without creating one-use material. The
+[offline session](/sdk/reference/python/pllm/protocols/#prepare_logrow_q7_session_reference)
+enforces the same bound before issuing material, consumes tensors in semantic
+order, and burns all remaining tensors on failure, abort or drop. It is a
+local research object, **not** a `Pipeline` or request-session execution mode.
+Independent tensor preparation does not require this session gate.
 
 ## What is measured
 
@@ -114,7 +135,7 @@ consumption. Qwen2 and dense Qwen3 compiler tests exercise complete 16- and
 32-element semantic SiLU tensors in decode and prefill through Rust and Python,
 verify material and element-limit preflight, and reject plan, phase, profile,
 policy and circuit mismatches. This establishes bounded tensor parity, not checkpoint quality or
-production privacy. The next gates are whole-session issuance/burn lifecycle,
+production privacy. The next gates are a compiled decoder's session lifecycle,
 publicly calibrated support for wider activations, reviewed provider input
 transfer, a composable protected
 decoder operator, complete transport-cost measurement, and matched model

@@ -41,7 +41,9 @@ quantization rejects out-of-range values rather than saturating, adds at most
 This does not establish a wider-range conversion for actual checkpoint MLPs.
 An immutable session-cost estimator counts all semantic SiLU evaluator bodies
 for bounded prefill and decode steps and rejects totals above an explicit cap.
-It does not issue, schedule, or burn a complete session's material.
+The separate offline `prepare_logrow_q7_session_reference` preissues bounded
+material for all those tensors, orders one-use consumption, and burns the
+remainder on failure or abort. Neither API runs a complete compiled decoder.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

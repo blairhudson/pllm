@@ -3,7 +3,8 @@
 
 use crate::{invalid, CompactQ7Reference};
 use pllm_compiler::{
-    prepare_bound_logrow_q7_tensor, BoundLogRowQ7TensorMaterial, ExperimentalLogRowQ7TensorPolicy,
+    prepare_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor, BoundLogRowQ7Session,
+    BoundLogRowQ7TensorMaterial, ExperimentalLogRowQ7TensorPolicy,
 };
 use pllm_core::{
     compact::{compact_q7_from_f32, compact_q7_to_f32},
@@ -16,6 +17,7 @@ use pyo3::types::{PyAny, PyBytes, PyModule};
 use std::sync::{Arc, Mutex};
 
 const MAX_PLAN_BYTES: usize = 16 * 1024 * 1024;
+const MAX_FLOAT32_TENSOR_BYTES: usize = (64 * 1024 * 1024 / 2144) * 4;
 
 #[pyclass(name = "LogRowQ7TensorReference", frozen, module = "pllm._native")]
 pub(crate) struct LogRowQ7TensorReference {
@@ -28,6 +30,96 @@ pub(crate) struct LogRowQ7TensorReference {
     elements: usize,
     evaluator_material_bytes: usize,
     binding_digest: String,
+}
+
+#[pyclass(name = "LogRowQ7SessionReference", frozen, module = "pllm._native")]
+pub(crate) struct LogRowQ7SessionReference {
+    material: Mutex<BoundLogRowQ7Session>,
+    issuance_digest: String,
+    estimate_bytes: Vec<u8>,
+}
+
+#[pymethods]
+impl LogRowQ7SessionReference {
+    #[getter]
+    fn issuance_digest(&self) -> &str {
+        &self.issuance_digest
+    }
+
+    #[getter]
+    fn remaining_tensors(&self) -> PyResult<usize> {
+        Ok(self
+            .material
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("LogRow Q7 session lock was poisoned"))?
+            .remaining_tensors())
+    }
+
+    fn estimate<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.estimate_bytes)
+    }
+
+    fn abort(&self) -> PyResult<()> {
+        self.material
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("LogRow Q7 session lock was poisoned"))?
+            .abort();
+        Ok(())
+    }
+
+    fn evaluate_float32<'py>(
+        &self,
+        py: Python<'py>,
+        mode: &Bound<'_, PyAny>,
+        decode_step: &Bound<'_, PyAny>,
+        operation_id: &Bound<'_, PyAny>,
+        values: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        // Invalid Python types and lengths burn all pending tensors, too.
+        let parsed = (|| {
+            let mode = match mode.extract::<&str>()? {
+                "prefill" => DecoderMode::Prefill,
+                "decode" => DecoderMode::Decode,
+                _ => return Err(invalid("LogRow Q7 mode must be prefill or decode".into())),
+            };
+            let decode_step = decode_step.extract::<u64>()?;
+            let operation_id = operation_id.extract::<String>()?;
+            let bytes = values
+                .cast::<PyBytes>()
+                .map_err(|_| invalid("LogRow Q7 float32 session input must be bytes".into()))?
+                .as_bytes();
+            if bytes.len() > MAX_FLOAT32_TENSOR_BYTES || bytes.len() % 4 != 0 {
+                return Err(invalid(
+                    "LogRow Q7 float32 session input is not bounded f32".into(),
+                ));
+            }
+            let floats = bytes
+                .chunks_exact(4)
+                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect::<Vec<_>>();
+            Ok((mode, decode_step, operation_id, floats))
+        })();
+        let (mode, decode_step, operation_id, floats) = match parsed {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                self.abort()?;
+                return Err(error);
+            }
+        };
+        let result = py
+            .detach(|| {
+                self.material
+                    .lock()
+                    .map_err(|_| "LogRow Q7 session lock was poisoned".to_owned())?
+                    .evaluate_float32(mode, decode_step, &operation_id, &floats)
+            })
+            .map_err(invalid)?;
+        let mut output = Vec::with_capacity(result.len() * 4);
+        for value in result {
+            output.extend_from_slice(&value.to_le_bytes());
+        }
+        Ok(PyBytes::new(py, &output))
+    }
 }
 
 impl LogRowQ7TensorReference {
@@ -217,14 +309,60 @@ fn estimate_logrow_q7_session_reference<'py>(
     Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&estimate)))
 }
 
+#[pyfunction]
+fn prepare_logrow_q7_session_reference(
+    py: Python<'_>,
+    plan: &Bound<'_, PyBytes>,
+    profile: PyRef<'_, CompactQ7Reference>,
+    max_elements: usize,
+    max_evaluator_material_bytes: usize,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> PyResult<LogRowQ7SessionReference> {
+    if plan.as_bytes().len() > MAX_PLAN_BYTES {
+        return Err(invalid("LogRow Q7 decoder plan exceeds 16 MiB".into()));
+    }
+    let plan: DecoderPlan = serde_json::from_slice(plan.as_bytes())
+        .map_err(|error| invalid(format!("invalid LogRow Q7 decoder plan: {error}")))?;
+    let policy = ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(
+        max_elements,
+        max_evaluator_material_bytes,
+    )
+    .map_err(invalid)?;
+    let profile = profile.inner.clone();
+    let material = py
+        .detach(|| {
+            prepare_bound_logrow_q7_session(
+                &plan,
+                &profile,
+                &policy,
+                max_decode_steps,
+                max_session_evaluator_material_bytes,
+            )
+        })
+        .map_err(invalid)?;
+    let estimate_bytes = pllm_types::canonical_bytes(material.estimate());
+    let issuance_digest = material.issuance_digest().to_string();
+    Ok(LogRowQ7SessionReference {
+        material: Mutex::new(material),
+        issuance_digest,
+        estimate_bytes,
+    })
+}
+
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<LogRowQ7TensorReference>()?;
+    module.add_class::<LogRowQ7SessionReference>()?;
     module.add_function(wrap_pyfunction!(
         prepare_logrow_q7_tensor_reference,
         module
     )?)?;
     module.add_function(wrap_pyfunction!(
         estimate_logrow_q7_session_reference,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        prepare_logrow_q7_session_reference,
         module
     )?)?;
     Ok(())

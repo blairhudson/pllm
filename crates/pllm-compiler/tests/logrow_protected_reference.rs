@@ -1,6 +1,7 @@
 use pllm_compiler::{
     estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_element,
-    prepare_bound_logrow_q7_tensor, ExperimentalLogRowQ7Policy, ExperimentalLogRowQ7TensorPolicy,
+    prepare_bound_logrow_q7_session, prepare_bound_logrow_q7_tensor, ExperimentalLogRowQ7Policy,
+    ExperimentalLogRowQ7TensorPolicy,
 };
 use pllm_core::fit_compact_silu_q7;
 use pllm_models::{lower_model_json, DecoderMode, DecoderPlan, DecoderWorkload, ModelOperator};
@@ -375,4 +376,92 @@ fn entire_response_material_is_admitted_before_any_tensor_issuance() {
                 .unwrap();
         assert!(estimate_bound_logrow_q7_session(&plan, &profile, &tighter, 2, 137_216).is_err());
     }
+}
+
+#[test]
+fn offline_session_issues_all_material_once_and_consumes_semantic_order() {
+    let profile = fit_compact_silu_q7(&[0; 257], 4).unwrap();
+    let policy =
+        ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(32, 68_608)
+            .unwrap();
+    for model in [QWEN2, QWEN3] {
+        let plan = plan_with_decode(model, 2, 2);
+        let operation = silu(&plan);
+        let mut session =
+            prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+        assert_eq!(
+            session.estimate().reserved_evaluator_material_bytes,
+            137_216
+        );
+        assert_eq!(session.remaining_tensors(), 3);
+        let other = prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+        assert_ne!(session.issuance_digest(), other.issuance_digest());
+        let inputs = [-1.0, -0.5, 0.0, 0.5, 1.0];
+        for (mode, step, width) in [
+            (DecoderMode::Prefill, 0, 32),
+            (DecoderMode::Decode, 0, 16),
+            (DecoderMode::Decode, 1, 16),
+        ] {
+            let values = (0..width)
+                .map(|index| inputs[index % inputs.len()])
+                .collect::<Vec<_>>();
+            let output = session
+                .evaluate_float32(mode, step, operation, &values)
+                .unwrap();
+            assert_eq!(output.len(), width);
+            for (value, result) in values.iter().zip(output) {
+                assert_eq!(
+                    result,
+                    f32::from(profile.evaluate((value * 128.0) as i16).unwrap()) / 128.0
+                );
+            }
+        }
+        assert_eq!(session.remaining_tensors(), 0);
+        assert!(session
+            .evaluate_float32(DecoderMode::Decode, 1, operation, &[0.0; 16])
+            .is_err());
+    }
+}
+
+#[test]
+fn offline_session_burns_every_remaining_tensor_on_mismatch_failure_or_abort() {
+    let plan = plan_with_decode(QWEN2, 2, 2);
+    let profile = fit_compact_silu_q7(&[0; 257], 4).unwrap();
+    let policy =
+        ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(32, 68_608)
+            .unwrap();
+    let operation = silu(&plan);
+    let mut session =
+        prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+    assert!(session
+        .evaluate_float32(DecoderMode::Decode, 0, operation, &[0.0; 16])
+        .is_err());
+    assert_eq!(session.remaining_tensors(), 0);
+    assert!(session
+        .evaluate_float32(DecoderMode::Prefill, 0, operation, &[0.0; 32])
+        .is_err());
+    let mut session =
+        prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+    let mut invalid = vec![0.0; 32];
+    invalid[31] = 1.01;
+    assert!(session
+        .evaluate_float32(DecoderMode::Prefill, 0, operation, &invalid)
+        .is_err());
+    assert_eq!(session.remaining_tensors(), 0);
+    let mut session =
+        prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+    assert!(session
+        .evaluate_float32(DecoderMode::Prefill, 0, operation, &[0.0; 31])
+        .is_err());
+    assert_eq!(session.remaining_tensors(), 0);
+    let mut session =
+        prepare_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+    session
+        .evaluate_float32(DecoderMode::Prefill, 0, operation, &[0.0; 32])
+        .unwrap();
+    session.abort();
+    assert_eq!(session.remaining_tensors(), 0);
+    assert!(session
+        .evaluate_float32(DecoderMode::Decode, 0, operation, &[0.0; 16])
+        .is_err());
 }

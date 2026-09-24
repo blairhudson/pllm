@@ -7,7 +7,7 @@ from pllm.protocols.runtime_arms import GuardedLinear as GuardedLinear
 from pllm.protocols.runtime_arms import SecureLinear as SecureLinear
 from pllm.components._planned import PendingComponent as PendingMethod
 from typing import Literal
-from pllm._native import CompactQ7Reference, LogRowQ7TensorReference
+from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference
 from pllm.modeling import ModelPlan
 
 class LogRowQ7SessionEstimate:
@@ -40,6 +40,15 @@ def estimate_logrow_q7_session_reference(
     max_decode_steps: int,
     max_session_evaluator_material_bytes: int,
 ) -> LogRowQ7SessionEstimate: ...
+def prepare_logrow_q7_session_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+    max_decode_steps: int,
+    max_session_evaluator_material_bytes: int,
+) -> LogRowQ7SessionReference: ...
 def prepare_logrow_q7_tensor_reference(
     plan: ModelPlan,
     profile: CompactQ7Reference,

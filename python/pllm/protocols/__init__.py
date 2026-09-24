@@ -18,7 +18,7 @@ from pllm.protocols.runtime_arms import (
 )
 
 if TYPE_CHECKING:
-    from pllm._native import CompactQ7Reference, LogRowQ7TensorReference
+    from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference
     from pllm.modeling import ModelPlan
 
 __all__ = [
@@ -31,6 +31,7 @@ __all__ = [
     "SecureLinear",
     "LogRowQ7SessionEstimate",
     "estimate_logrow_q7_session_reference",
+    "prepare_logrow_q7_session_reference",
     "prepare_logrow_q7_tensor_reference",
 ]
 
@@ -84,6 +85,35 @@ def estimate_logrow_q7_session_reference(
     if not isinstance(digest, list) or len(digest) != 32:
         raise ValueError("invalid LogRow Q7 profile digest")
     return LogRowQ7SessionEstimate(profile_digest=bytes(digest), **document)
+
+
+def prepare_logrow_q7_session_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+    max_decode_steps: int,
+    max_session_evaluator_material_bytes: int,
+) -> LogRowQ7SessionReference:
+    """Preissue all bounded Q7 SiLU material offline in semantic order.
+
+    The opaque in-process handle consumes each tensor once, and abort/drop
+    burns the remainder. It is not selectable by Pipeline or Experiment.
+    """
+    from pllm import _native
+    from pllm.modeling import ModelPlan
+
+    if type(plan) is not ModelPlan:
+        raise TypeError("plan must be an immutable ModelPlan")
+    return _native.prepare_logrow_q7_session_reference(
+        plan.canonical_bytes(),
+        profile,
+        max_elements,
+        max_evaluator_material_bytes,
+        max_decode_steps,
+        max_session_evaluator_material_bytes,
+    )
 
 
 def prepare_logrow_q7_tensor_reference(

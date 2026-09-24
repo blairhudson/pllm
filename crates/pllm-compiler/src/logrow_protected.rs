@@ -43,6 +43,7 @@ impl ExperimentalLogRowQ7Policy {
 
 /// Per-tensor resource admission for a bounded, in-process research reference.
 /// Neither a production-security claim nor an inference component selection.
+#[derive(Clone, Copy)]
 pub struct ExperimentalLogRowQ7TensorPolicy {
     max_elements: usize,
     max_evaluator_material_bytes: usize,
