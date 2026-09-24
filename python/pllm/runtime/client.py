@@ -87,6 +87,7 @@ from .types import Response, ResponseEvent, ResponseUsage, new_id
 
 if TYPE_CHECKING:
     from pllm.configuration import Experiment, ExperimentProfile, Model
+    from pllm.runtime.model_binding import CompiledRuntimeModel
 
 T = TypeVar("T")
 
@@ -856,6 +857,7 @@ class RuntimeClient:
             self.experiment = experiment.resolve()
         else:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
+        self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
         if (
             self.experiment is not None
             and default_model is not None
@@ -1445,6 +1447,58 @@ class RuntimeClient:
                 raise ProtocolError("Experiment requires seeded-inventory preparation", 409)
             return state
 
+    def _compiled_public_decoder(
+        self,
+        state: _TransformerCryptoState,
+        *,
+        max_input_tokens: int,
+        max_new_tokens: int,
+    ) -> Any | None:
+        """Bind supported baseline execution before claiming any prepared rows."""
+        if state.privacy_mode != "public" or state.bundle.privacy.get(
+            "verification_component", "none"
+        ) != "none":
+            return None
+        from pllm.configuration import Model, Pipeline
+        from pllm.modeling import lower_model
+        from pllm.profiles import MaskedLinearCpu
+        from pllm.quantization import SymmetricPerRow
+        from .model_binding import compile_runtime_model
+
+        if self._experiment_budget is not None and (
+            max_input_tokens > self._experiment_budget.max_input_tokens
+            or max_new_tokens > self._experiment_budget.max_new_tokens
+        ):
+            raise ModelError("response exceeds its immutable Experiment workload bounds")
+        if self.experiment is not None:
+            composition = Pipeline.from_spec(json.loads(self.experiment.canonical_composition))
+        else:
+            composition = MaskedLinearCpu(
+                Model(state.bundle.model_id),
+                quantization=SymmetricPerRow(
+                    weight_bits=int(state.bundle.privacy["weight_bits"]),
+                    activation_bits=int(state.bundle.privacy["activation_bits"]),
+                ),
+            )
+        try:
+            plan = lower_model(
+                state.bundle.cfg,
+                batch=1,
+                max_input_tokens=max_input_tokens,
+                max_new_tokens=max_new_tokens,
+            )
+        except ValueError as exc:
+            if "has no decoder adapter" not in str(exc):
+                raise
+            # Existing import-only decoders stay on the already admitted
+            # runtime graph until they lower into the shared semantic IR.
+            return None
+        if not plan.coverage(composition).complete:
+            # Existing runtime-only operators remain on their separately admitted
+            # path until their generic compiler capabilities are implemented.
+            return None
+        return compile_runtime_model(plan, state.bundle, composition=composition)
+
     def _prepare_inventory_locked(
         self,
         model_id: str,
@@ -1811,7 +1865,11 @@ class RuntimeClient:
         *,
         max_output_tokens: int,
         required_rows: int | None = None,
+        compiled: CompiledRuntimeModel | None = None,
+        semantic_input_tokens: int | None = None,
     ) -> tuple[dict[str, Any], _TransformerCryptoState, Any | None]:
+        if compiled is not None and (type(semantic_input_tokens) is not int or semantic_input_tokens < 1):
+            raise ModelError("compiled session is missing its input bound")
         state = self._transformer_state(model_id)
         prepared_public = state.privacy_mode == "public"
         provider: Any | None
@@ -1856,6 +1914,15 @@ class RuntimeClient:
                 session_body["inventory_id"] = provider.inventory_id
                 session_body["inventory_start"] = provider.reservation_start
                 session_body["inventory_rows"] = provider.reservation_rows
+                if compiled is not None:
+                    session_body["decoder_plan"] = {
+                        "schema": "pllm.decoder_session.v1",
+                        "digest": compiled.model_plan_digest,
+                        "max_input_tokens": semantic_input_tokens,
+                        "body_fingerprint": compiled.to_spec()["body_fingerprint"],
+                        "stage_commitment": compiled.to_spec()["stage_commitment"],
+                        "runtime_config_digest": compiled.runtime_config_digest,
+                    }
             if state.context_ids:
                 session_body["context_ids"] = list(state.context_ids.values())
             online_started = False
@@ -2524,12 +2591,19 @@ class RuntimeClient:
                     tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
                 ) + len(candidate.pending_token_ids)
         required_rows = required_input_rows + max(0, max_tokens - 1)
+        compiled = self._compiled_public_decoder(
+            state,
+            max_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
+            max_new_tokens=max_tokens,
+        )
         if state.privacy_mode == "public":
             self._ensure_prepared_inventory(model_id, state, required_rows)
         session_value, state, provider = self._open_transformer_session(
             model_id,
             max_output_tokens=max_tokens,
             required_rows=required_rows,
+            compiled=compiled,
+            semantic_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
         )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
@@ -2637,12 +2711,21 @@ class RuntimeClient:
                 raise ModelError("public mode requires a correlation provider")
             remote = RemoteLinear(state.bundle.stages, provider, exchange)
         try:
-            runtime = MaskedTransformerClientRuntime(
-                state.bundle,
-                remote,
-                token_cache=state.token_cache,
-                token_cache_size=self.token_cache_size,
-                token_cache_lock=state.token_cache_lock,
+            runtime = (
+                compiled.runtime(
+                    remote,
+                    token_cache=state.token_cache,
+                    token_cache_size=self.token_cache_size,
+                    token_cache_lock=state.token_cache_lock,
+                )
+                if compiled is not None
+                else MaskedTransformerClientRuntime(
+                    state.bundle,
+                    remote,
+                    token_cache=state.token_cache,
+                    token_cache_size=self.token_cache_size,
+                    token_cache_lock=state.token_cache_lock,
+                )
             )
         except BaseException:
             abandon_transformer_session()

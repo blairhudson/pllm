@@ -90,6 +90,42 @@ def test_serve_accepts_python_experiment_target(
     assert len(data["experiment"]["configuration_digest"]) == 64
 
 
+@pytest.mark.parametrize("role", ["inference", "preparation"])
+@pytest.mark.parametrize("bits", [4, 8])
+def test_serve_experiment_binds_numeric_choice_and_rejects_overrides(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    role: str,
+    bits: int,
+) -> None:
+    from pllm.cli import main
+
+    from pllm import Deployment, ExecutionBudget, Experiment
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.sources import TinyModel
+
+    experiment = Experiment(
+        name="serve-numeric",
+        pipeline=MaskedLinearCpu(
+            TinyModel(model_id="serve-numeric"),
+            quantization=SymmetricPerRow(weight_bits=bits, activation_bits=bits),
+        ),
+        deployment=Deployment.local(root="local://serve-numeric"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    )
+    target = tmp_path / "experiment.json"
+    target.write_bytes(experiment.canonical_bytes())
+    prefix = ["--format", "json", "--no-input", "serve", role, "--experiment", str(target)]
+    main([*prefix, "--dry-run"])
+    data = json.loads(capsys.readouterr().out)["data"]
+    assert data["weight_bits"] == data["activation_bits"] == bits
+
+    with pytest.raises(SystemExit, match="3"):
+        main([*prefix, "--weight-bits", str(8 if bits == 4 else 4), "--dry-run"])
+    assert json.loads(capsys.readouterr().err)["error"]["code"] == "SERVE_EXPERIMENT_CONFLICT"
+
+
 def test_local_gateway_accepts_python_experiment_target(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

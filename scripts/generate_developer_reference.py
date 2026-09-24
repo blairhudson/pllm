@@ -1877,7 +1877,10 @@ def render_python_status() -> str:
         "## Decoder architecture compatibility\n\n",
         f"**{len(adapters)} checked semantic adapters**, "
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
-        "and **one pinned real-checkpoint functionality path** (Qwen2.5-0.5B). "
+        "and **2 pinned local real-checkpoint functionality paths** "
+        "(Qwen2.5-0.5B and Qwen3-0.6B). "
+        "Tiny Qwen2/Qwen3 role-backed requests share the compiler-bound execution "
+        "schedule with local numeric tests. "
         "No protected whole-decoder model execution is established. Lowering a config does not "
         "load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic "
         "test does not establish real-model quality. Rows describe text decoder scope only.\n\n",

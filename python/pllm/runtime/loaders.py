@@ -44,17 +44,50 @@ def load_hf_directory(path: str | Path, *, model_id: str | None = None, source_f
     weights = sorted(p.name for p in root.glob("*.safetensors")) + sorted(p.name for p in root.glob("*.bin"))
     model_type = str(cfg.get("model_type", raw.get("model_type", ""))).lower()
     is_gemma4 = "gemma4" in architecture.lower() or model_type in {"gemma4", "gemma4_text"}
-    stages = gemma4_stage_plan(cfg, include_lm_head=True) if is_gemma4 else transformer_stage_plan(
-        hidden_size=hidden,
-        intermediate_size=intermediate,
-        num_hidden_layers=layers,
-        num_attention_heads=heads,
-        num_key_value_heads=kv_heads,
-        head_dim=head_dim,
-        vocab_size=vocab,
-    )
+    identity = model_id or str(raw.get("name_or_path") or root.name)
+    from pllm.configuration import Model
+    from pllm.modeling import lower_model
+    from pllm.profiles import MaskedLinearCpu
+
+    from .semantic_stages import scheduled_stage_specs
+
+    composition = MaskedLinearCpu(Model(identity))
+    try:
+        semantic_plan = lower_model(raw, batch=1, max_input_tokens=1, max_new_tokens=1)
+    except ValueError as exc:
+        if not any(
+            marker in str(exc)
+            for marker in ("has no decoder adapter", "model_type must be a string")
+        ):
+            raise ModelLoadError("model cannot lower into the semantic decoder") from exc
+        semantic_plan = None
+    if semantic_plan is not None and semantic_plan.coverage(composition).complete:
+        try:
+            stages = scheduled_stage_specs(semantic_plan, composition)
+        except ValueError as exc:
+            raise ModelLoadError("semantic decoder cannot materialize its stages") from exc
+    elif is_gemma4:
+        # Existing Gemma 4 runtime remains explicitly uncompiled until its
+        # extra operator/state contracts are executable in the shared schedule.
+        stages = gemma4_stage_plan(cfg, include_lm_head=True)
+    elif semantic_plan is None:
+        # Inspection of sources without a lowering adapter retains its legacy
+        # descriptive stage metadata. Such a manifest is not a compiled plan.
+        stages = transformer_stage_plan(
+            hidden_size=hidden,
+            intermediate_size=intermediate,
+            num_hidden_layers=layers,
+            num_attention_heads=heads,
+            num_key_value_heads=kv_heads,
+            head_dim=head_dim,
+            vocab_size=vocab,
+        )
+    else:
+        # Importing and hashing a checkpoint is independent of executable
+        # decoder coverage. Do not invent a dense schedule for missing pieces.
+        stages = []
     manifest = ModelManifest(
-        id=model_id or str(raw.get("name_or_path") or root.name),
+        id=identity,
         architecture=architecture,
         source_format=source_format,
         source=str(root.resolve()),

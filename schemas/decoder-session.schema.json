@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.run/schemas/decoder-session.schema.json",
+  "title": "PLLM public decoder session commitment",
+  "description": "Public plan, body, stage and configuration commitments exchanged before consuming prepared material. This is not a session handle or a secret-material record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "digest", "max_input_tokens", "body_fingerprint", "stage_commitment", "runtime_config_digest"],
+  "properties": {
+    "schema": {"const": "pllm.decoder_session.v1"},
+    "digest": {"$ref": "#/$defs/digest"},
+    "max_input_tokens": {"type": "integer", "minimum": 1},
+    "body_fingerprint": {"$ref": "#/$defs/digest"},
+    "stage_commitment": {"$ref": "#/$defs/digest"},
+    "runtime_config_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

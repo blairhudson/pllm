@@ -18,7 +18,7 @@ from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.model_execution import CompiledRuntimeSession, RuntimeExecutionError
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
-from pllm.runtime.transformer_client import ClientBundle, RemoteLinear
+from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime, RemoteLinear
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
@@ -61,6 +61,78 @@ def _compiled(
         return np.ascontiguousarray(result, dtype=np.float32)
 
     return compiled, bundle, remote
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("tokens", [[2], [2, 3, 5]])
+def test_semantic_executor_matches_existing_numeric_decoder_across_phases(
+    tmp_path: Path, model_type: str, tokens: list[int]
+) -> None:
+    compiled, bundle, remote = _compiled(tmp_path, model_type=model_type)
+    semantic = compiled.runtime(remote)
+    legacy = MaskedTransformerClientRuntime(bundle, remote)
+    _, semantic_prefill, semantic_cache = semantic.prepare_ids(tokens)
+    _, legacy_prefill, legacy_cache = legacy.prepare_ids(tokens)
+    np.testing.assert_allclose(semantic_prefill, legacy_prefill, rtol=1e-5, atol=1e-5)
+    chosen = int(np.argmax(legacy_prefill))
+    np.testing.assert_allclose(
+        semantic.decode_step(chosen, semantic_cache)[0],
+        legacy.decode_step(chosen, legacy_cache)[0],
+        rtol=1e-5,
+        atol=1e-5,
+    )
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_provider_materializes_stages_from_semantic_schedule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model_type: str
+) -> None:
+    from pllm.configuration import Model
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.runtime import transformer_engine
+    from pllm.runtime.semantic_stages import scheduled_stage_specs
+
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model",
+        model_type=model_type,
+        qk_norm=model_type == "qwen3",
+        with_qkv_bias=model_type == "qwen2",
+    )
+    config = json.loads((root / "config.json").read_text())
+    plan = pllm.lower_model(config, batch=1, max_input_tokens=1, max_new_tokens=1)
+    expected = scheduled_stage_specs(plan, MaskedLinearCpu(Model("semantic-provider")))
+
+    def reject_legacy_stage_plan(**kwargs: object) -> None:
+        raise AssertionError("provider used the handwritten stage plan")
+
+    def reject_family_dispatch(*args: object) -> None:
+        raise AssertionError("provider used family-name dispatch")
+
+    monkeypatch.setattr(
+        transformer_engine, "transformer_stage_plan", reject_legacy_stage_plan, raising=False
+    )
+    monkeypatch.setattr(transformer_engine, "classify_architecture", reject_family_dispatch)
+    manifest = load_hf_directory(root, model_id="semantic-provider")
+    engine = MaskedTransformerEngine(threads=1)
+    asyncio.run(engine.load(manifest))
+    bundle = ClientBundle.unpack(engine.client_bundle("semantic-provider"))
+    assert (
+        pllm.lower_model(
+            engine.models["semantic-provider"].config,
+            batch=1,
+            max_input_tokens=2,
+            max_new_tokens=2,
+        ).digest
+        == pllm.lower_model(
+            bundle.cfg,
+            batch=1,
+            max_input_tokens=2,
+            max_new_tokens=2,
+        ).digest
+    )
+    assert [(row.id, row.role, row.weight_keys) for row in manifest.stages] == [
+        (row.id, row.role, row.weight_keys) for row in expected
+    ]
 
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])

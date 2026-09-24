@@ -43,7 +43,7 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "qkv-bias", "rmsnorm", "gated-silu", "kv-cache"],
       "baseline_blockers": [],
-      "runtime_evidence": "Pinned Qwen2.5-0.5B real-checkpoint prefill/decode functionality test; local role path and historical baseline cohort",
+      "runtime_evidence": "Pinned Qwen2.5-0.5B local prefill/decode functionality test; tiny compiled two-role protocol test. The historical baseline cohort predates compiler-bound live execution",
       "remaining": "Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent",
       "guide": "/sdk/models/families/qwen2/"
     },
@@ -55,8 +55,8 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "head-width", "qk-norm"],
       "baseline_blockers": [],
-      "runtime_evidence": "Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; scoped clear-reference probes, no provider benchmark",
-      "remaining": "W4A4 fails top-token parity on two checked prompts; the local-role default W8A8 also fails one short prompt. Quantization-quality, serving and matched benchmark evidence, and protected whole-decoder execution remain open",
+      "runtime_evidence": "Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark",
+      "remaining": "W4A4 fails top-token parity on two checked prompts; the local-role default W8A8 also fails one short prompt. Quantization-quality, real-checkpoint serving and matched benchmark evidence, and protected whole-decoder execution remain open",
       "guide": "/sdk/models/families/qwen3/"
     },
     {

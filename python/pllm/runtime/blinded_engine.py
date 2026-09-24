@@ -78,6 +78,7 @@ class BlindedTransformerEngine(MaskedTransformerEngine):
         loaded.manifest.metadata.update(
             {
                 "privacy_mode": "proprietary",
+                "decoder_execution": "legacy_proprietary_runtime_v1",
                 "privacy_protocol": "blinded_ole_w4a4",
                 "client_runtime": "blinded_ole_transformer_v1",
                 "online_fhe": False,

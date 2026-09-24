@@ -44,6 +44,7 @@ class DirectFHETransformerEngine(MaskedTransformerEngine):
         loaded.manifest.metadata.update(
             {
                 "privacy_mode": "proprietary",
+                "decoder_execution": "legacy_proprietary_runtime_v1",
                 "privacy_protocol": "direct_bfv_w4a4",
                 "client_runtime": "direct_fhe_transformer_v1",
                 "online_fhe": True,

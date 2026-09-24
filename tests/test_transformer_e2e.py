@@ -19,6 +19,7 @@ from pllm.runtime.preparation_protocol import CorrectionPush, PreparationAck, Se
 from pllm.runtime.protocol import encode_length_prefixed
 from pllm.runtime.stage_protocol import MaskedStageRequest
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
+from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
@@ -103,8 +104,13 @@ def test_tiny_gemma_responses_api_keeps_prompt_local(tmp_path: Path):
         preparation.close()
 
 
-def test_verified_seeded_preparation_executes_end_to_end(tmp_path: Path):
-    root = create_tiny_gemma4_checkpoint(tmp_path / "verified-tiny")
+@pytest.mark.parametrize("model_type", ["gemma4", "qwen2"])
+def test_verified_seeded_preparation_executes_end_to_end(tmp_path: Path, model_type: str):
+    root = (
+        create_tiny_gemma4_checkpoint(tmp_path / "verified-tiny")
+        if model_type == "gemma4"
+        else create_tiny_llama_checkpoint(tmp_path / "verified-tiny", num_hidden_layers=1)
+    )
     model_id = "tiny-verified-pllm"
     component = "pllm/freivalds-verify/v1"
     engine = MaskedTransformerEngine(

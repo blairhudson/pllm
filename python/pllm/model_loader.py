@@ -36,6 +36,19 @@ _DIRECTORY_PATTERNS = (
 )
 
 
+def expected_model_id(model: Model) -> str:
+    """Resolve the public source's model identity without loading its weights."""
+    if model.model_id is not None:
+        return model.model_id
+    if model.kind == "tiny":
+        return "pllm-tiny-qwen2"
+    if model.kind in {"huggingface", "safetensors", "vllm"}:
+        local = Path(model.source).expanduser()
+        if local.is_dir() and (local / "config.json").is_file():
+            return local.resolve().name
+    return model.source
+
+
 @dataclass(frozen=True, slots=True)
 class ResolvedModel:
     model: Model
@@ -259,7 +272,7 @@ def _resolve_model(
         local = Path(model.source).expanduser()
         if allow_config_only and local.is_dir() and (local / "config.json").is_file():
             path = local.resolve()
-            model_id = model.model_id or path.name
+            model_id = expected_model_id(model)
             manifest = load_hf_directory(
                 path,
                 model_id=model_id,
@@ -303,7 +316,7 @@ def _resolve_model(
                 _materialize_tiny_model(path)
         manifest = load_hf_directory(
             path,
-            model_id=model.model_id or "pllm-tiny-qwen2",
+            model_id=expected_model_id(model),
             source_format="tiny",
         )
     elif model.kind == "ollama":

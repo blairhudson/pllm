@@ -4,6 +4,8 @@ import dataclasses
 import hashlib
 import json
 import math
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -18,10 +20,12 @@ from pllm.runtime.quantization import (
     choose_wire_bits,
     signed_dot_bound,
 )
-from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime
+from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
+from pllm.runtime.transformer_client import ClientBundle
 
 if TYPE_CHECKING:
     from pllm.runtime.model_execution import CompiledRuntimeSession
+    from pllm.runtime.semantic_executor import SemanticDecoderRuntime
 
 BINDING_SCHEMA = "pllm.runtime_model_binding.v1"
 BINDING_DOMAIN = b"pllm.runtime_model_binding.v1\0"
@@ -88,7 +92,6 @@ class CompiledRuntimeModel:
         "_runtime_config_digest",
         "_canonical_composition",
         "_runtime_schedule_digest",
-        "_stage_routes",
         "_stages",
         "_tokenizer_digest",
     )
@@ -110,7 +113,6 @@ class CompiledRuntimeModel:
         runtime_config_digest: str,
         canonical_composition: bytes,
         runtime_schedule_digest: str,
-        stage_routes: dict[str, str],
         tokenizer_digest: str,
     ) -> CompiledRuntimeModel:
         self = object.__new__(cls)
@@ -124,7 +126,6 @@ class CompiledRuntimeModel:
         self._runtime_config_digest = runtime_config_digest
         self._canonical_composition = canonical_composition
         self._runtime_schedule_digest = runtime_schedule_digest
-        self._stage_routes = dict(stage_routes)
         self._tokenizer_digest = tokenizer_digest
         return self
 
@@ -184,27 +185,46 @@ class CompiledRuntimeModel:
             raise RuntimeBindingError("bound plan or bundle changed since compilation")
 
     def runtime(
-        self, remote: Callable[[str, np.ndarray], np.ndarray]
-    ) -> MaskedTransformerClientRuntime:
+        self,
+        remote: Callable[[str, np.ndarray], np.ndarray],
+        *,
+        token_cache: OrderedDict[int, np.ndarray] | None = None,
+        token_cache_size: int = 512,
+        token_cache_lock: threading.Lock | None = None,
+        nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
+    ) -> SemanticDecoderRuntime:
         self.validate()
-        return MaskedTransformerClientRuntime(
+        from .semantic_executor import SemanticDecoderRuntime
+
+        composition = Pipeline.from_spec(json.loads(self._canonical_composition))
+        schedule = self._plan.runtime_schedule(composition).to_dict()
+        bindings = {
+            operation: stage.stage_id
+            for stage in self._stages
+            for operation in stage.semantic_operations
+        }
+        local_tensors = {
+            row["weight_id"]: row["key"] for row in self.to_spec()["local_tensors"]
+        }
+        return SemanticDecoderRuntime(
             self._bundle,
             remote,
-            stage_routes=self._stage_routes,
+            plan=self._plan,
+            schedule=schedule,
+            stages=bindings,
+            tensors=local_tensors,
+            token_cache=token_cache,
+            token_cache_size=token_cache_size,
+            token_cache_lock=token_cache_lock,
+            nonlinear_evaluator=nonlinear_evaluator,
         )
 
     def _runtime_with_nonlinear(
         self,
         remote: Callable[[str, np.ndarray], np.ndarray],
         evaluator: Callable[[int, np.ndarray], np.ndarray],
-    ) -> MaskedTransformerClientRuntime:
-        self.validate()
-        return MaskedTransformerClientRuntime(
-            self._bundle,
-            remote,
-            stage_routes=self._stage_routes,
-            nonlinear_evaluator=evaluator,
-        )
+    ) -> SemanticDecoderRuntime:
+        return self.runtime(remote, nonlinear_evaluator=evaluator)
 
     def session(
         self,
@@ -528,81 +548,6 @@ def _validate_runtime_semantics(
         )
 
 
-def _graph_reaches(
-    start: str,
-    target: str,
-    operations: dict[str, dict[str, Any]],
-    *,
-    reverse: bool = False,
-) -> bool:
-    consumers: dict[str, list[str]] = {}
-    if not reverse:
-        for operation_id, operation in operations.items():
-            for source in operation.get("inputs") or ():
-                if source in operations:
-                    consumers.setdefault(source, []).append(operation_id)
-    frontier = [start]
-    visited: set[str] = set()
-    for _ in range(5):
-        next_frontier: list[str] = []
-        for operation_id in frontier:
-            if operation_id in visited:
-                continue
-            visited.add(operation_id)
-            operation = operations.get(operation_id)
-            if operation is None:
-                continue
-            if operation.get("operator") == target:
-                return True
-            if reverse:
-                next_frontier.extend(
-                    source for source in operation.get("inputs") or () if source in operations
-                )
-            else:
-                next_frontier.extend(consumers.get(operation_id, ()))
-        frontier = next_frontier
-    return False
-
-
-def _semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, Any]]) -> str:
-    operators = step.get("operators")
-    if isinstance(operators, list) and operators and set(operators) == {"token_lookup"}:
-        return "token_lookup"
-    if operators == ["output_head"]:
-        return "lm_head"
-    operation_ids = step.get("operation_ids")
-    if not isinstance(operation_ids, list) or not operation_ids:
-        raise RuntimeBindingError("remote stage is missing semantic operation identities")
-    if (
-        len(operation_ids) == 3
-        and sum(
-            _graph_reaches(operation_id, "rotary_embedding", operations)
-            for operation_id in operation_ids
-        )
-        == 2
-    ):
-        return "qkv_projection"
-    if (
-        len(operation_ids) == 2
-        and all(
-            _graph_reaches(operation_id, "multiply", operations) for operation_id in operation_ids
-        )
-        and sum(_graph_reaches(operation_id, "silu", operations) for operation_id in operation_ids)
-        == 1
-    ):
-        return "mlp_gate_up"
-    if len(operation_ids) == 1:
-        input_ids = step.get("input_ids")
-        if not isinstance(input_ids, list) or len(input_ids) != 1:
-            raise RuntimeBindingError("remote linear stage must have one semantic input")
-        source = input_ids[0]
-        if _graph_reaches(source, "attention_values", operations, reverse=True):
-            return "attention_output"
-        if _graph_reaches(source, "multiply", operations, reverse=True):
-            return "mlp_down"
-    raise RuntimeBindingError("remote stage topology is not implemented")
-
-
 def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
     if not isinstance(descriptor, dict):
         raise RuntimeBindingError("client bundle tokenizer descriptor must be a mapping")
@@ -651,6 +596,10 @@ def compile_runtime_model(
         raise RuntimeBindingError(
             "compiled runtime does not yet accept a verifier-bound remote executor"
         )
+    from pllm.model_loader import expected_model_id
+
+    if expected_model_id(composition.model) != bundle.model_id:
+        raise RuntimeBindingError("composition model differs from the imported checkpoint")
     canonical_composition = composition.canonical_bytes()
     try:
         plan.coverage(composition)
@@ -854,10 +803,7 @@ def compile_runtime_model(
         )
         if not valid:
             raise RuntimeBindingError(f"bundle stage {stage_id!r} spec row is inconsistent")
-        expected_fused = (
-            [weight_key.rsplit(".", 2)[-2] for weight_key in row_keys] if len(row_keys) > 1 else []
-        )
-        if row_fused != expected_fused:
+        if len(row_fused) not in {0, len(row_keys)}:
             raise RuntimeBindingError(f"bundle stage {stage_id!r} fused order is inconsistent")
 
     manifest_metadata = manifest.get("metadata")
@@ -978,10 +924,18 @@ def compile_runtime_model(
                     f"native {phase} runtime stage does not match its semantic operation"
                 )
             operations = prefill_ops if phase == "prefill" else decode_ops
-            if remote_stage.role != _semantic_stage_role(step, operations):
+            try:
+                expected_role = semantic_stage_role(step, operations)
+            except ValueError as exc:
+                raise RuntimeBindingError("remote stage topology is not implemented") from exc
+            if remote_stage.role != expected_role:
                 raise RuntimeBindingError(
                     f"native {phase} runtime stage role does not match plan topology"
                 )
+            if spec_rows[remote_stage.id].get("fused_from") != list(
+                semantic_fused_roles(expected_role)
+            ):
+                raise RuntimeBindingError("remote stage fused order disagrees with semantic roles")
             semantic_weights = step.get("weight_ids")
             manifest_weights = spec_rows[remote_stage.id].get("weight_keys")
             if (
@@ -1573,11 +1527,6 @@ def compile_runtime_model(
         "tokenizer_digest": tokenizer_digest,
     }
     canonical_bytes = _canonical_json(spec)
-    stage_routes = {
-        f"{stage.role}:{stage.layer_index}": stage.stage_id
-        for stage in bindings
-        if stage.layer_index is not None
-    }
     return CompiledRuntimeModel._create(
         plan=plan,
         bundle=bundle,
@@ -1589,7 +1538,6 @@ def compile_runtime_model(
         runtime_config_digest=runtime_config_digest,
         canonical_composition=canonical_composition,
         runtime_schedule_digest=runtime_schedule_digest,
-        stage_routes=stage_routes,
         tokenizer_digest=tokenizer_digest,
     )
 

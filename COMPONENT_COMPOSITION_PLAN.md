@@ -91,6 +91,19 @@ profile classes or paper/model names.
 - Make `Pipeline.from_spec()` sufficient for every supported composition.
 - Keep existing convenience profiles covered by parity and end-to-end tests.
 
+The baseline public Qwen2/Qwen3 vertical slice now materializes provider
+stages from semantic weight and bias artifacts, executes the same prefill/decode
+graph in the client, and checks a bounded plan/body contract at session start.
+Tiny two-role and pinned local-checkpoint tests cover the path. The remaining
+removal gates are generic compiler coverage for Gemma local/global attention,
+PLE and shared state; verifier-bound execution for the prepared verified path;
+source adapters for existing llama-compatible imports; and explicit
+protocol/placement contracts for proprietary runtimes. Until
+those gates pass, their older runtimes stay separately identified instead of
+being silently relabeled compiled execution. The live temperature/top-p sampler
+also needs a request-bound selection contract; the decoder plan's greedy reference
+operator currently does not describe non-greedy response selection.
+
 ## Phase 4: protected execution composition
 
 Replace the former `research.single_evaluator` target with ordinary components:

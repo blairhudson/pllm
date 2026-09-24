@@ -6,9 +6,11 @@ public records only. Live runtime, session, secret, and prepared-material handle
 `experiment.schema.json` matches production `pllm.experiment.v2`. Plan schemas define accepted 0.1
 architecture contracts; their presence does not claim compiler implementation. Evidence schemas
 keep measurements and scoped assurance outcomes separate from claims.
+`decoder-session.schema.json` covers only the public plan/body commitments supplied before a
+prepared session; it does not serialize session handles, one-use material, or client secrets.
 
 Research provenance uses separate source-record, upstream-artifact-lock, method-record, and
 reproduction-recipe schemas. Recipe source acquisition and workflow execution are independent.
 
-Run `python3 research/validate.py` for dependency-free schema and experiment-fixture checks.
-Production YAML parity is covered by `tests/test_configuration.py`.
+Run `uv run --frozen --all-extras pytest tests/test_configuration.py -q` to validate the
+canonical schemas and experiment fixtures.

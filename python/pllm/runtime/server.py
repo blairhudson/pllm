@@ -723,6 +723,87 @@ def create_app(
                     }
                 },
             )
+        decoder_contract = body.get("decoder_plan")
+        if (
+            imported_manifest is not None
+            and imported_manifest.metadata.get("decoder_execution") == "semantic_schedule_v1"
+            and imported_manifest.metadata.get("privacy_mode") == "public"
+            and body.get("execution") == "seeded-preparation"
+            and decoder_contract is None
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={"error": {"message": "Compiled decoder contract is required"}},
+            )
+        if decoder_contract is not None:
+            required_fields = {
+                "schema",
+                "digest",
+                "max_input_tokens",
+                "body_fingerprint",
+                "stage_commitment",
+                "runtime_config_digest",
+            }
+            digest = decoder_contract.get("digest") if isinstance(decoder_contract, dict) else None
+            bound = (
+                decoder_contract.get("max_input_tokens")
+                if isinstance(decoder_contract, dict)
+                else None
+            )
+            output_bound = body.get("max_output_tokens")
+            if (
+                not isinstance(decoder_contract, dict)
+                or set(decoder_contract) != required_fields
+                or decoder_contract.get("schema") != "pllm.decoder_session.v1"
+                or imported_manifest is None
+                or engine_name is None
+                or body.get("execution") != "seeded-preparation"
+                or imported_manifest.metadata.get("decoder_execution") != "semantic_schedule_v1"
+                or type(digest) is not str
+                or len(digest) != 64
+                or any(char not in "0123456789abcdef" for char in digest)
+                or type(bound) is not int
+                or bound < 1
+                or type(output_bound) is not int
+                or output_bound < 1
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": {"message": "Compiled decoder contract is invalid"}},
+                )
+            committed = {
+                "body_fingerprint": imported_manifest.metadata.get("body_fingerprint"),
+                "stage_commitment": imported_manifest.metadata.get("seeded_stage_commitment"),
+                "runtime_config_digest": imported_manifest.metadata.get("runtime_config_digest"),
+            }
+            if any(decoder_contract.get(key) != value for key, value in committed.items()):
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": {"message": "Compiled decoder body differs from provider"}},
+                )
+            from pllm.modeling import lower_model
+
+            try:
+                provider_models = getattr(engines[engine_name], "models", None)
+                if not isinstance(provider_models, dict):
+                    raise ValueError("provider has no semantic model inventory")
+                provider_config = provider_models[model_id].config
+                provider_plan = lower_model(
+                    provider_config,
+                    batch=1,
+                    max_input_tokens=bound,
+                    max_new_tokens=output_bound,
+                )
+            except (AttributeError, KeyError, TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": {"message": "Compiled decoder is not available"}},
+                ) from exc
+            if provider_plan.digest != digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": {"message": "Compiled decoder plan differs from provider"}},
+                )
         session_id = new_id("rts")
         session = RuntimeSession(session_id, new_id("resp"), model_id, api_key)
         session.execution = str(body.get("execution") or "runtime")

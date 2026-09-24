@@ -419,21 +419,67 @@ class MaskedTransformerEngine:
         )
         config = dict(config)
 
-        profile = classify_architecture(manifest, config)
-        if profile.stage_plan == "gemma4":
-            stages = gemma4_stage_plan(config, include_lm_head=True)
-        else:
-            stages = transformer_stage_plan(
-                hidden_size=manifest.hidden_size,
-                intermediate_size=manifest.intermediate_size,
-                num_hidden_layers=manifest.num_hidden_layers,
-                num_attention_heads=manifest.num_attention_heads,
-                num_key_value_heads=manifest.num_key_value_heads,
-                head_dim=manifest.head_dim,
-                vocab_size=manifest.vocab_size,
-                include_embedding=True,
-                include_lm_head=True,
+        from pllm.configuration import Model
+        from pllm.modeling import lower_model
+        from pllm.profiles import MaskedLinearCpu
+        from pllm.quantization import SymmetricPerRow
+
+        from .semantic_stages import scheduled_stage_specs
+
+        composition = MaskedLinearCpu(
+            Model(manifest.id),
+            quantization=SymmetricPerRow(
+                weight_bits=self.weight_bits, activation_bits=self.activation_bits
+            ),
+        )
+        try:
+            semantic_plan = lower_model(
+                raw_config, batch=1, max_input_tokens=1, max_new_tokens=1
             )
+        except ValueError as exc:
+            if not any(
+                marker in str(exc)
+                for marker in ("has no decoder adapter", "model_type must be a string")
+            ):
+                raise TransformerEngineError("model cannot lower into the semantic decoder") from exc
+            semantic_plan = None
+        if semantic_plan is not None and semantic_plan.coverage(composition).complete:
+            try:
+                stages = scheduled_stage_specs(semantic_plan, composition)
+            except ValueError as exc:
+                raise TransformerEngineError("semantic decoder cannot materialize its stages") from exc
+            # These fields keep the existing bundle wire representation while
+            # the stage and execution graphs come solely from semantic lowering.
+            profile = ArchitectureProfile(
+                family="llama-compatible",
+                stage_plan="semantic",
+                block_style="llama",
+                norm_offset=0.0,
+                embedding_multiplier=1.0,
+                attention_scaling=None,
+            )
+        else:
+            profile = classify_architecture(manifest, config)
+            if profile.stage_plan == "gemma4":
+                stages = gemma4_stage_plan(config, include_lm_head=True)
+            elif semantic_plan is None:
+                # Existing sources without semantic adapters retain the older
+                # graph until an adapter passes parity and compiler admission.
+                stages = transformer_stage_plan(
+                    hidden_size=manifest.hidden_size,
+                    intermediate_size=manifest.intermediate_size,
+                    num_hidden_layers=manifest.num_hidden_layers,
+                    num_attention_heads=manifest.num_attention_heads,
+                    num_key_value_heads=manifest.num_key_value_heads,
+                    head_dim=manifest.head_dim,
+                    vocab_size=manifest.vocab_size,
+                    include_embedding=True,
+                    include_lm_head=True,
+                )
+            else:
+                raise TransformerEngineError(
+                    "checkpoint has no complete executable semantic decoder schedule"
+                )
         # Token-addressed tables are fused into one remote lookup. All learned
         # dense projections, including Gemma 4 PLE gate/projection matrices,
         # remain server-owned. The client bundle contains only normalization
@@ -442,31 +488,33 @@ class MaskedTransformerEngine:
         stages = [
             stage for stage in stages if stage.id not in {"embed_tokens_per_layer", "embed_tokens"}
         ]
-        stages.insert(
-            0,
-            StageSpec(
-                id="token_lookup",
-                op="embedding",
-                in_features=manifest.vocab_size,
-                out_features=manifest.hidden_size + manifest.num_hidden_layers * ple,
-                weight_keys=(
-                    "model.embed_tokens.weight",
-                    *(("model.embed_tokens_per_layer.weight",) if ple else ()),
+        if not any(stage.id == "token_lookup" for stage in stages):
+            stages.insert(
+                0,
+                StageSpec(
+                    id="token_lookup",
+                    op="embedding",
+                    in_features=manifest.vocab_size,
+                    out_features=manifest.hidden_size + manifest.num_hidden_layers * ple,
+                    weight_keys=(
+                        "model.embed_tokens.weight",
+                        *(("model.embed_tokens_per_layer.weight",) if ple else ()),
+                    ),
+                    transpose_weight=True,
+                    role="token_lookup",
+                    metadata={"ple_width": manifest.num_hidden_layers * ple},
                 ),
-                transpose_weight=True,
-                role="token_lookup",
-                metadata={"ple_width": manifest.num_hidden_layers * ple},
-            ),
-        )
+            )
         output_weight = (
             "model.embed_tokens.weight"
             if bool(config.get("tie_word_embeddings", False))
             else "lm_head.weight"
         )
-        stages = [
-            replace(stage, weight_keys=(output_weight,)) if stage.role == "lm_head" else stage
-            for stage in stages
-        ]
+        if profile.stage_plan != "semantic":
+            stages = [
+                replace(stage, weight_keys=(output_weight,)) if stage.role == "lm_head" else stage
+                for stage in stages
+            ]
         stages = [
             replace(
                 stage,
@@ -487,6 +535,18 @@ class MaskedTransformerEngine:
                 "activation_bits": self.activation_bits,
                 "model_family": profile.family,
                 "block_style": profile.block_style,
+                "stage_origin": (
+                    "semantic_schedule_v1"
+                    if profile.stage_plan == "semantic"
+                    else "legacy_stage_plan_v1"
+                ),
+                "decoder_execution": (
+                    "semantic_schedule_v1"
+                    if profile.stage_plan == "semantic" and self.verification_component == "none"
+                    else "legacy_verified_runtime_v1"
+                    if self.verification_component != "none"
+                    else "legacy_runtime_graph_v1"
+                ),
                 "privacy_mode": "public",
                 "privacy_protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
                 "verification_component": self.verification_component,
@@ -526,7 +586,7 @@ class MaskedTransformerEngine:
                 or "silu",
             }
         )
-        self.models[manifest.id] = LoadedTransformer(
+        loaded = LoadedTransformer(
             manifest=manifest,
             store=store,
             config=config,
@@ -534,6 +594,8 @@ class MaskedTransformerEngine:
             local_tensors=self._load_local_tensors(store),
             tokenizer=self._load_tokenizer_descriptor(source, manifest, config),
         )
+        self.models[manifest.id] = loaded
+        self._bundle_runtime_config(loaded)
 
     async def unload(self, model_id: str) -> None:
         if self.models.pop(model_id, None) is None:
@@ -548,7 +610,15 @@ class MaskedTransformerEngine:
         stage: StageSpec,
         manifest: ModelManifest,
     ) -> list[tuple[str, bool]]:
-        keys = stage.weight_keys or self._default_weight_keys(stage)
+        semantic = manifest.metadata.get("stage_origin") == "semantic_schedule_v1"
+        keys = stage.weight_keys if semantic else stage.weight_keys or self._default_weight_keys(stage)
+        if semantic:
+            if not keys:
+                raise TransformerEngineError(f"semantic stage {stage.id} has no declared weight")
+            return [
+                (store.resolve(key), stage.op == "embedding" or bool(stage.transpose_weight))
+                for key in keys
+            ]
         if stage.id == "token_lookup":
             output = [
                 (
@@ -797,8 +867,35 @@ class MaskedTransformerEngine:
         resolved = [key for key, _ in sources]
         source_shapes = [self._oriented_shape(store, key, transpose) for key, transpose in sources]
         quantized = self._quantize_sources(store, stage, sources)
-        bias = store.get_optional(stage.bias_keys, dtype=np.float32) if stage.bias_keys else None
-        if bias is None and stage.id != "token_lookup":
+        bias: np.ndarray | None = None
+        semantic = manifest.metadata.get("stage_origin") == "semantic_schedule_v1"
+        if semantic:
+            if stage.bias_keys and len(stage.bias_keys) != len(sources):
+                raise TransformerEngineError("semantic stage bias order disagrees with weights")
+            declared_parts: list[np.ndarray] = []
+            for index, ((resolved_key, _), shape) in enumerate(zip(sources, source_shapes, strict=True)):
+                declared = stage.bias_keys[index] if stage.bias_keys else ""
+                inferred = resolved_key.removesuffix(".weight") + ".bias"
+                if not declared and store.get_optional((inferred,), dtype=np.float32) is not None:
+                    raise TransformerEngineError("semantic stage contains an undeclared bias")
+                if declared:
+                    try:
+                        value = store.get(store.resolve(declared), dtype=np.float32)
+                    except TensorStoreError as exc:
+                        raise TransformerEngineError("semantic stage declared a missing bias") from exc
+                    if value is None:
+                        raise TransformerEngineError("semantic stage declared a missing bias")
+                    value = np.asarray(value, dtype=np.float32).reshape(-1)
+                    if value.shape != (shape[0],):
+                        raise TransformerEngineError("semantic stage bias has the wrong shape")
+                    declared_parts.append(value)
+                else:
+                    declared_parts.append(np.zeros(shape[0], dtype=np.float32))
+            if stage.bias_keys:
+                bias = np.concatenate(declared_parts)
+        else:
+            bias = store.get_optional(stage.bias_keys, dtype=np.float32) if stage.bias_keys else None
+        if bias is None and stage.id != "token_lookup" and not semantic:
             bias_parts: list[np.ndarray | None] = []
             any_bias = False
             for (resolved_key, _), shape in zip(sources, source_shapes, strict=True):
@@ -1310,6 +1407,39 @@ class MaskedTransformerEngine:
             results.append(self.evaluate_bfv_correlation(model_id, stage_id, context_id, payload))
         return results
 
+    @staticmethod
+    def _bundle_runtime_config(model: LoadedTransformer) -> dict[str, Any]:
+        config = dict(model.config)
+        norm_offset = float(config.get("norm_offset", 0.0))
+        block_style = str(config.get("block_style", "llama"))
+        config.update(
+            {
+                "rms_norm_centered": bool(norm_offset),
+                "norm_offset": norm_offset,
+                "embedding_multiplier": float(config.get("embedding_multiplier", 1.0)),
+                "block_style": block_style,
+                "model_family": config.get("model_family", "llama-compatible"),
+                "qk_norm": block_style == "gemma4"
+                or any(
+                    key.endswith(("q_norm.weight", "k_norm.weight")) for key in model.local_tensors
+                ),
+                "v_norm": block_style == "gemma4",
+                "prime_modulus": max(runtime.modulus for runtime in model.stages.values()),
+                "plain_moduli": sorted({runtime.modulus for runtime in model.stages.values()}),
+                "attention_scaling": config.get("attention_scaling"),
+            }
+        )
+        model.manifest.metadata["runtime_config_digest"] = hashlib.sha256(
+            json.dumps(
+                config,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode()
+        ).hexdigest()
+        return config
+
     def client_bundle(self, model_id: str, *, include_local_weights: bool = True) -> bytes:
         model = self._model(model_id)
         local_stage_ids = {"token_lookup", "lm_head"} if include_local_weights else set()
@@ -1377,35 +1507,7 @@ class MaskedTransformerEngine:
             }
             for key, value in model.local_tensors.items()
         }
-        config = dict(model.config)
-        norm_offset = float(config.get("norm_offset", 0.0))
-        block_style = str(config.get("block_style", "llama"))
-        config.update(
-            {
-                "rms_norm_centered": bool(norm_offset),
-                "norm_offset": norm_offset,
-                "embedding_multiplier": float(config.get("embedding_multiplier", 1.0)),
-                "block_style": block_style,
-                "model_family": config.get("model_family", "llama-compatible"),
-                "qk_norm": block_style == "gemma4"
-                or any(
-                    key.endswith(("q_norm.weight", "k_norm.weight")) for key in model.local_tensors
-                ),
-                "v_norm": block_style == "gemma4",
-                "prime_modulus": max(runtime.modulus for runtime in model.stages.values()),
-                "plain_moduli": sorted({runtime.modulus for runtime in model.stages.values()}),
-                "attention_scaling": config.get("attention_scaling"),
-            }
-        )
-        model.manifest.metadata["runtime_config_digest"] = hashlib.sha256(
-            json.dumps(
-                config,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            ).encode()
-        ).hexdigest()
+        config = self._bundle_runtime_config(model)
         return msgpack.packb(
             {
                 "v": 2,

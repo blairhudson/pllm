@@ -1043,6 +1043,15 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
                 "SERVE_EXPERIMENT_INVALID",
                 "experiment profile is not supported by local serving",
             )
+        for name in ("weight_bits", "activation_bits"):
+            selected = getattr(runtime_options, name)
+            explicit = getattr(args, name)
+            if explicit is not None and explicit != selected:
+                raise ResolutionError(
+                    "SERVE_EXPERIMENT_CONFLICT",
+                    f"--{name.replace('_', '-')} conflicts with the experiment quantization",
+                )
+            setattr(args, name, selected)
         if role == "preparation" and not runtime_options.requires_preparation:
             raise ResolutionError(
                 "SERVE_CONFIGURATION",
@@ -1120,6 +1129,8 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
                 and (item.get("model_id") or item.get("path") or item.get("name"))
             ],
             "port": args.port,
+            "weight_bits": args.weight_bits,
+            "activation_bits": args.activation_bits,
             "privacy_mode": effective_mode,
             "protocol": effective_protocol,
             "role": role,

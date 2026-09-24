@@ -120,7 +120,7 @@ only when a method has a genuinely different contract or lifecycle.
 Semantic adapter support, checkpoint import, runtime graph support, compiler
 operator coverage, protected/private parity, generation quality, benchmark
 evidence and deployment support are separate claims. A complete bounded semantic
-plan does not establish any later claim, and coverage is profile-scoped.
+plan does not establish any later claim, and coverage is composition-scoped.
 
 For batch-one untransformed plans, `baseline.masked_linear_cpu` now builds one
 model-neutral prefill/decode schedule from semantic operators, dependencies and
@@ -134,8 +134,25 @@ The same compiled binding and execution path is covered for tiny Qwen2 and dense
 Qwen3 checkpoints, including Qwen3 Q/K normalization. The pinned
 Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
-stage protocol. Gemma 4 semantic plans enter the same compiler scheduler but fail
-closed on local operators that the compiled runtime has not implemented.
+stage protocol. Public Qwen2/Qwen3 provider stage tables now derive ordered
+weights and declared biases from that schedule; the client binds it and runs
+semantic prefill/decode operations before reserving inventory. The inference
+role re-lowers the bounded plan and checks its digest, body, stage and runtime
+configuration commitments before accepting a compiler-bound session. This
+covers `gateway --local`, bare public client requests and loopback benchmarks;
+standalone experiment-backed provider roles receive the same numeric choices.
+Gemma 4 semantic plans enter the same compiler scheduler but fail closed on
+unsupported local operators; its older runtime graph remains separate for
+existing tiny transport tests. Sources without semantic lowering adapters still
+retain their older inspection/runtime graph; an adapter with incomplete compiled
+coverage cannot silently activate that graph, except for the separately labeled
+Gemma 4 compatibility path. Verified and proprietary live runtimes likewise
+remain outside this compiler-bound baseline until their executor and trust
+contracts are implemented. No real-checkpoint provider-cost or generation-quality
+claim follows from the tiny loopback parity tests. The compiled decoder produces
+logits; request-level temperature and top-p selection are still applied by the
+client outside the plan's greedy reference operator, and are not included in its
+execution digest.
 An explicit in-process LogRow research override can evaluate all SiLU tensors
 of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
 material and a separate execution digest. The wider public-range profile

@@ -20,7 +20,10 @@ secure erasure. Historical BFV results in the evidence archive are separate and
 are not reused as current-runtime evidence.
 
 The current model-neutral compiler binds baseline untransformed Qwen2 and dense
-Qwen3 schedules. Pinned Qwen2.5-0.5B and Qwen3-0.6B checkpoints pass separate
+Qwen3 schedules. The public two-role client now binds and executes this schedule
+for tiny Qwen2/Qwen3 prefill and decode, with the provider checking plan and body
+commitments at session start; verified and proprietary protocols are not yet
+compiler-bound. Pinned Qwen2.5-0.5B and Qwen3-0.6B checkpoints pass separate
 **clear native-kernel** prefill-to-decode functionality tests. Qwen3-0.6B's
 W4A4 path differs from the FP32 reference on two checked prompts, and
 its W8A8 path differs on a short prompt. These tests do not establish real-model

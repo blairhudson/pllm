@@ -22,7 +22,7 @@ from pllm.runtime.model_binding import (
 from pllm.runtime.models import ModelManifest, transformer_stage_plan
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime
-from pllm.runtime.transformer_engine import MaskedTransformerEngine
+from pllm.runtime.transformer_engine import MaskedTransformerEngine, TransformerEngineError
 
 
 def _composition(model_id: str = "tiny-binding") -> MaskedLinearCpu:
@@ -196,7 +196,15 @@ def test_runtime_shares_bundle_and_executes(tmp_path: Path):
     assert np.all(np.isfinite(logits))
 
     direct = MaskedTransformerClientRuntime(bundle, remote)
-    np.testing.assert_array_equal(logits, direct.forward_ids([0, 2]))
+    np.testing.assert_allclose(logits, direct.forward_ids([0, 2]), rtol=1e-5, atol=1e-5)
+
+
+def test_compiled_binding_rejects_another_model_source(tmp_path: Path) -> None:
+    _, bundle, config = _bundle(tmp_path)
+    with pytest.raises(RuntimeBindingError, match="composition model differs"):
+        compile_runtime_model(
+            _plan(config), bundle, composition=MaskedLinearCpu(pllm.Model("other/model"))
+        )
 
 
 def test_compiled_binding_uses_same_path_for_qwen3(tmp_path: Path):
@@ -222,7 +230,7 @@ def test_compiled_binding_uses_same_path_for_qwen3(tmp_path: Path):
     remote = _remote(engine, bundle.model_id, bundle)
     logits = compiled.runtime(remote).forward_ids([0, 2])
     direct = MaskedTransformerClientRuntime(bundle, remote).forward_ids([0, 2])
-    np.testing.assert_array_equal(logits, direct)
+    np.testing.assert_allclose(logits, direct, rtol=1e-5, atol=1e-5)
 
 
 def test_repeated_load_yields_identical_binding(tmp_path: Path):
@@ -937,9 +945,9 @@ def test_runtime_config_and_tokenizer_digests(tmp_path: Path):
     assert len(compiled.tokenizer_digest) == 64
     assert spec["runtime_config_digest"] == compiled.runtime_config_digest
     assert spec["runtime_schedule_digest"] == compiled.runtime_schedule_digest
-    assert compiled.runtime_schedule_digest == plan.runtime_schedule(
-        _composition(bundle.model_id)
-    ).digest
+    assert (
+        compiled.runtime_schedule_digest == plan.runtime_schedule(_composition(bundle.model_id)).digest
+    )
     assert spec["tokenizer_digest"] == compiled.tokenizer_digest
     serialized = json.dumps(spec)
     assert "chat_template" not in serialized
@@ -1041,9 +1049,8 @@ def test_rope_scaling_and_semantic_bias_contract(tmp_path: Path):
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, disabled_window)
 
-    _, unbiased_bundle, _ = _bundle(tmp_path / "unbiased", with_qkv_bias=False)
-    with pytest.raises(RuntimeBindingError):
-        compile_runtime_model(plan, unbiased_bundle)
+    with pytest.raises(TransformerEngineError, match="declared a missing bias"):
+        _bundle(tmp_path / "unbiased", with_qkv_bias=False)
 
     qkv_id = "layers.0.self_attn.qkv_proj"
     o_id = "layers.0.self_attn.o_proj"

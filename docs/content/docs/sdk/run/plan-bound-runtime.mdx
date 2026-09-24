@@ -6,11 +6,28 @@ description: "Separate immutable compiled identity from live inventory and reque
 [Experiments](/sdk/experiments/) and [plans](/sdk/plans/) bind model configuration,
 composition, workload, and coverage to digests. Live runtime state instead
 owns credentials, native executors, reservations, one-use corrections,
-connections, persistent KV state, and cancellation. Compiled Qwen2 and dense
-Qwen3 share a model-neutral semantic schedule; unsupported local operators,
-sliding attention, and verifier-bound execution fail closed rather than
-falling back to an unrecorded execution path. A syntactically valid pipeline
-is not whole-model coverage.
+connections, persistent KV state, and cancellation. For untransformed public
+Qwen2 and dense Qwen3, the provider loads stages directly from the semantic
+schedule and the client binds its exact weights, biases, tokenizer, numeric
+choices, local tensors, body, and stage commitments **before** preparing or
+reserving inventory. The inference role checks the same bounded decoder-plan
+digest and body commitments at session start. Prefill and decode run through
+the semantic operation executor. This path is shared by bare public SDK
+requests, `gateway --local`, `pllm benchmark run`, and the local
+`pllm benchmark quality` diagnostic. The quality benchmark uses a local clear
+stage adapter, not the prepared provider protocol.
+Temperature/top-p response sampling is still a client-side request policy after
+compiled decoder logits; it is not bound by the decoder plan's greedy reference
+selection operator. Treat compiled identity here as decoder/stage identity, not
+complete sampled-response identity.
+
+Unsupported local operators and sliding attention fail the compiled binding;
+there is no fallback to the handwritten Qwen graph after a supported plan fails.
+Gemma 4's existing tiny runtime, verifier-bound prepared execution, and
+proprietary protocol runtimes are separate paths pending complete compiler
+operator, placement, and verification contracts. A syntactically valid pipeline
+is not whole-model coverage, and compilation alone does not establish model
+quality or provider performance.
 
 ## Python SDK example
 
