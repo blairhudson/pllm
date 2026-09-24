@@ -65,6 +65,15 @@ material = prepare_logrow_q7_tensor_reference(
 values = [-128, -64, 0, 32, 128] + [0] * 11
 output = material.evaluate(struct.pack("<16h", *values))
 assert struct.unpack("<16h", output) == tuple(profile.evaluate(x) for x in values)
+
+# Float32 conversion is explicit and rejects any input outside [-1, 1].
+float_material = prepare_logrow_q7_tensor_reference(
+    plan, profile, mode="decode", operation_id=operation,
+    max_elements=16, max_evaluator_material_bytes=16 * 2144,
+)
+floats = [-1.0, -0.5, 0.0, 0.5, 1.0] + [0.0] * 11
+float_output = float_material.evaluate_float32(struct.pack("<16f", *floats))
+assert struct.unpack("<16f", float_output)[2] == 0.0
 ```
 
 API: [`pllm.protocols` objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
@@ -74,6 +83,7 @@ API: [`pllm.protocols` objects and signatures](/sdk/reference/python/pllm/protoc
 | Resource | Current 9-bit fitted Q7 reference |
 | --- | --- |
 | Evaluator material | **2,144 bytes per scalar**: 272 one-hot setup bytes, 1,296 random-function row bytes, 576 masked table bytes. A 32-element tensor requires exactly 68,608 body bytes, preflighted before issuance. |
+| Float32 bridge | Ties-to-even Q7 quantization only within `[-1, 1]`; no clipping or private range/scale disclosure. Input quantization error is at most 1/256. The returned float32 is exactly the decoded Q7 result divided by 128; against continuous SiLU, absolute error is at most `1/256 + (profile.maximum_encoded_error + 0.5)/128` over the admitted domain. Inputs outside it fail and burn the tensor. |
 | Input / output labels | Nine 16-byte input labels and nine 16-byte output labels per scalar. These are **additional** to the 2,144-byte material; protocol framing is not included. |
 | Prior oracle | The 257-row protected Compact lookup oracle uses 73,728 half-gate ciphertext bytes alone; these counts are **not** matched end-to-end traffic measurements. |
 | Memory | Bounded 512-row table and one-hot seed vectors in-process; per-tensor evaluator material is capped at 64 MiB. Peak heap and allocator overhead have **not** been measured. |
@@ -88,8 +98,8 @@ consumption. Qwen2 and dense Qwen3 compiler tests exercise complete 16- and
 32-element semantic SiLU tensors in decode and prefill through Rust and Python,
 verify material and element-limit preflight, and reject plan, phase, profile,
 policy and circuit mismatches. This establishes bounded tensor parity, not checkpoint quality or
-production privacy. The next gates are whole-session admission, a float-to-Q7
-numeric bridge, reviewed provider input transfer, a composable protected
+production privacy. The next gates are whole-session admission, publicly
+calibrated support for wider activations, reviewed provider input transfer, a composable protected
 decoder operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)
 tracks the pending Python component independently of this reference.

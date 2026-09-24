@@ -28,6 +28,7 @@ pub enum CompactQ7Error {
     CalibrationTotal { total: u64 },
     PieceBudget { budget: u8 },
     InputOutOfRange { value: i16 },
+    FloatInputOutOfRange,
 }
 
 impl fmt::Display for CompactQ7Error {
@@ -37,6 +38,20 @@ impl fmt::Display for CompactQ7Error {
 }
 
 impl Error for CompactQ7Error {}
+
+/// Exact signed-Q7 float bridge, with no clipping or data-dependent scaling.
+/// The caller must account for at most 1/256 absolute input quantization error.
+pub fn compact_q7_from_f32(value: f32) -> Result<i16, CompactQ7Error> {
+    if !value.is_finite() || !(-1.0..=1.0).contains(&value) {
+        return Err(CompactQ7Error::FloatInputOutOfRange);
+    }
+    Ok((f64::from(value) * 128.0).round_ties_even() as i16)
+}
+
+/// Q7 -> float32 is exact for every signed-i16 encoded result.
+pub fn compact_q7_to_f32(value: i16) -> f32 {
+    f32::from(value) / 128.0
+}
 
 /// A public Chebyshev polynomial on one inclusive interval of encoded Q7.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -287,6 +302,33 @@ mod tests {
 
     fn uncalibrated() -> [u32; COMPACT_Q7_POINTS] {
         [0; COMPACT_Q7_POINTS]
+    }
+
+    #[test]
+    fn float_bridge_rounds_ties_to_even_and_rejects_unadmitted_activations() {
+        for raw in -256..=256 {
+            let value = raw as f32 / 256.0;
+            let encoded = compact_q7_from_f32(value).unwrap();
+            assert!((f32::from(encoded) / 128.0 - value).abs() <= 1.0 / 256.0);
+            if raw % 2 == 0 {
+                assert_eq!(encoded, (raw / 2) as i16);
+            } else {
+                assert_eq!(i32::from(encoded) % 2, 0);
+            }
+            assert_eq!(compact_q7_to_f32(encoded), f32::from(encoded) / 128.0);
+        }
+        for value in [
+            f32::NAN,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            1.00001,
+            -1.00001,
+        ] {
+            assert_eq!(
+                compact_q7_from_f32(value),
+                Err(CompactQ7Error::FloatInputOutOfRange)
+            );
+        }
     }
 
     #[test]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+import math
 
 import pytest
 
@@ -124,3 +125,52 @@ def test_native_rejects_budget_plan_profile_and_bad_input_before_reuse() -> None
         handle.evaluate(struct.pack("<32h", *([0] * 31 + [129])))
     with pytest.raises(ValueError, match="already consumed"):
         handle.evaluate(bytes(64))
+
+
+def test_float32_bridge_is_bounded_accurate_and_burns_on_domain_failures() -> None:
+    plan = lower_model(QWEN2, batch=1, max_input_tokens=2, max_new_tokens=1)
+    operation = next(item["id"] for item in plan.decode["operations"] if item["operator"] == "silu")
+    profile = _profile()
+    values = [-1.0, -0.875, -0.00390625, 0.0, 0.00390625, 0.4999, 1.0] + [0.0] * 9
+    handle = prepare_logrow_q7_tensor_reference(
+        plan,
+        profile,
+        mode="decode",
+        operation_id=operation,
+        max_elements=16,
+        max_evaluator_material_bytes=34304,
+    )
+    output = struct.unpack("<16f", handle.evaluate_float32(struct.pack("<16f", *values)))
+    for value, actual in zip(values, output, strict=True):
+        quantized = round(value * 128)
+        assert actual == profile.evaluate(quantized) / 128
+        assert abs(actual - value / (1.0 + math.exp(-value))) <= (
+            1 / 256 + (profile.maximum_encoded_error + 0.5) / 128
+        )
+    with pytest.raises(ValueError, match="already consumed"):
+        handle.evaluate(bytes(32))
+    for bad in [float("nan"), float("inf"), float("-inf"), 1.001, -1.001]:
+        handle = prepare_logrow_q7_tensor_reference(
+            plan,
+            profile,
+            mode="decode",
+            operation_id=operation,
+            max_elements=16,
+            max_evaluator_material_bytes=34304,
+        )
+        with pytest.raises(ValueError, match="FloatInputOutOfRange"):
+            handle.evaluate_float32(struct.pack("<16f", *([0.0] * 15 + [bad])))
+        with pytest.raises(ValueError, match="already consumed"):
+            handle.evaluate_float32(bytes(64))
+    handle = prepare_logrow_q7_tensor_reference(
+        plan,
+        profile,
+        mode="decode",
+        operation_id=operation,
+        max_elements=16,
+        max_evaluator_material_bytes=34304,
+    )
+    with pytest.raises(ValueError, match="must be bytes"):
+        handle.evaluate_float32([0.0] * 16)
+    with pytest.raises(ValueError, match="already consumed"):
+        handle.evaluate(bytes(32))

@@ -33,8 +33,12 @@ policy and fresh issuance. The tensor preflights the complete body before
 issuance and burns all rows together on invalid input. The public
 `pllm.protocols.prepare_logrow_q7_tensor_reference` API exercises the bound
 tensor in-process through an opaque one-use native handle. No reviewed
-distributed 2PC, secure provider input transfer, arithmetic conversion,
+distributed 2PC, secure provider input transfer, general arithmetic conversion,
 whole-session schedule or complete compiled decoder is established.
+The opt-in float32 bridge is only defined on `[-1, 1]`: ties-to-even Q7
+quantization rejects out-of-range values rather than saturating, adds at most
+1/256 input error, and burns the complete tensor when any input is invalid.
+This does not establish a wider-range conversion for actual checkpoint MLPs.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

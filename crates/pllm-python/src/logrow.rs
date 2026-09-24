@@ -5,7 +5,10 @@ use crate::{invalid, CompactQ7Reference};
 use pllm_compiler::{
     prepare_bound_logrow_q7_tensor, BoundLogRowQ7TensorMaterial, ExperimentalLogRowQ7TensorPolicy,
 };
-use pllm_core::CompactQ7Profile;
+use pllm_core::{
+    compact::{compact_q7_from_f32, compact_q7_to_f32},
+    CompactQ7Profile,
+};
 use pllm_models::{DecoderMode, DecoderPlan};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -25,6 +28,36 @@ pub(crate) struct LogRowQ7TensorReference {
     elements: usize,
     evaluator_material_bytes: usize,
     binding_digest: String,
+}
+
+impl LogRowQ7TensorReference {
+    fn claim(&self) -> PyResult<BoundLogRowQ7TensorMaterial> {
+        self.material
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("LogRow Q7 material lock was poisoned"))?
+            .take()
+            .ok_or_else(|| invalid("LogRow Q7 tensor material was already consumed".into()))
+    }
+
+    fn run(
+        &self,
+        py: Python<'_>,
+        material: BoundLogRowQ7TensorMaterial,
+        values: Vec<i16>,
+    ) -> PyResult<Vec<i16>> {
+        py.detach(|| {
+            let (evaluation, decoder) = material.encode(&values)?;
+            let outputs = evaluation.evaluate(
+                &self.plan,
+                self.mode,
+                &self.operation_id,
+                &self.profile,
+                &self.policy,
+            )?;
+            decoder.decode(outputs)
+        })
+        .map_err(invalid)
+    }
 }
 
 #[pymethods]
@@ -51,12 +84,7 @@ impl LogRowQ7TensorReference {
         py: Python<'py>,
         values: &Bound<'_, PyAny>,
     ) -> PyResult<Bound<'py, PyBytes>> {
-        let material = self
-            .material
-            .lock()
-            .map_err(|_| PyRuntimeError::new_err("LogRow Q7 material lock was poisoned"))?
-            .take()
-            .ok_or_else(|| invalid("LogRow Q7 tensor material was already consumed".into()))?;
+        let material = self.claim()?;
         let bytes = values
             .cast::<PyBytes>()
             .map_err(|_| invalid("LogRow Q7 tensor input must be bytes".into()))?
@@ -70,22 +98,42 @@ impl LogRowQ7TensorReference {
             .chunks_exact(2)
             .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
             .collect::<Vec<_>>();
-        let result = py
-            .detach(|| {
-                let (evaluation, decoder) = material.encode(&input)?;
-                let outputs = evaluation.evaluate(
-                    &self.plan,
-                    self.mode,
-                    &self.operation_id,
-                    &self.profile,
-                    &self.policy,
-                )?;
-                decoder.decode(outputs)
-            })
-            .map_err(invalid)?;
+        let result = self.run(py, material, input)?;
         let mut encoded = Vec::with_capacity(result.len() * 2);
         for value in result {
             encoded.extend_from_slice(&value.to_le_bytes());
+        }
+        Ok(PyBytes::new(py, &encoded))
+    }
+
+    /// Strict float32 bridge; private, data-dependent scales and saturation
+    /// are forbidden. Out-of-domain input burns the entire one-use tensor.
+    fn evaluate_float32<'py>(
+        &self,
+        py: Python<'py>,
+        values: &Bound<'_, PyAny>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let material = self.claim()?;
+        let bytes = values
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("LogRow float32 tensor input must be bytes".into()))?
+            .as_bytes();
+        if bytes.len() != self.elements * 4 {
+            return Err(invalid(
+                "LogRow float32 input must match the exact tensor shape".into(),
+            ));
+        }
+        let input = bytes
+            .chunks_exact(4)
+            .map(|chunk| {
+                compact_q7_from_f32(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .map_err(|error| invalid(error.to_string()))
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        let result = self.run(py, material, input)?;
+        let mut encoded = Vec::with_capacity(result.len() * 4);
+        for value in result {
+            encoded.extend_from_slice(&compact_q7_to_f32(value).to_le_bytes());
         }
         Ok(PyBytes::new(py, &encoded))
     }
