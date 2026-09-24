@@ -12,10 +12,18 @@ import numpy as np
 
 from pllm.modeling import ModelPlan
 
+from .semantic_attention import (
+    SemanticAttentionError,
+    mask_causal_scores,
+    semantic_attention_scores,
+    semantic_attention_values,
+)
 from .semantic_numeric import (
     SemanticNumericError,
     bfloat16_gelu_tanh,
+    bfloat16_rms_norm,
     bfloat16_scale,
+    bfloat16_softmax,
     bfloat16_softcap,
 )
 from .transformer_client import ClientBundle, MaskedTransformerClientRuntime, TransformerClientError
@@ -75,6 +83,25 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         return np.asarray(self.bundle.arrays[key], dtype=np.float32)
 
     @staticmethod
+    def _declared_state_kinds(graph: dict[str, Any]) -> dict[str, str]:
+        """State ownership follows operator declarations, including suffix producers."""
+        kinds: dict[str, str] = {}
+        for operation in graph["operations"]:
+            kind = operation.get("state_kind")
+            if kind is None:
+                continue
+            if kind not in {"key", "value"} or operation["operator"] not in {
+                "kv_cache_append",
+                "cache_suffix",
+            }:
+                raise TransformerClientError("semantic operation has an unsupported state kind")
+            kinds[operation["id"]] = kind
+        for state in graph["state_outputs"]:
+            if kinds.get(state["id"]) != state["kind"]:
+                raise TransformerClientError("semantic output state lacks declared ownership")
+        return kinds
+
+    @staticmethod
     def _rotary(value: np.ndarray, positions: np.ndarray, attributes: dict[str, Any]) -> np.ndarray:
         rotary_dim = int(attributes["rotary_dimensions"])
         theta = float(attributes["theta"])
@@ -113,7 +140,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             try:
                 weight = (
                     self._weight(factor["weight"])
-                    if factor.get("kind") == "learned" and isinstance(factor.get("weight"), str)
+                    if factor.get("kind") == "checkpoint_scalar"
+                    and isinstance(factor.get("weight"), str)
                     else None
                 )
                 return bfloat16_scale(source, factor, weight)
@@ -168,6 +196,21 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             if layout == "batch_sequence_hidden":
                 return source.transpose(0, 2, 1, 3).reshape(source.shape[2], -1)
         elif kind == "rms_norm":
+            if attrs.get("output_dtype") == "bfloat16" and attrs.get("compute_dtype") == "float32":
+                declared_weight = attrs.get("weight")
+                if attrs.get("with_scale") is not (declared_weight is not None):
+                    raise TransformerClientError("semantic normalization weight contract is inconsistent")
+                try:
+                    return bfloat16_rms_norm(
+                        source,
+                        epsilon=attrs.get("epsilon"),
+                        weight=self._weight(declared_weight) if declared_weight is not None else None,
+                        offset=attrs.get("weight_offset"),
+                    )
+                except SemanticNumericError as exc:
+                    raise TransformerClientError(str(exc)) from exc
+            if attrs.get("output_dtype") is not None or attrs.get("compute_dtype") is not None:
+                raise TransformerClientError("semantic RMSNorm dtype is unsupported")
             weight = self._weight(str(attrs["weight"]))
             epsilon = float(attrs["epsilon"])
             offset = int(attrs["weight_offset"])
@@ -179,6 +222,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "rotary_embedding":
             return self._rotary(source, values[inputs[1]], attrs)
         elif kind == "kv_cache_append":
+            if attrs.get("attention_domain", {}).get("layout") == "batch_kv_heads_query_window_feature":
+                raise TransformerClientError("semantic windowed KV update is not yet bound")
             if type(layer) is not int:
                 raise TransformerClientError("semantic cache operation lacks a layer")
             cache = self.caches[layer]
@@ -194,8 +239,20 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 key, value = cache.append(pending_keys.pop(layer), tensor)
                 return value.transpose(1, 0, 2)[None]
         elif kind == "cache_suffix":
+            if attrs.get("axis") != 2 or attrs.get("semantics") != "visible_valid_prefix":
+                raise TransformerClientError("semantic cache suffix is not yet bound")
             return source
         elif kind == "attention_scores":
+            if "key_layout" in attrs:
+                try:
+                    return semantic_attention_scores(
+                        source,
+                        values[inputs[1]],
+                        group=attrs.get("group_size"),
+                        layout=attrs["key_layout"],
+                    )
+                except SemanticAttentionError as exc:
+                    raise TransformerClientError(str(exc)) from exc
             query, keys = source, values[inputs[1]]
             group = int(attrs["group_size"])
             batch, heads, sequence, width = query.shape
@@ -212,14 +269,40 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "attention_scale":
             return source * float(1.0 / math.sqrt(int(attrs["head_dim"])))
         elif kind == "causal_mask":
-            positions = values[inputs[1]]
-            indices = np.arange(source.shape[-1])[None, None, None, :]
-            return np.where(indices <= positions[None, None, :, None], source, -np.inf)
+            try:
+                return mask_causal_scores(
+                    source,
+                    values[inputs[1]],
+                    attrs,
+                    padding_mask=values[inputs[2]] if len(inputs) > 2 else None,
+                    valid_lengths=values[inputs[3]] if len(inputs) > 3 else None,
+                )
+            except SemanticAttentionError as exc:
+                raise TransformerClientError(str(exc)) from exc
         elif kind == "softmax":
+            if attrs.get("output_dtype") == "bfloat16" and attrs.get("compute_dtype") == "float32":
+                if attrs.get("axis") != -1:
+                    raise TransformerClientError("semantic softmax axis is unsupported")
+                try:
+                    return bfloat16_softmax(source)
+                except SemanticNumericError as exc:
+                    raise TransformerClientError(str(exc)) from exc
+            if "output_dtype" in attrs or "compute_dtype" in attrs:
+                raise TransformerClientError("semantic softmax dtype is unsupported")
             centered = source - source.max(axis=-1, keepdims=True)
             probabilities = np.exp(centered).astype(np.float32)
             return probabilities / probabilities.sum(axis=-1, keepdims=True)
         elif kind == "attention_values":
+            if "value_layout" in attrs:
+                try:
+                    return semantic_attention_values(
+                        source,
+                        values[inputs[1]],
+                        group=attrs.get("group_size"),
+                        layout=attrs["value_layout"],
+                    )
+                except SemanticAttentionError as exc:
+                    raise TransformerClientError(str(exc)) from exc
             probabilities, cache = source, values[inputs[1]]
             batch, heads, sequence, length = probabilities.shape
             kv_heads = cache.shape[1]
@@ -289,7 +372,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError("semantic cache state is unavailable")
             values[state["id"]] = stored[: cache.length].transpose(1, 0, 2)[None]
         operations = {op["id"]: op for op in graph["operations"]}
-        state_kinds = {state["id"]: state["kind"] for state in graph["state_outputs"]}
+        state_kinds = self._declared_state_kinds(graph)
         steps = self._schedule[phase]["steps"]
         remaining = Counter(input_id for step in steps for input_id in step["input_ids"])
         selections = [

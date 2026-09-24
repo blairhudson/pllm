@@ -21,6 +21,7 @@ from pllm.runtime.quantization import (
     signed_dot_bound,
 )
 from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
+from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
 from pllm.runtime.transformer_client import ClientBundle
 
 if TYPE_CHECKING:
@@ -49,6 +50,11 @@ LOCAL_OPERATORS = frozenset(
         "greedy_token_selection",
         "token_feedback",
         "cache_suffix",
+        "scale",
+        "gelu_tanh",
+        "softcap",
+        "permute",
+        "slice",
     }
 )
 BOUNDARY_STAGE_IDS = frozenset({"token_lookup", "lm_head"})
@@ -1131,7 +1137,10 @@ def compile_runtime_model(
 
     stage_semantics: dict[str, set[str]] = {stage_id: set() for stage_id in canonical}
     local_operations: set[str] = set()
-    norm_weights: dict[str, int] = {}
+    try:
+        client_weights = required_client_tensors(plan)
+    except SemanticTensorError as exc:
+        raise RuntimeBindingError(str(exc)) from exc
     output_sums: dict[tuple[str, str], int] = {
         (phase, stage_id): 0 for phase in ("prefill", "decode") for stage_id in canonical
     }
@@ -1149,14 +1158,6 @@ def compile_runtime_model(
                 raise RuntimeBindingError(f"operation {operation_id!r} requires attributes")
             if operator in LOCAL_OPERATORS:
                 local_operations.add(qualified)
-                if operator == "rms_norm":
-                    weight_id = attributes.get("weight")
-                    if not isinstance(weight_id, str):
-                        raise RuntimeBindingError(f"rms norm {operation_id!r} requires a weight")
-                    width = _last_dim(operation.get("output_shape"), operation_id)
-                    if weight_id in norm_weights and norm_weights[weight_id] != width:
-                        raise RuntimeBindingError(f"norm weight {weight_id!r} width drifted")
-                    norm_weights[weight_id] = width
                 continue
             if operator not in REMOTE_OPERATORS:
                 raise RuntimeBindingError(f"unsupported plan operator {operator!r}")
@@ -1349,13 +1350,13 @@ def compile_runtime_model(
         raise RuntimeBindingError("plan operation coverage is incomplete")
 
     local_tensors = []
-    for weight_id in sorted(norm_weights):
+    for weight_id in sorted(client_weights):
         key, array = _resolve_array(bundle.arrays, weight_id)
         value = np.asarray(array)
         if value.dtype != np.float32:
             raise RuntimeBindingError(f"client tensor {key!r} must be float32")
-        if list(value.shape) != [norm_weights[weight_id]]:
-            raise RuntimeBindingError(f"client tensor {key!r} shape does not match its norm")
+        if tuple(value.shape) != client_weights[weight_id]:
+            raise RuntimeBindingError(f"client tensor {key!r} shape does not match its semantic use")
         if not np.all(np.isfinite(value)):
             raise RuntimeBindingError(f"client tensor {key!r} must be finite")
         local_tensors.append(

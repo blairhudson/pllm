@@ -100,19 +100,150 @@ fn local_operator(operation: &ModelOperation) -> bool {
     };
     match operation.operator {
         ModelOperator::Reshape
-        | ModelOperator::RmsNorm
-        | ModelOperator::CacheSuffix
         | ModelOperator::KvCacheAppend
-        | ModelOperator::AttentionScores
-        | ModelOperator::CausalMask
-        | ModelOperator::Softmax
-        | ModelOperator::AttentionValues
         | ModelOperator::ResidualAdd
         | ModelOperator::Silu
         | ModelOperator::Multiply
         | ModelOperator::LastToken
         | ModelOperator::GreedyTokenSelection
         | ModelOperator::TokenFeedback => true,
+        ModelOperator::Softmax => {
+            let attrs = &operation.attributes;
+            (attrs.get("output_dtype").is_none() && attrs.get("compute_dtype").is_none())
+                || (attrs
+                    .get("output_dtype")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("bfloat16")
+                    && attrs
+                        .get("compute_dtype")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("float32")
+                    && attrs.get("axis").and_then(serde_json::Value::as_i64) == Some(-1))
+        }
+        ModelOperator::RmsNorm => {
+            let attrs = &operation.attributes;
+            if attrs.get("output_dtype").is_none() && attrs.get("compute_dtype").is_none() {
+                return true;
+            }
+            let weight = attrs.get("weight").and_then(serde_json::Value::as_str);
+            let offset = attrs
+                .get("weight_offset")
+                .and_then(serde_json::Value::as_i64);
+            attrs
+                .get("output_dtype")
+                .and_then(serde_json::Value::as_str)
+                == Some("bfloat16")
+                && attrs
+                    .get("compute_dtype")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("float32")
+                && attrs
+                    .get("epsilon")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| !value.is_empty())
+                && attrs.get("with_scale").and_then(serde_json::Value::as_bool)
+                    == Some(weight.is_some())
+                && matches!(offset, Some(0 | 1))
+                && (weight.is_some() || offset == Some(0))
+        }
+        ModelOperator::CacheSuffix => {
+            operation
+                .attributes
+                .get("axis")
+                .and_then(serde_json::Value::as_u64)
+                == Some(2)
+                && operation
+                    .attributes
+                    .get("semantics")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("visible_valid_prefix")
+        }
+        ModelOperator::AttentionScores | ModelOperator::AttentionValues => {
+            let key = if operation.operator == ModelOperator::AttentionScores {
+                "key_layout"
+            } else {
+                "value_layout"
+            };
+            let attrs = &operation.attributes;
+            match attrs.get(key).and_then(serde_json::Value::as_str) {
+                None => attrs
+                    .get("group_size")
+                    .and_then(serde_json::Value::as_u64)
+                    .is_some_and(|value| value > 0),
+                Some("batch_kv_heads_sequence_feature" | "batch_kv_heads_query_window_feature") => {
+                    attrs
+                        .get("group_size")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|value| value > 0)
+                        && operation.output_shape.len() == 4
+                        && (operation.operator != ModelOperator::AttentionScores
+                            || (operation.layer.is_some_and(|layer| {
+                                attrs
+                                    .get("key_value_source_layer")
+                                    .and_then(serde_json::Value::as_u64)
+                                    .is_some_and(|source| source <= layer)
+                            })))
+                }
+                _ => false,
+            }
+        }
+        ModelOperator::CausalMask => {
+            let attrs = &operation.attributes;
+            if attrs.as_object().is_some_and(serde_json::Map::is_empty) {
+                return true;
+            }
+            if attrs
+                .get("absolute_positions_input")
+                .and_then(serde_json::Value::as_str)
+                != Some("input.positions")
+                || attrs
+                    .get("padding_mask_input")
+                    .and_then(serde_json::Value::as_str)
+                    != Some("input.attention_mask")
+                || attrs
+                    .get("valid_lengths_input")
+                    .and_then(serde_json::Value::as_str)
+                    != Some("input.sequence_lengths")
+            {
+                return false;
+            }
+            match attrs.get("kind").and_then(serde_json::Value::as_str) {
+                Some("full_causal") => {
+                    attrs
+                        .get("maximum_position_embeddings")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|value| value > 0)
+                        && attrs.get("key_domain").and_then(serde_json::Value::as_str)
+                            == Some("fixed_capacity")
+                        && attrs
+                            .get("cache_validity")
+                            .and_then(serde_json::Value::as_str)
+                            == Some("valid_lengths_fixed_capacity")
+                }
+                Some("sliding_causal") => {
+                    let window = attrs
+                        .get("sliding_window")
+                        .and_then(serde_json::Value::as_u64);
+                    window.is_some_and(|value| {
+                        value > 0
+                            && attrs
+                                .get("left_context")
+                                .and_then(serde_json::Value::as_u64)
+                                == Some(value - 1)
+                    }) && attrs
+                        .get("includes_current")
+                        .and_then(serde_json::Value::as_bool)
+                        == Some(true)
+                        && attrs.get("key_domain").and_then(serde_json::Value::as_str)
+                            == Some("query_relative_window")
+                        && attrs
+                            .get("cache_validity")
+                            .and_then(serde_json::Value::as_str)
+                            == Some("valid_lengths_bounded_suffix")
+                }
+                _ => false,
+            }
+        }
         ModelOperator::Scale | ModelOperator::AttentionScale => {
             if operation.operator == ModelOperator::AttentionScale
                 && operation.attributes.get("factor").is_none()
@@ -160,6 +291,17 @@ fn local_operator(operation: &ModelOperation) -> bool {
                             .get("factor_source_dtype")
                             .and_then(serde_json::Value::as_str)
                             == Some("exact_integer")
+                }
+                Some("checkpoint_scalar") => {
+                    factor
+                        .get("weight")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| !value.is_empty())
+                        && factor.get("weight_shape") == Some(&serde_json::json!([1]))
+                        && factor
+                            .get("factor_source_dtype")
+                            .and_then(serde_json::Value::as_str)
+                            == Some("bfloat16")
                 }
                 _ => false,
             }
@@ -493,7 +635,7 @@ mod numeric_contract_tests {
     use pllm_models::{lower_model_json, DecoderWorkload};
 
     #[test]
-    fn checked_semantic_numeric_operations_are_admitted_but_unbound_scalars_are_not() {
+    fn checked_semantic_numeric_operations_require_bound_contracts() {
         let plan = lower_model_json(
             include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json"),
             DecoderWorkload {
@@ -523,10 +665,55 @@ mod numeric_contract_tests {
             .iter()
             .find(|row| row.id == "layer.0.layer_scalar")
             .unwrap();
+        assert!(local_operator(scalar));
+        let mut forged_scalar = scalar.clone();
+        forged_scalar.attributes["factor"]["weight_shape"] = serde_json::json!([2]);
+        assert!(!local_operator(&forged_scalar));
+        let suffix = operations
+            .iter()
+            .find(|row| row.id == "layer.0.key_suffix")
+            .unwrap();
         assert!(
-            !local_operator(scalar),
-            "unbound learned weights cannot be admitted"
+            !local_operator(suffix),
+            "cache suffix lacks an executable shape/numeric contract"
         );
+        let sliding_mask = operations
+            .iter()
+            .find(|row| row.id == "layer.0.causal_mask")
+            .unwrap();
+        assert!(local_operator(sliding_mask));
+        let full_mask = operations
+            .iter()
+            .find(|row| {
+                row.operator == ModelOperator::CausalMask && row.attributes["kind"] == "full_causal"
+            })
+            .unwrap();
+        assert!(local_operator(full_mask));
+        for id in ["layer.0.input_norm", "layer.0.v_norm", "layer.0.softmax"] {
+            let operation = operations.iter().find(|row| row.id == id).unwrap();
+            assert!(local_operator(operation));
+        }
+        let mut forged_norm = operations
+            .iter()
+            .find(|row| row.id == "layer.0.input_norm")
+            .unwrap()
+            .clone();
+        forged_norm.attributes["with_scale"] = serde_json::json!(false);
+        assert!(!local_operator(&forged_norm));
+        for id in ["layer.0.attention_scores", "layer.0.attention_values"] {
+            let operation = operations.iter().find(|row| row.id == id).unwrap();
+            assert!(local_operator(operation));
+        }
+        let mut forged_layout = operations
+            .iter()
+            .find(|row| row.id == "layer.0.attention_scores")
+            .unwrap()
+            .clone();
+        forged_layout.attributes["key_layout"] = serde_json::json!("unbound_layout");
+        assert!(!local_operator(&forged_layout));
+        let mut forged_window = sliding_mask.clone();
+        forged_window.attributes["left_context"] = serde_json::json!(0);
+        assert!(!local_operator(&forged_window));
         let mut forged = operations
             .iter()
             .find(|row| row.id == "main_embedding_scaled")

@@ -890,8 +890,9 @@ fn lower_graph(
             &ple_residual,
             hidden_shape.clone(),
             json!({
-                "kind": "learned",
+                "kind": "checkpoint_scalar",
                 "weight": format!("{weights}.layer_scalar"),
+                "weight_shape": [1],
                 "factor_source_dtype": "bfloat16",
                 "factor_rounding_dtype": "bfloat16",
                 "compute_dtype": "bfloat16",
@@ -1286,7 +1287,7 @@ fn rms_norm(
         ModelOperator::RmsNorm,
         &[input],
         shape,
-        json!({"epsilon": "1/1000000", "weight": weight, "weight_offset": 1, "with_scale": weight.is_some(), "compute_dtype": "float32", "output_dtype": "bfloat16"}),
+        json!({"epsilon": "1/1000000", "weight": weight, "weight_offset": 0, "with_scale": weight.is_some(), "compute_dtype": "float32", "output_dtype": "bfloat16"}),
     );
 }
 

@@ -183,8 +183,17 @@ fn direct_weight_lowering_is_semantic_not_qwen_named() {
         workload,
     )
     .unwrap();
+    let input_norm = gemma
+        .decode
+        .operations
+        .iter()
+        .find(|operation| operation.id == "layer.0.input_norm")
+        .unwrap();
+    assert_eq!(input_norm.attributes["weight_offset"], serde_json::json!(0));
     let error = lower_rms_norm_f32_direct_regions(&gemma, DecoderMode::Decode).unwrap_err();
-    assert!(error.contains("weight offset 1"));
+    // The separate float32 region still rejects Gemma's rational epsilon;
+    // its BF16 normalization and unweighted V-norm use the local decoder contract.
+    assert!(error.contains("invalid epsilon"));
 }
 
 #[test]

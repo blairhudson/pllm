@@ -150,7 +150,9 @@ unsupported local operators. Generic local BF16 scale, tanh-GeLU, softcap,
 permutation and slice primitives have isolated schedule contracts and a
 finite-BF16 numeric oracle: on the checked PyTorch CPU implementation the
 tanh-GeLU result differs by at most 0.0000305 over all 65,280 finite BF16
-inputs, and softcap with cap 30 agrees exactly. Learned scalars, BF16
+inputs, and softcap with cap 30 agrees exactly. The one-element checkpoint
+scalar now has an exact-shape client-tensor binding; Gemma 4 RMSNorm uses
+direct checkpoint weights, without a `+1` offset. BF16
 composition, local/global attention, shared KV state and PLE still block
 whole-decoder binding; its older runtime graph remains separate for
 existing tiny transport tests. Sources without semantic lowering adapters still

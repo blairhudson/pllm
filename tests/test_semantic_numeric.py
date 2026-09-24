@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from types import SimpleNamespace
 
 import ml_dtypes
 import numpy as np
@@ -89,6 +90,50 @@ def test_semantic_nonlinear_numeric_contract_across_all_finite_bfloat16_values(
         _local(operations["logit_softcap"], source),
         ((torch_input / cap).tanh() * cap).float().numpy(),
     )
+
+
+def test_bfloat16_normalization_uses_declared_weight_offset_and_optional_scale(
+    operations: dict[str, dict],
+) -> None:
+    source = np.asarray([[[0.125, -0.75, 2.5, -0.25], [3.0, 0.0, -1.5, 0.5]]], dtype=np.float32)
+    weights = np.asarray([-0.25, 0.0, 0.25, 1.0], dtype=np.float32)
+    runtime = object.__new__(SemanticDecoderRuntime)
+    norm = operations["layer.0.input_norm"]
+    runtime._tensors = {norm["attributes"]["weight"]: "gamma"}
+    runtime.bundle = SimpleNamespace(arrays={"gamma": weights})
+    expected_input = torch.from_numpy(source).to(torch.bfloat16).float()
+    normalized = expected_input * torch.rsqrt(
+        expected_input.square().mean(dim=-1, keepdim=True) + 1e-6
+    )
+    assert norm["attributes"]["weight_offset"] == 0
+    expected = (normalized * torch.from_numpy(weights)).to(torch.bfloat16).float().numpy()
+    np.testing.assert_array_equal(
+        runtime._local(norm, {norm["inputs"][0]: source}, {}, {}), expected
+    )
+    unweighted = operations["layer.0.v_norm"]
+    np.testing.assert_array_equal(
+        runtime._local(unweighted, {unweighted["inputs"][0]: source}, {}, {}),
+        normalized.to(torch.bfloat16).float().numpy(),
+    )
+    bad = {**norm, "attributes": {**norm["attributes"], "with_scale": False}}
+    with pytest.raises(TransformerClientError, match="inconsistent"):
+        runtime._local(bad, {bad["inputs"][0]: source}, {}, {})
+    runtime.bundle = SimpleNamespace(arrays={"gamma": weights[:3]})
+    with pytest.raises(TransformerClientError, match="wrong shape"):
+        runtime._local(norm, {norm["inputs"][0]: source}, {}, {})
+
+
+def test_bfloat16_softmax_handles_masked_queries_without_nan(operations: dict[str, dict]) -> None:
+    source = np.asarray(
+        [[[[1.0, -np.inf, -2.0, -np.inf], [-np.inf, 0.0, -1.0, -3.0]]]],
+        dtype=np.float32,
+    )
+    result = _local(operations["layer.0.softmax"], source)
+    reference = torch.nn.functional.softmax(torch.from_numpy(source), dim=-1).to(torch.bfloat16)
+    np.testing.assert_array_equal(result, reference.float().numpy())
+    assert np.all(np.isfinite(result))
+    with pytest.raises(TransformerClientError, match="fully masked"):
+        _local(operations["layer.0.softmax"], np.full((1, 1, 1, 4), -np.inf, dtype=np.float32))
 
 
 def test_semantic_permute_and_slice_follow_declared_axes(operations: dict[str, dict]) -> None:

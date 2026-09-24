@@ -41,6 +41,7 @@ from .quantization import (
     signed_qmax,
 )
 from .safetensors_store import SafeTensorStore, TensorStoreError
+from .semantic_tensors import SemanticTensorError, required_client_tensors
 from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
@@ -586,12 +587,18 @@ class MaskedTransformerEngine:
                 or "silu",
             }
         )
+        try:
+            local_requirements = (
+                required_client_tensors(semantic_plan) if semantic_plan is not None else None
+            )
+        except SemanticTensorError as exc:
+            raise TransformerEngineError(str(exc)) from exc
         loaded = LoadedTransformer(
             manifest=manifest,
             store=store,
             config=config,
             stages=runtimes,
-            local_tensors=self._load_local_tensors(store),
+            local_tensors=self._load_local_tensors(store, required=local_requirements),
             tokenizer=self._load_tokenizer_descriptor(source, manifest, config),
         )
         self.models[manifest.id] = loaded
@@ -962,8 +969,21 @@ class MaskedTransformerEngine:
         return (stage.id + ".weight",)
 
     @staticmethod
-    def _load_local_tensors(store: SafeTensorStore) -> dict[str, np.ndarray]:
+    def _load_local_tensors(
+        store: SafeTensorStore, *, required: dict[str, tuple[int, ...]] | None = None
+    ) -> dict[str, np.ndarray]:
         result: dict[str, np.ndarray] = {}
+        if required is not None:
+            for weight_id, expected_shape in required.items():
+                try:
+                    key = store.resolve(weight_id)
+                    value = store.get(key, dtype=np.float32)
+                except TensorStoreError as exc:
+                    raise TransformerEngineError("semantic client tensor is missing") from exc
+                if value.shape != expected_shape or not np.all(np.isfinite(value)):
+                    raise TransformerEngineError("semantic client tensor has invalid shape or values")
+                result[key] = value
+            return result
         for key in store.keys:
             lower = key.lower()
             if lower.endswith("norm.weight") or lower.endswith("norm.scale"):

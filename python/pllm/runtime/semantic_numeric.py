@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 from typing import Any
 
 import ml_dtypes
@@ -53,13 +54,20 @@ def bfloat16_scale(value: np.ndarray, factor: dict[str, Any], weight: np.ndarray
         if type(numerator) is not int or type(denominator) is not int or denominator <= 0:
             raise SemanticNumericError("semantic rational scale requires bounded integers")
         coefficient = numerator / denominator
-    elif kind == "learned":
-        if factor.get("factor_source_dtype") != "bfloat16" or weight is None:
-            raise SemanticNumericError("semantic learned scale requires a bound BF16 weight")
+    elif kind == "checkpoint_scalar":
+        if (
+            factor.get("factor_source_dtype") != "bfloat16"
+            or factor.get("weight_shape") != [1]
+            or weight is None
+            or np.asarray(weight).shape != (1,)
+        ):
+            raise SemanticNumericError("semantic checkpoint scale requires one bound BF16 value")
         coefficient = weight
     else:
         raise SemanticNumericError("unsupported semantic scale factor")
     input_value = round_bfloat16(value)
+    if input_value.ndim == 0:
+        raise SemanticNumericError("semantic scale requires a tensor input")
     rounded_factor = round_bfloat16(coefficient)
     if rounded_factor.size not in {1, input_value.shape[-1]}:
         raise SemanticNumericError("semantic scale factor width differs from input")
@@ -86,10 +94,54 @@ def bfloat16_softcap(value: np.ndarray, cap: int) -> np.ndarray:
     return round_bfloat16(round_bfloat16(np.tanh(ratio)) * rounded_cap)
 
 
+def bfloat16_rms_norm(
+    value: np.ndarray, *, epsilon: str, weight: np.ndarray | None, offset: int
+) -> np.ndarray:
+    """Float32 variance and learned scale with a BF16 activation boundary."""
+    if type(epsilon) is not str or not 1 <= len(epsilon) <= 40 or type(offset) is not int:
+        raise SemanticNumericError("unsupported BF16 normalization contract")
+    try:
+        epsilon_value = np.float32(float(Fraction(epsilon)))
+    except (ValueError, ZeroDivisionError, OverflowError) as exc:
+        raise SemanticNumericError("BF16 normalization epsilon is invalid") from exc
+    if not np.isfinite(epsilon_value) or epsilon_value <= 0:
+        raise SemanticNumericError("BF16 normalization epsilon is invalid")
+    source = round_bfloat16(value)
+    if source.ndim < 1 or source.shape[-1] < 1:
+        raise SemanticNumericError("BF16 normalization requires nonempty feature width")
+    squared = source * source
+    if not np.all(np.isfinite(squared)):
+        raise SemanticNumericError("BF16 normalization variance exceeds the numeric domain")
+    variance = np.mean(squared, axis=-1, keepdims=True, dtype=np.float32)
+    normalized = source / np.sqrt(variance + epsilon_value)
+    if weight is None:
+        if offset != 0:
+            raise SemanticNumericError("unweighted BF16 normalization requires zero weight offset")
+        return round_bfloat16(normalized)
+    learned = _finite_float32(weight)
+    if learned.shape != (source.shape[-1],) or offset not in {0, 1}:
+        raise SemanticNumericError("BF16 normalization weight has the wrong shape or offset")
+    return round_bfloat16(normalized * (learned + np.float32(offset)))
+
+
+def bfloat16_softmax(value: np.ndarray) -> np.ndarray:
+    """Float32 last-axis normalization with one BF16 output boundary."""
+    source = np.asarray(value, dtype=np.float32)
+    if source.ndim < 1 or source.shape[-1] < 1 or not np.all(np.isfinite(source) | np.isneginf(source)):
+        raise SemanticNumericError("BF16 softmax scores are invalid")
+    maximum = np.max(source, axis=-1, keepdims=True)
+    if not np.all(np.isfinite(maximum)):
+        raise SemanticNumericError("BF16 softmax has a fully masked query")
+    exponential = np.exp(source - maximum).astype(np.float32)
+    return round_bfloat16(exponential / exponential.sum(axis=-1, keepdims=True))
+
+
 __all__ = [
     "SemanticNumericError",
     "bfloat16_gelu_tanh",
     "bfloat16_scale",
     "bfloat16_softcap",
+    "bfloat16_rms_norm",
+    "bfloat16_softmax",
     "round_bfloat16",
 ]
