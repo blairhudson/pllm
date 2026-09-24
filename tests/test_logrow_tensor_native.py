@@ -344,3 +344,33 @@ def test_scaled_public_silu_profile_executes_full_native_session_and_burns_exces
             "prefill", 0, prefill_operation, struct.pack("<32f", *([0.0] * 31 + [4.01]))
         )
     assert burned.remaining_tensors == 0
+
+
+def test_pinned_qwen2_0_5b_two_token_session_fails_resource_admission() -> None:
+    # Public config: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/raw/main/config.json
+    # This is a plan-only preflight: no checkpoint download or material issuance.
+    config = {
+        **QWEN2,
+        "hidden_size": 896,
+        "intermediate_size": 4864,
+        "num_hidden_layers": 24,
+        "num_attention_heads": 14,
+        "num_key_value_heads": 2,
+        "vocab_size": 151936,
+        "max_position_embeddings": 32768,
+        "rope_theta": 1000000.0,
+    }
+    plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=2)
+    profile = create_logrow_scaled_silu_q7_reference(4)
+    elements = 24 * 4864 * (2 + 1)
+    assert elements * 2144 == 750845952
+    assert 2 * 4864 * 2144 < 64 * 1024 * 1024  # per-tensor cap passes
+    with pytest.raises(ValueError, match="session exceeds its material limit"):
+        estimate_logrow_q7_session_reference(
+            plan,
+            profile,
+            max_elements=2 * 4864,
+            max_evaluator_material_bytes=2 * 4864 * 2144,
+            max_decode_steps=1,
+            max_session_evaluator_material_bytes=512 * 1024 * 1024,
+        )

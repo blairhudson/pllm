@@ -61,6 +61,11 @@ range choice or saturation is permitted. The retained
 shows the same two-token output selections in three matched pairs per model,
 with prefill logit deltas about 0.112 and nearly tenfold local online slowdown.
 This is not real-checkpoint quality or provider-network evidence.
+The pinned public Qwen2.5-0.5B-Instruct configuration alone projects
+**750,845,952 evaluator-body bytes** for two input and two output tokens,
+above PLLM's experimental 512 MiB session limit before any circuit is issued.
+This plan-level bound, not a measured production result, is another reason the
+provider-backed `LogRowGarbledLookup` option remains pending.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 
