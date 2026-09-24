@@ -564,9 +564,16 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     raise TransformerClientError("semantic remote step has multiple stage bindings")
                 stage_id = stage_ids.pop()
                 if operations[op_ids[0]]["operator"] == "token_lookup":
-                    if op_ids != ["token_lookup"]:
-                        raise TransformerClientError("semantic token lookup cannot be fused")
-                    values[op_ids[0]] = self._token_lookup(ids)[0]
+                    primary, auxiliary = self._token_lookup(ids)
+                    combined = (
+                        primary if auxiliary is None else np.concatenate((primary, auxiliary), axis=-1)
+                    )
+                    if combined.shape[-1] != self.bundle.stages[stage_id].out_features:
+                        raise TransformerClientError("semantic token lookup has an invalid width")
+                    for op_id, row in zip(op_ids, step["outputs"], strict=True):
+                        offset = int(row["stage_offset"])
+                        width = int(row["stage_width"])
+                        values[op_id] = combined[..., offset : offset + width]
                 elif operations[op_ids[0]]["operator"] == "output_head":
                     input_value = values[step["input_ids"][0]]
                     stage = self.bundle.stages[stage_id]

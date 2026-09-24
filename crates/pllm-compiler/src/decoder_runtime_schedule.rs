@@ -569,9 +569,9 @@ fn classify_remote_groups(
                     operator: operation.operator,
                     layer: operation.layer,
                     inputs: operation.inputs.clone(),
-                    // Independent token tables remain separate boundary
-                    // artifacts even when they read the same token IDs.
-                    singleton: (operation.operator != ModelOperator::Linear)
+                    // Token tables with the same input belong to one lookup
+                    // stage, preserving each table as an ordered artifact.
+                    singleton: (operation.operator == ModelOperator::OutputHead)
                         .then(|| operation.id.clone()),
                 })
                 .or_default()
@@ -808,11 +808,10 @@ mod numeric_contract_tests {
         )
         .unwrap();
         let (groups, _) = classify_remote_groups(&plan.prefill).unwrap();
-        assert_eq!(groups["main_embedding"].operations.len(), 1);
-        assert_eq!(groups["ple_token_embedding"].operations.len(), 1);
+        assert_eq!(groups["main_embedding"].operations.len(), 2);
         assert_ne!(
             weight_id(groups["main_embedding"].operations[0]).unwrap(),
-            weight_id(groups["ple_token_embedding"].operations[0]).unwrap()
+            weight_id(groups["main_embedding"].operations[1]).unwrap()
         );
         bind_bfloat16_graph(&plan.prefill).unwrap();
         bind_bfloat16_graph(&plan.decode).unwrap();

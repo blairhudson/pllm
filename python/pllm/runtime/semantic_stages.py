@@ -103,6 +103,53 @@ def semantic_fused_roles(role: str) -> tuple[str, ...]:
     return _FUSED_SEMANTIC_ROLES.get(role, ())
 
 
+def _token_lookup_stage(
+    step: dict[str, Any], operations: dict[str, dict[str, Any]], vocabulary: int
+) -> StageSpec:
+    op_ids = step["operation_ids"]
+    outputs = step["outputs"]
+    weights = step["weight_ids"]
+    if (
+        not isinstance(op_ids, list)
+        or not op_ids
+        or not isinstance(outputs, list)
+        or len(outputs) != len(op_ids)
+        or not isinstance(weights, list)
+        or len(weights) != len(op_ids)
+        or step.get("input_ids") != ["input.tokens"]
+        or step.get("layer") is not None
+    ):
+        raise ValueError("semantic token lookup does not declare ordered boundary artifacts")
+    width = 0
+    for op_id, output, weight in zip(op_ids, outputs, weights, strict=True):
+        operation = operations.get(op_id)
+        if (
+            operation is None
+            or operation.get("operator") != "token_lookup"
+            or tuple(operation.get("inputs") or ()) != ("input.tokens",)
+            or not isinstance(output, dict)
+            or output.get("operation_id") != op_id
+            or output.get("stage_offset") != width
+            or output.get("stage_width") != operation["output_shape"][-1]
+            or operation["attributes"].get("weight") != weight
+        ):
+            raise ValueError(f"semantic token lookup stage offsets or weights disagree: {op_id}")
+        width += int(output["stage_width"])
+    primary_width = int(outputs[0]["stage_width"])
+    if primary_width <= 0 or width < primary_width:
+        raise ValueError("semantic token lookup width is invalid")
+    return StageSpec(
+        id="token_lookup",
+        op="embedding",
+        in_features=vocabulary,
+        out_features=width,
+        weight_keys=tuple(weights),
+        transpose_weight=True,
+        role="token_lookup",
+        metadata={"ple_width": width - primary_width},
+    )
+
+
 def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageSpec]:
     """Issue the exact stage table required by a complete baseline schedule."""
     schedule = plan.runtime_schedule(composition)
@@ -140,17 +187,9 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
         if any(declared_biases) and len(declared_biases) != len(weights):
             raise ValueError("semantic stage bias declaration does not cover each weight")
         if role == "token_lookup":
-            spec = StageSpec(
-                id="token_lookup",
-                op="embedding",
-                in_features=vocabulary,
-                out_features=int(operations[op_ids[0]]["output_shape"][-1]),
-                weight_keys=weights,
-                bias_keys=declared_biases if any(declared_biases) else (),
-                transpose_weight=True,
-                role=role,
-                metadata={"ple_width": 0},
-            )
+            if any(declared_biases):
+                raise ValueError("token boundary lookup cannot declare projection biases")
+            spec = _token_lookup_stage(step, operations, vocabulary)
         elif role == "lm_head":
             input_id = step["input_ids"][0]
             spec = StageSpec(

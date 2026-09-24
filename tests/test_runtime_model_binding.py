@@ -1049,7 +1049,7 @@ def test_rope_scaling_and_semantic_bias_contract(tmp_path: Path):
     with pytest.raises(RuntimeBindingError):
         compile_runtime_model(plan, disabled_window)
 
-    with pytest.raises(TransformerEngineError, match="declared a missing bias"):
+    with pytest.raises(TransformerEngineError, match="semantic checkpoint is missing"):
         _bundle(tmp_path / "unbiased", with_qkv_bias=False)
 
     qkv_id = "layers.0.self_attn.qkv_proj"

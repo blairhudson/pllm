@@ -41,7 +41,11 @@ from .quantization import (
     signed_qmax,
 )
 from .safetensors_store import SafeTensorStore, TensorStoreError
-from .semantic_tensors import SemanticTensorError, required_client_tensors
+from .semantic_tensors import (
+    SemanticTensorError,
+    preflight_semantic_checkpoint,
+    required_client_tensors,
+)
 from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
@@ -444,6 +448,11 @@ class MaskedTransformerEngine:
             ):
                 raise TransformerEngineError("model cannot lower into the semantic decoder") from exc
             semantic_plan = None
+        if semantic_plan is not None:
+            try:
+                preflight_semantic_checkpoint(semantic_plan, store)
+            except SemanticTensorError as exc:
+                raise TransformerEngineError(str(exc)) from exc
         if semantic_plan is not None and semantic_plan.coverage(composition).complete:
             try:
                 stages = scheduled_stage_specs(semantic_plan, composition)

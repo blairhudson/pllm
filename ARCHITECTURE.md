@@ -177,6 +177,12 @@ schedule.
 Pinned default and proportional RoPE descriptors now bind sequence-before-heads
 layout and BF16-stepwise arithmetic; checked positions match a PyTorch CPU
 oracle, while real-checkpoint and full-context rotary fidelity remain unproven.
+The pinned Gemma 4 E2B checkpoint's main token table and packed per-layer token
+table are physically separate, share token IDs, and form one ordered public
+boundary stage with two output slices. Before any stage quantization, semantic
+import checks the shapes and floating-point dtypes of all 540 required text
+decoder artifacts against the cached official checkpoint's headers. This does
+not load their values, bind a complete schedule, or validate generation quality.
 An explicit in-process LogRow research override can evaluate all SiLU tensors
 of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
 material and a separate execution digest. The wider public-range profile

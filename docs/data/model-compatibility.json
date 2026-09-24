@@ -105,8 +105,8 @@
       "baseline_schedule": false,
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": ["local-global", "shared-kv", "bf16-operator-composition", "branch-norm", "ple"],
-      "runtime_evidence": "Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding",
-      "remaining": "Local/global attention, shared KV suffix, BF16 composition and PLE need a bound decoder and real-checkpoint evidence",
+      "runtime_evidence": "Pinned semantic-plan and isolated BF16 numeric tests; 540 required E2B checkpoint artifact headers verified, with no whole-decoder execution",
+      "remaining": "Local/global attention, shared KV, BF16 composition and PLE need a bound decoder and whole-checkpoint quality evidence",
       "guide": "/sdk/models/families/gemma-4/"
     },
     {
@@ -117,8 +117,8 @@
       "baseline_schedule": false,
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": ["local-global", "shared-kv", "bf16-operator-composition", "branch-norm", "ple"],
-      "runtime_evidence": "Exact pinned outer-config semantic-plan tests and isolated BF16 GeLU/softcap numeric parity; no whole-decoder binding",
-      "remaining": "Local/global attention, shared KV suffix, BF16 composition and PLE need a bound decoder and real-checkpoint evidence",
+      "runtime_evidence": "Pinned semantic-plan and isolated BF16 numeric tests; E2B checkpoint headers verified, with no E4B whole-decoder execution",
+      "remaining": "Local/global attention, shared KV, BF16 composition and PLE need a bound decoder and E4B checkpoint/quality evidence",
       "guide": "/sdk/models/families/gemma-4/"
     }
   ],
