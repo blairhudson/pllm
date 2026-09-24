@@ -172,7 +172,17 @@ def test_preparation_envelope_and_ack_are_small():
 
 
 @pytest.mark.parametrize("bound", [100, 40_000, 9_000_000])
-def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
+@pytest.mark.parametrize(
+    ("verification_component", "unexpected_material"),
+    [
+        ("none", False),
+        ("pllm/freivalds-verify/v1", False),
+        ("none", True),
+    ],
+)
+def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(
+    bound: int, verification_component: str, unexpected_material: bool
+):
     profile = seeded_ring_profile(bound)
     weight = np.array([[3, -2, 5], [-7, 1, 4]], dtype=np.int8)
     metadata = StageMetadata(
@@ -213,6 +223,13 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
             ).pack()
         ]
 
+    class UnexpectedVerifier:
+        def claim(self, *_args):
+            return self
+
+        def cancel(self):
+            seen["cancelled"] = b"yes"
+
     inventory = PreparedInventory(
         prepared.session_id,
         2,
@@ -221,13 +238,26 @@ def test_prepared_remote_linear_exact_algebra_and_payload_secrecy(bound: int):
                 request=prepared,
                 input_mask=input_mask,
                 output_mask=output_mask,
+                verification=UnexpectedVerifier() if unexpected_material else None,
             )
         },
     )
+    lease = inventory.reserve(2)
     remote = PreparedRemoteLinear(
-        "model-v1", "body-abc", {metadata.id: metadata}, inventory.reserve(2), infer,
+        "model-v1", "body-abc", {metadata.id: metadata}, lease, infer,
+        verification_component=verification_component,
     )
     clear = np.array([[5, -3, 2], [-8, 4, 7]], dtype=np.float32)
+    if verification_component != "none" or unexpected_material:
+        with pytest.raises(TransformerClientError, match="verification does not match"):
+            remote(metadata.id, clear)
+        assert "inference" not in seen
+        if unexpected_material:
+            assert seen["cancelled"] == b"yes"
+        lease.close()
+        assert inventory.status()["available"] == 0
+        assert inventory.status()["consumed"] == 2
+        return
     actual = remote(metadata.id, clear)
     quantized = quantize_activation_per_row(clear, bits=8)
     expected = (quantized.values.astype(np.int64) @ weight.astype(np.int64).T) * quantized.scales[:, None] + metadata.bias

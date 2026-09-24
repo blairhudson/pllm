@@ -2687,6 +2687,9 @@ class RuntimeClient:
                 stages=state.bundle.stages,
                 inference=exchange,
                 inventory=provider,
+                verification_component=str(
+                    state.bundle.privacy.get("verification_component", "none")
+                ),
             )
         elif state.privacy_protocol == "direct_bfv_w4a4":
             remote = _DirectFHERemoteLinear(

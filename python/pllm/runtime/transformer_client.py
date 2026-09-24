@@ -828,12 +828,15 @@ class PreparedRemoteLinear:
         stages,
         inventory,
         inference,
+        *,
+        verification_component: str = "none",
     ) -> None:
         self.model_id = model_id
         self.body_fingerprint = body_fingerprint
         self.stages = stages
         self.inference = inference
         self.inventory = inventory
+        self.verification_component = verification_component
         self.stats = StageClientStats()
 
     @staticmethod
@@ -871,6 +874,13 @@ class PreparedRemoteLinear:
         clear = clear_signed.astype(np.int64, copy=False) % profile.modulus
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         verifier = self.inventory.take_verifier(stage_id)
+        if (
+            self.verification_component not in {"none", "pllm/freivalds-verify/v1"}
+            or (verifier is None) != (self.verification_component == "none")
+        ):
+            if verifier is not None:
+                verifier.cancel()
+            raise TransformerClientError("prepared stage verification does not match its contract")
         complement = (clear - mask.astype(np.int64)) % profile.modulus
         batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
         if batch_id is not None:
