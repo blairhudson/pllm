@@ -413,6 +413,7 @@ fn lower_graph(
         json!({
             "weight": format!("{model}.embed_tokens.weight"),
             "checkpoint_layout": "conditional_generation",
+            "output_dtype": "bfloat16",
             "adapter_reference_revision": variant.source_revision
         }),
     );
@@ -436,7 +437,7 @@ fn lower_graph(
         ModelOperator::TokenLookup,
         &["input.tokens"],
         packed_ple_shape.clone(),
-        json!({"weight": format!("{model}.embed_tokens_per_layer.weight")}),
+        json!({"weight": format!("{model}.embed_tokens_per_layer.weight"), "output_dtype": "bfloat16"}),
     );
     scale(
         &mut operations,
@@ -502,7 +503,7 @@ fn lower_graph(
         ModelOperator::ResidualAdd,
         &["ple_token_reshape", "ple_context_norm"],
         ple_shape.clone(),
-        json!({"semantics": "ple_token_plus_context"}),
+        json!({"semantics": "ple_token_plus_context", "output_dtype": "bfloat16"}),
     );
     scale(
         &mut operations,
@@ -629,6 +630,7 @@ fn lower_graph(
             json!({
                 "group_size": NUM_HEADS / variant.num_kv_heads,
                 "key_value_source_layer": source_layer,
+                "output_dtype": "bfloat16",
                 "key_layout": if sliding { "batch_kv_heads_query_window_feature" } else { "batch_kv_heads_sequence_feature" }
             }),
         );
@@ -703,6 +705,7 @@ fn lower_graph(
             q_attention_shape.clone(),
             json!({
                 "group_size": NUM_HEADS / variant.num_kv_heads,
+                "output_dtype": "bfloat16",
                 "value_layout": if sliding { "batch_kv_heads_query_window_feature" } else { "batch_kv_heads_sequence_feature" }
             }),
         );
@@ -745,7 +748,7 @@ fn lower_graph(
             ModelOperator::ResidualAdd,
             &[&residual, &post_attention],
             hidden_shape.clone(),
-            json!({}),
+            json!({"output_dtype": "bfloat16"}),
         );
         let pre_ffn = format!("{prefix}.pre_feedforward_norm");
         rms_norm(
@@ -796,7 +799,7 @@ fn lower_graph(
             ModelOperator::Multiply,
             &[&activated, &up],
             intermediate_shape,
-            json!({}),
+            json!({"output_dtype": "bfloat16"}),
         );
         let down = format!("{prefix}.down_proj");
         linear(
@@ -821,7 +824,7 @@ fn lower_graph(
             ModelOperator::ResidualAdd,
             &[&attention_residual, &post_ffn],
             hidden_shape.clone(),
-            json!({}),
+            json!({"output_dtype": "bfloat16"}),
         );
         let ple_slice = format!("{prefix}.ple_slice");
         push(
@@ -856,7 +859,7 @@ fn lower_graph(
             ModelOperator::Multiply,
             &[&ple_activated, &ple_slice],
             vec![batch, query, PLE_DIM],
-            json!({}),
+            json!({"output_dtype": "bfloat16"}),
         );
         let ple_projection = format!("{prefix}.ple_projection");
         linear(
@@ -881,7 +884,7 @@ fn lower_graph(
             ModelOperator::ResidualAdd,
             &[&ffn_residual, &ple_norm],
             hidden_shape.clone(),
-            json!({}),
+            json!({"output_dtype": "bfloat16"}),
         );
         let layer_scaled = format!("{prefix}.layer_scalar");
         scale(
@@ -922,7 +925,7 @@ fn lower_graph(
         ModelOperator::OutputHead,
         &["last_hidden"],
         vec![batch, VOCAB_SIZE],
-        json!({"weight": format!("{model}.embed_tokens.weight"), "tied": true}),
+        json!({"weight": format!("{model}.embed_tokens.weight"), "tied": true, "output_dtype": "bfloat16"}),
     );
     push(
         &mut operations,
@@ -1259,6 +1262,13 @@ fn rope_attributes(sliding: bool, head_dim: u64) -> Value {
             "partial_rotary_factor": {"numerator": 1, "denominator": 1},
             "attention_scaling": {"numerator": 1, "denominator": 1},
             "frequency_compute_dtype": "float32",
+            "input_layout": "batch_sequence_heads_feature",
+            "output_layout": "batch_sequence_heads_feature",
+            "pairing": "split_half",
+            "position_policy": "sequential_absolute",
+            "coefficient_profile": "pllm.numeric.rope.bfloat16_stepwise.v1",
+            "tail_policy": "zero_frequency_pass_through",
+            "numeric_semantics": "bfloat16_stepwise",
             "output_dtype": "bfloat16"
         })
     } else {
@@ -1269,6 +1279,13 @@ fn rope_attributes(sliding: bool, head_dim: u64) -> Value {
             "partial_rotary_factor": {"numerator": 1, "denominator": 4},
             "attention_scaling": {"numerator": 1, "denominator": 1},
             "frequency_compute_dtype": "float32",
+            "input_layout": "batch_sequence_heads_feature",
+            "output_layout": "batch_sequence_heads_feature",
+            "pairing": "split_half",
+            "position_policy": "sequential_absolute",
+            "coefficient_profile": "pllm.numeric.rope.bfloat16_stepwise.v1",
+            "tail_policy": "zero_frequency_pass_through",
+            "numeric_semantics": "bfloat16_stepwise",
             "output_dtype": "bfloat16"
         })
     }
@@ -1304,7 +1321,7 @@ fn linear(
         ModelOperator::Linear,
         &[input],
         shape,
-        json!({"weight": weight, "bias": null}),
+        json!({"weight": weight, "bias": null, "input_dtype": "bfloat16", "output_dtype": "bfloat16"}),
     );
 }
 
@@ -1541,6 +1558,33 @@ mod tests {
             format!("{digest:x}"),
             "1b28f3d2c3100f6c594754b81107428bd7b822a7f48272ca681dae9d2ec38330"
         );
+    }
+
+    #[test]
+    fn bf16_rotary_requires_the_complete_layout_and_frequency_contract() {
+        let source = e2b_plan();
+        source.validate().unwrap();
+        for field in [
+            "pairing",
+            "input_layout",
+            "numeric_semantics",
+            "output_dtype",
+        ] {
+            let mut forged = source.clone();
+            operation_mut(&mut forged.prefill, "layer.0.rope_q")
+                .attributes
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
+            assert!(
+                matches!(forged.validate(), Err(ModelError::Incomplete(_))),
+                "{field}"
+            );
+        }
+        let mut forged = source;
+        operation_mut(&mut forged.prefill, "layer.4.rope_q").attributes["partial_rotary_factor"] =
+            json!({"numerator": 0, "denominator": 4});
+        assert!(matches!(forged.validate(), Err(ModelError::Incomplete(_))));
     }
 
     #[test]

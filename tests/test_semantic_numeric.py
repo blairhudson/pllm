@@ -136,6 +136,103 @@ def test_bfloat16_softmax_handles_masked_queries_without_nan(operations: dict[st
         _local(operations["layer.0.softmax"], np.full((1, 1, 1, 4), -np.inf, dtype=np.float32))
 
 
+@pytest.mark.parametrize("rope_type", ["default", "proportional"])
+def test_pinned_rotary_contract_matches_bfloat16_torch_steps(
+    operations: dict[str, dict], rope_type: str
+) -> None:
+    operation = next(
+        row for row in operations.values()
+        if row["operator"] == "rotary_embedding" and row["attributes"]["rope_type"] == rope_type
+    )
+    attrs = operation["attributes"]
+    head = attrs["head_dim"]
+    positions = np.asarray([0, 1, 2, 127, 1023], dtype=np.int64)
+    source = np.linspace(-1.5, 1.5, num=positions.size * 2 * head, dtype=np.float32).reshape(
+        1, positions.size, 2, head
+    )
+    torch_source = torch.from_numpy(source).bfloat16()
+    rounded = torch_source.float().numpy()
+    actual = SemanticDecoderRuntime._rotary(rounded, positions, attrs)
+
+    fraction = attrs["partial_rotary_factor"]
+    angle_count = head * fraction["numerator"] // (2 * fraction["denominator"])
+    if rope_type == "default":
+        angle_count = head // 2
+    power = torch.arange(0, 2 * angle_count, 2, dtype=torch.float32) / head
+    inverse = 1 / (attrs["theta"] ** power)
+    if inverse.numel() < head // 2:
+        inverse = torch.cat((inverse, torch.zeros(head // 2 - inverse.numel())))
+    angles = torch.from_numpy(positions).float()[:, None] * inverse[None, :]
+    embedded = torch.cat((angles, angles), dim=-1)
+    cosine = embedded.cos().bfloat16()[None, :, None, :]
+    sine = embedded.sin().bfloat16()[None, :, None, :]
+    rotated = torch.cat((-torch_source[..., head // 2 :], torch_source[..., : head // 2]), dim=-1)
+    expected = (torch_source * cosine + rotated * sine).float().numpy()
+    np.testing.assert_array_equal(actual, expected)
+
+    with pytest.raises(TransformerClientError, match="BF16 rotary"):
+        SemanticDecoderRuntime._rotary(
+            rounded, positions, {**attrs, "input_layout": "batch_heads_sequence_feature"}
+        )
+    with pytest.raises(TransformerClientError, match="BF16 rotary"):
+        SemanticDecoderRuntime._rotary(source, positions, attrs)
+
+
+def test_declared_operator_outputs_round_at_local_and_remote_numeric_edges(
+    operations: dict[str, dict],
+) -> None:
+    values = np.asarray([1.001, -1.001, 0.125], dtype=np.float32)
+    reference = torch.from_numpy(values).to(torch.bfloat16).float().numpy()
+    for operator_id in (
+        "main_embedding",
+        "ple_token_embedding",
+        "layer.0.q_linear",
+        "layer.0.attention_scores",
+        "layer.0.attention_values",
+        "layer.0.attention_residual",
+        "layer.0.gated_multiply",
+        "layer.0.feedforward_residual",
+        "layer.0.ple_multiply",
+        "layer.0.ple_residual",
+        "output_head",
+    ):
+        operation = operations[operator_id]
+        assert operation["attributes"]["output_dtype"] == "bfloat16"
+        np.testing.assert_array_equal(
+            SemanticDecoderRuntime._numeric_output(operation, values), reference
+        )
+    policy = operations["layer.0.attention_scale"]
+    assert policy["attributes"]["factor"]["output_dtype"] == "bfloat16"
+    np.testing.assert_array_equal(SemanticDecoderRuntime._numeric_output(policy, values), reference)
+    invalid = {**operations["layer.0.q_linear"], "attributes": {"output_dtype": "float16"}}
+    with pytest.raises(TransformerClientError, match="numeric representation"):
+        SemanticDecoderRuntime._numeric_output(invalid, values)
+    with pytest.raises(TransformerClientError, match="must be finite"):
+        SemanticDecoderRuntime._numeric_output(
+            operations["layer.0.q_linear"], np.asarray([np.inf], dtype=np.float32)
+        )
+
+
+def test_bfloat16_elementwise_edges_match_torch_operand_and_result_rounding(
+    operations: dict[str, dict],
+) -> None:
+    left = torch.tensor([[1.001, -0.753, 3.011]], dtype=torch.bfloat16).float().numpy()
+    right = torch.tensor([[0.376, 1.507, -2.126]], dtype=torch.bfloat16).float().numpy()
+    runtime = object.__new__(SemanticDecoderRuntime)
+    for operator_id, oracle in (
+        ("layer.0.attention_residual", lambda a, b: a + b),
+        ("layer.0.gated_multiply", lambda a, b: a * b),
+    ):
+        operation = operations[operator_id]
+        values = {operation["inputs"][0]: left, operation["inputs"][1]: right}
+        actual = runtime._numeric_output(operation, runtime._local(operation, values, {}, {}))
+        expected = oracle(
+            torch.from_numpy(left).to(torch.bfloat16),
+            torch.from_numpy(right).to(torch.bfloat16),
+        ).float().numpy()
+        np.testing.assert_array_equal(actual, expected)
+
+
 def test_semantic_permute_and_slice_follow_declared_axes(operations: dict[str, dict]) -> None:
     values = np.arange(24, dtype=np.float32).reshape(1, 2, 3, 4)
     np.testing.assert_array_equal(

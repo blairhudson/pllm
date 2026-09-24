@@ -22,11 +22,20 @@ from .semantic_numeric import (
     SemanticNumericError,
     bfloat16_gelu_tanh,
     bfloat16_rms_norm,
+    bfloat16_rotary,
     bfloat16_scale,
     bfloat16_softmax,
     bfloat16_softcap,
+    round_bfloat16,
 )
-from .transformer_client import ClientBundle, MaskedTransformerClientRuntime, TransformerClientError
+from .semantic_state import SemanticStateError, WindowedLayerCache
+from . import semantic_state
+from .transformer_client import (
+    ClientBundle,
+    LayerCache,
+    MaskedTransformerClientRuntime,
+    TransformerClientError,
+)
 
 
 class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
@@ -58,6 +67,98 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         self._schedule = schedule
         self._stages = dict(stages)
         self._tensors = dict(tensors)
+        self._window_contracts = self._declared_windows(self._graphs)
+        self._window_state_bytes = self._window_resource_bytes(
+            self._graphs, self._window_contracts
+        )
+        self.reset()
+
+    @staticmethod
+    def _declared_windows(graphs: dict[str, Any]) -> dict[int, int]:
+        phase_windows: list[dict[int, dict[str, int]]] = []
+        for phase in ("prefill", "decode"):
+            windowed: dict[int, dict[str, int]] = {}
+            for operation in graphs[phase]["operations"]:
+                if operation["operator"] != "kv_cache_append":
+                    continue
+                attrs = operation["attributes"]
+                domain = attrs.get("attention_domain", {})
+                layout = domain.get("layout")
+                if layout == "batch_kv_heads_sequence_feature":
+                    continue
+                window = domain.get("maximum_sequence")
+                layer = operation.get("layer")
+                kind = operation.get("state_kind")
+                if (
+                    layout != "batch_kv_heads_query_window_feature"
+                    or type(window) is not int
+                    or window < 1
+                    or type(layer) is not int
+                    or kind not in {"key", "value"}
+                    or attrs.get("state_capacity") != window - 1
+                    or attrs.get("state_layout") != "batch_kv_heads_sequence_feature"
+                ):
+                    raise TransformerClientError("semantic windowed state declaration is invalid")
+                by_kind = windowed.setdefault(layer, {})
+                if kind in by_kind:
+                    raise TransformerClientError("semantic windowed state has duplicate owners")
+                by_kind[kind] = window
+            phase_windows.append(windowed)
+        if phase_windows[0] != phase_windows[1] or any(
+            set(by_kind) != {"key", "value"} or by_kind["key"] != by_kind["value"]
+            for by_kind in phase_windows[0].values()
+        ):
+            raise TransformerClientError("semantic windowed state differs across phases")
+        return {layer: by_kind["key"] for layer, by_kind in phase_windows[0].items()}
+
+    @staticmethod
+    def _window_resource_bytes(graphs: dict[str, Any], windows: dict[int, int]) -> int:
+        if not windows:
+            return 0
+        used: dict[tuple[int, str], int] = {}
+        for state in graphs["decode"]["state_inputs"]:
+            layer, kind = state.get("layer"), state.get("kind")
+            if layer not in windows:
+                continue
+            shape = state.get("shape")
+            if (
+                kind not in {"key", "value"}
+                or (layer, kind) in used
+                or not isinstance(shape, list)
+                or len(shape) != 4
+                or any(type(value) is not int or value < 1 for value in shape)
+                or shape[0] != 1
+                or shape[2] != windows[layer] - 1
+                or state.get("maximum_sequence") != windows[layer] - 1
+            ):
+                raise TransformerClientError("semantic windowed state shape is invalid")
+            used[(layer, kind)] = shape[1] * shape[2] * shape[3] * np.dtype(np.float32).itemsize
+        if set(used) != {(layer, kind) for layer in windows for kind in ("key", "value")}:
+            raise TransformerClientError("semantic windowed state lacks key/value capacity")
+        total = sum(used.values())
+        if total > semantic_state.MAX_WINDOW_STATE_BYTES:
+            raise TransformerClientError("semantic windowed state exceeds client memory budget")
+        return total
+
+    def reset(self) -> None:
+        super().reset()
+        for layer, window in getattr(self, "_window_contracts", {}).items():
+            self.caches[layer] = WindowedLayerCache(window=window)
+
+    def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
+        if not self._window_contracts:
+            return super().prepare_ids(ids)
+        if not ids:
+            ids = [int(self.cfg["bos_token_id"])]
+        if len(ids) > int(self._graphs["prefill"]["query_sequence"]):
+            raise TransformerClientError("semantic prefill exceeds its compiled query bound")
+        self.reset()
+        logits: np.ndarray | None = None
+        for token in ids:
+            logits = self._forward(np.asarray([token], dtype=np.int64), final_logits_only=True)[-1]
+        if logits is None:
+            raise TransformerClientError("semantic prefill produced no logits")
+        return list(ids), logits, self.caches
 
     def forward_ids(self, ids: list[int] | np.ndarray) -> np.ndarray:
         """Expose per-token logits via the bound prefill and decode phases."""
@@ -102,7 +203,35 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         return kinds
 
     @staticmethod
+    def _numeric_output(operation: dict[str, Any], value: np.ndarray) -> np.ndarray:
+        """Enforce an operator's declared representation after local or remote work."""
+        attributes = operation["attributes"]
+        factor = attributes.get("factor")
+        dtype = (
+            factor.get("output_dtype")
+            if operation["operator"] in {"scale", "attention_scale"} and isinstance(factor, dict)
+            else attributes.get("output_dtype")
+        )
+        if dtype is None:
+            return value
+        if dtype == "model_native":
+            if np.asarray(value).dtype != np.float32:
+                raise TransformerClientError("semantic operator has an unsupported numeric representation")
+            return value
+        if dtype != "bfloat16" or np.asarray(value).dtype != np.float32:
+            raise TransformerClientError("semantic operator has an unsupported numeric representation")
+        try:
+            return round_bfloat16(value)
+        except SemanticNumericError as exc:
+            raise TransformerClientError(str(exc)) from exc
+
+    @staticmethod
     def _rotary(value: np.ndarray, positions: np.ndarray, attributes: dict[str, Any]) -> np.ndarray:
+        if attributes.get("output_dtype") == "bfloat16":
+            try:
+                return bfloat16_rotary(value, positions, attributes)
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
         rotary_dim = int(attributes["rotary_dimensions"])
         theta = float(attributes["theta"])
         if rotary_dim == 0:
@@ -126,7 +255,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         operation: dict[str, Any],
         values: dict[str, Any],
         state_kinds: dict[str, str],
-        pending_keys: dict[int, np.ndarray],
+        pending_keys: dict[int, tuple[str, np.ndarray]],
     ) -> Any:
         kind = operation["operator"]
         inputs = operation["inputs"]
@@ -222,8 +351,6 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "rotary_embedding":
             return self._rotary(source, values[inputs[1]], attrs)
         elif kind == "kv_cache_append":
-            if attrs.get("attention_domain", {}).get("layout") == "batch_kv_heads_query_window_feature":
-                raise TransformerClientError("semantic windowed KV update is not yet bound")
             if type(layer) is not int:
                 raise TransformerClientError("semantic cache operation lacks a layer")
             cache = self.caches[layer]
@@ -232,16 +359,42 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             )
             state_kind = state_kinds.get(operation["id"])
             if state_kind == "key":
-                pending_keys[layer] = tensor
+                pending_keys[layer] = (operation["id"], tensor)
+                if isinstance(cache, WindowedLayerCache):
+                    return source
                 prior = cache.key[: cache.length] if cache.key is not None else tensor[:0]
                 return np.concatenate((prior, tensor), axis=0).transpose(1, 0, 2)[None]
             if state_kind == "value" and layer in pending_keys:
-                key, value = cache.append(pending_keys.pop(layer), tensor)
+                key_id, key_tensor = pending_keys.pop(layer)
+                if isinstance(cache, WindowedLayerCache):
+                    try:
+                        key_view, value_view = cache.append_windows(key_tensor, tensor)
+                    except SemanticStateError as exc:
+                        raise TransformerClientError(str(exc)) from exc
+                    values[key_id] = key_view
+                    return value_view
+                key, value = cache.append(key_tensor, tensor)
+                values[key_id] = key.transpose(1, 0, 2)[None]
                 return value.transpose(1, 0, 2)[None]
         elif kind == "cache_suffix":
-            if attrs.get("axis") != 2 or attrs.get("semantics") != "visible_valid_prefix":
+            if attrs.get("axis") == 2 and attrs.get("semantics") == "visible_valid_prefix":
+                return source
+            if (
+                attrs.get("axis") != 3
+                or attrs.get("output_axis") != 2
+                or attrs.get("semantics") != "persist_last_valid_past_tokens"
+                or type(layer) is not int
+                or layer not in self._window_contracts
+                or attrs.get("maximum_sequence") != self._window_contracts[layer] - 1
+            ):
                 raise TransformerClientError("semantic cache suffix is not yet bound")
-            return source
+            cache = self.caches[layer]
+            if not isinstance(cache, WindowedLayerCache) or source.ndim != 5:
+                raise TransformerClientError("semantic cache suffix lacks a windowed state view")
+            stored = cache.key if state_kinds.get(operation["id"]) == "key" else cache.value
+            if stored is None:
+                raise TransformerClientError("semantic cache suffix lacks a retained prefix")
+            return stored[: cache.length].transpose(1, 0, 2)[None]
         elif kind == "attention_scores":
             if "key_layout" in attrs:
                 try:
@@ -368,7 +521,23 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         for state in graph["state_inputs"]:
             cache = self.caches[int(state["layer"])]
             stored = cache.key if state["kind"] == "key" else cache.value
-            if stored is None or cache.length != self.position:
+            absolute_position = (
+                cache.position if isinstance(cache, WindowedLayerCache) else cache.length
+            )
+            if (
+                stored is None
+                or absolute_position != self.position
+                or cache.length > int(state["maximum_sequence"])
+                or stored.dtype != np.float32
+                or len(state["shape"]) != 4
+                or stored.shape[0] < cache.length
+                or stored.shape[1:] != (int(state["shape"][1]), int(state["shape"][3]))
+                or not np.all(np.isfinite(stored[: cache.length]))
+                or (
+                    isinstance(cache, WindowedLayerCache)
+                    and np.any((stored[: cache.length].view(np.uint32) & 0xFFFF) != 0)
+                )
+            ):
                 raise TransformerClientError("semantic cache state is unavailable")
             values[state["id"]] = stored[: cache.length].transpose(1, 0, 2)[None]
         operations = {op["id"]: op for op in graph["operations"]}
@@ -381,12 +550,14 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if len(selections) != 1 or len(selections[0]["inputs"]) != 1:
             raise TransformerClientError("semantic plan has no unique logit selection source")
         logits_id = selections[0]["inputs"][0]
-        pending_keys: dict[int, np.ndarray] = {}
+        pending_keys: dict[int, tuple[str, np.ndarray]] = {}
         for step in steps:
             op_ids = step["operation_ids"]
             if step["executor"] == "client_local":
                 operation = operations[op_ids[0]]
-                values[op_ids[0]] = self._local(operation, values, state_kinds, pending_keys)
+                values[op_ids[0]] = self._numeric_output(
+                    operation, self._local(operation, values, state_kinds, pending_keys)
+                )
             elif step["executor"] == "remote_stage":
                 stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
                 if len(stage_ids) != 1:
@@ -411,6 +582,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                         offset = int(row["stage_offset"])
                         width = int(row["stage_width"])
                         values[op_id] = output[..., offset : offset + width]
+                for op_id in op_ids:
+                    values[op_id] = self._numeric_output(operations[op_id], values[op_id])
             else:
                 raise TransformerClientError("semantic runtime executor is unsupported")
             for input_id in step["input_ids"]:

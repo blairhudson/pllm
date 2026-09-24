@@ -74,6 +74,7 @@ struct RemoteGroupKey {
     operator: ModelOperator,
     layer: Option<u64>,
     inputs: Vec<String>,
+    singleton: Option<String>,
 }
 
 struct RemoteGroup<'a> {
@@ -101,12 +102,18 @@ fn local_operator(operation: &ModelOperation) -> bool {
     match operation.operator {
         ModelOperator::Reshape
         | ModelOperator::KvCacheAppend
-        | ModelOperator::ResidualAdd
         | ModelOperator::Silu
-        | ModelOperator::Multiply
         | ModelOperator::LastToken
         | ModelOperator::GreedyTokenSelection
         | ModelOperator::TokenFeedback => true,
+        ModelOperator::ResidualAdd | ModelOperator::Multiply => {
+            let attrs = &operation.attributes;
+            attrs.as_object().is_some_and(serde_json::Map::is_empty)
+                || attrs
+                    .get("output_dtype")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("bfloat16")
+        }
         ModelOperator::Softmax => {
             let attrs = &operation.attributes;
             (attrs.get("output_dtype").is_none() && attrs.get("compute_dtype").is_none())
@@ -166,15 +173,22 @@ fn local_operator(operation: &ModelOperation) -> bool {
             };
             let attrs = &operation.attributes;
             match attrs.get(key).and_then(serde_json::Value::as_str) {
-                None => attrs
-                    .get("group_size")
-                    .and_then(serde_json::Value::as_u64)
-                    .is_some_and(|value| value > 0),
+                None => {
+                    attrs.get("output_dtype").is_none()
+                        && attrs
+                            .get("group_size")
+                            .and_then(serde_json::Value::as_u64)
+                            .is_some_and(|value| value > 0)
+                }
                 Some("batch_kv_heads_sequence_feature" | "batch_kv_heads_query_window_feature") => {
                     attrs
                         .get("group_size")
                         .and_then(serde_json::Value::as_u64)
                         .is_some_and(|value| value > 0)
+                        && attrs
+                            .get("output_dtype")
+                            .and_then(serde_json::Value::as_str)
+                            == Some("bfloat16")
                         && operation.output_shape.len() == 4
                         && (operation.operator != ModelOperator::AttentionScores
                             || (operation.layer.is_some_and(|layer| {
@@ -363,6 +377,148 @@ fn local_operator(operation: &ModelOperation) -> bool {
     }
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum NumericDomain {
+    Bfloat16,
+    MaskedBfloat16,
+    Integer,
+}
+
+/// Mixed-precision plans must bind every semantic numeric edge, not merely
+/// round individual activations. The client may represent BF16 as float32
+/// storage only when every producer and consumer preserves its boundary.
+fn bind_bfloat16_graph(graph: &DecoderGraph) -> Result<(), String> {
+    let declares_bfloat16 = graph.operations.iter().any(|operation| {
+        let attrs = &operation.attributes;
+        ["output_dtype", "input_dtype", "compute_dtype"]
+            .iter()
+            .any(|field| attrs.get(*field).and_then(serde_json::Value::as_str) == Some("bfloat16"))
+            || attrs
+                .get("factor")
+                .and_then(|factor| factor.get("output_dtype"))
+                .and_then(serde_json::Value::as_str)
+                == Some("bfloat16")
+    });
+    if !declares_bfloat16 {
+        return Ok(());
+    }
+    let mut domains = BTreeMap::new();
+    domains.insert("input.tokens".to_owned(), NumericDomain::Integer);
+    domains.insert("input.positions".to_owned(), NumericDomain::Integer);
+    domains.insert("input.sequence_lengths".to_owned(), NumericDomain::Integer);
+    domains.insert("input.attention_mask".to_owned(), NumericDomain::Integer);
+    for state in &graph.state_inputs {
+        domains.insert(state.id.clone(), NumericDomain::Bfloat16);
+    }
+    for operation in &graph.operations {
+        let inputs: Vec<_> = operation
+            .inputs
+            .iter()
+            .map(|id| domains.get(id).copied())
+            .collect();
+        let uses = |indices: &[usize], domain| {
+            indices
+                .iter()
+                .all(|index| inputs.get(*index) == Some(&Some(domain)))
+        };
+        let attrs = &operation.attributes;
+        let output = attrs
+            .get("output_dtype")
+            .and_then(serde_json::Value::as_str)
+            == Some("bfloat16");
+        let factor_output = attrs
+            .get("factor")
+            .and_then(|factor| factor.get("output_dtype"))
+            .and_then(serde_json::Value::as_str)
+            == Some("bfloat16");
+        let result = match operation.operator {
+            ModelOperator::TokenLookup if uses(&[0], NumericDomain::Integer) && output => {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::Linear
+                if uses(&[0], NumericDomain::Bfloat16)
+                    && attrs.get("input_dtype").and_then(serde_json::Value::as_str)
+                        == Some("bfloat16")
+                    && output =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::OutputHead
+            | ModelOperator::RmsNorm
+            | ModelOperator::RotaryEmbedding
+            | ModelOperator::GeluTanh
+            | ModelOperator::Softcap
+                if uses(&[0], NumericDomain::Bfloat16) && output =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::Scale | ModelOperator::AttentionScale
+                if uses(&[0], NumericDomain::Bfloat16) && factor_output =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::AttentionScores
+            | ModelOperator::AttentionValues
+            | ModelOperator::ResidualAdd
+            | ModelOperator::Multiply
+                if uses(&[0, 1], NumericDomain::Bfloat16) && output =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::Reshape
+            | ModelOperator::Permute
+            | ModelOperator::Slice
+            | ModelOperator::LastToken
+            | ModelOperator::CacheSuffix
+                if uses(&[0], NumericDomain::Bfloat16) =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::KvCacheAppend
+                if operation.inputs.iter().enumerate().any(|(index, id)| {
+                    id != "input.positions"
+                        && id != "input.attention_mask"
+                        && id != "input.sequence_lengths"
+                        && inputs[index] == Some(NumericDomain::Bfloat16)
+                }) && operation.inputs.iter().enumerate().all(|(index, id)| {
+                    matches!(
+                        id.as_str(),
+                        "input.positions" | "input.attention_mask" | "input.sequence_lengths"
+                    ) || inputs[index] == Some(NumericDomain::Bfloat16)
+                }) =>
+            {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::CausalMask if uses(&[0], NumericDomain::Bfloat16) => {
+                Some(NumericDomain::MaskedBfloat16)
+            }
+            ModelOperator::Softmax if uses(&[0], NumericDomain::MaskedBfloat16) && output => {
+                Some(NumericDomain::Bfloat16)
+            }
+            ModelOperator::GreedyTokenSelection if uses(&[0], NumericDomain::Bfloat16) => {
+                Some(NumericDomain::Integer)
+            }
+            ModelOperator::TokenFeedback if uses(&[0], NumericDomain::Integer) => {
+                Some(NumericDomain::Integer)
+            }
+            _ => None,
+        };
+        let Some(result) = result else {
+            return Err(format!(
+                "BF16 numeric edge at {} has no complete operator contract",
+                operation.id
+            ));
+        };
+        if domains.insert(operation.id.clone(), result).is_some() {
+            return Err(format!(
+                "BF16 operation {} was declared twice",
+                operation.id
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn weight_id(operation: &ModelOperation) -> Result<String, String> {
     operation
         .attributes
@@ -413,6 +569,10 @@ fn classify_remote_groups(
                     operator: operation.operator,
                     layer: operation.layer,
                     inputs: operation.inputs.clone(),
+                    // Independent token tables remain separate boundary
+                    // artifacts even when they read the same token IDs.
+                    singleton: (operation.operator != ModelOperator::Linear)
+                        .then(|| operation.id.clone()),
                 })
                 .or_default()
                 .push(operation);
@@ -606,6 +766,8 @@ pub fn lower_decoder_runtime_schedule(
         }
     }
     plan.validate().map_err(|error| error.to_string())?;
+    bind_bfloat16_graph(&plan.prefill)?;
+    bind_bfloat16_graph(&plan.decode)?;
     if !plan.transformations.is_empty() {
         return Err("masked-linear runtime schedule does not support transformed plans".into());
     }
@@ -645,6 +807,44 @@ mod numeric_contract_tests {
             },
         )
         .unwrap();
+        let (groups, _) = classify_remote_groups(&plan.prefill).unwrap();
+        assert_eq!(groups["main_embedding"].operations.len(), 1);
+        assert_eq!(groups["ple_token_embedding"].operations.len(), 1);
+        assert_ne!(
+            weight_id(groups["main_embedding"].operations[0]).unwrap(),
+            weight_id(groups["ple_token_embedding"].operations[0]).unwrap()
+        );
+        bind_bfloat16_graph(&plan.prefill).unwrap();
+        bind_bfloat16_graph(&plan.decode).unwrap();
+        let mut unbound_linear = plan.prefill.clone();
+        unbound_linear
+            .operations
+            .iter_mut()
+            .find(|row| row.id == "layer.0.q_linear")
+            .unwrap()
+            .attributes["output_dtype"] = serde_json::Value::Null;
+        assert!(bind_bfloat16_graph(&unbound_linear)
+            .unwrap_err()
+            .contains("layer.0.q_linear"));
+        let mut unbound_residual = plan.prefill.clone();
+        unbound_residual
+            .operations
+            .iter_mut()
+            .find(|row| row.id == "layer.0.attention_residual")
+            .unwrap()
+            .attributes["output_dtype"] = serde_json::Value::Null;
+        assert!(bind_bfloat16_graph(&unbound_residual)
+            .unwrap_err()
+            .contains("attention_residual"));
+        let mut stripped = plan.prefill.clone();
+        for operation in &mut stripped.operations {
+            if let Some(attributes) = operation.attributes.as_object_mut() {
+                attributes.remove("output_dtype");
+            }
+        }
+        assert!(bind_bfloat16_graph(&stripped)
+            .unwrap_err()
+            .contains("main_embedding"));
         let operations = &plan.prefill.operations;
         for id in [
             "main_embedding_scaled",
@@ -703,6 +903,7 @@ mod numeric_contract_tests {
         for id in ["layer.0.attention_scores", "layer.0.attention_values"] {
             let operation = operations.iter().find(|row| row.id == id).unwrap();
             assert!(local_operator(operation));
+            assert_eq!(operation.attributes["output_dtype"], "bfloat16");
         }
         let mut forged_layout = operations
             .iter()

@@ -136,12 +136,84 @@ def bfloat16_softmax(value: np.ndarray) -> np.ndarray:
     return round_bfloat16(exponential / exponential.sum(axis=-1, keepdims=True))
 
 
+def bfloat16_rotary(
+    value: np.ndarray, positions: np.ndarray, attributes: dict[str, object]
+) -> np.ndarray:
+    """Full-head or zero-frequency proportional RoPE with BF16 step boundaries."""
+    source = np.asarray(value)
+    indices = np.asarray(positions)
+    head = attributes.get("head_dim")
+    theta = attributes.get("theta")
+    partial = attributes.get("partial_rotary_factor")
+    scaling = attributes.get("attention_scaling")
+    if (
+        source.ndim != 4
+        or source.dtype != np.float32
+        or not np.all(np.isfinite(source))
+        or indices.ndim != 1
+        or indices.dtype != np.int64
+        or not np.all((indices >= 0) & (indices < (1 << 24)))
+        or attributes.get("input_layout") != "batch_sequence_heads_feature"
+        or attributes.get("output_layout") != "batch_sequence_heads_feature"
+        or attributes.get("pairing") != "split_half"
+        or attributes.get("position_policy") != "sequential_absolute"
+        or attributes.get("coefficient_profile") != "pllm.numeric.rope.bfloat16_stepwise.v1"
+        or attributes.get("tail_policy") != "zero_frequency_pass_through"
+        or attributes.get("frequency_compute_dtype") != "float32"
+        or attributes.get("numeric_semantics") != "bfloat16_stepwise"
+        or attributes.get("output_dtype") != "bfloat16"
+        or type(head) is not int
+        or head < 2
+        or head % 2
+        or source.shape[-1] != head
+        or source.shape[1] != indices.size
+        or type(theta) is not int
+        or theta < 1
+        or not isinstance(partial, dict)
+        or not isinstance(scaling, dict)
+        or scaling != {"numerator": 1, "denominator": 1}
+        or np.any((source.view(np.uint32) & 0xFFFF) != 0)
+    ):
+        raise SemanticNumericError("BF16 rotary shape, source or policy is invalid")
+    numerator, denominator = partial.get("numerator"), partial.get("denominator")
+    if (
+        type(numerator) is not int
+        or type(denominator) is not int
+        or numerator < 1
+        or denominator < numerator
+    ):
+        raise SemanticNumericError("BF16 rotary fraction is invalid")
+    rope_type = attributes.get("rope_type")
+    if rope_type == "default" and numerator == denominator:
+        frequencies = np.arange(0, head, 2, dtype=np.float32) / np.float32(head)
+    elif rope_type == "proportional" and numerator < denominator:
+        angles = (head * numerator) // (2 * denominator)
+        if angles < 1 or angles > head // 2:
+            raise SemanticNumericError("proportional rotary angle count is invalid")
+        frequencies = np.arange(0, 2 * angles, 2, dtype=np.float32) / np.float32(head)
+    else:
+        raise SemanticNumericError("BF16 rotary variant is unsupported")
+    inverse = np.float32(1.0) / (np.float32(theta) ** frequencies)
+    if inverse.size < head // 2:
+        inverse = np.pad(inverse, (0, head // 2 - inverse.size))
+    angles = indices.astype(np.float32)[:, None] * inverse[None, :]
+    repeated = np.concatenate((angles, angles), axis=-1)
+    cosine = round_bfloat16(np.cos(repeated).astype(np.float32))[None, :, None, :]
+    sine = round_bfloat16(np.sin(repeated).astype(np.float32))[None, :, None, :]
+    half = head // 2
+    rotated = np.concatenate((-source[..., half:], source[..., :half]), axis=-1)
+    return round_bfloat16(
+        round_bfloat16(source * cosine) + round_bfloat16(rotated * sine)
+    )
+
+
 __all__ = [
     "SemanticNumericError",
     "bfloat16_gelu_tanh",
     "bfloat16_scale",
     "bfloat16_softcap",
     "bfloat16_rms_norm",
+    "bfloat16_rotary",
     "bfloat16_softmax",
     "round_bfloat16",
 ]

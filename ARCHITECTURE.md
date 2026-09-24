@@ -152,8 +152,11 @@ finite-BF16 numeric oracle: on the checked PyTorch CPU implementation the
 tanh-GeLU result differs by at most 0.0000305 over all 65,280 finite BF16
 inputs, and softcap with cap 30 agrees exactly. The one-element checkpoint
 scalar now has an exact-shape client-tensor binding; Gemma 4 RMSNorm uses
-direct checkpoint weights, without a `+1` offset. BF16
-composition, local/global attention, shared KV state and PLE still block
+direct checkpoint weights, without a `+1` offset. BF16 output boundaries are
+now declared on local and remote operators, checked end-to-end against the
+semantic graph, and rounded by the client executor. This is an isolated
+representation contract, not whole-decoder fidelity. Sliding/full KV state,
+PLE boundaries and real-checkpoint parity still block
 whole-decoder binding; its older runtime graph remains separate for
 existing tiny transport tests. Sources without semantic lowering adapters still
 retain their older inspection/runtime graph; an adapter with incomplete compiled
@@ -165,6 +168,15 @@ claim follows from the tiny loopback parity tests. The compiled decoder produces
 logits; request-level temperature and top-p selection are still applied by the
 client outside the plan's greedy reference operator, and are not included in its
 execution digest.
+The standalone semantic sliding-KV reference retains only the valid `W−1`
+prefix, constructs query-relative windows on demand, rejects overlarge views
+before state mutation, and preflights declared windowed state against a 2 GiB
+client-memory ceiling before runtime construction. It has no whole-model stage
+or PLE admission yet; the compiler continues to reject the incomplete Gemma
+schedule.
+Pinned default and proportional RoPE descriptors now bind sequence-before-heads
+layout and BF16-stepwise arithmetic; checked positions match a PyTorch CPU
+oracle, while real-checkpoint and full-context rotary fidelity remain unproven.
 An explicit in-process LogRow research override can evaluate all SiLU tensors
 of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
 material and a separate execution digest. The wider public-range profile

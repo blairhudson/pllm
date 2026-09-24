@@ -1497,21 +1497,63 @@ fn validate_rotary_embedding(
         "output_layout",
         "tail_policy",
     ];
-    if descriptor_keys
+    let common_descriptor = attributes.get("pairing").and_then(Value::as_str) == Some("split_half")
+        && attributes.get("position_policy").and_then(Value::as_str) == Some("sequential_absolute");
+    let q30_descriptor = common_descriptor
+        && attributes
+            .get("coefficient_profile")
+            .and_then(Value::as_str)
+            == Some("pllm.numeric.rope.q30.libm.v1")
+        && attributes.get("input_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("output_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("tail_policy").and_then(Value::as_str) == Some("unchanged");
+    let bfloat16_descriptor = common_descriptor
+        && attributes
+            .get("coefficient_profile")
+            .and_then(Value::as_str)
+            == Some("pllm.numeric.rope.bfloat16_stepwise.v1")
+        && attributes.get("input_layout").and_then(Value::as_str)
+            == Some("batch_sequence_heads_feature")
+        && attributes.get("output_layout").and_then(Value::as_str)
+            == Some("batch_sequence_heads_feature")
+        && attributes.get("tail_policy").and_then(Value::as_str)
+            == Some("zero_frequency_pass_through")
+        && attributes.get("numeric_semantics").and_then(Value::as_str) == Some("bfloat16_stepwise")
+        && attributes
+            .get("frequency_compute_dtype")
+            .and_then(Value::as_str)
+            == Some("float32")
+        && attributes.get("output_dtype").and_then(Value::as_str) == Some("bfloat16")
+        && attributes.get("attention_scaling")
+            == Some(&serde_json::json!({"numerator": 1, "denominator": 1}));
+    let bounded_fraction = || {
+        let fraction = attributes.get("partial_rotary_factor")?;
+        let numerator = fraction.get("numerator")?.as_u64()?;
+        let denominator = fraction.get("denominator")?.as_u64()?;
+        (numerator > 0 && denominator >= numerator).then_some((numerator, denominator))
+    };
+    let bounded_bfloat16_descriptor = bfloat16_descriptor
+        && bounded_fraction().is_some_and(|(numerator, denominator)| {
+            let head = input_shape[3];
+            match attributes.get("rope_type").and_then(Value::as_str) {
+                Some("default") => numerator == denominator,
+                Some("proportional") => {
+                    numerator < denominator
+                        && head
+                            .checked_mul(numerator)
+                            .is_some_and(|value| value / denominator / 2 > 0)
+                }
+                _ => false,
+            }
+        });
+    if (descriptor_keys
         .iter()
         .any(|key| attributes.contains_key(*key))
-        && (attributes.get("pairing").and_then(Value::as_str) != Some("split_half")
-            || attributes.get("position_policy").and_then(Value::as_str)
-                != Some("sequential_absolute")
-            || attributes
-                .get("coefficient_profile")
-                .and_then(Value::as_str)
-                != Some("pllm.numeric.rope.q30.libm.v1")
-            || attributes.get("input_layout").and_then(Value::as_str)
-                != Some("batch_heads_sequence_feature")
-            || attributes.get("output_layout").and_then(Value::as_str)
-                != Some("batch_heads_sequence_feature")
-            || attributes.get("tail_policy").and_then(Value::as_str) != Some("unchanged"))
+        || attributes.get("output_dtype").and_then(Value::as_str) == Some("bfloat16")
+        || attributes.get("numeric_semantics").and_then(Value::as_str) == Some("bfloat16_stepwise"))
+        && !(q30_descriptor || bounded_bfloat16_descriptor)
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid rotary descriptors",

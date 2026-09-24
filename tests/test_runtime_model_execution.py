@@ -18,7 +18,12 @@ from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.model_execution import CompiledRuntimeSession, RuntimeExecutionError
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
-from pllm.runtime.transformer_client import ClientBundle, MaskedTransformerClientRuntime, RemoteLinear
+from pllm.runtime.transformer_client import (
+    ClientBundle,
+    MaskedTransformerClientRuntime,
+    RemoteLinear,
+    TransformerClientError,
+)
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
@@ -101,6 +106,23 @@ def test_dense_gated_decoder_binds_untied_output_head(tmp_path: Path) -> None:
         rtol=1e-5,
         atol=1e-5,
     )
+
+
+def test_compiled_decode_rejects_nonfinite_restored_cache_before_remote_work(tmp_path: Path) -> None:
+    compiled, _, remote = _compiled(tmp_path)
+    calls: list[str] = []
+
+    def counted(stage_id: str, values: np.ndarray) -> np.ndarray:
+        calls.append(stage_id)
+        return remote(stage_id, values)
+
+    runtime = compiled.runtime(counted)
+    _, _, cache = runtime.prepare_ids([2, 3])
+    prior_calls = len(calls)
+    cache[0].key[0, 0, 0] = np.nan
+    with pytest.raises(TransformerClientError, match="cache state is unavailable"):
+        runtime.decode_step(4, cache)
+    assert len(calls) == prior_calls
 
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
