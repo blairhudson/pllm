@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import threading
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -21,6 +23,11 @@ class CompiledRuntimeSession:
         "_last_logits",
         "_layers",
         "_lock",
+        "_logrow",
+        "_logrow_operations",
+        "_logrow_phase",
+        "_logrow_step",
+        "_research_execution_digest",
         "_max_input",
         "_max_new",
         "_pending_token",
@@ -40,6 +47,8 @@ class CompiledRuntimeSession:
         cls,
         compiled: CompiledRuntimeModel,
         remote: Callable[[str, np.ndarray], np.ndarray],
+        *,
+        research_logrow_material: object | None = None,
     ) -> CompiledRuntimeSession:
         if type(compiled) is not CompiledRuntimeModel:
             raise TypeError("compiled must be a CompiledRuntimeModel")
@@ -58,8 +67,66 @@ class CompiledRuntimeSession:
             or max_input <= 0
             or max_new <= 0
         ):
-            raise RuntimeExecutionError("compiled runtime session requires a batch-one decoder plan")
+            raise RuntimeExecutionError(
+                "compiled runtime session requires a batch-one decoder plan"
+            )
         bundle = compiled._bundle
+
+        logrow = None
+        operations: dict[str, dict[int, str]] = {}
+        research_digest = None
+        logrow_claimed = False
+        if research_logrow_material is not None:
+            from pllm import _native
+
+            if type(research_logrow_material) is not _native.LogRowQ7SessionReference:
+                raise TypeError("research LogRow material must be a native session handle")
+            logrow = research_logrow_material
+            try:
+                estimate = json.loads(logrow.estimate())
+                if (
+                    estimate.get("schema_version") != "pllm.logrow_q7_session_estimate.v1"
+                    or estimate.get("plan_digest") != compiled.model_plan_digest
+                    or estimate.get("max_decode_steps") != max_new - 1
+                    or len(logrow.issuance_digest) != 64
+                ):
+                    raise RuntimeExecutionError(
+                        "research LogRow material differs from decoder plan"
+                    )
+                for phase, graph, width in (
+                    ("prefill", prefill, max_input),
+                    ("decode", decode, 1),
+                ):
+                    by_layer: dict[int, str] = {}
+                    for operation in graph["operations"]:
+                        if operation["operator"] != "silu":
+                            continue
+                        layer = operation["layer"]
+                        if (
+                            type(layer) is not int
+                            or layer in by_layer
+                            or operation["output_shape"]
+                            != [1, width, bundle.cfg["intermediate_size"]]
+                        ):
+                            raise RuntimeExecutionError(
+                                "research LogRow semantic SiLU shape differs"
+                            )
+                        by_layer[layer] = operation["id"]
+                    if set(by_layer) != set(range(int(bundle.cfg["num_hidden_layers"]))):
+                        raise RuntimeExecutionError("research LogRow misses a semantic SiLU layer")
+                    operations[phase] = by_layer
+                logrow.bind_decoder(compiled.model_plan_digest, max_new - 1)
+                logrow_claimed = True
+                research_digest = hashlib.sha256(
+                    b"pllm.research.logrow_q7.local_execution.v1\0"
+                    + compiled.digest.encode("ascii")
+                    + logrow.issuance_digest.encode("ascii")
+                    + estimate["estimate_digest"].encode("ascii")
+                ).hexdigest()
+            except Exception:
+                if logrow_claimed:
+                    logrow.abort()
+                raise
 
         def bound_remote(stage_id: str, activation: np.ndarray) -> np.ndarray:
             stage = bundle.stages.get(stage_id)
@@ -85,7 +152,21 @@ class CompiledRuntimeSession:
 
         self = object.__new__(cls)
         self._compiled = compiled
-        self._runtime = compiled.runtime(bound_remote)
+        self._logrow = logrow
+        self._logrow_operations = operations
+        self._logrow_phase = None
+        self._logrow_step = 0
+        self._research_execution_digest = research_digest
+        try:
+            self._runtime = (
+                compiled.runtime(bound_remote)
+                if logrow is None
+                else compiled._runtime_with_nonlinear(bound_remote, self._evaluate_logrow)
+            )
+        except Exception:
+            if logrow is not None:
+                logrow.abort()
+            raise
         self._max_input = max_input
         self._max_new = max_new
         self._vocab = int(compiled._bundle.cfg["vocab_size"])
@@ -100,15 +181,40 @@ class CompiledRuntimeSession:
 
     @property
     def complete(self) -> bool:
-        return True
+        return self._logrow is None
 
     @property
     def completeness_scope(self) -> str:
-        return "whole_decoder_runtime"
+        return (
+            "whole_decoder_runtime" if self._logrow is None else "bounded_local_research_reference"
+        )
 
     @property
     def binding_digest(self) -> str:
-        return self._compiled.digest
+        return self._research_execution_digest or self._compiled.digest
+
+    @property
+    def nonlinear_method(self) -> str | None:
+        return None if self._logrow is None else "pllm/logrow-q7-local-reference/v1"
+
+    def _evaluate_logrow(self, layer: int, value: np.ndarray) -> np.ndarray:
+        if self._logrow is None or self._logrow_phase not in self._logrow_operations:
+            raise RuntimeExecutionError("research LogRow phase is not bound")
+        operation = self._logrow_operations[self._logrow_phase].get(layer)
+        if operation is None or value.dtype != np.float32 or value.ndim != 2:
+            self._logrow.abort()
+            raise RuntimeExecutionError("research LogRow activation is not a semantic SiLU tensor")
+        try:
+            output = self._logrow.evaluate_float32(
+                self._logrow_phase,
+                self._logrow_step,
+                operation,
+                np.ascontiguousarray(value, dtype="<f4").tobytes(),
+            )
+            return np.frombuffer(output, dtype="<f4").reshape(value.shape).copy()
+        except Exception as exc:
+            self._logrow.abort()
+            raise RuntimeExecutionError("research LogRow nonlinear execution failed") from exc
 
     @property
     def runtime_schedule_digest(self) -> str:
@@ -166,6 +272,8 @@ class CompiledRuntimeSession:
             raise RuntimeExecutionError("runtime KV state lengths differ from the bound position")
 
     def _zero_runtime(self) -> None:
+        if self._logrow is not None:
+            self._logrow.abort()
         if self._last_logits is not None:
             self._last_logits.fill(0)
             self._last_logits = None
@@ -188,10 +296,23 @@ class CompiledRuntimeSession:
         with self._lock:
             if self._status != "new":
                 raise RuntimeExecutionError("session prefill may execute only once")
-            validated = self._validate_token_ids(token_ids)
+            try:
+                validated = self._validate_token_ids(token_ids)
+            except Exception:
+                if self._logrow is not None:
+                    self._logrow.abort()
+                raise
+            if self._logrow is not None and len(validated) != self._max_input:
+                self._logrow.abort()
+                raise RuntimeExecutionError(
+                    "research LogRow prefill needs the exact planned token count"
+                )
             self._status = "poisoned"
             try:
                 self._compiled.validate()
+                if self._logrow is not None:
+                    self._logrow_phase = "prefill"
+                    self._logrow_step = 0
                 returned, logits, caches = self._runtime.prepare_ids(validated)
                 if returned != validated or caches is not self._runtime.caches:
                     raise RuntimeExecutionError("runtime prefill returned unbound state")
@@ -231,6 +352,9 @@ class CompiledRuntimeSession:
             self._status = "poisoned"
             try:
                 self._compiled.validate()
+                if self._logrow is not None:
+                    self._logrow_phase = "decode"
+                    self._logrow_step = self._generated - 1
                 logits, caches = self._runtime.decode_step(
                     token, self._runtime.caches, self._position
                 )
@@ -269,9 +393,7 @@ class CompiledRuntimeSession:
             else:
                 limit = max_new_tokens
             if not 1 <= limit <= self._max_new:
-                raise RuntimeExecutionError(
-                    f"max_new_tokens must be in [1, {self._max_new}]"
-                )
+                raise RuntimeExecutionError(f"max_new_tokens must be in [1, {self._max_new}]")
             self.prefill_ids(token_ids)
             output = []
             for index in range(limit):

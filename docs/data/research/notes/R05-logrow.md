@@ -43,7 +43,10 @@ An immutable session-cost estimator counts all semantic SiLU evaluator bodies
 for bounded prefill and decode steps and rejects totals above an explicit cap.
 The separate offline `prepare_logrow_q7_session_reference` preissues bounded
 material for all those tensors, orders one-use consumption, and burns the
-remainder on failure or abort. Neither API runs a complete compiled decoder.
+remainder on failure or abort. A bounded research override runs full prefill
+and decode on controlled tiny Qwen2/Qwen3 checkpoints with in-range gate
+weights; the ordinary generated tiny checkpoint fails closed on out-of-range
+gates. This is not a general checkpoint method or a protected provider path.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

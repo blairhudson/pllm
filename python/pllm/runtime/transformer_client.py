@@ -1040,6 +1040,7 @@ class MaskedTransformerClientRuntime:
         token_cache: OrderedDict[int, np.ndarray] | None = None,
         token_cache_size: int = 512,
         token_cache_lock: threading.Lock | None = None,
+        nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
     ) -> None:
         self.bundle = bundle
         self.remote = remote
@@ -1077,6 +1078,9 @@ class MaskedTransformerClientRuntime:
         self.token_cache_hits = 0
         self.token_cache_misses = 0
         self.token_lookup_batch = max(1, int(self.cfg.get("token_lookup_batch", 16)))
+        if nonlinear_evaluator is not None and not callable(nonlinear_evaluator):
+            raise TransformerClientError("nonlinear evaluator must be callable")
+        self.nonlinear_evaluator = nonlinear_evaluator
 
     def _stage_id(self, role: str, layer: int) -> str:
         default_suffix = {
@@ -1335,7 +1339,18 @@ class MaskedTransformerClientRuntime:
             )
         gate_up = self.remote(self._stage_id("mlp_gate_up", index), normed)
         gate, up = np.split(gate_up, 2, axis=-1)
-        mlp = self._activation(gate) * up
+        activated = (
+            self._activation(gate)
+            if self.nonlinear_evaluator is None
+            else np.asarray(self.nonlinear_evaluator(index, gate))
+        )
+        if (
+            activated.dtype != np.float32
+            or activated.shape != gate.shape
+            or not np.all(np.isfinite(activated))
+        ):
+            raise TransformerClientError("nonlinear evaluator returned an invalid activation")
+        mlp = activated * up
         mlp = self.remote(self._stage_id("mlp_down", index), mlp)
         if self.block_style == "gemma4":
             mlp = self._norm(

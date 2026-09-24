@@ -14,7 +14,10 @@ use pllm_models::{DecoderMode, DecoderPlan};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyModule};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 const MAX_PLAN_BYTES: usize = 16 * 1024 * 1024;
 const MAX_FLOAT32_TENSOR_BYTES: usize = (64 * 1024 * 1024 / 2144) * 4;
@@ -35,12 +38,37 @@ pub(crate) struct LogRowQ7TensorReference {
 #[pyclass(name = "LogRowQ7SessionReference", frozen, module = "pllm._native")]
 pub(crate) struct LogRowQ7SessionReference {
     material: Mutex<BoundLogRowQ7Session>,
+    decoder_bound: AtomicBool,
     issuance_digest: String,
     estimate_bytes: Vec<u8>,
 }
 
 #[pymethods]
 impl LogRowQ7SessionReference {
+    fn bind_decoder(&self, plan_digest: &str, max_decode_steps: u64) -> PyResult<()> {
+        let material = self
+            .material
+            .lock()
+            .map_err(|_| PyRuntimeError::new_err("LogRow Q7 session lock was poisoned"))?;
+        if material.estimate().plan_digest.to_string() != plan_digest
+            || material.estimate().max_decode_steps != max_decode_steps
+        {
+            return Err(invalid(
+                "LogRow Q7 decoder binding differs from its plan".into(),
+            ));
+        }
+        if self
+            .decoder_bound
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(invalid(
+                "LogRow Q7 session is already bound to a decoder".into(),
+            ));
+        }
+        Ok(())
+    }
+
     #[getter]
     fn issuance_digest(&self) -> &str {
         &self.issuance_digest
@@ -345,6 +373,7 @@ fn prepare_logrow_q7_session_reference(
     let issuance_digest = material.issuance_digest().to_string();
     Ok(LogRowQ7SessionReference {
         material: Mutex::new(material),
+        decoder_bound: AtomicBool::new(false),
         issuance_digest,
         estimate_bytes,
     })

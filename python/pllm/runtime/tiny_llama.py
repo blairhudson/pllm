@@ -21,6 +21,7 @@ def create_tiny_llama_checkpoint(
     with_qkv_bias: bool = True,
     model_type: str = "qwen2",
     qk_norm: bool = False,
+    gate_weight_scale: float = 0.08,
 ) -> Path:
     """Create a deterministic Qwen/Llama-compatible checkpoint for integration tests."""
 
@@ -93,7 +94,9 @@ def create_tiny_llama_checkpoint(
                 f"{prefix}.self_attn.k_proj.weight": matrix(kv_width, hidden_size),
                 f"{prefix}.self_attn.v_proj.weight": matrix(kv_width, hidden_size),
                 f"{prefix}.self_attn.o_proj.weight": matrix(hidden_size, q_width),
-                f"{prefix}.mlp.gate_proj.weight": matrix(intermediate_size, hidden_size),
+                f"{prefix}.mlp.gate_proj.weight": matrix(
+                    intermediate_size, hidden_size, gate_weight_scale
+                ),
                 f"{prefix}.mlp.up_proj.weight": matrix(intermediate_size, hidden_size),
                 f"{prefix}.mlp.down_proj.weight": matrix(hidden_size, intermediate_size),
                 f"{prefix}.input_layernorm.weight": torch.ones(hidden_size),

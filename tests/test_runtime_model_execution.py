@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 
 import pllm
+from pllm.nonlinear import fit_compact_silu_q7_reference
+from pllm.protocols import prepare_logrow_q7_session_reference
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.model_execution import CompiledRuntimeSession, RuntimeExecutionError
@@ -17,8 +19,22 @@ from pllm.runtime.transformer_client import ClientBundle, RemoteLinear
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
-def _compiled(tmp_path: Path, *, max_input: int = 8, max_new: int = 3):
-    root = create_tiny_llama_checkpoint(tmp_path / "model", num_hidden_layers=2)
+def _compiled(
+    tmp_path: Path,
+    *,
+    max_input: int = 8,
+    max_new: int = 3,
+    model_type: str = "qwen2",
+    gate_weight_scale: float = 0.08,
+):
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model",
+        num_hidden_layers=2,
+        model_type=model_type,
+        with_qkv_bias=model_type == "qwen2",
+        qk_norm=model_type == "qwen3",
+        gate_weight_scale=gate_weight_scale,
+    )
     model_id = "tiny-runtime-execution"
     manifest = load_hf_directory(root, model_id=model_id)
     engine = MaskedTransformerEngine(threads=1)
@@ -42,6 +58,105 @@ def _compiled(tmp_path: Path, *, max_input: int = 8, max_new: int = 3):
         return np.ascontiguousarray(result, dtype=np.float32)
 
     return compiled, bundle, remote
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_bounded_logrow_research_executes_full_tiny_decoder_without_profile_promotion(
+    tmp_path: Path,
+    model_type: str,
+) -> None:
+    compiled, _, remote = _compiled(
+        tmp_path,
+        max_input=2,
+        max_new=2,
+        model_type=model_type,
+        gate_weight_scale=0.008,
+    )
+    profile = fit_compact_silu_q7_reference(bytes(257 * 4))
+    material = prepare_logrow_q7_session_reference(
+        compiled._plan,
+        profile,
+        max_elements=128,
+        max_evaluator_material_bytes=128 * 2144,
+        max_decode_steps=1,
+        max_session_evaluator_material_bytes=384 * 2144,
+    )
+    session = compiled.session(remote, research_logrow_material=material)
+    assert not session.complete
+    assert session.completeness_scope == "bounded_local_research_reference"
+    assert session.nonlinear_method == "pllm/logrow-q7-local-reference/v1"
+    assert session.binding_digest != compiled.digest
+    assert session.runtime_schedule_digest == compiled.runtime_schedule_digest
+    logits = session.prefill_ids([0, 2])
+    assert np.all(np.isfinite(logits))
+    assert material.remaining_tensors == 2
+    session.select_next()
+    decoded = session.decode_selected()
+    assert np.all(np.isfinite(decoded))
+    assert material.remaining_tensors == 0
+    session.select_next()
+    assert session.status == "exhausted"
+
+
+def test_bounded_logrow_research_rejects_short_prefill_and_burns_every_tensor(
+    tmp_path: Path,
+) -> None:
+    compiled, _, remote = _compiled(tmp_path, max_input=2, max_new=2)
+    profile = fit_compact_silu_q7_reference(bytes(257 * 4))
+    material = prepare_logrow_q7_session_reference(
+        compiled._plan,
+        profile,
+        max_elements=128,
+        max_evaluator_material_bytes=128 * 2144,
+        max_decode_steps=1,
+        max_session_evaluator_material_bytes=384 * 2144,
+    )
+    session = compiled.session(remote, research_logrow_material=material)
+    with pytest.raises(RuntimeExecutionError, match="exact planned token count"):
+        session.prefill_ids([0])
+    assert material.remaining_tensors == 0
+
+
+def test_bounded_logrow_research_refuses_out_of_domain_checkpoint_gates(tmp_path: Path) -> None:
+    compiled, _, remote = _compiled(tmp_path, max_input=2, max_new=2)
+    profile = fit_compact_silu_q7_reference(bytes(257 * 4))
+    material = prepare_logrow_q7_session_reference(
+        compiled._plan,
+        profile,
+        max_elements=128,
+        max_evaluator_material_bytes=128 * 2144,
+        max_decode_steps=1,
+        max_session_evaluator_material_bytes=384 * 2144,
+    )
+    session = compiled.session(remote, research_logrow_material=material)
+    with pytest.raises(RuntimeExecutionError, match="research LogRow nonlinear execution failed"):
+        session.prefill_ids([0, 2])
+    assert session.status == "poisoned"
+    assert material.remaining_tensors == 0
+
+
+def test_bounded_logrow_research_rejects_unbound_and_replayed_material(tmp_path: Path) -> None:
+    compiled, _, remote = _compiled(tmp_path, max_input=2, max_new=2, gate_weight_scale=0.008)
+    profile = fit_compact_silu_q7_reference(bytes(257 * 4))
+    with pytest.raises(TypeError, match="native session handle"):
+        compiled.session(remote, research_logrow_material=object())
+    material = prepare_logrow_q7_session_reference(
+        compiled._plan,
+        profile,
+        max_elements=128,
+        max_evaluator_material_bytes=128 * 2144,
+        max_decode_steps=1,
+        max_session_evaluator_material_bytes=384 * 2144,
+    )
+    session = compiled.session(remote, research_logrow_material=material)
+    with pytest.raises(ValueError, match="already bound"):
+        compiled.session(remote, research_logrow_material=material)
+    assert material.remaining_tensors == 4
+    material.abort()
+    with pytest.raises(RuntimeExecutionError, match="research LogRow nonlinear execution failed"):
+        session.prefill_ids([0, 2])
+    assert session.status == "poisoned"
+    assert material.remaining_tensors == 0
 
 
 def test_session_enforces_greedy_prefill_decode_and_bounds(tmp_path: Path) -> None:
@@ -77,10 +192,7 @@ def test_session_enforces_greedy_prefill_decode_and_bounds(tmp_path: Path) -> No
     assert session.generated_tokens == 2
     assert session.remaining_tokens == 0
     assert session._runtime.position == 0
-    assert all(
-        cache.key is None and cache.value is None
-        for cache in session._runtime.caches
-    )
+    assert all(cache.key is None and cache.value is None for cache in session._runtime.caches)
     with pytest.raises(RuntimeExecutionError, match="no available logits"):
         _ = session.logits
     with pytest.raises(RuntimeExecutionError, match="no selected token"):
@@ -140,9 +252,7 @@ def test_session_executes_masked_stage_protocol(tmp_path: Path) -> None:
             result = result + stage.bias
         return np.ascontiguousarray(result, np.float32)
 
-    assert masked_tokens == compiled.session(clear).generate_ids(
-        [0, 2], max_new_tokens=2
-    )
+    assert masked_tokens == compiled.session(clear).generate_ids([0, 2], max_new_tokens=2)
     assert masked.stats.calls == 8
     assert masked.stats.correlations > 0
     assert masked.stats.upload_bytes > 0
@@ -208,6 +318,7 @@ def test_session_rejects_forged_runtime_output_and_direct_construction(tmp_path:
         CompiledRuntimeSession()
 
     for kind in ("shape", "dtype", "finite"):
+
         def malformed(stage_id: str, activation: np.ndarray) -> np.ndarray:
             if not stage_id.endswith("o_proj"):
                 return remote(stage_id, activation)

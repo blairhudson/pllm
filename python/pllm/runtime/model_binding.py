@@ -193,10 +193,30 @@ class CompiledRuntimeModel:
             stage_routes=self._stage_routes,
         )
 
-    def session(self, remote: Callable[[str, np.ndarray], np.ndarray]) -> "CompiledRuntimeSession":
+    def _runtime_with_nonlinear(
+        self,
+        remote: Callable[[str, np.ndarray], np.ndarray],
+        evaluator: Callable[[int, np.ndarray], np.ndarray],
+    ) -> MaskedTransformerClientRuntime:
+        self.validate()
+        return MaskedTransformerClientRuntime(
+            self._bundle,
+            remote,
+            stage_routes=self._stage_routes,
+            nonlinear_evaluator=evaluator,
+        )
+
+    def session(
+        self,
+        remote: Callable[[str, np.ndarray], np.ndarray],
+        *,
+        research_logrow_material: object | None = None,
+    ) -> "CompiledRuntimeSession":
         from pllm.runtime.model_execution import CompiledRuntimeSession
 
-        return CompiledRuntimeSession._create(self, remote)
+        return CompiledRuntimeSession._create(
+            self, remote, research_logrow_material=research_logrow_material
+        )
 
 
 def _canonical_json(value: Any) -> bytes:

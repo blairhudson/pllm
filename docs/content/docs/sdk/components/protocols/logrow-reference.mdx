@@ -22,11 +22,12 @@ fresh circuit identity; the scalar path additionally binds its tensor position.
 The tensor path preflights every row and the full evaluator-body budget before
 issuing material, revalidates the whole context before evaluation, and burns
 the entire one-use tensor on invalid input. The experimental hard ceiling is
-64 MiB per tensor. This is not yet a session-wide scheduler or model execution.
+64 MiB per tensor. An offline session can preissue the complete bounded
+prefill/decode sequence, enforce order, and burn unused material on failure.
 
 This is an **in-process research reference**, not a deployment boundary: its
 Python handle calls native Rust locally and has no transport, independent
-provider, security review, or whole-decoder composition. The component class
+provider, security review, or generally supported decoder composition. The component class
 [`LogRowGarbledLookup`](/sdk/reference/python/pllm/protocols/#logrowgarbledlookup)
 remains a pending declaration and raises `NotYetImplementedError`; it cannot
 be added to an `Experiment` or selected in search. Use
@@ -110,8 +111,12 @@ checks the **sum** of prefill bodies and every permitted decode-step body
 without creating one-use material. The
 [offline session](/sdk/reference/python/pllm/protocols/#prepare_logrow_q7_session_reference)
 enforces the same bound before issuing material, consumes tensors in semantic
-order, and burns all remaining tensors on failure, abort or drop. It is a
-local research object, **not** a `Pipeline` or request-session execution mode.
+order, and burns all remaining tensors on failure, abort or drop. The compiled
+runtime can use this session through an explicit `research_logrow_material`
+argument, binding the selected semantic SiLU operator at each layer and giving
+the research run a distinct execution digest. Its `complete` flag stays false
+and its scope is `bounded_local_research_reference`: this remains outside
+`Pipeline`, `Experiment`, gateway and search selection.
 Independent tensor preparation does not require this session gate.
 
 ## What is measured
@@ -134,9 +139,12 @@ cross-circuit rejection, output-label tampering, width limits and one-use
 consumption. Qwen2 and dense Qwen3 compiler tests exercise complete 16- and
 32-element semantic SiLU tensors in decode and prefill through Rust and Python,
 verify material and element-limit preflight, and reject plan, phase, profile,
-policy and circuit mismatches. This establishes bounded tensor parity, not checkpoint quality or
-production privacy. The next gates are a compiled decoder's session lifecycle,
-publicly calibrated support for wider activations, reviewed provider input
+policy and circuit mismatches. A separately controlled tiny Qwen2/Qwen3
+checkpoint passes full prefill and decode through the opt-in compiled client
+when its public gate weights keep activations inside `[-1, 1]`. Even the
+ordinary generated tiny checkpoint **fails closed** on out-of-range gates, so
+this does not establish general checkpoint quality or production privacy. The
+next gates are publicly calibrated support for wider activations, reviewed provider input
 transfer, a composable protected
 decoder operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)
