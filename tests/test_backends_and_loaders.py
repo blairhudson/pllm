@@ -137,7 +137,8 @@ def test_hf_and_mlx_directory_manifest(tmp_path: Path):
     hf = load_hf_directory(tmp_path, model_id="hf")
     mlx = load_mlx_directory(tmp_path, model_id="mlx")
     assert hf.hidden_size == 4096 and hf.num_key_value_heads == 8
-    assert len(hf.stages) == 32 * 4 + 1
+    assert len(hf.stages) == 32 * 4 + 2  # semantic lookup and output-head boundaries
+    assert [hf.stages[0].role, hf.stages[-1].role] == ["token_lookup", "lm_head"]
     assert mlx.source_format == "mlx-lm"
     assert mlx.metadata["mlx_weight_files"] == ["model-00001-of-00002.safetensors"]
     saved = tmp_path / "manifest.json"; hf.save(saved)

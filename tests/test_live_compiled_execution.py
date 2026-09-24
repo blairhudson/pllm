@@ -20,8 +20,14 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
 @pytest.mark.parametrize(
-    ("bits", "reject", "with_experiment"),
-    [(4, False, True), (8, False, True), (8, True, True), (8, False, False)],
+    ("bits", "reject", "with_experiment", "model_type"),
+    [
+        (4, False, True, "qwen2"),
+        (8, False, True, "qwen2"),
+        (8, True, True, "qwen2"),
+        (8, False, False, "qwen2"),
+        (8, False, True, "llama"),
+    ],
 )
 def test_live_prepared_decoder_binds_compiled_schedule_before_use(
     tmp_path: Path,
@@ -29,8 +35,12 @@ def test_live_prepared_decoder_binds_compiled_schedule_before_use(
     bits: int,
     reject: bool,
     with_experiment: bool,
+    model_type: str,
 ) -> None:
-    root = create_tiny_llama_checkpoint(tmp_path / "model", num_hidden_layers=1)
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type=model_type,
+        with_qkv_bias=model_type == "qwen2",
+    )
     model_id = "live-compiled"
     engine = MaskedTransformerEngine(threads=1, weight_bits=bits, activation_bits=bits)
     gateway = start_gateway(engines={engine.capabilities.name: engine})
@@ -182,11 +192,18 @@ def test_provider_checks_semantic_plan_before_reserving_material(tmp_path: Path)
         gateway.close()
 
 
-@pytest.mark.parametrize("weight_bits", [None, 4], ids=["implicit-w8a8", "experiment-w4a4"])
+@pytest.mark.parametrize(
+    ("weight_bits", "model_type"),
+    [(None, "qwen2"), (4, "qwen2"), (None, "llama")],
+    ids=["implicit-w8a8", "experiment-w4a4", "dense-bias-free"],
+)
 def test_gateway_uses_compiled_decoder_with_real_local_role_children(
-    tmp_path: Path, weight_bits: int | None
+    tmp_path: Path, weight_bits: int | None, model_type: str
 ) -> None:
-    root = create_tiny_llama_checkpoint(tmp_path / "gateway-model", num_hidden_layers=1)
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "gateway-model", num_hidden_layers=1,
+        model_type=model_type, with_qkv_bias=model_type == "qwen2",
+    )
     model_id = "tiny-compiled-gateway"
     source = Model.path(str(root), model_id=model_id)
     target = (

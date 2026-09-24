@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+mod dense_gated_source;
 mod gemma4;
 mod phi4;
 mod qwen35;
@@ -377,7 +378,7 @@ impl DecoderPlan {
                 ));
             }
         }
-        let dense_qwen = matches!(self.model_family.as_str(), "qwen2" | "qwen3");
+        let dense_qwen = matches!(self.model_family.as_str(), "qwen2" | "qwen3" | "llama");
         if self.model_family == "gemma4_text" || dense_qwen {
             validate_state_transition(self)?;
         }
@@ -402,6 +403,7 @@ pub fn lower_model_json(
     match model_type {
         "qwen2" => lower_qwen_decoder(&QwenConfig::from_json(bytes)?, workload),
         "qwen3" => lower_qwen3_decoder(&Qwen3Config::from_json(bytes)?, workload),
+        "llama" => dense_gated_source::lower_json(bytes, workload),
         "gemma4" => gemma4::lower_gemma4_json(document, workload),
         "phi3" => phi4::lower_phi4_json(&document, workload),
         "qwen3_5" => qwen35::lower_qwen35_json(&document, workload),
@@ -2122,6 +2124,13 @@ struct DenseQwenOutputContract {
 
 fn validate_dense_qwen_semantics(plan: &DecoderPlan) -> Result<(), ModelError> {
     let qwen3 = plan.model_family == "qwen3";
+    let projection = if qwen3 {
+        DenseAttentionProjection::Normalized
+    } else if plan.model_family == "qwen2" {
+        DenseAttentionProjection::Biased
+    } else {
+        DenseAttentionProjection::BiasFree
+    };
     let epsilon = validate_dense_qwen_epsilon(plan)?;
     let theta = validate_dense_qwen_theta(plan)?;
     let mut output_contract = None;
@@ -2175,7 +2184,7 @@ fn validate_dense_qwen_semantics(plan: &DecoderPlan) -> Result<(), ModelError> {
             let scores = dense_qwen_layer_operation(graph, *layer, ModelOperator::AttentionScores)?;
             let values = dense_qwen_layer_operation(graph, *layer, ModelOperator::AttentionValues)?;
             let (input_norm, mlp_residual) = validate_dense_qwen_attention_layer(
-                graph, *layer, scores, values, qwen3, &epsilon, theta,
+                graph, *layer, scores, values, projection, &epsilon, theta,
             )?;
             let source = dense_qwen_input(graph, input_norm, 0)?;
             if let Some(previous) = previous_residual {
@@ -2585,12 +2594,19 @@ fn validate_dense_qwen_cache_path<'a>(
     })
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DenseAttentionProjection {
+    Biased,
+    BiasFree,
+    Normalized,
+}
+
 fn validate_dense_qwen_attention_layer<'a>(
     graph: &'a DecoderGraph,
     layer: u64,
     scores: &ModelOperation,
     values: &ModelOperation,
-    qwen3: bool,
+    projection: DenseAttentionProjection,
     epsilon: &str,
     theta: u64,
 ) -> Result<(&'a ModelOperation, &'a ModelOperation), ModelError> {
@@ -2621,7 +2637,7 @@ fn validate_dense_qwen_attention_layer<'a>(
 
     let q_source = dense_qwen_input(graph, rope_q, 0)?;
     let k_source = dense_qwen_input(graph, rope_k, 0)?;
-    let (q_heads, k_heads) = if qwen3 {
+    let (q_heads, k_heads) = if projection == DenseAttentionProjection::Normalized {
         let q_heads = dense_qwen_input(graph, q_source, 0)?;
         let k_heads = dense_qwen_input(graph, k_source, 0)?;
         validate_qwen3_qk_norm(q_source, q_heads, rope_q, layer, "q", epsilon)?;
@@ -2667,9 +2683,30 @@ fn validate_dense_qwen_attention_layer<'a>(
         )));
     }
     let input_norm = dense_qwen_input(graph, q_linear, 0)?;
-    validate_dense_qwen_projection(q_linear, q_heads, input_norm, layer, "q_proj", qwen3)?;
-    validate_dense_qwen_projection(k_linear, k_heads, input_norm, layer, "k_proj", qwen3)?;
-    validate_dense_qwen_projection(v_linear, v_heads, input_norm, layer, "v_proj", qwen3)?;
+    validate_dense_qwen_projection(
+        q_linear,
+        q_heads,
+        input_norm,
+        layer,
+        "q_proj",
+        projection == DenseAttentionProjection::Biased,
+    )?;
+    validate_dense_qwen_projection(
+        k_linear,
+        k_heads,
+        input_norm,
+        layer,
+        "k_proj",
+        projection == DenseAttentionProjection::Biased,
+    )?;
+    validate_dense_qwen_projection(
+        v_linear,
+        v_heads,
+        input_norm,
+        layer,
+        "v_proj",
+        projection == DenseAttentionProjection::Biased,
+    )?;
     let expected_input_norm_weight = format!("model.layers.{layer}.input_layernorm.weight");
     if input_norm.operator != ModelOperator::RmsNorm
         || input_norm.layer != Some(layer)
@@ -2857,14 +2894,14 @@ fn validate_dense_qwen_projection(
     input_norm: &ModelOperation,
     layer: u64,
     projection: &str,
-    qwen3: bool,
+    attention_bias: bool,
 ) -> Result<(), ModelError> {
     let expected_weight = format!("model.layers.{layer}.self_attn.{projection}.weight");
     let expected_bias = format!("model.layers.{layer}.self_attn.{projection}.bias");
-    let valid_bias = if qwen3 {
-        linear.attributes.get("bias").is_some_and(Value::is_null)
-    } else {
+    let valid_bias = if attention_bias {
         linear.attributes.get("bias").and_then(Value::as_str) == Some(expected_bias.as_str())
+    } else {
+        linear.attributes.get("bias").is_some_and(Value::is_null)
     };
     let shape_matches = linear.output_shape.len() == 3
         && heads.output_shape.len() == 4

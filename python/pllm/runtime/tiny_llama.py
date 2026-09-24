@@ -20,6 +20,7 @@ def create_tiny_llama_checkpoint(
     head_dim: int = 8,
     with_qkv_bias: bool = True,
     model_type: str = "qwen2",
+    tie_word_embeddings: bool = True,
     qk_norm: bool = False,
     gate_weight_scale: float = 0.08,
 ) -> Path:
@@ -35,7 +36,11 @@ def create_tiny_llama_checkpoint(
     def vector(width: int, scale: float = 0.02) -> torch.Tensor:
         return torch.randn(width, generator=generator) * scale
 
-    architecture = "Qwen3ForCausalLM" if model_type == "qwen3" else "Qwen2ForCausalLM"
+    architecture = {
+        "qwen2": "Qwen2ForCausalLM",
+        "qwen3": "Qwen3ForCausalLM",
+        "llama": "LlamaForCausalLM",
+    }[model_type]
     config = {
         "architectures": [architecture],
         "model_type": model_type,
@@ -51,7 +56,7 @@ def create_tiny_llama_checkpoint(
         "sliding_window": None,
         "hidden_act": "silu",
         "rms_norm_eps": 1e-6,
-        "tie_word_embeddings": True,
+        "tie_word_embeddings": tie_word_embeddings,
         "bos_token_id": 0,
         "eos_token_id": 1,
         "pad_token_id": 1,
@@ -84,6 +89,8 @@ def create_tiny_llama_checkpoint(
         "model.embed_tokens.weight": matrix(vocab_size, hidden_size, 0.12),
         "model.norm.weight": torch.ones(hidden_size),
     }
+    if not tie_word_embeddings:
+        tensors["lm_head.weight"] = matrix(vocab_size, hidden_size, 0.12)
     for index in range(num_hidden_layers):
         prefix = f"model.layers.{index}"
         q_width = num_attention_heads * head_dim

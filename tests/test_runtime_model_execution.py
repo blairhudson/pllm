@@ -29,6 +29,7 @@ def _compiled(
     max_new: int = 3,
     model_type: str = "qwen2",
     gate_weight_scale: float = 0.08,
+    tie_word_embeddings: bool = True,
 ):
     root = create_tiny_llama_checkpoint(
         tmp_path / "model",
@@ -37,6 +38,7 @@ def _compiled(
         with_qkv_bias=model_type == "qwen2",
         qk_norm=model_type == "qwen3",
         gate_weight_scale=gate_weight_scale,
+        tie_word_embeddings=tie_word_embeddings,
     )
     model_id = "tiny-runtime-execution"
     manifest = load_hf_directory(root, model_id=model_id)
@@ -63,7 +65,7 @@ def _compiled(
     return compiled, bundle, remote
 
 
-@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("tokens", [[2], [2, 3, 5]])
 def test_semantic_executor_matches_existing_numeric_decoder_across_phases(
     tmp_path: Path, model_type: str, tokens: list[int]
@@ -83,7 +85,25 @@ def test_semantic_executor_matches_existing_numeric_decoder_across_phases(
     )
 
 
-@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_dense_gated_decoder_binds_untied_output_head(tmp_path: Path) -> None:
+    compiled, bundle, remote = _compiled(
+        tmp_path, model_type="llama", tie_word_embeddings=False
+    )
+    assert compiled._plan.to_dict()["adapter"] == "pllm.dense_gated_decoder.v1"
+    assert next(
+        row["weight_keys"] for row in bundle.manifest["stages"] if row["id"] == "lm_head"
+    ) == ["lm_head.weight"]
+    semantic = compiled.runtime(remote)
+    legacy = MaskedTransformerClientRuntime(bundle, remote)
+    np.testing.assert_allclose(
+        semantic.prepare_ids([2, 3, 5])[1],
+        legacy.prepare_ids([2, 3, 5])[1],
+        rtol=1e-5,
+        atol=1e-5,
+    )
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3", "llama"])
 def test_provider_materializes_stages_from_semantic_schedule(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model_type: str
 ) -> None:

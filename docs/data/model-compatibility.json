@@ -60,6 +60,18 @@
       "guide": "/sdk/models/families/qwen3/"
     },
     {
+      "name": "Bounded dense bias-free decoder (tiny Llama-style fixture)",
+      "adapter": "pllm.dense_gated_decoder.v1",
+      "model_family": "llama",
+      "fixture": "crates/pllm-models/tests/fixtures/bounded-dense-gated-llama-config.json",
+      "baseline_schedule": true,
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "untied-head"],
+      "baseline_blockers": [],
+      "runtime_evidence": "Generated tiny bias-free checkpoint: compiled local prefill/decode parity for tied and untied heads; compiled two-role SDK and gateway smoke tests",
+      "remaining": "No real Llama checkpoint/quality evidence; scaled RoPE, variants with sliding attention or projection bias, and protected execution remain unsupported",
+      "guide": "/sdk/models/families/"
+    },
+    {
       "name": "Qwen3.5-4B text decoder",
       "adapter": "pllm.qwen3_5_text.v1",
       "model_family": "qwen3_5_text",
@@ -123,7 +135,7 @@
       "source": "https://huggingface.co/docs/transformers/model_doc/llama",
       "priority": "Near-term dense capability bridge",
       "requires": ["gqa", "rmsnorm", "gated-silu", "kv-cache", "untied-head", "rope-scaling"],
-      "gap": "Exact per-checkpoint RoPE scaling and weight/tokenizer contract; do not alias Llama configs to Qwen2"
+      "gap": "Bounded unscaled dense reader has tiny tests only. Llama 3 RoPE scaling, checkpoint import, tokenizer, quality and deployment contracts remain unvalidated; do not alias scaled configs to the dense reader"
     },
     {
       "name": "Qwen3 MoE",

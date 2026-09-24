@@ -1879,7 +1879,7 @@ def render_python_status() -> str:
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
         "and **2 pinned local real-checkpoint functionality paths** "
         "(Qwen2.5-0.5B and Qwen3-0.6B). "
-        "Tiny Qwen2/Qwen3 role-backed requests share the compiler-bound execution "
+        "Tiny Qwen2/Qwen3 and bounded bias-free dense role-backed requests share the compiler-bound execution "
         "schedule with local numeric tests. "
         "No protected whole-decoder model execution is established. Lowering a config does not "
         "load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic "
@@ -1926,8 +1926,8 @@ def render_python_status() -> str:
         "source family names.\n\n",
         "### Architectures to evaluate next\n\n",
         "Candidate list is implementation triage, not model support or a popularity ranking. "
-        "These candidates lack a checked PLLM semantic adapter, complete baseline binding, "
-        "and real-model inference evidence.\n\n",
+        "A bounded unscaled reader does not establish complete support for scaled Llama 3 "
+        "or any candidate's real-model inference and quality evidence.\n\n",
         "| Candidate | Evaluation scope | Reusable requirements | First missing capabilities |\n",
         "| --- | --- | --- | --- |\n",
     ))

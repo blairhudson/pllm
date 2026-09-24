@@ -15,6 +15,7 @@ INVENTORY = json.loads((ROOT / "docs/data/model-compatibility.json").read_text(e
 EXPECTED_ADAPTERS = {
     "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.qwen3_5_text.v1",
     "pllm.phi4_mini.v1", "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
+    "pllm.dense_gated_decoder.v1",
 }
 
 
@@ -22,7 +23,7 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     adapters = INVENTORY["adapters"]
     assert {row["adapter"] for row in adapters} == EXPECTED_ADAPTERS
     assert {row["adapter"] for row in adapters if row["baseline_schedule"]} == {
-        "pllm.qwen2.v1", "pllm.qwen3.v1",
+        "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.dense_gated_decoder.v1",
     }
     assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(INVENTORY["candidates"])
 
@@ -56,8 +57,13 @@ def test_documented_adapters_and_compiled_baseline_scope(row: dict) -> None:
 def test_candidate_architectures_cannot_impersonate_qwen2(row: dict) -> None:
     assert set(row["requires"]) <= INVENTORY["capabilities"].keys()
     qwen2 = INVENTORY["adapters"][0]["config"]
-    with pytest.raises(ValueError, match="no decoder adapter"):
+    source = {**qwen2, "model_type": row["model_type"]}
+    if row["model_type"] == "llama":
+        # The bounded bias-free reader exists, but scaled Llama 3 remains a
+        # separate, unsupported rotary capability.
+        source["rope_scaling"] = {"rope_type": "llama3", "factor": 8.0}
+    with pytest.raises(ValueError, match="scaled|no decoder adapter|unscaled"):
         pllm.lower_model(
-            {**qwen2, "model_type": row["model_type"]},
+            source,
             batch=1, max_input_tokens=4, max_new_tokens=2,
         )

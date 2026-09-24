@@ -105,6 +105,8 @@ plugins do not link to PyO3 internals, and runtime loading is not yet exposed.
 operators, layer identity and persistent-state kinds are explicit, so compiler and
 method passes do not parse adapter-specific node names or weight paths. Implemented
 lowering adapters are Qwen2 (`pllm.qwen2.v1`), dense Qwen3 (`pllm.qwen3.v1`),
+bounded bias-free unscaled dense Llama-style configurations
+(`pllm.dense_gated_decoder.v1`),
 the exact Qwen3.5-4B text decoder (`pllm.qwen3_5_text.v1`), the exact
 Phi-4-mini-instruct decoder (`pllm.phi4_mini.v1`), and the exact text decoders in
 the official `google/gemma-4-E2B-it` and `google/gemma-4-E4B-it` outer
@@ -130,11 +132,13 @@ other implemented operators are placed locally in dependency order. The Python
 binding resolves those weight groups against checkpoint stages, verifies exact
 shapes, configuration, tokenizer, local tensors, quantized bytes, scales, modulus
 policy and preparation commitments, and rejects any unresolved operation or stage.
-The same compiled binding and execution path is covered for tiny Qwen2 and dense
-Qwen3 checkpoints, including Qwen3 Q/K normalization. The pinned
+The same compiled binding and execution path is covered for tiny Qwen2, dense
+Qwen3 and bounded bias-free Llama-style checkpoints, including Qwen3 Q/K
+normalization and an untied head. Scaled Llama 3 configurations and real Llama
+checkpoint quality remain unvalidated. The pinned
 Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
-stage protocol. Public Qwen2/Qwen3 provider stage tables now derive ordered
+stage protocol. Public Qwen2/Qwen3 and bounded dense provider stage tables now derive ordered
 weights and declared biases from that schedule; the client binds it and runs
 semantic prefill/decode operations before reserving inventory. The inference
 role re-lowers the bounded plan and checks its digest, body, stage and runtime

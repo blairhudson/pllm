@@ -7,8 +7,10 @@ Start with [source options](/sdk/models/sources/) to locate checkpoint files
 or create a deterministic tiny transport fixture. [Family adapters](/sdk/models/families/)
 turn bounded configuration into a model-neutral plan; they do not by themselves
 load weights or guarantee every operator executes. Qwen2.5-0.5B-Instruct is the
-current pinned real public-weight benchmark target. Dense Qwen3 has a tiny
-synthetic compiled-path test. Hybrid Qwen3.5, Phi-4-mini, and Gemma 4 have
+current pinned real public-weight benchmark target. Dense Qwen3 has pinned
+compiled-checkpoint functionality but incomplete numeric-quality evidence.
+A bounded unscaled Llama-style source has tiny compiled tests only; Llama 3
+scaled rotary requires its own capability. Hybrid Qwen3.5, Phi-4-mini, and Gemma 4 have
 semantic plan coverage but incomplete compiler/runtime checkpoint execution.
 Always check [support status](/sdk/reference/status/) and choose a compatible
 [inference option](/sdk/inference/) before serving.
