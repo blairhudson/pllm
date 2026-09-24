@@ -47,7 +47,10 @@ import struct
 
 from pllm import lower_model
 from pllm.nonlinear import fit_compact_silu_q7_reference
-from pllm.protocols import prepare_logrow_q7_tensor_reference
+from pllm.protocols import (
+    estimate_logrow_q7_session_reference,
+    prepare_logrow_q7_tensor_reference,
+)
 
 config = {
     "model_type": "qwen2", "hidden_size": 8, "intermediate_size": 16,
@@ -57,6 +60,11 @@ config = {
 }
 plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=1)
 profile = fit_compact_silu_q7_reference(struct.pack("<257I", *([0] * 257)))
+session = estimate_logrow_q7_session_reference(
+    plan, profile, max_elements=32, max_evaluator_material_bytes=32 * 2144,
+    max_decode_steps=1, max_session_evaluator_material_bytes=48 * 2144,
+)
+assert session.reserved_evaluator_material_bytes == 48 * 2144
 operation = next(op["id"] for op in plan.decode["operations"] if op["operator"] == "silu")
 material = prepare_logrow_q7_tensor_reference(
     plan, profile, mode="decode", operation_id=operation,
@@ -78,11 +86,19 @@ assert struct.unpack("<16f", float_output)[2] == 0.0
 
 API: [`pllm.protocols` objects and signatures](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
 
+The [session estimator](/sdk/reference/python/pllm/protocols/#estimate_logrow_q7_session_reference)
+checks the **sum** of prefill bodies and every permitted decode-step body
+without creating one-use material. It returns an immutable plan/profile-bound
+cost report, not a reservation or execution permit. Independent tensor
+preparation does not enforce this report; cancellation and burning of a full
+request remain unimplemented.
+
 ## What is measured
 
 | Resource | Current 9-bit fitted Q7 reference |
 | --- | --- |
 | Evaluator material | **2,144 bytes per scalar**: 272 one-hot setup bytes, 1,296 random-function row bytes, 576 masked table bytes. A 32-element tensor requires exactly 68,608 body bytes, preflighted before issuance. |
+| Whole-response estimate | An admitted tiny two-token prefill plus one decode step needs **102,912 evaluator-body bytes** for one 16-wide SiLU per phase. The estimator rejects total budgets below that amount; this is not peak resident memory or network usage. The experimental per-session limit is 512 MiB. |
 | Float32 bridge | Ties-to-even Q7 quantization only within `[-1, 1]`; no clipping or private range/scale disclosure. Input quantization error is at most 1/256. The returned float32 is exactly the decoded Q7 result divided by 128; against continuous SiLU, absolute error is at most `1/256 + (profile.maximum_encoded_error + 0.5)/128` over the admitted domain. Inputs outside it fail and burn the tensor. |
 | Input / output labels | Nine 16-byte input labels and nine 16-byte output labels per scalar. These are **additional** to the 2,144-byte material; protocol framing is not included. |
 | Prior oracle | The 257-row protected Compact lookup oracle uses 73,728 half-gate ciphertext bytes alone; these counts are **not** matched end-to-end traffic measurements. |
@@ -98,8 +114,9 @@ consumption. Qwen2 and dense Qwen3 compiler tests exercise complete 16- and
 32-element semantic SiLU tensors in decode and prefill through Rust and Python,
 verify material and element-limit preflight, and reject plan, phase, profile,
 policy and circuit mismatches. This establishes bounded tensor parity, not checkpoint quality or
-production privacy. The next gates are whole-session admission, publicly
-calibrated support for wider activations, reviewed provider input transfer, a composable protected
+production privacy. The next gates are whole-session issuance/burn lifecycle,
+publicly calibrated support for wider activations, reviewed provider input
+transfer, a composable protected
 decoder operator, complete transport-cost measurement, and matched model
 quality/cost evidence. The [research method roadmap](/sdk/components/research-method-roadmap/)
 tracks the pending Python component independently of this reference.

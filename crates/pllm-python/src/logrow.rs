@@ -182,10 +182,49 @@ fn prepare_logrow_q7_tensor_reference(
     })
 }
 
+#[pyfunction]
+fn estimate_logrow_q7_session_reference<'py>(
+    py: Python<'py>,
+    plan: &Bound<'_, PyBytes>,
+    profile: PyRef<'_, CompactQ7Reference>,
+    max_elements: usize,
+    max_evaluator_material_bytes: usize,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> PyResult<Bound<'py, PyBytes>> {
+    if plan.as_bytes().len() > MAX_PLAN_BYTES {
+        return Err(invalid("LogRow Q7 decoder plan exceeds 16 MiB".into()));
+    }
+    let plan: DecoderPlan = serde_json::from_slice(plan.as_bytes())
+        .map_err(|error| invalid(format!("invalid LogRow Q7 decoder plan: {error}")))?;
+    let policy = ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(
+        max_elements,
+        max_evaluator_material_bytes,
+    )
+    .map_err(invalid)?;
+    let profile = profile.inner.clone();
+    let estimate = py
+        .detach(|| {
+            pllm_compiler::estimate_bound_logrow_q7_session(
+                &plan,
+                &profile,
+                &policy,
+                max_decode_steps,
+                max_session_evaluator_material_bytes,
+            )
+        })
+        .map_err(invalid)?;
+    Ok(PyBytes::new(py, &pllm_types::canonical_bytes(&estimate)))
+}
+
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<LogRowQ7TensorReference>()?;
     module.add_function(wrap_pyfunction!(
         prepare_logrow_q7_tensor_reference,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        estimate_logrow_q7_session_reference,
         module
     )?)?;
     Ok(())

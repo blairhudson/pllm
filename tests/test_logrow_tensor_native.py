@@ -8,7 +8,11 @@ import math
 import pytest
 
 from pllm import _native, lower_model
-from pllm.protocols import LogRowGarbledLookup, prepare_logrow_q7_tensor_reference
+from pllm.protocols import (
+    LogRowGarbledLookup,
+    estimate_logrow_q7_session_reference,
+    prepare_logrow_q7_tensor_reference,
+)
 
 QWEN2 = {
     "model_type": "qwen2",
@@ -174,3 +178,42 @@ def test_float32_bridge_is_bounded_accurate_and_burns_on_domain_failures() -> No
         handle.evaluate_float32([0.0] * 16)
     with pytest.raises(ValueError, match="already consumed"):
         handle.evaluate(bytes(32))
+
+
+@pytest.mark.parametrize("source", [QWEN2, QWEN3], ids=["qwen2", "qwen3"])
+def test_session_estimate_admits_total_before_any_one_use_material(source: dict) -> None:
+    plan = lower_model(source, batch=1, max_input_tokens=2, max_new_tokens=2)
+    profile = _profile()
+    estimate = estimate_logrow_q7_session_reference(
+        plan,
+        profile,
+        max_elements=32,
+        max_evaluator_material_bytes=68608,
+        max_decode_steps=2,
+        max_session_evaluator_material_bytes=137216,
+    )
+    assert estimate.plan_digest == plan.digest
+    assert estimate.profile_digest == profile.digest
+    assert estimate.prefill_elements == 32
+    assert estimate.decode_elements_per_step == 16
+    assert estimate.reserved_evaluator_material_bytes == 137216
+    assert estimate.largest_tensor_material_bytes == 68608
+    assert len(estimate.estimate_digest) == 64
+    with pytest.raises(ValueError, match="session exceeds its material limit"):
+        estimate_logrow_q7_session_reference(
+            plan,
+            profile,
+            max_elements=32,
+            max_evaluator_material_bytes=68608,
+            max_decode_steps=2,
+            max_session_evaluator_material_bytes=137215,
+        )
+    with pytest.raises(ValueError, match="semantic state bound"):
+        estimate_logrow_q7_session_reference(
+            plan,
+            profile,
+            max_elements=32,
+            max_evaluator_material_bytes=68608,
+            max_decode_steps=3,
+            max_session_evaluator_material_bytes=200000,
+        )

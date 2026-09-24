@@ -43,6 +43,14 @@ def prepare_logrow_q7_tensor_reference(
     max_elements: int,
     max_evaluator_material_bytes: int,
 ) -> LogRowQ7TensorReference: ...
+def estimate_logrow_q7_session_reference(
+    plan: bytes,
+    profile: CompactQ7Reference,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+    max_decode_steps: int,
+    max_session_evaluator_material_bytes: int,
+) -> bytes: ...
 
 class Matrix:
     def __init__(self, data: bytes, rows: int, cols: int) -> None: ...

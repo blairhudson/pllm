@@ -10,6 +10,36 @@ from typing import Literal
 from pllm._native import CompactQ7Reference, LogRowQ7TensorReference
 from pllm.modeling import ModelPlan
 
+class LogRowQ7SessionEstimate:
+    plan_digest: str
+    profile_digest: bytes
+    max_decode_steps: int
+    prefill_elements: int
+    decode_elements_per_step: int
+    reserved_evaluator_material_bytes: int
+    largest_tensor_material_bytes: int
+    estimate_digest: str
+    def __init__(
+        self,
+        plan_digest: str,
+        profile_digest: bytes,
+        max_decode_steps: int,
+        prefill_elements: int,
+        decode_elements_per_step: int,
+        reserved_evaluator_material_bytes: int,
+        largest_tensor_material_bytes: int,
+        estimate_digest: str,
+    ) -> None: ...
+
+def estimate_logrow_q7_session_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+    max_decode_steps: int,
+    max_session_evaluator_material_bytes: int,
+) -> LogRowQ7SessionEstimate: ...
 def prepare_logrow_q7_tensor_reference(
     plan: ModelPlan,
     profile: CompactQ7Reference,

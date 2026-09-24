@@ -1,6 +1,6 @@
 use pllm_compiler::{
-    prepare_bound_logrow_q7_element, prepare_bound_logrow_q7_tensor, ExperimentalLogRowQ7Policy,
-    ExperimentalLogRowQ7TensorPolicy,
+    estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_element,
+    prepare_bound_logrow_q7_tensor, ExperimentalLogRowQ7Policy, ExperimentalLogRowQ7TensorPolicy,
 };
 use pllm_core::fit_compact_silu_q7;
 use pllm_models::{lower_model_json, DecoderMode, DecoderPlan, DecoderWorkload, ModelOperator};
@@ -23,12 +23,16 @@ const QWEN3: &[u8] = br#"{
 }"#;
 
 fn plan(config: &[u8], tokens: u64) -> DecoderPlan {
+    plan_with_decode(config, tokens, 1)
+}
+
+fn plan_with_decode(config: &[u8], tokens: u64, max_new_tokens: u64) -> DecoderPlan {
     lower_model_json(
         config,
         DecoderWorkload {
             batch: 1,
             max_input_tokens: tokens,
-            max_new_tokens: 1,
+            max_new_tokens,
         },
     )
     .unwrap()
@@ -320,4 +324,55 @@ fn tensor_material_never_crosses_plan_profile_operator_or_decoder_contexts() {
         .unwrap();
     assert!(other_decoder.decode(first_output).is_err());
     drop(first_decoder);
+}
+
+#[test]
+fn entire_response_material_is_admitted_before_any_tensor_issuance() {
+    let profile = fit_compact_silu_q7(&[0; 257], 4).unwrap();
+    let mut skewed = [0; 257];
+    skewed[128] = 5;
+    let other_profile = fit_compact_silu_q7(&skewed, 4).unwrap();
+    let policy =
+        ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(32, 68_608)
+            .unwrap();
+    for model in [QWEN2, QWEN3] {
+        let plan = plan_with_decode(model, 2, 2);
+        let estimate =
+            estimate_bound_logrow_q7_session(&plan, &profile, &policy, 2, 137_216).unwrap();
+        assert_eq!(estimate.prefill_elements, 32);
+        assert_eq!(estimate.decode_elements_per_step, 16);
+        assert_eq!(estimate.reserved_evaluator_material_bytes, 137_216);
+        assert_eq!(estimate.largest_tensor_material_bytes, 68_608);
+        assert_eq!(estimate.plan_digest, plan.digest());
+        assert_eq!(estimate.profile_digest, profile.digest());
+        assert_eq!(estimate.max_decode_steps, 2);
+        assert_ne!(
+            estimate.estimate_digest,
+            estimate_bound_logrow_q7_session(&plan, &profile, &policy, 1, 137_216)
+                .unwrap()
+                .estimate_digest
+        );
+        assert_ne!(
+            estimate.estimate_digest,
+            estimate_bound_logrow_q7_session(&plan, &other_profile, &policy, 2, 137_216)
+                .unwrap()
+                .estimate_digest
+        );
+        for (steps, bytes) in [
+            (0, 137_216),
+            (3, 137_216),
+            (2, 137_215),
+            (2, 0),
+            (2, usize::MAX),
+        ] {
+            assert!(
+                estimate_bound_logrow_q7_session(&plan, &profile, &policy, steps, bytes).is_err(),
+                "invalid session bound ({steps}, {bytes}) passed"
+            );
+        }
+        let tighter =
+            ExperimentalLogRowQ7TensorPolicy::acknowledge_unreviewed_public_profile(16, 68_608)
+                .unwrap();
+        assert!(estimate_bound_logrow_q7_session(&plan, &profile, &tighter, 2, 137_216).is_err());
+    }
 }

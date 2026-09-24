@@ -39,6 +39,9 @@ The opt-in float32 bridge is only defined on `[-1, 1]`: ties-to-even Q7
 quantization rejects out-of-range values rather than saturating, adds at most
 1/256 input error, and burns the complete tensor when any input is invalid.
 This does not establish a wider-range conversion for actual checkpoint MLPs.
+An immutable session-cost estimator counts all semantic SiLU evaluator bodies
+for bounded prefill and decode steps and rejects totals above an explicit cap.
+It does not issue, schedule, or burn a complete session's material.
 
 Data flow: **Boolean index labels + prepared lookup → Boolean output labels; explicit arithmetic conversions around it.**
 

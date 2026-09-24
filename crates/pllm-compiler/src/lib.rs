@@ -79,8 +79,9 @@ pub use gated_tensor::{
     GatedMultiplyQ7TensorEvaluator, GatedMultiplyQ7TensorTicket, TensorResourcePolicy,
 };
 pub use logrow_protected::{
-    prepare_bound_logrow_q7_element, prepare_bound_logrow_q7_tensor, BoundLogRowQ7ClientMaterial,
-    BoundLogRowQ7Decoder, BoundLogRowQ7Evaluation, BoundLogRowQ7Outputs,
+    estimate_bound_logrow_q7_session, prepare_bound_logrow_q7_element,
+    prepare_bound_logrow_q7_tensor, BoundLogRowQ7ClientMaterial, BoundLogRowQ7Decoder,
+    BoundLogRowQ7Evaluation, BoundLogRowQ7Outputs, BoundLogRowQ7SessionEstimate,
     BoundLogRowQ7TensorDecoder, BoundLogRowQ7TensorEvaluation, BoundLogRowQ7TensorMaterial,
     BoundLogRowQ7TensorOutputs, ExperimentalLogRowQ7Policy, ExperimentalLogRowQ7TensorPolicy,
 };

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
@@ -27,8 +29,61 @@ __all__ = [
     "MaskedLinear",
     "ProtocolMethod",
     "SecureLinear",
+    "LogRowQ7SessionEstimate",
+    "estimate_logrow_q7_session_reference",
     "prepare_logrow_q7_tensor_reference",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class LogRowQ7SessionEstimate:
+    """Worst-case SiLU evaluator-body bytes; no material or execution rights."""
+
+    plan_digest: str
+    profile_digest: bytes
+    max_decode_steps: int
+    prefill_elements: int
+    decode_elements_per_step: int
+    reserved_evaluator_material_bytes: int
+    largest_tensor_material_bytes: int
+    estimate_digest: str
+
+
+def estimate_logrow_q7_session_reference(
+    plan: ModelPlan,
+    profile: CompactQ7Reference,
+    *,
+    max_elements: int,
+    max_evaluator_material_bytes: int,
+    max_decode_steps: int,
+    max_session_evaluator_material_bytes: int,
+) -> LogRowQ7SessionEstimate:
+    """Preflight total Q7 SiLU material across prefill and bounded decode.
+
+    This estimate includes only evaluator bodies, not labels, transport, or
+    peak memory. It does not issue material or make a Pipeline executable.
+    """
+    from pllm import _native
+    from pllm.modeling import ModelPlan
+
+    if type(plan) is not ModelPlan:
+        raise TypeError("plan must be an immutable ModelPlan")
+    document = json.loads(
+        _native.estimate_logrow_q7_session_reference(
+            plan.canonical_bytes(),
+            profile,
+            max_elements,
+            max_evaluator_material_bytes,
+            max_decode_steps,
+            max_session_evaluator_material_bytes,
+        )
+    )
+    if document.pop("schema_version", None) != "pllm.logrow_q7_session_estimate.v1":
+        raise ValueError("unsupported LogRow Q7 session estimate schema")
+    digest = document.pop("profile_digest")
+    if not isinstance(digest, list) or len(digest) != 32:
+        raise ValueError("invalid LogRow Q7 profile digest")
+    return LogRowQ7SessionEstimate(profile_digest=bytes(digest), **document)
 
 
 def prepare_logrow_q7_tensor_reference(

@@ -1,5 +1,5 @@
-//! Plan-bound, single-SiLU-element research reference for LogRow's fitted Q7
-//! table. This is not a Python Experiment slot or a protected decoder runtime.
+//! Plan-bound SiLU research references for LogRow's fitted Q7 table.
+//! These are not Python Experiment slots or protected decoder runtimes.
 
 use crate::{canonical_digest, digest_bytes, lower_model_silu_operation, tensor_elements, Digest};
 use pllm_core::{compact::COMPACT_SILU_Q7_PROFILE, CompactQ7Profile};
@@ -8,15 +8,17 @@ use pllm_garble::logrow::{
     CompactQ7LogRowDecoder, CompactQ7LogRowProgram, LogRowInputs, LogRowOutputs,
     COMPACT_Q7_LOGROW_MATERIAL_BYTES,
 };
-use pllm_models::{DecoderMode, DecoderPlan};
+use pllm_models::{DecoderMode, DecoderPlan, ModelOperator};
 use serde::Serialize;
 
 const CONTEXT_DOMAIN: &str = "pllm.protected.logrow_q7.element_context.v1";
 const MATERIAL_DOMAIN: &str = "pllm.protected.logrow_q7.element_material.v1";
 const TENSOR_CONTEXT_DOMAIN: &str = "pllm.protected.logrow_q7.tensor_context.v1";
 const TENSOR_MATERIAL_DOMAIN: &str = "pllm.protected.logrow_q7.tensor_material.v1";
+const SESSION_ESTIMATE_DOMAIN: &str = "pllm.protected.logrow_q7.session_estimate.v1";
 const HARD_MAX_MATERIAL_BYTES: usize = 64 * 1024;
 const HARD_MAX_TENSOR_MATERIAL_BYTES: usize = 64 * 1024 * 1024;
+const HARD_MAX_SESSION_MATERIAL_BYTES: usize = 512 * 1024 * 1024;
 
 /// Explicit acknowledgement of unreviewed, in-process material and a maximum
 /// evaluator body size; zero and unbounded limits fail before material issuance.
@@ -105,6 +107,16 @@ struct TensorMaterialContext<'a> {
     evaluator_material_bytes: usize,
 }
 
+#[derive(Serialize)]
+struct SessionEstimateContext<'a> {
+    plan_digest: &'a Digest,
+    profile_digest: [u8; 32],
+    prefill: &'a [Digest],
+    decode: &'a [Digest],
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+}
+
 pub struct BoundLogRowQ7TensorMaterial {
     context_digest: Digest,
     binding_digest: Digest,
@@ -119,6 +131,21 @@ pub struct BoundLogRowQ7TensorEvaluation {
 
 pub struct BoundLogRowQ7TensorDecoder(Vec<CompactQ7LogRowDecoder>);
 pub struct BoundLogRowQ7TensorOutputs(Vec<LogRowOutputs>);
+
+/// Immutable upper bound for all semantic SiLU material in one response.
+/// Estimation issues no material and does not authorize a composition.
+#[derive(Clone, Debug, Serialize)]
+pub struct BoundLogRowQ7SessionEstimate {
+    pub schema_version: &'static str,
+    pub plan_digest: Digest,
+    pub profile_digest: [u8; 32],
+    pub max_decode_steps: u64,
+    pub prefill_elements: usize,
+    pub decode_elements_per_step: usize,
+    pub reserved_evaluator_material_bytes: usize,
+    pub largest_tensor_material_bytes: usize,
+    pub estimate_digest: Digest,
+}
 
 pub struct BoundLogRowQ7ClientMaterial {
     context_digest: Digest,
@@ -228,6 +255,97 @@ fn validate_tensor_context(
         ),
         elements,
     ))
+}
+
+/// Preflight all semantic SiLU material in a bounded response. This only
+/// estimates LogRow bodies; no tensor is issued or live session authorized.
+pub fn estimate_bound_logrow_q7_session(
+    plan: &DecoderPlan,
+    profile: &CompactQ7Profile,
+    tensor_policy: &ExperimentalLogRowQ7TensorPolicy,
+    max_decode_steps: u64,
+    max_session_evaluator_material_bytes: usize,
+) -> Result<BoundLogRowQ7SessionEstimate, String> {
+    plan.validate().map_err(|error| error.to_string())?;
+    if max_decode_steps == 0
+        || max_session_evaluator_material_bytes == 0
+        || max_session_evaluator_material_bytes > HARD_MAX_SESSION_MATERIAL_BYTES
+    {
+        return Err("protected LogRow Q7 session limit must be in (0, 512 MiB]".into());
+    }
+    let final_position = plan
+        .prefill
+        .query_sequence
+        .checked_add(max_decode_steps - 1)
+        .ok_or("protected LogRow Q7 session position overflowed")?;
+    if final_position > plan.decode.maximum_key_sequence {
+        return Err("protected LogRow Q7 decode steps exceed the semantic state bound".into());
+    }
+    let mut totals = [0usize; 2];
+    let mut contexts = [Vec::new(), Vec::new()];
+    let mut largest = 0usize;
+    for (index, (mode, graph)) in [
+        (DecoderMode::Prefill, &plan.prefill),
+        (DecoderMode::Decode, &plan.decode),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        for operation in graph
+            .operations
+            .iter()
+            .filter(|operation| operation.operator == ModelOperator::Silu)
+        {
+            let (digest, elements) =
+                validate_tensor_context(plan, mode, &operation.id, profile, tensor_policy)?;
+            let bytes = elements
+                .checked_mul(COMPACT_Q7_LOGROW_MATERIAL_BYTES)
+                .ok_or("protected LogRow Q7 tensor material size overflowed")?;
+            totals[index] = totals[index]
+                .checked_add(elements)
+                .ok_or("protected LogRow Q7 phase element count overflowed")?;
+            largest = largest.max(bytes);
+            contexts[index].push(digest);
+        }
+    }
+    if contexts.iter().any(Vec::is_empty) {
+        return Err("protected LogRow Q7 session needs SiLU in both phases".into());
+    }
+    let decode_total = totals[1]
+        .checked_mul(usize::try_from(max_decode_steps).map_err(|_| "decode steps overflowed")?)
+        .ok_or("protected LogRow Q7 session element count overflowed")?;
+    let session_elements = totals[0]
+        .checked_add(decode_total)
+        .ok_or("protected LogRow Q7 session element count overflowed")?;
+    let reserved_evaluator_material_bytes = session_elements
+        .checked_mul(COMPACT_Q7_LOGROW_MATERIAL_BYTES)
+        .ok_or("protected LogRow Q7 session material size overflowed")?;
+    if reserved_evaluator_material_bytes > max_session_evaluator_material_bytes {
+        return Err("protected LogRow Q7 session exceeds its material limit".into());
+    }
+    let plan_digest = plan.digest();
+    let estimate_digest = canonical_digest(
+        SESSION_ESTIMATE_DOMAIN,
+        &SessionEstimateContext {
+            plan_digest: &plan_digest,
+            profile_digest: profile.digest(),
+            prefill: &contexts[0],
+            decode: &contexts[1],
+            max_decode_steps,
+            max_session_evaluator_material_bytes,
+        },
+    );
+    Ok(BoundLogRowQ7SessionEstimate {
+        schema_version: "pllm.logrow_q7_session_estimate.v1",
+        plan_digest,
+        profile_digest: profile.digest(),
+        max_decode_steps,
+        prefill_elements: totals[0],
+        decode_elements_per_step: totals[1],
+        reserved_evaluator_material_bytes,
+        largest_tensor_material_bytes: largest,
+        estimate_digest,
+    })
 }
 
 /// Admit the complete semantic tensor before issuing any one-use material.
