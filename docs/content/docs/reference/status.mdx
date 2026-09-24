@@ -25,7 +25,7 @@ API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signat
 | Architecture scope | Semantic plan | Baseline schedule | Checkpoint/runtime evidence | Remaining uplift |
 | --- | --- | --- | --- | --- |
 | [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/) (`pllm.qwen2.v1`) | Checked config | Complete | Pinned Qwen2.5-0.5B real-checkpoint prefill/decode functionality test; local role path and historical baseline cohort | Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent |
-| [Dense Qwen3](/sdk/models/families/qwen3/) (`pllm.qwen3.v1`) | Checked config | Complete | Tiny synthetic checkpoint compiled-runtime execution; pinned mini-coder fixture is configuration/semantic evidence only | Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent |
+| [Dense Qwen3 (Qwen3-0.6B)](/sdk/models/families/qwen3/) (`pllm.qwen3.v1`) | Checked config | Complete | Tiny synthetic checkpoint compiled-runtime execution; pinned Qwen3-0.6B and mini-coder fixtures are configuration/semantic evidence only | Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent |
 | [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) (`pllm.qwen3_5_text.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution |
 | [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) (`pllm.phi4_mini.v1`) | Checked config | Incomplete | Pinned configuration and semantic-plan tests only | Partial LongRoPE, fused-weight checkpoint binding, baseline and protected execution |
 | [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) (`pllm.gemma4_e2b_text.v1`) | Checked config | Incomplete | Exact pinned outer-config semantic-plan tests only | Gemma local operators and shared KV suffix, checkpoint binding, baseline and protected execution |
@@ -40,7 +40,7 @@ Each row names **generic** semantic/numeric/state or import contracts, not a fam
 | Source configuration | Reusable requirements | Principal baseline blockers |
 | --- | --- | --- |
 | [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/) | `gqa`, `rotary`, `qkv-bias`, `rmsnorm`, `gated-silu`, `kv-cache` | None for the tested semantic schedule |
-| [Dense Qwen3](/sdk/models/families/qwen3/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `head-width`, `qk-norm` | None for the tested semantic schedule |
+| [Dense Qwen3 (Qwen3-0.6B)](/sdk/models/families/qwen3/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `head-width`, `qk-norm` | None for the tested semantic schedule |
 | [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `qk-norm`, `gated-delta`, `causal-convolution`, `partial-mrope` | `gated-delta`, `causal-convolution`, `partial-mrope` |
 | [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/) | `gqa`, `rotary`, `rmsnorm`, `gated-silu`, `kv-cache`, `fused-qkv`, `longrope` | `fused-qkv`, `longrope` |
 | [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/) | `gqa`, `rotary`, `rmsnorm`, `kv-cache`, `qk-norm`, `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` | `local-global`, `shared-kv`, `gelu-tanh`, `branch-norm`, `ple`, `softcap` |

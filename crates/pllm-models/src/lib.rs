@@ -114,7 +114,9 @@ struct Qwen3Config {
     use_sliding_window: bool,
     use_cache: bool,
     max_window_layers: u32,
-    layer_types: Vec<String>,
+    // Earlier dense Qwen3 releases omit this field and declare full attention
+    // through the sliding-window knobs above instead.
+    layer_types: Option<Vec<String>>,
 }
 
 impl Qwen3Config {
@@ -176,11 +178,12 @@ impl Qwen3Config {
             ));
         }
         if self.max_window_layers != self.num_hidden_layers
-            || self.layer_types.len() != self.num_hidden_layers as usize
-            || self
-                .layer_types
-                .iter()
-                .any(|layer_type| layer_type != "full_attention")
+            || self.layer_types.as_ref().is_some_and(|layers| {
+                layers.len() != self.num_hidden_layers as usize
+                    || layers
+                        .iter()
+                        .any(|layer_type| layer_type != "full_attention")
+            })
         {
             return Err(ModelError::Unsupported(
                 "Qwen3 adapter requires one full_attention entry per layer".into(),
@@ -3096,6 +3099,12 @@ mod tests {
         include_bytes!("../tests/fixtures/mini-coder-4b-c87892d-config.json");
     const MINI_CODER_4B_CONFIG_SHA256: &str =
         "fdbc9e0615fcb88b2cc37aa2b23fa332b3863068d50092aa6bd1e628fd187c92";
+    const QWEN3_06B_CONFIG: &[u8] =
+        include_bytes!("../tests/fixtures/Qwen3-0.6B-c1899de-config.json");
+    const QWEN3_06B_UPSTREAM_SHA256: &str =
+        "660db3b73d788119c04535e48cf9be5f55bc3100841a718637ae695b442f27dd";
+    const QWEN3_06B_FIXTURE_SHA256: &str =
+        "cfbd7059ee9d6c98b5c742823bd9d375f5b516f7948a09b95e741cfcc81b645b";
 
     fn config() -> QwenConfig {
         QwenConfig {
@@ -3414,6 +3423,55 @@ mod tests {
             operation("layer.0.q_linear").attributes["bias"],
             Value::Null
         );
+    }
+
+    #[test]
+    fn lowers_pinned_dense_qwen3_without_layer_types_and_rejects_hybrid_claims() {
+        assert_eq!(
+            format!("{:x}", Sha256::digest(QWEN3_06B_CONFIG)),
+            QWEN3_06B_FIXTURE_SHA256
+        );
+        assert_eq!(
+            format!(
+                "{:x}",
+                Sha256::digest(&QWEN3_06B_CONFIG[..QWEN3_06B_CONFIG.len() - 1])
+            ),
+            QWEN3_06B_UPSTREAM_SHA256
+        );
+        let workload = DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 16,
+            max_new_tokens: 2,
+        };
+        let plan = lower_model_json(QWEN3_06B_CONFIG, workload).unwrap();
+        plan.validate().unwrap();
+        assert_eq!(plan.adapter, "pllm.qwen3.v1");
+        assert_eq!(plan.prefill.state_outputs.len(), 28 * 2);
+        assert_eq!(plan.prefill.operations.len(), 28 * 30 + 6);
+        let q_norm = plan
+            .prefill
+            .operations
+            .iter()
+            .find(|operation| operation.id == "layer.0.q_norm")
+            .unwrap();
+        assert_eq!(q_norm.operator, ModelOperator::RmsNorm);
+        assert_eq!(q_norm.output_shape, [1, 16, 16, 128]);
+        let mut source: Value = serde_json::from_slice(QWEN3_06B_CONFIG).unwrap();
+        for (field, replacement) in [
+            ("use_sliding_window", json!(true)),
+            ("max_window_layers", json!(27)),
+            ("sliding_window", json!(2048)),
+            ("layer_types", json!([])),
+            (
+                "layer_types",
+                Value::Array((0..28).map(|_| json!("sliding_attention")).collect()),
+            ),
+        ] {
+            let prior = source[field].clone();
+            source[field] = replacement;
+            assert!(lower_model_json(&serde_json::to_vec(&source).unwrap(), workload).is_err());
+            source[field] = prior;
+        }
     }
 
     #[test]

@@ -48,14 +48,14 @@
       "guide": "/sdk/models/families/qwen2/"
     },
     {
-      "name": "Dense Qwen3",
+      "name": "Dense Qwen3 (Qwen3-0.6B)",
       "adapter": "pllm.qwen3.v1",
       "model_family": "qwen3",
-      "fixture": "crates/pllm-models/tests/fixtures/mini-coder-4b-c87892d-config.json",
+      "fixture": "crates/pllm-models/tests/fixtures/Qwen3-0.6B-c1899de-config.json",
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "head-width", "qk-norm"],
       "baseline_blockers": [],
-      "runtime_evidence": "Tiny synthetic checkpoint compiled-runtime execution; pinned mini-coder fixture is configuration/semantic evidence only",
+      "runtime_evidence": "Tiny synthetic checkpoint compiled-runtime execution; pinned Qwen3-0.6B and mini-coder fixtures are configuration/semantic evidence only",
       "remaining": "Real-checkpoint execution, model quality and matched benchmark evidence; protected whole decoder absent",
       "guide": "/sdk/models/families/qwen3/"
     },
