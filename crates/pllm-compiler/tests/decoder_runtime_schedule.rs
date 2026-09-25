@@ -64,6 +64,55 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn client_only_topology_places_all_linear_stages_with_the_client() {
+    let composition = canonical_bytes(&json!({
+        "components": {
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/cleartext-linear", "params": {}},
+            "topology": {"component": "pllm/client-only/v1", "params": {}},
+            "quantization": {"component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {"weight_bits": 8, "activation_bits": 8}}
+        },
+        "model": {"source": "model.fixture"}
+    }));
+    for config in [QWEN2, QWEN3, GEMMA4_E2B] {
+        let plan = plan(config);
+        let schedule = lower_decoder_runtime_schedule(&plan, &composition).unwrap();
+        assert_eq!(
+            schedule.composition_digest,
+            pipeline_digest_bytes(&composition)
+        );
+        for phase in [&schedule.prefill, &schedule.decode] {
+            assert!(phase
+                .steps
+                .iter()
+                .any(|step| step.executor == DecoderRuntimeExecutor::ClientLinear));
+            assert!(phase
+                .steps
+                .iter()
+                .all(|step| step.executor != DecoderRuntimeExecutor::RemoteStage));
+            assert!(phase
+                .steps
+                .iter()
+                .filter(|step| step.executor == DecoderRuntimeExecutor::ClientLinear)
+                .all(|step| !step.weight_ids.is_empty()));
+        }
+    }
+    let plan = plan(QWEN2);
+    let mut invalid: serde_json::Value = serde_json::from_slice(&composition).unwrap();
+    invalid["components"]["preparation"] = json!({
+        "component": "pllm/model-aware-corrections", "params": {}
+    });
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&invalid)).is_err());
+    invalid["components"]
+        .as_object_mut()
+        .unwrap()
+        .remove("preparation");
+    invalid["components"]["linear"]["component"] = json!("pllm/masked-linear");
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&invalid)).is_err());
+}
+
+#[test]
 fn explicit_prepared_topology_keeps_coverage_but_changes_plan_identity() {
     let plan = plan(QWEN2);
     let original = composition(false);
@@ -326,7 +375,7 @@ fn exact_composition_enables_complete_coverage_without_promoting_arbitrary_compo
         .contains("whole-decoder scheduling is unavailable")));
     assert!(lower_decoder_runtime_schedule(&qwen, &arbitrary)
         .unwrap_err()
-        .contains("exact masked-linear component composition"));
+        .contains("admitted linear component composition"));
     assert!(pllm_compiler::decoder_coverage(&qwen, None)
         .unwrap()
         .operators

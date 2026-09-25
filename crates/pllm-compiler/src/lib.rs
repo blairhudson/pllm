@@ -439,9 +439,11 @@ pub fn decoder_coverage(
         .map(classify_decoder_composition)
         .transpose()?
         .unwrap_or(DecoderCompositionKind::Other);
-    let masked_runtime_complete = composition_kind == DecoderCompositionKind::MaskedLinear
-        && canonical_composition
-            .is_some_and(|composition| lower_decoder_runtime_schedule(plan, composition).is_ok());
+    let baseline_runtime_complete = matches!(
+        composition_kind,
+        DecoderCompositionKind::MaskedLinear | DecoderCompositionKind::ClientOnlyLinear
+    ) && canonical_composition
+        .is_some_and(|composition| lower_decoder_runtime_schedule(plan, composition).is_ok());
     let verified_runtime_unavailable =
         composition_kind == DecoderCompositionKind::VerifiedMaskedLinear;
     let mut occurrences = BTreeMap::<ModelOperator, u64>::new();
@@ -498,7 +500,7 @@ pub fn decoder_coverage(
                 _ => None,
             };
             let descriptor_executable = descriptor_coverage.is_some_and(Result::is_ok);
-            let executable = masked_runtime_complete
+            let executable = baseline_runtime_complete
                 || operator == ModelOperator::Linear
                 || (operator == ModelOperator::Reshape && reshape_executable)
                 || (operator == ModelOperator::ResidualAdd && residual_executable)
@@ -550,10 +552,16 @@ pub fn decoder_coverage(
                 } else {
                     CapabilityLevel::Missing
                 },
-                component: if masked_runtime_complete {
+                component: if baseline_runtime_complete {
                     Some(
                         match operator {
-                            ModelOperator::Linear => "pllm/masked-linear@0.1.0-alpha.1",
+                            ModelOperator::Linear => {
+                                if composition_kind == DecoderCompositionKind::ClientOnlyLinear {
+                                    "pllm/cleartext-linear@0.1.0-alpha.1"
+                                } else {
+                                    "pllm/masked-linear@0.1.0-alpha.1"
+                                }
+                            }
                             ModelOperator::TokenLookup | ModelOperator::OutputHead => {
                                 "pllm/client-quantized-boundary@0.1.0-alpha.1"
                             }
@@ -612,9 +620,15 @@ pub fn decoder_coverage(
                 } else {
                     None
                 },
-                blocker: if masked_runtime_complete {
+                blocker: if baseline_runtime_complete {
                     match operator {
-                        ModelOperator::Linear => "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite",
+                        ModelOperator::Linear => {
+                            if composition_kind == DecoderCompositionKind::ClientOnlyLinear {
+                                "scheduled on the trusted client with locally owned weights by the complete semantic runtime"
+                            } else {
+                                "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite"
+                            }
+                        }
                         ModelOperator::TokenLookup | ModelOperator::OutputHead => "scheduled at the quantized client boundary by the complete model-aware runtime",
                         _ => "scheduled client-local by the complete model-aware runtime; client-local execution is outside provider protection",
                     }
@@ -715,7 +729,7 @@ pub fn decoder_coverage(
         schema_version: "pllm.decoder_coverage_report.v2".to_owned(),
         composition_digest: canonical_composition.map(pllm_types::pipeline_digest_bytes),
         model_config_digest: plan.config_digest.clone(),
-        complete: masked_runtime_complete,
+        complete: baseline_runtime_complete,
         operators,
     })
 }
@@ -1587,9 +1601,11 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
         if matches!(
             component.component.as_str(),
             "pllm/masked-linear"
+                | "pllm/cleartext-linear"
                 | "pllm/model-aware-corrections"
                 | "pllm/inference"
                 | "pllm/one-online-provider-offline-preparation/v1"
+                | "pllm/client-only/v1"
         ) && !component.params.is_empty()
         {
             return Err(format!(
@@ -1656,6 +1672,7 @@ enum MaskedLinearComposition {
 pub(crate) enum DecoderCompositionKind {
     MaskedLinear,
     VerifiedMaskedLinear,
+    ClientOnlyLinear,
     Other,
 }
 
@@ -1668,11 +1685,84 @@ pub(crate) fn classify_decoder_composition(
         return Err("pipeline composition must use canonical compact sorted JSON bytes".into());
     }
     validate_experiment_model(&pipeline.model)?;
-    Ok(match validate_masked_linear_composition(&pipeline) {
-        Ok(MaskedLinearComposition::Baseline) => DecoderCompositionKind::MaskedLinear,
-        Ok(MaskedLinearComposition::Verified) => DecoderCompositionKind::VerifiedMaskedLinear,
+    Ok(match validate_decoder_linear_composition(&pipeline) {
+        Ok(kind) => kind,
         Err(_) => DecoderCompositionKind::Other,
     })
+}
+
+fn validate_decoder_linear_composition(
+    pipeline: &ExperimentPipeline,
+) -> Result<DecoderCompositionKind, String> {
+    let clear_client = pipeline
+        .components
+        .get("linear")
+        .is_some_and(|linear| linear.component == "pllm/cleartext-linear")
+        || pipeline
+            .components
+            .get("topology")
+            .is_some_and(|topology| topology.component == "pllm/client-only/v1");
+    if clear_client {
+        validate_client_only_composition(pipeline)?;
+        return Ok(DecoderCompositionKind::ClientOnlyLinear);
+    }
+    Ok(match validate_masked_linear_composition(pipeline)? {
+        MaskedLinearComposition::Baseline => DecoderCompositionKind::MaskedLinear,
+        MaskedLinearComposition::Verified => DecoderCompositionKind::VerifiedMaskedLinear,
+    })
+}
+
+fn validate_client_only_composition(pipeline: &ExperimentPipeline) -> Result<(), String> {
+    for (slot, required) in [
+        ("linear", "pllm/cleartext-linear"),
+        ("topology", "pllm/client-only/v1"),
+    ] {
+        let component = pipeline.components.get(slot).ok_or_else(|| {
+            format!("client-only composition requires {slot} component {required}")
+        })?;
+        if component.component != required || !component.params.is_empty() {
+            return Err(format!(
+                "client-only composition requires {slot} component {required} with no parameters"
+            ));
+        }
+    }
+    let kernels = pipeline
+        .components
+        .get("kernels")
+        .ok_or_else(|| "client-only composition requires kernels component pllm/cpu".to_string())?;
+    if kernels.component != "pllm/cpu"
+        || kernels.params.len() != 1
+        || kernels
+            .params
+            .get("threads")
+            .and_then(serde_json::Value::as_u64)
+            .is_none_or(|threads| threads == 0)
+    {
+        return Err("client-only composition requires a positive pllm/cpu thread count".into());
+    }
+    let quantization = pipeline.components.get("quantization");
+    if let Some(quantization) = quantization {
+        let bits = |key: &str| {
+            quantization
+                .params
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+        };
+        if quantization.component != "pllm/symmetric-per-row-quantization/v1"
+            || quantization.params.len() != 2
+            || !matches!(bits("weight_bits"), Some(4 | 8))
+            || !matches!(bits("activation_bits"), Some(4 | 8))
+        {
+            return Err(
+                "client-only quantization requires exact 4- or 8-bit symmetric per-row settings"
+                    .into(),
+            );
+        }
+    }
+    if pipeline.components.len() != 3 + usize::from(quantization.is_some()) {
+        return Err("client-only composition requires only cleartext-linear, cpu, topology and optional quantization".into());
+    }
+    Ok(())
 }
 
 fn validate_masked_linear_composition(
@@ -1814,7 +1904,7 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentComposition,
     }
     validate_experiment(&document)?;
     validate_experiment_model(&document.pipeline.model)?;
-    validate_masked_linear_composition(&document.pipeline)?;
+    validate_decoder_linear_composition(&document.pipeline)?;
     let canonical_composition = canonical_bytes(&document.pipeline);
 
     Ok(ResolvedExperimentComposition {
@@ -1904,7 +1994,7 @@ fn validate_context(request: &CompileRequest) -> Vec<Diagnostic> {
                     }
                 })
             } else {
-                validate_masked_linear_composition(&configuration.pipeline).map(|_| ())
+                validate_decoder_linear_composition(&configuration.pipeline).map(|_| ())
             };
             if let Err(message) = composition {
                 diagnostics.push(diagnostic(
@@ -2333,7 +2423,7 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
     {
         validate_silu_q7_composition(&document.configuration.pipeline).map_err(document_error)?;
     } else {
-        validate_masked_linear_composition(&document.configuration.pipeline)
+        validate_decoder_linear_composition(&document.configuration.pipeline)
             .map_err(document_error)?;
     }
     if canonical_bytes(&document) != bytes {

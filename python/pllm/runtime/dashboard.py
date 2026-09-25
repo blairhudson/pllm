@@ -400,7 +400,10 @@ class DashboardRuntime:
             and topology is not None
             and topology.started
             and not topology.closed
-            and all(status.running for status in topology.statuses)
+            and (
+                all(status.running for status in topology.statuses)
+                if topology.statuses else topology.is_healthy()
+            )
         )
 
     async def _background_call(
@@ -521,20 +524,25 @@ class DashboardRuntime:
                 progress=lambda role: self._set(startup_step=role),
             )
             await asyncio.to_thread(self._topology.start)
-            self._client = self._topology.client(
-                bundle_cache_dir=root / "bundle-cache",
-                timeout=300,
-                prepared_inventory_rows=self._inventory_rows,
-                background_inventory_refill=False,
-            )
+            client_options: dict[str, Any] = {"timeout": 300}
+            if self._topology.statuses:
+                client_options.update(
+                    bundle_cache_dir=root / "bundle-cache",
+                    prepared_inventory_rows=self._inventory_rows,
+                    background_inventory_refill=False,
+                )
+            self._client = self._topology.client(**client_options)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
-            endpoints = {"inference": self._topology.inference_url}
-            if self._topology.requires_preparation:
-                endpoints["preparation"] = self._topology.preparation_url
+            endpoints = {
+                status.role: status.url for status in self._topology.statuses
+            }
             self._set(
                 phase="preparing",
-                startup_step="inventory" if self._topology.requires_preparation else "inference",
+                startup_step=(
+                    "inventory" if self._topology.requires_preparation else
+                    ("client" if not endpoints else "inference")
+                ),
                 endpoints=endpoints,
             )
             if self._topology.requires_preparation:

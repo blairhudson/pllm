@@ -78,6 +78,21 @@ Different numeric options produce different quantized body fingerprints, so the
 current transport comparator reports their individual costs without ranking
 W4A4 against W8A8.
 
+The same command accepts the client-owned `ClientOnlyCpu` topology. Its
+checked-in Experiment uses the same public Qwen checkpoint and W8A8 numeric
+settings as the prepared CPU option. Inspect it without loading the checkpoint:
+
+```bash
+pllm benchmark run --experiment examples/benchmarks/qwen-client-only-cpu-4.yaml --prompt "Explain private inference in one sentence." --max-output-tokens 16 --repetitions 1 --format json --dry-run
+```
+
+Remove `--dry-run` to execute the compiled model locally. Repeating the target
+alongside `qwen-prepared-cpu-4.yaml` uses the existing exact body-fingerprint,
+token-count and warm-state comparison gates; it does not certify matching
+generated selections, cold model distribution or full network/compute costs.
+The separate two-worker offset research driver above is not yet a selectable
+Experiment.
+
 ## Compare numeric quality
 
 [`pllm benchmark quality`](/cli/reference/benchmark/quality/) compares

@@ -1,0 +1,44 @@
+---
+title: "Client-only roles"
+description: "Run the compiled public model on the trusted client without provider children."
+---
+
+[`ClientOnlyRoles`](/sdk/reference/python/pllm/roles/#clientonlyroles)
+(`pllm/client-only/v1`) places every semantic decoder operator and its public
+body weights on the client. Use the complete `ClientOnlyCpu` composition with
+`CleartextLinear` and the CPU kernel; merely adding this topology to a masked
+provider pipeline is rejected. The normal SDK, gateway and `benchmark run`
+drivers use a zero-child role graph for this choice.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import ClientOnlyCpu
+from pllm.roles import ClientOnlyRoles
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="client-only-topology-example",
+    pipeline=ClientOnlyCpu(TinyModel(model_id="client-only-topology-example")),
+    deployment=Deployment.local(root="local://client-only-topology-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+graph = experiment.resolve().role_graph
+assert graph is not None and tuple(role.id for role in graph.roles) == ("client",)
+assert graph.channels == ()
+assert experiment.pipeline.components["topology"] == ClientOnlyRoles()
+```
+
+**Privacy:** no inference provider receives plaintext or activation shares;
+checkpoint distribution to the client is a separate boundary. **Network:**
+online provider-graph bytes are zero, but checkpoint downloads and application
+HTTP traffic are not counted as zero. **CPU and memory:** all projection and
+nonlinear work and the complete quantized model reside on the client. **Disk:**
+the checkpoint is client-owned. Full-response compute and peak-memory
+comparisons remain unverified; see the [topology evidence scope](/learn/topologies/network-and-compute/).
+
+Run the checked-in public-model target through the existing
+[`benchmark run`](/cli/benchmarking/) or trusted gateway command.
+
+API: [`ClientOnlyRoles`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

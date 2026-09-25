@@ -1,14 +1,16 @@
 ---
 title: "Cleartext linear control"
-description: "Use an explicit non-private declaration for isolated tests without serving it as private inference."
+description: "Place clear linear operators on the trusted client for client-only inference."
 ---
 
 [`CleartextLinear`](/sdk/reference/python/pllm/protocols/#cleartextlinear)
-(`pllm/cleartext-linear`) is an importable, serializable control whose executor
-may see inputs. No shipped private-inference composition accepts it, so a
-descriptor alone cannot turn it into a gateway or benchmark runtime. Never use
-cleartext results as evidence of private activation handling. This control is
-PLLM-specific test infrastructure, not a research-paper implementation.
+(`pllm/cleartext-linear`) declares a linear operator whose executor sees its
+inputs. It is accepted only with the complete `ClientOnlyCpu` topology: every
+linear kernel and the public model weights stay on the trusted client. That
+Experiment runs through the ordinary gateway and benchmark driver. The bare
+descriptor cannot authorize private inference or enable this placement by
+itself; cleartext client execution is not evidence of protected provider
+activations. This is PLLM-specific infrastructure, not a paper implementation.
 
 ## Python SDK example
 
@@ -17,12 +19,11 @@ from pllm.protocols import CleartextLinear
 
 control = CleartextLinear()
 assert control.component == "pllm/cleartext-linear"
-assert control.describe().role_eligibility == ("inference",)
+assert control.describe().role_eligibility == ("client", "inference")
 ```
 
-For a supported private workflow, use the complete
-[masked-linear experiment](/sdk/inference/masked-linear/) and its
-`pllm gateway --local --experiment experiment.py:experiment --trust-python`
-command. The cleartext control itself has no private serving path.
+Use it through a complete [client-only Experiment](/sdk/topologies/options/),
+or choose a [masked-linear experiment](/sdk/inference/masked-linear/) when
+public body weights remain with the prepared provider roles.
 
 API: [`CleartextLinear`](/sdk/reference/python/pllm/protocols/#objects-and-signatures)

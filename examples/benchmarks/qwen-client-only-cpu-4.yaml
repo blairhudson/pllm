@@ -1,0 +1,23 @@
+schema: pllm.experiment.v2
+name: qwen-client-only-cpu-4
+pipeline:
+  model:
+    source: Qwen/Qwen2.5-0.5B-Instruct
+  components:
+    linear:
+      component: pllm/cleartext-linear
+      params: {}
+    topology:
+      component: pllm/client-only/v1
+      params: {}
+    kernels:
+      component: pllm/cpu
+      params:
+        threads: 4
+deployment:
+  kind: local
+  root: .pllm/benchmarks/qwen-client-only-cpu-4
+budget:
+  requests: 4
+  max_input_tokens: 128
+  max_new_tokens: 16

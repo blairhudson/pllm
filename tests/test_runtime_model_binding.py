@@ -12,7 +12,8 @@ from jsonschema import Draft202012Validator
 
 import pllm
 from pllm.modeling import ModelPlan
-from pllm.profiles import MaskedLinearCpu
+from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import (
     CompiledRuntimeModel,
@@ -42,6 +43,74 @@ def _bundle(path: Path, *, model_id: str = "tiny-binding", **checkpoint):
 def _plan(config: dict, **workload) -> ModelPlan:
     workload = {"batch": 1, "max_input_tokens": 8, "max_new_tokens": 4, **workload}
     return pllm.lower_model(config, **workload)
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_compiled_client_only_session_matches_masked_stage_numeric_path(
+    tmp_path: Path, model_type: str,
+) -> None:
+    checkpoint = create_tiny_llama_checkpoint(
+        tmp_path / "model", model_type=model_type,
+        with_qkv_bias=model_type == "qwen2", qk_norm=model_type == "qwen3",
+    )
+    model_id = "client-owned-checkpoint"
+    manifest = load_hf_directory(checkpoint, model_id=model_id)
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(manifest))
+    client_bundle = ClientBundle.unpack(engine.client_bundle(model_id, client_owned=True))
+    provider_bundle = ClientBundle.unpack(engine.client_bundle(model_id))
+    plan = _plan(json.loads((checkpoint / "config.json").read_text()), max_input_tokens=4)
+    composition = ClientOnlyCpu(
+        pllm.Model(model_id), quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    )
+    local = compile_runtime_model(plan, client_bundle, composition=composition)
+    prepared = compile_runtime_model(plan, provider_bundle)
+    assert local.runtime_schedule_digest != prepared.runtime_schedule_digest
+    assert all(
+        step["executor"] != "remote_stage"
+        for step in plan.runtime_schedule(composition).to_dict()["prefill"]["steps"]
+    )
+    executor = local.client_linear_executor(engine)
+    assert executor._binding_digest == local.digest
+    local_session = local.session(executor)
+    from pllm.runtime.transformer_client import RemoteLinear
+
+    class LocalCorrelations:
+        model_id = "client-owned-checkpoint"
+
+        def take_many(self, stage, count):
+            return engine.create_local_correlations(model_id, stage.id, count)
+
+    def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
+        return asyncio.run(
+            engine.execute_stage(model_id, engine.models[model_id].stages[stage_id].spec, payloads)
+        )
+
+    prepared_session = prepared.session(
+        RemoteLinear(provider_bundle.stages, LocalCorrelations(), exchange)
+    )
+    local_prefill = local_session.prefill_ids([0, 2]).copy()
+    np.testing.assert_allclose(prepared_session.prefill_ids([0, 2]), local_prefill, atol=1e-5, rtol=0)
+    assert local_session.select_next() == prepared_session.select_next()
+    local_decode = local_session.decode_selected().copy()
+    np.testing.assert_allclose(prepared_session.decode_selected(), local_decode, atol=1e-5, rtol=0)
+    assert executor.integer_macs > 0
+    with pytest.raises(RuntimeBindingError, match="bound local kernel"):
+        local.session(_remote(engine, model_id, client_bundle))
+    with pytest.raises(RuntimeBindingError, match="client-only topology"):
+        prepared.client_linear_executor(engine)
+
+
+def test_client_only_binding_rejects_provider_bundle_and_mismatched_kernel(tmp_path: Path) -> None:
+    engine, provider_bundle, config = _bundle(tmp_path)
+    composition = ClientOnlyCpu(pllm.Model("tiny-binding"))
+    with pytest.raises(RuntimeBindingError, match="preprocessing"):
+        compile_runtime_model(_plan(config), provider_bundle, composition=composition)
+    client_bundle = ClientBundle.unpack(engine.client_bundle("tiny-binding", client_owned=True))
+    compiled = compile_runtime_model(_plan(config), client_bundle, composition=composition)
+    wrong = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    with pytest.raises(RuntimeBindingError, match="no loaded checkpoint"):
+        compiled.client_linear_executor(wrong)
 
 
 def _remote(engine: MaskedTransformerEngine, model_id: str, bundle: ClientBundle):

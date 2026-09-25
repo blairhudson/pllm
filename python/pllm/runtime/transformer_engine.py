@@ -1473,7 +1473,14 @@ class MaskedTransformerEngine:
         ).hexdigest()
         return config
 
-    def client_bundle(self, model_id: str, *, include_local_weights: bool = True) -> bytes:
+    def client_bundle(
+        self, model_id: str, *, include_local_weights: bool = True,
+        client_owned: bool = False,
+    ) -> bytes:
+        if client_owned and not include_local_weights:
+            raise TransformerEngineError("client-owned execution requires local token boundaries")
+        if client_owned and self.verification_component != "none":
+            raise TransformerEngineError("client-owned execution cannot claim remote verification")
         model = self._model(model_id)
         local_stage_ids = {"token_lookup", "lm_head"} if include_local_weights else set()
         stage_descriptors = {
@@ -1541,12 +1548,31 @@ class MaskedTransformerEngine:
             for key, value in model.local_tensors.items()
         }
         config = self._bundle_runtime_config(model)
+        manifest = model.manifest.to_dict()
+        privacy_protocol = (
+            f"local_clear_w{self.weight_bits}a{self.activation_bits}"
+            if client_owned else f"masked_w{self.weight_bits}a{self.activation_bits}"
+        )
+        if client_owned:
+            manifest["metadata"] = {
+                **manifest["metadata"],
+                "client_runtime": "compiled_client_local_v1",
+                "privacy_mode": "client_only",
+                "privacy_protocol": privacy_protocol,
+            }
+            fingerprint_payload = {
+                key: value for key, value in manifest.items()
+                if key not in {"fingerprint", "created_at"}
+            }
+            manifest["fingerprint"] = hashlib.sha256(
+                json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
         return msgpack.packb(
             {
                 "v": 2,
-                "runtime": "masked_transformer",
+                "runtime": "client_local_transformer" if client_owned else "masked_transformer",
                 "model": model_id,
-                "manifest": model.manifest.to_dict(),
+                "manifest": manifest,
                 "config": config,
                 "tokenizer": model.tokenizer,
                 "stages": stage_descriptors,
@@ -1554,9 +1580,9 @@ class MaskedTransformerEngine:
                 "client_weights": client_weights,
                 "privacy": {
                     "mode": "public",
-                    "protocol": f"masked_w{self.weight_bits}a{self.activation_bits}",
+                    "protocol": privacy_protocol,
                     "online_fhe": False,
-                    "preprocessed": True,
+                    "preprocessed": not client_owned,
                     "model_weight_correlations_disclosed": True,
                     "dense_weights_in_bundle": bool(local_stage_ids),
                     "local_quantized_stages": sorted(local_stage_ids),

@@ -251,6 +251,7 @@ class ClientBundle:
             and value.get("runtime")
             in {
                 "masked_transformer",
+                "client_local_transformer",
                 "direct_fhe_transformer",
                 "blinded_ole_transformer",
                 "guarded_blinded_transformer",
@@ -265,6 +266,7 @@ class ClientBundle:
             and value.get("runtime")
             in {
                 "masked_transformer",
+                "client_local_transformer",
                 "direct_fhe_transformer",
                 "blinded_ole_transformer",
                 "guarded_blinded_transformer",

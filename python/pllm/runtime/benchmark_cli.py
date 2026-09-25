@@ -123,7 +123,7 @@ def build_loopback_report(
     initial_preparation_audit: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
-    from .topology_accounting import prepared_body_accounting
+    from .topology_accounting import client_owned_body_accounting, prepared_body_accounting
 
     all_runs = [*warmup_runs, *runs]
     checks = {
@@ -145,6 +145,11 @@ def build_loopback_report(
             for record in all_runs
         ),
     }
+    if roles == ("client",):
+        checks["no_provider_stage_traffic"] = all(
+            client_owned_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
     output_tokens = [
         int(record["tokens"]["output_tokens"])
         for record in runs
@@ -173,7 +178,10 @@ def build_loopback_report(
         "warmup_runs": warmup_runs,
         "runs": runs,
         "topology_accounting": (
-            {
+            {"startup": None,
+             "warmups": [client_owned_body_accounting(run) for run in warmup_runs],
+             "runs": [client_owned_body_accounting(run) for run in runs]}
+            if roles == ("client",) else {
                 "startup": (
                     prepared_body_accounting(
                         {"privacy": initial_preparation_audit}, initial_preparation=True,
@@ -183,7 +191,7 @@ def build_loopback_report(
                 "warmups": [prepared_body_accounting(run) for run in warmup_runs],
                 "runs": [prepared_body_accounting(run) for run in runs],
             }
-            if roles == ("client", "preparation", "inference")
+            if "preparation" in roles
             else None
         ),
         "limitations": [
@@ -427,12 +435,12 @@ def _run_loopback_benchmark(
             raise ValueError("Experiment pipelines cannot use the generated tiny model")
         experiment.resolve()
         from pllm.profiles import resolve_runtime_composition
+        from pllm.roles.topology import graph_for_runtime
 
         runtime_options = resolve_runtime_composition(experiment.pipeline)
         if runtime_options is None:
             raise ValueError("Experiment profile is not supported by local benchmarking")
-        if not runtime_options.requires_preparation:
-            roles = ("client", "inference")
+        roles = tuple(role.id for role in graph_for_runtime(runtime_options).roles)
         effective_tiny = experiment.pipeline.model.kind == "tiny"
         model = experiment.pipeline.model.source
         resolved_model_id = experiment.pipeline.model.model_id or model
@@ -490,7 +498,7 @@ def _run_loopback_benchmark(
             )
             initial_preparation_audit = (
                 dashboard_app.state.dashboard_runtime.initial_preparation_audit()
-                if roles == ("client", "preparation", "inference") else None
+                if "preparation" in roles else None
             )
             warmup_runs = []
             for index in range(warmups):

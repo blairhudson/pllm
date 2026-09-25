@@ -40,8 +40,9 @@ pllm gateway --local \
   --trust-python
 ```
 
-`SecureLinear` and `CleartextLinear` are shown separately because no shipped typed
-profile composes either into gateway or benchmark model execution.
+`SecureLinear` remains an isolated research declaration. `CleartextLinear` is
+selectable only inside the complete client-only topology; a descriptor alone
+does not authorize execution.
 
 ### Hide activations with `MaskedLinear`
 
@@ -159,20 +160,24 @@ assert descriptor.required_host_features == ("synthetic-fixed-shape-only",)
 assert method.component == "pllm/secure-linear/v1"
 ```
 
-### Declare a non-private `CleartextLinear` baseline
+### Run the client-only `CleartextLinear` baseline
 
 [`CleartextLinear`](/sdk/reference/python/pllm/protocols/#cleartextlinear) makes a
-non-private control configuration explicit for tests and comparisons. Inputs are
-visible to the executor. No shipped profile or CLI benchmark composes it, so this
-descriptor inspection is intentionally not presented as a private-inference run.
+client-owned clear execution explicit for tests and comparisons. Inputs are
+visible to the trusted client executor. The complete `ClientOnlyCpu` Experiment
+runs through the normal gateway and benchmark path, with no provider children.
 
 ```python
 from pllm.protocols import CleartextLinear
+from pllm.profiles import ClientOnlyCpu
+from pllm.sources import TinyModel
 
 method = CleartextLinear()
 descriptor = method.describe()
-assert descriptor.role_eligibility == ("inference",)
+assert descriptor.role_eligibility == ("client", "inference")
 assert method.component == "pllm/cleartext-linear"
+pipeline = ClientOnlyCpu(TinyModel(model_id="client-only-clear-control"))
+assert pipeline.components["linear"] == method
 ```
 
 Check [current Python support](/sdk/reference/status/#public-modules) before moving

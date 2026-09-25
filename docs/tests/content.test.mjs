@@ -343,6 +343,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/schedulers/chunked-independent-lanes/', 'pllm/chunked-independent-lanes/v1', null],
     ['/sdk/components/roles/inference/', 'pllm/inference', null],
     ['/sdk/components/roles/prepared-provider/', 'pllm/one-online-provider-offline-preparation/v1', null],
+    ['/sdk/components/roles/client-only/', 'pllm/client-only/v1', null],
     ['/sdk/components/state/client-local-kv/', 'pllm/client-local-kv', null],
     ['/sdk/components/verification/freivalds/', 'pllm/freivalds-verify/v1', '/research/papers/slalom/'],
     ['/sdk/components/verification/linear-integrity/', 'pllm/linear-integrity', null],

@@ -80,7 +80,35 @@ class PreparedProviderRoles(RoleTopology):
         return cls.descriptor
 
 
+class ClientOnlyRoles(RoleTopology):
+    """Client owns the full checkpoint and executes every decoder operation."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/client-only/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/role-topology",
+        category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("client-owned-weights", "zero-online-provider-traffic"),
+        role_eligibility=("client",),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 __all__ = [
-    "Channel", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
+    "Channel", "ClientOnlyRoles", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
     "RoleTopology", "client_only_reference_graph", "two_online_reference_graph",
 ]

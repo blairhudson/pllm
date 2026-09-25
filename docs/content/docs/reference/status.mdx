@@ -3,7 +3,7 @@ title: "SDK implementation and model compatibility"
 description: "Checked model architecture requirements, runtime evidence, and Python API status."
 ---
 
-The SDK exposes **33 public Python modules** and **365 module exports**. **282** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **77.3%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
+The SDK exposes **33 public Python modules** and **367 module exports**. **284** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **77.4%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
 
 The [research method roadmap](/sdk/components/research-method-roadmap/) describes each pending symbol's next gate. The [component catalog](/sdk/reference/components/) separately lists executable component descriptors.
 
@@ -115,14 +115,14 @@ Prefer reusable semantic operators and tested checkpoint binding over model-name
 | [`pllm.nonlinear`](/sdk/reference/python/pllm/nonlinear/) | 6 | 6 | 12 | 50.0% |
 | [`pllm.official`](/sdk/reference/python/pllm/official/) | 2 | 0 | 2 | 100.0% |
 | [`pllm.passes`](/sdk/reference/python/pllm/passes/) | 2 | 12 | 14 | 14.3% |
-| [`pllm.profiles`](/sdk/reference/python/pllm/profiles/) | 5 | 0 | 5 | 100.0% |
+| [`pllm.profiles`](/sdk/reference/python/pllm/profiles/) | 6 | 0 | 6 | 100.0% |
 | [`pllm.providers`](/sdk/reference/python/pllm/providers/) | 10 | 0 | 10 | 100.0% |
 | [`pllm.research`](/sdk/reference/python/pllm/research/) | 5 | 0 | 5 | 100.0% |
 | [`pllm.protocols`](/sdk/reference/python/pllm/protocols/) | 11 | 43 | 54 | 20.4% |
 | [`pllm.protocols.masked_linear`](/sdk/reference/python/pllm/protocols-masked-linear/) | 1 | 1 | 2 | 50.0% |
 | [`pllm.preparation`](/sdk/reference/python/pllm/preparation/) | 5 | 0 | 5 | 100.0% |
 | [`pllm.quantization`](/sdk/reference/python/pllm/quantization/) | 2 | 0 | 2 | 100.0% |
-| [`pllm.roles`](/sdk/reference/python/pllm/roles/) | 9 | 0 | 9 | 100.0% |
+| [`pllm.roles`](/sdk/reference/python/pllm/roles/) | 10 | 0 | 10 | 100.0% |
 | [`pllm.schedulers`](/sdk/reference/python/pllm/schedulers/) | 5 | 0 | 5 | 100.0% |
 | [`pllm.search`](/sdk/reference/python/pllm/search/) | 9 | 0 | 9 | 100.0% |
 | [`pllm.server`](/sdk/reference/python/pllm/server/) | 1 | 0 | 1 | 100.0% |

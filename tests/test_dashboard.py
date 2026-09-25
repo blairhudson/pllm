@@ -165,6 +165,10 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
         inference_url = "http://127.0.0.1:9101"
         preparation_url = "http://127.0.0.1:9102"
         requires_preparation = True
+        statuses = (
+            SimpleNamespace(role="inference", url=inference_url),
+            SimpleNamespace(role="preparation", url=preparation_url),
+        )
 
         def start(self):
             captured["started"] = True

@@ -88,6 +88,7 @@ from .types import Response, ResponseEvent, ResponseUsage, new_id
 if TYPE_CHECKING:
     from pllm.configuration import Experiment, ExperimentProfile, Model
     from pllm.runtime.model_binding import CompiledRuntimeModel
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 T = TypeVar("T")
 
@@ -169,6 +170,13 @@ class ProtocolError(RuntimeError):
 
 class _BundleIntegrityError(ProtocolError):
     pass
+
+
+class _NoProviderHTTP:
+    """Fail closed if provider controls are called for a client-owned plan."""
+
+    def __getattr__(self, _name: str) -> Any:
+        raise ProtocolError("client-only topology has no provider endpoint", 400)
 
 
 class ResponseStream(Generic[T]):
@@ -846,6 +854,7 @@ class RuntimeClient:
         http_client: httpx.Client | None = None,
         preparation_http_client: httpx.Client | None = None,
         experiment: Experiment | ExperimentProfile | None = None,
+        local_engine: MaskedTransformerEngine | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
 
@@ -858,6 +867,22 @@ class RuntimeClient:
         else:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
         self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
+        self._local_engine = local_engine
+        if local_engine is not None and (
+            self.experiment is None
+            or self.experiment.client_runtime != "compiled_client_local_v1"
+            or http_client is not None
+            or preparation_http_client is not None
+            or preparation_base_url is not None
+            or preparation_api_key is not None
+            or bool(base_url)
+            or bool(api_key)
+        ):
+            raise ValueError("client-owned engine requires an endpoint-free client-only Experiment")
+        if local_engine is None and self.experiment is not None and (
+            self.experiment.client_runtime == "compiled_client_local_v1"
+        ):
+            raise ValueError("client-only Experiment requires a client-owned model engine")
         if (
             self.experiment is not None
             and default_model is not None
@@ -885,9 +910,11 @@ class RuntimeClient:
             if bundle_cache_dir
             else (_default_bundle_cache_dir())
         )
-        self._bundle_endpoint = _normalized_inference_endpoint(self.base_url)
+        self._bundle_endpoint = (
+            "" if local_engine is not None else _normalized_inference_endpoint(self.base_url)
+        )
         self.tenseal_path = tenseal_path
-        inference_url = httpx.URL(self.base_url)
+        inference_url = httpx.URL(self.base_url or "http://127.0.0.1")
         if (
             http_client is None
             and inference_url.scheme != "https"
@@ -899,8 +926,11 @@ class RuntimeClient:
             }
         ):
             raise ValueError("base_url must use HTTPS outside loopback")
-        self._owns_http = http_client is None
-        self.http = http_client or httpx.Client(base_url=self.base_url, timeout=timeout)
+        self._owns_http = http_client is None and local_engine is None
+        self.http = (
+            _NoProviderHTTP() if local_engine is not None else
+            (http_client or httpx.Client(base_url=self.base_url, timeout=timeout))
+        )
         self.headers = {"Authorization": f"Bearer {api_key}"}
         self._owns_preparation_http = (
             preparation_http_client is None and preparation_base_url is not None
@@ -1014,6 +1044,14 @@ class RuntimeClient:
             return session_value, model, source
 
     def _model_manifest(self, model_id: str, *, refresh: bool = False) -> dict[str, Any]:
+        if self._local_engine is not None:
+            state = self._client_owned_state(model_id)
+            return {
+                "id": model_id,
+                "metadata": state.bundle.manifest["metadata"],
+                "context_length": state.bundle.manifest["context_length"],
+                "runtime": state.bundle.manifest["metadata"],
+            }
         cached = None if refresh else self._model_manifests.get(model_id)
         if cached is not None:
             return cached
@@ -1319,6 +1357,8 @@ class RuntimeClient:
     def _transformer_state(self, model_id: str) -> _TransformerCryptoState:
         if self.experiment is not None and model_id != self.experiment.model:
             raise ValueError("request model conflicts with Experiment model")
+        if self._local_engine is not None:
+            return self._client_owned_state(model_id)
         with self._transformer_state_lock:
             descriptor = self._client_bundle_descriptor(model_id)
             expected_runtime = None
@@ -1447,6 +1487,38 @@ class RuntimeClient:
                 raise ProtocolError("Experiment requires seeded-inventory preparation", 409)
             return state
 
+    def _client_owned_state(self, model_id: str) -> _TransformerCryptoState:
+        if self._local_engine is None or self.experiment is None:
+            raise ModelError("client-owned model is not configured")
+        if model_id != self.experiment.model:
+            raise ValueError("request model conflicts with Experiment model")
+        if model_id not in self._local_engine.models:
+            raise ModelError("client-owned model is no longer loaded")
+        with self._transformer_state_lock:
+            state = self._transformer_states.get(model_id)
+            if state is not None:
+                return state
+            payload = self._local_engine.client_bundle(model_id, client_owned=True)
+            bundle = ClientBundle.unpack(payload)
+            metadata = bundle.manifest.get("metadata") or {}
+            if (
+                metadata.get("client_runtime") != self.experiment.client_runtime
+                or metadata.get("privacy_mode") != self.experiment.privacy_mode
+                or metadata.get("privacy_protocol") != self.experiment.privacy_protocol
+                or bundle.privacy.get("protocol") != self.experiment.privacy_protocol
+                or bundle.privacy.get("verification_component", "none") != "none"
+            ):
+                raise ProtocolError("client-owned bundle differs from Experiment composition", 409)
+            state = _TransformerCryptoState(
+                bundle=bundle,
+                bundle_fingerprint=hashlib.sha256(payload).hexdigest(),
+                mode="none",
+                privacy_mode="client_only",
+                privacy_protocol=str(bundle.privacy["protocol"]),
+            )
+            self._transformer_states[model_id] = state
+            return state
+
     def _compiled_public_decoder(
         self,
         state: _TransformerCryptoState,
@@ -1455,7 +1527,7 @@ class RuntimeClient:
         max_new_tokens: int,
     ) -> Any | None:
         """Bind supported baseline execution before claiming any prepared rows."""
-        if state.privacy_mode != "public" or state.bundle.privacy.get(
+        if state.privacy_mode not in {"public", "client_only"} or state.bundle.privacy.get(
             "verification_component", "none"
         ) != "none":
             return None
@@ -1493,10 +1565,14 @@ class RuntimeClient:
                 raise
             # Existing import-only decoders stay on the already admitted
             # runtime graph until they lower into the shared semantic IR.
+            if state.privacy_mode == "client_only":
+                raise ModelError("client-owned model has no semantic decoder adapter") from exc
             return None
         if not plan.coverage(composition).complete:
             # Existing runtime-only operators remain on their separately admitted
             # path until their generic compiler capabilities are implemented.
+            if state.privacy_mode == "client_only":
+                raise ModelError("client-owned decoder has incomplete compiler coverage")
             return None
         return compile_runtime_model(plan, state.bundle, composition=composition)
 
@@ -1973,6 +2049,8 @@ class RuntimeClient:
         *,
         stages: list[str] | None = None,
     ) -> dict[str, Any]:
+        if self._local_engine is not None:
+            raise ModelError("client-only topology does not use a preparation inventory")
         descriptor = self._model_manifest(model_id, refresh=True)
         target = max(0, int(count))
         if descriptor.get("metadata", {}).get("client_runtime") in {
@@ -2116,6 +2194,9 @@ class RuntimeClient:
         }
 
     def prepared_inventory_status(self, model: str) -> dict[str, Any]:
+        if self._local_engine is not None:
+            return {"status": "not-applicable", "capacity": 0, "available": 0,
+                    "reserved": 0, "burned": 0}
         with self._transformer_state_lock:
             state = self._transformer_states.get(model)
             if state is None or state.prepared_inventory is None:
@@ -2136,6 +2217,8 @@ class RuntimeClient:
         *,
         instructions: str | None = None,
     ) -> int:
+        if self._local_engine is not None:
+            raise ModelError("client-only topology does not use a preparation inventory")
         state = self._transformer_state(model)
         messages: list[dict[str, str]] = []
         if instructions:
@@ -2180,6 +2263,9 @@ class RuntimeClient:
                 state.prepared_inventory = None
                 state.prepared_inventory_spare = None
                 state.retired_inventories.clear()
+            if self._local_engine is not None:
+                self._transformer_states.clear()
+                self._model_manifests.clear()
         for inventory in inventories:
             self._cancel_prepared_inventory(inventory)
         if self._owns_preparation_http and self.preparation_http is not None:
@@ -2188,6 +2274,17 @@ class RuntimeClient:
             self.http.close()
 
     def list_models(self) -> dict[str, Any]:
+        if self._local_engine is not None:
+            model_id = self.default_model
+            if model_id is None:
+                raise ModelError("client-owned model is not configured")
+            descriptor = self._model_manifest(model_id)
+            return {
+                "object": "list",
+                "data": [{"id": model_id, "object": "model", "owned_by": "client",
+                          "runtime": descriptor["runtime"],
+                          "context_length": descriptor["context_length"]}],
+            }
         response = self.http.get("/v1/models", headers=self.headers)
         _raise(response)
         return response.json()
@@ -2201,6 +2298,8 @@ class RuntimeClient:
                 raise KeyError(response_id)
             return response
         if self._pending_response_store.get(response_id) is not True:
+            raise KeyError(response_id)
+        if getattr(self, "_local_engine", None) is not None:
             raise KeyError(response_id)
         response = self.http.get(f"/v1/responses/{response_id}", headers=self.headers)
         _raise(response)
@@ -2249,6 +2348,12 @@ class RuntimeClient:
             self._ephemeral_response_ids.discard(self._ephemeral_response_order.popleft())
 
     def cancel(self, response_id: str) -> Response:
+        if self._local_engine is not None:
+            response = self.cache.get(response_id)
+            if response is None:
+                raise KeyError(response_id)
+            response.status = "cancelled"
+            return response
         response = self.http.post(f"/v1/responses/{response_id}/cancel", headers=self.headers)
         _raise(response)
         self._pending_response_store.pop(response_id, None)
@@ -2315,6 +2420,7 @@ class RuntimeClient:
             self._transformer_state(model_id)
         if descriptor.get("metadata", {}).get("client_runtime") in {
             "masked_transformer_v1",
+            "compiled_client_local_v1",
             "direct_fhe_transformer_v1",
             "blinded_ole_transformer_v1",
             "guarded_blinded_transformer_v1",
@@ -2597,15 +2703,22 @@ class RuntimeClient:
             max_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
             max_new_tokens=max_tokens,
         )
+        client_owned = self._local_engine is not None
+        if client_owned and compiled is None:
+            raise ModelError("client-owned inference requires complete compiled execution")
         if state.privacy_mode == "public":
             self._ensure_prepared_inventory(model_id, state, required_rows)
-        session_value, state, provider = self._open_transformer_session(
-            model_id,
-            max_output_tokens=max_tokens,
-            required_rows=required_rows,
-            compiled=compiled,
-            semantic_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
-        )
+        if client_owned:
+            session_value = {"id": new_id("client_session"), "response_id": new_id("resp")}
+            provider = None
+        else:
+            session_value, state, provider = self._open_transformer_session(
+                model_id,
+                max_output_tokens=max_tokens,
+                required_rows=required_rows,
+                compiled=compiled,
+                semantic_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
+            )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
         self._track_response(response_id, bool(body.get("store", True)))
@@ -2616,6 +2729,8 @@ class RuntimeClient:
                 channel.close()
             if isinstance(provider, PreparedInventoryLease):
                 self._finish_prepared_response(model_id, state, provider)
+            if client_owned:
+                return
             try:
                 self.http.post(
                     f"/v1/runtime/sessions/{session_id}/cancel",
@@ -2624,19 +2739,22 @@ class RuntimeClient:
             except Exception:
                 pass
 
-        try:
-            channel = _Channel(
-                self.http, self.base_url, self.api_key, session_id, self.session_transport
-            )
-        except BaseException:
-            abandon_transformer_session()
-            raise
-        assert channel is not None
-        key = derive_session_key(self.api_key, session_id)
+        if not client_owned:
+            try:
+                channel = _Channel(
+                    self.http, self.base_url, self.api_key, session_id, self.session_transport
+                )
+            except BaseException:
+                abandon_transformer_session()
+                raise
+        key = derive_session_key(self.api_key, session_id) if not client_owned else b""
         sequence = 0
 
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
+            if client_owned:
+                raise ModelError("client-owned linear stage cannot use a provider channel")
+            assert channel is not None
             self.audit.inference_stage_calls += 1
             compact_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
             if len(payloads) > 1 or compact_rows is not None:
@@ -2678,7 +2796,10 @@ class RuntimeClient:
             self.audit.online_steps += 1
             return [result.payload]
 
-        if state.privacy_mode == "public":
+        if client_owned:
+            assert compiled is not None and self._local_engine is not None
+            remote = compiled.client_linear_executor(self._local_engine)
+        elif state.privacy_mode == "public":
             if not isinstance(provider, PreparedInventoryLease):
                 abandon_transformer_session()
                 raise ModelError("public mode requires a prepared inventory lease")
@@ -3063,12 +3184,13 @@ class RuntimeClient:
                     pending_token_ids=pending_token_ids,
                 )
             self._remember_response(response_id)
-            complete = self.http.post(
-                f"/v1/runtime/sessions/{session_id}/complete",
-                headers=self.headers,
-                json={"usage": usage.to_dict()},
-            )
-            _raise(complete)
+            if not client_owned:
+                complete = self.http.post(
+                    f"/v1/runtime/sessions/{session_id}/complete",
+                    headers=self.headers,
+                    json={"usage": usage.to_dict()},
+                )
+                _raise(complete)
             session_completed = True
             yield ResponseEvent.from_dict(
                 {
@@ -3093,7 +3215,8 @@ class RuntimeClient:
                         self.http.post(f"/v1/responses/{response_id}/cancel", headers=self.headers)
                     except Exception:
                         pass
-            channel.close()
+            if channel is not None:
+                channel.close()
 
 
 class ResponsesResource:
@@ -3242,10 +3365,27 @@ class OpenAI:
         http_client: httpx.Client | None = None,
         preparation_http_client: httpx.Client | None = None,
         experiment: Experiment | ExperimentProfile | None = None,
+        local_engine: MaskedTransformerEngine | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
 
+        profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
+        client_owned = profile is not None and profile.client_runtime == "compiled_client_local_v1"
+        self._owned_topology: Any | None = None
+        if client_owned and (
+            base_url is not None or api_key is not None or http_client is not None
+            or preparation_base_url is not None or preparation_api_key is not None
+            or preparation_http_client is not None
+            or session_transport is not None or correlation_mode is not None
+            or prepared_inventory_rows is not None or background_inventory_refill is not True
+            or tenseal_path is not None
+        ):
+            raise ValueError("client-only Experiment requires only client-owned model weights")
+        if local_engine is not None and not client_owned:
+            raise ValueError("client-owned model requires a client-only Experiment")
+        if client_owned and local_engine is None and not isinstance(experiment, Experiment):
+            raise ValueError("client-only model loading requires an Experiment source")
         settings = ClientSettings.load().merged(
             api_key=api_key,
             base_url=base_url,
@@ -3262,7 +3402,6 @@ class OpenAI:
             timeout=timeout,
         )
         if isinstance(experiment, (Experiment, ExperimentProfile)):
-            profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
             if not profile.requires_preparation:
                 if (
                     preparation_base_url is not None
@@ -3274,26 +3413,45 @@ class OpenAI:
                     )
                 settings.preparation_base_url = None
                 settings.preparation_api_key = None
-        self._core = RuntimeClient(
-            base_url=settings.base_url,
-            api_key=settings.api_key,
-            default_model=settings.model,
-            session_transport=settings.transport,
-            correlation_mode=settings.correlation_mode,
-            preparation_base_url=settings.preparation_base_url,
-            preparation_api_key=settings.preparation_api_key,
-            correlation_prefetch=settings.correlation_prefetch,
-            prepared_inventory_rows=settings.prepared_inventory_rows,
-            background_inventory_refill=background_inventory_refill,
-            token_cache_size=settings.token_cache_size,
-            bundle_cache_mode=settings.bundle_cache_mode,
-            bundle_cache_dir=settings.bundle_cache_dir,
-            tenseal_path=tenseal_path,
-            timeout=settings.timeout,
-            http_client=http_client,
-            preparation_http_client=preparation_http_client,
-            experiment=experiment,
-        )
+        if client_owned:
+            # Provider settings inherited from the environment cannot change a
+            # client-only role graph into an accidental network dependency.
+            if (default_model or model) is not None and (default_model or model) != profile.model:
+                raise ValueError("request model conflicts with client-only Experiment model")
+            settings.base_url = ""
+            settings.api_key = ""
+            settings.model = profile.model
+        if client_owned and local_engine is None:
+            from pllm.runtime.servers import build_roles
+
+            self._owned_topology = build_roles(experiment).start()
+            local_engine = self._owned_topology._local_engine
+        try:
+            self._core = RuntimeClient(
+                base_url=settings.base_url,
+                api_key=settings.api_key,
+                default_model=settings.model,
+                session_transport=settings.transport,
+                correlation_mode=settings.correlation_mode,
+                preparation_base_url=settings.preparation_base_url,
+                preparation_api_key=settings.preparation_api_key,
+                correlation_prefetch=settings.correlation_prefetch,
+                prepared_inventory_rows=settings.prepared_inventory_rows,
+                background_inventory_refill=background_inventory_refill,
+                token_cache_size=settings.token_cache_size,
+                bundle_cache_mode=settings.bundle_cache_mode,
+                bundle_cache_dir=settings.bundle_cache_dir,
+                tenseal_path=tenseal_path,
+                timeout=settings.timeout,
+                http_client=http_client,
+                preparation_http_client=preparation_http_client,
+                experiment=experiment,
+                local_engine=local_engine,
+            )
+        except BaseException:
+            if self._owned_topology is not None:
+                self._owned_topology.close()
+            raise
         self.responses = ResponsesResource(self._core)
         self.models = ModelsResource(self._core)
         self.runtime = RuntimeResource(self._core)
@@ -3340,7 +3498,11 @@ class OpenAI:
         )
 
     def close(self) -> None:
-        self._core.close()
+        try:
+            self._core.close()
+        finally:
+            if self._owned_topology is not None:
+                self._owned_topology.close()
 
     def __enter__(self) -> "OpenAI":
         return self

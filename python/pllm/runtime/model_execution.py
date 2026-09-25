@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from pllm.runtime.model_binding import CompiledRuntimeModel, RuntimeBindingError
+from pllm.runtime.model_binding import ClientLinearExecutor, CompiledRuntimeModel, RuntimeBindingError
 from pllm.runtime.semantic_state import WindowedLayerCache
 from pllm.runtime.transformer_client import MaskedTransformerClientRuntime
 
@@ -195,7 +195,7 @@ class CompiledRuntimeSession:
         self._research_execution_digest = research_digest
         try:
             self._runtime = (
-                compiled.runtime(bound_remote)
+                compiled.runtime(remote if type(remote) is ClientLinearExecutor else bound_remote)
                 if logrow is None
                 else compiled._runtime_with_nonlinear(bound_remote, self._evaluate_logrow)
             )

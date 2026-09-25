@@ -90,11 +90,22 @@ Reproduce the same checkpoint and chat-token cohort:
 uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --cohort chat --include-prepared --offset-backend loopback --repeats 3
 ```
 
+Client-only execution is also a selectable `ClientOnlyCpu` Experiment under
+the [same SDK topology contract](/sdk/topologies/options/), gateway and
+`benchmark run` driver. This is a distinct check from the two-worker research
+driver above: its compiled linear stages and checkpoint weights stay on the
+client, and the benchmark records zero inference-provider link bodies while
+leaving model distribution and application HTTP unmeasured. An exact
+body-fingerprint, input/output-count and warm-state gate admits a comparison
+with the prepared Experiment; selecting the same tokens still needs separate
+evidence.
+
 Gemma E2B's pinned W8A8 client bundle alone
 measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
 warm-token results. Search over new topology choices and per-edge objective
-selection remain planned; the [existing benchmark](/cli/benchmarking/) cannot
-select or rank these role graphs as Experiments.
+selection remain planned. The [existing benchmark](/cli/benchmarking/) selects
+client-only and prepared Experiments but does not select the two-worker
+research topology or rank unqualified network/compute objectives.
 
 It now records a partial **per-link stage-body ledger** for the current
 prepared graph. One checked, single-host `benchmark run --tiny` response with

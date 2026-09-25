@@ -12,16 +12,16 @@ from jsonschema import Draft202012Validator
 from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
 from pllm.components import create_component, get_component
 from pllm.configuration import ComponentRef, ConfigurationError
-from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
+from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu, VerifiedMaskedLinearCpu
 from pllm.roles import (
-    Channel, PreparedProviderRoles, Role, RoleGraph,
+    Channel, ClientOnlyRoles, PreparedProviderRoles, Role, RoleGraph,
     client_only_reference_graph, two_online_reference_graph,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _resolved(pipeline: MaskedLinearCpu | VerifiedMaskedLinearCpu) -> RoleGraph:
+def _resolved(pipeline: ClientOnlyCpu | MaskedLinearCpu | VerifiedMaskedLinearCpu) -> RoleGraph:
     resolved = Experiment(
         name="topology-check",
         pipeline=pipeline,
@@ -66,6 +66,33 @@ def test_client_only_comparator_has_no_channels_or_coupled_operator_requirement(
         RoleGraph(roles=graph.roles, channels=(Channel("client", "client", "online", "input"),))
     with pytest.raises(ConfigurationError, match="channels"):
         RoleGraph(roles=(Role("client", "trusted_client"), Role("worker", "provider")), channels=())
+
+
+def test_client_only_topology_resolves_from_exact_component_contract() -> None:
+    pipeline = ClientOnlyCpu(Model.tiny())
+    experiment = Experiment(
+        name="local-only",
+        pipeline=pipeline,
+        deployment=Deployment.local(root="local://client-only"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    resolved = experiment.resolve()
+    assert resolved.role_graph == client_only_reference_graph()
+    assert resolved.client_runtime == "compiled_client_local_v1"
+    assert not resolved.requires_preparation
+    assert resolved.composition_digest == pipeline.digest()
+    assert Experiment.from_spec(experiment.to_spec()).resolve().role_graph == resolved.role_graph
+    assert isinstance(create_component(ClientOnlyRoles.descriptor.component, {}), ClientOnlyRoles)
+    masked = MaskedLinearCpu(Model.tiny())
+    with pytest.raises(ConfigurationError, match="composition|topology"):
+        Experiment(
+            name="invalid-local",
+            pipeline=Pipeline(
+                model=masked.model,
+                components={**masked.components, "topology": ClientOnlyRoles()},
+            ),
+            deployment=experiment.deployment, budget=experiment.budget,
+        ).resolve()
 
 
 def test_two_online_comparator_requires_two_distinct_declared_operators() -> None:

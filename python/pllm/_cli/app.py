@@ -251,7 +251,7 @@ def build_parser() -> _Parser:
     )
     gateway.add_argument("--model")
     gateway.add_argument("--model-id")
-    gateway.add_argument("--local", action="store_true", help="co-locate both server roles locally")
+    gateway.add_argument("--local", action="store_true", help="run the selected role graph locally")
     gateway.add_argument("--tiny", action="store_true", help=argparse.SUPPRESS)
     gateway.add_argument(
         "--transport", choices=("auto", "http", "websocket"), help="session transport"
@@ -955,6 +955,7 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         raise ResolutionError("GATEWAY_PORT", "gateway port must be between 1 and 65535")
     experiment = None
     experiment_data = None
+    resolved_experiment = None
     if args.experiment:
         if not args.local:
             raise ResolutionError("GATEWAY_EXPERIMENT_LOCAL", "--experiment requires --local")
@@ -1016,7 +1017,15 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         raise ResolutionError("GATEWAY_TINY", "--tiny requires --local")
 
     url = _service_url(args.host, args.port)
-    if output_format == "human" and args.local and not getattr(args, "quiet", False):
+    if resolved_experiment is None:
+        separated_roles = True
+    else:
+        graph = resolved_experiment.role_graph
+        separated_roles = graph is not None and bool(graph.separate_operators)
+    if (
+        output_format == "human" and args.local and separated_roles
+        and not getattr(args, "quiet", False)
+    ):
         print(
             "Trust limitation: --local co-locates preparation and inference; "
             "it does not provide role separation or non-collusion.",

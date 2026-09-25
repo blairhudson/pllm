@@ -284,14 +284,19 @@ full wire traffic, both-worker checkpoint distribution or cold aggregate
 compute. Both the local kernel and the child workers pin W8A8 explicitly:
 `MaskedTransformerEngine()` alone defaults to W4A4, which has a different body
 fingerprint and cannot enter this comparison. This remains an internal research
-protocol, not a selectable Experiment or `pllm serve` topology.
+two-worker protocol, not a selectable Experiment or `pllm serve` topology.
 
 The same bounded diagnostic uses client-only clear W8A8 execution as its
 single-party comparator: one body matrix operation per stage, no online
 provider bytes, and explicitly counted local checkpoint artifacts and quantized
 weight snapshots. Cold checkpoint transfer and peak memory remain unmeasured;
-the role graph has one client and no channels. This local comparator does not
-activate a public client-only Experiment/gateway topology.
+the role graph has one client and no channels. The same placement is now an
+explicit `ClientOnlyCpu` Experiment: native semantic scheduling binds its
+linear stages to client-owned integer kernels, loads the checkpoint locally,
+and executes through the shared SDK, gateway and benchmark driver without
+inference/preparation children. The benchmark's zero provider-body count
+excludes model download and application HTTP; full-response resource comparison
+and representative model quality remain open.
 
 `pllm.deployment.RoleDeployment` separately validates a digest-bound, immutable
 role-to-operator and HTTP(S) origin declaration; optional TEE policy pins the
@@ -315,9 +320,11 @@ importers. Applications should not depend on internal module locations.
 A source checkout does not shadow an installed wheel through a second package
 at the repository root.
 
-`pllm.runtime.build_roles` constructs the single loopback role topology used by
-`gateway --local`, the development dashboard, and the benchmark driver. It starts
-inference and preparation as separate child processes, keeps generated credentials
+`pllm.runtime.build_roles` constructs the selected loopback role topology used by
+`gateway --local`, the development dashboard, and the benchmark driver. The
+client-only graph keeps model weights and computation in the client without child
+providers; the prepared graph starts Inference and Preparation as separate
+child processes, keeps generated credentials
 in environment variables rather than argv or status records, binds health-checked
 URLs to client/gateway factories, and owns process-group shutdown. The benchmark
 dashboard driver now runs in-process, so a diagnostic run has two role children

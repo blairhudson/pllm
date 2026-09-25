@@ -12,11 +12,15 @@ digests. Optional Freivalds verification adds an offline Preparation-to-Client
 projection channel. Installed proprietary compositions resolve to Client and
 one provider under separate protocol contracts.
 
-A **client-only** reference runs the same tiny compiled decoder and local W8A8
-kernel without a provider. Its role graph has one client and no channels. The
-matched diagnostic records checkpoint disk size, client-side quantized weight
-bytes and body matrix work. Cold checkpoint transfer and peak memory remain
-unmeasured; this is not yet a selectable `Experiment`/gateway topology.
+Choose `ClientOnlyCpu` for a **client-only** Experiment. Its `pllm/client-only/v1`
+role graph has one client and no inference or preparation channels; the same
+compiler-bound semantic decoder loads all public weights locally. It runs through
+`pllm.Client`, `pllm gateway --local --experiment` and `pllm benchmark run
+--experiment` without provider children. W8A8 is the default; W4A4 and other
+numeric choices need their own quality checks. The benchmark records zero
+provider-graph bytes and client run-window CPU when telemetry is available.
+Checkpoint download, disk activity, client peak memory and the application's
+own HTTP traffic are not counted as zero; they are outside that network scope.
 
 The two-online-offset comparator has a bounded **in-process numeric reference**:
 two separately loaded native kernels run a complete tiny Qwen2/Qwen3 compiled
@@ -38,7 +42,8 @@ non-executable.
 
 ```python
 from pllm import Experiment, Pipeline
-from pllm.roles import Channel, PreparedProviderRoles, client_only_reference_graph
+from pllm.profiles import ClientOnlyCpu
+from pllm.roles import Channel, PreparedProviderRoles
 
 original = Experiment.from_file("examples/pllm.yaml")
 selected = Pipeline(
@@ -57,11 +62,20 @@ assert Channel("client", "inference", "online", "masked_stage_input") in graph.c
 assert ("inference", "preparation") in graph.separate_operators
 assert experiment.pipeline.digest() != original.pipeline.digest()
 assert Experiment.from_spec(experiment.to_spec()).resolve().composition_digest == selected.digest()
-single = client_only_reference_graph()
-assert len(single.roles) == 1 and single.channels == ()
+local = Experiment(
+    name="client-only-qwen",
+    pipeline=ClientOnlyCpu(original.pipeline.model),
+    deployment=original.deployment,
+    budget=original.budget,
+)
+single = local.resolve().role_graph
+assert single is not None and len(single.roles) == 1 and single.channels == ()
+assert single.roles[0].id == "client"
+assert local.resolve().composition_digest != experiment.resolve().composition_digest
 ```
 
 Run from the repository root. Inspect [components and runnable inference](/sdk/inference/)
 separately from [research papers](/research/papers/).
 
-API: [pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures).
+API: [pllm.profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures),
+[pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures).

@@ -705,7 +705,7 @@ class ExperimentProfile:
             "role_graph",
             graph_for_runtime(runtime_options) if runtime_options is not None else None,
         )
-        if runtime_options is not None and not runtime_options.requires_preparation:
+        if runtime_options is not None and runtime_options.privacy_mode == "proprietary":
             object.__setattr__(
                 self,
                 "model",

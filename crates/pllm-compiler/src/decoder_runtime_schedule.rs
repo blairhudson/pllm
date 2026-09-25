@@ -14,6 +14,7 @@ const MAX_WINDOW_VIEW_ELEMENTS: u64 = 1 << 24;
 #[serde(rename_all = "snake_case")]
 pub enum DecoderRuntimeExecutor {
     ClientLocal,
+    ClientLinear,
     RemoteStage,
 }
 
@@ -655,7 +656,10 @@ fn classify_remote_groups(
     Ok((leaders, members))
 }
 
-fn lower_phase(graph: &DecoderGraph) -> Result<DecoderRuntimePhaseSchedule, String> {
+fn lower_phase(
+    graph: &DecoderGraph,
+    linear_executor: DecoderRuntimeExecutor,
+) -> Result<DecoderRuntimePhaseSchedule, String> {
     let (leaders, remote_members) = classify_remote_groups(graph)?;
     let mut scheduled = BTreeSet::new();
     let mut steps = Vec::new();
@@ -706,7 +710,7 @@ fn lower_phase(graph: &DecoderGraph) -> Result<DecoderRuntimePhaseSchedule, Stri
                     .collect(),
                 layer,
                 input_ids,
-                executor: DecoderRuntimeExecutor::RemoteStage,
+                executor: linear_executor,
                 weight_ids,
                 outputs,
             });
@@ -714,7 +718,7 @@ fn lower_phase(graph: &DecoderGraph) -> Result<DecoderRuntimePhaseSchedule, Stri
         }
         if !local_operator(operation) {
             return Err(format!(
-                "operation {} ({:?}) has no masked-linear runtime executor",
+                "operation {} ({:?}) has no decoder runtime executor",
                 operation.id, operation.operator
             ));
         }
@@ -757,13 +761,16 @@ fn lower_phase(graph: &DecoderGraph) -> Result<DecoderRuntimePhaseSchedule, Stri
     })
 }
 
-type RemoteSignature = (Option<u64>, Vec<String>, Vec<String>, Vec<u64>);
+type LinearStageSignature = (Option<u64>, Vec<String>, Vec<String>, Vec<u64>);
 
-fn remote_signature(phase: &DecoderRuntimePhaseSchedule) -> Vec<RemoteSignature> {
+fn linear_stage_signature(
+    phase: &DecoderRuntimePhaseSchedule,
+    linear_executor: DecoderRuntimeExecutor,
+) -> Vec<LinearStageSignature> {
     phase
         .steps
         .iter()
-        .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+        .filter(|step| step.executor == linear_executor)
         .map(|step| {
             (
                 step.layer,
@@ -823,8 +830,9 @@ pub fn lower_decoder_runtime_schedule(
     plan: &DecoderPlan,
     canonical_composition: &[u8],
 ) -> Result<DecoderRuntimeSchedule, String> {
-    match super::classify_decoder_composition(canonical_composition)? {
-        super::DecoderCompositionKind::MaskedLinear => {}
+    let linear_executor = match super::classify_decoder_composition(canonical_composition)? {
+        super::DecoderCompositionKind::MaskedLinear => DecoderRuntimeExecutor::RemoteStage,
+        super::DecoderCompositionKind::ClientOnlyLinear => DecoderRuntimeExecutor::ClientLinear,
         super::DecoderCompositionKind::VerifiedMaskedLinear => {
             return Err(
                 "verified runtime scheduling requires verifier-bound execution evidence".into(),
@@ -832,26 +840,27 @@ pub fn lower_decoder_runtime_schedule(
         }
         super::DecoderCompositionKind::Other => {
             return Err(
-                "decoder runtime schedule requires the exact masked-linear component composition"
-                    .into(),
+                "decoder runtime schedule requires an admitted linear component composition".into(),
             );
         }
-    }
+    };
     plan.validate().map_err(|error| error.to_string())?;
     bind_bfloat16_graph(&plan.prefill)?;
     bind_bfloat16_graph(&plan.decode)?;
     if !plan.transformations.is_empty() {
-        return Err("masked-linear runtime schedule does not support transformed plans".into());
+        return Err("baseline decoder runtime schedule does not support transformed plans".into());
     }
     if plan.prefill.batch != 1 || plan.decode.batch != 1 {
-        return Err("masked-linear runtime schedule requires batch one".into());
+        return Err("baseline decoder runtime schedule requires batch one".into());
     }
     validate_window_resources(&plan.prefill)?;
     validate_window_resources(&plan.decode)?;
-    let prefill = lower_phase(&plan.prefill)?;
-    let decode = lower_phase(&plan.decode)?;
-    if remote_signature(&prefill) != remote_signature(&decode) {
-        return Err("prefill/decode remote stage contracts differ".into());
+    let prefill = lower_phase(&plan.prefill, linear_executor)?;
+    let decode = lower_phase(&plan.decode, linear_executor)?;
+    if linear_stage_signature(&prefill, linear_executor)
+        != linear_stage_signature(&decode, linear_executor)
+    {
+        return Err("prefill/decode linear stage contracts differ".into());
     }
     Ok(DecoderRuntimeSchedule {
         schema_version: DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION.into(),

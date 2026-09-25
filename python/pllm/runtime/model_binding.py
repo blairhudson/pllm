@@ -18,6 +18,8 @@ from pllm.modeling import ModelPlan, lower_model
 from pllm.runtime.quantization import (
     choose_plain_modulus,
     choose_wire_bits,
+    dequantize_matmul,
+    quantize_activation_per_row,
     signed_dot_bound,
 )
 from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
@@ -28,11 +30,12 @@ from pllm.runtime.transformer_client import ClientBundle
 if TYPE_CHECKING:
     from pllm.runtime.model_execution import CompiledRuntimeSession
     from pllm.runtime.semantic_executor import SemanticDecoderRuntime
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 BINDING_SCHEMA = "pllm.runtime_model_binding.v1"
 BINDING_DOMAIN = b"pllm.runtime_model_binding.v1\0"
 
-REMOTE_OPERATORS = frozenset({"token_lookup", "linear", "output_head"})
+LINEAR_OPERATORS = frozenset({"token_lookup", "linear", "output_head"})
 LOCAL_OPERATORS = frozenset(
     {
         "reshape",
@@ -63,6 +66,102 @@ BOUNDARY_STAGE_IDS = frozenset({"token_lookup", "lm_head"})
 
 class RuntimeBindingError(ValueError):
     pass
+
+
+class ClientLinearExecutor:
+    """Plan-bound client-owned native matrices behind a linear-stage callback."""
+
+    __slots__ = ("_binding_digest", "_stages", "_integer_macs")
+
+    def __init__(self) -> None:
+        raise RuntimeBindingError("client linear execution requires a compiled binding")
+
+    @classmethod
+    def _create(
+        cls, binding: CompiledRuntimeModel, engine: MaskedTransformerEngine,
+    ) -> ClientLinearExecutor:
+        binding.validate()
+        composition = Pipeline.from_spec(json.loads(binding._canonical_composition))
+        from pllm.profiles import resolve_runtime_composition
+
+        options = resolve_runtime_composition(composition)
+        if options is None or options.client_runtime != "compiled_client_local_v1":
+            raise RuntimeBindingError("client-owned kernel requires the client-only topology")
+        model = engine.models.get(binding._bundle.model_id)
+        if model is None:
+            raise RuntimeBindingError("client-owned kernel has no loaded checkpoint")
+        metadata = model.manifest.metadata
+        privacy = binding._bundle.privacy
+        if (
+            metadata.get("body_fingerprint") != privacy.get("body_fingerprint")
+            or metadata.get("seeded_stage_commitment") != privacy.get("stage_commitment")
+            or engine.weight_bits != privacy.get("weight_bits")
+            or engine.activation_bits != privacy.get("activation_bits")
+        ):
+            raise RuntimeBindingError("client-owned kernel differs from the bound model body")
+        stages: dict[str, tuple[Any, int, int, int, np.ndarray, np.ndarray | None]] = {}
+        for row in binding._stages:
+            if row.stage_id in BOUNDARY_STAGE_IDS:
+                continue
+            runtime = model.stages.get(row.stage_id)
+            if runtime is None or runtime.compiled_weight is None:
+                raise RuntimeBindingError("client-owned kernel is missing a compiled stage")
+            bound = binding._bundle.stages[row.stage_id]
+            if (
+                runtime.weight_digest != row.weight_digest
+                or runtime.spec.in_features != row.in_features
+                or runtime.spec.out_features != row.out_features
+                or runtime.spec.weight_bits != row.weight_bits
+                or runtime.spec.activation_bits != row.activation_bits
+                or runtime.modulus != row.modulus
+                or runtime.wire_bits != row.wire_bits
+                or not np.array_equal(runtime.weight.scales, bound.weight_scales)
+                or (runtime.bias is None) != (bound.bias is None)
+                or (runtime.bias is not None and not np.array_equal(runtime.bias, bound.bias))
+            ):
+                raise RuntimeBindingError(f"client-owned stage {row.stage_id!r} differs from plan")
+            stages[row.stage_id] = (
+                runtime.compiled_weight, row.in_features, row.out_features,
+                row.activation_bits, bound.weight_scales.copy(),
+                None if bound.bias is None else bound.bias.copy(),
+            )
+        if not stages:
+            raise RuntimeBindingError("client-owned kernel has no bound body stages")
+        self = object.__new__(cls)
+        self._binding_digest = binding.digest
+        self._stages = stages
+        self._integer_macs = 0
+        return self
+
+    @property
+    def integer_macs(self) -> int:
+        return self._integer_macs
+
+    def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
+        try:
+            matrix, in_features, out_features, bits, scales, bias = self._stages[stage_id]
+        except KeyError as exc:
+            raise RuntimeBindingError("stage is not in the client-owned plan") from exc
+        values = np.asarray(activation)
+        if (
+            values.dtype != np.float32
+            or values.ndim not in (1, 2, 3)
+            or values.shape[-1] != in_features
+            or not np.all(np.isfinite(values))
+        ):
+            raise RuntimeBindingError("client-owned stage input has an invalid shape")
+        quantized = quantize_activation_per_row(values, bits=bits)
+        integer = matrix.clear(quantized.values)
+        output = dequantize_matmul(
+            integer, quantized.scales, scales,
+            output_shape=quantized.original_shape[:-1] + (out_features,),
+        )
+        if bias is not None:
+            output += bias
+        if not np.all(np.isfinite(output)):
+            raise RuntimeBindingError("client-owned stage output is not finite")
+        self._integer_macs += quantized.rows * in_features * out_features
+        return np.ascontiguousarray(output, dtype=np.float32)
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +278,9 @@ class CompiledRuntimeModel:
     def canonical_bytes(self) -> bytes:
         return self._canonical
 
+    def client_linear_executor(self, engine: MaskedTransformerEngine) -> ClientLinearExecutor:
+        return ClientLinearExecutor._create(self, engine)
+
     def to_spec(self) -> dict[str, Any]:
         return json.loads(self._canonical)
 
@@ -204,6 +306,13 @@ class CompiledRuntimeModel:
         from .semantic_executor import SemanticDecoderRuntime
 
         composition = Pipeline.from_spec(json.loads(self._canonical_composition))
+        from pllm.profiles import resolve_runtime_composition
+
+        options = resolve_runtime_composition(composition)
+        if options is not None and options.client_runtime == "compiled_client_local_v1" and (
+            type(remote) is not ClientLinearExecutor or remote._binding_digest != self._digest
+        ):
+            raise RuntimeBindingError("client-owned plan requires its bound local kernel")
         schedule = self._plan.runtime_schedule(composition).to_dict()
         bindings = {
             operation: stage.stage_id
@@ -609,8 +718,11 @@ def compile_runtime_model(
     from pllm.profiles import resolve_runtime_composition
 
     runtime_options = resolve_runtime_composition(composition)
-    if runtime_options is None or not runtime_options.requires_preparation:
+    if runtime_options is None or runtime_options.client_runtime not in {
+        "masked_transformer_v1", "compiled_client_local_v1",
+    }:
         raise RuntimeBindingError("compiled runtime component composition is unsupported")
+    client_owned = runtime_options.client_runtime == "compiled_client_local_v1"
     if runtime_options.verification_component is not None:
         raise RuntimeBindingError(
             "compiled runtime does not yet accept a verifier-bound remote executor"
@@ -761,10 +873,8 @@ def compile_runtime_model(
     privacy = bundle.privacy if isinstance(bundle.privacy, dict) else {}
     if privacy.get("mode") != "public":
         raise RuntimeBindingError("client bundle privacy mode must be public")
-    if not str(privacy.get("protocol", "")).startswith("masked_w"):
-        raise RuntimeBindingError("client bundle protocol must be a masked weight protocol")
-    if not privacy.get("preprocessed"):
-        raise RuntimeBindingError("client bundle must be preprocessed")
+    if bool(privacy.get("preprocessed")) == client_owned:
+        raise RuntimeBindingError("client bundle preprocessing does not match the role topology")
     if not privacy.get("client_intermediate_activations"):
         raise RuntimeBindingError("client bundle must keep intermediate activations local")
     body_fingerprint = privacy.get("body_fingerprint")
@@ -777,6 +887,12 @@ def compile_runtime_model(
     activation_bits = _require_int(privacy.get("activation_bits"), "privacy activation_bits")
     if not (2 <= weight_bits <= 8 and 2 <= activation_bits <= 8):
         raise RuntimeBindingError("client bundle bit widths must be in [2, 8]")
+    expected_protocol = (
+        f"local_clear_w{weight_bits}a{activation_bits}"
+        if client_owned else f"masked_w{weight_bits}a{activation_bits}"
+    )
+    if privacy.get("protocol") != expected_protocol:
+        raise RuntimeBindingError("client bundle protocol differs from the composed topology")
     verification_component = privacy.get("verification_component", "none")
     verification_failure_bits = _require_int(
         privacy.get("verification_target_failure_bits", 0), "verification failure bits"
@@ -838,6 +954,12 @@ def compile_runtime_model(
     manifest_metadata = manifest.get("metadata")
     if not isinstance(manifest_metadata, dict):
         raise RuntimeBindingError("bundle manifest is missing metadata")
+    if client_owned and (
+        manifest_metadata.get("client_runtime") != "compiled_client_local_v1"
+        or manifest_metadata.get("privacy_mode") != "client_only"
+        or manifest_metadata.get("privacy_protocol") != expected_protocol
+    ):
+        raise RuntimeBindingError("client-owned manifest lacks the compiled topology contract")
     if manifest_metadata.get("runtime_config_digest") != runtime_config_digest:
         raise RuntimeBindingError("client runtime config does not match its manifest commitment")
     if any(
@@ -883,7 +1005,9 @@ def compile_runtime_model(
             raise RuntimeBindingError(f"native {phase} runtime schedule is malformed")
         used_stages: set[str] = set()
         for step in phase_schedule.get("steps") or ():
-            if not isinstance(step, dict) or step.get("executor") != "remote_stage":
+            if not isinstance(step, dict) or step.get("executor") != (
+                "client_linear" if client_owned else "remote_stage"
+            ):
                 continue
             order = _require_int(step.get("order"), f"native {phase} runtime step order")
             operators = step.get("operators")
@@ -1182,7 +1306,7 @@ def compile_runtime_model(
             if operator in LOCAL_OPERATORS:
                 local_operations.add(qualified)
                 continue
-            if operator not in REMOTE_OPERATORS:
+            if operator not in LINEAR_OPERATORS:
                 raise RuntimeBindingError(f"unsupported plan operator {operator!r}")
             if operator == "token_lookup":
                 stage = token_stage
@@ -1316,7 +1440,7 @@ def compile_runtime_model(
                 raise RuntimeBindingError(f"native {phase} runtime weights are malformed")
             stage_offset = 0
             remote_stage = None
-            if executor == "remote_stage":
+            if executor == ("client_linear" if client_owned else "remote_stage"):
                 expected_weights = [
                     operation["attributes"].get("weight") for operation in operations
                 ]

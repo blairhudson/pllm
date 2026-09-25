@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import math
 import os
 import re
@@ -11,6 +12,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -90,6 +92,7 @@ class LocalTopology:
         "_inference_url",
         "_log_dir",
         "_logs",
+        "_local_engine",
         "_model",
         "_model_id",
         "_preparation_key",
@@ -104,6 +107,7 @@ class LocalTopology:
         "_rendezvous_capacity",
         "_rendezvous_max_bytes",
         "_reserved_ports",
+        "_role_ids",
         "_started",
         "_starting",
         "_startup_timeout",
@@ -128,6 +132,7 @@ class LocalTopology:
         correlation_mode: str,
         privacy_mode: str,
         proprietary_protocol: str,
+        role_ids: tuple[str, ...],
         requires_preparation: bool,
         guard_max_rows_per_request: int,
         guard_max_rows_per_owner_stage: int,
@@ -156,6 +161,8 @@ class LocalTopology:
         self._correlation_mode = correlation_mode
         self._privacy_mode = privacy_mode
         self._proprietary_protocol = proprietary_protocol
+        self._role_ids = role_ids
+        self._local_engine: Any | None = None
         self._requires_preparation = requires_preparation
         self._guard_max_rows_per_request = guard_max_rows_per_request
         self._guard_max_rows_per_owner_stage = guard_max_rows_per_owner_stage
@@ -193,6 +200,8 @@ class LocalTopology:
 
     @property
     def inference_url(self) -> str:
+        if "inference" not in self._role_ids:
+            raise TopologyError("local topology has no inference provider")
         if not self._started:
             raise TopologyError("local topology has not started")
         return self._inference_url
@@ -221,7 +230,7 @@ class LocalTopology:
     def statuses(self) -> tuple[RoleStatus, ...]:
         with self._process_lock:
             processes = dict(self._processes)
-        roles = ("inference", "preparation") if self._requires_preparation else ("inference",)
+        roles = tuple(role for role in ("inference", "preparation") if role in self._role_ids)
         return tuple(
             RoleStatus(
                 role=role,
@@ -439,6 +448,34 @@ class LocalTopology:
                     str(resolved.path),
                     model_id=self._model_id,
                 )
+            if not self._role_ids:
+                if self._experiment is None:
+                    raise TopologyError("client-only execution requires a bound Experiment")
+                from pllm.model_loader import resolve_model
+                from .transformer_engine import MaskedTransformerEngine
+
+                engine = MaskedTransformerEngine(
+                    threads=self._engine_threads, weight_bits=self._weight_bits,
+                    activation_bits=self._activation_bits,
+                )
+
+                def load() -> None:
+                    source = resolve_model(self._model, cache_dir=self._hf_cache_dir)
+                    asyncio.run(engine.load(source.manifest))
+
+                # Model import includes async native stage loading. Keep the
+                # supervisor usable from both sync CLI and async app factories.
+                with ThreadPoolExecutor(max_workers=1) as loader:
+                    loader.submit(load).result()
+                if self._model_id not in engine.models:
+                    raise TopologyError("client-owned model identity differs from Experiment")
+                self._local_engine = engine
+                with self._process_lock:
+                    if self._closed or self._stopping.is_set():
+                        raise TopologyError("local topology stopped during startup")
+                    self._started = True
+                    self._starting = False
+                return self
             excluded = set(self._reserved_ports)
             inference_port = self._free_port(excluded)
             excluded.add(inference_port)
@@ -485,6 +522,8 @@ class LocalTopology:
     def is_healthy(self) -> bool:
         if not self._started or self._closed:
             return False
+        if not self._role_ids:
+            return self._local_engine is not None and self._model_id in self._local_engine.models
         expected_roles = (
             ("inference", "trusted-preparation") if self._requires_preparation else ("inference",)
         )
@@ -525,6 +564,13 @@ class LocalTopology:
         )
         from pllm.runtime.client import OpenAI
 
+        if not self._role_ids:
+            return OpenAI(
+                default_model=self._model_id,
+                experiment=self._experiment,
+                local_engine=self._local_engine,
+                **overrides,
+            )
         options: dict[str, Any] = {
             "base_url": self._inference_url,
             "api_key": self._inference_key,
@@ -564,6 +610,14 @@ class LocalTopology:
         )
         from pllm.runtime.sidecar import create_sidecar_app
 
+        if not self._role_ids:
+            return create_sidecar_app(
+                local_api_key=local_api_key,
+                default_model=self._model_id,
+                experiment=self._experiment,
+                local_engine=self._local_engine,
+                **overrides,
+            )
         options: dict[str, Any] = {
             "remote_base_url": self._inference_url,
             "remote_api_key": self._inference_key,
@@ -606,6 +660,9 @@ class LocalTopology:
                 log.close()
         if error is not None:
             raise error
+        if self._local_engine is not None:
+            self._local_engine.models.clear()
+            self._local_engine = None
         self._inference_key = ""
         self._preparation_key = ""
         self._push_key = ""
@@ -670,6 +727,13 @@ def build_roles(
             elif configured_threads is not None and engine_threads != configured_threads:
                 raise ValueError("engine_threads conflicts with the pipeline kernel component")
         model = pipeline.model
+    from pllm.roles.topology import graph_for_runtime
+
+    role_ids = tuple(
+        role.id for role in graph_for_runtime(runtime_options).roles if role.id != "client"
+    )
+    if not set(role_ids) <= {"inference", "preparation"}:
+        raise ValueError("role graph requires an unavailable local role implementation")
     if type(model) is str:
         model = Model(model)
     if not isinstance(model, Model):
@@ -753,6 +817,7 @@ def build_roles(
         correlation_mode=correlation_mode,
         privacy_mode=runtime_options.privacy_mode,
         proprietary_protocol=runtime_options.proprietary_protocol,
+        role_ids=role_ids,
         requires_preparation=runtime_options.requires_preparation,
         guard_max_rows_per_request=runtime_options.guard_max_rows_per_request,
         guard_max_rows_per_owner_stage=runtime_options.guard_max_rows_per_owner_stage,

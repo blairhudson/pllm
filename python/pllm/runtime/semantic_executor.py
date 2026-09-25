@@ -600,7 +600,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 values[op_ids[0]] = self._numeric_output(
                     operation, self._local(operation, values, state_kinds, pending_keys)
                 )
-            elif step["executor"] == "remote_stage":
+            elif step["executor"] in {"remote_stage", "client_linear"}:
                 stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
                 if len(stage_ids) != 1:
                     raise TransformerClientError("semantic remote step has multiple stage bindings")

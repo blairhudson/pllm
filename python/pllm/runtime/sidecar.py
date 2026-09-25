@@ -31,14 +31,22 @@ from .responses import ResponsesError
 
 def create_sidecar_app(
     *,
-    remote_base_url: str,
-    remote_api_key: str,
+    remote_base_url: str | None = None,
+    remote_api_key: str | None = None,
     local_api_key: str = "local",
     client: OpenAI | RuntimeClient | None = None,
     **client_kwargs: Any,
 ) -> FastAPI:
     owned = client is None
-    owner = client or OpenAI(base_url=remote_base_url, api_key=remote_api_key, **client_kwargs)
+    if (remote_base_url is None) != (remote_api_key is None):
+        raise ValueError("provider endpoint and credential must be provided together")
+    if client is None and remote_base_url is None and client_kwargs.get("local_engine") is None:
+        raise ValueError("gateway requires a provider endpoint or client-owned model")
+    provider_options = (
+        {} if remote_base_url is None else
+        {"base_url": remote_base_url, "api_key": remote_api_key}
+    )
+    owner = client or OpenAI(**provider_options, **client_kwargs)
     runtime_client = cast(RuntimeClient, getattr(owner, "_core", owner))
 
     @asynccontextmanager

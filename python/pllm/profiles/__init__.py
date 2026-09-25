@@ -11,21 +11,24 @@ from pllm.preparation import ModelAwareCorrections, PreparationProvider
 from pllm.quantization import QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
+    CleartextLinear,
     DirectFHE as DirectFHEMethod,
     GuardedLinear,
     MaskedLinear,
     ProtocolMethod,
 )
-from pllm.roles import Inference, InferenceRole
+from pllm.roles import ClientOnlyRoles, Inference, InferenceRole, RoleTopology
 from pllm.sources import ModelSource
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
 _DEFAULT_MASKED = MaskedLinear()
+_DEFAULT_CLEARTEXT = CleartextLinear()
 _DEFAULT_GUARDED = GuardedLinear()
 _DEFAULT_BLINDED = BlindedLinear()
 _DEFAULT_DIRECT = DirectFHEMethod()
 _DEFAULT_PREPARATION = ModelAwareCorrections()
 _DEFAULT_INFERENCE = Inference()
+_DEFAULT_CLIENT_ONLY = ClientOnlyRoles()
 _DEFAULT_KERNELS = Cpu()
 _DEFAULT_FREIVALDS = FreivaldsVerify()
 
@@ -138,6 +141,59 @@ class MaskedLinearCpu(_TypedPipeline):
     @property
     def quantization(self) -> SymmetricPerRow | None:
         return self.components.get("quantization")
+
+
+class ClientOnlyCpu(_TypedPipeline):
+    """Client-owned decoder with local quantized body linear stages."""
+
+    PROFILE = "baseline.client_only_cpu"
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology")
+    __slots__ = ()
+
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = _DEFAULT_CLEARTEXT,
+        kernels: KernelBackend = _DEFAULT_KERNELS,
+        quantization: QuantizationScheme | None = None,
+        topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
+    ) -> None:
+        if quantization is not None:
+            _slot(
+                "quantization", quantization, QuantizationScheme,
+                SymmetricPerRow.descriptor.component,
+            )
+        super().__init__(
+            profile=self.PROFILE,
+            model=_model(model),
+            components={
+                "linear": _slot(
+                    "linear", linear, ProtocolMethod, CleartextLinear.descriptor.component,
+                ),
+                "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+                "topology": _slot(
+                    "topology", topology, RoleTopology, ClientOnlyRoles.descriptor.component,
+                ),
+                **({"quantization": quantization} if quantization is not None else {}),
+            },
+        )
+
+    @property
+    def linear(self) -> CleartextLinear:
+        return self.components["linear"]
+
+    @property
+    def kernels(self) -> Cpu:
+        return self.components["kernels"]
+
+    @property
+    def quantization(self) -> SymmetricPerRow | None:
+        return self.components.get("quantization")
+
+    @property
+    def topology(self) -> ClientOnlyRoles:
+        return self.components["topology"]
 
 
 class VerifiedMaskedLinearCpu(_TypedPipeline):
@@ -342,7 +398,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
                 type(value) is not int or value not in {4, 8}
                 for value in quantization.params.values()
             )
-            or identities.get("linear") != "pllm/masked-linear"
+            or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
         ):
             return None
         del identities["quantization"]
@@ -357,6 +413,18 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
     topology = pipeline.components.get("topology")
+    if identities == {
+        "linear": "pllm/cleartext-linear",
+        "kernels": "pllm/cpu",
+        "topology": "pllm/client-only/v1",
+    } and kernels_valid and all(
+        not pipeline.components[slot].params for slot in ("linear", "topology")
+    ):
+        return RuntimeComposition(
+            "client_only", "none", False, "none", "compiled_client_local_v1",
+            f"local_clear_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
+            **bits,
+        )
     if topology is not None:
         if (
             topology.component != "pllm/one-online-provider-offline-preparation/v1"
@@ -479,6 +547,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
 
 
 __all__ = [
+    "ClientOnlyCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",
     "VerifiedMaskedLinearCpu",

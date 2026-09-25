@@ -31,6 +31,49 @@ _REQUIRED_COUNTERS = frozenset(
     key for _, _, _, fields in _PREPARED_BODY_COUNTERS for key in fields
 )
 _ROLES = ("client", "preparation", "inference")
+_CLIENT_ONLY_ZERO_COUNTERS = (
+    "inference_upload_bytes", "inference_download_bytes",
+    "preparation_upload_bytes", "preparation_download_bytes",
+    "correction_push_bytes", "plaintext_prompt_bytes_sent", "plaintext_token_ids_sent",
+)
+
+
+def client_owned_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Account only inference-graph links for an all-client role placement."""
+    privacy = record.get("privacy")
+    counters: dict[str, Any] = privacy if type(privacy) is dict else {}
+    complete = all(
+        type(counters.get(key)) is int and counters[key] == 0
+        for key in _CLIENT_ONLY_ZERO_COUNTERS
+    )
+    processes = record.get("processes")
+    raw_client = processes.get("client") if type(processes) is dict else None
+    raw_cpu = raw_client.get("cpu_seconds") if type(raw_client) is dict else None
+    cpu = (
+        float(raw_cpu)
+        if isinstance(raw_cpu, (int, float)) and not isinstance(raw_cpu, bool)
+        and math.isfinite(raw_cpu) and raw_cpu >= 0
+        else None
+    )
+    return {
+        "schema": ACCOUNTING_SCHEMA,
+        "scope": "client-owned semantic execution; no inference-provider graph links",
+        "tracked_body_counter_set_present": complete,
+        "body_bytes_by_edge": [] if complete else None,
+        "client_serialized_body_bytes": 0 if complete else None,
+        "all_link_serialized_body_bytes": 0 if complete else None,
+        "online_client_serialized_body_bytes": 0 if complete else None,
+        "online_all_link_serialized_body_bytes": 0 if complete else None,
+        "run_window_cpu_seconds_by_role": {"client": cpu} if cpu is not None else None,
+        "aggregate_run_window_cpu_seconds": cpu,
+        "total_wire_bytes": None,
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "client model import and cold checkpoint distribution",
+            "client peak memory, energy, and disk activity",
+            "application/dashboard HTTP traffic outside the inference role graph",
+        ],
+    }
 
 
 def prepared_body_accounting(
@@ -112,4 +155,4 @@ def prepared_body_accounting(
     }
 
 
-__all__ = ["ACCOUNTING_SCHEMA", "prepared_body_accounting"]
+__all__ = ["ACCOUNTING_SCHEMA", "client_owned_body_accounting", "prepared_body_accounting"]

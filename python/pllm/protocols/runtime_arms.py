@@ -154,7 +154,7 @@ class CleartextLinear(ProtocolMethod):
         lifecycle_phase="online",
         parameter_schema={"type": "object", "additionalProperties": False},
         capabilities=("plaintext-reference-linear",),
-        role_eligibility=("inference",),
+        role_eligibility=("client", "inference"),
     )
 
     def __init__(self) -> None:

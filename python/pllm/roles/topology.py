@@ -178,6 +178,8 @@ class RoleGraph:
 
 def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     """Describe installed executor traffic; never enable execution from a graph."""
+    if composition.privacy_mode == "client_only" and not composition.requires_preparation:
+        return client_only_reference_graph()
     if composition.privacy_mode == "public" and composition.requires_preparation:
         channels = [
             Channel("client", "inference", "offline", "inventory_request"),
