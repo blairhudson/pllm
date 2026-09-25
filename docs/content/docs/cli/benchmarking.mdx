@@ -13,6 +13,19 @@ The report contains sanitized diagnostic measurements. It is not a canonical
 research `EvidenceReport`, and a loopback run does not establish WAN, multi-host,
 energy, price, quality, or production non-collusion claims.
 
+For the public prepared graph, each run now includes `topology_accounting`:
+client and all-link **serialized protocol-body** bytes by directed edge and
+phase, plus available process CPU seconds per role. These counters do not
+measure HTTP/TLS framing, control traffic, correction acknowledgements,
+checkpoint/bundle transfers before the capture window, or full aggregate
+compute. Missing counters stay `null`; they cannot justify a total-wire-byte
+winner or the two-online-server compute cap. A checked one-token transport
+smoke run, which may use different tiny weights than the local offset reference:
+
+```bash
+uv run --frozen pllm benchmark run --tiny --max-output-tokens 1 --repetitions 1 --format json
+```
+
 Repeat `--experiment` to compare complete experiment configurations. Each
 Experiment contains one immutable Pipeline:
 

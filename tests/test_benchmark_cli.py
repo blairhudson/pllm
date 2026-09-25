@@ -16,6 +16,7 @@ from pllm.runtime.benchmark_cli import (
     build_loopback_report,
     run_loopback_benchmark,
 )
+from pllm.runtime.topology_accounting import prepared_body_accounting
 
 
 def _record(
@@ -111,6 +112,70 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     processes = report["runs"][0]["processes"]
     assert set(processes) == {"client", "inference", "preparation"}
     assert processes["client"]["cpu_seconds"] is not None
+    topology = report["topology_accounting"]["runs"][0]
+    assert topology["tracked_body_counter_set_present"] is True
+    assert topology["total_wire_bytes"] is None
+    assert topology["full_response_compute_cap_checked"] is False
+    assert sum(edge["serialized_body_bytes"] for edge in topology["body_bytes_by_edge"]) == (
+        topology["all_link_serialized_body_bytes"]
+    )
+
+
+def test_prepared_link_ledger_charges_serialized_body_once_and_never_invents_wire() -> None:
+    record = _record("accounted", ttft=1.0, throughput=1.0)
+    privacy = record["privacy"]
+    assert isinstance(privacy, dict)
+    record["privacy"] = {
+        **privacy,
+        "session_authorization_upload_bytes": 7,
+        "preparation_upload_bytes": 11,
+        "session_authorization_download_bytes": 5,
+        "preparation_download_bytes": 13,
+        "correction_push_bytes": 17,
+        "bundle_network_bytes": 19,
+        "inference_upload_bytes": 23,
+        "inference_download_bytes": 29,
+        "masked_online_upload_bytes": 1_000,  # duplicate view, never charged twice
+    }
+    record["processes"] = {
+        "client": {"cpu_seconds": 1.0},
+        "preparation": {"cpu_seconds": 2.0},
+        "inference": {"cpu_seconds": 3.0},
+    }
+    accounted = prepared_body_accounting(record)
+    assert accounted["all_link_serialized_body_bytes"] == 124
+    assert accounted["client_serialized_body_bytes"] == 107
+    assert accounted["online_client_serialized_body_bytes"] == 52
+    assert accounted["online_all_link_serialized_body_bytes"] == 52
+    assert accounted["aggregate_run_window_cpu_seconds"] == 6.0
+    assert accounted["body_bytes_by_edge"] == [
+        {"source": "client", "destination": "preparation", "phase": "offline", "serialized_body_bytes": 18},
+        {"source": "preparation", "destination": "client", "phase": "offline", "serialized_body_bytes": 18},
+        {"source": "preparation", "destination": "inference", "phase": "offline", "serialized_body_bytes": 17},
+        {"source": "inference", "destination": "client", "phase": "cold", "serialized_body_bytes": 19},
+        {"source": "client", "destination": "inference", "phase": "online", "serialized_body_bytes": 23},
+        {"source": "inference", "destination": "client", "phase": "online", "serialized_body_bytes": 29},
+    ]
+    assert accounted["total_wire_bytes"] is None
+    assert accounted["full_response_compute_cap_checked"] is False
+
+
+def test_link_ledger_marks_partial_counters_and_missing_cpu_unavailable() -> None:
+    partial = prepared_body_accounting(_record("partial", ttft=1.0, throughput=1.0))
+    assert partial["tracked_body_counter_set_present"] is False
+    assert partial["all_link_serialized_body_bytes"] is None
+    assert partial["body_bytes_by_edge"] is None
+    assert partial["aggregate_run_window_cpu_seconds"] is None
+    invalid = _record("invalid", ttft=1.0, throughput=1.0)
+    counters = {key: 0 for key in (
+        "session_authorization_upload_bytes", "preparation_upload_bytes",
+        "session_authorization_download_bytes", "preparation_download_bytes",
+        "correction_push_bytes", "bundle_network_bytes", "inference_upload_bytes",
+        "inference_download_bytes",
+    )}
+    counters["correction_push_bytes"] = True
+    invalid["privacy"] = counters
+    assert prepared_body_accounting(invalid)["tracked_body_counter_set_present"] is False
 
 
 class _RunningProcess:

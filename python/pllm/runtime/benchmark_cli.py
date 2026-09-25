@@ -122,6 +122,8 @@ def build_loopback_report(
     roles: tuple[str, ...] = ("client", "preparation", "inference"),
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
+    from .topology_accounting import prepared_body_accounting
+
     all_runs = [*warmup_runs, *runs]
     checks = {
         "all_runs_completed": all(record.get("status") == "completed" for record in all_runs),
@@ -169,6 +171,14 @@ def build_loopback_report(
         },
         "warmup_runs": warmup_runs,
         "runs": runs,
+        "topology_accounting": (
+            {
+                "warmups": [prepared_body_accounting(run) for run in warmup_runs],
+                "runs": [prepared_body_accounting(run) for run in runs],
+            }
+            if roles == ("client", "preparation", "inference")
+            else None
+        ),
         "limitations": [
             "single host and loopback network",
             "diagnostic record, not a canonical EvidenceReport",

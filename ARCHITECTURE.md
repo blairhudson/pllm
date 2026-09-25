@@ -411,6 +411,14 @@ The loopback benchmark dashboard runs the real client, preparation, and inferenc
 roles and receives their OTLP metrics and traces directly. Protocol byte counts
 are custom OTEL metrics; prompts and activation payloads are never telemetry
 attributes. The generated tiny checkpoint validates transport behavior only.
+The benchmark report additionally groups existing client audit counters into a
+directed, phase-labeled **serialized protocol-body** ledger for the prepared
+graph, without adding overlapping upload/server counters twice. It reports
+client and all-link accounted bodies plus available run-window CPU per role,
+but leaves total wire bytes and full-response compute-cap admission unset:
+HTTP/TLS/control traffic, correction acknowledgements, pre-run bundle and
+checkpoint distribution, and upstream setup are not completely metered.
+
 Interactive dashboard runs default to Qwen2.5-0.5B-Instruct; random tiny weights
 require the explicit `--tiny` transport-smoke option.
 Completed and failed benchmark summaries are appended to a schema-versioned local

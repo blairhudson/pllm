@@ -57,3 +57,13 @@ measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
 warm-token results. Search over new topology choices and per-edge objective
 selection remain planned; the [existing benchmark](/cli/benchmarking/) does
 not claim to perform this comparison yet.
+
+It now records a partial **per-link stage-body ledger** for the current
+prepared graph. One checked, single-host `benchmark run --tiny` response with
+one output token counted 86,913 serialized body bytes on online client links
+and 140,020 across all covered links, including a 51,968-byte offline
+Preparation-to-Inference correction push. That run's client bundle was fetched
+before its capture window; its zero recorded cold-bundle delta is **not** zero
+cold traffic. HTTP/TLS framing, control and acknowledgment traffic, complete
+client work, and provider setup are not measured in these figures, and the
+generated checkpoint differs from the matched local offset diagnostic above.
