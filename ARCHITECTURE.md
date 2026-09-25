@@ -245,6 +245,15 @@ provider code; factory import is a separate approved operation. `pllm.metrics` o
 typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact
 evidence cohorts without implicit ranking. `pllm.search` generates validated
 immutable candidates and applies explicit cohort-safe Pareto directions.
+The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
+native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client
+makes fresh exact-ring additive shares for each linear stage, validates both
+committed responses and reconstructs before local nonlinear work. Tiny
+prefill/decode matches the existing masked-stage numeric path. It records both
+logical client/worker serialized stage bodies, integer matrix operations and
+provider-stage times. Both workers still share one process; these figures omit
+HTTP/TLS, cross-host traffic, setup and aggregate client compute. This reference
+is not an executable Experiment option or independent-party privacy evidence.
 `pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
 and promotion gates static and non-executable. Public objects are imported on demand.
 `pllm.assurance.PublicSubspaceMaskRegression` independently constructs a bounded

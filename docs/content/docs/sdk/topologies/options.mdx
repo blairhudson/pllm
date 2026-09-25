@@ -12,9 +12,13 @@ digests. Optional Freivalds verification adds an offline Preparation-to-Client
 projection channel. Installed proprietary compositions resolve to Client and
 one provider under separate protocol contracts.
 
-The proposed two-online-offset comparator, resident two/three-party MPC,
-dealer/FSS, TEE-only and TEE-plus-accelerator arrangements require their own
-complete compiler, transport and privacy-admission contracts. They cannot be
+The two-online-offset comparator has a bounded **in-process numeric reference**:
+two separately loaded native kernels run a complete tiny Qwen2/Qwen3 compiled
+prefill/decode and count per-worker serialized stage bodies and integer work.
+This is not an independently operated, transport-authenticated or selectable
+topology. Resident two/three-party MPC, dealer/FSS, TEE-only and
+TEE-plus-accelerator arrangements still require their own complete compiler,
+transport and privacy-admission contracts. They cannot be
 selected by adding an unknown pipeline component, editing a graph document or
 changing a provider URL. Existing paper-linked pending classes remain
 non-executable.

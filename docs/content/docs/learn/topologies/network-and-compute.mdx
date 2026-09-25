@@ -18,6 +18,28 @@ constraint can cover online work or the full response with honestly amortized
 preprocessing. CPU and GPU work need measured, hardware-matched accounting;
 adding unlike resource units into one unexplained score is not a comparison.
 
+A bounded in-process reference exercises that split through the same compiled
+tiny Qwen2/Qwen3 prefill/decode path. It records two logical workers' serialized
+stage bodies and integer matrix operations. Both workers still run in one
+process; these are **not** deployed network bytes, independent operators or
+full-response aggregate compute measurements.
+
+The reproducible tiny diagnostic runs the exact same W8A8 checkpoint and
+prefill/decode token cohort through clear native stages and two additive-share
+stage calls. Each one-layer Qwen2/Qwen3 run has eight remote stages and 55,296
+integer multiply-accumulates across both logical workers. Three local runs per
+adapter selected identical tokens, with no logit difference from clear W8A8;
+the two-worker serialization totaled roughly 14.7 KB per run. These are
+**stage-body** bytes, not wire bytes or full-model evidence. To reproduce the
+Qwen2 diagnostic from the repository root:
+
+```bash
+uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3
+```
+
+The analogous checked Qwen3 run uses `--model-type qwen3`. Reports include
+only plan identifiers, counts and aggregate values, not prompts or token IDs.
+
 Current public prepared inference instead uses one online provider plus
 offline correction generation. It already has different client traffic and
 setup work from that comparator. Gemma E2B's pinned W8A8 client bundle alone
