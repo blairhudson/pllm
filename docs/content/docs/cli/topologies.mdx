@@ -23,6 +23,22 @@ that identity in its `topology` slot to bind the same runtime graph explicitly;
 the [SDK example](/sdk/topologies/options/) shows the immutable Pipeline
 construction. Unlisted topologies remain unavailable for execution.
 
+Inspect a versioned role-placement declaration without using it for serving:
+
+```bash
+uv run --frozen pllm topology inspect examples/prepared-topology.yaml --role-deployment examples/prepared-role-deployment.json --format json
+```
+
+The report keeps the actual Experiment's local co-location warning separate
+from the declaration's operator labels. `declared_separation_violations: []`
+means labels and literal origins are consistent, **not** verified operator
+independence. TEE policies report unverified attestation and cannot activate a
+new provider protocol.
+
+`--reference client-only` or `--reference two-online-offset` inspects the
+corresponding bounded research graph instead of the installed graph. These
+graphs cannot be served or benchmarked as `Experiment` topology choices.
+
 Inspect the checked-in explicit selection and validate benchmark admission
 without loading weights or starting services:
 

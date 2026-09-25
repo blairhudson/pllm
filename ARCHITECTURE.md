@@ -260,6 +260,14 @@ provider bytes, and explicitly counted local checkpoint artifacts and quantized
 weight snapshots. Cold checkpoint transfer and peak memory remain unmeasured;
 the role graph has one client and no channels. This local comparator does not
 activate a public client-only Experiment/gateway topology.
+`pllm.deployment.RoleDeployment` separately validates a digest-bound, immutable
+role-to-operator and HTTP(S) origin declaration; optional TEE policy pins the
+technology, code measurement, verifier root and TCB policy. The CLI can inspect
+it against the installed or research graph, including co-located endpoints and
+declared non-collusion, but neither an operator label nor a digest verifies
+physical independence or a hardware quote. The document is never substituted
+for the live Experiment deployment, and TEE execution remains unavailable.
+
 `pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
 and promotion gates static and non-executable. Public objects are imported on demand.
 `pllm.assurance.PublicSubspaceMaskRegression` independently constructs a bounded

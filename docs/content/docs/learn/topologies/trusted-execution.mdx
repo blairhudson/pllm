@@ -17,6 +17,14 @@ activations. Vendor-specific CPU, VM and confidential-accelerator guarantees
 must be stated separately; side channels and traffic shape need explicit
 limits.
 
+`pllm.deployment.AttestationPolicy` records a hardware family plus pinned
+measurement, verifier-root and backend-specific TCB-policy SHA-256 digests for
+**read-only placement inspection**. A declaration is never a quote. The future
+verifier must authenticate a fresh hardware quote against those pins and bind
+the model plan, role ID, nonce and ephemeral channel key *before* release of any
+prompt, model secret or session key. None of the current runtime paths perform
+that verification or activate a TEE on this basis.
+
 The [paper library](/research/papers/) includes Slalom's trusted delegated
 linear check, Bifrost's TEE/FHE split, and MOSAIC's trusted/untrusted
 accelerator arrangement. PLLM's paper-linked TEE topology is pending, not

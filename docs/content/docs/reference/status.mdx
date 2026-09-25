@@ -3,7 +3,7 @@ title: "SDK implementation and model compatibility"
 description: "Checked model architecture requirements, runtime evidence, and Python API status."
 ---
 
-The SDK exposes **33 public Python modules** and **361 module exports**. **278** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **77.0%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
+The SDK exposes **33 public Python modules** and **365 module exports**. **282** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **77.3%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
 
 The [research method roadmap](/sdk/components/research-method-roadmap/) describes each pending symbol's next gate. The [component catalog](/sdk/reference/components/) separately lists executable component descriptors.
 
@@ -130,7 +130,7 @@ Prefer reusable semantic operators and tested checkpoint binding over model-name
 | [`pllm.state`](/sdk/reference/python/pllm/state/) | 2 | 3 | 5 | 40.0% |
 | [`pllm.verification`](/sdk/reference/python/pllm/verification/) | 8 | 4 | 12 | 66.7% |
 | [`pllm.pipeline`](/sdk/reference/python/pllm/pipeline/) | 7 | 0 | 7 | 100.0% |
-| [`pllm.deployment`](/sdk/reference/python/pllm/deployment/) | 1 | 1 | 2 | 50.0% |
+| [`pllm.deployment`](/sdk/reference/python/pllm/deployment/) | 5 | 1 | 6 | 83.3% |
 | [`pllm.runtime`](/sdk/reference/python/pllm/runtime/) | 22 | 0 | 22 | 100.0% |
 | [`pllm.compiler`](/sdk/reference/python/pllm/compiler/) | 2 | 0 | 2 | 100.0% |
 | [`pllm.evidence`](/sdk/reference/python/pllm/evidence/) | 7 | 0 | 7 | 100.0% |

@@ -715,6 +715,17 @@ DEPLOYMENT_EXAMPLE = _example(
         budget=pllm.ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
     )
     assert experiment.resolve().model == "transport-smoke"
+    graph = experiment.resolve().role_graph
+    roles = deployment.RoleDeployment(
+        graph_digest=graph.digest(),
+        roles=(
+            deployment.RolePlacement("client", "customer", None),
+            deployment.RolePlacement("preparation", "customer", "https://prep.example.invalid"),
+            deployment.RolePlacement("inference", "provider", "https://infer.example.invalid"),
+        ),
+    )
+    assert roles.assess(graph).declared_separation_violations == ()
+    assert not roles.assess(graph).runtime_admission_supported
     """
 )
 
@@ -873,7 +884,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": PIPELINE_EXAMPLE,
     },
     "pllm.deployment": {
-        "purpose": "Deployment records describe role placement, endpoints, and trust boundaries without starting services or embedding credentials.",
+        "purpose": "Deployment records describe current local execution and separately inspect digest-bound operator/origin/TEE policy declarations without starting services, verifying attestation, or embedding credentials.",
         "citations": (),
         "example": DEPLOYMENT_EXAMPLE,
     },

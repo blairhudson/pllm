@@ -25,6 +25,8 @@ assert graph.separation_violations({role.id: "local" for role in graph.roles})
 Run from the repository root. The same Experiment still executes through the
 current public prepared path; use [topology inspection in the CLI](/cli/topologies/)
 for the saved file. See [role and trust boundaries](/learn/topologies/roles-and-trust/)
-before interpreting separation results.
+before interpreting separation results. The [deployment guide](/sdk/run/deployment/)
+shows how to inspect a separate operator/origin declaration without changing
+the live Experiment.
 
 API: [pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures).

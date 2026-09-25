@@ -173,6 +173,41 @@ def test_topology_inspection_uses_exact_experiment_target_and_reports_local_sepa
     ] == selected["composition_digest"]
 
 
+def test_topology_inspection_checks_declared_placement_and_research_baselines() -> None:
+    target = "examples/prepared-topology.yaml"
+    inspected = run_cli(
+        "topology", "inspect", target,
+        "--role-deployment", "examples/prepared-role-deployment.json", "--format", "json",
+    )
+    assert inspected.returncode == 0, inspected.stderr
+    report = json.loads(inspected.stdout)["data"]
+    declaration = report["role_deployment"]
+    assert declaration["digest"]
+    assert declaration["assessment"]["declared_separation_violations"] == []
+    assert declaration["assessment"]["operator_independence_verified"] is False
+    assert declaration["assessment"]["runtime_admission_supported"] is False
+    assert report["placement"]["separation_violations"] == [["inference", "preparation"]]
+    assert report["executable_topology"] is True
+
+    for kind, count in (("client-only", 1), ("two-online-offset", 3)):
+        comparator = run_cli(
+            "topology", "inspect", target, "--reference", kind, "--format", "json"
+        )
+        assert comparator.returncode == 0, comparator.stderr
+        data = json.loads(comparator.stdout)["data"]
+        assert data["executable_topology"] is False
+        assert data["reference"] == kind
+        assert len(data["topology"]["roles"]) == count
+        assert data["composition_digest"] == report["composition_digest"]
+        assert data["topology_digest"] != report["topology_digest"]
+    mismatched = run_cli(
+        "topology", "inspect", target, "--reference", "client-only",
+        "--role-deployment", "examples/prepared-role-deployment.json", "--format", "json",
+    )
+    assert mismatched.returncode != 0
+    assert "TOPOLOGY_PLACEMENT" in mismatched.stderr
+
+
 def test_explicit_factory_and_python_trust_policy(tmp_path: Path) -> None:
     target = tmp_path / "target.py"
     target.write_text(

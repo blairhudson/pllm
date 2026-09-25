@@ -3,14 +3,18 @@ title: "Deployment"
 description: "Learn how to assign PLLM roles to authenticated services without changing privacy assumptions."
 ---
 
-A deployment assigns each protocol role to a process and operator. It records
-endpoints, authentication, separate credentials, provider identity, storage,
-capacity, expiration, observability, shutdown behavior, and trust boundaries.
+A deployment assigns each protocol role to a process and operator. The live
+`Experiment.deployment` currently selects local execution. A separate,
+digest-bound `RoleDeployment` document can **inspect** operator IDs, HTTPS
+origins and optional TEE policies against a role graph, but does not change
+that live Experiment, authenticate an operator or authorize new roles.
+Execution must still account for endpoints, distinct credentials, capacity,
+expiration, observability, shutdown and trust boundaries.
 Review [privacy and threat models](/learn/concepts/privacy-and-threat-models/) before
 changing that placement.
 
-The client must keep plaintext prompts, masks, private scales, model state, and
-decoding. Client-to-inference, client-to-preparation, and
+The current prepared client must keep plaintext prompts, masks, private scales,
+model state, and decoding. Client-to-inference, client-to-preparation, and
 preparation-to-inference connections use different credentials. Changing the URL
 of an ordinary model API does not make its unmodified SDK private.
 
@@ -23,12 +27,25 @@ lists the current gateway and provider-role lifecycle commands.
 ## Python SDK example
 
 ```python
-from pllm.deployment import Deployment
+from pllm import Experiment
+from pllm.deployment import Deployment, RoleDeployment
 
 deployment = Deployment.local(root=".pllm/local")
 assert deployment.to_spec() == {"kind": "local", "root": ".pllm/local"}
+experiment = Experiment.from_file("examples/prepared-topology.yaml")
+graph = experiment.resolve().role_graph
+declaration = RoleDeployment.from_file("examples/prepared-role-deployment.json")
+assessment = declaration.assess(graph)
+assert assessment.declared_separation_violations == ()
+assert not assessment.operator_independence_verified
+assert not assessment.runtime_admission_supported
 ```
 
-API: [`pllm.deployment.Deployment`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.deployment`](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
 
-This creates configuration only. Generic remote role deployment is not supported.
+This checks a declaration only. The same Experiment still runs locally and
+does not satisfy its Preparation–Inference non-collusion assumption; generic
+remote role deployment and live TEE attestation are not supported yet. Read
+[role trust](/learn/topologies/roles-and-trust/) and
+[TEE boundaries](/learn/topologies/trusted-execution/) before treating an
+operator label or policy fingerprint as security evidence.

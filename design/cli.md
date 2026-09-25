@@ -93,9 +93,12 @@ that complete protected execution coverage exists.
 ### Planning
 
 `topology inspect` resolves an executable composition and renders its immutable
-role/channel descriptor and separation assumptions. Local roles share one
-operator. Inspection is not a privacy proof, live attestation, or permission to
-serve a different role graph; unsupported compositions fail closed.
+role/channel descriptor and separation assumptions. `--reference client-only` or
+`--reference two-online-offset` substitutes a non-executable research graph;
+`--role-deployment PATH` checks a JSON operator/origin/TEE policy declaration
+bound to that graph digest. Local roles share one operator. Inspection is not a
+privacy proof, live attestation, or permission to serve a different role graph;
+unsupported compositions fail closed.
 
 `plan check` performs all cheap, metadata-complete checks and reports checks that require artifact
 resolution or remain open. It MUST NOT convert unknown coverage into a pass.

@@ -1,0 +1,9 @@
+{
+  "schema": "pllm.role_deployment.v1",
+  "graph_digest": "92caf3dcd32e38623415e4e98dfaccd81d7ce3db8210b886fa6c7a8b1f1b46f4",
+  "roles": [
+    {"role_id": "client", "operator": "customer", "origin": null, "hardware": "standard"},
+    {"role_id": "preparation", "operator": "customer", "origin": "https://preparation.example.invalid", "hardware": "standard"},
+    {"role_id": "inference", "operator": "operator-b", "origin": "https://inference.example.invalid", "hardware": "standard"}
+  ]
+}

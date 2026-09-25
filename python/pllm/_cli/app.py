@@ -218,6 +218,14 @@ def build_parser() -> _Parser:
         topology_commands, "inspect", help="show role, channel, and placement assumptions"
     )
     _target_options(topology_inspect)
+    topology_inspect.add_argument(
+        "--reference", choices=("client-only", "two-online-offset"),
+        help="inspect a non-executable research comparator rather than the installed graph",
+    )
+    topology_inspect.add_argument(
+        "--role-deployment", type=Path, metavar="PATH",
+        help="inspect a versioned role-placement JSON declaration (never authorizes serving)",
+    )
 
     gateway = _command(commands, "gateway", help="run the trusted local Responses API gateway")
     gateway.add_argument("--config", help="client TOML file")
@@ -515,6 +523,9 @@ def _components(args: argparse.Namespace, output_format: str, dry_run: bool) -> 
 
 def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
     from .targets import resolve_target
+    from pllm.configuration import ConfigurationError
+    from pllm.deployment import RoleDeployment
+    from pllm.roles import client_only_reference_graph, two_online_reference_graph
 
     target = resolve_target(
         args.TARGET,
@@ -528,7 +539,15 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
         resolved = experiment.resolve()
     except (TypeError, ValueError) as exc:
         raise ResolutionError("TOPOLOGY_NOT_EXECUTABLE", str(exc)) from exc
-    graph = resolved.role_graph
+    if args.reference is not None and resolved.privacy_mode != "public":
+        raise ResolutionError(
+            "TOPOLOGY_NOT_EXECUTABLE", "research baselines require a public-weight composition"
+        )
+    graph = (
+        client_only_reference_graph() if args.reference == "client-only"
+        else two_online_reference_graph() if args.reference == "two-online-offset"
+        else resolved.role_graph
+    )
     if graph is None:
         raise ResolutionError("TOPOLOGY_NOT_EXECUTABLE", "composition has no admitted role graph")
     # Local services share one operator. Graph validation is not evidence that
@@ -539,16 +558,34 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
         "composition_digest": resolved.composition_digest,
         "topology": graph.to_spec(),
         "topology_digest": graph.digest(),
+        "reference": args.reference,
+        "executable_topology": args.reference is None,
         "placement": {
             "kind": experiment.deployment.kind,
             "operators": operators,
             "separation_violations": [list(pair) for pair in graph.separation_violations(operators)],
         },
-        "scope": "installed runtime composition; deployment ownership is a declaration, not a privacy proof",
+        "scope": (
+            "research comparator graph; not bound to an executable plan or independently operated roles"
+            if args.reference is not None else
+            "installed runtime composition; deployment ownership is a declaration, not a privacy proof"
+        ),
         "python_executed": target.python_executed,
         "target_kind": target.kind,
         "dry_run": dry_run,
     }
+    if args.role_deployment is not None:
+        try:
+            declaration = RoleDeployment.from_file(args.role_deployment)
+            assessment = declaration.assess(graph)
+        except (OSError, ConfigurationError, ValueError) as exc:
+            raise ResolutionError("TOPOLOGY_PLACEMENT", str(exc)) from exc
+        report["role_deployment"] = {
+            "digest": declaration.digest(),
+            "declaration": declaration.to_spec(),
+            "assessment": assessment.to_spec(),
+            "scope": "declaration only; no operator verification, quote validation, or runtime admission",
+        }
     if output_format == "human":
         print(json.dumps(report, allow_nan=False, ensure_ascii=False, indent=2, sort_keys=True))
     else:
