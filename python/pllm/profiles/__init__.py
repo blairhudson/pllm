@@ -16,8 +16,9 @@ from pllm.protocols import (
     GuardedLinear,
     MaskedLinear,
     ProtocolMethod,
+    TwoOnlineOffsetLinear,
 )
-from pllm.roles import ClientOnlyRoles, Inference, InferenceRole, RoleTopology
+from pllm.roles import ClientOnlyRoles, Inference, InferenceRole, RoleTopology, TwoOnlineOffsetRoles
 from pllm.sources import ModelSource
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
@@ -29,6 +30,8 @@ _DEFAULT_DIRECT = DirectFHEMethod()
 _DEFAULT_PREPARATION = ModelAwareCorrections()
 _DEFAULT_INFERENCE = Inference()
 _DEFAULT_CLIENT_ONLY = ClientOnlyRoles()
+_DEFAULT_OFFSET_LINEAR = TwoOnlineOffsetLinear()
+_DEFAULT_OFFSET_ROLES = TwoOnlineOffsetRoles()
 _DEFAULT_KERNELS = Cpu()
 _DEFAULT_FREIVALDS = FreivaldsVerify()
 
@@ -193,6 +196,59 @@ class ClientOnlyCpu(_TypedPipeline):
 
     @property
     def topology(self) -> ClientOnlyRoles:
+        return self.components["topology"]
+
+
+class TwoOnlineOffsetCpu(_TypedPipeline):
+    """Bounded two-public-worker additive offset comparator."""
+
+    PROFILE = "baseline.two_online_offset_cpu"
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology")
+    __slots__ = ()
+
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = _DEFAULT_OFFSET_LINEAR,
+        kernels: KernelBackend = _DEFAULT_KERNELS,
+        quantization: QuantizationScheme | None = None,
+        topology: RoleTopology = _DEFAULT_OFFSET_ROLES,
+    ) -> None:
+        if quantization is not None:
+            _slot(
+                "quantization", quantization, QuantizationScheme,
+                SymmetricPerRow.descriptor.component,
+            )
+        super().__init__(
+            profile=self.PROFILE,
+            model=_model(model),
+            components={
+                "linear": _slot(
+                    "linear", linear, ProtocolMethod, TwoOnlineOffsetLinear.descriptor.component,
+                ),
+                "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+                "topology": _slot(
+                    "topology", topology, RoleTopology, TwoOnlineOffsetRoles.descriptor.component,
+                ),
+                **({"quantization": quantization} if quantization is not None else {}),
+            },
+        )
+
+    @property
+    def linear(self) -> TwoOnlineOffsetLinear:
+        return self.components["linear"]
+
+    @property
+    def kernels(self) -> Cpu:
+        return self.components["kernels"]
+
+    @property
+    def quantization(self) -> SymmetricPerRow | None:
+        return self.components.get("quantization")
+
+    @property
+    def topology(self) -> TwoOnlineOffsetRoles:
         return self.components["topology"]
 
 
@@ -398,7 +454,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
                 type(value) is not int or value not in {4, 8}
                 for value in quantization.params.values()
             )
-            or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
+            or identities.get("linear") not in {
+                "pllm/masked-linear", "pllm/cleartext-linear", "pllm/two-online-offset-linear/v1",
+            }
         ):
             return None
         del identities["quantization"]
@@ -423,6 +481,18 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         return RuntimeComposition(
             "client_only", "none", False, "none", "compiled_client_local_v1",
             f"local_clear_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
+            **bits,
+        )
+    if identities == {
+        "linear": "pllm/two-online-offset-linear/v1",
+        "kernels": "pllm/cpu",
+        "topology": "pllm/two-online-offset-workers/v1",
+    } and kernels_valid and all(
+        not pipeline.components[slot].params for slot in ("linear", "topology")
+    ):
+        return RuntimeComposition(
+            "offset_public", "none", False, "none", "compiled_offset_v1",
+            f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
             **bits,
         )
     if topology is not None:
@@ -548,6 +618,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
 
 __all__ = [
     "ClientOnlyCpu",
+    "TwoOnlineOffsetCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",
     "VerifiedMaskedLinearCpu",

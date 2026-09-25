@@ -1475,12 +1475,14 @@ class MaskedTransformerEngine:
 
     def client_bundle(
         self, model_id: str, *, include_local_weights: bool = True,
-        client_owned: bool = False,
+        placement: str = "prepared",
     ) -> bytes:
-        if client_owned and not include_local_weights:
+        if placement not in {"prepared", "client", "offset"}:
+            raise TransformerEngineError("unknown compiled client-bundle placement")
+        if placement == "client" and not include_local_weights:
             raise TransformerEngineError("client-owned execution requires local token boundaries")
-        if client_owned and self.verification_component != "none":
-            raise TransformerEngineError("client-owned execution cannot claim remote verification")
+        if placement != "prepared" and self.verification_component != "none":
+            raise TransformerEngineError("non-prepared execution cannot claim remote verification")
         model = self._model(model_id)
         local_stage_ids = {"token_lookup", "lm_head"} if include_local_weights else set()
         stage_descriptors = {
@@ -1549,15 +1551,27 @@ class MaskedTransformerEngine:
         }
         config = self._bundle_runtime_config(model)
         manifest = model.manifest.to_dict()
-        privacy_protocol = (
-            f"local_clear_w{self.weight_bits}a{self.activation_bits}"
-            if client_owned else f"masked_w{self.weight_bits}a{self.activation_bits}"
-        )
-        if client_owned:
+        protocols = {
+            "prepared": f"masked_w{self.weight_bits}a{self.activation_bits}",
+            "client": f"local_clear_w{self.weight_bits}a{self.activation_bits}",
+            "offset": f"two_online_offset_w{self.weight_bits}a{self.activation_bits}",
+        }
+        runtimes = {
+            "prepared": "masked_transformer_v1",
+            "client": "compiled_client_local_v1",
+            "offset": "compiled_offset_v1",
+        }
+        bundle_runtimes = {
+            "prepared": "masked_transformer",
+            "client": "client_local_transformer",
+            "offset": "two_online_offset_transformer",
+        }
+        privacy_protocol = protocols[placement]
+        if placement != "prepared":
             manifest["metadata"] = {
                 **manifest["metadata"],
-                "client_runtime": "compiled_client_local_v1",
-                "privacy_mode": "client_only",
+                "client_runtime": runtimes[placement],
+                "privacy_mode": "client_only" if placement == "client" else "offset_public",
                 "privacy_protocol": privacy_protocol,
             }
             fingerprint_payload = {
@@ -1570,7 +1584,7 @@ class MaskedTransformerEngine:
         return msgpack.packb(
             {
                 "v": 2,
-                "runtime": "client_local_transformer" if client_owned else "masked_transformer",
+                "runtime": bundle_runtimes[placement],
                 "model": model_id,
                 "manifest": manifest,
                 "config": config,
@@ -1579,10 +1593,10 @@ class MaskedTransformerEngine:
                 "local_tensors": tensors,
                 "client_weights": client_weights,
                 "privacy": {
-                    "mode": "public",
+                    "mode": "offset_public" if placement == "offset" else "public",
                     "protocol": privacy_protocol,
                     "online_fhe": False,
-                    "preprocessed": not client_owned,
+                    "preprocessed": placement == "prepared",
                     "model_weight_correlations_disclosed": True,
                     "dense_weights_in_bundle": bool(local_stage_ids),
                     "local_quantized_stages": sorted(local_stage_ids),

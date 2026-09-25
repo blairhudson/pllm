@@ -69,6 +69,8 @@ def test_store_false_is_hidden_but_available_for_continuation() -> None:
 
 def test_tracked_stored_response_can_be_recovered_after_stream_abandonment() -> None:
     client = object.__new__(RuntimeClient)
+    client._local_engine = None
+    client._offset_workers = {}
     client.cache = {}
     client._ephemeral_response_ids = set()
     client._pending_response_store = {"resp_pending": True}

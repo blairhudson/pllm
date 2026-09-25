@@ -96,7 +96,7 @@ def test_masked_linear_quantization_is_selectable_and_binds_role_bits() -> None:
         assert experiment.resolve().composition_digest == pipeline.digest()
         topology = build_roles(experiment)
         assert (topology._weight_bits, topology._activation_bits) == (bits, bits)
-        for command in topology._commands(9101, 9102).values():
+        for command in topology._commands({"inference": 9101, "preparation": 9102}).values():
             assert command[command.index("--weight-bits") + 1] == str(bits)
             assert command[command.index("--activation-bits") + 1] == str(bits)
         topology.close()

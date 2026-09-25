@@ -46,8 +46,11 @@ from pllm.protocols import (
     MaskedLinear,
     ProtocolMethod,
     SecureLinear,
+    TwoOnlineOffsetLinear,
 )
-from pllm.roles import ClientOnlyRoles, Inference, InferenceRole, PreparedProviderRoles
+from pllm.roles import (
+    ClientOnlyRoles, Inference, InferenceRole, PreparedProviderRoles, TwoOnlineOffsetRoles,
+)
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
     ChunkedIndependentLanesProtectedTensorSchedule,
@@ -97,6 +100,8 @@ def _instances():
         SecureLinear(),
         SymmetricPerRow(),
         Throughput(),
+        TwoOnlineOffsetLinear(),
+        TwoOnlineOffsetRoles(),
     )
 
 

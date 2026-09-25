@@ -1,0 +1,43 @@
+---
+title: "Two-worker offset linear"
+description: "Share every compiled integer linear stage between two online workers."
+---
+
+`TwoOnlineOffsetLinear` (`pllm/two-online-offset-linear/v1`) requires the
+`TwoOnlineOffsetRoles` topology. For each compiled linear stage the client
+samples fresh additive shares, sends one to each authenticated worker, checks
+the bound plan, body and stage outputs, then reconstructs the integer result
+locally. Model-dependent nonlinear operators stay on the trusted client.
+It is a benchmarkable two-worker comparator to client-owned execution and the
+offline-prepared single-online-provider path, not a reviewed security protocol.
+Local workers are co-located, so a local run does not meet non-collusion.
+
+This doubles the integer matrix work of a client-owned stage. The benchmark
+reports covered per-link application bodies and sampled run-window CPU.
+Checkpoint distribution, full-response aggregate compute, peak client memory,
+disk use, energy and wire framing are unmeasured. Review all privacy and
+resource conditions before applying any performance claim.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import TwoOnlineOffsetCpu
+from pllm.protocols import TwoOnlineOffsetLinear
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="offset-linear-example",
+    pipeline=TwoOnlineOffsetCpu(TinyModel(model_id="offset-linear-example")),
+    deployment=Deployment.local(root="local://offset-linear-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+)
+assert experiment.pipeline.components["linear"] == TwoOnlineOffsetLinear()
+assert experiment.resolve().role_graph is not None
+```
+
+Run from the repository root. Use the [topology guide](/sdk/topologies/options/)
+and [benchmark CLI](/cli/benchmarking/) to run the full Experiment.
+
+API: [pllm.protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[pllm.profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures).

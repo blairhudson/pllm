@@ -180,6 +180,8 @@ def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     """Describe installed executor traffic; never enable execution from a graph."""
     if composition.privacy_mode == "client_only" and not composition.requires_preparation:
         return client_only_reference_graph()
+    if composition.privacy_mode == "offset_public" and not composition.requires_preparation:
+        return two_online_reference_graph()
     if composition.privacy_mode == "public" and composition.requires_preparation:
         channels = [
             Channel("client", "inference", "offline", "inventory_request"),
@@ -221,7 +223,7 @@ def client_only_reference_graph() -> RoleGraph:
 
 
 def two_online_reference_graph() -> RoleGraph:
-    """The in-process offset comparator's logical channels; no provider admission."""
+    """Two public linear workers with a declared independent-operator requirement."""
     return RoleGraph(
         roles=(
             Role("client", "trusted_client"),

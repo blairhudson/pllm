@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -127,6 +129,131 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     assert sum(edge["serialized_body_bytes"] for edge in topology["body_bytes_by_edge"]) == (
         topology["all_link_serialized_body_bytes"]
     )
+
+
+@pytest.mark.integration
+def test_two_worker_experiment_runs_through_standard_benchmark(tmp_path: Path) -> None:
+    from pllm import Deployment, ExecutionBudget, Model
+    from pllm.profiles import TwoOnlineOffsetCpu
+    from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+
+    checkpoint = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
+    )
+    experiment = Experiment(
+        name="offset-benchmark",
+        pipeline=TwoOnlineOffsetCpu(Model.path(str(checkpoint), model_id="offset-benchmark")),
+        deployment=Deployment.local(root=str(tmp_path)),
+        budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
+    )
+    report = run_loopback_benchmark(
+        model=str(checkpoint), model_id="offset-benchmark", tiny=False,
+        prompt="A", max_output_tokens=2, warmups=0,
+        repetitions=1, timeout_seconds=120, experiment=experiment,
+    )
+    assert report["checks"]["passed"]
+    assert report["summary"]["completed_runs"] == 1
+    assert set(report["runs"][0]["processes"]) == {"client", "worker_a", "worker_b"}
+    assert report["runs"][0]["privacy"]["role_link.worker_a.online_upload_bytes"] > 0
+    assert report["runs"][0]["privacy"]["role_link.worker_b.online_download_bytes"] > 0
+    assert report["privacy_admission"]["independent_operators_verified"] is False
+    accounting = report["topology_accounting"]["runs"][0]
+    assert accounting["tracked_body_counter_set_present"]
+    assert accounting["all_link_serialized_body_bytes"] > 0
+    assert accounting["aggregate_run_window_cpu_seconds"] is not None
+    assert accounting["full_response_compute_cap_checked"] is False
+
+
+def test_two_worker_experiment_uses_existing_benchmark_cli(tmp_path: Path) -> None:
+    from pllm import Deployment, ExecutionBudget, Model
+    from pllm.profiles import TwoOnlineOffsetCpu
+    from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+
+    checkpoint = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
+    )
+    experiment = Experiment(
+        name="offset-cli",
+        pipeline=TwoOnlineOffsetCpu(Model.path(str(checkpoint), model_id="offset-cli")),
+        deployment=Deployment.local(root=str(tmp_path)),
+        budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
+    )
+    target = tmp_path / "offset-experiment.json"
+    target.write_bytes(experiment.canonical_bytes())
+    result = subprocess.run(
+        [sys.executable, "-m", "pllm", "benchmark", "run", "--experiment", str(target),
+         "--prompt", "A", "--max-output-tokens", "2", "--warmups", "0",
+         "--repetitions", "1", "--format", "json"],
+        text=True, capture_output=True, timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["command"] == "benchmark.run"
+    report = output["data"]["report"]
+    assert report["checks"]["passed"]
+    assert report["configuration"]["roles"] == ["client", "worker_a", "worker_b"]
+    assert report["topology_accounting"]["runs"][0]["online_all_link_serialized_body_bytes"] > 0
+    assert "user: A" not in result.stdout
+    assert report["runs"][0]["privacy"]["plaintext_token_ids_sent"] == 0
+    assert all("token_ids" not in run for run in report["runs"])
+
+
+@pytest.mark.integration
+def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
+    tmp_path: Path,
+) -> None:
+    from pllm import Deployment, ExecutionBudget, Model
+    from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu, TwoOnlineOffsetCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
+
+    checkpoint = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
+    )
+    model_id = "matched-three-topologies"
+    source = Model.path(str(checkpoint), model_id=model_id)
+    experiments = [
+        Experiment(
+            name=name,
+            pipeline=kind(source, quantization=SymmetricPerRow(weight_bits=8, activation_bits=8)),
+            deployment=Deployment.local(root=str(tmp_path)),
+            budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
+        )
+        for name, kind in (
+            ("client-owned", ClientOnlyCpu), ("two-online-offset", TwoOnlineOffsetCpu),
+            ("prepared", MaskedLinearCpu),
+        )
+    ]
+    runs = [
+        (
+            experiment,
+            run_loopback_benchmark(
+                model=str(checkpoint), model_id=model_id, tiny=False,
+                prompt="A", max_output_tokens=2, warmups=0,
+                repetitions=1, timeout_seconds=120, experiment=experiment,
+            ),
+        )
+        for experiment in experiments
+    ]
+    assert all(report["checks"]["passed"] for _, report in runs)
+    assert len({report["runs"][0]["model_fingerprint"] for _, report in runs}) == 1
+    assert len({(
+        report["runs"][0]["tokens"]["input_tokens"],
+        report["runs"][0]["tokens"]["output_tokens"],
+    ) for _, report in runs}) == 1
+    comparison = build_comparison_report(runs)
+    assert comparison["checks"]["matched_workload"]
+    assert comparison["comparison_key"]["model_fingerprint"]
+    assert runs[0][1]["topology_accounting"]["runs"][0]["online_client_serialized_body_bytes"] == 0
+    ownership = runs[0][1]["topology_accounting"]["startup"]
+    assert ownership["schema"] == "pllm.topology_model_ownership.v1"
+    assert ownership["checkpoint_artifact_bytes"] > 0
+    assert ownership["loaded_weight_and_local_tensor_bytes"] > 0
+    assert ownership["cold_checkpoint_transfer_bytes"] is None
+    assert ownership["client_peak_memory_bytes"] is None
+    assert runs[1][1]["privacy_admission"]["independent_operators_verified"] is False
+    assert runs[1][1]["topology_accounting"]["runs"][0]["online_client_serialized_body_bytes"] > 0
+    assert runs[2][1]["topology_accounting"]["startup"]["all_link_serialized_body_bytes"] > 0
 
 
 def test_prepared_link_ledger_charges_serialized_body_once_and_never_invents_wire() -> None:

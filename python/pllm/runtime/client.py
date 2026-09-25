@@ -16,7 +16,7 @@ from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Mapping, TypeVar
 from urllib.parse import urlparse, urlunparse
 
 import httpx
@@ -248,9 +248,17 @@ class PrivacyAudit:
     bundle_cache_hits: int = 0
     bundle_cache_misses: int = 0
     bundle_cache_corruptions: int = 0
+    role_link_bodies: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, int]:
-        return {name: int(getattr(self, name)) for name in self.__dataclass_fields__}
+        values = {
+            name: int(getattr(self, name))
+            for name in self.__dataclass_fields__ if name != "role_link_bodies"
+        }
+        for role, phases in self.role_link_bodies.items():
+            for metric, count in phases.items():
+                values[f"role_link.{role}.{metric}"] = int(count)
+        return values
 
 
 class _Channel:
@@ -855,6 +863,7 @@ class RuntimeClient:
         preparation_http_client: httpx.Client | None = None,
         experiment: Experiment | ExperimentProfile | None = None,
         local_engine: MaskedTransformerEngine | None = None,
+        role_connections: Mapping[str, tuple[str, str]] | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
 
@@ -868,6 +877,37 @@ class RuntimeClient:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
         self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
         self._local_engine = local_engine
+        offset_execution = self.experiment is not None and self.experiment.client_runtime == "compiled_offset_v1"
+        if offset_execution:
+            if (
+                role_connections is None
+                or set(role_connections) != {"worker_a", "worker_b"}
+                or local_engine is not None
+                or preparation_base_url is not None
+                or preparation_api_key is not None
+                or http_client is not None
+                or preparation_http_client is not None
+                or any(
+                    not isinstance(connection, tuple) or len(connection) != 2
+                    or not all(type(item) is str and item for item in connection)
+                    for connection in role_connections.values()
+                )
+                or (base_url, api_key) != role_connections["worker_a"]
+                or role_connections["worker_a"][1] == role_connections["worker_b"][1]
+            ):
+                raise ValueError("offset Experiment requires two distinct worker connections")
+            urls = tuple(httpx.URL(role_connections[role][0]) for role in ("worker_a", "worker_b"))
+            origins = tuple(
+                (url.scheme, url.host, url.port or (443 if url.scheme == "https" else 80))
+                for url in urls
+            )
+            if origins[0] == origins[1] or any(
+                url.scheme != "https" and url.host not in {"127.0.0.1", "localhost", "::1"}
+                for url in urls
+            ):
+                raise ValueError("offset workers must have distinct HTTPS or loopback origins")
+        elif role_connections is not None:
+            raise ValueError("worker connections require an offset Experiment")
         if local_engine is not None and (
             self.experiment is None
             or self.experiment.client_runtime != "compiled_client_local_v1"
@@ -932,6 +972,15 @@ class RuntimeClient:
             (http_client or httpx.Client(base_url=self.base_url, timeout=timeout))
         )
         self.headers = {"Authorization": f"Bearer {api_key}"}
+        self._offset_workers: dict[str, tuple[httpx.Client, str]] = {}
+        if offset_execution:
+            self._offset_workers = {
+                "worker_a": (self.http, api_key),
+                "worker_b": (
+                    httpx.Client(base_url=role_connections["worker_b"][0], timeout=timeout),
+                    role_connections["worker_b"][1],
+                ),
+            }
         self._owns_preparation_http = (
             preparation_http_client is None and preparation_base_url is not None
         )
@@ -986,6 +1035,7 @@ class RuntimeClient:
         self._transformer_states: dict[str, _TransformerCryptoState] = {}
         self._transformer_state_lock = threading.Lock()
         self._activity_lock = threading.Lock()
+        self._active_offset_transports: dict[str, Any] = {}
         self._online_active = 0
         self._preparation_active = 0
         self._transformer_conversations: dict[str, _TransformerConversationState] = {}
@@ -1401,7 +1451,7 @@ class RuntimeClient:
                 state = _TransformerCryptoState(
                     bundle=bundle,
                     bundle_fingerprint=bundle_fingerprint,
-                    mode=self.correlation_mode,
+                    mode="none" if self._offset_workers else self.correlation_mode,
                     privacy_mode=str(bundle.privacy.get("mode", "public")),
                     privacy_protocol=str(bundle.privacy.get("protocol", "masked_w4a4")),
                 )
@@ -1498,7 +1548,7 @@ class RuntimeClient:
             state = self._transformer_states.get(model_id)
             if state is not None:
                 return state
-            payload = self._local_engine.client_bundle(model_id, client_owned=True)
+            payload = self._local_engine.client_bundle(model_id, placement="client")
             bundle = ClientBundle.unpack(payload)
             metadata = bundle.manifest.get("metadata") or {}
             if (
@@ -1526,8 +1576,8 @@ class RuntimeClient:
         max_input_tokens: int,
         max_new_tokens: int,
     ) -> Any | None:
-        """Bind supported baseline execution before claiming any prepared rows."""
-        if state.privacy_mode not in {"public", "client_only"} or state.bundle.privacy.get(
+        """Bind supported public execution before claiming any provider material."""
+        if state.privacy_mode not in {"public", "client_only", "offset_public"} or state.bundle.privacy.get(
             "verification_component", "none"
         ) != "none":
             return None
@@ -2250,7 +2300,12 @@ class RuntimeClient:
         self.preprocess(model_id, count=required_rows)
 
     def close(self) -> None:
-        self._closing = True
+        with self._activity_lock:
+            self._closing = True
+            offset_transports = tuple(self._active_offset_transports.values())
+            self._active_offset_transports.clear()
+        for transport in offset_transports:
+            transport.abort()
         self._provider_executor.shutdown(wait=True, cancel_futures=True)
         with self._transformer_state_lock:
             inventories: list[PreparedInventory] = []
@@ -2263,25 +2318,29 @@ class RuntimeClient:
                 state.prepared_inventory = None
                 state.prepared_inventory_spare = None
                 state.retired_inventories.clear()
-            if self._local_engine is not None:
+            if self._local_engine is not None or self._offset_workers:
                 self._transformer_states.clear()
                 self._model_manifests.clear()
         for inventory in inventories:
             self._cancel_prepared_inventory(inventory)
         if self._owns_preparation_http and self.preparation_http is not None:
             self.preparation_http.close()
+        if self._offset_workers:
+            self._offset_workers["worker_b"][0].close()
         if self._owns_http:
             self.http.close()
 
     def list_models(self) -> dict[str, Any]:
-        if self._local_engine is not None:
+        if self._local_engine is not None or self._offset_workers:
             model_id = self.default_model
             if model_id is None:
-                raise ModelError("client-owned model is not configured")
+                raise ModelError("topology model is not configured")
             descriptor = self._model_manifest(model_id)
             return {
                 "object": "list",
-                "data": [{"id": model_id, "object": "model", "owned_by": "client",
+                "data": [{"id": model_id, "object": "model", "owned_by": (
+                    "client" if self._local_engine is not None else "offset-workers"
+                ),
                           "runtime": descriptor["runtime"],
                           "context_length": descriptor["context_length"]}],
             }
@@ -2299,7 +2358,7 @@ class RuntimeClient:
             return response
         if self._pending_response_store.get(response_id) is not True:
             raise KeyError(response_id)
-        if getattr(self, "_local_engine", None) is not None:
+        if getattr(self, "_local_engine", None) is not None or self._offset_workers:
             raise KeyError(response_id)
         response = self.http.get(f"/v1/responses/{response_id}", headers=self.headers)
         _raise(response)
@@ -2348,7 +2407,7 @@ class RuntimeClient:
             self._ephemeral_response_ids.discard(self._ephemeral_response_order.popleft())
 
     def cancel(self, response_id: str) -> Response:
-        if self._local_engine is not None:
+        if self._local_engine is not None or self._offset_workers:
             response = self.cache.get(response_id)
             if response is None:
                 raise KeyError(response_id)
@@ -2421,6 +2480,7 @@ class RuntimeClient:
         if descriptor.get("metadata", {}).get("client_runtime") in {
             "masked_transformer_v1",
             "compiled_client_local_v1",
+            "compiled_offset_v1",
             "direct_fhe_transformer_v1",
             "blinded_ole_transformer_v1",
             "guarded_blinded_transformer_v1",
@@ -2704,11 +2764,33 @@ class RuntimeClient:
             max_new_tokens=max_tokens,
         )
         client_owned = self._local_engine is not None
-        if client_owned and compiled is None:
-            raise ModelError("client-owned inference requires complete compiled execution")
+        offset_execution = bool(self._offset_workers)
+        if (client_owned or offset_execution) and compiled is None:
+            raise ModelError("selected topology requires complete compiled execution")
         if state.privacy_mode == "public":
             self._ensure_prepared_inventory(model_id, state, required_rows)
-        if client_owned:
+        offset_transport = None
+        if offset_execution:
+            assert compiled is not None
+            from .offset_reference import TwoOnlineOffsetTransport
+
+            worker_a, key_a = self._offset_workers["worker_a"]
+            worker_b, key_b = self._offset_workers["worker_b"]
+            offset_transport = TwoOnlineOffsetTransport(
+                compiled, model_id=model_id,
+                worker_a=worker_a, worker_b=worker_b,
+                api_key_a=key_a, api_key_b=key_b,
+            )
+            session_value = {"id": new_id("offset_session"), "response_id": new_id("resp")}
+            provider = None
+            with self._activity_lock:
+                already_closing = self._closing
+                if not already_closing:
+                    self._active_offset_transports[session_value["id"]] = offset_transport
+            if already_closing:
+                offset_transport.abort()
+                raise ProtocolError("client closed while opening worker sessions", 409)
+        elif client_owned:
             session_value = {"id": new_id("client_session"), "response_id": new_id("resp")}
             provider = None
         else:
@@ -2729,7 +2811,9 @@ class RuntimeClient:
                 channel.close()
             if isinstance(provider, PreparedInventoryLease):
                 self._finish_prepared_response(model_id, state, provider)
-            if client_owned:
+            if offset_transport is not None:
+                offset_transport.abort()
+            if client_owned or offset_execution:
                 return
             try:
                 self.http.post(
@@ -2739,7 +2823,7 @@ class RuntimeClient:
             except Exception:
                 pass
 
-        if not client_owned:
+        if not client_owned and not offset_execution:
             try:
                 channel = _Channel(
                     self.http, self.base_url, self.api_key, session_id, self.session_transport
@@ -2747,13 +2831,13 @@ class RuntimeClient:
             except BaseException:
                 abandon_transformer_session()
                 raise
-        key = derive_session_key(self.api_key, session_id) if not client_owned else b""
+        key = derive_session_key(self.api_key, session_id) if not (client_owned or offset_execution) else b""
         sequence = 0
 
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
             nonlocal sequence
-            if client_owned:
-                raise ModelError("client-owned linear stage cannot use a provider channel")
+            if client_owned or offset_execution:
+                raise ModelError("topology linear stage cannot use a legacy provider channel")
             assert channel is not None
             self.audit.inference_stage_calls += 1
             compact_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
@@ -2796,7 +2880,10 @@ class RuntimeClient:
             self.audit.online_steps += 1
             return [result.payload]
 
-        if client_owned:
+        if offset_execution:
+            assert offset_transport is not None
+            remote = offset_transport
+        elif client_owned:
             assert compiled is not None and self._local_engine is not None
             remote = compiled.client_linear_executor(self._local_engine)
         elif state.privacy_mode == "public":
@@ -3167,6 +3254,16 @@ class RuntimeClient:
                 usage=usage,
                 **_response_contract_fields(body, max_output_tokens=max_tokens),
             )
+            if offset_execution:
+                assert offset_transport is not None
+                offset_transport.complete()
+            elif not client_owned:
+                complete = self.http.post(
+                    f"/v1/runtime/sessions/{session_id}/complete",
+                    headers=self.headers,
+                    json={"usage": usage.to_dict()},
+                )
+                _raise(complete)
             self.cache[response_id] = final
             self.histories[response_id] = rendered + raw_text
             assistant_history: dict[str, Any] = {"role": "assistant", "content": parsed.text}
@@ -3184,13 +3281,6 @@ class RuntimeClient:
                     pending_token_ids=pending_token_ids,
                 )
             self._remember_response(response_id)
-            if not client_owned:
-                complete = self.http.post(
-                    f"/v1/runtime/sessions/{session_id}/complete",
-                    headers=self.headers,
-                    json={"usage": usage.to_dict()},
-                )
-                _raise(complete)
             session_completed = True
             yield ResponseEvent.from_dict(
                 {
@@ -3200,6 +3290,18 @@ class RuntimeClient:
                 }
             )
         finally:
+            if offset_transport is not None:
+                with self._activity_lock:
+                    if self._active_offset_transports.get(session_id) is offset_transport:
+                        self._active_offset_transports.pop(session_id, None)
+                if not session_completed:
+                    offset_transport.abort()
+                for role, values in offset_transport.http_body_costs.items():
+                    tracked = self.audit.role_link_bodies.setdefault(role, {})
+                    for metric, count in values.items():
+                        tracked[metric] = tracked.get(metric, 0) + count
+                self.audit.inference_stage_calls += offset_transport.costs.stages
+                self.audit.online_steps += offset_transport.costs.rows
             if isinstance(remote, PreparedRemoteLinear):
                 self.audit.preparation_upload_bytes += remote.stats.preparation_upload_bytes
                 self.audit.preparation_download_bytes += remote.stats.preparation_download_bytes
@@ -3366,12 +3468,14 @@ class OpenAI:
         preparation_http_client: httpx.Client | None = None,
         experiment: Experiment | ExperimentProfile | None = None,
         local_engine: MaskedTransformerEngine | None = None,
+        role_connections: Mapping[str, tuple[str, str]] | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
         client_owned = profile is not None and profile.client_runtime == "compiled_client_local_v1"
+        offset_execution = profile is not None and profile.client_runtime == "compiled_offset_v1"
         self._owned_topology: Any | None = None
         if client_owned and (
             base_url is not None or api_key is not None or http_client is not None
@@ -3386,6 +3490,19 @@ class OpenAI:
             raise ValueError("client-owned model requires a client-only Experiment")
         if client_owned and local_engine is None and not isinstance(experiment, Experiment):
             raise ValueError("client-only model loading requires an Experiment source")
+        if offset_execution and (
+            base_url is not None or api_key is not None or http_client is not None
+            or preparation_base_url is not None or preparation_api_key is not None
+            or preparation_http_client is not None or local_engine is not None
+            or session_transport is not None or correlation_mode is not None
+            or prepared_inventory_rows is not None or background_inventory_refill is not True
+            or tenseal_path is not None
+        ):
+            raise ValueError("offset Experiment requires only role-specific worker connections")
+        if role_connections is not None and not offset_execution:
+            raise ValueError("worker connections require an offset Experiment")
+        if offset_execution and role_connections is None and not isinstance(experiment, Experiment):
+            raise ValueError("offset worker loading requires an Experiment source")
         settings = ClientSettings.load().merged(
             api_key=api_key,
             base_url=base_url,
@@ -3413,19 +3530,29 @@ class OpenAI:
                     )
                 settings.preparation_base_url = None
                 settings.preparation_api_key = None
-        if client_owned:
+        if client_owned or offset_execution:
             # Provider settings inherited from the environment cannot change a
             # client-only role graph into an accidental network dependency.
             if (default_model or model) is not None and (default_model or model) != profile.model:
-                raise ValueError("request model conflicts with client-only Experiment model")
-            settings.base_url = ""
-            settings.api_key = ""
+                raise ValueError("request model conflicts with Experiment model")
+            if client_owned:
+                settings.base_url = ""
+                settings.api_key = ""
             settings.model = profile.model
-        if client_owned and local_engine is None:
+        if (client_owned and local_engine is None) or (
+            offset_execution and role_connections is None
+        ):
             from pllm.runtime.servers import build_roles
 
             self._owned_topology = build_roles(experiment).start()
-            local_engine = self._owned_topology._local_engine
+            if client_owned:
+                local_engine = self._owned_topology._local_engine
+            else:
+                role_connections = self._owned_topology.worker_connections()
+        if offset_execution:
+            if role_connections is None or set(role_connections) != {"worker_a", "worker_b"}:
+                raise ValueError("offset Experiment requires both worker connections")
+            settings.base_url, settings.api_key = role_connections["worker_a"]
         try:
             self._core = RuntimeClient(
                 base_url=settings.base_url,
@@ -3447,6 +3574,7 @@ class OpenAI:
                 preparation_http_client=preparation_http_client,
                 experiment=experiment,
                 local_engine=local_engine,
+                role_connections=role_connections,
             )
         except BaseException:
             if self._owned_topology is not None:

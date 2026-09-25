@@ -1,4 +1,4 @@
 {
   "title": "Roles",
-  "pages": ["index", "inference", "prepared-provider", "client-only"]
+  "pages": ["index", "inference", "prepared-provider", "client-only", "two-online-offset"]
 }

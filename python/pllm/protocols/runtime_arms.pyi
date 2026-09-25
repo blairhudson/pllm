@@ -1,6 +1,12 @@
 from pllm.configuration import ComponentDescriptor
 from pllm.protocols.base import ProtocolMethod
 
+class TwoOnlineOffsetLinear(ProtocolMethod):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
 class GuardedLinear(ProtocolMethod):
     descriptor: ComponentDescriptor
     def __init__(

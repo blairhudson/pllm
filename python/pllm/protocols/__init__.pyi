@@ -5,6 +5,7 @@ from pllm.protocols.runtime_arms import CleartextLinear as CleartextLinear
 from pllm.protocols.runtime_arms import DirectFHE as DirectFHE
 from pllm.protocols.runtime_arms import GuardedLinear as GuardedLinear
 from pllm.protocols.runtime_arms import SecureLinear as SecureLinear
+from pllm.protocols.runtime_arms import TwoOnlineOffsetLinear as TwoOnlineOffsetLinear
 from pllm.components._planned import PendingComponent as PendingMethod
 from typing import Literal
 from pllm._native import CompactQ7Reference, LogRowQ7SessionReference, LogRowQ7TensorReference, ScaledSiluQ7Reference

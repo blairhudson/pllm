@@ -18,6 +18,7 @@ from urllib.parse import quote
 import httpx
 import numpy as np
 
+from pllm.configuration import Pipeline
 from pllm.roles import two_online_reference_graph
 from pllm.runtime.model_binding import CompiledRuntimeModel
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
@@ -268,8 +269,9 @@ class TwoOnlineOffsetReference(_TwoOnlineShareEvaluator):
 class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
     """Bounded research session with two authenticated HTTP worker exchanges.
 
-    Its caller owns both HTTP clients. The operator separation and whole
-    response resource gates needed for an executable Experiment are absent.
+    Its caller owns both HTTP clients. Compiled Experiments can select this
+    transport, while local co-located workers do not meet the independent-
+    operator privacy condition; whole-response resource gates remain open.
     """
 
     def __init__(
@@ -332,6 +334,9 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                     "body_fingerprint": metadata["body_fingerprint"],
                     "stage_commitment": metadata["seeded_stage_commitment"],
                     "runtime_config_digest": metadata["runtime_config_digest"],
+                    "composition_digest": Pipeline.from_spec(
+                        json.loads(compiled._canonical_composition)
+                    ).digest(),
                 }
                 status, payload = post(index, "/v1/offset-reference/sessions", phase="setup",
                                        json=request)

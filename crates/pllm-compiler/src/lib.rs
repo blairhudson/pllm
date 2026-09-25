@@ -441,7 +441,9 @@ pub fn decoder_coverage(
         .unwrap_or(DecoderCompositionKind::Other);
     let baseline_runtime_complete = matches!(
         composition_kind,
-        DecoderCompositionKind::MaskedLinear | DecoderCompositionKind::ClientOnlyLinear
+        DecoderCompositionKind::MaskedLinear
+            | DecoderCompositionKind::ClientOnlyLinear
+            | DecoderCompositionKind::TwoOnlineOffsetLinear
     ) && canonical_composition
         .is_some_and(|composition| lower_decoder_runtime_schedule(plan, composition).is_ok());
     let verified_runtime_unavailable =
@@ -558,6 +560,8 @@ pub fn decoder_coverage(
                             ModelOperator::Linear => {
                                 if composition_kind == DecoderCompositionKind::ClientOnlyLinear {
                                     "pllm/cleartext-linear@0.1.0-alpha.1"
+                                } else if composition_kind == DecoderCompositionKind::TwoOnlineOffsetLinear {
+                                    "pllm/two-online-offset-linear/v1@0.1.0-alpha.1"
                                 } else {
                                     "pllm/masked-linear@0.1.0-alpha.1"
                                 }
@@ -625,6 +629,8 @@ pub fn decoder_coverage(
                         ModelOperator::Linear => {
                             if composition_kind == DecoderCompositionKind::ClientOnlyLinear {
                                 "scheduled on the trusted client with locally owned weights by the complete semantic runtime"
+                            } else if composition_kind == DecoderCompositionKind::TwoOnlineOffsetLinear {
+                                "scheduled as independent input shares to two committed online workers; operator independence needs deployment evidence"
                             } else {
                                 "scheduled by the complete model-aware prepared masked-linear runtime; this is distinct from the fixed-Q10 research composite"
                             }
@@ -1602,10 +1608,12 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             component.component.as_str(),
             "pllm/masked-linear"
                 | "pllm/cleartext-linear"
+                | "pllm/two-online-offset-linear/v1"
                 | "pllm/model-aware-corrections"
                 | "pllm/inference"
                 | "pllm/one-online-provider-offline-preparation/v1"
                 | "pllm/client-only/v1"
+                | "pllm/two-online-offset-workers/v1"
         ) && !component.params.is_empty()
         {
             return Err(format!(
@@ -1673,6 +1681,7 @@ pub(crate) enum DecoderCompositionKind {
     MaskedLinear,
     VerifiedMaskedLinear,
     ClientOnlyLinear,
+    TwoOnlineOffsetLinear,
     Other,
 }
 
@@ -1703,8 +1712,30 @@ fn validate_decoder_linear_composition(
             .get("topology")
             .is_some_and(|topology| topology.component == "pllm/client-only/v1");
     if clear_client {
-        validate_client_only_composition(pipeline)?;
+        validate_bounded_linear_composition(
+            pipeline,
+            "client-only",
+            "pllm/cleartext-linear",
+            "pllm/client-only/v1",
+        )?;
         return Ok(DecoderCompositionKind::ClientOnlyLinear);
+    }
+    let two_online = pipeline
+        .components
+        .get("linear")
+        .is_some_and(|linear| linear.component == "pllm/two-online-offset-linear/v1")
+        || pipeline
+            .components
+            .get("topology")
+            .is_some_and(|topology| topology.component == "pllm/two-online-offset-workers/v1");
+    if two_online {
+        validate_bounded_linear_composition(
+            pipeline,
+            "two-online offset",
+            "pllm/two-online-offset-linear/v1",
+            "pllm/two-online-offset-workers/v1",
+        )?;
+        return Ok(DecoderCompositionKind::TwoOnlineOffsetLinear);
     }
     Ok(match validate_masked_linear_composition(pipeline)? {
         MaskedLinearComposition::Baseline => DecoderCompositionKind::MaskedLinear,
@@ -1712,24 +1743,27 @@ fn validate_decoder_linear_composition(
     })
 }
 
-fn validate_client_only_composition(pipeline: &ExperimentPipeline) -> Result<(), String> {
-    for (slot, required) in [
-        ("linear", "pllm/cleartext-linear"),
-        ("topology", "pllm/client-only/v1"),
-    ] {
-        let component = pipeline.components.get(slot).ok_or_else(|| {
-            format!("client-only composition requires {slot} component {required}")
-        })?;
+fn validate_bounded_linear_composition(
+    pipeline: &ExperimentPipeline,
+    name: &str,
+    linear_identity: &str,
+    topology_identity: &str,
+) -> Result<(), String> {
+    for (slot, required) in [("linear", linear_identity), ("topology", topology_identity)] {
+        let component = pipeline
+            .components
+            .get(slot)
+            .ok_or_else(|| format!("{name} composition requires {slot} component {required}"))?;
         if component.component != required || !component.params.is_empty() {
             return Err(format!(
-                "client-only composition requires {slot} component {required} with no parameters"
+                "{name} composition requires {slot} component {required} with no parameters"
             ));
         }
     }
     let kernels = pipeline
         .components
         .get("kernels")
-        .ok_or_else(|| "client-only composition requires kernels component pllm/cpu".to_string())?;
+        .ok_or_else(|| format!("{name} composition requires kernels component pllm/cpu"))?;
     if kernels.component != "pllm/cpu"
         || kernels.params.len() != 1
         || kernels
@@ -1738,7 +1772,9 @@ fn validate_client_only_composition(pipeline: &ExperimentPipeline) -> Result<(),
             .and_then(serde_json::Value::as_u64)
             .is_none_or(|threads| threads == 0)
     {
-        return Err("client-only composition requires a positive pllm/cpu thread count".into());
+        return Err(format!(
+            "{name} composition requires a positive pllm/cpu thread count"
+        ));
     }
     let quantization = pipeline.components.get("quantization");
     if let Some(quantization) = quantization {
@@ -1753,14 +1789,15 @@ fn validate_client_only_composition(pipeline: &ExperimentPipeline) -> Result<(),
             || !matches!(bits("weight_bits"), Some(4 | 8))
             || !matches!(bits("activation_bits"), Some(4 | 8))
         {
-            return Err(
-                "client-only quantization requires exact 4- or 8-bit symmetric per-row settings"
-                    .into(),
-            );
+            return Err(format!(
+                "{name} quantization requires exact 4- or 8-bit symmetric per-row settings"
+            ));
         }
     }
     if pipeline.components.len() != 3 + usize::from(quantization.is_some()) {
-        return Err("client-only composition requires only cleartext-linear, cpu, topology and optional quantization".into());
+        return Err(format!(
+            "{name} composition requires only linear, cpu, topology and optional quantization"
+        ));
     }
     Ok(())
 }

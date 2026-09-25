@@ -40,8 +40,12 @@ def create_sidecar_app(
     owned = client is None
     if (remote_base_url is None) != (remote_api_key is None):
         raise ValueError("provider endpoint and credential must be provided together")
-    if client is None and remote_base_url is None and client_kwargs.get("local_engine") is None:
-        raise ValueError("gateway requires a provider endpoint or client-owned model")
+    if (
+        client is None and remote_base_url is None
+        and client_kwargs.get("local_engine") is None
+        and client_kwargs.get("role_connections") is None
+    ):
+        raise ValueError("gateway requires an Experiment-backed local role topology or provider")
     provider_options = (
         {} if remote_base_url is None else
         {"base_url": remote_base_url, "api_key": remote_api_key}

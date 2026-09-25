@@ -20,46 +20,29 @@ per role. These counters do not measure HTTP/TLS framing, control traffic,
 correction acknowledgements, checkpoint distribution before startup, or full aggregate
 compute. Missing counters stay `null`; they cannot justify a total-wire-byte
 winner or the two-online-server compute cap. A checked one-token transport
-smoke run, which may use different tiny weights than the local offset reference:
+smoke run uses an explicitly generated tiny checkpoint:
 
 ```bash
 uv run --frozen pllm benchmark run --tiny --max-output-tokens 1 --repetitions 1 --format json
 ```
 
-For a **matched** generated-checkpoint diagnostic, compare client-only W8A8
-with the two-online-offset protocol on two co-located HTTP worker processes:
-
-```bash
-uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3 --offset-backend loopback
-```
-
-The diagnostic's stage, session-setup and completion HTTP body counts exclude
-headers, TLS and cold checkpoint distribution. Authenticated process-CPU
-samples cover the client and each worker during online execution, and worker
-peak RSS covers their process lifetimes; startup CPU, client peak memory and
-full-response compute remain out of scope.
-It is not a selectable `Experiment` or privacy-qualified multi-host result.
-
-Add the existing prepared role path to the **same W8A8 checkpoint and chat
-token cohort** with `--include-prepared`. The comparator verifies that its
-body fingerprint and input/output token counts match before displaying any
-cross-path figures; it does not compare the prepared path's generated
-selections. The startup inventory and client-bundle bodies are reported
-separately; per-run idle refills are charged to their run. The prepared path's
-initial inventory plus idle refill over three checked responses accounts for
-about 219 KB of covered bodies, compared with about 202 KB in the two-worker
-reference. Headers/TLS, incomplete control traffic and two-worker checkpoint
-distribution are outside these totals, so no total-network winner follows.
-
-```bash
-uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --cohort chat --include-prepared --offset-backend loopback --repeats 3
-```
+`ClientOnlyCpu`, `TwoOnlineOffsetCpu` and prepared masked linear inference
+are all selectable Experiments under this command. The offset option starts
+two authenticated worker processes through the same topology supervisor;
+the local workers remain co-located and do **not** satisfy the independent
+operator privacy condition. Its per-run `topology_accounting` charges each
+covered worker setup, online, completion and bundle body once, and records
+authenticated CPU samples for all three roles. Headers/TLS, model descriptors,
+cold checkpoint distribution, startup CPU, client peak memory and full-response
+compute remain outside the reported totals.
 
 Repeat `--experiment` to compare complete experiment configurations. Each
 Experiment contains one immutable Pipeline:
 
 ```bash
 pllm benchmark run \
+  --experiment examples/benchmarks/qwen-client-only-cpu-4.yaml \
+  --experiment examples/benchmarks/qwen-offset-cpu-4.yaml \
   --experiment examples/benchmarks/qwen-prepared-cpu-1.yaml \
   --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml \
   --prompt "Explain private inference in one sentence." \
@@ -69,11 +52,15 @@ pllm benchmark run \
   --output comparison.json
 ```
 
-The comparison ranks full latency, online latency, time to first token, and
-throughput only when model fingerprint, input and output token counts, token cap,
-and warm state match. Add `--save-best winner.json` to export the lowest-median
-full-latency Experiment for a later rerun. Checked candidate and winner files live
-under `examples/benchmarks/`.
+To compare the three W8A8 topologies only, remove
+`qwen-prepared-cpu-1.yaml` from the example above. The comparison ranks full
+latency, online latency, time to first token, and throughput only when model
+fingerprint, input/output token counts, token cap and warm state match. It
+does **not** check that all generated token selections match, independently
+verify worker operators or establish a total-network winner. Add
+`--save-best winner.json` only when selecting the lowest measured loopback
+latency for a later diagnostic rerun, not for privacy or production readiness.
+Checked candidate and winner files live under `examples/benchmarks/`.
 Different numeric options produce different quantized body fingerprints, so the
 current transport comparator reports their individual costs without ranking
 W4A4 against W8A8.
@@ -90,8 +77,10 @@ Remove `--dry-run` to execute the compiled model locally. Repeating the target
 alongside `qwen-prepared-cpu-4.yaml` uses the existing exact body-fingerprint,
 token-count and warm-state comparison gates; it does not certify matching
 generated selections, cold model distribution or full network/compute costs.
-The separate two-worker offset research driver above is not yet a selectable
-Experiment.
+Add `qwen-offset-cpu-4.yaml` to the same command to measure the two-worker
+protocol with the identical W8A8 checkpoint and prompt cohort. A checked
+generated tiny-checkpoint regression exercises all three Experiments through
+this benchmark path with matching body fingerprints and token counts.
 
 ## Compare numeric quality
 

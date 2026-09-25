@@ -73,7 +73,7 @@ class OTelStore:
         self._spans: deque[dict[str, Any]] = deque(maxlen=300)
         self._protocol_spans: deque[dict[str, Any]] = deque(maxlen=65_536)
         self._protocol_sequence = 0
-        self._run_windows: dict[str, dict[str, dict[str, float | None]]] = {}
+        self._run_windows: dict[str, dict[str, Any]] = {}
 
     def _has_metric(self, service: str, name: str) -> bool:
         return any(metric_name == name for metric_name, _attrs in self._metrics.get(service, {}))
@@ -191,9 +191,14 @@ class OTelStore:
 
     def snapshot(self, protocol_after: int = 0) -> dict[str, Any]:
         with self._lock:
+            names = {"pllm-client", "pllm-preparation", "pllm-inference"}
+            names.update(
+                service for service in self._metrics
+                if service in {"pllm-worker_a", "pllm-worker_b"}
+            )
             services = {
                 name: {**self._service_values(name), "history": list(self._history.get(name, ()))}
-                for name in ("pllm-client", "pllm-preparation", "pllm-inference")
+                for name in sorted(names)
             }
             traffic: dict[str, float] = defaultdict(float)
             operations = 0.0
@@ -228,12 +233,15 @@ class OTelStore:
         with self._lock:
             return self._protocol_sequence
 
-    def begin_run_window(self, run_id: str) -> None:
+    def begin_run_window(
+        self, run_id: str, *, roles: tuple[str, ...] = ("client", "preparation", "inference"),
+    ) -> None:
         with self._lock:
             if run_id in self._run_windows:
                 raise RuntimeError("OTel run window already exists")
-            services = ("pllm-client", "pllm-preparation", "pllm-inference")
+            services = tuple(f"pllm-{role}" for role in roles)
             self._run_windows[run_id] = {
+                "roles": {role: f"pllm-{role}" for role in roles},
                 "cpu_baselines": {
                     service: self._service_values(service)["cpu_seconds"] for service in services
                 },
@@ -249,11 +257,7 @@ class OTelStore:
             if window is None:
                 return {}
             result: dict[str, dict[str, float | int | None]] = {}
-            for role, service in (
-                ("client", "pllm-client"),
-                ("preparation", "pllm-preparation"),
-                ("inference", "pllm-inference"),
-            ):
+            for role, service in window["roles"].items():
                 values = self._service_values(service)
                 baseline_cpu = window["cpu_baselines"].get(service)
                 current_cpu = values["cpu_seconds"]
@@ -313,6 +317,7 @@ class _RunCapture:
     inventory_consumed_before: int = 0
     inventory_burned_before: int = 0
     process_metrics: dict[str, dict[str, float | int | None]] = field(default_factory=dict)
+    worker_metrics_before: dict[str, dict[str, int | None]] | None = None
     preparation_started_monotonic_ns: int | None = None
     preparation_finished_monotonic_ns: int | None = None
     online_started_monotonic_ns: int | None = None
@@ -392,6 +397,12 @@ class DashboardRuntime:
                 None if self._initial_preparation_audit is None
                 else dict(self._initial_preparation_audit)
             )
+
+    def client_model_ownership(self) -> dict[str, int | None] | None:
+        topology = self._topology
+        if topology is None or topology.statuses:
+            return None
+        return topology.client_model_ownership()
 
     def _services_healthy(self) -> bool:
         topology = getattr(self, "_topology", None)
@@ -526,8 +537,9 @@ class DashboardRuntime:
             await asyncio.to_thread(self._topology.start)
             client_options: dict[str, Any] = {"timeout": 300}
             if self._topology.statuses:
+                client_options["bundle_cache_dir"] = root / "bundle-cache"
+            if self._topology.requires_preparation:
                 client_options.update(
-                    bundle_cache_dir=root / "bundle-cache",
                     prepared_inventory_rows=self._inventory_rows,
                     background_inventory_refill=False,
                 )
@@ -596,7 +608,17 @@ class DashboardRuntime:
                 started_monotonic_ns=started_monotonic_ns,
                 protocol_start_cursor=self.store.protocol_cursor(),
             )
-            self.store.begin_run_window(run_id)
+            if self._topology is not None and {
+                status.role for status in self._topology.statuses
+            } == {"worker_a", "worker_b"}:
+                try:
+                    capture.worker_metrics_before = self._topology.worker_process_metrics()
+                except (httpx.HTTPError, ValueError, RuntimeError):
+                    capture.worker_metrics_before = None
+            roles = ("client", *(
+                status.role for status in self._topology.statuses
+            )) if self._topology is not None else ("client",)
+            self.store.begin_run_window(run_id, roles=roles)
             self._has_started_run = True
             self._active_run = capture
             self._state.update(
@@ -899,6 +921,26 @@ class DashboardRuntime:
             capture.process_metrics = self.store.finish_run_window(capture.run_id)
             if self._topology is not None and not self._topology.requires_preparation:
                 capture.process_metrics.pop("preparation", None)
+            if self._topology is not None and {
+                status.role for status in self._topology.statuses
+            } == {"worker_a", "worker_b"}:
+                try:
+                    after = self._topology.worker_process_metrics()
+                except (httpx.HTTPError, ValueError, RuntimeError):
+                    after = {}
+                for role in ("worker_a", "worker_b"):
+                    before_value = (capture.worker_metrics_before or {}).get(role, {})
+                    after_value = after.get(role, {})
+                    before_cpu = before_value.get("cpu_ns")
+                    after_cpu = after_value.get("cpu_ns")
+                    capture.process_metrics[role] = {
+                        "cpu_seconds": (
+                            max(0.0, (after_cpu - before_cpu) / 1_000_000_000)
+                            if before_cpu is not None and after_cpu is not None
+                            and after_cpu >= before_cpu else None
+                        ),
+                        "rss_peak_bytes": after_value.get("peak_rss_bytes"),
+                    }
         except Exception as telemetry_error:
             capture.process_metrics = {}
             if display_error is None:

@@ -2,6 +2,9 @@
 
 import asyncio
 import json
+import os
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -9,6 +12,9 @@ import httpx
 import numpy as np
 
 import pllm
+from pllm.configuration import Pipeline
+from pllm.profiles import TwoOnlineOffsetCpu
+from pllm.quantization import SymmetricPerRow
 from pllm.roles import two_online_reference_graph
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
@@ -17,6 +23,24 @@ from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+
+def test_worker_rejects_unbound_launch_before_checkpoint_load(tmp_path: Path) -> None:
+    environment = os.environ.copy()
+    environment["PLLM_OFFSET_WORKER_API_KEY"] = "test-key-" + "a" * 32
+    environment.pop("PLLM_OFFSET_EXPERIMENT_JSON", None)
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "pllm.runtime.offset_worker",
+            str(tmp_path / "missing-checkpoint"), "--model-id", "missing-model",
+            "--role", "worker_a", "--port", "45678", "--weight-bits", "8",
+            "--activation-bits", "8",
+        ],
+        env=environment, text=True, capture_output=True, timeout=15, check=False,
+    )
+    assert result.returncode == 2
+    assert "requires an immutable Experiment" in result.stderr
+    assert "missing-checkpoint" not in result.stderr
 
 
 def _fixture(tmp_path: Path):
@@ -46,6 +70,9 @@ def _session_body(compiled, role: str) -> dict[str, str | int]:
         "body_fingerprint": metadata["body_fingerprint"],
         "stage_commitment": metadata["seeded_stage_commitment"],
         "runtime_config_digest": metadata["runtime_config_digest"],
+        "composition_digest": Pipeline.from_spec(
+            json.loads(compiled._canonical_composition)
+        ).digest(),
     }
 
 
@@ -132,6 +159,27 @@ def test_offset_worker_rejects_forged_plan_role_and_shape_before_execution(
             metrics = await client.get("/v1/offset-reference/metrics", headers=headers)
             assert metrics.status_code == 200
             assert metrics.json()["cpu_ns"] > 0
+            descriptor = await client.get("/v1/runtime/models/offset-model", headers=headers)
+            assert descriptor.status_code == 200
+            assert descriptor.json()["runtime"]["client_runtime"] == "compiled_offset_v1"
+            assert (await client.get(
+                "/v1/runtime/models/offset-model/client-bundle",
+            )).status_code == 401
+            packed = await client.get(
+                "/v1/runtime/models/offset-model/client-bundle", headers=headers,
+            )
+            assert packed.status_code == 200
+            assert packed.headers["X-PLLM-Bundle-SHA256"] == descriptor.json()["client_bundle"]["sha256"]
+            offset_bundle = ClientBundle.unpack(packed.content)
+            assert offset_bundle.privacy["preprocessed"] is False
+            offset_plan = compiled._plan
+            assert compile_runtime_model(
+                offset_plan, offset_bundle,
+                composition=TwoOnlineOffsetCpu(
+                    pllm.Model("offset-model"),
+                    quantization=SymmetricPerRow(weight_bits=4, activation_bits=4),
+                ),
+            ).complete
             body = _session_body(compiled, "worker_a")
             for field, forged in (("role", "worker_b"), ("decoder_plan", "0" * 64),
                                   ("stage_commitment", "0" * 64),
@@ -150,6 +198,34 @@ def test_offset_worker_rejects_forged_plan_role_and_shape_before_execution(
             assert (await client.post(route, content=forged.pack(), headers=headers)).status_code == 400
             assert (await client.post(route, content=payload, headers=headers)).status_code == 409
             assert worker.models["offset-model"].stages[stage].calls == 0
+
+    asyncio.run(scenario())
+
+
+def test_experiment_bound_worker_rejects_other_composition(tmp_path: Path) -> None:
+    compiled, (worker, _) = _fixture(tmp_path)
+    composition = TwoOnlineOffsetCpu(
+        pllm.Model("offset-model"),
+        quantization=SymmetricPerRow(weight_bits=4, activation_bits=4),
+    )
+    token = "a" * 32
+
+    async def scenario() -> None:
+        app = create_offset_worker_app(
+            worker, model_id="offset-model", role_id="worker_a", api_key=token,
+            composition=composition,
+        )
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
+                                     base_url="http://worker.test") as client:
+            headers = {"authorization": f"Bearer {token}"}
+            body = _session_body(compiled, "worker_a")
+            assert (await client.post(
+                "/v1/offset-reference/sessions", json=body, headers=headers,
+            )).status_code == 409
+            body["composition_digest"] = composition.digest()
+            assert (await client.post(
+                "/v1/offset-reference/sessions", json=body, headers=headers,
+            )).status_code == 200
 
     asyncio.run(scenario())
 

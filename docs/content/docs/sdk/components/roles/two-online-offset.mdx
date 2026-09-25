@@ -1,0 +1,46 @@
+---
+title: "Two online offset workers"
+description: "Select the additive two-worker role graph and understand its trust and measurement limits."
+---
+
+`TwoOnlineOffsetRoles` (`pllm/two-online-offset-workers/v1`) assigns compiled linear
+stages to two online workers. The trusted client sends fresh integer shares and
+reconstructs their separate outputs. Neither worker receives the complete
+activation under the intended non-colluding-operator assumption. The client
+retains token boundaries, nonlinear operations, attention and KV state.
+
+Use `TwoOnlineOffsetCpu` to pair this topology with the matching linear protocol
+and native kernel. The local gateway and benchmark driver start two authenticated
+worker **processes on one machine**; they cannot certify independent ownership
+or non-collusion. A deployment must verify operator separation before making a
+multi-party privacy claim. The benchmark counts covered HTTP application bodies
+and run-window CPU, not complete wire bytes, checkpoint distribution or cold
+aggregate compute. Its full-response compute-cap result remains unchecked.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.profiles import TwoOnlineOffsetCpu
+from pllm.roles import TwoOnlineOffsetRoles
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="two-online-offset-example",
+    pipeline=TwoOnlineOffsetCpu(TinyModel(model_id="two-online-offset-example")),
+    deployment=Deployment.local(root="local://two-online-offset-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+)
+graph = experiment.resolve().role_graph
+assert graph is not None
+assert set(role.id for role in graph.roles) == {"client", "worker_a", "worker_b"}
+assert experiment.pipeline.components["topology"] == TwoOnlineOffsetRoles()
+```
+
+Run from the repository root. For actual serving and measurement use
+[`pllm gateway --local`](/cli/reference/gateway/) and
+[`pllm benchmark run --experiment`](/cli/benchmarking/) with the
+[checked-in Experiment](/sdk/topologies/options/).
+
+API: [pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures),
+[pllm.profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures).

@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import pllm
 from pllm.modeling import ModelPlan
-from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
+from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu, TwoOnlineOffsetCpu
 from pllm.quantization import SymmetricPerRow
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import (
@@ -57,7 +57,7 @@ def test_compiled_client_only_session_matches_masked_stage_numeric_path(
     manifest = load_hf_directory(checkpoint, model_id=model_id)
     engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
     asyncio.run(engine.load(manifest))
-    client_bundle = ClientBundle.unpack(engine.client_bundle(model_id, client_owned=True))
+    client_bundle = ClientBundle.unpack(engine.client_bundle(model_id, placement="client"))
     provider_bundle = ClientBundle.unpack(engine.client_bundle(model_id))
     plan = _plan(json.loads((checkpoint / "config.json").read_text()), max_input_tokens=4)
     composition = ClientOnlyCpu(
@@ -106,11 +106,42 @@ def test_client_only_binding_rejects_provider_bundle_and_mismatched_kernel(tmp_p
     composition = ClientOnlyCpu(pllm.Model("tiny-binding"))
     with pytest.raises(RuntimeBindingError, match="preprocessing"):
         compile_runtime_model(_plan(config), provider_bundle, composition=composition)
-    client_bundle = ClientBundle.unpack(engine.client_bundle("tiny-binding", client_owned=True))
+    client_bundle = ClientBundle.unpack(engine.client_bundle("tiny-binding", placement="client"))
     compiled = compile_runtime_model(_plan(config), client_bundle, composition=composition)
     wrong = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
     with pytest.raises(RuntimeBindingError, match="no loaded checkpoint"):
         compiled.client_linear_executor(wrong)
+
+
+@pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+def test_offset_bundle_requires_an_authenticated_two_worker_session(
+    tmp_path: Path, model_type: str,
+) -> None:
+    checkpoint = create_tiny_llama_checkpoint(
+        tmp_path / "model", model_type=model_type,
+        with_qkv_bias=model_type == "qwen2", qk_norm=model_type == "qwen3",
+    )
+    model_id = "offset-bound-checkpoint"
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(load_hf_directory(checkpoint, model_id=model_id)))
+    composition = TwoOnlineOffsetCpu(pllm.Model(model_id))
+    plan = _plan(json.loads((checkpoint / "config.json").read_text()), max_input_tokens=2,
+                 max_new_tokens=2)
+    bundle = ClientBundle.unpack(engine.client_bundle(model_id, placement="offset"))
+    compiled = compile_runtime_model(plan, bundle, composition=composition)
+    assert compiled.complete
+    assert any(
+        stage["executor"] == "remote_stage"
+        for stage in plan.runtime_schedule(composition).to_dict()["prefill"]["steps"]
+    )
+    with pytest.raises(RuntimeBindingError, match="authenticated two-worker session"):
+        compiled.session(_remote(engine, model_id, bundle))
+    with pytest.raises(RuntimeBindingError, match="topology"):
+        compile_runtime_model(plan, bundle, composition=ClientOnlyCpu(pllm.Model(model_id)))
+    with pytest.raises(RuntimeBindingError, match="topology"):
+        compile_runtime_model(
+            plan, ClientBundle.unpack(engine.client_bundle(model_id)), composition=composition,
+        )
 
 
 def _remote(engine: MaskedTransformerEngine, model_id: str, bundle: ClientBundle):

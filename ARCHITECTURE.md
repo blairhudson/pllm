@@ -254,7 +254,7 @@ prefill/decode matches the existing masked-stage numeric path. It records both
 logical client/worker serialized stage bodies, integer matrix operations and
 provider-stage times. Both workers still share one process; these figures omit
 HTTP/TLS, cross-host traffic, setup and aggregate client compute. This reference
-is not an executable Experiment option or independent-party privacy evidence.
+is not itself the executable Experiment option or independent-party privacy evidence.
 `TwoOnlineOffsetTransport` can additionally run the same compiled decoder on
 two separately hosted loopback HTTP worker processes. Each worker re-lowers the
 plan, verifies body, stage and graph commitments, requires a distinct bearer
@@ -283,8 +283,16 @@ counts are now separate from online run counters; neither report measures
 full wire traffic, both-worker checkpoint distribution or cold aggregate
 compute. Both the local kernel and the child workers pin W8A8 explicitly:
 `MaskedTransformerEngine()` alone defaults to W4A4, which has a different body
-fingerprint and cannot enter this comparison. This remains an internal research
-two-worker protocol, not a selectable Experiment or `pllm serve` topology.
+fingerprint and cannot enter this comparison. The benchmarkable
+`TwoOnlineOffsetCpu` composition now selects the two-worker protocol through
+the same native compiled schedule, topology role supervisor, SDK client,
+gateway and `benchmark run` path as the prepared and client-only compositions.
+Each worker re-lowers the selected composition and the client binds its
+token-boundary bundle before opening two authenticated one-use sessions.
+Run-window application bodies and authenticated CPU samples appear in the
+ordinary topology ledger. Co-located workers remain ineligible for an
+independent-provider privacy claim; full-response compute-cap validation
+remains open.
 
 The same bounded diagnostic uses client-only clear W8A8 execution as its
 single-party comparator: one body matrix operation per stage, no online
@@ -323,7 +331,8 @@ at the repository root.
 `pllm.runtime.build_roles` constructs the selected loopback role topology used by
 `gateway --local`, the development dashboard, and the benchmark driver. The
 client-only graph keeps model weights and computation in the client without child
-providers; the prepared graph starts Inference and Preparation as separate
+providers; the two-worker offset graph starts one process per worker; the
+prepared graph starts Inference and Preparation as separate
 child processes, keeps generated credentials
 in environment variables rather than argv or status records, binds health-checked
 URLs to client/gateway factories, and owns process-group shutdown. The benchmark

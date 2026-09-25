@@ -108,7 +108,35 @@ class ClientOnlyRoles(RoleTopology):
         return cls.descriptor
 
 
+class TwoOnlineOffsetRoles(RoleTopology):
+    """Two online public-weight workers whose operator independence needs evidence."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/two-online-offset-workers/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/role-topology",
+        category_version="1",
+        lifecycle_phase="online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("two-online-public-linear", "separate-worker-operators-required"),
+        role_eligibility=("client", "worker_a", "worker_b"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 __all__ = [
     "Channel", "ClientOnlyRoles", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
-    "RoleTopology", "client_only_reference_graph", "two_online_reference_graph",
+    "RoleTopology", "TwoOnlineOffsetRoles", "client_only_reference_graph", "two_online_reference_graph",
 ]

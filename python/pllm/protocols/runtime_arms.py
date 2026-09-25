@@ -2,6 +2,34 @@ from pllm.configuration import ComponentDescriptor, ConfigurationError
 from pllm.protocols.base import ProtocolMethod
 
 
+class TwoOnlineOffsetLinear(ProtocolMethod):
+    """Two independently committed public linear workers receive fresh input shares."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/two-online-offset-linear/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/protocol-method",
+        category_version="1",
+        lifecycle_phase="online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("two-online-public-linear", "additive-input-shares"),
+        role_eligibility=("client", "worker_a", "worker_b"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class GuardedLinear(ProtocolMethod):
     __slots__ = ()
     descriptor = ComponentDescriptor(

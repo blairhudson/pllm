@@ -322,7 +322,10 @@ def test_runtime_persists_exact_sanitized_runs_and_recovers_after_failure(
         started=True,
         closed=False,
         requires_preparation=True,
-        statuses=(SimpleNamespace(running=True),),
+        statuses=(
+            SimpleNamespace(role="inference", running=True),
+            SimpleNamespace(role="preparation", running=True),
+        ),
     )
     runtime._state["phase"] = "ready"
     runtime._model_fingerprint = "a" * 64

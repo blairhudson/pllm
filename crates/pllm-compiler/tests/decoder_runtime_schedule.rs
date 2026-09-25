@@ -64,6 +64,40 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn two_online_offset_topology_binds_remote_stages_for_shared_decoder_operators() {
+    let composition = canonical_bytes(&json!({
+        "components": {
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/two-online-offset-linear/v1", "params": {}},
+            "topology": {"component": "pllm/two-online-offset-workers/v1", "params": {}},
+            "quantization": {"component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {"weight_bits": 8, "activation_bits": 8}}
+        },
+        "model": {"source": "model.fixture"}
+    }));
+    for config in [QWEN2, QWEN3, GEMMA4_E2B] {
+        let schedule = lower_decoder_runtime_schedule(&plan(config), &composition).unwrap();
+        assert_eq!(
+            schedule.composition_digest,
+            pipeline_digest_bytes(&composition)
+        );
+        for phase in [&schedule.prefill, &schedule.decode] {
+            assert!(phase
+                .steps
+                .iter()
+                .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+            assert!(phase
+                .steps
+                .iter()
+                .all(|step| step.executor != DecoderRuntimeExecutor::ClientLinear));
+        }
+    }
+    let mut invalid: serde_json::Value = serde_json::from_slice(&composition).unwrap();
+    invalid["components"]["topology"]["component"] = json!("pllm/client-only/v1");
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_err());
+}
+
+#[test]
 fn client_only_topology_places_all_linear_stages_with_the_client() {
     let composition = canonical_bytes(&json!({
         "components": {

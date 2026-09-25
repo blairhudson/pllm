@@ -1,0 +1,23 @@
+schema: pllm.experiment.v2
+name: qwen-offset-cpu-4
+pipeline:
+  model:
+    source: Qwen/Qwen2.5-0.5B-Instruct
+  components:
+    linear:
+      component: pllm/two-online-offset-linear/v1
+      params: {}
+    topology:
+      component: pllm/two-online-offset-workers/v1
+      params: {}
+    kernels:
+      component: pllm/cpu
+      params:
+        threads: 4
+deployment:
+  kind: local
+  root: .pllm/benchmarks/qwen-offset-cpu-4
+budget:
+  requests: 4
+  max_input_tokens: 128
+  max_new_tokens: 16

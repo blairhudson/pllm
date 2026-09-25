@@ -313,6 +313,15 @@ class CompiledRuntimeModel:
             type(remote) is not ClientLinearExecutor or remote._binding_digest != self._digest
         ):
             raise RuntimeBindingError("client-owned plan requires its bound local kernel")
+        if options is not None and options.client_runtime == "compiled_offset_v1":
+            from .offset_reference import TwoOnlineOffsetTransport
+
+            if (
+                type(remote) is not TwoOnlineOffsetTransport
+                or remote._compiled is not self
+                or remote._closed
+            ):
+                raise RuntimeBindingError("offset plan requires its authenticated two-worker session")
         schedule = self._plan.runtime_schedule(composition).to_dict()
         bindings = {
             operation: stage.stage_id
@@ -719,10 +728,11 @@ def compile_runtime_model(
 
     runtime_options = resolve_runtime_composition(composition)
     if runtime_options is None or runtime_options.client_runtime not in {
-        "masked_transformer_v1", "compiled_client_local_v1",
+        "masked_transformer_v1", "compiled_client_local_v1", "compiled_offset_v1",
     }:
         raise RuntimeBindingError("compiled runtime component composition is unsupported")
     client_owned = runtime_options.client_runtime == "compiled_client_local_v1"
+    offset_public = runtime_options.client_runtime == "compiled_offset_v1"
     if runtime_options.verification_component is not None:
         raise RuntimeBindingError(
             "compiled runtime does not yet accept a verifier-bound remote executor"
@@ -871,9 +881,9 @@ def compile_runtime_model(
         raise RuntimeBindingError("model plan position bounds exceed the bundle context")
 
     privacy = bundle.privacy if isinstance(bundle.privacy, dict) else {}
-    if privacy.get("mode") != "public":
-        raise RuntimeBindingError("client bundle privacy mode must be public")
-    if bool(privacy.get("preprocessed")) == client_owned:
+    if privacy.get("mode") != ("offset_public" if offset_public else "public"):
+        raise RuntimeBindingError("client bundle privacy mode differs from its topology")
+    if privacy.get("preprocessed") is not (not client_owned and not offset_public):
         raise RuntimeBindingError("client bundle preprocessing does not match the role topology")
     if not privacy.get("client_intermediate_activations"):
         raise RuntimeBindingError("client bundle must keep intermediate activations local")
@@ -889,7 +899,10 @@ def compile_runtime_model(
         raise RuntimeBindingError("client bundle bit widths must be in [2, 8]")
     expected_protocol = (
         f"local_clear_w{weight_bits}a{activation_bits}"
-        if client_owned else f"masked_w{weight_bits}a{activation_bits}"
+        if client_owned else (
+            f"two_online_offset_w{weight_bits}a{activation_bits}"
+            if offset_public else f"masked_w{weight_bits}a{activation_bits}"
+        )
     )
     if privacy.get("protocol") != expected_protocol:
         raise RuntimeBindingError("client bundle protocol differs from the composed topology")
@@ -954,12 +967,12 @@ def compile_runtime_model(
     manifest_metadata = manifest.get("metadata")
     if not isinstance(manifest_metadata, dict):
         raise RuntimeBindingError("bundle manifest is missing metadata")
-    if client_owned and (
-        manifest_metadata.get("client_runtime") != "compiled_client_local_v1"
-        or manifest_metadata.get("privacy_mode") != "client_only"
+    if (client_owned or offset_public) and (
+        manifest_metadata.get("client_runtime") != runtime_options.client_runtime
+        or manifest_metadata.get("privacy_mode") != runtime_options.privacy_mode
         or manifest_metadata.get("privacy_protocol") != expected_protocol
     ):
-        raise RuntimeBindingError("client-owned manifest lacks the compiled topology contract")
+        raise RuntimeBindingError("manifest lacks the compiled topology contract")
     if manifest_metadata.get("runtime_config_digest") != runtime_config_digest:
         raise RuntimeBindingError("client runtime config does not match its manifest commitment")
     if any(

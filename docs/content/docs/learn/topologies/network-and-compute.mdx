@@ -15,7 +15,7 @@ Cold acquisition of the checkpoint can still require a large download; the
 client must retain its weights on disk and hold its quantized working set in
 memory. Its prompt privacy needs no remote non-collusion or TEE assumption.
 
-The proposed compute comparator is two **online** inference servers: the
+The compute comparator uses two **online** inference workers: the
 client splits each integer stage input into fresh additive shares, each server
 performs one matching matrix operation, and the client reconstructs before its
 local operators. Both matrix operations, client work and any setup count. A
@@ -24,88 +24,41 @@ constraint can cover online work or the full response with honestly amortized
 preprocessing. CPU and GPU work need measured, hardware-matched accounting;
 adding unlike resource units into one unexplained score is not a comparison.
 
-A bounded in-process reference exercises that split through the same compiled
-tiny Qwen2/Qwen3 prefill/decode path. It records two logical workers' serialized
-stage bodies and integer matrix operations. Both workers still run in one
-process; these are **not** deployed network bytes, independent operators or
-full-response aggregate compute measurements.
+The [client-only, two-worker and prepared options](/sdk/topologies/options/)
+are selectable `Experiment` compositions. The ordinary gateway and
+[`benchmark run`](/cli/benchmarking/) use the same native semantic schedule
+and runtime driver. In the two-worker graph, separate authenticated processes
+re-lower and check the compiled plan, body and stage commitments. The client
+gives each a fresh stage share. A checked tiny Qwen2/Qwen3 prefill-to-decode
+session matches the masked integer stage path's logits and selected tokens;
+the W8A8 client-owned path likewise matches the prepared stage results. This
+is bounded execution evidence, not independently operated provider privacy.
 
-The reproducible tiny diagnostic runs the exact same W8A8 checkpoint and
-prefill/decode token cohort through client-only native stages and two
-additive-share stage calls. Each one-layer Qwen2/Qwen3 run has eight body
-stages: 27,648 integer multiply-accumulates client-only and 55,296 across
-both logical workers. Three local runs per adapter selected identical tokens,
-with no logit difference; the two-worker serialization totaled roughly
-17.3 KB per run. These are
-**stage-body** bytes, not wire bytes or full-model evidence. To reproduce the
-Qwen2 diagnostic from the repository root:
+A three-Experiment tiny Qwen2 benchmark regression binds **one W8A8 body
+fingerprint** and matching input/output token counts across client-only,
+two-worker and prepared runs. The role-graph ledger records zero provider-body
+bytes for client-only, per-worker stage/setup/teardown application bodies for
+the two-worker path, and prepared startup and per-run bodies separately. It
+also records run-window CPU for the client and both offset workers when
+authenticated samples exist. The prepared path's generated selections are
+**not** compared, so matching body and counts are not a model-quality proof.
+Unmeasured HTTP/TLS frames, checkpoint distribution, cold setup CPU and
+incomplete control traffic prevent a total-network winner or full-response
+compute-cap finding. Two loopback workers share one operator and fail the
+independent-operator privacy condition.
 
-```bash
-uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3
-```
-
-The additional loopback diagnostic runs the same compiled plan on **two
-separate worker processes** with distinct credentials. Each re-lowers the
-semantic plan, binds its role and stage inventory, and rejects replay. In three
-checked runs per tiny Qwen2 and Qwen3 decoder, client-only and two-worker
-selected tokens and logits again matched exactly; two-worker session admission,
-stages and completion transferred 19,398 HTTP **application-body** bytes per
-run, including 17,272 packed stage-body bytes. The process-CPU sample now
-includes client plus both workers over the online run window, and the report
-gives each worker's lifetime peak RSS. The processes still share one operator.
-HTTP headers/TLS, model distribution, client peak memory, worker startup and
-cold-preparation CPU, and full-response compute are not measured.
-
-```bash
-uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3 --offset-backend loopback
-```
-
-The analogous checked Qwen3 run uses `--model-type qwen3`. Reports include
-only plan identifiers, counts and aggregate values, not prompts or token IDs.
-The checkpoint-artifact and quantized-weight byte counts describe the tiny
-client-only fixture; peak memory and cold checkpoint **transfer** are left
-unmeasured rather than assumed zero. Client-only online provider bytes are zero.
-
-Current public prepared inference instead uses one online provider plus
-offline correction generation. A second checked tiny Qwen2/Qwen3 cohort
-uses **one W8A8 body fingerprint**, 21 tokens from the normal client-rendered
-chat prompt, and two generated tokens for all three paths. Across three runs
-per family, client-only uses 202,752 integer body MACs and zero online provider
-bytes; two online workers use 405,504 body MACs and 67,442 HTTP application-body
-bytes per response, compared with 31,574 recorded **online body** bytes for
-the prepared path. Client-only and offset logits and selections match. The
-prepared path matches the body and token counts, but its generated selections
-were **not compared**. The separate startup ledger counts 72,842 bytes for
-Qwen2 (72,664 for Qwen3) to issue initial inventory and deliver the public
-client bundle; an idle refill adds 51,581 more bytes over three responses.
-Including those recorded bodies, the three-response totals are 219,145/218,967
-prepared bytes versus 202,326 two-worker bytes. Headers/TLS, correction
-acknowledgements and checkpoint distribution to the two workers remain
-unmeasured, so these are **not** total-network winner figures. The
-engine constructor defaults to W4A4, so this diagnostic sets W8A8 on all
-three paths and rejects differing body fingerprints before reporting a match.
-Reproduce the same checkpoint and chat-token cohort:
-
-```bash
-uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --cohort chat --include-prepared --offset-backend loopback --repeats 3
-```
-
-Client-only execution is also a selectable `ClientOnlyCpu` Experiment under
-the [same SDK topology contract](/sdk/topologies/options/), gateway and
-`benchmark run` driver. This is a distinct check from the two-worker research
-driver above: its compiled linear stages and checkpoint weights stay on the
-client, and the benchmark records zero inference-provider link bodies while
-leaving model distribution and application HTTP unmeasured. An exact
-body-fingerprint, input/output-count and warm-state gate admits a comparison
-with the prepared Experiment; selecting the same tokens still needs separate
-evidence.
+Reproduce the comparison against the same public Qwen checkpoint with the
+[three checked-in Experiments](/cli/benchmarking/). For a cost-free inspection,
+add `--dry-run` to the command. For a bounded generated-checkpoint regression,
+the test suite builds one tiny checkpoint and executes the same
+`run_loopback_benchmark` driver on all three Experiments.
 
 Gemma E2B's pinned W8A8 client bundle alone
 measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
 warm-token results. Search over new topology choices and per-edge objective
 selection remain planned. The [existing benchmark](/cli/benchmarking/) selects
-client-only and prepared Experiments but does not select the two-worker
-research topology or rank unqualified network/compute objectives.
+all three CPU topologies but does not rank unqualified network/compute
+objectives or establish deployed privacy.
 
 It now records a partial **per-link stage-body ledger** for the current
 prepared graph. One checked, single-host `benchmark run --tiny` response with
@@ -115,4 +68,4 @@ Preparation-to-Inference correction push. That run's client bundle was fetched
 before its capture window; its zero recorded cold-bundle delta is **not** zero
 cold traffic. HTTP/TLS framing, control and acknowledgment traffic, complete
 client work, and provider setup are not measured in these figures, and the
-generated checkpoint differs from the matched local offset diagnostic above.
+generated checkpoint differs from the matched three-topology regression above.

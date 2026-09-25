@@ -252,6 +252,7 @@ class ClientBundle:
             in {
                 "masked_transformer",
                 "client_local_transformer",
+                "two_online_offset_transformer",
                 "direct_fhe_transformer",
                 "blinded_ole_transformer",
                 "guarded_blinded_transformer",
@@ -267,6 +268,7 @@ class ClientBundle:
             in {
                 "masked_transformer",
                 "client_local_transformer",
+                "two_online_offset_transformer",
                 "direct_fhe_transformer",
                 "blinded_ole_transformer",
                 "guarded_blinded_transformer",
@@ -325,7 +327,9 @@ class ClientBundle:
             client_weight_layout = "linear"
             weight_row = row.get("client_weight")
             if weight_row is not None:
-                if privacy.get("mode") != "public" or stage_id not in {"token_lookup", "lm_head"}:
+                if privacy.get("mode") not in {"public", "offset_public"} or stage_id not in {
+                    "token_lookup", "lm_head",
+                }:
                     raise TransformerClientError(
                         "client stage weights require public boundary stages"
                     )

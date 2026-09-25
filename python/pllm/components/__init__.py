@@ -28,8 +28,8 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     from pllm.passes import KvCacheEviction
     from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
     from pllm.quantization import SymmetricPerRow
-    from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
-    from pllm.roles import ClientOnlyRoles, Inference, PreparedProviderRoles
+    from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear, TwoOnlineOffsetLinear
+    from pllm.roles import ClientOnlyRoles, Inference, PreparedProviderRoles, TwoOnlineOffsetRoles
     from pllm.schedulers import (
         BoundedIndependentElementsProtectedTensorSchedule,
         ChunkedIndependentLanesProtectedTensorSchedule,
@@ -47,7 +47,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
         KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
         Perplexity, PreparedProviderRoles, R03CrtGatedMultiplyQ7, ReferenceAgreement, ScalarProtectedTensorSchedule, SeededExpansion,
-        SecureLinear, SymmetricPerRow, Throughput,
+        SecureLinear, SymmetricPerRow, Throughput, TwoOnlineOffsetLinear, TwoOnlineOffsetRoles,
     )
     if len({component.describe().component for component in classes}) != len(classes):
         raise RuntimeError("built-in component identities must be unique")

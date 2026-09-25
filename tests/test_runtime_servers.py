@@ -118,7 +118,7 @@ def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> No
 )
 def test_proprietary_profiles_build_one_role_commands(pipeline, protocol: str) -> None:
     topology = build_roles(pipeline)
-    commands = topology._commands(9101, 0)
+    commands = topology._commands({"inference": 9101})
     assert set(commands) == {"inference"}
     command = commands["inference"]
     assert command[1:5] == ["-m", "pllm", "serve", "inference"]
@@ -139,7 +139,7 @@ def test_guarded_profile_maps_exact_policy_flags() -> None:
             output_dither_bound=4,
         ),
     )
-    command = build_roles(pipeline)._commands(9101, 0)["inference"]
+    command = build_roles(pipeline)._commands({"inference": 9101})["inference"]
     for flag, value in (
         ("--guard-max-rows-per-request", "11"),
         ("--guard-max-rows-per-stage", "22"),

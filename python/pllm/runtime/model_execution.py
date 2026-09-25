@@ -194,8 +194,15 @@ class CompiledRuntimeSession:
         self._logrow_step = 0
         self._research_execution_digest = research_digest
         try:
+            from .offset_reference import TwoOnlineOffsetTransport
+
+            if logrow is not None and type(remote) is TwoOnlineOffsetTransport:
+                raise RuntimeExecutionError("bounded LogRow cannot be composed with an offset session")
             self._runtime = (
-                compiled.runtime(remote if type(remote) is ClientLinearExecutor else bound_remote)
+                compiled.runtime(
+                    remote if type(remote) in {ClientLinearExecutor, TwoOnlineOffsetTransport}
+                    else bound_remote
+                )
                 if logrow is None
                 else compiled._runtime_with_nonlinear(bound_remote, self._evaluate_logrow)
             )

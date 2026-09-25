@@ -107,7 +107,9 @@ class LocalTopology:
         "_rendezvous_capacity",
         "_rendezvous_max_bytes",
         "_reserved_ports",
+        "_role_credentials",
         "_role_ids",
+        "_role_urls",
         "_started",
         "_starting",
         "_startup_timeout",
@@ -162,6 +164,8 @@ class LocalTopology:
         self._privacy_mode = privacy_mode
         self._proprietary_protocol = proprietary_protocol
         self._role_ids = role_ids
+        self._role_credentials: dict[str, str] = {}
+        self._role_urls: dict[str, str] = {}
         self._local_engine: Any | None = None
         self._requires_preparation = requires_preparation
         self._guard_max_rows_per_request = guard_max_rows_per_request
@@ -214,6 +218,72 @@ class LocalTopology:
             raise TopologyError("local topology has not started")
         return self._preparation_url
 
+    def worker_connections(self) -> dict[str, tuple[str, str]]:
+        if set(self._role_ids) != {"worker_a", "worker_b"} or not self.is_healthy():
+            raise TopologyError("two-worker topology is not running")
+        return {
+            role: (self._role_urls[role], self._role_credentials[role])
+            for role in self._role_ids
+        }
+
+    def worker_process_metrics(self) -> dict[str, dict[str, int | None]]:
+        """Read authenticated in-process clocks; missing samples are never zero-filled."""
+        connections = self.worker_connections()
+        result: dict[str, dict[str, int | None]] = {}
+        for role, (url, key) in connections.items():
+            response = httpx.get(
+                f"{url}/v1/offset-reference/metrics",
+                headers={"authorization": f"Bearer {key}"}, timeout=2.0,
+            )
+            response.raise_for_status()
+            value = response.json()
+            if (
+                type(value) is not dict
+                or value.get("schema") != "pllm.offset_worker_process_metrics.v1"
+                or type(value.get("cpu_ns")) is not int or value["cpu_ns"] < 0
+                or (value.get("peak_rss_bytes") is not None and (
+                    type(value["peak_rss_bytes"]) is not int or value["peak_rss_bytes"] < 0
+                ))
+            ):
+                raise TopologyError("offset worker process metrics are malformed")
+            result[role] = {
+                "cpu_ns": value["cpu_ns"], "peak_rss_bytes": value["peak_rss_bytes"],
+            }
+        return result
+
+    def client_model_ownership(self) -> dict[str, int | None]:
+        """Snapshot checkpoint storage and distinct loaded weight/local arrays."""
+        if self._role_ids or not self.is_healthy() or self._local_engine is None:
+            raise TopologyError("client-owned model is not loaded")
+        loaded = self._local_engine._model(self._model_id)
+        try:
+            artifact_bytes = sum(
+                item.stat().st_size for item in loaded.store.root.iterdir()
+                if item.is_file()
+            )
+        except OSError:
+            artifact_bytes = None
+        seen: set[tuple[int, int]] = set()
+        loaded_bytes = 0
+        arrays = [
+            array
+            for stage in loaded.stages.values()
+            for array in (stage.weight.values, stage.weight.scales, stage.bias)
+            if array is not None
+        ]
+        arrays.extend(loaded.local_tensors.values())
+        for array in arrays:
+            key = (int(array.__array_interface__["data"][0]), int(array.nbytes))
+            if key not in seen:
+                seen.add(key)
+                loaded_bytes += key[1]
+        return {
+            "checkpoint_artifact_bytes": artifact_bytes,
+            "loaded_weight_and_local_tensor_bytes": loaded_bytes,
+            "cold_checkpoint_transfer_bytes": None,
+            "client_peak_memory_bytes": None,
+        }
+
     @property
     def started(self) -> bool:
         return self._started
@@ -230,11 +300,13 @@ class LocalTopology:
     def statuses(self) -> tuple[RoleStatus, ...]:
         with self._process_lock:
             processes = dict(self._processes)
-        roles = tuple(role for role in ("inference", "preparation") if role in self._role_ids)
+        roles = tuple(role for role in ("inference", "preparation", *self._role_ids)
+                      if role in self._role_ids)
+        roles = tuple(dict.fromkeys(roles))
         return tuple(
             RoleStatus(
                 role=role,
-                url=self._inference_url if role == "inference" else self._preparation_url,
+                url=self._role_urls.get(role, ""),
                 pid=None if process is None else process.pid,
                 running=process is not None and process.poll() is None,
             )
@@ -284,7 +356,22 @@ class LocalTopology:
             options.extend(("--hf-cache-dir", self._hf_cache_dir))
         return options
 
-    def _commands(self, inference_port: int, preparation_port: int) -> dict[str, list[str]]:
+    def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
+        if set(self._role_ids) == {"worker_a", "worker_b"}:
+            if self._model.kind != "huggingface" or not Path(self._model.source).is_dir():
+                raise TopologyError("offset workers require a locally resolved checkpoint")
+            return {
+                role: [
+                    sys.executable, "-m", "pllm.runtime.offset_worker",
+                    self._model.source, "--model-id", self._model_id,
+                    "--role", role, "--port", str(ports[role]),
+                    "--weight-bits", str(self._weight_bits),
+                    "--activation-bits", str(self._activation_bits),
+                ]
+                for role in self._role_ids
+            }
+        inference_port = ports["inference"]
+        preparation_port = ports.get("preparation", 0)
         common = [sys.executable, "-m", "pllm", "serve"]
         model = self._model_options()
         verification = [
@@ -345,6 +432,16 @@ class LocalTopology:
         return {"inference": inference, "preparation": preparation}
 
     def _environment(self, role: str) -> dict[str, str]:
+        if role in {"worker_a", "worker_b"}:
+            environment = {
+                name: value for name, value in os.environ.items()
+                if name in {"HOME", "PATH", "VIRTUAL_ENV", "PYTHONPATH", "TMPDIR", "LANG",
+                            "SSL_CERT_FILE", "SSL_CERT_DIR", "DYLD_LIBRARY_PATH"}
+            }
+            environment["PLLM_OFFSET_WORKER_API_KEY"] = self._role_credentials[role]
+            assert self._experiment is not None
+            environment["PLLM_OFFSET_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+            return environment
         environment = os.environ.copy()
         if role == "inference":
             environment["PLLM_API_KEY"] = self._inference_key
@@ -401,7 +498,8 @@ class LocalTopology:
             text = path.read_text(errors="replace")[-4000:]
         except OSError:
             return ""
-        for secret in (self._inference_key, self._preparation_key, self._push_key):
+        for secret in (self._inference_key, self._preparation_key, self._push_key,
+                       *self._role_credentials.values()):
             if secret:
                 text = text.replace(secret, "<redacted>")
         return re.sub(
@@ -476,28 +574,42 @@ class LocalTopology:
                     self._started = True
                     self._starting = False
                 return self
+            if set(self._role_ids) == {"worker_a", "worker_b"} and (
+                self._model.kind != "huggingface" or not Path(self._model.source).is_dir()
+            ):
+                from pllm.model_loader import resolve_model
+
+                source = resolve_model(self._model, cache_dir=self._hf_cache_dir)
+                if source.path is None:
+                    raise TopologyError("offset worker source did not resolve to a local checkpoint")
+                self._model = Model.path(str(source.path), model_id=self._model_id)
             excluded = set(self._reserved_ports)
-            inference_port = self._free_port(excluded)
-            excluded.add(inference_port)
-            preparation_port = self._free_port(excluded) if self._requires_preparation else 0
-            self._inference_url = f"http://127.0.0.1:{inference_port}"
-            self._preparation_url = (
-                f"http://127.0.0.1:{preparation_port}" if self._requires_preparation else ""
-            )
+            ports: dict[str, int] = {}
+            for role in self._role_ids:
+                port = self._free_port(excluded)
+                excluded.add(port)
+                ports[role] = port
+            self._role_urls = {
+                role: f"http://127.0.0.1:{port}" for role, port in ports.items()
+            }
+            self._inference_url = self._role_urls.get("inference", "")
+            self._preparation_url = self._role_urls.get("preparation", "")
             used: set[str] = set()
-            self._inference_key = self._credential(used)
-            self._preparation_key = self._credential(used) if self._requires_preparation else ""
+            self._role_credentials = {
+                role: self._credential(used) for role in self._role_ids
+            }
+            self._inference_key = self._role_credentials.get("inference", "")
+            self._preparation_key = self._role_credentials.get("preparation", "")
             self._push_key = self._credential(used) if self._requires_preparation else ""
-            commands = self._commands(inference_port, preparation_port)
-            if self._progress is not None:
-                self._progress("inference")
-            self._spawn("inference", commands["inference"])
-            self._wait("inference", "inference", self._inference_url)
-            if self._requires_preparation:
+            commands = self._commands(ports)
+            for role in self._role_ids:
                 if self._progress is not None:
-                    self._progress("preparation")
-                self._spawn("preparation", commands["preparation"])
-                self._wait("preparation", "trusted-preparation", self._preparation_url)
+                    self._progress(role)
+                self._spawn(role, commands[role])
+                expected = "trusted-preparation" if role == "preparation" else (
+                    "offset-worker" if role in {"worker_a", "worker_b"} else "inference"
+                )
+                self._wait(role, expected, self._role_urls[role])
             with self._process_lock:
                 if self._closed or self._stopping.is_set():
                     raise TopologyError("local topology stopped during startup")
@@ -524,15 +636,14 @@ class LocalTopology:
             return False
         if not self._role_ids:
             return self._local_engine is not None and self._model_id in self._local_engine.models
-        expected_roles = (
-            ("inference", "trusted-preparation") if self._requires_preparation else ("inference",)
-        )
-        for status, expected in zip(self.statuses, expected_roles, strict=True):
+        expected_roles = {"inference": "inference", "preparation": "trusted-preparation",
+                          "worker_a": "offset-worker", "worker_b": "offset-worker"}
+        for status in self.statuses:
             if not status.running:
                 return False
             try:
                 response = httpx.get(f"{status.url}/healthz", timeout=0.5)
-                if response.status_code != 200 or response.json().get("role") != expected:
+                if response.status_code != 200 or response.json().get("role") != expected_roles[status.role]:
                     return False
             except (httpx.HTTPError, ValueError):
                 return False
@@ -560,6 +671,7 @@ class LocalTopology:
                 "experiment",
                 "http_client",
                 "preparation_http_client",
+                "role_connections",
             },
         )
         from pllm.runtime.client import OpenAI
@@ -569,6 +681,13 @@ class LocalTopology:
                 default_model=self._model_id,
                 experiment=self._experiment,
                 local_engine=self._local_engine,
+                **overrides,
+            )
+        if set(self._role_ids) == {"worker_a", "worker_b"}:
+            return OpenAI(
+                default_model=self._model_id,
+                experiment=self._experiment,
+                role_connections=self.worker_connections(),
                 **overrides,
             )
         options: dict[str, Any] = {
@@ -605,6 +724,7 @@ class LocalTopology:
                 "client",
                 "http_client",
                 "preparation_http_client",
+                "role_connections",
                 "local_api_key",
             },
         )
@@ -616,6 +736,14 @@ class LocalTopology:
                 default_model=self._model_id,
                 experiment=self._experiment,
                 local_engine=self._local_engine,
+                **overrides,
+            )
+        if set(self._role_ids) == {"worker_a", "worker_b"}:
+            return create_sidecar_app(
+                local_api_key=local_api_key,
+                default_model=self._model_id,
+                experiment=self._experiment,
+                role_connections=self.worker_connections(),
                 **overrides,
             )
         options: dict[str, Any] = {
@@ -647,7 +775,7 @@ class LocalTopology:
             return
         self._closed = True
         error: Exception | None = None
-        for role in ("preparation", "inference"):
+        for role in reversed(self._role_ids):
             process = processes.get(role)
             if process is None:
                 continue
@@ -732,7 +860,9 @@ def build_roles(
     role_ids = tuple(
         role.id for role in graph_for_runtime(runtime_options).roles if role.id != "client"
     )
-    if not set(role_ids) <= {"inference", "preparation"}:
+    if set(role_ids) not in (
+        set(), {"inference"}, {"inference", "preparation"}, {"worker_a", "worker_b"},
+    ):
         raise ValueError("role graph requires an unavailable local role implementation")
     if type(model) is str:
         model = Model(model)

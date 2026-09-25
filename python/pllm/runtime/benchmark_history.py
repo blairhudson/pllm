@@ -15,6 +15,13 @@ SCHEMA_VERSION = 3
 DEFAULT_LIMIT = 200
 MAX_LIMIT = 2000
 
+_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b"})
+_ROLE_BODY_FIELDS = frozenset(
+    f"role_link.{role}.{phase}_{direction}_bytes"
+    for role in _TOPOLOGY_ROLES
+    for phase in ("setup", "online", "teardown")
+    for direction in ("upload", "download")
+)
 _PRIVACY_FIELDS = frozenset(
     {
         "plaintext_prompt_bytes_sent",
@@ -54,7 +61,8 @@ _PRIVACY_FIELDS = frozenset(
         "bundle_cache_corruptions",
     }
 )
-_PROCESS_ROLES = frozenset({"client", "preparation", "inference"})
+_PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
+_PROCESS_ROLES = _TOPOLOGY_ROLES
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _SAFE_FAILURE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,127}$")
 

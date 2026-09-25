@@ -15,6 +15,7 @@ from pllm.protocols.runtime_arms import (
     DirectFHE,
     GuardedLinear,
     SecureLinear,
+    TwoOnlineOffsetLinear,
 )
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ __all__ = [
     "MaskedLinear",
     "ProtocolMethod",
     "SecureLinear",
+    "TwoOnlineOffsetLinear",
     "LogRowQ7SessionEstimate",
     "estimate_logrow_q7_session_reference",
     "prepare_logrow_q7_session_reference",

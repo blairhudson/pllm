@@ -832,6 +832,7 @@ pub fn lower_decoder_runtime_schedule(
 ) -> Result<DecoderRuntimeSchedule, String> {
     let linear_executor = match super::classify_decoder_composition(canonical_composition)? {
         super::DecoderCompositionKind::MaskedLinear => DecoderRuntimeExecutor::RemoteStage,
+        super::DecoderCompositionKind::TwoOnlineOffsetLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::ClientOnlyLinear => DecoderRuntimeExecutor::ClientLinear,
         super::DecoderCompositionKind::VerifiedMaskedLinear => {
             return Err(

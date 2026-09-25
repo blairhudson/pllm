@@ -1,4 +1,4 @@
-"""Bounded accounting of already-recorded prepared-protocol body counters.
+"""Bounded accounting of already-recorded topology application-body counters.
 
 This is deliberately *not* a wire meter: control frames, HTTP/TLS framing,
 transport retries, inference-to-preparation acks, and setup before the separately
@@ -155,4 +155,89 @@ def prepared_body_accounting(
     }
 
 
-__all__ = ["ACCOUNTING_SCHEMA", "client_owned_body_accounting", "prepared_body_accounting"]
+def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Count observed worker setup, online, teardown and bundle bodies once."""
+    privacy = record.get("privacy")
+    counters: dict[str, Any] = privacy if type(privacy) is dict else {}
+    roles = ("worker_a", "worker_b")
+    fields = (
+        f"role_link.{role}.{phase}_{direction}_bytes"
+        for role in roles
+        for phase in ("setup", "online", "teardown")
+        for direction in ("upload", "download")
+    )
+    required = frozenset(fields) | {"bundle_network_bytes"}
+    complete = required <= counters.keys() and all(
+        type(counters[key]) is int and counters[key] >= 0 for key in required
+    )
+    edges: list[dict[str, str | int]] | None = None
+    if complete:
+        edges = []
+        for role in roles:
+            for phase in ("setup", "online", "teardown"):
+                for direction in ("upload", "download"):
+                    source, destination = (
+                        ("client", role) if direction == "upload" else (role, "client")
+                    )
+                    edges.append({
+                        "source": source, "destination": destination,
+                        "phase": phase,
+                        "serialized_body_bytes": counters[
+                            f"role_link.{role}.{phase}_{direction}_bytes"
+                        ],
+                    })
+        edges.append({
+            "source": "worker_a", "destination": "client", "phase": "bundle",
+            "serialized_body_bytes": counters["bundle_network_bytes"],
+        })
+    processes = record.get("processes")
+    cpu: dict[str, float] | None = None
+    if type(processes) is dict and all(
+        type(processes.get(role)) is dict
+        and type(processes[role].get("cpu_seconds")) in (int, float)
+        and math.isfinite(processes[role]["cpu_seconds"])
+        and processes[role]["cpu_seconds"] >= 0
+        for role in ("client", *roles)
+    ):
+        cpu = {
+            role: float(processes[role]["cpu_seconds"])
+            for role in ("client", *roles)
+        }
+    return {
+        "schema": ACCOUNTING_SCHEMA,
+        "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+        "tracked_body_counter_set_present": complete,
+        "body_bytes_by_edge": edges,
+        "client_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges) if edges is not None
+            else None
+        ),
+        "all_link_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges) if edges is not None
+            else None
+        ),
+        "online_client_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges
+                if edge["phase"] == "online") if edges is not None else None
+        ),
+        "online_all_link_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges
+                if edge["phase"] == "online") if edges is not None else None
+        ),
+        "run_window_cpu_seconds_by_role": cpu,
+        "aggregate_run_window_cpu_seconds": sum(cpu.values()) if cpu is not None else None,
+        "total_wire_bytes": None,
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "HTTP headers, TLS and transport framing",
+            "model descriptor and authenticated monitoring request bodies",
+            "worker model import and cold checkpoint distribution",
+            "peak client memory, energy, and disk activity",
+        ],
+    }
+
+
+__all__ = [
+    "ACCOUNTING_SCHEMA", "client_owned_body_accounting", "prepared_body_accounting",
+    "two_worker_body_accounting",
+]

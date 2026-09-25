@@ -121,9 +121,12 @@ def build_loopback_report(
     runs: list[dict[str, Any]],
     roles: tuple[str, ...] = ("client", "preparation", "inference"),
     initial_preparation_audit: dict[str, int] | None = None,
+    client_model_ownership: dict[str, int | None] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
-    from .topology_accounting import client_owned_body_accounting, prepared_body_accounting
+    from .topology_accounting import (
+        client_owned_body_accounting, prepared_body_accounting, two_worker_body_accounting,
+    )
 
     all_runs = [*warmup_runs, *runs]
     checks = {
@@ -150,6 +153,11 @@ def build_loopback_report(
             client_owned_body_accounting(record)["tracked_body_counter_set_present"]
             for record in all_runs
         )
+    if set(roles) == {"client", "worker_a", "worker_b"}:
+        checks["two_worker_bodies_tracked"] = all(
+            two_worker_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
     output_tokens = [
         int(record["tokens"]["output_tokens"])
         for record in runs
@@ -167,6 +175,11 @@ def build_loopback_report(
             "roles": list(roles),
         },
         "checks": {"passed": all(checks.values()), **checks},
+        "privacy_admission": (
+            {"independent_operators_verified": False,
+             "reason": "loopback offset workers share one operator and host"}
+            if set(roles) == {"client", "worker_a", "worker_b"} else None
+        ),
         "summary": {
             "completed_runs": sum(record.get("status") == "completed" for record in runs),
             "median_full_seconds": _median(runs, "durations", "full_seconds"),
@@ -178,7 +191,10 @@ def build_loopback_report(
         "warmup_runs": warmup_runs,
         "runs": runs,
         "topology_accounting": (
-            {"startup": None,
+            {"startup": (
+                {"schema": "pllm.topology_model_ownership.v1", **client_model_ownership}
+                if client_model_ownership is not None else None
+             ),
              "warmups": [client_owned_body_accounting(run) for run in warmup_runs],
              "runs": [client_owned_body_accounting(run) for run in runs]}
             if roles == ("client",) else {
@@ -192,6 +208,12 @@ def build_loopback_report(
                 "runs": [prepared_body_accounting(run) for run in runs],
             }
             if "preparation" in roles
+            else {
+                "startup": None,
+                "warmups": [two_worker_body_accounting(run) for run in warmup_runs],
+                "runs": [two_worker_body_accounting(run) for run in runs],
+            }
+            if set(roles) == {"client", "worker_a", "worker_b"}
             else None
         ),
         "limitations": [
@@ -400,6 +422,10 @@ def _run_once(
         try:
             record = client.get(f"/api/runs/{run_id}").raise_for_status().json()
         except (httpx.HTTPError, ValueError) as exc:
+            if run.get("phase") == "error" or run.get("error"):
+                raise LoopbackBenchmarkError(
+                    str(run.get("error") or "benchmark execution failed")
+                ) from exc
             raise LoopbackBenchmarkError("benchmark record could not be read") from exc
         if record.get("status") != "completed":
             failure = record.get("failure", {}).get("type") or "unknown failure"
@@ -500,6 +526,10 @@ def _run_loopback_benchmark(
                 dashboard_app.state.dashboard_runtime.initial_preparation_audit()
                 if "preparation" in roles else None
             )
+            client_model_ownership = (
+                dashboard_app.state.dashboard_runtime.client_model_ownership()
+                if roles == ("client",) else None
+            )
             warmup_runs = []
             for index in range(warmups):
                 if progress is not None:
@@ -551,6 +581,7 @@ def _run_loopback_benchmark(
         runs=runs,
         roles=roles,
         initial_preparation_audit=initial_preparation_audit,
+        client_model_ownership=client_model_ownership,
     )
     if not report["checks"]["passed"]:
         raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")

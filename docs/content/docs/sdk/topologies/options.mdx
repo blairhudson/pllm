@@ -15,22 +15,25 @@ one provider under separate protocol contracts.
 Choose `ClientOnlyCpu` for a **client-only** Experiment. Its `pllm/client-only/v1`
 role graph has one client and no inference or preparation channels; the same
 compiler-bound semantic decoder loads all public weights locally. It runs through
-`pllm.Client`, `pllm gateway --local --experiment` and `pllm benchmark run
+`pllm.OpenAI`, `pllm gateway --local --experiment` and `pllm benchmark run
 --experiment` without provider children. W8A8 is the default; W4A4 and other
 numeric choices need their own quality checks. The benchmark records zero
 provider-graph bytes and client run-window CPU when telemetry is available.
 Checkpoint download, disk activity, client peak memory and the application's
 own HTTP traffic are not counted as zero; they are outside that network scope.
 
-The two-online-offset comparator has a bounded **in-process numeric reference**:
-two separately loaded native kernels run a complete tiny Qwen2/Qwen3 compiled
-prefill/decode and count per-worker serialized stage bodies and integer work.
-An opt-in [loopback comparison](/learn/topologies/network-and-compute/) now
-runs that compiled plan with two authenticated worker processes and accounts
-for stage plus setup/teardown HTTP application bodies. Both processes share one
-operator. Neither reference is an independently operated or selectable
-topology; the loopback diagnostic measures online per-role process CPU but
-not cold-start CPU, complete network or an admitted compute cap. Resident
+Choose `TwoOnlineOffsetCpu` for the **two-online-offset** Experiment. The
+compiler places each semantic linear stage on two independently checked
+integer kernels; the client samples fresh additive shares for each stage and
+reconstructs their responses. `build_roles`, `pllm.OpenAI`, gateway and
+`pllm benchmark run` use the same role graph and shared compiled decoder.
+The loopback workers are separate authenticated processes on one host, **not
+independent operators**. The benchmark records per-worker setup, stage and
+teardown application bodies plus sampled run-window CPU; it marks operator
+independence unverified and leaves HTTP/TLS framing, checkpoint distribution,
+full-response aggregate compute and the compute-cap gate open. See the
+[normal benchmark comparison](/cli/benchmarking/) for a matched W8A8 cohort.
+Resident
 two/three-party MPC, dealer/FSS, TEE-only and
 TEE-plus-accelerator arrangements still require their own complete compiler,
 transport and privacy-admission contracts. They cannot be
@@ -42,7 +45,7 @@ non-executable.
 
 ```python
 from pllm import Experiment, Pipeline
-from pllm.profiles import ClientOnlyCpu
+from pllm.profiles import ClientOnlyCpu, TwoOnlineOffsetCpu
 from pllm.roles import Channel, PreparedProviderRoles
 
 original = Experiment.from_file("examples/pllm.yaml")
@@ -72,6 +75,17 @@ single = local.resolve().role_graph
 assert single is not None and len(single.roles) == 1 and single.channels == ()
 assert single.roles[0].id == "client"
 assert local.resolve().composition_digest != experiment.resolve().composition_digest
+offset = Experiment(
+    name="offset-qwen",
+    pipeline=TwoOnlineOffsetCpu(original.pipeline.model),
+    deployment=original.deployment,
+    budget=original.budget,
+)
+offset_graph = offset.resolve().role_graph
+assert offset_graph is not None
+assert {role.id for role in offset_graph.roles} == {"client", "worker_a", "worker_b"}
+assert offset_graph.separate_operators
+assert offset.resolve().composition_digest != local.resolve().composition_digest
 ```
 
 Run from the repository root. Inspect [components and runnable inference](/sdk/inference/)
