@@ -134,8 +134,14 @@ shapes, configuration, tokenizer, local tensors, quantized bytes, scales, modulu
 policy and preparation commitments, and rejects any unresolved operation or stage.
 The same compiled binding and execution path is covered for tiny Qwen2, dense
 Qwen3 and bounded bias-free Llama-style checkpoints, including Qwen3 Q/K
-normalization and an untied head. Scaled Llama 3 configurations and real Llama
-checkpoint quality remain unvalidated. The pinned
+normalization and an untied head. Bounded Llama 3 wavelength-transition RoPE
+now also passes a generated tiny checkpoint through native scheduling,
+prefill/decode, a PyTorch float32 reference (matching selected tokens; W8A8
+logit error under 0.05), and client-only/prepared SDK and gateway requests.
+The pinned public Llama 3.1 8B configuration mirror additionally lowers and
+compiles for a bounded 8+2-token workload without loading weights.
+Other scaling modes and real Llama checkpoint import, quality and deployment
+remain unvalidated. The pinned
 Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
 stage protocol. Public Qwen2/Qwen3 and bounded dense provider stage tables now derive ordered

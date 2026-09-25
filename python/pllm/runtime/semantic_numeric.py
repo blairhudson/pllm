@@ -207,6 +207,87 @@ def bfloat16_rotary(
     )
 
 
+def float32_rotary_wavelength(
+    value: np.ndarray, positions: np.ndarray, attributes: dict[str, object]
+) -> np.ndarray:
+    """Bounded split-half RoPE with a public wavelength-transition frequency profile."""
+    source = np.asarray(value)
+    indices = np.asarray(positions)
+    scaling = attributes.get("frequency_scaling")
+    theta = attributes.get("theta")
+    dimensions = attributes.get("rotary_dimensions")
+    if (
+        set(attributes) != {
+            "theta", "rotary_dimensions", "pairing", "position_policy",
+            "coefficient_profile", "input_layout", "output_layout", "tail_policy",
+            "frequency_scaling",
+        }
+        or attributes.get("pairing") != "split_half"
+        or attributes.get("position_policy") != "sequential_absolute"
+        or attributes.get("coefficient_profile") != "pllm.numeric.rope.float32.wavelength.v1"
+        or attributes.get("input_layout") != "batch_heads_sequence_feature"
+        or attributes.get("output_layout") != "batch_heads_sequence_feature"
+        or attributes.get("tail_policy") != "unchanged"
+        or source.ndim != 4
+        or source.dtype != np.float32
+        or not np.all(np.isfinite(source))
+        or indices.ndim != 1
+        or indices.dtype != np.int64
+        or not np.all((indices >= 0) & (indices < (1 << 24)))
+        or source.shape[2] != indices.size
+        or type(dimensions) is not int
+        or not (2 <= dimensions <= source.shape[-1])
+        or dimensions % 2
+        or type(theta) is not int
+        or theta < 1
+        or not isinstance(scaling, dict)
+        or set(scaling) != {
+            "kind", "factor", "low_freq_factor", "high_freq_factor",
+            "original_max_position_embeddings",
+        }
+        or scaling.get("kind") != "wavelength_transition"
+    ):
+        raise SemanticNumericError("float32 wavelength rotary shape or policy is invalid")
+    factor = scaling["factor"]
+    low = scaling["low_freq_factor"]
+    high = scaling["high_freq_factor"]
+    original = scaling["original_max_position_embeddings"]
+    if (
+        any(type(item) not in (float, int) or not math.isfinite(item)
+            for item in (factor, low, high))
+        or not (1 < factor <= 256 and 1 / 256 <= low < high <= 256)
+        or np.float32(factor) <= 1
+        or np.float32(high) - np.float32(low) < 1 / 256
+        or type(original) is not int
+        or not 1 <= original <= (1 << 24)
+    ):
+        raise SemanticNumericError("float32 wavelength rotary scaling is invalid")
+    power = np.arange(0, dimensions, 2, dtype=np.float32) / np.float32(dimensions)
+    inverse = np.float32(1.0) / (np.float32(theta) ** power)
+    wavelength = np.float32(2.0 * math.pi) / inverse
+    original32 = np.float32(original)
+    factor32, low32, high32 = (np.float32(item) for item in (factor, low, high))
+    smooth = (original32 / wavelength - low32) / (high32 - low32)
+    scaled = np.where(
+        wavelength > original32 / low32,
+        inverse / factor32,
+        np.where(
+            wavelength < original32 / high32,
+            inverse,
+            (np.float32(1.0) - smooth) * (inverse / factor32) + smooth * inverse,
+        ),
+    )
+    angles = indices.astype(np.float32)[:, None] * scaled[None, :]
+    cosine = np.concatenate((np.cos(angles), np.cos(angles)), axis=-1)[None, None]
+    sine = np.concatenate((np.sin(angles), np.sin(angles)), axis=-1)[None, None]
+    current = source[..., :dimensions]
+    half = dimensions // 2
+    rotated = np.concatenate((-current[..., half:], current[..., :half]), axis=-1)
+    result = source.copy()
+    result[..., :dimensions] = current * cosine + rotated * sine
+    return result
+
+
 __all__ = [
     "SemanticNumericError",
     "bfloat16_gelu_tanh",
@@ -215,5 +296,6 @@ __all__ = [
     "bfloat16_rms_norm",
     "bfloat16_rotary",
     "bfloat16_softmax",
+    "float32_rotary_wavelength",
     "round_bfloat16",
 ]

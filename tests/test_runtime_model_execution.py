@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 
 import pllm
 from pllm.nonlinear import (
@@ -106,6 +107,128 @@ def test_dense_gated_decoder_binds_untied_output_head(tmp_path: Path) -> None:
         rtol=1e-5,
         atol=1e-5,
     )
+
+
+@pytest.mark.quality
+def test_scaled_rotary_checkpoint_binds_and_decodes_against_torch(tmp_path: Path) -> None:
+    transformers = pytest.importorskip("transformers")
+    from pllm.configuration import Model
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.model_binding import RuntimeBindingError
+
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "scaled", num_hidden_layers=2, model_type="llama",
+        with_qkv_bias=False, tie_word_embeddings=False,
+    )
+    config_path = root / "config.json"
+    source = json.loads(config_path.read_text(encoding="utf-8"))
+    source["rope_scaling"] = {
+        "rope_type": "llama3", "factor": 8.0,
+        "original_max_position_embeddings": 32,
+        "low_freq_factor": 1.0, "high_freq_factor": 4.0,
+    }
+    config_path.write_text(json.dumps(source), encoding="utf-8")
+    model_id = "scaled-rotary-test"
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(load_hf_directory(root, model_id=model_id)))
+    bundle = ClientBundle.unpack(engine.client_bundle(model_id))
+    plan = pllm.lower_model(source, batch=1, max_input_tokens=8, max_new_tokens=2)
+    selected = MaskedLinearCpu(
+        Model.path(str(root), model_id=model_id),
+        quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    )
+    compiled = compile_runtime_model(plan, bundle, composition=selected)
+    assert compiled.complete
+    assert plan.runtime_schedule(selected).complete
+
+    def remote(stage_id: str, activation: np.ndarray) -> np.ndarray:
+        stage = engine.models[model_id].stages[stage_id]
+        result = np.asarray(activation, np.float32) @ stage.weight.dequantize().T
+        if stage.bias is not None:
+            result += stage.bias
+        return np.ascontiguousarray(result, dtype=np.float32)
+
+    tokens = [2, 3, 5]
+    runtime = compiled.runtime(remote)
+    _, prefill, cache = runtime.prepare_ids(tokens)
+    with torch.no_grad():
+        reference = transformers.AutoModelForCausalLM.from_pretrained(
+            root, local_files_only=True, trust_remote_code=False,
+            dtype=torch.float32, attn_implementation="eager",
+        ).eval()
+        expected_prefill = reference(
+            input_ids=torch.tensor([tokens]), use_cache=False,
+        ).logits[0, -1].numpy()
+        selected_token = int(np.argmax(expected_prefill))
+        expected_decode = reference(
+            input_ids=torch.tensor([[*tokens, selected_token]]), use_cache=False,
+        ).logits[0, -1].numpy()
+    decoded, _ = runtime.decode_step(selected_token, cache)
+    assert float(np.max(np.abs(prefill - expected_prefill))) < 0.05
+    assert float(np.max(np.abs(decoded - expected_decode))) < 0.05
+    assert int(np.argmax(prefill)) == selected_token
+    assert int(np.argmax(decoded)) == int(np.argmax(expected_decode))
+
+    tampered = dataclasses.replace(bundle, cfg={
+        **bundle.cfg, "rope_scaling": {
+            **source["rope_scaling"], "low_freq_factor": 2.0,
+        },
+    })
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, tampered, composition=selected)
+    with pytest.raises(ValueError):
+        pllm.lower_model(
+            {**source, "rope_scaling": {"rope_type": "linear", "factor": 2.0}},
+            batch=1, max_input_tokens=8, max_new_tokens=2,
+        )
+
+
+@pytest.mark.parametrize("client_owned", [False, True])
+def test_scaled_rotary_uses_compiled_sdk_and_gateway(
+    tmp_path: Path, client_owned: bool,
+) -> None:
+    from fastapi.testclient import TestClient
+
+    from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime import build_roles
+
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type="llama",
+        with_qkv_bias=False,
+    )
+    config_path = root / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["rope_scaling"] = {
+        "rope_type": "llama3", "factor": 8.0,
+        "original_max_position_embeddings": 32,
+        "low_freq_factor": 1.0, "high_freq_factor": 4.0,
+    }
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    source = pllm.Model.path(str(root), model_id="scaled-runtime")
+    quantization = SymmetricPerRow(weight_bits=8, activation_bits=8)
+    experiment = pllm.Experiment(
+        name="scaled-client" if client_owned else "scaled-prepared",
+        pipeline=(ClientOnlyCpu if client_owned else MaskedLinearCpu)(
+            source, quantization=quantization,
+        ),
+        deployment=pllm.Deployment.local(root=str(tmp_path / "deployment")),
+        budget=pllm.ExecutionBudget(requests=2, max_input_tokens=64, max_new_tokens=2),
+    )
+    with build_roles(experiment) as topology:
+        with topology.client() as client:
+            result = client.responses.create(model="scaled-runtime", input="A", max_output_tokens=2)
+            assert result.usage.input_tokens > 0
+            assert (client.privacy_audit.inference_stage_calls == 0) == client_owned
+            assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+        with TestClient(topology.gateway_app(local_api_key="scaled-test")) as gateway:
+            response = gateway.post(
+                "/v1/responses", headers={"Authorization": "Bearer scaled-test"},
+                json={"model": "scaled-runtime", "input": "B", "max_output_tokens": 2},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["usage"]["input_tokens"] > 0
 
 
 def test_compiled_decode_rejects_nonfinite_restored_cache_before_remote_work(tmp_path: Path) -> None:

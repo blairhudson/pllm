@@ -24,7 +24,7 @@
     "softcap": {"name": "Logit softcap", "operator": "softcap", "contract": "Bounded final score softcap and numeric semantics"},
     "untied-head": {"name": "Untied output head", "operator": "output_head", "contract": "Distinct embedding and output matrices with exact checkpoint ownership"},
     "sliding-window": {"name": "Sliding-window attention", "operator": "causal_mask", "contract": "Per-layer window and valid-prefix attention state"},
-    "rope-scaling": {"name": "Scaled rotary positions", "operator": "rotary_embedding", "contract": "Explicit scaling type and bounded position transforms"},
+    "rope-scaling": {"name": "Scaled rotary positions", "operator": "rotary_embedding", "contract": "Bounded public wavelength-transition frequencies with a compiled float32 rotary profile; other scaling types still fail closed"},
     "expert-routing": {"name": "Sparse expert routing", "operator": null, "contract": "Model-neutral expert selection, private dispatch and aggregation"},
     "latent-attention": {"name": "Latent attention", "operator": null, "contract": "Compressed latent KV state and query/value projection semantics"},
     "mxfp4-import": {"name": "MXFP4 checkpoint import", "operator": null, "contract": "Numeric and packed-weight import with exact artifact binding"},
@@ -43,6 +43,7 @@
         "rope_theta": 1000000.0, "tie_word_embeddings": true
       },
       "baseline_schedule": true,
+      "pinned_real_checkpoint_functionality": "Qwen2.5-0.5B",
       "requires": ["gqa", "rotary", "qkv-bias", "rmsnorm", "gated-silu", "kv-cache"],
       "baseline_blockers": [],
       "runtime_evidence": "Pinned Qwen2.5-0.5B local prefill/decode functionality test; tiny compiled two-role protocol test. The historical baseline cohort predates compiler-bound live execution",
@@ -55,6 +56,7 @@
       "model_family": "qwen3",
       "fixture": "crates/pllm-models/tests/fixtures/Qwen3-0.6B-c1899de-config.json",
       "baseline_schedule": true,
+      "pinned_real_checkpoint_functionality": "Qwen3-0.6B",
       "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "head-width", "qk-norm"],
       "baseline_blockers": [],
       "runtime_evidence": "Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark",
@@ -62,15 +64,16 @@
       "guide": "/sdk/models/families/qwen3/"
     },
     {
-      "name": "Bounded dense bias-free decoder (tiny Llama-style fixture)",
+      "name": "Bounded dense bias-free decoder (tiny Llama-style fixtures)",
       "adapter": "pllm.dense_gated_decoder.v1",
       "model_family": "llama",
       "fixture": "crates/pllm-models/tests/fixtures/bounded-dense-gated-llama-config.json",
+      "scaled_fixture": "crates/pllm-models/tests/fixtures/bounded-dense-gated-llama3-scaled-config.json",
       "baseline_schedule": true,
-      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "untied-head"],
+      "requires": ["gqa", "rotary", "rope-scaling", "rmsnorm", "gated-silu", "kv-cache", "untied-head"],
       "baseline_blockers": [],
-      "runtime_evidence": "Generated tiny bias-free checkpoint: compiled local prefill/decode parity for tied and untied heads; compiled two-role SDK and gateway smoke tests",
-      "remaining": "No real Llama checkpoint/quality evidence; scaled RoPE, variants with sliding attention or projection bias, and protected execution remain unsupported",
+      "runtime_evidence": "A pinned public Llama 3.1 8B configuration mirror lowers and compiles for a bounded 8+2 token workload without loading weights. Generated tiny bias-free checkpoints pass unscaled tied/untied parity and bounded wavelength-transition scaling: scaled W8A8 prefill/decode matches PyTorch selections with less than 0.05 worst logit error; prepared and client-only SDK/gateway requests complete",
+      "remaining": "No real Llama checkpoint, tokenizer or representative quality evidence; other RoPE scaling types, sliding attention, projection bias and protected execution remain unsupported",
       "guide": "/sdk/models/families/"
     },
     {
@@ -103,6 +106,7 @@
       "model_family": "gemma4_text",
       "fixture": "crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json",
       "baseline_schedule": true,
+      "pinned_real_checkpoint_functionality": "Gemma 4 E2B",
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": [],
       "runtime_evidence": "Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16; one prepared HTTP request completes through separate in-process inference and preparation services with masked online traffic",
@@ -137,7 +141,7 @@
       "source": "https://huggingface.co/docs/transformers/model_doc/llama",
       "priority": "Near-term dense capability bridge",
       "requires": ["gqa", "rmsnorm", "gated-silu", "kv-cache", "untied-head", "rope-scaling"],
-      "gap": "Bounded unscaled dense reader has tiny tests only. Llama 3 RoPE scaling, checkpoint import, tokenizer, quality and deployment contracts remain unvalidated; do not alias scaled configs to the dense reader"
+      "gap": "Pinned public source config lowers and schedules without weights; bounded wavelength-transition scaling passes a generated tiny decoder and float32 oracle. Official Llama 3 checkpoint import, tokenizer, generation quality and deployment remain unvalidated; linear, YaRN and other scaling modes still fail closed"
     },
     {
       "name": "Qwen3 MoE",

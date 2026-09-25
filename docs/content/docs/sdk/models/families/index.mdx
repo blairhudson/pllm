@@ -22,7 +22,7 @@ mapping into those contracts, not one-off execution adapters.
 | --- | --- | --- |
 | `pllm.qwen2.v1` | dense Qwen2 configuration contract | grouped-query attention, rotary position, gated SiLU MLP, KV state |
 | `pllm.qwen3.v1` | dense Qwen3; pinned mini-coder-4b fixture | explicit head width, Q/K normalization, bias-free attention |
-| `pllm.dense_gated_decoder.v1` | bounded bias-free, unscaled dense Llama-style source | reuses grouped-query attention, rotary position, SiLU MLP, KV state, tied or untied head |
+| `pllm.dense_gated_decoder.v1` | bounded bias-free dense Llama-style source; default and `llama3` wavelength-transition rotary | reuses grouped-query attention, rotary position, SiLU MLP, KV state, tied or untied head |
 | `pllm.qwen3_5_text.v1` | pinned Qwen3.5-4B text decoder | hybrid full attention and gated-delta recurrence, convolution and recurrent state |
 | `pllm.phi4_mini.v1` | pinned Phi-4-mini-instruct decoder | fused QKV, fused gate/up, partial LongRoPE |
 | `pllm.gemma4_e2b_text.v1` | pinned Gemma 4 E2B text decoder | hybrid attention, shared KV suffix, double-wide suffix MLP |
@@ -34,12 +34,17 @@ separate. Check [current support](/sdk/reference/status/) before choosing a mode
 
 Start with a [source kind](/sdk/models/sources/) and choose a family: Qwen2
 supports the pinned public-weight checkpoint path and a tiny test model;
-dense Qwen3 has pinned compiled-checkpoint functionality; the bounded unscaled
-Llama-style source has tiny compiled-runtime and two-role tests, but no real
-checkpoint evidence. Llama 3 RoPE scaling remains unsupported. Qwen3.5 and Phi-4-mini
-have semantic plan coverage only. Gemma 4 E2B/E4B additionally have complete
-baseline compiler schedules, but no bound whole-decoder execution. A supported importer and
-runtime binding must still be verified separately. The
+dense Qwen3 has pinned compiled-checkpoint functionality; the bounded Llama-style
+source passes tiny default and bounded Llama 3 wavelength-transition checkpoint
+tests, including full prefill/decode against a float32 reference and client-only
+and prepared gateway runs. A [pinned public Llama 3.1 8B configuration mirror](https://huggingface.co/unsloth/Meta-Llama-3.1-8B-Instruct/blob/a2856192dd7c25b842431f39c179a6c2c2f627d1/config.json)
+also lowers and compiles for a bounded 8+2-token workload without loading weights.
+Other scaling modes and real Llama checkpoint quality
+remain unvalidated. Qwen3.5 and Phi-4-mini have semantic plan coverage only.
+Gemma 4 E2B/E4B both have complete baseline schedules; pinned E2B additionally
+executes locally and through a prepared in-process HTTP request, while E4B has
+no checkpoint execution. A supported importer and runtime binding must still
+be verified separately. The
 [model workflow](/sdk/models/) shows a complete Qwen2.5 experiment.
 
 ## Python SDK example
@@ -62,5 +67,6 @@ API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and
 Save as `experiment.py`; install optional `he` via
 [Installation](/learn/installation/) and run
 `pllm gateway --local --experiment experiment.py:experiment --trust-python`.
-The pinned Qwen2 path is runnable. For Qwen3.5, Phi, and Gemma, inspect the
-respective family plans instead of presenting them as runnable checkpoints.
+The pinned Qwen2 path is runnable. Pinned Gemma E2B has its separately scoped
+local-clear and prepared loopback diagnostics; Qwen3.5, Phi and E4B remain
+plan-only or incomplete at the checkpoint-execution boundary.

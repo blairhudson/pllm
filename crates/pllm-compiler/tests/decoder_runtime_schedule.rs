@@ -64,6 +64,51 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn wavelength_rotary_stays_local_in_both_compiled_decoder_phases() {
+    let scaled = json!({
+        "model_type": "llama", "hidden_size": 16, "intermediate_size": 32,
+        "num_hidden_layers": 1, "num_attention_heads": 2, "num_key_value_heads": 1,
+        "vocab_size": 32, "max_position_embeddings": 256, "hidden_act": "silu",
+        "rms_norm_eps": 1e-6, "rope_theta": 10000.0,
+        "rope_scaling": {"rope_type": "llama3", "factor": 8.0,
+            "original_max_position_embeddings": 32,
+            "low_freq_factor": 1.0, "high_freq_factor": 4.0}
+    });
+    let plan = plan(&serde_json::to_vec(&scaled).unwrap());
+    let schedule = lower_schedule(&plan).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        for rotary in phase
+            .steps
+            .iter()
+            .filter(|step| step.operators.contains(&ModelOperator::RotaryEmbedding))
+        {
+            assert_eq!(rotary.executor, DecoderRuntimeExecutor::ClientLocal);
+        }
+        assert_eq!(
+            phase
+                .steps
+                .iter()
+                .filter(|step| step.operators.contains(&ModelOperator::RotaryEmbedding))
+                .count(),
+            2
+        );
+        assert!(phase
+            .steps
+            .iter()
+            .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+    }
+    let mut tampered = plan;
+    let rotary = tampered
+        .decode
+        .operations
+        .iter_mut()
+        .find(|op| op.operator == ModelOperator::RotaryEmbedding)
+        .unwrap();
+    rotary.attributes["frequency_scaling"]["kind"] = json!("unreviewed");
+    assert!(lower_schedule(&tampered).is_err());
+}
+
+#[test]
 fn two_online_offset_topology_binds_remote_stages_for_shared_decoder_operators() {
     let composition = canonical_bytes(&json!({
         "components": {

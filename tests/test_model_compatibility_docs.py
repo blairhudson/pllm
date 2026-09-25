@@ -26,6 +26,10 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
         "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.dense_gated_decoder.v1",
         "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
     }
+    assert {
+        row["pinned_real_checkpoint_functionality"]
+        for row in adapters if row.get("pinned_real_checkpoint_functionality")
+    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Gemma 4 E2B"}
     for row in adapters:
         if row["adapter"] == "pllm.gemma4_e2b_text.v1":
             assert "prefill-to-decode" in row["runtime_evidence"]
@@ -33,7 +37,30 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
             assert "Two-child deployment" in row["remaining"]
         elif row["adapter"] == "pllm.gemma4_e4b_text.v1":
             assert "E4B has no checkpoint execution" in row["runtime_evidence"]
+        elif row["adapter"] == "pllm.dense_gated_decoder.v1":
+            scaled = pllm.lower_model(
+                (ROOT / row["scaled_fixture"]).read_bytes(),
+                batch=1, max_input_tokens=4, max_new_tokens=2,
+            )
+            assert scaled.runtime_schedule(MaskedLinearCpu(pllm.Model("org/model"))).complete
+            assert any(
+                operation["attributes"].get("frequency_scaling", {}).get("kind")
+                == "wavelength_transition"
+                for operation in scaled.prefill["operations"]
+            )
     assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(INVENTORY["candidates"])
+
+
+def test_pinned_public_llama3_config_lowers_without_model_named_schedule() -> None:
+    # Source: unsloth/Meta-Llama-3.1-8B-Instruct at HF revision a2856192...
+    config = ROOT / "crates/pllm-models/tests/fixtures/unsloth-Llama-3.1-8B-Instruct-a2856192-config.json"
+    plan = pllm.lower_model(config.read_bytes(), batch=1, max_input_tokens=8, max_new_tokens=2)
+    assert plan.to_dict()["adapter"] == "pllm.dense_gated_decoder.v1"
+    assert plan.runtime_schedule(MaskedLinearCpu(pllm.Model("org/model"))).complete
+    assert sum(
+        operation["operator"] == "rotary_embedding"
+        for operation in plan.prefill["operations"]
+    ) == 64
 
 
 @pytest.mark.parametrize("row", INVENTORY["adapters"], ids=lambda row: row["adapter"])
@@ -67,10 +94,9 @@ def test_candidate_architectures_cannot_impersonate_qwen2(row: dict) -> None:
     qwen2 = INVENTORY["adapters"][0]["config"]
     source = {**qwen2, "model_type": row["model_type"]}
     if row["model_type"] == "llama":
-        # The bounded bias-free reader exists, but scaled Llama 3 remains a
-        # separate, unsupported rotary capability.
+        # The bounded reader requires the complete scaling descriptor.
         source["rope_scaling"] = {"rope_type": "llama3", "factor": 8.0}
-    with pytest.raises(ValueError, match="scaled|no decoder adapter|unscaled"):
+    with pytest.raises(ValueError, match="wavelength-transition|no decoder adapter|unscaled"):
         pllm.lower_model(
             source,
             batch=1, max_input_tokens=4, max_new_tokens=2,

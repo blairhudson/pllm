@@ -13,6 +13,7 @@ mod dense_gated_source;
 mod gemma4;
 mod phi4;
 mod qwen35;
+mod rotary_scale;
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 
@@ -221,6 +222,7 @@ struct DenseDecoderConfig<'a> {
     head_dim: u64,
     rms_norm_eps: &'a str,
     rope_theta: u64,
+    rope_frequency_scaling: Option<Value>,
     tie_word_embeddings: bool,
     attention_bias: bool,
     qk_norm: bool,
@@ -440,6 +442,7 @@ pub fn lower_qwen_decoder(
             head_dim: config.head_dim(),
             rms_norm_eps: &config.rms_norm_eps,
             rope_theta: config.rope_theta,
+            rope_frequency_scaling: None,
             tie_word_embeddings: config.tie_word_embeddings,
             attention_bias: true,
             qk_norm: false,
@@ -469,6 +472,7 @@ fn lower_qwen3_decoder(
             head_dim: config.head_dim,
             rms_norm_eps: &config.rms_norm_eps,
             rope_theta: config.rope_theta,
+            rope_frequency_scaling: None,
             tie_word_embeddings: config.tie_word_embeddings,
             attention_bias: false,
             qk_norm: true,
@@ -663,7 +667,11 @@ fn lower_graph(
             ModelOperator::RotaryEmbedding,
             &[&q_rope_input, "input.positions"],
             q_shape.clone(),
-            dense_qwen_rope_attributes(config.rope_theta, head_dim),
+            dense_rope_attributes(
+                config.rope_theta,
+                head_dim,
+                config.rope_frequency_scaling.as_ref(),
+            ),
         );
         push(
             &mut operations,
@@ -671,7 +679,11 @@ fn lower_graph(
             ModelOperator::RotaryEmbedding,
             &[&k_rope_input, "input.positions"],
             kv_query_shape.clone(),
-            dense_qwen_rope_attributes(config.rope_theta, head_dim),
+            dense_rope_attributes(
+                config.rope_theta,
+                head_dim,
+                config.rope_frequency_scaling.as_ref(),
+            ),
         );
         let key_state = format!("state.layer.{layer}.key");
         let value_state = format!("state.layer.{layer}.value");
@@ -963,8 +975,8 @@ fn lower_graph(
     }
 }
 
-fn dense_qwen_rope_attributes(theta: u64, head_dim: u64) -> Value {
-    json!({
+fn dense_rope_attributes(theta: u64, head_dim: u64, frequency_scaling: Option<&Value>) -> Value {
+    let mut attributes = json!({
         "theta": theta,
         "rotary_dimensions": head_dim,
         "pairing": "split_half",
@@ -973,7 +985,12 @@ fn dense_qwen_rope_attributes(theta: u64, head_dim: u64) -> Value {
         "input_layout": "batch_heads_sequence_feature",
         "output_layout": "batch_heads_sequence_feature",
         "tail_policy": "unchanged"
-    })
+    });
+    if let Some(scaling) = frequency_scaling {
+        attributes["coefficient_profile"] = json!(rotary_scale::WAVELENGTH_COEFFICIENT_PROFILE);
+        attributes["frequency_scaling"] = scaling.clone();
+    }
+    attributes
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1500,6 +1517,7 @@ fn validate_rotary_embedding(
     let common_descriptor = attributes.get("pairing").and_then(Value::as_str) == Some("split_half")
         && attributes.get("position_policy").and_then(Value::as_str) == Some("sequential_absolute");
     let q30_descriptor = common_descriptor
+        && !attributes.contains_key("frequency_scaling")
         && attributes
             .get("coefficient_profile")
             .and_then(Value::as_str)
@@ -1509,7 +1527,23 @@ fn validate_rotary_embedding(
         && attributes.get("output_layout").and_then(Value::as_str)
             == Some("batch_heads_sequence_feature")
         && attributes.get("tail_policy").and_then(Value::as_str) == Some("unchanged");
+    let wavelength_descriptor = common_descriptor
+        && attributes
+            .get("coefficient_profile")
+            .and_then(Value::as_str)
+            == Some(rotary_scale::WAVELENGTH_COEFFICIENT_PROFILE)
+        && attributes.get("input_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("output_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("tail_policy").and_then(Value::as_str) == Some("unchanged")
+        && attributes.get("rope_type").is_none()
+        && attributes.get("output_dtype").is_none()
+        && attributes
+            .get("frequency_scaling")
+            .is_some_and(rotary_scale::valid_wavelength_descriptor);
     let bfloat16_descriptor = common_descriptor
+        && !attributes.contains_key("frequency_scaling")
         && attributes
             .get("coefficient_profile")
             .and_then(Value::as_str)
@@ -1553,7 +1587,7 @@ fn validate_rotary_embedding(
         .any(|key| attributes.contains_key(*key))
         || attributes.get("output_dtype").and_then(Value::as_str) == Some("bfloat16")
         || attributes.get("numeric_semantics").and_then(Value::as_str) == Some("bfloat16_stepwise"))
-        && !(q30_descriptor || bounded_bfloat16_descriptor)
+        && !(q30_descriptor || wavelength_descriptor || bounded_bfloat16_descriptor)
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid rotary descriptors",
@@ -2273,15 +2307,24 @@ fn validate_dense_qwen_semantics(plan: &DecoderPlan) -> Result<(), ModelError> {
             match operation.operator {
                 ModelOperator::RotaryEmbedding => {
                     let attributes = operation.attributes.as_object().expect("validated object");
+                    let numeric_profile = attributes
+                        .get("coefficient_profile")
+                        .and_then(Value::as_str);
+                    let scaling_valid = match attributes.get("frequency_scaling") {
+                        Some(scaling) if plan.model_family == "llama" => {
+                            rotary_scale::valid_wavelength_descriptor(scaling)
+                                && numeric_profile
+                                    == Some(rotary_scale::WAVELENGTH_COEFFICIENT_PROFILE)
+                        }
+                        None => numeric_profile == Some("pllm.numeric.rope.q30.libm.v1"),
+                        _ => false,
+                    };
                     if attributes.get("rotary_dimensions").and_then(Value::as_u64)
                         != operation.output_shape.last().copied()
                         || attributes.get("pairing").and_then(Value::as_str) != Some("split_half")
                         || attributes.get("position_policy").and_then(Value::as_str)
                             != Some("sequential_absolute")
-                        || attributes
-                            .get("coefficient_profile")
-                            .and_then(Value::as_str)
-                            != Some("pllm.numeric.rope.q30.libm.v1")
+                        || !scaling_valid
                         || attributes.get("input_layout").and_then(Value::as_str)
                             != Some("batch_heads_sequence_feature")
                         || attributes.get("output_layout").and_then(Value::as_str)
@@ -2671,6 +2714,7 @@ fn validate_dense_qwen_attention_layer<'a>(
         || rope_k.layer != Some(layer)
         || rope_q.attributes.get("theta").and_then(Value::as_u64) != Some(theta)
         || rope_k.attributes.get("theta").and_then(Value::as_u64) != Some(theta)
+        || rope_q.attributes != rope_k.attributes
     {
         return Err(ModelError::Incomplete(format!(
             "dense Qwen layer {layer} has invalid rotary producers"

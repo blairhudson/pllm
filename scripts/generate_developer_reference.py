@@ -1809,7 +1809,8 @@ def model_compatibility() -> dict[str, Any]:
     for item in adapters:
         if (
             not isinstance(item, dict)
-            or set(item) not in (required | {"fixture"}, required | {"config"})
+            or set(item) - {"pinned_real_checkpoint_functionality", "scaled_fixture"}
+                not in (required | {"fixture"}, required | {"config"})
             or any(type(item[field]) is not str or not item[field] for field in required - {"baseline_schedule", "requires", "baseline_blockers"})
             or type(item["baseline_schedule"]) is not bool
             or not item["guide"].startswith("/sdk/models/families/")
@@ -1830,8 +1831,27 @@ def model_compatibility() -> dict[str, Any]:
             or not (ROOT / item["fixture"]).is_file()
         ):
             raise ValueError("model compatibility fixture is missing")
+        if "scaled_fixture" in item and (
+            type(item["scaled_fixture"]) is not str
+            or "fixture" not in item
+            or not item["scaled_fixture"].startswith("crates/pllm-models/tests/fixtures/")
+            or not (ROOT / item["scaled_fixture"]).is_file()
+        ):
+            raise ValueError("model compatibility scaled fixture is missing")
+        if "pinned_real_checkpoint_functionality" in item and (
+            type(item["pinned_real_checkpoint_functionality"]) is not str
+            or not item["pinned_real_checkpoint_functionality"]
+            or len(item["pinned_real_checkpoint_functionality"]) > 64
+        ):
+            raise ValueError("invalid real-checkpoint functionality label")
         if "config" in item and not isinstance(item["config"], dict):
             raise ValueError("invalid inline model compatibility config")
+    labels = [
+        item["pinned_real_checkpoint_functionality"]
+        for item in adapters if "pinned_real_checkpoint_functionality" in item
+    ]
+    if len(labels) != len(set(labels)):
+        raise ValueError("duplicate real-checkpoint functionality label")
     for item in candidates:
         if (
             not isinstance(item, dict)
@@ -1871,6 +1891,10 @@ def render_python_status() -> str:
     def percent(completed: int, total: int) -> str:
         return f"{100 * completed / total:.1f}%" if total else "—"
 
+    real_checkpoint_paths = [
+        item["pinned_real_checkpoint_functionality"]
+        for item in adapters if item.get("pinned_real_checkpoint_functionality")
+    ]
     body = [
         _frontmatter(
             "SDK implementation and model compatibility",
@@ -1897,8 +1921,8 @@ def render_python_status() -> str:
         "## Decoder architecture compatibility\n\n",
         f"**{len(adapters)} checked semantic adapters**, "
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
-        "and **2 pinned local real-checkpoint functionality paths** "
-        "(Qwen2.5-0.5B and Qwen3-0.6B). "
+        f"and **{len(real_checkpoint_paths)} pinned local real-checkpoint functionality paths** "
+        f"({', '.join(real_checkpoint_paths)}). "
         "Tiny Qwen2/Qwen3 and bounded bias-free dense role-backed requests share the compiler-bound execution "
         "schedule with local numeric tests. "
         "No protected whole-decoder model execution is established. Lowering a config does not "

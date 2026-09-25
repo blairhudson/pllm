@@ -400,11 +400,20 @@ fn local_operator(operation: &ModelOperation) -> bool {
                     == Some(true)
                 && operation.output_shape.len() == 3
         }
-        ModelOperator::RotaryEmbedding => operation
-            .attributes
-            .get("rope_type")
-            .and_then(serde_json::Value::as_str)
-            .is_none_or(|kind| matches!(kind, "default" | "proportional")),
+        ModelOperator::RotaryEmbedding => {
+            operation
+                .attributes
+                .get("rope_type")
+                .and_then(serde_json::Value::as_str)
+                .is_none_or(|kind| matches!(kind, "default" | "proportional"))
+                && operation
+                    .attributes
+                    .get("frequency_scaling")
+                    .is_none_or(|scale| {
+                        scale.get("kind").and_then(serde_json::Value::as_str)
+                            == Some("wavelength_transition")
+                    })
+        }
         _ => false,
     }
 }

@@ -537,7 +537,14 @@ def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict
         rope_scaling = None
     elif rope_scaling in ({"type": "default"}, {"rope_type": "default"}):
         rope_scaling = None
-    elif not nested_source:
+    elif not nested_source and not (
+        isinstance(rope_scaling, dict)
+        and set(rope_scaling) == {
+            "rope_type", "factor", "low_freq_factor", "high_freq_factor",
+            "original_max_position_embeddings",
+        }
+        and rope_scaling.get("rope_type") == "llama3"
+    ):
         raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
     if not nested_source and (
@@ -623,6 +630,7 @@ def _validate_runtime_semantics(
 ) -> None:
     rotary_head_dims: set[int] = set()
     rotary_norm_inputs: list[bool] = []
+    source_scaling = runtime_config.get("rope_scaling")
     for phase, (_, operations) in phases.items():
         for operation in operations.values():
             if operation.get("operator") != "rotary_embedding":
@@ -639,6 +647,16 @@ def _validate_runtime_semantics(
                 raise RuntimeBindingError(f"{phase} rotary input is not produced by the plan")
             rotary_head_dims.add(_last_dim(source.get("output_shape"), f"{phase} rotary input"))
             rotary_norm_inputs.append(source.get("operator") == "rms_norm")
+            if not nested_source:
+                attributes = operation.get("attributes") or {}
+                expected_scaling = (
+                    {"kind": "wavelength_transition", **{
+                        key: value for key, value in source_scaling.items() if key != "rope_type"
+                    }}
+                    if isinstance(source_scaling, dict) else None
+                )
+                if attributes.get("frequency_scaling") != expected_scaling:
+                    raise RuntimeBindingError("rotary frequency scaling diverges from the source")
             if nested_source and operation.get("attributes", {}).get("head_dim") != _last_dim(
                 source.get("output_shape"), f"{phase} rotary input"
             ):

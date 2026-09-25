@@ -178,6 +178,60 @@ def test_pinned_rotary_contract_matches_bfloat16_torch_steps(
         SemanticDecoderRuntime._rotary(source, positions, attrs)
 
 
+def test_wavelength_transition_matches_independent_torch_rotary_oracle() -> None:
+    attrs = {
+        "theta": 10000, "rotary_dimensions": 16, "pairing": "split_half",
+        "position_policy": "sequential_absolute",
+        "coefficient_profile": "pllm.numeric.rope.float32.wavelength.v1",
+        "input_layout": "batch_heads_sequence_feature",
+        "output_layout": "batch_heads_sequence_feature", "tail_policy": "unchanged",
+        "frequency_scaling": {
+            "kind": "wavelength_transition", "factor": 8.0,
+            "original_max_position_embeddings": 32,
+            "low_freq_factor": 1.0, "high_freq_factor": 4.0,
+        },
+    }
+    positions = np.asarray([0, 1, 7, 63, 255, 8192, 131071], dtype=np.int64)
+    source = np.linspace(-1.0, 1.0, positions.size * 2 * 16, dtype=np.float32).reshape(
+        1, 2, positions.size, 16,
+    )
+    actual = SemanticDecoderRuntime._rotary(source, positions, attrs)
+
+    # Independent HF v4.44.2 Llama 3.1 reference formula, evaluated in torch.
+    frequency = 1 / (10000 ** (torch.arange(0, 16, 2).float() / 16))
+    wavelength = 2 * math.pi / frequency
+    assert bool(torch.any(wavelength < 8))
+    assert bool(torch.any((wavelength >= 8) & (wavelength <= 32)))
+    assert bool(torch.any(wavelength > 32))
+    low_scaled = torch.where(wavelength > 32, frequency / 8, frequency)
+    smooth = (32 / wavelength - 1) / (4 - 1)
+    medium = (1 - smooth) * low_scaled / 8 + smooth * low_scaled
+    frequency = torch.where((wavelength >= 8) & (wavelength <= 32), medium, low_scaled)
+    angles = torch.from_numpy(positions).float()[:, None] * frequency[None, :]
+    embedded = torch.cat((angles, angles), dim=-1)
+    x = torch.from_numpy(source)
+    rotated = torch.cat((-x[..., 8:], x[..., :8]), dim=-1)
+    expected = x * embedded.cos()[None, None] + rotated * embedded.sin()[None, None]
+    np.testing.assert_allclose(actual, expected.numpy(), atol=3e-5, rtol=3e-5)
+
+    with pytest.raises(TransformerClientError, match="wavelength rotary"):
+        SemanticDecoderRuntime._rotary(
+            source, positions, {**attrs, "frequency_scaling": {
+                **attrs["frequency_scaling"], "high_freq_factor": 1.0,
+            }},
+        )
+    with pytest.raises(TransformerClientError, match="wavelength rotary"):
+        SemanticDecoderRuntime._rotary(
+            source, positions, {**attrs, "frequency_scaling": {
+                **attrs["frequency_scaling"], "low_freq_factor": 1e-40,
+            }},
+        )
+    with pytest.raises(TransformerClientError, match="wavelength rotary"):
+        SemanticDecoderRuntime._rotary(source, positions, {**attrs, "coefficient_profile": "unsafe"})
+    with pytest.raises(TransformerClientError, match="wavelength rotary"):
+        SemanticDecoderRuntime._rotary(source, np.asarray([-1], dtype=np.int64), attrs)
+
+
 def test_declared_operator_outputs_round_at_local_and_remote_numeric_edges(
     operations: dict[str, dict],
 ) -> None:

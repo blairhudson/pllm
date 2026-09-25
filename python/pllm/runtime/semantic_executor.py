@@ -26,6 +26,7 @@ from .semantic_numeric import (
     bfloat16_scale,
     bfloat16_softmax,
     bfloat16_softcap,
+    float32_rotary_wavelength,
     round_bfloat16,
 )
 from .semantic_state import SemanticStateError, WindowedLayerCache
@@ -230,6 +231,11 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if attributes.get("output_dtype") == "bfloat16":
             try:
                 return bfloat16_rotary(value, positions, attributes)
+            except SemanticNumericError as exc:
+                raise TransformerClientError(str(exc)) from exc
+        if "frequency_scaling" in attributes:
+            try:
+                return float32_rotary_wavelength(value, positions, attributes)
             except SemanticNumericError as exc:
                 raise TransformerClientError(str(exc)) from exc
         rotary_dim = int(attributes["rotary_dimensions"])

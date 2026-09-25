@@ -37,7 +37,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: bash scripts/sync_environment.sh --python '${{ matrix.python }}'
-      - run: uv run --no-sync pytest -m 'not he and not sdk'
+      - run: uv run --no-sync pytest -m 'not he and not sdk and not quality'
 
   native:
     name: Native, integrations, and distributions
@@ -50,7 +50,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - run: bash scripts/sync_environment.sh --python 3.13 --extra he --extra sdk
+      - run: bash scripts/sync_environment.sh --python 3.13 --extra he --extra sdk --extra quality
       - run: uv run --no-sync ruff check python/pllm scripts tests
       - run: |
           version="$(uv run --no-sync python -c 'import pllm; print(pllm.__version__)')"
@@ -58,7 +58,7 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo test --locked
       - run: PYO3_PYTHON="$(uv python find 3.13)" cargo clippy --locked --workspace --all-targets -- -D clippy::correctness
-      - run: uv run --no-sync pytest -m 'he or sdk'
+      - run: uv run --no-sync pytest -m 'he or sdk or quality'
       - run: uv build
       - run: uv run --no-sync python scripts/check_distributions.py dist
       - run: uv run --no-sync twine check --strict dist/*

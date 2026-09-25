@@ -108,6 +108,7 @@ markers = [
   "slow: expensive cryptographic or external integration tests",
   "integration: real localhost network tests",
   "he: requires the actual TenSEAL backend",
+  "quality: requires the optional torch and transformers reference stack",
   "sdk: requires the installed official OpenAI SDK",
   "rust: requires the compiled Rust extension",
 ]
