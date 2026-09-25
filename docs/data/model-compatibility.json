@@ -105,8 +105,8 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": [],
-      "runtime_evidence": "Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16",
-      "remaining": "Provider-backed prepared execution, representative generation quality, privacy and matched cost evidence",
+      "runtime_evidence": "Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16; one prepared HTTP request completes through separate in-process inference and preparation services with masked online traffic",
+      "remaining": "Two-child deployment, independent-provider privacy, representative generation quality and matched cost evidence",
       "guide": "/sdk/models/families/gemma-4/"
     },
     {

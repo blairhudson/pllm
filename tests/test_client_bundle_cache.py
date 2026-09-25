@@ -524,6 +524,7 @@ def test_server_exposes_fingerprint_etag_and_memoizes_bundle(tmp_path: Path):
         assert response.status_code == 200
         assert response.headers["etag"] == descriptor["etag"]
         assert response.headers["x-pllm-bundle-sha256"] == descriptor["sha256"]
+        assert int(response.headers["content-length"]) == descriptor["size"]
         assert hashlib.sha256(response.content).hexdigest() == descriptor["sha256"]
         unchanged = client.get(
             "/v1/runtime/models/server-model/client-bundle",

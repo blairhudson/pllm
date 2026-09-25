@@ -656,7 +656,14 @@ def create_app(
         }
         if if_none_match == descriptor["etag"]:
             return FastAPIResponse(status_code=304, headers=headers)
-        return FastAPIResponse(payload, media_type="application/msgpack", headers=headers)
+        headers["Content-Length"] = str(len(payload))
+
+        def chunks():
+            view = memoryview(payload)
+            for offset in range(0, len(view), 1024 * 1024):
+                yield view[offset : offset + 1024 * 1024].tobytes()
+
+        return StreamingResponse(chunks(), media_type="application/msgpack", headers=headers)
 
     @app.get("/v1/runtime/models/{model_id:path}")
     async def model_manifest(
@@ -782,6 +789,7 @@ def create_app(
                     detail={"error": {"message": "Compiled decoder body differs from provider"}},
                 )
             from pllm.modeling import lower_model
+            from pllm.runtime.semantic_source import semantic_source_config
 
             try:
                 provider_models = getattr(engines[engine_name], "models", None)
@@ -789,7 +797,7 @@ def create_app(
                     raise ValueError("provider has no semantic model inventory")
                 provider_config = provider_models[model_id].config
                 provider_plan = lower_model(
-                    provider_config,
+                    semantic_source_config(provider_config),
                     batch=1,
                     max_input_tokens=bound,
                     max_new_tokens=output_bound,
