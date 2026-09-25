@@ -128,6 +128,10 @@ def test_offset_worker_rejects_forged_plan_role_and_shape_before_execution(
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
                                      base_url="http://worker.test") as client:
             headers = {"authorization": f"Bearer {token}"}
+            assert (await client.get("/v1/offset-reference/metrics")).status_code == 401
+            metrics = await client.get("/v1/offset-reference/metrics", headers=headers)
+            assert metrics.status_code == 200
+            assert metrics.json()["cpu_ns"] > 0
             body = _session_body(compiled, "worker_a")
             for field, forged in (("role", "worker_b"), ("decoder_plan", "0" * 64),
                                   ("stage_commitment", "0" * 64),

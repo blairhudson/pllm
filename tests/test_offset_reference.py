@@ -212,7 +212,7 @@ def test_offset_reference_benchmark_reports_costs_without_token_ids() -> None:
         cwd=root, capture_output=True, text=True, check=True, timeout=30,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.topology_reference_benchmark.v2"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v3"
     assert report["scope"] == "client_only_and_in_process_offset; not_deployed_network"
     assert report["offset_backend"] == "in-process"
     assert report["all_selected_tokens_match"] is True
@@ -244,15 +244,22 @@ def test_offset_loopback_benchmark_reports_matched_results_without_secret_materi
         cwd=root, capture_output=True, text=True, check=True, timeout=60,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.topology_reference_benchmark.v2"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v3"
     assert report["offset_backend"] == "loopback"
-    assert "worker_process_CPU_unmeasured" in report["offset_cpu_scope"]
+    assert "worker_CPU_reported_separately" in report["offset_cpu_scope"]
     assert report["total_wire_bytes"] is None
     assert report["full_response_compute_cap_checked"] is False
     assert report["all_selected_tokens_match"] is True
     assert report["worst_logit_difference"] == 0
     assert report["samples"][0]["offset_stage_calls"] == 8
     assert report["samples"][0]["offset_integer_macs"] == 55_296
+    assert report["median_offset_aggregate_online_cpu_seconds"] > 0
+    assert set(report["samples"][0]["offset_online_cpu_seconds_by_role"]) == {
+        "client", "worker_a", "worker_b",
+    }
+    assert set(report["samples"][0]["offset_worker_lifetime_peak_rss_bytes"]) == {
+        "worker_a", "worker_b",
+    }
     assert report["samples"][0]["offset_http_body_bytes_all_links"] > (
         report["samples"][0]["offset_stage_body_bytes"]
     )

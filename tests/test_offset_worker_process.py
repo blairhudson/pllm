@@ -80,6 +80,8 @@ def test_separate_offset_worker_processes_match_compiled_prefill_and_decode(
             ) == transport.costs.total_stage_body_bytes
             assert all(item["setup_upload_bytes"] > 0 for item in bodies.values())
             assert all(item["teardown_download_bytes"] > 0 for item in bodies.values())
+            metrics = cluster.snapshot_process_metrics()
+            assert all(metrics[role]["cpu_ns"] > 0 for role in ("worker_a", "worker_b"))
 
 
 def test_mismatched_second_worker_cancels_first_admitted_session(tmp_path: Path) -> None:

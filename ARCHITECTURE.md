@@ -263,10 +263,12 @@ sessions. Three Qwen2 and three Qwen3 generated tiny-checkpoint runs each
 matched client-only logits and selections after two-token prefill and one decode.
 Each two-worker response used 8 remote stages, 55,296 body integer MACs,
 14,744 packed stage-body bytes and 16,870 HTTP application-body bytes including
-admission/completion. Co-located children do not establish non-collusion; the
-diagnostic excludes headers/TLS, cold model distribution, full worker CPU,
-client peak memory and aggregate compute admission. This remains an internal
-research protocol, not a selectable Experiment or `pllm serve` topology.
+admission/completion. Co-located children do not establish non-collusion.
+Authenticated per-worker process CPU samples cover the online run window; each
+worker's lifetime peak RSS is reported separately. Headers/TLS, cold model
+distribution, startup CPU, client peak memory, full wire bytes and a matched
+prepared-role CPU cohort remain unmeasured. This remains an internal research
+protocol, not a selectable Experiment or `pllm serve` topology.
 
 The same bounded diagnostic uses client-only clear W8A8 execution as its
 single-party comparator: one body matrix operation per stage, no online

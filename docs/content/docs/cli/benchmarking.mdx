@@ -34,7 +34,10 @@ uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 
 ```
 
 The diagnostic's stage, session-setup and completion HTTP body counts exclude
-headers, TLS, cold checkpoint distribution and worker CPU outside stage times.
+headers, TLS and cold checkpoint distribution. Authenticated process-CPU
+samples cover the client and each worker during online execution, and worker
+peak RSS covers their process lifetimes; startup CPU, client peak memory and
+full-response compute remain out of scope.
 It is not a selectable `Experiment` or privacy-qualified multi-host result.
 
 Repeat `--experiment` to compare complete experiment configurations. Each

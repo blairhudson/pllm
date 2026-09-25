@@ -88,6 +88,37 @@ class LocalOffsetCluster:
         self.processes.clear()
         self.keys.clear()
 
+    def snapshot_process_metrics(self) -> dict[str, dict[str, int | None]]:
+        """Sample authenticated worker process CPU and lifetime peak RSS."""
+        if len(self.clients) != 2 or len(self.keys) != 2:
+            raise RuntimeError("offset workers have not started")
+        snapshots: dict[str, dict[str, int | None]] = {}
+        for role, client, key in zip(
+            ("worker_a", "worker_b"), self.clients, self.keys, strict=True,
+        ):
+            response = client.get(
+                "/v1/offset-reference/metrics",
+                headers={"authorization": f"Bearer {key}"},
+            )
+            if response.status_code != 200:
+                raise RuntimeError("offset worker process metrics are unavailable")
+            value = response.json()
+            if (
+                type(value) is not dict
+                or set(value) != {"schema", "cpu_ns", "peak_rss_bytes"}
+                or value["schema"] != "pllm.offset_worker_process_metrics.v1"
+                or type(value["cpu_ns"]) is not int or value["cpu_ns"] < 0
+                or (value["peak_rss_bytes"] is not None and (
+                    type(value["peak_rss_bytes"]) is not int
+                    or value["peak_rss_bytes"] <= 0
+                ))
+            ):
+                raise RuntimeError("offset worker process metrics are malformed")
+            snapshots[role] = {
+                "cpu_ns": value["cpu_ns"], "peak_rss_bytes": value["peak_rss_bytes"],
+            }
+        return snapshots
+
     def __exit__(self, *_exc: object) -> None:
         self.close()
 

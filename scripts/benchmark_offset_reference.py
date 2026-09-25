@@ -122,6 +122,10 @@ def main() -> None:
                         exchange_a=exchange(first), exchange_b=exchange(second),
                     )
                     remote = offset
+                before_workers = (
+                    cluster.snapshot_process_metrics()
+                    if method == "offset" and cluster is not None else None
+                )
                 wall_start = time.perf_counter_ns()
                 cpu_start = time.process_time_ns()
                 try:
@@ -139,12 +143,26 @@ def main() -> None:
                     if isinstance(offset, TwoOnlineOffsetTransport):
                         offset.abort()
                     raise
-                sample[f"{method}_online_wall_ms"] = (
-                    time.perf_counter_ns() - wall_start
-                ) / 1_000_000
-                sample[f"{method}_online_cpu_ms"] = (
-                    time.process_time_ns() - cpu_start
-                ) / 1_000_000
+                wall_elapsed = time.perf_counter_ns() - wall_start
+                cpu_elapsed = time.process_time_ns() - cpu_start
+                sample[f"{method}_online_wall_ms"] = wall_elapsed / 1_000_000
+                sample[f"{method}_online_cpu_ms"] = cpu_elapsed / 1_000_000
+                if before_workers is not None:
+                    assert cluster is not None
+                    after_workers = cluster.snapshot_process_metrics()
+                    cpu_by_role = {"client": cpu_elapsed / 1_000_000_000}
+                    for role in ("worker_a", "worker_b"):
+                        previous = before_workers[role]["cpu_ns"]
+                        current = after_workers[role]["cpu_ns"]
+                        assert previous is not None and current is not None
+                        assert current >= previous
+                        cpu_by_role[role] = (current - previous) / 1_000_000_000
+                    sample["offset_online_cpu_seconds_by_role"] = cpu_by_role
+                    sample["offset_aggregate_online_cpu_seconds"] = sum(cpu_by_role.values())
+                    sample["offset_worker_lifetime_peak_rss_bytes"] = {
+                        role: after_workers[role]["peak_rss_bytes"]
+                        for role in ("worker_a", "worker_b")
+                    }
                 outcomes[method] = ((selected, following), (prefill, decode))
                 if method == "client_only":
                     sample["client_only_body_integer_macs"] = client_stage_work
@@ -195,7 +213,7 @@ def main() -> None:
                 samples.append(measure(index, cluster))
 
         print(json.dumps({
-            "schema": "pllm.topology_reference_benchmark.v2",
+            "schema": "pllm.topology_reference_benchmark.v3",
             "scope": (
                 "client_only_and_two_co_located_loopback_workers; stage_bodies_not_total_wire"
                 if args.offset_backend == "loopback"
@@ -203,15 +221,17 @@ def main() -> None:
             ),
             "offset_backend": args.offset_backend,
             "offset_cpu_scope": (
-                "coordinator_only; worker_process_CPU_unmeasured"
+                "coordinator_only; worker_CPU_reported_separately"
                 if args.offset_backend == "loopback"
                 else "same_process_including_both_worker_stages"
             ),
             "total_wire_bytes": None,
             "full_response_compute_cap_checked": False,
+            "online_cpu_comparator_measured": args.offset_backend == "loopback",
             "unmeasured": [
                 "HTTP/TLS framing and headers, health/startup, and failed transport attempts",
-                "checkpoint transfer, client peak memory, and worker CPU outside stage timers",
+                "checkpoint transfer and client peak memory",
+                "worker CPU before session admission or after session completion",
             ],
             "client_only_topology_digest": client_only_reference_graph().digest(),
             "two_online_topology_digest": two_online_reference_graph().digest(),
@@ -233,6 +253,10 @@ def main() -> None:
             ),
             "median_offset_coordinator_cpu_ms": statistics.median(
                 s["offset_online_cpu_ms"] for s in samples
+            ),
+            "median_offset_aggregate_online_cpu_seconds": (
+                statistics.median(s["offset_aggregate_online_cpu_seconds"] for s in samples)
+                if args.offset_backend == "loopback" else None
             ),
             "worst_logit_difference": max(s["worst_logit_difference"] for s in samples),
             "samples": samples,

@@ -50,9 +50,11 @@ semantic plan, binds its role and stage inventory, and rejects replay. In three
 checked runs per tiny Qwen2 and Qwen3 decoder, client-only and two-worker
 selected tokens and logits again matched exactly; two-worker session admission,
 stages and completion transferred 16,870 HTTP **application-body** bytes per
-run, including 14,744 packed stage-body bytes. The processes still share one
-operator. HTTP headers/TLS, model distribution, client peak memory, worker CPU
-outside stage timing and full-response compute are not measured.
+run, including 14,744 packed stage-body bytes. The process-CPU sample now
+includes client plus both workers over the online run window, and the report
+gives each worker's lifetime peak RSS. The processes still share one operator.
+HTTP headers/TLS, model distribution, client peak memory, worker startup and
+cold-preparation CPU, and full-response compute are not measured.
 
 ```bash
 uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3 --offset-backend loopback

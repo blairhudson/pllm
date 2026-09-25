@@ -25,7 +25,8 @@ An opt-in [loopback comparison](/learn/topologies/network-and-compute/) now
 runs that compiled plan with two authenticated worker processes and accounts
 for stage plus setup/teardown HTTP application bodies. Both processes share one
 operator. Neither reference is an independently operated or selectable
-topology; complete network and aggregate CPU remain unmeasured. Resident
+topology; the loopback diagnostic measures online per-role process CPU but
+not cold-start CPU, complete network or an admitted compute cap. Resident
 two/three-party MPC, dealer/FSS, TEE-only and
 TEE-plus-accelerator arrangements still require their own complete compiler,
 transport and privacy-admission contracts. They cannot be

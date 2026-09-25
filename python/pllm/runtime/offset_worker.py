@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -55,6 +56,15 @@ def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError("duplicate session field")
         value[key] = item
     return value
+
+
+def _peak_rss_bytes() -> int | None:
+    try:
+        import resource
+    except ImportError:
+        return None
+    maximum = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return int(maximum if sys.platform == "darwin" else maximum * 1024)
 
 
 async def _limited_body(request: Request, limit: int) -> bytes:
@@ -117,6 +127,17 @@ def create_offset_worker_app(
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok", "role": role_id}
+
+    @app.get("/v1/offset-reference/metrics")
+    async def process_metrics(
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, str | int | None]:
+        authenticate(authorization)
+        return {
+            "schema": "pllm.offset_worker_process_metrics.v1",
+            "cpu_ns": time.process_time_ns(),
+            "peak_rss_bytes": _peak_rss_bytes(),
+        }
 
     @app.post("/v1/offset-reference/sessions")
     async def open_session(
