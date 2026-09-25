@@ -1,4 +1,4 @@
-"""Measure a bounded, in-process two-worker offset reference against clear W8A8.
+"""Measure matched client-only and two-worker offset baselines on tiny W8A8.
 
 This is not a BenchmarkResult: workers share one process and the report excludes
 deployment traffic, operator independence, setup and full-response compute.
@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 
 import pllm
+from pllm.roles import client_only_reference_graph, two_online_reference_graph
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.offset_reference import TwoOnlineOffsetReference
@@ -45,12 +46,21 @@ def main() -> None:
             qk_norm=args.model_type == "qwen3",
         )
         model_id = "tiny-offset-reference"
+        checkpoint_artifact_bytes = sum(
+            path.stat().st_size for path in checkpoint.rglob("*") if path.is_file()
+        )
         manifest = load_hf_directory(checkpoint, model_id=model_id)
         first = MaskedTransformerEngine(threads=1)
         second = MaskedTransformerEngine(threads=1)
         asyncio.run(first.load(manifest))
         asyncio.run(second.load(manifest))
-        bundle = ClientBundle.unpack(first.client_bundle(model_id))
+        bundle_payload = first.client_bundle(model_id)
+        bundle = ClientBundle.unpack(bundle_payload)
+        quantized_weight_bytes = sum(
+            stage.weight.values.nbytes + stage.weight.scales.nbytes
+            + (0 if stage.bias is None else stage.bias.nbytes)
+            for stage in first.models[model_id].stages.values()
+        )
         config = json.loads((checkpoint / "config.json").read_text(encoding="utf-8"))
         plan = pllm.lower_model(
             config, batch=1, max_input_tokens=4, max_new_tokens=2,
@@ -63,10 +73,16 @@ def main() -> None:
                 return asyncio.run(worker.execute_stage(model_id, stage, payloads))
             return call
 
-        def clear(stage_id: str, activation: np.ndarray) -> np.ndarray:
+        client_stage_work = 0
+
+        def client_only(stage_id: str, activation: np.ndarray) -> np.ndarray:
+            nonlocal client_stage_work
             stage = first.models[model_id].stages[stage_id]
             quantized = quantize_activation_per_row(activation, bits=stage.spec.activation_bits)
             integer = stage.compiled_weight.clear(quantized.values)
+            client_stage_work += (
+                quantized.rows * stage.spec.in_features * stage.spec.out_features
+            )
             output = dequantize_matmul(
                 integer, quantized.scales, stage.weight.scales,
                 output_shape=quantized.original_shape[:-1] + (stage.spec.out_features,),
@@ -79,10 +95,13 @@ def main() -> None:
         for index in range(args.repeats):
             outcomes: dict[str, tuple[tuple[int, int], tuple[np.ndarray, np.ndarray]]] = {}
             sample: dict[str, Any] = {}
-            for method in (("clear", "offset") if index % 2 == 0 else ("offset", "clear")):
+            for method in (
+                ("client_only", "offset") if index % 2 == 0 else ("offset", "client_only")
+            ):
                 offset: TwoOnlineOffsetReference | None = None
-                if method == "clear":
-                    remote = clear
+                if method == "client_only":
+                    client_stage_work = 0
+                    remote = client_only
                 else:
                     offset = TwoOnlineOffsetReference(
                         compiled, first, second, model_id=model_id,
@@ -105,6 +124,9 @@ def main() -> None:
                     time.process_time_ns() - cpu_start
                 ) / 1_000_000
                 outcomes[method] = ((selected, following), (prefill, decode))
+                if method == "client_only":
+                    sample["client_only_body_integer_macs"] = client_stage_work
+                    sample["client_only_online_network_bytes"] = 0
                 if offset is not None:
                     cost = offset.costs
                     sample["offset_stage_calls"] = cost.stages
@@ -120,18 +142,27 @@ def main() -> None:
                         "worker_a": cost.worker_a_stage_ns,
                         "worker_b": cost.worker_b_stage_ns,
                     }
-            sample["same_selected_tokens"] = outcomes["clear"][0] == outcomes["offset"][0]
+            sample["same_selected_tokens"] = (
+                outcomes["client_only"][0] == outcomes["offset"][0]
+            )
             sample["worst_logit_difference"] = max(
                 float(np.max(np.abs(reference - candidate)))
                 for reference, candidate in zip(
-                    outcomes["clear"][1], outcomes["offset"][1], strict=True,
+                    outcomes["client_only"][1], outcomes["offset"][1], strict=True,
                 )
             )
             samples.append(sample)
 
         print(json.dumps({
-            "schema": "pllm.offset_topology_reference_benchmark.v1",
-            "scope": "in_process_serialized_stage_bodies_not_deployed_network",
+            "schema": "pllm.topology_reference_benchmark.v1",
+            "scope": "client_only_and_in_process_offset; not_deployed_network",
+            "client_only_topology_digest": client_only_reference_graph().digest(),
+            "two_online_topology_digest": two_online_reference_graph().digest(),
+            "client_only_checkpoint_artifact_bytes": checkpoint_artifact_bytes,
+            "client_only_quantized_weight_bytes": quantized_weight_bytes,
+            "client_only_compiled_bundle_bytes": len(bundle_payload),
+            "client_only_cold_checkpoint_transfer_bytes": None,
+            "client_only_peak_memory_bytes": None,
             "model_type": args.model_type,
             "plan_digest": compiled.model_plan_digest,
             "compiled_digest": compiled.digest,
@@ -140,8 +171,8 @@ def main() -> None:
             "generated_token_count": 2,
             "repeats": args.repeats,
             "all_selected_tokens_match": all(s["same_selected_tokens"] for s in samples),
-            "median_clear_online_cpu_ms": statistics.median(
-                s["clear_online_cpu_ms"] for s in samples
+            "median_client_only_online_cpu_ms": statistics.median(
+                s["client_only_online_cpu_ms"] for s in samples
             ),
             "median_offset_online_cpu_ms": statistics.median(
                 s["offset_online_cpu_ms"] for s in samples

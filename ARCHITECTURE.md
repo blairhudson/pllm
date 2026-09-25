@@ -254,6 +254,12 @@ logical client/worker serialized stage bodies, integer matrix operations and
 provider-stage times. Both workers still share one process; these figures omit
 HTTP/TLS, cross-host traffic, setup and aggregate client compute. This reference
 is not an executable Experiment option or independent-party privacy evidence.
+The same bounded diagnostic uses client-only clear W8A8 execution as its
+single-party comparator: one body matrix operation per stage, no online
+provider bytes, and explicitly counted local checkpoint artifacts and quantized
+weight snapshots. Cold checkpoint transfer and peak memory remain unmeasured;
+the role graph has one client and no channels. This local comparator does not
+activate a public client-only Experiment/gateway topology.
 `pllm.research` keeps attribution, quarantined upstream artifacts, clean-room methods,
 and promotion gates static and non-executable. Public objects are imported on demand.
 `pllm.assurance.PublicSubspaceMaskRegression` independently constructs a bounded

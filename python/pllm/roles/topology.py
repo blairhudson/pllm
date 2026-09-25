@@ -77,10 +77,12 @@ class RoleGraph:
     separate_operators: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if type(self.roles) is not tuple or not 2 <= len(self.roles) <= 16:
-            raise ConfigurationError("role graph requires 2 to 16 roles")
-        if type(self.channels) is not tuple or not 1 <= len(self.channels) <= 64:
-            raise ConfigurationError("role graph requires 1 to 64 channels")
+        if type(self.roles) is not tuple or not 1 <= len(self.roles) <= 16:
+            raise ConfigurationError("role graph requires 1 to 16 roles")
+        if type(self.channels) is not tuple or not 0 <= len(self.channels) <= 64:
+            raise ConfigurationError("role graph requires at most 64 channels")
+        if (len(self.roles) == 1) != (len(self.channels) == 0):
+            raise ConfigurationError("one-client topology has no channels; multi-role graphs require channels")
         if type(self.separate_operators) is not tuple or len(self.separate_operators) > 120:
             raise ConfigurationError("role graph has invalid separation requirements")
         if any(type(role) is not Role for role in self.roles):
@@ -211,4 +213,31 @@ def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     raise ConfigurationError("composition has no admitted role topology")
 
 
-__all__ = ["Channel", "Role", "RoleGraph", "graph_for_runtime"]
+def client_only_reference_graph() -> RoleGraph:
+    """The local-clear comparator has no provider, online link, or separation claim."""
+    return RoleGraph(roles=(Role("client", "trusted_client"),), channels=())
+
+
+def two_online_reference_graph() -> RoleGraph:
+    """The in-process offset comparator's logical channels; no provider admission."""
+    return RoleGraph(
+        roles=(
+            Role("client", "trusted_client"),
+            Role("worker_a", "public_linear_provider"),
+            Role("worker_b", "public_linear_provider"),
+        ),
+        channels=(
+            Channel("client", "worker_a", "online", "input_share"),
+            Channel("worker_a", "client", "online", "output_share"),
+            Channel("client", "worker_b", "online", "input_share"),
+            Channel("worker_b", "client", "online", "output_share"),
+            Channel("worker_a", "client", "offline", "public_boundary_bundle"),
+        ),
+        separate_operators=(("worker_a", "worker_b"),),
+    )
+
+
+__all__ = [
+    "Channel", "Role", "RoleGraph", "client_only_reference_graph",
+    "graph_for_runtime", "two_online_reference_graph",
+]

@@ -9,6 +9,12 @@ including peer traffic, offline material, retries, initial model bundles and
 attestation. Report cold and warm runs separately, and distinguish prefill
 from decode. Fewer client round trips need not mean less total network.
 
+The **client-only** baseline keeps model weights and every operator on the
+client. It has no online provider messages and computes each body matrix once.
+Cold acquisition of the checkpoint can still require a large download; the
+client must retain its weights on disk and hold its quantized working set in
+memory. Its prompt privacy needs no remote non-collusion or TEE assumption.
+
 The proposed compute comparator is two **online** inference servers: the
 client splits each integer stage input into fresh additive shares, each server
 performs one matching matrix operation, and the client reconstructs before its
@@ -25,11 +31,12 @@ process; these are **not** deployed network bytes, independent operators or
 full-response aggregate compute measurements.
 
 The reproducible tiny diagnostic runs the exact same W8A8 checkpoint and
-prefill/decode token cohort through clear native stages and two additive-share
-stage calls. Each one-layer Qwen2/Qwen3 run has eight remote stages and 55,296
-integer multiply-accumulates across both logical workers. Three local runs per
-adapter selected identical tokens, with no logit difference from clear W8A8;
-the two-worker serialization totaled roughly 14.7 KB per run. These are
+prefill/decode token cohort through client-only native stages and two
+additive-share stage calls. Each one-layer Qwen2/Qwen3 run has eight body
+stages: 27,648 integer multiply-accumulates client-only and 55,296 across
+both logical workers. Three local runs per adapter selected identical tokens,
+with no logit difference; the two-worker serialization totaled roughly
+14.7 KB per run. These are
 **stage-body** bytes, not wire bytes or full-model evidence. To reproduce the
 Qwen2 diagnostic from the repository root:
 
@@ -39,6 +46,9 @@ uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 
 
 The analogous checked Qwen3 run uses `--model-type qwen3`. Reports include
 only plan identifiers, counts and aggregate values, not prompts or token IDs.
+The checkpoint-artifact and quantized-weight byte counts describe the tiny
+client-only fixture; peak memory and cold checkpoint **transfer** are left
+unmeasured rather than assumed zero. Client-only online provider bytes are zero.
 
 Current public prepared inference instead uses one online provider plus
 offline correction generation. It already has different client traffic and

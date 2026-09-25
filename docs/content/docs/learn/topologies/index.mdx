@@ -15,6 +15,12 @@ services share one operator, so the required Preparation–Inference separation
 is **not** satisfied. The local run is a functionality check, not proof of
 independent providers.
 
+The single-party reference executes the full model on the client. Prompts and
+activations never leave that machine; online provider bytes are zero, while
+checkpoint distribution, local weight storage, memory and client computation
+belong in the comparison. It is a measured local baseline, not the public
+remote-inference Experiment choice.
+
 Learn the [role and trust boundaries](/learn/topologies/roles-and-trust/),
 [network and compute comparison](/learn/topologies/network-and-compute/), and
 [TEE conventions](/learn/topologies/trusted-execution/). Use the

@@ -209,13 +209,21 @@ def test_offset_reference_benchmark_reports_costs_without_token_ids() -> None:
         cwd=root, capture_output=True, text=True, check=True, timeout=30,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.offset_topology_reference_benchmark.v1"
-    assert report["scope"] == "in_process_serialized_stage_bodies_not_deployed_network"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v1"
+    assert report["scope"] == "client_only_and_in_process_offset; not_deployed_network"
     assert report["all_selected_tokens_match"] is True
     assert report["worst_logit_difference"] == 0
     assert report["input_token_count"] == report["generated_token_count"] == 2
     assert report["samples"][0]["offset_stage_calls"] == 8
     assert report["samples"][0]["offset_integer_macs"] == 55_296
+    assert report["samples"][0]["client_only_body_integer_macs"] == 27_648
+    assert report["samples"][0]["client_only_online_network_bytes"] == 0
+    assert report["client_only_checkpoint_artifact_bytes"] > 0
+    assert report["client_only_quantized_weight_bytes"] > 0
+    assert report["client_only_compiled_bundle_bytes"] > 0
+    assert report["client_only_cold_checkpoint_transfer_bytes"] is None
+    assert report["client_only_peak_memory_bytes"] is None
+    assert report["client_only_topology_digest"] != report["two_online_topology_digest"]
     assert report["samples"][0]["offset_stage_body_bytes"] > 0
     assert sum(report["samples"][0]["offset_per_edge_bytes"].values()) == (
         report["samples"][0]["offset_stage_body_bytes"]

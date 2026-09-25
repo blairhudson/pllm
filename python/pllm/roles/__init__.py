@@ -3,7 +3,9 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
-from pllm.roles.topology import Channel, Role, RoleGraph
+from pllm.roles.topology import (
+    Channel, Role, RoleGraph, client_only_reference_graph, two_online_reference_graph,
+)
 
 
 class InferenceRole(ComponentRef, ABC):
@@ -80,5 +82,5 @@ class PreparedProviderRoles(RoleTopology):
 
 __all__ = [
     "Channel", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
-    "RoleTopology",
+    "RoleTopology", "client_only_reference_graph", "two_online_reference_graph",
 ]

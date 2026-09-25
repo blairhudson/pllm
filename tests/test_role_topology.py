@@ -13,7 +13,10 @@ from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
 from pllm.components import create_component, get_component
 from pllm.configuration import ComponentRef, ConfigurationError
 from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
-from pllm.roles import Channel, PreparedProviderRoles, Role, RoleGraph
+from pllm.roles import (
+    Channel, PreparedProviderRoles, Role, RoleGraph,
+    client_only_reference_graph, two_online_reference_graph,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,6 +51,34 @@ def test_masked_runtime_has_stable_digested_topology_and_declares_separation() -
     assert not graph.separation_violations(
         {"client": "customer", "preparation": "customer", "inference": "operator-b"}
     )
+
+
+def test_client_only_comparator_has_no_channels_or_coupled_operator_requirement() -> None:
+    graph = client_only_reference_graph()
+    schema = json.loads((ROOT / "schemas/role-topology.schema.json").read_text())
+    Draft202012Validator(schema).validate(graph.to_spec())
+    assert graph == RoleGraph.from_spec(graph.to_spec())
+    assert graph.roles == (Role("client", "trusted_client"),)
+    assert graph.channels == graph.separate_operators == ()
+    assert graph.separation_violations({"client": "local"}) == ()
+    assert graph.digest() != _resolved(MaskedLinearCpu(Model.tiny())).digest()
+    with pytest.raises(ConfigurationError, match="channels"):
+        RoleGraph(roles=graph.roles, channels=(Channel("client", "client", "online", "input"),))
+    with pytest.raises(ConfigurationError, match="channels"):
+        RoleGraph(roles=(Role("client", "trusted_client"), Role("worker", "provider")), channels=())
+
+
+def test_two_online_comparator_requires_two_distinct_declared_operators() -> None:
+    graph = two_online_reference_graph()
+    schema = json.loads((ROOT / "schemas/role-topology.schema.json").read_text())
+    Draft202012Validator(schema).validate(graph.to_spec())
+    assert RoleGraph.from_spec(graph.to_spec()).digest() == graph.digest()
+    assert graph.separation_violations(
+        {"client": "customer", "worker_a": "same", "worker_b": "same"}
+    ) == (("worker_a", "worker_b"),)
+    assert graph.separation_violations(
+        {"client": "customer", "worker_a": "operator-a", "worker_b": "operator-b"}
+    ) == ()
 
 
 def test_verified_material_changes_graph_without_parsing_profile_name() -> None:
@@ -158,7 +189,7 @@ def test_role_graph_placement_requires_exact_nonempty_operators() -> None:
 
 
 def test_empty_or_unsupported_graph_cannot_authorize_execution() -> None:
-    with pytest.raises(ConfigurationError, match="2 to 16 roles"):
+    with pytest.raises(ConfigurationError, match="one-client topology has no channels"):
         RoleGraph(roles=(Role("client", "trusted_client"),), channels=(
             Channel("client", "inference", "online", "masked_stage_input"),
         ))

@@ -3,7 +3,7 @@ title: "SDK implementation and model compatibility"
 description: "Checked model architecture requirements, runtime evidence, and Python API status."
 ---
 
-The SDK exposes **33 public Python modules** and **359 module exports**. **276** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **76.9%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
+The SDK exposes **33 public Python modules** and **361 module exports**. **278** exports are implemented Python symbols or public contracts; **83** are paper-linked classes that raise `NotYetImplementedError`. That makes **77.0%** of the declared Python API implemented at the API surface. An implemented export can still be an abstract contract, a bounded primitive, or a narrow experimental implementation: this is **not** a whole-decoder, security, or benchmark-coverage percentage.
 
 The [research method roadmap](/sdk/components/research-method-roadmap/) describes each pending symbol's next gate. The [component catalog](/sdk/reference/components/) separately lists executable component descriptors.
 
@@ -122,7 +122,7 @@ Prefer reusable semantic operators and tested checkpoint binding over model-name
 | [`pllm.protocols.masked_linear`](/sdk/reference/python/pllm/protocols-masked-linear/) | 1 | 1 | 2 | 50.0% |
 | [`pllm.preparation`](/sdk/reference/python/pllm/preparation/) | 5 | 0 | 5 | 100.0% |
 | [`pllm.quantization`](/sdk/reference/python/pllm/quantization/) | 2 | 0 | 2 | 100.0% |
-| [`pllm.roles`](/sdk/reference/python/pllm/roles/) | 7 | 0 | 7 | 100.0% |
+| [`pllm.roles`](/sdk/reference/python/pllm/roles/) | 9 | 0 | 9 | 100.0% |
 | [`pllm.schedulers`](/sdk/reference/python/pllm/schedulers/) | 5 | 0 | 5 | 100.0% |
 | [`pllm.search`](/sdk/reference/python/pllm/search/) | 9 | 0 | 9 | 100.0% |
 | [`pllm.server`](/sdk/reference/python/pllm/server/) | 1 | 0 | 1 | 100.0% |
