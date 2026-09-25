@@ -1586,7 +1586,10 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
         }
         if matches!(
             component.component.as_str(),
-            "pllm/masked-linear" | "pllm/model-aware-corrections" | "pllm/inference"
+            "pllm/masked-linear"
+                | "pllm/model-aware-corrections"
+                | "pllm/inference"
+                | "pllm/one-online-provider-offline-preparation/v1"
         ) && !component.params.is_empty()
         {
             return Err(format!(
@@ -1693,10 +1696,20 @@ fn validate_masked_linear_composition(
         }
     }
     let verification = pipeline.components.get("verification");
+    let topology = pipeline.components.get("topology");
+    if let Some(topology) = topology {
+        if topology.component != "pllm/one-online-provider-offline-preparation/v1"
+            || !topology.params.is_empty()
+        {
+            return Err("masked-linear topology requires the installed prepared-provider role graph with no parameters".into());
+        }
+    }
     if pipeline.components.len()
-        != 4 + usize::from(quantization.is_some()) + usize::from(verification.is_some())
+        != 4 + usize::from(quantization.is_some())
+            + usize::from(verification.is_some())
+            + usize::from(topology.is_some())
     {
-        return Err("unsupported masked-linear component composition; expected exact core, optional quantization, and optional verification slots".into());
+        return Err("unsupported masked-linear component composition; expected exact core and optional quantization, verification, and prepared topology slots".into());
     }
     let Some(verification) = verification else {
         return Ok(MaskedLinearComposition::Baseline);

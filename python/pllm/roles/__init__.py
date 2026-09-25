@@ -40,4 +40,45 @@ class Inference(InferenceRole):
         return cls.descriptor
 
 
-__all__ = ["Channel", "Inference", "InferenceRole", "Role", "RoleGraph"]
+class RoleTopology(ComponentRef, ABC):
+    """One compatible placement of logical roles, not a privacy proof."""
+
+    __slots__ = ()
+
+    @classmethod
+    @abstractmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+
+class PreparedProviderRoles(RoleTopology):
+    """Client, offline trusted Preparation, and one online Inference provider."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/one-online-provider-offline-preparation/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/role-topology",
+        category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("prepared-public-linear", "single-online-provider"),
+        role_eligibility=("client", "preparation", "inference"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+__all__ = [
+    "Channel", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
+    "RoleTopology",
+]

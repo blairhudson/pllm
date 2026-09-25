@@ -29,7 +29,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
     from pllm.quantization import SymmetricPerRow
     from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear
-    from pllm.roles import Inference
+    from pllm.roles import Inference, PreparedProviderRoles
     from pllm.schedulers import (
         BoundedIndependentElementsProtectedTensorSchedule,
         ChunkedIndependentLanesProtectedTensorSchedule,
@@ -46,7 +46,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         Communication, Cost, Cpu, DirectFHE, Energy, FreivaldsVerify, GuardedLinear,
         HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
         KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
-        Perplexity, R03CrtGatedMultiplyQ7, ReferenceAgreement, ScalarProtectedTensorSchedule, SeededExpansion,
+        Perplexity, PreparedProviderRoles, R03CrtGatedMultiplyQ7, ReferenceAgreement, ScalarProtectedTensorSchedule, SeededExpansion,
         SecureLinear, SymmetricPerRow, Throughput,
     )
     if len({component.describe().component for component in classes}) != len(classes):

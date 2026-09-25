@@ -1,4 +1,4 @@
 {
   "title": "Roles",
-  "pages": ["index", "inference"]
+  "pages": ["index", "inference", "prepared-provider"]
 }

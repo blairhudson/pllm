@@ -47,7 +47,7 @@ from pllm.protocols import (
     ProtocolMethod,
     SecureLinear,
 )
-from pllm.roles import Inference, InferenceRole
+from pllm.roles import Inference, InferenceRole, PreparedProviderRoles
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
     ChunkedIndependentLanesProtectedTensorSchedule,
@@ -87,6 +87,7 @@ def _instances():
         MaskedLinear(),
         Memory(),
         ModelAwareCorrections(),
+        PreparedProviderRoles(),
         Perplexity(dataset="fixture"),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),

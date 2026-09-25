@@ -3,11 +3,14 @@ title: "Choices and status"
 description: "Separate installed role graphs from paper-linked research topologies."
 ---
 
-The public masked-linear component composition currently resolves to Client,
-offline Preparation and online Inference. Optional Freivalds verification adds
-an offline Preparation-to-Client projection channel. Installed proprietary
-compositions resolve to Client and one provider, under their separate protocol
-contracts. These are **inspected** graphs, not general runtime role selection.
+The public masked-linear composition currently resolves to Client, offline
+Preparation and online Inference. You can **select the same installed graph
+explicitly** in the `topology` component slot: its composition and execution
+digests change, and the native compiler and provider bind that choice before
+prepared inference. Existing Experiments without the slot keep their original
+digests. Optional Freivalds verification adds an offline Preparation-to-Client
+projection channel. Installed proprietary compositions resolve to Client and
+one provider under separate protocol contracts.
 
 The proposed two-online-offset comparator, resident two/three-party MPC,
 dealer/FSS, TEE-only and TEE-plus-accelerator arrangements require their own
@@ -19,13 +22,26 @@ non-executable.
 ## Python SDK example
 
 ```python
-from pllm import Experiment
-from pllm.roles import Channel
+from pllm import Experiment, Pipeline
+from pllm.roles import Channel, PreparedProviderRoles
 
-graph = Experiment.from_file("examples/pllm.yaml").resolve().role_graph
+original = Experiment.from_file("examples/pllm.yaml")
+selected = Pipeline(
+    model=original.pipeline.model,
+    components={**original.pipeline.components, "topology": PreparedProviderRoles()},
+)
+experiment = Experiment(
+    name=original.name,
+    pipeline=selected,
+    deployment=original.deployment,
+    budget=original.budget,
+)
+graph = experiment.resolve().role_graph
 assert graph is not None
 assert Channel("client", "inference", "online", "masked_stage_input") in graph.channels
 assert ("inference", "preparation") in graph.separate_operators
+assert experiment.pipeline.digest() != original.pipeline.digest()
+assert Experiment.from_spec(experiment.to_spec()).resolve().composition_digest == selected.digest()
 ```
 
 Run from the repository root. Inspect [components and runnable inference](/sdk/inference/)

@@ -156,6 +156,22 @@ def test_topology_inspection_uses_exact_experiment_target_and_reports_local_sepa
     assert trusted.returncode == 0, trusted.stderr
     assert json.loads(trusted.stdout)["data"]["topology_digest"] == data["topology_digest"]
 
+    explicit = run_cli(
+        "topology", "inspect", "examples/prepared-topology.yaml", "--format", "json"
+    )
+    assert explicit.returncode == 0, explicit.stderr
+    selected = json.loads(explicit.stdout)["data"]
+    assert selected["topology_digest"] == data["topology_digest"]
+    assert selected["composition_digest"] != data["composition_digest"]
+    admitted = run_cli(
+        "--dry-run", "benchmark", "run", "--experiment", "examples/prepared-topology.yaml",
+        "--max-output-tokens", "1", "--repetitions", "1", "--format", "json",
+    )
+    assert admitted.returncode == 0, admitted.stderr
+    assert json.loads(admitted.stdout)["data"]["configuration"]["experiments"][0][
+        "pipeline_digest"
+    ] == selected["composition_digest"]
+
 
 def test_explicit_factory_and_python_trust_policy(tmp_path: Path) -> None:
     target = tmp_path / "target.py"

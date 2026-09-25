@@ -9,10 +9,11 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.configuration import ConfigurationError
+from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
+from pllm.components import create_component, get_component
+from pllm.configuration import ComponentRef, ConfigurationError
 from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
-from pllm.roles import Channel, Role, RoleGraph
+from pllm.roles import Channel, PreparedProviderRoles, Role, RoleGraph
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -54,6 +55,64 @@ def test_verified_material_changes_graph_without_parsing_profile_name() -> None:
     verified = _resolved(VerifiedMaskedLinearCpu(Model.tiny()))
     assert verified.digest() != baseline.digest()
     assert Channel("preparation", "client", "offline", "verification_projection") in verified.channels
+
+
+def test_prepared_topology_is_an_explicit_round_trippable_experiment_option() -> None:
+    default = MaskedLinearCpu(Model.tiny())
+    selected = Pipeline(
+        model=default.model,
+        components={**default.components, "topology": PreparedProviderRoles()},
+    )
+    kwargs = {
+        "name": "role-selection",
+        "deployment": Deployment.local(root="local://role-selection"),
+        "budget": ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    }
+    implicit = Experiment(pipeline=default, **kwargs)
+    explicit = Experiment(pipeline=selected, **kwargs)
+    assert implicit.pipeline.digest() != explicit.pipeline.digest()
+    assert implicit.configuration_digest() != explicit.configuration_digest()
+    assert implicit.resolve().role_graph == explicit.resolve().role_graph
+    assert Experiment.from_spec(explicit.to_spec()).to_spec() == explicit.to_spec()
+    assert Experiment.from_spec(explicit.to_spec()).resolve().composition_digest == selected.digest()
+    identity = PreparedProviderRoles.descriptor.component
+    assert get_component(identity).category == "pllm/role-topology"
+    assert isinstance(create_component(identity, {}), PreparedProviderRoles)
+
+
+def test_explicit_prepared_roles_compose_with_verification() -> None:
+    verified = VerifiedMaskedLinearCpu(Model.tiny())
+    experiment = Experiment(
+        name="verified-roles",
+        pipeline=Pipeline(
+            model=verified.model,
+            components={**verified.components, "topology": PreparedProviderRoles()},
+        ),
+        deployment=Deployment.local(root="local://verified-roles"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+    )
+    resolved = experiment.resolve()
+    assert resolved.verification_component == "pllm/freivalds-verify/v1"
+    assert Channel("preparation", "client", "offline", "verification_projection") in resolved.role_graph.channels
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        ComponentRef("pllm/two-online-workers/v1"),
+        ComponentRef(PreparedProviderRoles.descriptor.component, {"operator": "same-host"}),
+    ],
+)
+def test_unimplemented_or_tampered_topology_cannot_activate_baseline(component: ComponentRef) -> None:
+    default = MaskedLinearCpu(Model.tiny())
+    with pytest.raises((ConfigurationError, ValueError), match="topology|composition|component params"):
+        attempt = Experiment(
+            name="unreviewed-topology",
+            pipeline=Pipeline(model=default.model, components={**default.components, "topology": component}),
+            deployment=Deployment.local(root="local://unreviewed-topology"),
+            budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+        )
+        attempt.resolve()
 
 
 def test_role_graph_is_deeply_immutable_and_order_independent() -> None:

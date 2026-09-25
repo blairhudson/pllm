@@ -356,6 +356,16 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     )
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
+    topology = pipeline.components.get("topology")
+    if topology is not None:
+        if (
+            topology.component != "pllm/one-online-provider-offline-preparation/v1"
+            or topology.params
+            or identities.get("linear") != "pllm/masked-linear"
+            or identities.get("preparation") != "pllm/model-aware-corrections"
+        ):
+            return None
+        del identities["topology"]
     if identities == {
         "linear": "pllm/masked-linear",
         "preparation": "pllm/model-aware-corrections",

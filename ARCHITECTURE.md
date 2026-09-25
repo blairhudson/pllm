@@ -231,8 +231,15 @@ a path-independent checkpoint lock. Generic immutable configuration stays in
 (`protocols`, `preparation`, `correlation`, `quantization`, `kernels`, `roles`, `nonlinear`,
 `schedulers`, `state`, `passes`, and `verification`), and `pllm.components`
 derives descriptor discovery from those classes. `pllm.profiles` provides typed
-slot contracts for the two-role public baseline and shipped one-role proprietary
-engines while generic serialized pipelines remain available. `pllm.providers`
+slot contracts for the two-service-role public baseline and shipped one-provider
+proprietary engines while generic serialized pipelines remain available. An
+optional `pllm.roles.PreparedProviderRoles` topology component explicitly binds
+the existing client, offline Preparation, and online Inference graph to a new
+composition and execution digest; omitting it preserves old v2 digests. The
+native scheduler and live provider admission accept only this implemented graph,
+and unimplemented role topologies fail closed. `Experiment.resolve().role_graph`
+reports its offline/online channels and operator-separation requirement, but
+local inspection cannot establish non-collusion. `pllm.providers`
 discovers static external manifests and package-confined resources without importing
 provider code; factory import is a separate approved operation. `pllm.metrics` owns
 typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact

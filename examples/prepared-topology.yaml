@@ -1,0 +1,29 @@
+schema: pllm.experiment.v2
+name: qwen-prepared-topology
+pipeline:
+  model:
+    source: Qwen/Qwen2.5-0.5B-Instruct
+  components:
+    linear:
+      component: pllm/masked-linear
+      params: {}
+    preparation:
+      component: pllm/model-aware-corrections
+      params: {}
+    inference:
+      component: pllm/inference
+      params: {}
+    kernels:
+      component: pllm/cpu
+      params:
+        threads: 4
+    topology:
+      component: pllm/one-online-provider-offline-preparation/v1
+      params: {}
+deployment:
+  kind: local
+  root: .pllm/qwen-prepared-topology
+budget:
+  requests: 1
+  max_input_tokens: 128
+  max_new_tokens: 32

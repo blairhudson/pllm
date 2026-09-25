@@ -12,6 +12,7 @@ from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
 from pllm.modeling import lower_model
 from pllm.profiles import MaskedLinearCpu
 from pllm.quantization import SymmetricPerRow
+from pllm.roles import PreparedProviderRoles
 from pllm.runtime import OpenAI
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.servers import build_roles
@@ -20,13 +21,14 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
 @pytest.mark.parametrize(
-    ("bits", "reject", "with_experiment", "model_type"),
+    ("bits", "reject", "with_experiment", "model_type", "explicit_topology"),
     [
-        (4, False, True, "qwen2"),
-        (8, False, True, "qwen2"),
-        (8, True, True, "qwen2"),
-        (8, False, False, "qwen2"),
-        (8, False, True, "llama"),
+        (4, False, True, "qwen2", False),
+        (8, False, True, "qwen2", False),
+        (8, True, True, "qwen2", False),
+        (8, False, False, "qwen2", False),
+        (8, False, True, "llama", False),
+        (8, False, True, "qwen2", True),
     ],
 )
 def test_live_prepared_decoder_binds_compiled_schedule_before_use(
@@ -36,6 +38,7 @@ def test_live_prepared_decoder_binds_compiled_schedule_before_use(
     reject: bool,
     with_experiment: bool,
     model_type: str,
+    explicit_topology: bool,
 ) -> None:
     root = create_tiny_llama_checkpoint(
         tmp_path / "model", num_hidden_layers=1, model_type=model_type,
@@ -74,12 +77,20 @@ def test_live_prepared_decoder_binds_compiled_schedule_before_use(
                 },
             )
             assert response.status_code == 200, response.text
+        selected = MaskedLinearCpu(
+            Model.path(str(root), model_id=model_id),
+            quantization=SymmetricPerRow(weight_bits=bits, activation_bits=bits),
+        )
+        pipeline = (
+            Pipeline(
+                model=selected.model,
+                components={**selected.components, "topology": PreparedProviderRoles()},
+            )
+            if explicit_topology else selected
+        )
         experiment = Experiment(
             name="live-compiled",
-            pipeline=MaskedLinearCpu(
-                Model.path(str(root), model_id=model_id),
-                quantization=SymmetricPerRow(weight_bits=bits, activation_bits=bits),
-            ),
+            pipeline=pipeline,
             deployment=Deployment.local(root="local://live-compiled"),
             budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=2),
         )

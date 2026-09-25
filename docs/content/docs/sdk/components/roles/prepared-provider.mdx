@@ -1,0 +1,50 @@
+---
+title: "Prepared provider roles"
+description: "Select the installed offline-Preparation and one-online-Inference role graph."
+---
+
+[`PreparedProviderRoles`](/sdk/reference/python/pllm/roles/#preparedproviderroles)
+(`pllm/one-online-provider-offline-preparation/v1`) selects the current
+prepared-public role arrangement explicitly. The client retains plaintext,
+live masks and KV state; trusted Preparation computes one-use masked
+corrections offline, and Inference performs masked linear stages online. The
+compiler checks exact component composition, and Inference verifies the
+resulting decoder plan before reserving rows. An omitted topology slot retains
+the previous v2 Pipeline digest and the same runtime graph.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Pipeline
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import PreparedProviderRoles
+from pllm.sources import TinyModel
+
+baseline = MaskedLinearCpu(TinyModel(model_id="prepared-topology-example"))
+selected = Pipeline(
+    model=baseline.model,
+    components={**baseline.components, "topology": PreparedProviderRoles()},
+)
+experiment = Experiment(
+    name="prepared-topology-example",
+    pipeline=selected,
+    deployment=Deployment.local(root="local://prepared-topology-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.resolve().role_graph.separate_operators == (("inference", "preparation"),)
+assert selected.digest() != baseline.digest()
+```
+
+**Privacy:** Preparation and Inference must not collude; local co-location
+does not satisfy that condition. **Network:** client–Preparation seed traffic
+and Preparation–Inference corrections happen offline, and one Inference
+service receives masked online stage messages. **CPU and memory:** Preparation
+computes corrections and both services retain the public transformer body;
+the client's token-boundary bundle and state remain client-side. **Disk:** a
+pinned real checkpoint and optional local tensor cache are separate from the
+one-use in-memory correction inventory. These are role-level costs, not a
+matched two-server-offset benchmark. See the
+[topology options guide](/sdk/topologies/options/) and
+[network comparison](/learn/topologies/network-and-compute/).
+
+API: [`PreparedProviderRoles`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

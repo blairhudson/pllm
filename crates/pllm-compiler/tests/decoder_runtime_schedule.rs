@@ -64,6 +64,31 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn explicit_prepared_topology_keeps_coverage_but_changes_plan_identity() {
+    let plan = plan(QWEN2);
+    let original = composition(false);
+    let mut pipeline: serde_json::Value = serde_json::from_slice(&original).unwrap();
+    pipeline["components"]["topology"] = json!({
+        "component": "pllm/one-online-provider-offline-preparation/v1", "params": {}
+    });
+    let selected = canonical_bytes(&pipeline);
+    let baseline = lower_decoder_runtime_schedule(&plan, &original).unwrap();
+    let bound = lower_decoder_runtime_schedule(&plan, &selected).unwrap();
+    assert!(bound.complete);
+    assert_ne!(bound.composition_digest, baseline.composition_digest);
+    assert_eq!(bound.composition_digest, pipeline_digest_bytes(&selected));
+    assert_eq!(bound.prefill.steps, baseline.prefill.steps);
+    assert_eq!(bound.decode.steps, baseline.decode.steps);
+
+    pipeline["components"]["topology"]["component"] = json!("pllm/two-online-workers/v1");
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+    pipeline["components"]["topology"]["component"] =
+        json!("pllm/one-online-provider-offline-preparation/v1");
+    pipeline["components"]["topology"]["params"] = json!({"operator": "inference"});
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+}
+
+#[test]
 fn lowers_complete_prefill_and_decode_schedules() {
     let plan = plan(QWEN2);
     let composition = composition(false);

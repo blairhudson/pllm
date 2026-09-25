@@ -107,6 +107,13 @@
         },
         {
           "if": {
+            "properties": {"component": {"const": "pllm/one-online-provider-offline-preparation/v1"}},
+            "required": ["component"]
+          },
+          "then": {"properties": {"params": {"maxProperties": 0}}}
+        },
+        {
+          "if": {
             "properties": {
               "component": {
                 "enum": ["pllm/masked-linear", "pllm/model-aware-corrections", "pllm/inference"]

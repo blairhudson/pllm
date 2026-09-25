@@ -17,6 +17,20 @@ same operator; this is not an independent-provider privacy result. The command
 resolves installed components but starts no provider, loads no checkpoint, and
 performs no attestation.
 
+The current prepared public topology is also a component identity:
+`pllm/one-online-provider-offline-preparation/v1`. An Experiment may include
+that identity in its `topology` slot to bind the same runtime graph explicitly;
+the [SDK example](/sdk/topologies/options/) shows the immutable Pipeline
+construction. Unlisted topologies remain unavailable for execution.
+
+Inspect the checked-in explicit selection and validate benchmark admission
+without loading weights or starting services:
+
+```bash
+pllm topology inspect examples/prepared-topology.yaml --format json
+pllm --dry-run benchmark run --experiment examples/prepared-topology.yaml --max-output-tokens 1 --repetitions 1 --format json
+```
+
 Use `pllm topology inspect path.py:experiment --trust-python` only for an
 explicitly trusted Python target. Unknown or incomplete compositions fail
 instead of presenting a made-up executable graph. See
