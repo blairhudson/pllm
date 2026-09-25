@@ -20,15 +20,15 @@ jobs:
     name: Source distribution
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install 3.13
       - run: uv sync --locked --python 3.13
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: docs/.nvmrc
           cache: npm
@@ -41,7 +41,7 @@ jobs:
         run: |
           uv run --no-sync python scripts/release.py check "$RELEASE_TAG" --require-locks --docs
           uvx --from "maturin==$MATURIN_VERSION" maturin sdist --out dist
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: pllm-sdist
           path: dist/*.tar.gz
@@ -78,10 +78,10 @@ jobs:
       TARGET: ${{ matrix.target }}
       USE_ZIG: ${{ matrix.zig }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -105,7 +105,7 @@ jobs:
           uv pip install --python "$python" "$wheel"
           cd "$RUNNER_TEMP"
           "$python" "$GITHUB_WORKSPACE/scripts/smoke_installed.py"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: pllm-wheel-${{ matrix.target }}
           path: dist/*.whl
@@ -121,12 +121,12 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: pllm-*
           merge-multiple: true
           path: dist
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uvx --from 'twine==6.2.0' twine check --strict dist/*
