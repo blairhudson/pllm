@@ -1,0 +1,23 @@
+---
+title: "Topologies"
+description: "Where private inference work runs, how roles connect, and what each arrangement assumes."
+---
+
+A **topology** names roles and directed channels between them. A protocol says
+what each role computes; a deployment says which operator and machine runs each
+role. Changing a URL does not change a privacy protocol or give two processes
+independent operators.
+
+Today's public prepared execution uses the trusted client, trusted offline
+Preparation, and online Inference. `pllm topology inspect` displays their
+role/channel graph for a resolved Experiment. On `Deployment.local(...)`, both
+services share one operator, so the required Preparation–Inference separation
+is **not** satisfied. The local run is a functionality check, not proof of
+independent providers.
+
+Learn the [role and trust boundaries](/learn/topologies/roles-and-trust/),
+[network and compute comparison](/learn/topologies/network-and-compute/), and
+[TEE conventions](/learn/topologies/trusted-execution/). Use the
+[SDK topology guide](/sdk/topologies/) to inspect an installed composition, or
+the [CLI guide](/cli/topologies/) to inspect a saved Experiment. Paper methods
+are [research provenance](/research/papers/), not enabled topologies by name.

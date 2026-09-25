@@ -679,19 +679,19 @@ test('each top-level journey owns an isolated Fumadocs sidebar', () => {
   }
   assert.equal(research.root, true);
   assert.ok(!research.pages.includes('index'));
-  assert.deepEqual(learn.pages.slice(-2), ['concepts', 'integrations']);
+  assert.deepEqual(learn.pages.slice(-3), ['concepts', 'topologies', 'integrations']);
   assert.equal(learn.title, 'Start');
   assert.deepEqual(navigation.publicationGroups.find((group) => group.id === 'get-started')
     .entries.slice(0, 3).map((entry) => entry.label), ['Start', 'Core concepts', 'Working with PLLM']);
   assert.deepEqual(cli.pages.slice(-1), ['../reference/cli']);
   assert.deepEqual(sdk.pages, [
-    'index', 'experiments', 'models', 'inference', 'components',
+    'index', 'experiments', 'topologies', 'models', 'inference', 'components',
     'run', 'plans', 'evaluate', 'extend', '../reference',
   ]);
   assert.deepEqual(research.pages.slice(-3), ['../recipes', 'papers', 'records']);
 
   for (const branch of [
-    'learn/integrations', 'learn/concepts', 'reference/cli',
+    'learn/integrations', 'learn/concepts', 'learn/topologies', 'reference/cli',
     'sdk/experiments', 'sdk/models', 'sdk/inference', 'sdk/components',
     'sdk/run', 'sdk/plans', 'sdk/evaluate', 'sdk/extend',
     'reference', 'recipes', 'research/papers',

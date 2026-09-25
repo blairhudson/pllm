@@ -34,7 +34,9 @@ def test_design_status_matches_parser_visible_command_families() -> None:
         for action in parser._actions
         if getattr(action, "dest", None) == "command"
     )
-    assert set(choices) == {"config", "components", "gateway", "serve", "benchmark", "dev"}
+    assert set(choices) == {
+        "config", "components", "topology", "gateway", "serve", "benchmark", "dev"
+    }
     status = (ROOT / "design/cli.md").read_text(encoding="utf-8").split(
         "## Implementation status", 1
     )[1]
@@ -42,6 +44,7 @@ def test_design_status_matches_parser_visible_command_families() -> None:
         "`config show TARGET`",
         "`config export TARGET --output PATH [--force]`",
         "`components list|show`",
+        "`topology inspect TARGET`",
         "`gateway`",
         "`serve inference|preparation`",
         "`benchmark run`",
@@ -126,6 +129,32 @@ def test_declarative_and_python_target_forms_have_canonical_parity(tmp_path: Pat
         assert result.returncode == 0, result.stderr
         digests.add(json.loads(result.stdout)["data"]["configuration_digest"])
     assert digests == {expected["configuration_digest"]}
+
+
+def test_topology_inspection_uses_exact_experiment_target_and_reports_local_separation() -> None:
+    target = str(ROOT / "examples/pllm.yaml")
+    shown = run_cli("topology", "inspect", target, "--format", "json")
+    assert shown.returncode == 0, shown.stderr
+    report = json.loads(shown.stdout)
+    assert report["command"] == "topology.inspect"
+    data = report["data"]
+    assert data["topology"]["schema"] == "pllm.role_topology.v1"
+    assert data["placement"]["separation_violations"] == [["inference", "preparation"]]
+    assert {role["id"] for role in data["topology"]["roles"]} == {
+        "client", "preparation", "inference"
+    }
+    assert len(data["topology_digest"]) == 64
+    assert not data["python_executed"]
+
+    rejected = run_cli("topology", "inspect", "examples/composition.py:experiment", "--no-input")
+    assert rejected.returncode == 3
+    assert "PYTHON_TRUST_REQUIRED" in rejected.stderr
+    trusted = run_cli(
+        "topology", "inspect", "examples/composition.py:experiment",
+        "--trust-python", "--no-input", "--format", "json",
+    )
+    assert trusted.returncode == 0, trusted.stderr
+    assert json.loads(trusted.stdout)["data"]["topology_digest"] == data["topology_digest"]
 
 
 def test_explicit_factory_and_python_trust_policy(tmp_path: Path) -> None:

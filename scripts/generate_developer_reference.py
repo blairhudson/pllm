@@ -27,7 +27,7 @@ from pllm.configuration import ComponentRef
 CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
 SDK_GUIDES_ROOT = ROOT / "docs/content/docs/sdk"
 MODEL_COMPATIBILITY = ROOT / "docs/data/model-compatibility.json"
-CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "benchmark", "dev")
+CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "topology", "benchmark", "dev")
 
 
 @dataclass(frozen=True)
@@ -158,6 +158,15 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             "Inspect one component",
             "Resolve a component by its stable identity and print its complete descriptor.",
             "pllm components show pllm/cpu --format json",
+        ),
+    ),
+    "pllm topology inspect": (
+        CliExample(
+            "Inspect installed role channels",
+            "Resolve an Experiment without starting roles; local co-location fails the declared "
+            "Preparation/Inference operator-separation requirement.",
+            "pllm topology inspect examples/pllm.yaml --format json",
+            validate_resolution=True,
         ),
     ),
     "pllm benchmark run": (
@@ -1042,7 +1051,7 @@ def render_cli_reference(
         "Use the CLI to run private inference, operate provider roles, benchmark the real "
         "transport, inspect configuration, and compare components. Open "
         "[Private inference](/cli/private-inference/), [Provider roles](/cli/provider-roles/), "
-        "[Benchmarking](/cli/benchmarking/), or "
+        "[Benchmarking](/cli/benchmarking/), [Topologies](/cli/topologies/), or "
         "[Inspect components](/cli/inspect-and-research/). Choose a command group below for "
         "exact generated arguments.\n\n",
         "## Complete grammar\n\n",

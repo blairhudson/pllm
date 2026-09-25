@@ -202,12 +202,17 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
     assert root == {
         "title": "Command reference",
         "root": True,
-        "pages": ["index", "gateway", "serve", "config", "components", "benchmark", "dev"],
+        "pages": [
+            "index", "gateway", "serve", "config", "components", "topology", "benchmark", "dev"
+        ],
     }
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "config/meta.json"])["pages"] == [
         "index",
         "show",
         "export",
+    ]
+    assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "topology/meta.json"])["pages"] == [
+        "index", "inspect"
     ]
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "gateway/meta.json"])["pages"] == [
         "index",

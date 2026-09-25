@@ -1,0 +1,27 @@
+---
+title: "Roles and trust"
+description: "Distinguish graph instances, independent operators, and declared privacy assumptions."
+---
+
+Role names describe work, not operator independence. In the public prepared
+path, the client keeps prompts, activations, masks, tokenizer and persistent
+state. Preparation receives stage seeds offline, computes masked corrections,
+and must erase its masks. Inference holds the public transformer body and
+consumes one-use masked stage requests online. Preparation and Inference must
+follow the protocol and not collude; a local process pair does not establish
+that separation.
+
+The role graph lists each directed offline or online channel. Its
+`separate_operators` pairs are **requirements**. The inspector reports whether
+a declared placement violates them; labels alone cannot verify real ownership
+or establish a cryptographic proof. One-use material still burns on failure,
+cancellation or replay. Protected regions must cover every operation before
+they can move from the client to another role.
+
+An alternative two-online-server offset comparator gives independent servers
+fresh additive input shares and has the client reconstruct each linear result.
+Its protocol and placement require separate review and execution; merely
+declaring a two-server graph does not activate it. See
+[traffic and compute](/learn/topologies/network-and-compute/) for the matched
+comparison and [TEE trust](/learn/topologies/trusted-execution/) for a different
+hardware-backed assumption.

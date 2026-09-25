@@ -1,0 +1,27 @@
+---
+title: "Network and compute"
+description: "Measure client and all-link bytes without moving uncounted work between roles."
+---
+
+Network has at least two useful objectives: bytes crossing the client boundary
+and bytes sent across **all** directed links. Count each transmission once,
+including peer traffic, offline material, retries, initial model bundles and
+attestation. Report cold and warm runs separately, and distinguish prefill
+from decode. Fewer client round trips need not mean less total network.
+
+The proposed compute comparator is two **online** inference servers: the
+client splits each integer stage input into fresh additive shares, each server
+performs one matching matrix operation, and the client reconstructs before its
+local operators. Both matrix operations, client work and any setup count. A
+candidate can optimize client bytes, total bytes, or both, while its compute
+constraint can cover online work or the full response with honestly amortized
+preprocessing. CPU and GPU work need measured, hardware-matched accounting;
+adding unlike resource units into one unexplained score is not a comparison.
+
+Current public prepared inference instead uses one online provider plus
+offline correction generation. It already has different client traffic and
+setup work from that comparator. Gemma E2B's pinned W8A8 client bundle alone
+measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
+warm-token results. Search over new topology choices and per-edge objective
+selection remain planned; the [existing benchmark](/cli/benchmarking/) does
+not claim to perform this comparison yet.

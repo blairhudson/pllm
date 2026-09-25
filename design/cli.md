@@ -18,6 +18,7 @@ Target grammar:
 ```text
 pllm [GLOBAL_OPTIONS] init
 pllm [GLOBAL_OPTIONS] config show|export TARGET
+pllm [GLOBAL_OPTIONS] topology inspect TARGET
 pllm [GLOBAL_OPTIONS] model lower TARGET
 pllm [GLOBAL_OPTIONS] plan check|compile|show TARGET
 pllm [GLOBAL_OPTIONS] prepare TARGET
@@ -90,6 +91,11 @@ Python `lower_model(...)`. Lowering model configuration MUST NOT imply that weig
 that complete protected execution coverage exists.
 
 ### Planning
+
+`topology inspect` resolves an executable composition and renders its immutable
+role/channel descriptor and separation assumptions. Local roles share one
+operator. Inspection is not a privacy proof, live attestation, or permission to
+serve a different role graph; unsupported compositions fail closed.
 
 `plan check` performs all cheap, metadata-complete checks and reports checks that require artifact
 resolution or remain open. It MUST NOT convert unknown coverage into a pass.
@@ -316,6 +322,7 @@ intentionally not placeholder commands. `pllm._cli` owns the sole parser; local 
 | `config show TARGET` | **Shipped** | Strict JSON/YAML or explicitly trusted Python `Experiment`; canonical public output only |
 | `config export TARGET --output PATH [--force]` | **Shipped** | Strict public JSON/YAML; exclusive create unless forced; dry-run writes nothing |
 | `components list|show` | **Shipped** | Built-in public `ComponentDescriptor` metadata only |
+| `topology inspect TARGET` | **Shipped** | Read-only installed-composition role graph and local trust diagnostics; arbitrary topology execution unavailable |
 | `gateway` | **Shipped runtime facade** | Trusted local Responses and Chat Completions gateway; not yet the target-based `serve TARGET` contract |
 | `serve inference|preparation` | **Shipped role facade** | Existing authenticated runtime roles; not yet generic `party serve ROLE` over a plan lock |
 | `benchmark run` | **Shipped runtime facade** | Existing local benchmark orchestration and evidence output; `search` and `compare` are unavailable |

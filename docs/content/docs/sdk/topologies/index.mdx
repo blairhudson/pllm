@@ -1,0 +1,30 @@
+---
+title: "Inspect a topology"
+description: "Read the installed role graph for a resolved Experiment."
+---
+
+`Experiment.resolve().role_graph` derives a versioned role/channel descriptor
+from the installed component composition. It exposes offline and online
+channels, a stable digest, and declared operator-separation requirements. The
+descriptor is not itself an executable topology selection or privacy proof.
+
+## Python SDK example
+
+```python
+from pllm import Experiment
+from pllm.roles import RoleGraph
+
+experiment = Experiment.from_file("examples/pllm.yaml")
+graph = experiment.resolve().role_graph
+assert isinstance(graph, RoleGraph)
+assert graph == RoleGraph.from_spec(graph.to_spec())
+assert {role.id for role in graph.roles} == {"client", "preparation", "inference"}
+assert graph.separation_violations({role.id: "local" for role in graph.roles})
+```
+
+Run from the repository root. The same Experiment still executes through the
+current public prepared path; use [topology inspection in the CLI](/cli/topologies/)
+for the saved file. See [role and trust boundaries](/learn/topologies/roles-and-trust/)
+before interpreting separation results.
+
+API: [pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures).

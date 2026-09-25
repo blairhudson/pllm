@@ -1,0 +1,34 @@
+---
+title: "Choices and status"
+description: "Separate installed role graphs from paper-linked research topologies."
+---
+
+The public masked-linear component composition currently resolves to Client,
+offline Preparation and online Inference. Optional Freivalds verification adds
+an offline Preparation-to-Client projection channel. Installed proprietary
+compositions resolve to Client and one provider, under their separate protocol
+contracts. These are **inspected** graphs, not general runtime role selection.
+
+The proposed two-online-offset comparator, resident two/three-party MPC,
+dealer/FSS, TEE-only and TEE-plus-accelerator arrangements require their own
+complete compiler, transport and privacy-admission contracts. They cannot be
+selected by adding an unknown pipeline component, editing a graph document or
+changing a provider URL. Existing paper-linked pending classes remain
+non-executable.
+
+## Python SDK example
+
+```python
+from pllm import Experiment
+from pllm.roles import Channel
+
+graph = Experiment.from_file("examples/pllm.yaml").resolve().role_graph
+assert graph is not None
+assert Channel("client", "inference", "online", "masked_stage_input") in graph.channels
+assert ("inference", "preparation") in graph.separate_operators
+```
+
+Run from the repository root. Inspect [components and runnable inference](/sdk/inference/)
+separately from [research papers](/research/papers/).
+
+API: [pllm.roles](/sdk/reference/python/pllm/roles/#objects-and-signatures).

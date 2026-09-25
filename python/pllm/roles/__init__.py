@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.roles.topology import Channel, Role, RoleGraph
 
 
 class InferenceRole(ComponentRef, ABC):
@@ -39,4 +40,4 @@ class Inference(InferenceRole):
         return cls.descriptor
 
 
-__all__ = ["Inference", "InferenceRole"]
+__all__ = ["Channel", "Inference", "InferenceRole", "Role", "RoleGraph"]

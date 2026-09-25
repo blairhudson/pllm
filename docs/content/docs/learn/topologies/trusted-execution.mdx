@@ -1,0 +1,26 @@
+---
+title: "Trusted execution"
+description: "TEE attestation, accelerator placement, and hardware-trust limits."
+---
+
+An attested execution environment is a different trust contract from two
+non-colluding operators. It may hold clear activations **inside** the protected
+boundary while the host operator must not read them. A TEE flag or endpoint
+alone cannot establish that boundary.
+
+An executable TEE role needs a fresh attestation challenge bound to the
+session and locked computation, an accepted measurement and TCB policy, and
+key release only after verification. Define trusted memory, secure I/O to any
+accelerator, sealed-state rollback protection and operator-visible metadata.
+An ordinary GPU outside the attested boundary must not receive clear
+activations. Vendor-specific CPU, VM and confidential-accelerator guarantees
+must be stated separately; side channels and traffic shape need explicit
+limits.
+
+The [paper library](/research/papers/) includes Slalom's trusted delegated
+linear check, Bifrost's TEE/FHE split, and MOSAIC's trusted/untrusted
+accelerator arrangement. PLLM's paper-linked TEE topology is pending, not
+runnable. Compare future TEE candidates with the same per-link network and
+aggregate-compute ledger as other topologies, while preserving their distinct
+hardware assumption. [SDK status](/sdk/reference/status/) reports what is
+currently implemented.

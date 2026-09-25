@@ -15,6 +15,7 @@ import yaml
 
 if TYPE_CHECKING:
     from pllm.providers import ProviderDescriptor
+    from pllm.roles.topology import RoleGraph
 
 _DIGEST_DOMAIN = b"pllm.configuration.v1\0"
 _PIPELINE_DIGEST_DOMAIN = b"pllm.pipeline.v2\0"
@@ -690,13 +691,20 @@ class ExperimentProfile:
     privacy_protocol: str | None
     verification_component: str | None
     verification_target_failure_bits: int
+    role_graph: RoleGraph | None
 
     def __init__(self, experiment: Experiment) -> None:
         if not isinstance(experiment, Experiment):
             raise TypeError("experiment must be an Experiment")
         from pllm.profiles import resolve_runtime_composition
+        from pllm.roles.topology import graph_for_runtime
 
         runtime_options = resolve_runtime_composition(experiment.pipeline)
+        object.__setattr__(
+            self,
+            "role_graph",
+            graph_for_runtime(runtime_options) if runtime_options is not None else None,
+        )
         if runtime_options is not None and not runtime_options.requires_preparation:
             object.__setattr__(
                 self,

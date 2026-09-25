@@ -4,6 +4,7 @@
   "pages": [
     "index",
     "experiments",
+    "topologies",
     "models",
     "inference",
     "components",

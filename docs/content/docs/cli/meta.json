@@ -4,6 +4,7 @@
   "pages": [
     "index",
     "private-inference",
+    "topologies",
     "provider-roles",
     "benchmarking",
     "inspect-and-research",

@@ -210,6 +210,15 @@ def build_parser() -> _Parser:
     component_show = _command(component_commands, "show", help="show one component descriptor")
     component_show.add_argument("COMPONENT", help="component identity, for example pllm/cpu")
 
+    topology = _command(commands, "topology", help="inspect admitted runtime role graphs")
+    topology_commands = topology.add_subparsers(
+        dest="topology_command", metavar="COMMAND", required=True
+    )
+    topology_inspect = _command(
+        topology_commands, "inspect", help="show role, channel, and placement assumptions"
+    )
+    _target_options(topology_inspect)
+
     gateway = _command(commands, "gateway", help="run the trusted local Responses API gateway")
     gateway.add_argument("--config", help="client TOML file")
     gateway.add_argument("--host", default="127.0.0.1")
@@ -502,6 +511,48 @@ def _components(args: argparse.Namespace, output_format: str, dry_run: bool) -> 
             output_format,
             items=items,
         )
+
+
+def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
+    from .targets import resolve_target
+
+    target = resolve_target(
+        args.TARGET,
+        factory=args.factory,
+        no_input=no_input,
+        trust_python=args.trust_python,
+        output_format=output_format,
+    )
+    experiment = target.configuration
+    try:
+        resolved = experiment.resolve()
+    except (TypeError, ValueError) as exc:
+        raise ResolutionError("TOPOLOGY_NOT_EXECUTABLE", str(exc)) from exc
+    graph = resolved.role_graph
+    if graph is None:
+        raise ResolutionError("TOPOLOGY_NOT_EXECUTABLE", "composition has no admitted role graph")
+    # Local services share one operator. Graph validation is not evidence that
+    # non-collusion, attestation, or model privacy holds in a real deployment.
+    operators = {role.id: "local-operator" for role in graph.roles}
+    report = {
+        "configuration_digest": resolved.configuration_digest,
+        "composition_digest": resolved.composition_digest,
+        "topology": graph.to_spec(),
+        "topology_digest": graph.digest(),
+        "placement": {
+            "kind": experiment.deployment.kind,
+            "operators": operators,
+            "separation_violations": [list(pair) for pair in graph.separation_violations(operators)],
+        },
+        "scope": "installed runtime composition; deployment ownership is a declaration, not a privacy proof",
+        "python_executed": target.python_executed,
+        "target_kind": target.kind,
+        "dry_run": dry_run,
+    }
+    if output_format == "human":
+        print(json.dumps(report, allow_nan=False, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        emit_machine("topology.inspect", report, output_format)
 
 
 def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
@@ -1204,6 +1255,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             _config(args, output_format, no_input, dry_run)
         elif args.command == "components":
             _components(args, output_format, dry_run)
+        elif args.command == "topology":
+            _topology(args, output_format, no_input, dry_run)
         elif args.command == "gateway":
             _gateway(args, output_format, no_input, dry_run)
         elif args.command == "serve":

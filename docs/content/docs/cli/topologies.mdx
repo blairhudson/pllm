@@ -1,0 +1,24 @@
+---
+title: "Inspect role topology"
+description: "Display role channels and local operator-separation diagnostics."
+---
+
+From a repository root checkout with PLLM installed, inspect the same
+Experiment used by the [SDK guide](/sdk/topologies/):
+
+```bash
+pllm topology inspect examples/pllm.yaml --format json
+```
+
+The result includes the configuration and composition digests, a versioned
+role-graph digest, offline and online channels, and placement diagnostics. A
+`Deployment.local(...)` experiment reports Preparation and Inference on the
+same operator; this is not an independent-provider privacy result. The command
+resolves installed components but starts no provider, loads no checkpoint, and
+performs no attestation.
+
+Use `pllm topology inspect path.py:experiment --trust-python` only for an
+explicitly trusted Python target. Unknown or incomplete compositions fail
+instead of presenting a made-up executable graph. See
+[Learn: Topologies](/learn/topologies/) for assumptions and
+[current serving](/cli/private-inference/) for runnable commands.

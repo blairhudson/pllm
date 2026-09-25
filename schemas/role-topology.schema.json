@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pllm.run/schemas/role-topology.schema.json",
+  "title": "PLLM role topology v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "roles", "channels", "separate_operators"],
+  "properties": {
+    "schema": {"const": "pllm.role_topology.v1"},
+    "roles": {"type": "array", "minItems": 2, "maxItems": 16, "items": {"$ref": "#/$defs/role"}},
+    "channels": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/channel"}},
+    "separate_operators": {"type": "array", "maxItems": 120, "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/id"}}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+    "role": {
+      "type": "object", "additionalProperties": false, "required": ["id", "capability"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "capability": {"$ref": "#/$defs/id"}}
+    },
+    "channel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "target", "phase", "payload"],
+      "properties": {
+        "source": {"$ref": "#/$defs/id"}, "target": {"$ref": "#/$defs/id"},
+        "phase": {"enum": ["offline", "online"]}, "payload": {"$ref": "#/$defs/id"}
+      }
+    }
+  }
+}
