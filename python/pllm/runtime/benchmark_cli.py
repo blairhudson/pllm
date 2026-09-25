@@ -120,6 +120,7 @@ def build_loopback_report(
     warmup_runs: list[dict[str, Any]],
     runs: list[dict[str, Any]],
     roles: tuple[str, ...] = ("client", "preparation", "inference"),
+    initial_preparation_audit: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import prepared_body_accounting
@@ -173,6 +174,12 @@ def build_loopback_report(
         "runs": runs,
         "topology_accounting": (
             {
+                "startup": (
+                    prepared_body_accounting(
+                        {"privacy": initial_preparation_audit}, initial_preparation=True,
+                    )
+                    if initial_preparation_audit is not None else None
+                ),
                 "warmups": [prepared_body_accounting(run) for run in warmup_runs],
                 "runs": [prepared_body_accounting(run) for run in runs],
             }
@@ -454,7 +461,8 @@ def _run_loopback_benchmark(
         otel_token=_DASHBOARD_TOKEN,
     )
     origin = f"http://127.0.0.1:{port}"
-    handle = _DashboardHandle(create_dashboard_app(config), port)
+    dashboard_app = create_dashboard_app(config)
+    handle = _DashboardHandle(dashboard_app, port)
     handle.start()
     try:
         _wait_for_dashboard_listener(handle, origin, timeout_seconds)
@@ -479,6 +487,10 @@ def _run_loopback_benchmark(
                 handle,
                 time.monotonic() + timeout_seconds,
                 progress,
+            )
+            initial_preparation_audit = (
+                dashboard_app.state.dashboard_runtime.initial_preparation_audit()
+                if roles == ("client", "preparation", "inference") else None
             )
             warmup_runs = []
             for index in range(warmups):
@@ -530,6 +542,7 @@ def _run_loopback_benchmark(
         warmup_runs=warmup_runs,
         runs=runs,
         roles=roles,
+        initial_preparation_audit=initial_preparation_audit,
     )
     if not report["checks"]["passed"]:
         raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")

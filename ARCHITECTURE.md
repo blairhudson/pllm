@@ -262,12 +262,28 @@ credential, binds session and stage IDs, and burns replayed or cancelled
 sessions. Three Qwen2 and three Qwen3 generated tiny-checkpoint runs each
 matched client-only logits and selections after two-token prefill and one decode.
 Each two-worker response used 8 remote stages, 55,296 body integer MACs,
-14,744 packed stage-body bytes and 16,870 HTTP application-body bytes including
+17,272 packed stage-body bytes and 19,398 HTTP application-body bytes including
 admission/completion. Co-located children do not establish non-collusion.
 Authenticated per-worker process CPU samples cover the online run window; each
 worker's lifetime peak RSS is reported separately. Headers/TLS, cold model
 distribution, startup CPU, client peak memory, full wire bytes and a matched
-prepared-role CPU cohort remain unmeasured. This remains an internal research
+prepared-role cold/full-response CPU cohort remain unmeasured. A second
+three-run per-family cohort uses the *same W8A8 quantized body fingerprint*
+and 21 client-rendered input tokens plus two generated tokens for client-only,
+two-worker and prepared roles. Client-only performs 202,752 body integer MACs
+and transmits no online provider bytes; two workers perform 405,504 body MACs
+and exchange 67,442 HTTP application-body bytes per response, against 31,574
+recorded online body bytes for the prepared path. Client-only and two-worker
+logits and selections agree; the prepared path's generated selections were
+not compared. The initial prepared inventory uses 72,842 (Qwen2) or 72,664
+(Qwen3) additional covered body bytes, plus a 51,581-byte idle refill over
+three responses. Thus the three-run covered totals are 219,145/218,967 bytes
+for prepared versus 202,326 bytes for two workers. Prepared startup body
+counts are now separate from online run counters; neither report measures
+full wire traffic, both-worker checkpoint distribution or cold aggregate
+compute. Both the local kernel and the child workers pin W8A8 explicitly:
+`MaskedTransformerEngine()` alone defaults to W4A4, which has a different body
+fingerprint and cannot enter this comparison. This remains an internal research
 protocol, not a selectable Experiment or `pllm serve` topology.
 
 The same bounded diagnostic uses client-only clear W8A8 execution as its

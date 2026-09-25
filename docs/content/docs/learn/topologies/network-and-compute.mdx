@@ -36,7 +36,7 @@ additive-share stage calls. Each one-layer Qwen2/Qwen3 run has eight body
 stages: 27,648 integer multiply-accumulates client-only and 55,296 across
 both logical workers. Three local runs per adapter selected identical tokens,
 with no logit difference; the two-worker serialization totaled roughly
-14.7 KB per run. These are
+17.3 KB per run. These are
 **stage-body** bytes, not wire bytes or full-model evidence. To reproduce the
 Qwen2 diagnostic from the repository root:
 
@@ -49,8 +49,8 @@ separate worker processes** with distinct credentials. Each re-lowers the
 semantic plan, binds its role and stage inventory, and rejects replay. In three
 checked runs per tiny Qwen2 and Qwen3 decoder, client-only and two-worker
 selected tokens and logits again matched exactly; two-worker session admission,
-stages and completion transferred 16,870 HTTP **application-body** bytes per
-run, including 14,744 packed stage-body bytes. The process-CPU sample now
+stages and completion transferred 19,398 HTTP **application-body** bytes per
+run, including 17,272 packed stage-body bytes. The process-CPU sample now
 includes client plus both workers over the online run window, and the report
 gives each worker's lifetime peak RSS. The processes still share one operator.
 HTTP headers/TLS, model distribution, client peak memory, worker startup and
@@ -67,12 +67,34 @@ client-only fixture; peak memory and cold checkpoint **transfer** are left
 unmeasured rather than assumed zero. Client-only online provider bytes are zero.
 
 Current public prepared inference instead uses one online provider plus
-offline correction generation. It already has different client traffic and
-setup work from that comparator. Gemma E2B's pinned W8A8 client bundle alone
+offline correction generation. A second checked tiny Qwen2/Qwen3 cohort
+uses **one W8A8 body fingerprint**, 21 tokens from the normal client-rendered
+chat prompt, and two generated tokens for all three paths. Across three runs
+per family, client-only uses 202,752 integer body MACs and zero online provider
+bytes; two online workers use 405,504 body MACs and 67,442 HTTP application-body
+bytes per response, compared with 31,574 recorded **online body** bytes for
+the prepared path. Client-only and offset logits and selections match. The
+prepared path matches the body and token counts, but its generated selections
+were **not compared**. The separate startup ledger counts 72,842 bytes for
+Qwen2 (72,664 for Qwen3) to issue initial inventory and deliver the public
+client bundle; an idle refill adds 51,581 more bytes over three responses.
+Including those recorded bodies, the three-response totals are 219,145/218,967
+prepared bytes versus 202,326 two-worker bytes. Headers/TLS, correction
+acknowledgements and checkpoint distribution to the two workers remain
+unmeasured, so these are **not** total-network winner figures. The
+engine constructor defaults to W4A4, so this diagnostic sets W8A8 on all
+three paths and rejects differing body fingerprints before reporting a match.
+Reproduce the same checkpoint and chat-token cohort:
+
+```bash
+uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --cohort chat --include-prepared --offset-backend loopback --repeats 3
+```
+
+Gemma E2B's pinned W8A8 client bundle alone
 measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
 warm-token results. Search over new topology choices and per-edge objective
-selection remain planned; the [existing benchmark](/cli/benchmarking/) does
-not claim to perform this comparison yet.
+selection remain planned; the [existing benchmark](/cli/benchmarking/) cannot
+select or rank these role graphs as Experiments.
 
 It now records a partial **per-link stage-body ledger** for the current
 prepared graph. One checked, single-host `benchmark run --tiny` response with

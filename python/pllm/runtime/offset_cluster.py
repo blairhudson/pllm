@@ -19,10 +19,15 @@ class LocalOffsetCluster:
 
     def __init__(
         self, checkpoint: Path, *, model_id: str, second_checkpoint: Path | None = None,
+        weight_bits: int = 4, activation_bits: int = 4,
     ) -> None:
+        if weight_bits not in (4, 8) or activation_bits not in (4, 8):
+            raise ValueError("offset worker quantization bits must be four or eight")
         self.checkpoint = checkpoint
         self.second_checkpoint = second_checkpoint or checkpoint
         self.model_id = model_id
+        self.weight_bits = weight_bits
+        self.activation_bits = activation_bits
         self.processes: list[Any] = []
         self.clients: list[httpx.Client] = []
         self.keys: list[str] = []
@@ -48,7 +53,9 @@ class LocalOffsetCluster:
                 environment["PLLM_OFFSET_WORKER_API_KEY"] = api_key
                 worker = _spawn_role_process(
                     [sys.executable, "-m", "pllm.runtime.offset_worker", str(source),
-                     "--model-id", self.model_id, "--role", role, "--port", str(port)],
+                     "--model-id", self.model_id, "--role", role, "--port", str(port),
+                     "--weight-bits", str(self.weight_bits),
+                     "--activation-bits", str(self.activation_bits)],
                     environment=environment, discard_output=True,
                 )
                 self.processes.append(worker)

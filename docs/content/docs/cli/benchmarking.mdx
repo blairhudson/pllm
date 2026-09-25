@@ -13,14 +13,14 @@ The report contains sanitized diagnostic measurements. It is not a canonical
 research `EvidenceReport`, and a loopback run does not establish WAN, multi-host,
 energy, price, quality, or production non-collusion claims.
 
-For the public prepared graph, each run now includes `topology_accounting`:
-client and all-link **serialized protocol-body** bytes by directed edge and
-phase, plus available process CPU seconds per role. These counters do not
-measure HTTP/TLS framing, control traffic, correction acknowledgements,
-checkpoint/bundle transfers before the capture window, or full aggregate
+For the public prepared graph, the report's `topology_accounting` includes
+separate **startup inventory/bundle** and per-run serialized protocol-body
+bytes by directed edge and phase, plus available run-window process CPU seconds
+per role. These counters do not measure HTTP/TLS framing, control traffic,
+correction acknowledgements, checkpoint distribution before startup, or full aggregate
 compute. Missing counters stay `null`; they cannot justify a total-wire-byte
 winner or the two-online-server compute cap. A checked one-token transport
- smoke run, which may use different tiny weights than the local offset reference:
+smoke run, which may use different tiny weights than the local offset reference:
 
 ```bash
 uv run --frozen pllm benchmark run --tiny --max-output-tokens 1 --repetitions 1 --format json
@@ -39,6 +39,21 @@ samples cover the client and each worker during online execution, and worker
 peak RSS covers their process lifetimes; startup CPU, client peak memory and
 full-response compute remain out of scope.
 It is not a selectable `Experiment` or privacy-qualified multi-host result.
+
+Add the existing prepared role path to the **same W8A8 checkpoint and chat
+token cohort** with `--include-prepared`. The comparator verifies that its
+body fingerprint and input/output token counts match before displaying any
+cross-path figures; it does not compare the prepared path's generated
+selections. The startup inventory and client-bundle bodies are reported
+separately; per-run idle refills are charged to their run. The prepared path's
+initial inventory plus idle refill over three checked responses accounts for
+about 219 KB of covered bodies, compared with about 202 KB in the two-worker
+reference. Headers/TLS, incomplete control traffic and two-worker checkpoint
+distribution are outside these totals, so no total-network winner follows.
+
+```bash
+uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --cohort chat --include-prepared --offset-backend loopback --repeats 3
+```
 
 Repeat `--experiment` to compare complete experiment configurations. Each
 Experiment contains one immutable Pipeline:

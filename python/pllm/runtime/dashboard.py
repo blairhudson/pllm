@@ -383,6 +383,15 @@ class DashboardRuntime:
         self._stop_started = False
         self._background_threads: set[threading.Thread] = set()
         self._last_privacy_delta: dict[str, int] = {}
+        self._initial_preparation_audit: dict[str, int] | None = None
+
+    def initial_preparation_audit(self) -> dict[str, int] | None:
+        """Only numeric startup deltas; no prompt, token or correction payloads."""
+        with self._lock:
+            return (
+                None if self._initial_preparation_audit is None
+                else dict(self._initial_preparation_audit)
+            )
 
     def _services_healthy(self) -> bool:
         topology = getattr(self, "_topology", None)
@@ -529,11 +538,18 @@ class DashboardRuntime:
                 endpoints=endpoints,
             )
             if self._topology.requires_preparation:
+                before_preparation = self._audit_snapshot()
                 await self._background_call(
                     self._client.preprocess,
                     self.config.model_id,
                     count=self._inventory_rows,
                 )
+                after_preparation = self._audit_snapshot()
+                with self._lock:
+                    self._initial_preparation_audit = {
+                        key: max(0, count - before_preparation.get(key, 0))
+                        for key, count in after_preparation.items()
+                    }
             self._model_fingerprint = await self._background_call(self._discover_model_fingerprint)
             await asyncio.sleep(0.6)
             if self._stopping.is_set():

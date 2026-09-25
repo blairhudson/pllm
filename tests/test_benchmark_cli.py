@@ -112,6 +112,14 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     processes = report["runs"][0]["processes"]
     assert set(processes) == {"client", "inference", "preparation"}
     assert processes["client"]["cpu_seconds"] is not None
+    startup = report["topology_accounting"]["startup"]
+    assert startup is not None and startup["tracked_body_counter_set_present"]
+    assert startup["all_link_serialized_body_bytes"] > 0
+    assert any(
+        edge["source"] == "preparation" and edge["destination"] == "inference"
+        and edge["serialized_body_bytes"] > 0
+        for edge in startup["body_bytes_by_edge"]
+    )
     topology = report["topology_accounting"]["runs"][0]
     assert topology["tracked_body_counter_set_present"] is True
     assert topology["total_wire_bytes"] is None

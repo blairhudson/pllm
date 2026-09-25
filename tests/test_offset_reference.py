@@ -212,7 +212,7 @@ def test_offset_reference_benchmark_reports_costs_without_token_ids() -> None:
         cwd=root, capture_output=True, text=True, check=True, timeout=30,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.topology_reference_benchmark.v3"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v4"
     assert report["scope"] == "client_only_and_in_process_offset; not_deployed_network"
     assert report["offset_backend"] == "in-process"
     assert report["all_selected_tokens_match"] is True
@@ -244,7 +244,7 @@ def test_offset_loopback_benchmark_reports_matched_results_without_secret_materi
         cwd=root, capture_output=True, text=True, check=True, timeout=60,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.topology_reference_benchmark.v3"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v4"
     assert report["offset_backend"] == "loopback"
     assert "worker_CPU_reported_separately" in report["offset_cpu_scope"]
     assert report["total_wire_bytes"] is None
@@ -267,3 +267,51 @@ def test_offset_loopback_benchmark_reports_matched_results_without_secret_materi
     assert report["client_only_cold_checkpoint_transfer_bytes"] is None
     assert "token_ids" not in result.stdout
     assert "prompt" not in result.stdout
+
+
+def test_offset_chat_cohort_uses_normal_tokenized_gateway_input() -> None:
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/benchmark_offset_reference.py"),
+         "--model-type", "qwen2", "--cohort", "chat", "--repeats", "1"],
+        cwd=root, capture_output=True, text=True, check=True, timeout=30,
+    )
+    report = json.loads(result.stdout)
+    assert report["cohort"] == "chat"
+    assert report["input_token_count"] > 2
+    assert report["all_selected_tokens_match"] is True
+    assert report["worst_logit_difference"] == 0
+    assert "user: A" not in result.stdout
+
+
+def test_prepared_control_matches_checkpoint_and_token_cohort_without_payloads() -> None:
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/benchmark_offset_reference.py"),
+         "--model-type", "qwen2", "--cohort", "chat", "--repeats", "1",
+         "--offset-backend", "loopback", "--include-prepared"],
+        cwd=root, capture_output=True, text=True, check=True, timeout=180,
+    )
+    report = json.loads(result.stdout)
+    control = report["prepared"]
+    assert report["schema"] == "pllm.topology_reference_benchmark.v4"
+    assert control["model_fingerprint"] == report["model_body_fingerprint"]
+    assert control["input_token_count"] == report["input_token_count"]
+    assert control["generated_token_count"] == report["generated_token_count"] == 2
+    assert control["completed_runs"] == 1
+    assert control["body_counter_set_present"]
+    assert control["initial_inventory_all_link_body_bytes"] > 0
+    assert control["recorded_body_bytes_including_initial_inventory"] >= (
+        control["initial_inventory_all_link_body_bytes"]
+        + control["median_online_all_link_body_bytes"]
+    )
+    assert any(
+        edge["source"] == "preparation" and edge["destination"] == "inference"
+        and edge["serialized_body_bytes"] > 0
+        for edge in control["initial_inventory_body_bytes_by_edge"]
+    )
+    assert control["median_online_all_link_body_bytes"] > 0
+    assert control["generated_selection_compared"] is False
+    assert report["all_selected_tokens_match"] is True
+    assert "user: A" not in result.stdout
+    assert "token_ids" not in result.stdout

@@ -1,8 +1,8 @@
 """Bounded accounting of already-recorded prepared-protocol body counters.
 
 This is deliberately *not* a wire meter: control frames, HTTP/TLS framing,
-transport retries, inference-to-preparation acks, and setup outside the run
-window are not represented by the existing client privacy counters.
+transport retries, inference-to-preparation acks, and setup before the separately
+captured initial inventory are not represented by the client privacy counters.
 """
 
 from __future__ import annotations
@@ -33,7 +33,9 @@ _REQUIRED_COUNTERS = frozenset(
 _ROLES = ("client", "preparation", "inference")
 
 
-def prepared_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+def prepared_body_accounting(
+    record: Mapping[str, Any], *, initial_preparation: bool = False,
+) -> dict[str, Any]:
     """Return the covered body/CPU ledger, or explicitly unavailable fields.
 
     No coarser ``upload_bytes`` or OTLP receive-side metric is added: those
@@ -81,7 +83,11 @@ def prepared_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
         cpu = {role: float(processes[role]["cpu_seconds"]) for role in _ROLES}
     return {
         "schema": ACCOUNTING_SCHEMA,
-        "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+        "scope": (
+            "initial inventory and client-bundle serialized bodies; startup CPU unmeasured"
+            if initial_preparation else
+            "recorded prepared-protocol serialized bodies and run-window CPU samples only"
+        ),
         "tracked_body_counter_set_present": complete,
         "body_bytes_by_edge": links,
         "client_serialized_body_bytes": client_bytes,
@@ -96,7 +102,11 @@ def prepared_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
             "HTTP/TLS/WebSocket framing and control traffic",
             "inference-to-preparation correction acknowledgements",
             "duplicate or failed transport attempts not represented by client audit counters",
-            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            (
+                "model import and checkpoint distribution before initial inventory"
+                if initial_preparation else
+                "process/model startup, client bundle transfer, and offline inventory prepared before the run window"
+            ),
             "GPU work, uninstrumented client work, and cold checkpoint distribution",
         ],
     }

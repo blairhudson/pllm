@@ -306,13 +306,17 @@ def main() -> None:
     parser.add_argument("--model-id", default="offset-model")
     parser.add_argument("--role", required=True, choices=("worker_a", "worker_b"))
     parser.add_argument("--port", required=True, type=int)
+    parser.add_argument("--weight-bits", required=True, type=int, choices=(4, 8))
+    parser.add_argument("--activation-bits", required=True, type=int, choices=(4, 8))
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("worker port is outside the valid range")
     api_key = os.environ.get("PLLM_OFFSET_WORKER_API_KEY", "")
     if len(api_key) < 16:
         parser.error("PLLM_OFFSET_WORKER_API_KEY is required")
-    worker = MaskedTransformerEngine(threads=1)
+    worker = MaskedTransformerEngine(
+        threads=1, weight_bits=args.weight_bits, activation_bits=args.activation_bits,
+    )
     asyncio.run(worker.load(load_hf_directory(args.checkpoint, model_id=args.model_id)))
     app = create_offset_worker_app(worker, model_id=args.model_id,
                                    role_id=args.role, api_key=api_key)
