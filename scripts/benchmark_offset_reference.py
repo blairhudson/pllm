@@ -1,13 +1,15 @@
 """Measure matched client-only and two-worker offset baselines on tiny W8A8.
 
-This is not a BenchmarkResult: workers share one process and the report excludes
-deployment traffic, operator independence, setup and full-response compute.
+This is not a BenchmarkResult: the reference can run in one process or as two
+co-located loopback children. Neither establishes independent operators or
+meters complete wire/setup/aggregate compute.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import platform
 import statistics
@@ -22,7 +24,8 @@ import pllm
 from pllm.roles import client_only_reference_graph, two_online_reference_graph
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
-from pllm.runtime.offset_reference import TwoOnlineOffsetReference
+from pllm.runtime.offset_cluster import LocalOffsetCluster
+from pllm.runtime.offset_reference import TwoOnlineOffsetReference, TwoOnlineOffsetTransport
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_client import ClientBundle
@@ -35,6 +38,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-type", choices=("qwen2", "qwen3"), default="qwen2")
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--offset-backend", choices=("in-process", "loopback"),
+                        default="in-process")
     args = parser.parse_args()
     if not 1 <= args.repeats <= 20:
         parser.error("--repeats must be between 1 and 20")
@@ -51,9 +56,10 @@ def main() -> None:
         )
         manifest = load_hf_directory(checkpoint, model_id=model_id)
         first = MaskedTransformerEngine(threads=1)
-        second = MaskedTransformerEngine(threads=1)
+        second = MaskedTransformerEngine(threads=1) if args.offset_backend == "in-process" else None
         asyncio.run(first.load(manifest))
-        asyncio.run(second.load(manifest))
+        if second is not None:
+            asyncio.run(second.load(manifest))
         bundle_payload = first.client_bundle(model_id)
         bundle = ClientBundle.unpack(bundle_payload)
         quantized_weight_bytes = sum(
@@ -91,18 +97,26 @@ def main() -> None:
                 output += stage.bias
             return np.ascontiguousarray(output, dtype=np.float32)
 
-        samples: list[dict[str, Any]] = []
-        for index in range(args.repeats):
+        def measure(index: int, cluster: LocalOffsetCluster | None) -> dict[str, Any]:
+            nonlocal client_stage_work
             outcomes: dict[str, tuple[tuple[int, int], tuple[np.ndarray, np.ndarray]]] = {}
             sample: dict[str, Any] = {}
             for method in (
                 ("client_only", "offset") if index % 2 == 0 else ("offset", "client_only")
             ):
-                offset: TwoOnlineOffsetReference | None = None
+                offset: TwoOnlineOffsetReference | TwoOnlineOffsetTransport | None = None
                 if method == "client_only":
                     client_stage_work = 0
                     remote = client_only
+                elif cluster is not None:
+                    offset = TwoOnlineOffsetTransport(
+                        compiled, model_id=model_id,
+                        worker_a=cluster.clients[0], worker_b=cluster.clients[1],
+                        api_key_a=cluster.keys[0], api_key_b=cluster.keys[1],
+                    )
+                    remote = offset
                 else:
+                    assert second is not None
                     offset = TwoOnlineOffsetReference(
                         compiled, first, second, model_id=model_id,
                         exchange_a=exchange(first), exchange_b=exchange(second),
@@ -110,13 +124,21 @@ def main() -> None:
                     remote = offset
                 wall_start = time.perf_counter_ns()
                 cpu_start = time.process_time_ns()
-                session = compiled.session(remote)
-                session.prefill_ids(_INPUT_IDS)
-                prefill = session.logits
-                selected = session.select_next()
-                session.decode_selected()
-                decode = session.logits
-                following = session.select_next()
+                try:
+                    session = compiled.session(remote)
+                    session.prefill_ids(_INPUT_IDS)
+                    prefill = session.logits
+                    selected = session.select_next()
+                    session.decode_selected()
+                    decode = session.logits
+                    following = session.select_next()
+                    session.finish()
+                    if isinstance(offset, TwoOnlineOffsetTransport):
+                        offset.complete()
+                except BaseException:
+                    if isinstance(offset, TwoOnlineOffsetTransport):
+                        offset.abort()
+                    raise
                 sample[f"{method}_online_wall_ms"] = (
                     time.perf_counter_ns() - wall_start
                 ) / 1_000_000
@@ -142,6 +164,16 @@ def main() -> None:
                         "worker_a": cost.worker_a_stage_ns,
                         "worker_b": cost.worker_b_stage_ns,
                     }
+                    if isinstance(offset, TwoOnlineOffsetTransport):
+                        link_bodies = offset.http_body_costs
+                        sample["offset_http_body_bytes_by_worker"] = link_bodies
+                        sample["offset_http_body_bytes_all_links"] = sum(
+                            sum(values.values()) for values in link_bodies.values()
+                        )
+                        assert sum(
+                            values["online_upload_bytes"] + values["online_download_bytes"]
+                            for values in link_bodies.values()
+                        ) == cost.total_stage_body_bytes
             sample["same_selected_tokens"] = (
                 outcomes["client_only"][0] == outcomes["offset"][0]
             )
@@ -151,11 +183,36 @@ def main() -> None:
                     outcomes["client_only"][1], outcomes["offset"][1], strict=True,
                 )
             )
-            samples.append(sample)
+            return sample
+
+        cluster_context = (
+            LocalOffsetCluster(checkpoint, model_id=model_id)
+            if args.offset_backend == "loopback" else contextlib.nullcontext(None)
+        )
+        samples: list[dict[str, Any]] = []
+        with cluster_context as cluster:
+            for index in range(args.repeats):
+                samples.append(measure(index, cluster))
 
         print(json.dumps({
-            "schema": "pllm.topology_reference_benchmark.v1",
-            "scope": "client_only_and_in_process_offset; not_deployed_network",
+            "schema": "pllm.topology_reference_benchmark.v2",
+            "scope": (
+                "client_only_and_two_co_located_loopback_workers; stage_bodies_not_total_wire"
+                if args.offset_backend == "loopback"
+                else "client_only_and_in_process_offset; not_deployed_network"
+            ),
+            "offset_backend": args.offset_backend,
+            "offset_cpu_scope": (
+                "coordinator_only; worker_process_CPU_unmeasured"
+                if args.offset_backend == "loopback"
+                else "same_process_including_both_worker_stages"
+            ),
+            "total_wire_bytes": None,
+            "full_response_compute_cap_checked": False,
+            "unmeasured": [
+                "HTTP/TLS framing and headers, health/startup, and failed transport attempts",
+                "checkpoint transfer, client peak memory, and worker CPU outside stage timers",
+            ],
             "client_only_topology_digest": client_only_reference_graph().digest(),
             "two_online_topology_digest": two_online_reference_graph().digest(),
             "client_only_checkpoint_artifact_bytes": checkpoint_artifact_bytes,
@@ -174,7 +231,7 @@ def main() -> None:
             "median_client_only_online_cpu_ms": statistics.median(
                 s["client_only_online_cpu_ms"] for s in samples
             ),
-            "median_offset_online_cpu_ms": statistics.median(
+            "median_offset_coordinator_cpu_ms": statistics.median(
                 s["offset_online_cpu_ms"] for s in samples
             ),
             "worst_logit_difference": max(s["worst_logit_difference"] for s in samples),

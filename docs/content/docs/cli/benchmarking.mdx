@@ -20,11 +20,22 @@ measure HTTP/TLS framing, control traffic, correction acknowledgements,
 checkpoint/bundle transfers before the capture window, or full aggregate
 compute. Missing counters stay `null`; they cannot justify a total-wire-byte
 winner or the two-online-server compute cap. A checked one-token transport
-smoke run, which may use different tiny weights than the local offset reference:
+ smoke run, which may use different tiny weights than the local offset reference:
 
 ```bash
 uv run --frozen pllm benchmark run --tiny --max-output-tokens 1 --repetitions 1 --format json
 ```
+
+For a **matched** generated-checkpoint diagnostic, compare client-only W8A8
+with the two-online-offset protocol on two co-located HTTP worker processes:
+
+```bash
+uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3 --offset-backend loopback
+```
+
+The diagnostic's stage, session-setup and completion HTTP body counts exclude
+headers, TLS, cold checkpoint distribution and worker CPU outside stage times.
+It is not a selectable `Experiment` or privacy-qualified multi-host result.
 
 Repeat `--experiment` to compare complete experiment configurations. Each
 Experiment contains one immutable Pipeline:

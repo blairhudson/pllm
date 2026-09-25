@@ -21,8 +21,12 @@ unmeasured; this is not yet a selectable `Experiment`/gateway topology.
 The two-online-offset comparator has a bounded **in-process numeric reference**:
 two separately loaded native kernels run a complete tiny Qwen2/Qwen3 compiled
 prefill/decode and count per-worker serialized stage bodies and integer work.
-This is not an independently operated, transport-authenticated or selectable
-topology. Resident two/three-party MPC, dealer/FSS, TEE-only and
+An opt-in [loopback comparison](/learn/topologies/network-and-compute/) now
+runs that compiled plan with two authenticated worker processes and accounts
+for stage plus setup/teardown HTTP application bodies. Both processes share one
+operator. Neither reference is an independently operated or selectable
+topology; complete network and aggregate CPU remain unmeasured. Resident
+two/three-party MPC, dealer/FSS, TEE-only and
 TEE-plus-accelerator arrangements still require their own complete compiler,
 transport and privacy-admission contracts. They cannot be
 selected by adding an unknown pipeline component, editing a graph document or

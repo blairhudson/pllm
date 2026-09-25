@@ -44,6 +44,20 @@ Qwen2 diagnostic from the repository root:
 uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3
 ```
 
+The additional loopback diagnostic runs the same compiled plan on **two
+separate worker processes** with distinct credentials. Each re-lowers the
+semantic plan, binds its role and stage inventory, and rejects replay. In three
+checked runs per tiny Qwen2 and Qwen3 decoder, client-only and two-worker
+selected tokens and logits again matched exactly; two-worker session admission,
+stages and completion transferred 16,870 HTTP **application-body** bytes per
+run, including 14,744 packed stage-body bytes. The processes still share one
+operator. HTTP headers/TLS, model distribution, client peak memory, worker CPU
+outside stage timing and full-response compute are not measured.
+
+```bash
+uv run --frozen python scripts/benchmark_offset_reference.py --model-type qwen2 --repeats 3 --offset-backend loopback
+```
+
 The analogous checked Qwen3 run uses `--model-type qwen3`. Reports include
 only plan identifiers, counts and aggregate values, not prompts or token IDs.
 The checkpoint-artifact and quantized-weight byte counts describe the tiny

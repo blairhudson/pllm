@@ -25,6 +25,46 @@ class TopologyError(RuntimeError):
     pass
 
 
+def _spawn_role_process(
+    command: list[str], *, environment: dict[str, str],
+    stdout: Any = None, stderr: Any = None, discard_output: bool = False,
+) -> subprocess.Popen[Any]:
+    """All local role children share one process-group and credential boundary."""
+    if discard_output:
+        stdout = subprocess.DEVNULL
+        stderr = subprocess.DEVNULL
+    return subprocess.Popen(
+        command, cwd=Path.cwd(), env=environment, stdin=subprocess.DEVNULL,
+        stdout=stdout, stderr=stderr, start_new_session=True,
+    )
+
+
+def _stop_role_process(process: subprocess.Popen[Any]) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+        process.wait(timeout=10)
+        return
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        pass
+    if process.poll() is None:
+        if os.name == "posix":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            process.kill()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired as exc:
+            raise TopologyError("local role process did not stop") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class RoleStatus:
     role: str
@@ -337,14 +377,9 @@ class LocalTopology:
                 self._logs[role] = log
                 stdout = log
                 stderr = subprocess.STDOUT
-            process = subprocess.Popen(
-                command,
-                cwd=Path.cwd(),
-                env=self._environment(role),
-                stdin=subprocess.DEVNULL,
-                stdout=stdout,
-                stderr=stderr,
-                start_new_session=True,
+            process = _spawn_role_process(
+                command, environment=self._environment(role),
+                stdout=stdout, stderr=stderr,
             )
             self._processes[role] = process
             return process
@@ -548,29 +583,7 @@ class LocalTopology:
 
     @staticmethod
     def _stop(process: subprocess.Popen[Any]) -> None:
-        if process.poll() is not None:
-            return
-        try:
-            if os.name == "posix":
-                os.killpg(process.pid, signal.SIGTERM)
-            else:
-                process.terminate()
-            process.wait(timeout=10)
-            return
-        except (ProcessLookupError, subprocess.TimeoutExpired):
-            pass
-        if process.poll() is None:
-            if os.name == "posix":
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            else:
-                process.kill()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired as exc:
-                raise TopologyError("local role process did not stop") from exc
+        _stop_role_process(process)
 
     def close(self) -> None:
         self._stopping.set()

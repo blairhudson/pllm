@@ -148,6 +148,9 @@ def test_offset_reference_shares_are_fresh_and_bounded_before_issuance(
         assert np.array_equal(left.activation_scales, np.ones(1, np.float32))
         assert left.correlation_id != right.correlation_id
     assert observed_a[0].correlation_id != observed_a[1].correlation_id
+    assert observed_a[0].session_id == observed_a[1].session_id
+    assert observed_b[0].session_id == observed_b[1].session_id
+    assert observed_a[0].session_id != observed_b[0].session_id
     assert not np.array_equal(observed_a[0].masked_input, observed_a[1].masked_input)
     assert reference.costs.stages == 2
 
@@ -209,8 +212,9 @@ def test_offset_reference_benchmark_reports_costs_without_token_ids() -> None:
         cwd=root, capture_output=True, text=True, check=True, timeout=30,
     )
     report = json.loads(result.stdout)
-    assert report["schema"] == "pllm.topology_reference_benchmark.v1"
+    assert report["schema"] == "pllm.topology_reference_benchmark.v2"
     assert report["scope"] == "client_only_and_in_process_offset; not_deployed_network"
+    assert report["offset_backend"] == "in-process"
     assert report["all_selected_tokens_match"] is True
     assert report["worst_logit_difference"] == 0
     assert report["input_token_count"] == report["generated_token_count"] == 2
@@ -228,5 +232,31 @@ def test_offset_reference_benchmark_reports_costs_without_token_ids() -> None:
     assert sum(report["samples"][0]["offset_per_edge_bytes"].values()) == (
         report["samples"][0]["offset_stage_body_bytes"]
     )
+    assert "token_ids" not in result.stdout
+    assert "prompt" not in result.stdout
+
+
+def test_offset_loopback_benchmark_reports_matched_results_without_secret_material() -> None:
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/benchmark_offset_reference.py"),
+         "--model-type", "qwen2", "--repeats", "1", "--offset-backend", "loopback"],
+        cwd=root, capture_output=True, text=True, check=True, timeout=60,
+    )
+    report = json.loads(result.stdout)
+    assert report["schema"] == "pllm.topology_reference_benchmark.v2"
+    assert report["offset_backend"] == "loopback"
+    assert "worker_process_CPU_unmeasured" in report["offset_cpu_scope"]
+    assert report["total_wire_bytes"] is None
+    assert report["full_response_compute_cap_checked"] is False
+    assert report["all_selected_tokens_match"] is True
+    assert report["worst_logit_difference"] == 0
+    assert report["samples"][0]["offset_stage_calls"] == 8
+    assert report["samples"][0]["offset_integer_macs"] == 55_296
+    assert report["samples"][0]["offset_http_body_bytes_all_links"] > (
+        report["samples"][0]["offset_stage_body_bytes"]
+    )
+    assert report["samples"][0]["client_only_body_integer_macs"] == 27_648
+    assert report["client_only_cold_checkpoint_transfer_bytes"] is None
     assert "token_ids" not in result.stdout
     assert "prompt" not in result.stdout

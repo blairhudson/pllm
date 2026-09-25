@@ -245,6 +245,7 @@ provider code; factory import is a separate approved operation. `pllm.metrics` o
 typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact
 evidence cohorts without implicit ranking. `pllm.search` generates validated
 immutable candidates and applies explicit cohort-safe Pareto directions.
+
 The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
 native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client
 makes fresh exact-ring additive shares for each linear stage, validates both
@@ -254,12 +255,26 @@ logical client/worker serialized stage bodies, integer matrix operations and
 provider-stage times. Both workers still share one process; these figures omit
 HTTP/TLS, cross-host traffic, setup and aggregate client compute. This reference
 is not an executable Experiment option or independent-party privacy evidence.
+`TwoOnlineOffsetTransport` can additionally run the same compiled decoder on
+two separately hosted loopback HTTP worker processes. Each worker re-lowers the
+plan, verifies body, stage and graph commitments, requires a distinct bearer
+credential, binds session and stage IDs, and burns replayed or cancelled
+sessions. Three Qwen2 and three Qwen3 generated tiny-checkpoint runs each
+matched client-only logits and selections after two-token prefill and one decode.
+Each two-worker response used 8 remote stages, 55,296 body integer MACs,
+14,744 packed stage-body bytes and 16,870 HTTP application-body bytes including
+admission/completion. Co-located children do not establish non-collusion; the
+diagnostic excludes headers/TLS, cold model distribution, full worker CPU,
+client peak memory and aggregate compute admission. This remains an internal
+research protocol, not a selectable Experiment or `pllm serve` topology.
+
 The same bounded diagnostic uses client-only clear W8A8 execution as its
 single-party comparator: one body matrix operation per stage, no online
 provider bytes, and explicitly counted local checkpoint artifacts and quantized
 weight snapshots. Cold checkpoint transfer and peak memory remain unmeasured;
 the role graph has one client and no channels. This local comparator does not
 activate a public client-only Experiment/gateway topology.
+
 `pllm.deployment.RoleDeployment` separately validates a digest-bound, immutable
 role-to-operator and HTTP(S) origin declaration; optional TEE policy pins the
 technology, code measurement, verifier root and TCB policy. The CLI can inspect

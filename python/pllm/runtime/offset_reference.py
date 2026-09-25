@@ -1,19 +1,24 @@
-"""Bounded in-process two-worker offset comparator for compiled public decoders.
+"""Bounded two-worker offset comparator for compiled public decoders.
 
 Each worker evaluates one fresh modular input share with the existing native
-stage kernel. Both workers run in this process: these are serialized stage-body
-counts and kernel times, not network measurements or independent operators.
+stage kernel. References may run in-process or over co-located loopback HTTP;
+their body counts and stage times are not full wire or independent-operator
+measurements.
 """
 
 from __future__ import annotations
 
+import json
 import secrets
 from dataclasses import dataclass
 from math import prod
 from typing import Callable
+from urllib.parse import quote
 
+import httpx
 import numpy as np
 
+from pllm.roles import two_online_reference_graph
 from pllm.runtime.model_binding import CompiledRuntimeModel
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
 from pllm.runtime.transformer_client import dequantize_matmul, quantize_activation_per_row
@@ -53,62 +58,44 @@ class OffsetReferenceCosts:
         return self.worker_a_integer_macs + self.worker_b_integer_macs
 
 
-class TwoOnlineOffsetReference:
-    """A non-deployable reference with two separately loaded provider engines."""
+class _TwoOnlineShareEvaluator:
+    """Client-side additive split, independent of how the two bound workers run."""
 
     def __init__(
-        self, compiled: CompiledRuntimeModel, worker_a: MaskedTransformerEngine,
-        worker_b: MaskedTransformerEngine,
-        *, model_id: str,
+        self, compiled: CompiledRuntimeModel, *, model_id: str,
         exchange_a: Callable[[str, list[bytes]], list[bytes]],
         exchange_b: Callable[[str, list[bytes]], list[bytes]],
+        session_a: str | None = None,
+        session_b: str | None = None,
     ) -> None:
         if (
             type(compiled) is not CompiledRuntimeModel
-            or type(worker_a) is not MaskedTransformerEngine
-            or type(worker_b) is not MaskedTransformerEngine
-            or worker_a is worker_b
             or exchange_a is exchange_b
             or not callable(exchange_a)
             or not callable(exchange_b)
         ):
-            raise OffsetReferenceError("two distinct loaded offset workers are required")
+            raise OffsetReferenceError("two distinct offset worker exchanges are required")
+        sessions = (
+            session_a if session_a is not None else secrets.token_hex(16),
+            session_b if session_b is not None else secrets.token_hex(16),
+        )
+        if any(
+            type(session) is not str or len(session) != 32
+            or any(char not in "0123456789abcdef" for char in session)
+            for session in sessions
+        ) or sessions[0] == sessions[1]:
+            raise OffsetReferenceError("offset worker sessions must be distinct opaque IDs")
         compiled.validate()
         manifest = compiled._bundle.manifest
         fingerprint = manifest["metadata"]["body_fingerprint"]
         bindings = {stage.stage_id: stage for stage in compiled._stages}
-        for worker in (worker_a, worker_b):
-            model = worker._model(model_id)
-            if model.manifest.metadata.get("body_fingerprint") != fingerprint:
-                raise OffsetReferenceError("offset worker body differs from the compiled decoder")
-            for stage_id, binding in bindings.items():
-                if binding.client_weight_layout is not None:
-                    continue
-                stage = compiled._bundle.stages[stage_id]
-                runtime = model.stages.get(stage_id)
-                if runtime is None:
-                    raise OffsetReferenceError("offset worker stage is absent")
-                if (
-                    runtime.spec.in_features != binding.in_features
-                    or runtime.spec.out_features != binding.out_features
-                    or runtime.spec.weight_bits != binding.weight_bits
-                    or runtime.spec.activation_bits != binding.activation_bits
-                ):
-                    raise OffsetReferenceError("offset worker stage geometry differs")
-                if runtime.weight_digest != binding.weight_digest:
-                    raise OffsetReferenceError("offset worker stage weight differs")
-                if runtime.seeded_profile != stage.seeded_profile:
-                    raise OffsetReferenceError("offset worker stage ring differs")
-                if not np.array_equal(runtime.weight.scales, stage.weight_scales):
-                    raise OffsetReferenceError("offset worker stage scales differ")
-                if not np.array_equal(runtime.bias, stage.bias):
-                    raise OffsetReferenceError("offset worker stage bias differs")
         self._compiled = compiled
         self._model_id = model_id
         self._fingerprint = fingerprint
         self._bindings = bindings
         self._exchange_a = exchange_a
         self._exchange_b = exchange_b
+        self._session_a, self._session_b = sessions
         self._costs = OffsetReferenceCosts(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         self._maximum_rows = int(compiled._plan.to_dict()["prefill"]["query_sequence"])
 
@@ -153,7 +140,7 @@ class TwoOnlineOffsetReference:
         left = np.asarray((clear - mask.astype(np.int64)) % modulus, dtype=np.uint32)
         try:
             mask %= modulus
-            def request(share: np.ndarray) -> tuple[str, bytes]:
+            def request(share: np.ndarray, session_id: str) -> tuple[str, bytes]:
                 ticket = secrets.token_hex(16)
                 return ticket, MaskedStageRequest(
                     model=self._model_id,
@@ -168,13 +155,13 @@ class TwoOnlineOffsetReference:
                     weight_digest=stage.weight_digest,
                     weight_bits=stage.weight_bits,
                     activation_bits=stage.activation_bits,
-                    session_id=secrets.token_hex(16),
+                    session_id=session_id,
                     out_features=stage.out_features,
                     signed_output_bound=profile.signed_output_bound,
                 ).pack()
 
-            left_ticket, left_request = request(left)
-            right_ticket, right_request = request(mask)
+            left_ticket, left_request = request(left, self._session_a)
+            right_ticket, right_request = request(mask, self._session_b)
             left_result = self._exchange_a(stage_id, [left_request])
             right_result = self._exchange_b(stage_id, [right_request])
             if (
@@ -229,3 +216,239 @@ class TwoOnlineOffsetReference:
         finally:
             left.fill(0)
             mask.fill(0)
+
+
+class TwoOnlineOffsetReference(_TwoOnlineShareEvaluator):
+    """A non-deployable reference with two separately loaded provider engines."""
+
+    def __init__(
+        self, compiled: CompiledRuntimeModel, worker_a: MaskedTransformerEngine,
+        worker_b: MaskedTransformerEngine,
+        *, model_id: str,
+        exchange_a: Callable[[str, list[bytes]], list[bytes]],
+        exchange_b: Callable[[str, list[bytes]], list[bytes]],
+    ) -> None:
+        if (
+            type(worker_a) is not MaskedTransformerEngine
+            or type(worker_b) is not MaskedTransformerEngine
+            or worker_a is worker_b
+        ):
+            raise OffsetReferenceError("two distinct loaded offset workers are required")
+        super().__init__(
+            compiled, model_id=model_id, exchange_a=exchange_a, exchange_b=exchange_b,
+        )
+        for worker in (worker_a, worker_b):
+            model = worker._model(model_id)
+            if model.manifest.metadata.get("body_fingerprint") != self._fingerprint:
+                raise OffsetReferenceError("offset worker body differs from the compiled decoder")
+            for stage_id, binding in self._bindings.items():
+                if binding.client_weight_layout is not None:
+                    continue
+                stage = compiled._bundle.stages[stage_id]
+                runtime = model.stages.get(stage_id)
+                if runtime is None:
+                    raise OffsetReferenceError("offset worker stage is absent")
+                if (
+                    runtime.spec.in_features != binding.in_features
+                    or runtime.spec.out_features != binding.out_features
+                    or runtime.spec.weight_bits != binding.weight_bits
+                    or runtime.spec.activation_bits != binding.activation_bits
+                ):
+                    raise OffsetReferenceError("offset worker stage geometry differs")
+                if runtime.weight_digest != binding.weight_digest:
+                    raise OffsetReferenceError("offset worker stage weight differs")
+                if runtime.seeded_profile != stage.seeded_profile:
+                    raise OffsetReferenceError("offset worker stage ring differs")
+                if not np.array_equal(runtime.weight.scales, stage.weight_scales):
+                    raise OffsetReferenceError("offset worker stage scales differ")
+                if not np.array_equal(runtime.bias, stage.bias):
+                    raise OffsetReferenceError("offset worker stage bias differs")
+
+
+class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
+    """Bounded research session with two authenticated HTTP worker exchanges.
+
+    Its caller owns both HTTP clients. The operator separation and whole
+    response resource gates needed for an executable Experiment are absent.
+    """
+
+    def __init__(
+        self, compiled: CompiledRuntimeModel, *, model_id: str,
+        worker_a: httpx.Client, worker_b: httpx.Client,
+        api_key_a: str, api_key_b: str,
+    ) -> None:
+        if (
+            type(worker_a) is not httpx.Client or type(worker_b) is not httpx.Client
+            or worker_a is worker_b or type(api_key_a) is not str
+            or type(api_key_b) is not str or len(api_key_a) < 16
+            or len(api_key_b) < 16 or api_key_a == api_key_b
+        ):
+            raise OffsetReferenceError("offset transport requires distinct authenticated workers")
+        compiled.validate()
+        metadata = compiled._bundle.manifest["metadata"]
+        plan = compiled._plan.to_dict()
+        max_input = plan["prefill"]["query_sequence"]
+        max_new = plan["decode"]["maximum_key_sequence"] - max_input + 1
+        graph_digest = two_online_reference_graph().digest()
+        clients = (worker_a, worker_b)
+        keys = (api_key_a, api_key_b)
+        session_ids: list[str] = []
+        self._closed = True
+        self._http_bodies: dict[str, dict[str, int]] = {
+            role: {
+                "setup_upload_bytes": 0, "setup_download_bytes": 0,
+                "online_upload_bytes": 0, "online_download_bytes": 0,
+                "teardown_upload_bytes": 0, "teardown_download_bytes": 0,
+            }
+            for role in ("worker_a", "worker_b")
+        }
+
+        def post(
+            index: int, path: str, *, phase: str, limit: int = 4_096, **kwargs,
+        ) -> tuple[int, bytes]:
+            chunks: list[bytes] = []
+            size = 0
+            with clients[index].stream(
+                "POST", path, headers={"authorization": f"Bearer {keys[index]}"}, **kwargs,
+            ) as response:
+                request_size = len(response.request.content)
+                for chunk in response.iter_bytes():
+                    size += len(chunk)
+                    if size > limit:
+                        raise OffsetReferenceError("offset worker response exceeds its body limit")
+                    chunks.append(chunk)
+                values = self._http_bodies[("worker_a", "worker_b")[index]]
+                values[f"{phase}_upload_bytes"] += request_size
+                values[f"{phase}_download_bytes"] += size
+                return response.status_code, b"".join(chunks)
+
+        try:
+            for index, role_id in enumerate(("worker_a", "worker_b")):
+                request = {
+                    "schema": "pllm.offset_worker_session.v1", "model": model_id,
+                    "role": role_id, "topology_digest": graph_digest,
+                    "decoder_plan": compiled._plan.digest,
+                    "max_input_tokens": max_input, "max_new_tokens": max_new,
+                    "body_fingerprint": metadata["body_fingerprint"],
+                    "stage_commitment": metadata["seeded_stage_commitment"],
+                    "runtime_config_digest": metadata["runtime_config_digest"],
+                }
+                status, payload = post(index, "/v1/offset-reference/sessions", phase="setup",
+                                       json=request)
+                if status != 200:
+                    raise OffsetReferenceError("offset worker declined the bound decoder session")
+
+                def distinct_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+                    value: dict[str, object] = {}
+                    for field, item in pairs:
+                        if field in value:
+                            raise OffsetReferenceError("offset worker admission has duplicate fields")
+                        value[field] = item
+                    return value
+
+                value = json.loads(payload, object_pairs_hook=distinct_fields)
+                expected = {
+                    "schema": request["schema"], "role": role_id,
+                    "topology_digest": graph_digest, "decoder_plan": compiled._plan.digest,
+                    "body_fingerprint": metadata["body_fingerprint"],
+                    "stage_commitment": metadata["seeded_stage_commitment"],
+                }
+                if (
+                    type(value) is not dict or set(value) != set(expected) | {"id"}
+                    or any(value.get(field) != item for field, item in expected.items())
+                    or type(value["id"]) is not str or len(value["id"]) != 32
+                    or any(char not in "0123456789abcdef" for char in value["id"])
+                ):
+                    raise OffsetReferenceError("offset worker admission response differs")
+                session_ids.append(value["id"])
+            if session_ids[0] == session_ids[1]:
+                raise OffsetReferenceError("offset workers issued an identical session ID")
+
+            def exchange(index: int) -> Callable[[str, list[bytes]], list[bytes]]:
+                def invoke(stage_id: str, payloads: list[bytes]) -> list[bytes]:
+                    if type(payloads) is not list or len(payloads) != 1 or type(payloads[0]) is not bytes:
+                        raise OffsetReferenceError("offset stage requires one packed share")
+                    stage_path = quote(stage_id, safe="")
+                    path = f"/v1/offset-reference/sessions/{session_ids[index]}/stages/{stage_path}"
+                    status, response_body = post(
+                        index, path, phase="online", content=payloads[0],
+                        limit=16 * 1024 * 1024 + 8_192,
+                    )
+                    if status != 200:
+                        raise OffsetReferenceError("offset worker refused its committed stage")
+                    return [response_body]
+                return invoke
+
+            super().__init__(
+                compiled, model_id=model_id, exchange_a=exchange(0), exchange_b=exchange(1),
+                session_a=session_ids[0], session_b=session_ids[1],
+            )
+            self._clients = clients
+            self._keys = keys
+            self._sessions = (session_ids[0], session_ids[1])
+            self._closed = False
+        except BaseException:
+            for index, session_id in enumerate(session_ids):
+                try:
+                    post(index, f"/v1/offset-reference/sessions/{session_id}/cancel",
+                         phase="teardown")
+                except (httpx.HTTPError, OffsetReferenceError):
+                    pass
+            raise
+
+    @property
+    def http_body_costs(self) -> dict[str, dict[str, int]]:
+        """Actual HTTP application bodies by role/phase; excludes headers/TLS."""
+        return {role: dict(values) for role, values in self._http_bodies.items()}
+
+    def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
+        if self._closed:
+            raise OffsetReferenceError("offset worker session is already terminal")
+        try:
+            return super().__call__(stage_id, activation)
+        except Exception:
+            self.abort()
+            raise
+
+    def _finish(self, action: str) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        failures = False
+        for index, (client, key, session_id) in enumerate(zip(
+            self._clients, self._keys, self._sessions, strict=True,
+        )):
+            try:
+                with client.stream(
+                    "POST", f"/v1/offset-reference/sessions/{session_id}/{action}",
+                    headers={"authorization": f"Bearer {key}"},
+                ) as response:
+                    failures |= response.status_code != 200
+                    response_size = 0
+                    for chunk in response.iter_bytes():
+                        response_size += len(chunk)
+                        if response_size > 4_096:
+                            failures = True
+                            break
+                    if response_size <= 4_096:
+                        values = self._http_bodies[("worker_a", "worker_b")[index]]
+                        values["teardown_upload_bytes"] += len(response.request.content)
+                        values["teardown_download_bytes"] += response_size
+            except httpx.HTTPError:
+                failures = True
+        if failures and action == "complete":
+            raise OffsetReferenceError("offset worker completion failed")
+
+    def complete(self) -> None:
+        """Finish after the compiled decoder completes successfully."""
+        self._finish("complete")
+
+    def abort(self) -> None:
+        """Burn both sessions on cancellation, transport error, or validation failure."""
+        self._finish("cancel")
+
+    def __enter__(self) -> TwoOnlineOffsetTransport:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.abort()
