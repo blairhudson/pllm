@@ -27,9 +27,11 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
         "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
     }
     for row in adapters:
-        if row["model_family"] == "gemma4_text":
-            assert "whole-decoder execution" in row["runtime_evidence"]
-            assert "provider stage binding" in row["remaining"].lower()
+        if row["adapter"] == "pllm.gemma4_e2b_text.v1":
+            assert "prefill-to-decode" in row["runtime_evidence"]
+            assert "Provider-backed prepared execution" in row["remaining"]
+        elif row["adapter"] == "pllm.gemma4_e4b_text.v1":
+            assert "E4B has no checkpoint execution" in row["runtime_evidence"]
     assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(INVENTORY["candidates"])
 
 

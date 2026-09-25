@@ -105,8 +105,8 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": [],
-      "runtime_evidence": "Pinned complete compiler prefill/decode schedule and isolated BF16 tests; 540 required E2B checkpoint artifact headers verified, with no whole-decoder execution",
-      "remaining": "Provider stage binding, resource-admitted local/global and shared-KV execution, PLE, whole-checkpoint quality and cost evidence",
+      "runtime_evidence": "Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16",
+      "remaining": "Provider-backed prepared execution, representative generation quality, privacy and matched cost evidence",
       "guide": "/sdk/models/families/gemma-4/"
     },
     {
@@ -117,8 +117,8 @@
       "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "kv-cache", "qk-norm", "local-global", "shared-kv", "gelu-tanh", "bf16-operator-composition", "checkpoint-scalar-binding", "branch-norm", "ple", "softcap"],
       "baseline_blockers": [],
-      "runtime_evidence": "Pinned complete compiler prefill/decode schedule and isolated BF16 tests; E2B headers verified, no E4B whole-decoder execution",
-      "remaining": "Provider stage binding, resource-admitted local/global and shared-KV execution, PLE, E4B checkpoint, quality and cost evidence",
+      "runtime_evidence": "Pinned complete compiler prefill/decode schedule and isolated BF16 tests; E2B checkpoint executes locally but E4B has no checkpoint execution",
+      "remaining": "E4B checkpoint import, provider-backed prepared execution, quality and cost evidence",
       "guide": "/sdk/models/families/gemma-4/"
     }
   ],

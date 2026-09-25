@@ -200,3 +200,45 @@ def test_fused_token_lookup_assigns_each_declared_numeric_output(selected: str) 
     with pytest.raises(TransformerClientError, match="invalid width"):
         decoder._forward(np.asarray([3], dtype=np.int64))
     assert decoder.position == 0
+
+
+@pytest.mark.skipif(not os.environ.get("PLLM_GEMMA4_E2B_PATH"), reason="set PLLM_GEMMA4_E2B_PATH")
+def test_pinned_real_projection_import_has_bounded_w8_error(tmp_path: Path) -> None:
+    from pllm.runtime.loaders import load_hf_directory
+    from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+    root = Path(os.environ["PLLM_GEMMA4_E2B_PATH"])
+    manifest = load_hf_directory(root, model_id="google/gemma-4-E2B-it@3e22461f")
+    store = SafeTensorStore(root)
+    stage = min(
+        (
+            candidate
+            for candidate in manifest.stages
+            if candidate.op == "linear"
+            and len(candidate.weight_keys) == 1
+            and not candidate.bias_keys
+            and not candidate.transpose_weight
+        ),
+        key=lambda candidate: candidate.in_features * candidate.out_features,
+    )
+    manifest.metadata["stage_origin"] = "semantic_schedule_v1"
+    engine = MaskedTransformerEngine(
+        weight_bits=8, activation_bits=8, threads=1, compiled_cache_dir=tmp_path
+    )
+    loaded = engine._load_stage(store, stage, manifest)
+    activation = np.zeros((1, stage.in_features), dtype=np.float32)
+    activation[0, 0] = 1.0
+    quantized = quantize_activation_per_row(activation, bits=stage.activation_bits)
+    integer = loaded.compiled_weight.clear(quantized.values)
+    result = dequantize_matmul(
+        integer,
+        quantized.scales,
+        loaded.weight.scales,
+        output_shape=(1, stage.out_features),
+    )
+    original = store.get(stage.weight_keys[0], dtype=np.float32)[:, 0]
+    np.testing.assert_array_less(
+        np.abs(result[0] - original), loaded.weight.scales * 0.51 + 0.000001
+    )
+    assert manifest.id == "google/gemma-4-E2B-it@3e22461f"

@@ -297,3 +297,61 @@ def test_windowed_plan_preflights_aggregate_state_before_issuance(
     state_inputs.pop(next(index for index, state in enumerate(state_inputs) if state["layer"] in windows))
     with pytest.raises(TransformerClientError, match="lacks key/value capacity"):
         SemanticDecoderRuntime._window_resource_bytes(graphs, windows)
+
+
+def test_windowed_prefill_accepts_numpy_token_vector() -> None:
+    runtime = object.__new__(SemanticDecoderRuntime)
+    runtime._window_contracts = {0: 4}
+    runtime._graphs = {"prefill": {"query_sequence": 2}}
+    runtime.caches = []
+    runtime.reset = lambda: None
+    runtime._forward = lambda tokens, *, final_logits_only: np.asarray(
+        [[float(tokens[0]), 42.0]], dtype=np.float32
+    )
+    ids, logits, _ = runtime.prepare_ids(np.asarray([1, 2], dtype=np.int64))
+    assert ids == [1, 2]
+    np.testing.assert_array_equal(logits, [2.0, 42.0])
+
+
+def test_compiled_session_validates_declared_kv_owners_and_bfloat16_state() -> None:
+    from types import SimpleNamespace
+
+    from pllm.runtime.model_execution import (
+        CompiledRuntimeSession,
+        RuntimeExecutionError,
+        _bind_state_contracts,
+    )
+    from pllm.runtime.transformer_client import LayerCache
+
+    prefill, decode = _gemma_graph(), _gemma_graph("decode")
+    contracts = _bind_state_contracts(prefill, decode, 35)
+    assert len(contracts) == 15
+    with pytest.raises(RuntimeExecutionError, match="decoder state"):
+        _bind_state_contracts(prefill, {**decode, "state_inputs": decode["state_inputs"][1:]}, 35)
+
+    caches = [LayerCache() for _ in range(35)]
+    for layer, state in contracts.items():
+        shape = state["key"]["shape"]
+        if shape[2] == 511:
+            cache = WindowedLayerCache(window=512)
+            row = np.ones((1, shape[1], shape[3]), dtype=np.float32)
+            cache.append_windows(row, row)
+        else:
+            cache = LayerCache()
+            cache.length = 1
+            cache.key = np.ones((1, shape[1], shape[3]), dtype=np.float32)
+            cache.value = cache.key.copy()
+        caches[layer] = cache
+    session = object.__new__(CompiledRuntimeSession)
+    session._state_contracts = contracts
+    session._layers = 35
+    session._runtime = SimpleNamespace(position=1, caches=caches)
+    session._validate_runtime_state(1)
+
+    caches[20].length = 1
+    with pytest.raises(RuntimeExecutionError, match="unowned"):
+        session._validate_runtime_state(1)
+    caches[20].length = 0
+    caches[0].key[0, 0, 0] = np.float32(1.1)
+    with pytest.raises(RuntimeExecutionError, match="tensor"):
+        session._validate_runtime_state(1)

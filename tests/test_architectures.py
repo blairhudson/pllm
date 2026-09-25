@@ -17,7 +17,7 @@ def run(value):
     return asyncio.run(value)
 
 
-def test_qwen2_biases_and_llama_semantics_are_preserved(tmp_path: Path):
+def test_qwen2_biases_and_semantic_source_identity_are_preserved(tmp_path: Path):
     root = create_tiny_llama_checkpoint(tmp_path / "qwen")
     manifest = load_hf_directory(root, model_id="tiny-qwen")
     engine = MaskedTransformerEngine(threads=1)
@@ -27,7 +27,7 @@ def test_qwen2_biases_and_llama_semantics_are_preserved(tmp_path: Path):
     qkv = bundle.stages["layers.0.self_attn.qkv_proj"]
     assert qkv.bias is not None
     assert qkv.bias.shape == (64,)
-    assert bundle.cfg["model_family"] == "llama-compatible"
+    assert bundle.cfg["model_family"] == "qwen2"
     assert bundle.cfg["block_style"] == "llama"
     assert bundle.cfg["embedding_multiplier"] == 1.0
     assert bundle.cfg["attention_scaling"] is None

@@ -1464,6 +1464,7 @@ class RuntimeClient:
         from pllm.profiles import MaskedLinearCpu
         from pllm.quantization import SymmetricPerRow
         from .model_binding import compile_runtime_model
+        from .semantic_source import semantic_source_config
 
         if self._experiment_budget is not None and (
             max_input_tokens > self._experiment_budget.max_input_tokens
@@ -1482,7 +1483,7 @@ class RuntimeClient:
             )
         try:
             plan = lower_model(
-                state.bundle.cfg,
+                semantic_source_config(state.bundle.cfg),
                 batch=1,
                 max_input_tokens=max_input_tokens,
                 max_new_tokens=max_new_tokens,

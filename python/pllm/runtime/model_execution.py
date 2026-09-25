@@ -9,11 +9,46 @@ from typing import Any
 import numpy as np
 
 from pllm.runtime.model_binding import CompiledRuntimeModel, RuntimeBindingError
+from pllm.runtime.semantic_state import WindowedLayerCache
 from pllm.runtime.transformer_client import MaskedTransformerClientRuntime
 
 
 class RuntimeExecutionError(RuntimeError):
     pass
+
+
+def _bind_state_contracts(
+    prefill: dict[str, Any], decode: dict[str, Any], layers: int
+) -> dict[int, dict[str, dict[str, Any]]]:
+    def collect(rows: list[dict[str, Any]]) -> dict[int, dict[str, dict[str, Any]]]:
+        bound: dict[int, dict[str, dict[str, Any]]] = {}
+        for row in rows:
+            layer = row.get("layer")
+            kind = row.get("kind")
+            if type(layer) is not int or not 0 <= layer < layers or kind not in {"key", "value"}:
+                raise RuntimeExecutionError("decoder state has unsupported ownership")
+            layer_states = bound.setdefault(layer, {})
+            if kind in layer_states:
+                raise RuntimeExecutionError("decoder state declares duplicate ownership")
+            layer_states[kind] = row
+        for layer_states in bound.values():
+            if set(layer_states) != {"key", "value"}:
+                raise RuntimeExecutionError("decoder state must bind key/value together")
+            key, value = layer_states["key"], layer_states["value"]
+            if key["shape"] != value["shape"] or key["maximum_sequence"] != value["maximum_sequence"]:
+                raise RuntimeExecutionError("decoder key/value geometry differs")
+        return bound
+
+    produced = collect(prefill["state_outputs"])
+    consumed = collect(decode["state_inputs"])
+    if set(produced) != set(consumed) or any(
+        produced[layer][kind]["shape"] != consumed[layer][kind]["shape"]
+        or produced[layer][kind]["maximum_sequence"] != consumed[layer][kind]["maximum_sequence"]
+        for layer in produced
+        for kind in ("key", "value")
+    ):
+        raise RuntimeExecutionError("prefill/decode decoder state contracts differ")
+    return produced
 
 
 class CompiledRuntimeSession:
@@ -28,6 +63,7 @@ class CompiledRuntimeSession:
         "_logrow_phase",
         "_logrow_step",
         "_research_execution_digest",
+        "_state_contracts",
         "_max_input",
         "_max_new",
         "_pending_token",
@@ -171,6 +207,7 @@ class CompiledRuntimeSession:
         self._max_new = max_new
         self._vocab = int(compiled._bundle.cfg["vocab_size"])
         self._layers = int(compiled._bundle.cfg["num_hidden_layers"])
+        self._state_contracts = _bind_state_contracts(prefill, decode, self._layers)
         self._lock = threading.RLock()
         self._status = "new"
         self._position = 0
@@ -268,8 +305,45 @@ class CompiledRuntimeSession:
     def _validate_runtime_state(self, expected_position: int) -> None:
         if self._runtime.position != expected_position or len(self._runtime.caches) != self._layers:
             raise RuntimeExecutionError("runtime state does not match the bound decoder plan")
-        if any(cache.length != expected_position for cache in self._runtime.caches):
-            raise RuntimeExecutionError("runtime KV state lengths differ from the bound position")
+        for layer, cache in enumerate(self._runtime.caches):
+            state = self._state_contracts.get(layer)
+            if state is None:
+                if (
+                    isinstance(cache, WindowedLayerCache)
+                    or cache.length != 0
+                    or cache.key is not None
+                    or cache.value is not None
+                ):
+                    raise RuntimeExecutionError("unowned runtime KV state was populated")
+                continue
+            shape = state["key"]["shape"]
+            maximum = int(state["key"]["maximum_sequence"])
+            if isinstance(cache, WindowedLayerCache):
+                valid = min(expected_position, maximum)
+                if cache.window != maximum + 1 or cache.position != expected_position:
+                    raise RuntimeExecutionError("windowed KV position differs from decoder plan")
+            else:
+                valid = expected_position
+            if (
+                cache.length != valid
+                or valid > maximum
+                or cache.key is None
+                or cache.value is None
+            ):
+                raise RuntimeExecutionError("runtime KV state lengths differ from the bound position")
+            for value in (cache.key, cache.value):
+                if (
+                    value.dtype != np.float32
+                    or value.ndim != 3
+                    or value.shape[0] < valid
+                    or value.shape[1:] != (int(shape[1]), int(shape[3]))
+                    or not np.all(np.isfinite(value[:valid]))
+                    or (
+                        isinstance(cache, WindowedLayerCache)
+                        and np.any((value[:valid].view(np.uint32) & 0xFFFF) != 0)
+                    )
+                ):
+                    raise RuntimeExecutionError("runtime KV tensor differs from decoder plan")
 
     def _zero_runtime(self) -> None:
         if self._logrow is not None:

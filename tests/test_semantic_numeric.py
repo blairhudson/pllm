@@ -258,3 +258,32 @@ def test_semantic_numeric_rejects_unsupported_or_nonfinite_contracts(
         round_bfloat16(np.asarray([float("nan")], dtype=np.float32))
     with pytest.raises(SemanticNumericError, match="BF16 domain"):
         round_bfloat16(np.asarray([3.4e38], dtype=np.float32))
+
+
+def test_pinned_gemma_reshapes_and_selects_last_valid_token(
+    operations: dict[str, dict],
+) -> None:
+    runtime = object.__new__(SemanticDecoderRuntime)
+    runtime.position = 0
+    ple = operations["ple_token_reshape"]
+    packed = np.arange(2 * 8960, dtype=np.float32).reshape(2, 8960)
+    result = runtime._local(ple, {ple["inputs"][0]: packed}, {}, {})
+    assert result.shape == (1, 2, 35, 256)
+    np.testing.assert_array_equal(result.reshape(2, -1), packed)
+
+    query = operations["layer.0.q_heads"]
+    flattened = np.arange(2 * 2048, dtype=np.float32).reshape(2, 2048)
+    heads = runtime._local(query, {query["inputs"][0]: flattened}, {}, {})
+    assert heads.shape == (1, 2, 8, 256)
+    merged = operations["layer.0.attention_hidden"]
+    np.testing.assert_array_equal(
+        runtime._local(merged, {merged["inputs"][0]: heads}, {}, {}), flattened
+    )
+
+    last = operations["last_hidden"]
+    hidden = np.arange(2 * 1536, dtype=np.float32).reshape(1, 2, 1536)
+    values = {last["inputs"][0]: hidden, last["inputs"][1]: np.asarray([2], dtype=np.int64)}
+    np.testing.assert_array_equal(runtime._local(last, values, {}, {}), hidden[:, -1, :])
+    values[last["inputs"][1]] = np.asarray([1], dtype=np.int64)
+    with pytest.raises(TransformerClientError, match="last-valid"):
+        runtime._local(last, values, {}, {})

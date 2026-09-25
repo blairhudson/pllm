@@ -21,6 +21,7 @@ from pllm.runtime.quantization import (
     signed_dot_bound,
 )
 from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
+from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
 from pllm.runtime.transformer_client import ClientBundle
 
@@ -358,7 +359,7 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
     )
 
 
-def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
+def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict[str, Any]:
     hidden = _require_int(cfg.get("hidden_size"), "config hidden_size")
     intermediate = _require_int(cfg.get("intermediate_size"), "config intermediate_size")
     layers = _require_int(cfg.get("num_hidden_layers"), "config num_hidden_layers")
@@ -418,10 +419,12 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
         rope_scaling = None
     elif rope_scaling in ({"type": "default"}, {"rope_type": "default"}):
         rope_scaling = None
-    else:
+    elif not nested_source:
         raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
-    if use_sliding_window or any(layer != "full_attention" for layer in layer_types):
+    if not nested_source and (
+        use_sliding_window or any(layer != "full_attention" for layer in layer_types)
+    ):
         raise RuntimeBindingError("compiled runtime profile does not support sliding windows")
     # Some dense checkpoint configs declare a dormant window. The exact value
     # participates in the native source-plan digest; no window is applied at
@@ -445,7 +448,7 @@ def _runtime_config(cfg: dict[str, Any]) -> dict[str, Any]:
         "rms_norm_eps": float(eps),
         "norm_offset": float(norm_offset),
         "layer_types": list(layer_types),
-        "sliding_window": None,
+        "sliding_window": source_sliding_window if nested_source else None,
         "num_kv_shared_layers": shared_count,
         "attention_k_eq_v": k_eq_v,
         "hidden_size_per_layer_input": ple_dim,
@@ -497,6 +500,8 @@ def _canonicalize_descriptor(value: Any) -> Any:
 def _validate_runtime_semantics(
     runtime_config: dict[str, Any],
     phases: dict[str, tuple[dict[str, Any], dict[str, dict[str, Any]]]],
+    *,
+    nested_source: bool = False,
 ) -> None:
     rotary_head_dims: set[int] = set()
     rotary_norm_inputs: list[bool] = []
@@ -516,6 +521,14 @@ def _validate_runtime_semantics(
                 raise RuntimeBindingError(f"{phase} rotary input is not produced by the plan")
             rotary_head_dims.add(_last_dim(source.get("output_shape"), f"{phase} rotary input"))
             rotary_norm_inputs.append(source.get("operator") == "rms_norm")
+            if nested_source and operation.get("attributes", {}).get("head_dim") != _last_dim(
+                source.get("output_shape"), f"{phase} rotary input"
+            ):
+                raise RuntimeBindingError("runtime rotary width diverges from the semantic plan")
+    if nested_source:
+        # Native re-lowering and numeric-flow checks validate every operator;
+        # flattened transport controls are constrained to the locked source.
+        return
     if rotary_head_dims != {_require_int(runtime_config.get("head_dim"), "runtime head_dim")}:
         raise RuntimeBindingError("runtime head dimension diverges from the semantic plan")
     if rotary_norm_inputs and any(rotary_norm_inputs) != all(rotary_norm_inputs):
@@ -653,8 +666,9 @@ def compile_runtime_model(
     if _require_int(decode_graph.get("query_sequence"), "decode query_sequence") != 1:
         raise RuntimeBindingError("decode query_sequence must be one")
     try:
+        source_config = semantic_source_config(cfg)
         reconstructed = lower_model(
-            cfg,
+            source_config,
             batch=batch,
             max_input_tokens=max_input_tokens,
             max_new_tokens=max_new_tokens,
@@ -679,12 +693,13 @@ def compile_runtime_model(
         raise RuntimeBindingError("native whole-decoder runtime schedule is inconsistent")
     runtime_schedule_digest = runtime_schedule.digest
 
-    runtime_config = _runtime_config(cfg)
+    nested_source = source_config is not cfg
+    runtime_config = _runtime_config(cfg, nested_source=nested_source)
     runtime_config_digest = _sha256(_canonical_json(cfg))
     tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
 
     phases = {phase: _phase_operations(document, phase) for phase in ("prefill", "decode")}
-    _validate_runtime_semantics(runtime_config, phases)
+    _validate_runtime_semantics(runtime_config, phases, nested_source=nested_source)
     prefill_ops, decode_ops = phases["prefill"][1], phases["decode"][1]
     if set(prefill_ops) != set(decode_ops):
         raise RuntimeBindingError("prefill and decode operations differ")
@@ -776,8 +791,13 @@ def compile_runtime_model(
         if stage.id in canonical:
             raise RuntimeBindingError(f"duplicate bundle stage id {stage.id!r}")
         canonical[stage.id] = stage
-    if len({(stage.role, stage.layer_index) for stage in canonical.values()}) != len(canonical):
-        raise RuntimeBindingError("bundle stage roles and layers must be unique")
+    named_roles = [
+        (stage.role, stage.layer_index)
+        for stage in canonical.values()
+        if stage.role != "semantic_linear"
+    ]
+    if len(set(named_roles)) != len(named_roles):
+        raise RuntimeBindingError("bundle named stage roles and layers must be unique")
 
     spec_rows: dict[str, dict[str, Any]] = {}
     for row in manifest.get("stages") or []:
@@ -804,7 +824,10 @@ def compile_runtime_model(
             and all(isinstance(name, str) and name for name in row_fused)
             and (
                 (row_op in {"embedding", "lm_head"} and stage.layer_index is None)
-                or (row_op == "linear" and stage.layer_index is not None)
+                or (
+                    row_op == "linear"
+                    and (stage.layer_index is not None or stage.role == "semantic_linear")
+                )
             )
         )
         if not valid:

@@ -145,9 +145,13 @@ role re-lowers the bounded plan and checks its digest, body, stage and runtime
 configuration commitments before accepting a compiler-bound session. This
 covers `gateway --local`, bare public client requests and loopback benchmarks;
 standalone experiment-backed provider roles receive the same numeric choices.
-Gemma 4 E2B/E4B semantic plans now pass the same bounded baseline prefill/decode
-compiler scheduler. This is operator/schedule coverage, not provider or client
-whole-decoder execution. Generic local BF16 scale, tanh-GeLU, softcap,
+Gemma 4 E2B/E4B semantic plans pass the same bounded baseline prefill/decode
+compiler scheduler. Pinned E2B additionally imports 213 compiled stages and
+executes two complete local-clear W8A8 prefill-to-decode runs. Compared with
+the same-token PyTorch BF16 reference, the two-prompt cohort records 2/2
+top-1 agreement, 0.70 mean top-5 recall and 3.5625 worst absolute logit
+error. This is not provider-backed execution or representative generation
+quality. Generic local BF16 scale, tanh-GeLU, softcap,
 permutation and slice primitives have isolated schedule contracts and a
 finite-BF16 numeric oracle: on the checked PyTorch CPU implementation the
 tanh-GeLU result differs by at most 0.0000305 over all 65,280 finite BF16
@@ -156,9 +160,10 @@ scalar now has an exact-shape client-tensor binding; Gemma 4 RMSNorm uses
 direct checkpoint weights, without a `+1` offset. BF16 output boundaries are
 now declared on local and remote operators, checked end-to-end against the
 semantic graph, and rounded by the client executor. This is an isolated
-representation contract, not whole-decoder fidelity. Sliding/full KV state,
-PLE boundaries and real-checkpoint parity still block
-whole-decoder binding; its older runtime graph remains separate for
+representation contract, not independent cryptographic privacy evidence.
+The exact source configuration, sliding/full KV ownership, PLE token boundary,
+and runtime stages are now bound for the E2B local-clear diagnostic. The older
+runtime graph remains separate for
 existing tiny transport tests. Sources without semantic lowering adapters still
 retain their older inspection/runtime graph; an adapter with incomplete compiled
 coverage cannot silently activate that graph, except for the separately labeled
@@ -173,8 +178,8 @@ The standalone semantic sliding-KV reference retains only the valid `W−1`
 prefix, constructs query-relative windows on demand, rejects overlarge views
 before state mutation, and preflights declared windowed state against a 2 GiB
 client-memory ceiling before runtime construction. The compiler admits its
-bounded operation schedule; provider stage binding and whole-model PLE
-execution remain unvalidated.
+bounded operation schedule; the local-clear E2B run covers whole-decoder PLE
+execution, but provider-prepared protocol parity remains unvalidated.
 Pinned default and proportional RoPE descriptors now bind sequence-before-heads
 layout and BF16-stepwise arithmetic; checked positions match a PyTorch CPU
 oracle, while real-checkpoint and full-context rotary fidelity remain unproven.
@@ -182,8 +187,9 @@ The pinned Gemma 4 E2B checkpoint's main token table and packed per-layer token
 table are physically separate, share token IDs, and form one ordered public
 boundary stage with two output slices. Before any stage quantization, semantic
 import checks the shapes and floating-point dtypes of all 540 required text
-decoder artifacts against the cached official checkpoint's headers. This does
-not load their values, bind provider/client execution, or validate generation quality.
+decoder artifacts against the cached official checkpoint's headers. The separate
+local-clear functionality test loads their values; neither test establishes
+provider execution or representative generation quality.
 An explicit in-process LogRow research override can evaluate all SiLU tensors
 of a bounded tiny Qwen2/Qwen3 compiled decoder with one-use, session-admitted
 material and a separate execution digest. The wider public-range profile

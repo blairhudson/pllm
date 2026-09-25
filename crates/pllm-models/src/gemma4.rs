@@ -723,7 +723,7 @@ fn lower_graph(
             ModelOperator::Reshape,
             &[&attention_permute],
             vec![batch, query, u64::from(NUM_HEADS) * head_dim],
-            json!({"layout": "batch_sequence_hidden"}),
+            json!({"layout": "batch_sequence_hidden", "input_layout": "batch_sequence_heads_feature"}),
         );
         let o_proj = format!("{prefix}.o_proj");
         linear(

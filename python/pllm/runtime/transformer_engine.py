@@ -461,7 +461,7 @@ class MaskedTransformerEngine:
             # These fields keep the existing bundle wire representation while
             # the stage and execution graphs come solely from semantic lowering.
             profile = ArchitectureProfile(
-                family="llama-compatible",
+                family=semantic_plan.to_dict()["model_family"],
                 stage_plan="semantic",
                 block_style="llama",
                 norm_offset=0.0,
@@ -596,6 +596,10 @@ class MaskedTransformerEngine:
                 or "silu",
             }
         )
+        if profile.stage_plan == "semantic" and isinstance(raw_config.get("text_config"), dict):
+            # Preserve the locked outer source vocabulary for nested decoders.
+            # The flattened text settings remain only a transport/runtime view.
+            config["semantic_source_config"] = raw_config
         try:
             local_requirements = (
                 required_client_tensors(semantic_plan) if semantic_plan is not None else None

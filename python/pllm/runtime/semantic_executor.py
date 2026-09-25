@@ -148,7 +148,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
         if not self._window_contracts:
             return super().prepare_ids(ids)
-        if not ids:
+        if len(ids) == 0:
             ids = [int(self.cfg["bos_token_id"])]
         if len(ids) > int(self._graphs["prefill"]["query_sequence"]):
             raise TransformerClientError("semantic prefill exceeds its compiled query bound")
@@ -320,9 +320,28 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if kind == "reshape":
             layout = attrs.get("layout")
             if layout == "batch_heads_sequence_feature":
+                if source.ndim != 2:
+                    raise TransformerClientError("semantic head reshape expects a row-major tensor")
                 shape = operation["output_shape"]
                 return source.reshape(1, source.shape[0], shape[1], shape[-1]).transpose(0, 2, 1, 3)
+            if layout in {"batch_sequence_heads_feature", "batch_sequence_layer_feature"}:
+                shape = operation["output_shape"]
+                if (
+                    len(shape) != 4
+                    or shape[0] != 1
+                    or source.ndim not in {2, 3}
+                    or source.shape[-1] != shape[2] * shape[3]
+                    or (source.ndim == 3 and source.shape[0] != 1)
+                ):
+                    raise TransformerClientError("semantic sequence reshape shape is invalid")
+                return source.reshape(1, source.shape[-2], shape[2], shape[3])
             if layout == "batch_sequence_hidden":
+                if source.ndim != 4 or source.shape[0] != 1:
+                    raise TransformerClientError("semantic attention flatten shape is invalid")
+                if attrs.get("input_layout") == "batch_sequence_heads_feature":
+                    return source.reshape(source.shape[1], -1)
+                if attrs.get("input_layout") is not None:
+                    raise TransformerClientError("semantic attention flatten layout is unsupported")
                 return source.transpose(0, 2, 1, 3).reshape(source.shape[2], -1)
         elif kind == "rms_norm":
             if attrs.get("output_dtype") == "bfloat16" and attrs.get("compute_dtype") == "float32":
@@ -494,6 +513,29 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         elif kind == "multiply":
             return source * values[inputs[1]]
         elif kind == "last_token":
+            if attrs.get("axis") == 1:
+                if source.ndim not in {2, 3} or (source.ndim == 3 and source.shape[0] != 1):
+                    raise TransformerClientError("semantic last-token layout is invalid")
+                sequence = source.shape[0] if source.ndim == 2 else source.shape[1]
+                if attrs.get("selection") == "last_valid" and len(inputs) == 2:
+                    valid = np.asarray(values[inputs[1]])
+                    if (
+                        attrs.get("valid_lengths_input") != inputs[1]
+                        or valid.shape != (1,)
+                        or not np.issubdtype(valid.dtype, np.integer)
+                        or int(valid[0]) != self.position + sequence
+                    ):
+                        raise TransformerClientError("semantic last-valid token state is invalid")
+                elif (
+                    attrs.get("selection") is not None
+                    or attrs.get("valid_lengths_input") is not None
+                    or len(inputs) != 1
+                    or sequence != 1
+                ):
+                    raise TransformerClientError("semantic last-token state is invalid")
+                return source[-1:] if source.ndim == 2 else source[:, -1, :]
+            if attrs.get("axis") not in {None, 0}:
+                raise TransformerClientError("semantic last-token axis is unsupported")
             return source[-1:]
         elif kind == "greedy_token_selection":
             return np.argmax(source, axis=-1).astype(np.int64)

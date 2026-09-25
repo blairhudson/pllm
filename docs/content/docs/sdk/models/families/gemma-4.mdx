@@ -15,16 +15,23 @@ Both plans preserve alternating local/global attention, two head widths, Q/K nor
 PLLM has a complete baseline compiler schedule for both pinned text-decoder
 configurations, with public resource bounds and ordered main/PLE token-boundary
 outputs. The official E2B checkpoint passes a header-only shape and dtype
-preflight for all 540 required text-decoder tensors. Separately, isolated
-client-local BF16 operators cover scaling, GeLU-tanh, softcap, RMSNorm,
-attention and rotary math. Its checked PyTorch CPU comparison
+preflight for all 540 required text-decoder tensors. The same pinned E2B source
+imports 213 compiled stages and completes two real-checkpoint local-clear W8A8
+prefill-to-decode runs. Against the same-token PyTorch BF16 reference, the
+two-prompt diagnostic recorded 2/2 top-1 agreement, 0.70 mean top-5 recall,
+and 3.5625 worst absolute logit error. This small cohort does not establish
+general generation quality. Separately, the checked PyTorch CPU BF16 comparison
 found at most `0.0000305` absolute GeLU difference over all finite BF16 inputs;
 softcap with cap 30 matched exactly. These operations use client CPU and
 temporary buffers; they add no provider network exchange or stored material by
-themselves. The schedule and header check do not establish provider stage
-binding, full local/global and shared-KV execution, PLE fidelity, generation
-quality or a private, benchmarkable Gemma experiment. The older tiny transport
-runtime remains separate until those runtime and evidence checks pass.
+themselves. The local-clear diagnostic uses the checkpoint and compiled weights
+inside one process; it is not a provider privacy or network measurement. At
+W8A8 the E2B stage inventory declares about 1.88 GB of remote matrices and
+3.15 GB of client token-boundary matrices; the serialized client bundle
+measures 2,790,944,732 bytes. Peak memory, provider traffic, CPU time per
+generated token, disk footprint after compilation, and energy have not been
+compared in a matched deployment cohort. The older tiny transport runtime
+remains separate until real provider-backed execution and quality evidence pass.
 
 ## Python SDK example
 
