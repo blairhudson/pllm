@@ -288,6 +288,88 @@ def float32_rotary_wavelength(
     return result
 
 
+def float32_rotary_per_frequency(
+    value: np.ndarray, positions: np.ndarray, attributes: dict[str, object]
+) -> np.ndarray:
+    """Short-context, public per-frequency split-half RoPE; no KV frequency switch."""
+    source = np.asarray(value)
+    indices = np.asarray(positions)
+    descriptor = attributes.get("frequency_scaling")
+    dimensions = attributes.get("rotary_dimensions")
+    theta = attributes.get("theta")
+    if (
+        set(attributes) != {
+            "theta", "rotary_dimensions", "rope_type", "pairing", "position_policy",
+            "coefficient_profile", "input_layout", "output_layout", "tail_policy",
+            "frequency_scaling",
+        }
+        or attributes.get("rope_type") != "longrope"
+        or attributes.get("pairing") != "split_half"
+        or attributes.get("position_policy") != "sequential_absolute"
+        or attributes.get("coefficient_profile") != "pllm.numeric.rope.float32.per_frequency.v1"
+        or attributes.get("input_layout") != "batch_heads_sequence_feature"
+        or attributes.get("output_layout") != "batch_heads_sequence_feature"
+        or attributes.get("tail_policy") != "unchanged"
+        or source.ndim != 4
+        or source.dtype != np.float32
+        or not np.all(np.isfinite(source))
+        or indices.ndim != 1
+        or indices.dtype != np.int64
+        or source.shape[2] != indices.size
+        or type(dimensions) is not int
+        or not (2 <= dimensions <= source.shape[-1])
+        or dimensions % 2
+        or type(theta) is not int
+        or theta < 1
+        or not isinstance(descriptor, dict)
+        or set(descriptor) != {
+            "kind", "factor", "original_max_position_embeddings", "short_factor", "long_factor",
+        }
+        or descriptor.get("kind") != "per_frequency_context"
+    ):
+        raise SemanticNumericError("per-frequency rotary shape or policy is invalid")
+    original = descriptor["original_max_position_embeddings"]
+    factor = descriptor["factor"]
+    short, long = descriptor["short_factor"], descriptor["long_factor"]
+    if (
+        type(original) is not int
+        or not (2 <= original <= (1 << 24))
+        or type(factor) not in (float, int)
+        or not math.isfinite(factor)
+        or not (1 <= factor <= 256)
+        or not isinstance(short, list)
+        or not isinstance(long, list)
+        or len(short) != dimensions // 2
+        or len(long) != dimensions // 2
+        or any(
+            type(item) not in (float, int)
+            or not math.isfinite(item)
+            or not (1 / 256 <= item <= 256)
+            for item in (*short, *long)
+        )
+        or np.any((indices < 0) | (indices >= original))
+    ):
+        raise SemanticNumericError("per-frequency rotary exceeds bounded short context")
+    powers = np.arange(0, dimensions, 2, dtype=np.float32) / np.float32(dimensions)
+    inverse = np.float32(1.0) / (
+        np.asarray(short, dtype=np.float32) * (np.float32(theta) ** powers)
+    )
+    angles = indices.astype(np.float32)[:, None] * inverse[None, :]
+    cosine = np.concatenate((np.cos(angles), np.cos(angles)), axis=-1)[None, None]
+    sine = np.concatenate((np.sin(angles), np.sin(angles)), axis=-1)[None, None]
+    attention_factor = np.float32(
+        math.sqrt(1 + math.log(factor) / math.log(original)) if factor > 1 else 1
+    )
+    cosine *= attention_factor
+    sine *= attention_factor
+    current = source[..., :dimensions]
+    half = dimensions // 2
+    rotated = np.concatenate((-current[..., half:], current[..., :half]), axis=-1)
+    result = source.copy()
+    result[..., :dimensions] = current * cosine + rotated * sine
+    return result
+
+
 __all__ = [
     "SemanticNumericError",
     "bfloat16_gelu_tanh",
@@ -297,5 +379,6 @@ __all__ = [
     "bfloat16_rotary",
     "bfloat16_softmax",
     "float32_rotary_wavelength",
+    "float32_rotary_per_frequency",
     "round_bfloat16",
 ]

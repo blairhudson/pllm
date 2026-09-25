@@ -4,6 +4,8 @@ use super::ModelError;
 use serde_json::{json, Value};
 
 pub(crate) const WAVELENGTH_COEFFICIENT_PROFILE: &str = "pllm.numeric.rope.float32.wavelength.v1";
+pub(crate) const PER_FREQUENCY_COEFFICIENT_PROFILE: &str =
+    "pllm.numeric.rope.float32.per_frequency.v1";
 const MAX_POSITION: u64 = 1 << 24;
 
 pub(crate) fn source_descriptor(
@@ -69,4 +71,37 @@ pub(crate) fn valid_wavelength_descriptor(value: &Value) -> bool {
         && (high as f32) - (low as f32) >= 1.0 / 256.0
         && high <= 256.0
         && (1..=MAX_POSITION).contains(&original)
+}
+
+pub(crate) fn valid_per_frequency_descriptor(value: &Value, rotary_dimensions: u64) -> bool {
+    let Some(fields) = value.as_object() else {
+        return false;
+    };
+    if fields.len() != 5
+        || fields.get("kind").and_then(Value::as_str) != Some("per_frequency_context")
+        || rotary_dimensions == 0
+        || rotary_dimensions % 2 != 0
+    {
+        return false;
+    }
+    let (Some(original), Some(factor), Some(short), Some(long)) = (
+        fields
+            .get("original_max_position_embeddings")
+            .and_then(Value::as_u64),
+        fields.get("factor").and_then(Value::as_f64),
+        fields.get("short_factor").and_then(Value::as_array),
+        fields.get("long_factor").and_then(Value::as_array),
+    ) else {
+        return false;
+    };
+    let width = usize::try_from(rotary_dimensions / 2).ok();
+    (2..=MAX_POSITION).contains(&original)
+        && factor.is_finite()
+        && (1.0..=256.0).contains(&factor)
+        && width.is_some_and(|width| short.len() == width && long.len() == width)
+        && short.iter().chain(long).all(|value| {
+            value
+                .as_f64()
+                .is_some_and(|factor| factor.is_finite() && (1.0 / 256.0..=256.0).contains(&factor))
+        })
 }

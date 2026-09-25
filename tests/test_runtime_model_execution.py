@@ -28,6 +28,46 @@ from pllm.runtime.transformer_client import (
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
+def _tiny_phi_checkpoint(root: Path) -> tuple[Path, dict]:
+    from safetensors.torch import save_file
+
+    root.mkdir(parents=True)
+    pinned = (
+        Path(__file__).resolve().parents[1]
+        / "crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json"
+    )
+    config = json.loads(pinned.read_text(encoding="utf-8"))
+    config.update({
+        "name_or_path": "tiny-phi-compiled", "hidden_size": 16, "intermediate_size": 32,
+        "num_hidden_layers": 1, "num_attention_heads": 2, "num_key_value_heads": 1,
+        "vocab_size": 258, "max_position_embeddings": 256,
+        "original_max_position_embeddings": 64, "sliding_window": 256,
+        "bos_token_id": 0, "eos_token_id": 1, "pad_token_id": 1,
+        "pllm_test_tokenizer": "byte",
+        "rope_scaling": {
+            "type": "longrope", "short_factor": [1.0, 1.25, 2.0],
+            "long_factor": [4.0, 5.0, 6.0],
+        },
+    })
+    (root / "config.json").write_text(json.dumps(config), encoding="utf-8")
+    weights = torch.Generator().manual_seed(67)
+
+    def matrix(out_width: int, in_width: int) -> torch.Tensor:
+        return torch.randn(out_width, in_width, generator=weights) * 0.08
+
+    save_file({
+        "model.embed_tokens.weight": matrix(258, 16),
+        "model.norm.weight": torch.ones(16),
+        "model.layers.0.input_layernorm.weight": torch.ones(16),
+        "model.layers.0.post_attention_layernorm.weight": torch.ones(16),
+        "model.layers.0.self_attn.qkv_proj.weight": matrix(32, 16),
+        "model.layers.0.self_attn.o_proj.weight": matrix(16, 16),
+        "model.layers.0.mlp.gate_up_proj.weight": matrix(64, 16),
+        "model.layers.0.mlp.down_proj.weight": matrix(16, 32),
+    }, root / "model.safetensors")
+    return root, config
+
+
 def _compiled(
     tmp_path: Path,
     *,
@@ -226,6 +266,114 @@ def test_scaled_rotary_uses_compiled_sdk_and_gateway(
             response = gateway.post(
                 "/v1/responses", headers={"Authorization": "Bearer scaled-test"},
                 json={"model": "scaled-runtime", "input": "B", "max_output_tokens": 2},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["usage"]["input_tokens"] > 0
+
+
+@pytest.mark.quality
+def test_bounded_fused_projection_checkpoint_matches_phi_torch_decoder(tmp_path: Path) -> None:
+    transformers = pytest.importorskip("transformers")
+    from pllm.configuration import Model
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.model_binding import RuntimeBindingError
+
+    root, config = _tiny_phi_checkpoint(tmp_path / "phi")
+    model_id = "tiny-phi-compiled"
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(load_hf_directory(root, model_id=model_id)))
+    bundle = ClientBundle.unpack(engine.client_bundle(model_id))
+    selected = MaskedLinearCpu(
+        Model.path(str(root), model_id=model_id),
+        quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    )
+    plan = pllm.lower_model(config, batch=1, max_input_tokens=8, max_new_tokens=2)
+    compiled = compile_runtime_model(plan, bundle, composition=selected)
+    assert compiled.complete
+    assert any(
+        stage["role"] == "semantic_linear"
+        and stage["weight_keys"] == ["model.layers.0.self_attn.qkv_proj.weight"]
+        for stage in bundle.manifest["stages"]
+    )
+
+    def remote(stage_id: str, activation: np.ndarray) -> np.ndarray:
+        stage = engine.models[model_id].stages[stage_id]
+        return np.ascontiguousarray(
+            np.asarray(activation, dtype=np.float32) @ stage.weight.dequantize().T,
+            dtype=np.float32,
+        )
+
+    tokens = [2, 3, 5]
+    runtime = compiled.runtime(remote)
+    _, prefill, cache = runtime.prepare_ids(tokens)
+    with torch.no_grad():
+        reference = transformers.AutoModelForCausalLM.from_pretrained(
+            root, local_files_only=True, trust_remote_code=False,
+            dtype=torch.float32, attn_implementation="eager",
+        ).eval()
+        expected_prefill = reference(
+            input_ids=torch.tensor([tokens]), use_cache=False,
+        ).logits[0, -1].numpy()
+        selected_token = int(np.argmax(expected_prefill))
+        expected_decode = reference(
+            input_ids=torch.tensor([[*tokens, selected_token]]), use_cache=False,
+        ).logits[0, -1].numpy()
+    decoded, _ = runtime.decode_step(selected_token, cache)
+    assert float(np.max(np.abs(prefill - expected_prefill))) < 0.05
+    assert float(np.max(np.abs(decoded - expected_decode))) < 0.05
+    assert int(np.argmax(prefill)) == selected_token
+    assert int(np.argmax(decoded)) == int(np.argmax(expected_decode))
+
+    session = compiled.session(remote)
+    np.testing.assert_allclose(session.prefill_ids(tokens), prefill, atol=1e-6)
+    assert session.select_next() == selected_token
+    np.testing.assert_allclose(session.decode_selected(), decoded, atol=1e-6)
+    session.finish()
+
+    tampered = dataclasses.replace(bundle, cfg={
+        **bundle.cfg, "rope_scaling": {
+            **config["rope_scaling"], "short_factor": [2.0] * 3,
+        },
+    })
+    with pytest.raises(RuntimeBindingError):
+        compile_runtime_model(plan, tampered, composition=selected)
+    extended = pllm.lower_model(config, batch=1, max_input_tokens=64, max_new_tokens=2)
+    with pytest.raises(ValueError, match="cache re-rotation"):
+        extended.runtime_schedule(selected)
+
+
+@pytest.mark.parametrize("client_owned", [False, True])
+def test_bounded_phi_uses_compiled_sdk_and_gateway(tmp_path: Path, client_owned: bool) -> None:
+    from fastapi.testclient import TestClient
+
+    from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime import build_roles
+
+    root, _ = _tiny_phi_checkpoint(tmp_path / "phi")
+    source = pllm.Model.path(str(root), model_id="tiny-phi-compiled")
+    selected = (ClientOnlyCpu if client_owned else MaskedLinearCpu)(
+        source, quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    )
+    experiment = pllm.Experiment(
+        name="phi-client" if client_owned else "phi-prepared",
+        pipeline=selected,
+        deployment=pllm.Deployment.local(root=str(tmp_path / "deployment")),
+        budget=pllm.ExecutionBudget(requests=2, max_input_tokens=32, max_new_tokens=2),
+    )
+    with build_roles(experiment) as topology:
+        with topology.client() as client:
+            result = client.responses.create(
+                model="tiny-phi-compiled", input="A", max_output_tokens=2,
+            )
+            assert result.usage.input_tokens > 0
+            assert (client.privacy_audit.inference_stage_calls == 0) == client_owned
+            assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+        with TestClient(topology.gateway_app(local_api_key="phi-test")) as gateway:
+            response = gateway.post(
+                "/v1/responses", headers={"Authorization": "Bearer phi-test"},
+                json={"model": "tiny-phi-compiled", "input": "B", "max_output_tokens": 2},
             )
             assert response.status_code == 200, response.text
             assert response.json()["usage"]["input_tokens"] > 0

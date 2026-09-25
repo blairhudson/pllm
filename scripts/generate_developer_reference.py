@@ -1923,7 +1923,7 @@ def render_python_status() -> str:
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
         f"and **{len(real_checkpoint_paths)} pinned local real-checkpoint functionality paths** "
         f"({', '.join(real_checkpoint_paths)}). "
-        "Tiny Qwen2/Qwen3 and bounded bias-free dense role-backed requests share the compiler-bound execution "
+        "Generated tiny Qwen2/Qwen3, bounded dense and short-context Phi requests share the compiler-bound execution "
         "schedule with local numeric tests. "
         "No protected whole-decoder model execution is established. Lowering a config does not "
         "load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic "

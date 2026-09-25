@@ -705,7 +705,7 @@ fn lower_graph(
         }
         let key_append = format!("{prefix}.key_append");
         let value_append = format!("{prefix}.value_append");
-        dense_qwen_cache_update(
+        full_kv_cache_update(
             &mut operations,
             &key_append,
             &key_state,
@@ -716,7 +716,7 @@ fn lower_graph(
             mode,
             StateKind::Key,
         );
-        dense_qwen_cache_update(
+        full_kv_cache_update(
             &mut operations,
             &value_append,
             &value_state,
@@ -743,7 +743,7 @@ fn lower_graph(
         });
         let key_view = format!("{prefix}.key_view");
         let value_view = format!("{prefix}.value_view");
-        dense_qwen_cache_view(
+        full_kv_cache_view(
             &mut operations,
             &key_view,
             &key_append,
@@ -751,7 +751,7 @@ fn lower_graph(
             maximum_key_sequence,
             StateKind::Key,
         );
-        dense_qwen_cache_view(
+        full_kv_cache_view(
             &mut operations,
             &value_view,
             &value_append,
@@ -994,7 +994,7 @@ fn dense_rope_attributes(theta: u64, head_dim: u64, frequency_scaling: Option<&V
 }
 
 #[allow(clippy::too_many_arguments)]
-fn dense_qwen_cache_update(
+pub(crate) fn full_kv_cache_update(
     operations: &mut Vec<ModelOperation>,
     id: &str,
     state: &str,
@@ -1055,7 +1055,7 @@ fn dense_qwen_cache_update(
         .state_kind = Some(kind);
 }
 
-fn dense_qwen_cache_view(
+pub(crate) fn full_kv_cache_view(
     operations: &mut Vec<ModelOperation>,
     id: &str,
     input: &str,
@@ -1387,7 +1387,16 @@ fn validate_operation(
             .ok_or_else(|| {
                 ModelError::Incomplete(format!("operation {} has invalid axis", operation.id))
             })?;
-        let rank = i64::try_from(operation.output_shape.len()).map_err(|_| {
+        let rank = if operation.operator == ModelOperator::Slice {
+            operation
+                .inputs
+                .first()
+                .and_then(|id| shapes.get(id))
+                .map(Vec::len)
+        } else {
+            Some(operation.output_shape.len())
+        };
+        let rank = i64::try_from(rank.unwrap_or(0)).map_err(|_| {
             ModelError::Incomplete(format!("operation {} rank overflowed", operation.id))
         })?;
         if axis < -rank || axis >= rank {
@@ -1443,6 +1452,42 @@ fn validate_operation(
         {
             return Err(ModelError::Incomplete(format!(
                 "operation {} has invalid slice bounds",
+                operation.id
+            )));
+        }
+        let input = operation
+            .inputs
+            .first()
+            .and_then(|id| shapes.get(id))
+            .ok_or_else(|| {
+                ModelError::Incomplete(format!("operation {} has no slice source", operation.id))
+            })?;
+        let axis = attributes["axis"].as_i64().expect("validated axis");
+        let rank = i64::try_from(input.len())
+            .map_err(|_| ModelError::Incomplete("slice rank overflowed".into()))?;
+        let index = usize::try_from(if axis < 0 { rank + axis } else { axis }).map_err(|_| {
+            ModelError::Incomplete(format!(
+                "operation {} slice axis exceeds its source",
+                operation.id
+            ))
+        })?;
+        let (start, end) = start.zip(end).expect("validated bounds");
+        let squeezed = attributes["squeeze"].as_bool().expect("validated squeeze");
+        if index >= input.len() || end > input[index] || (squeezed && end - start != 1) {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} slice exceeds its source",
+                operation.id
+            )));
+        }
+        let mut expected = input.clone();
+        if squeezed {
+            expected.remove(index);
+        } else {
+            expected[index] = end - start;
+        }
+        if operation.output_shape != expected {
+            return Err(ModelError::Incomplete(format!(
+                "operation {} slice output differs from its source",
                 operation.id
             )));
         }
@@ -1542,6 +1587,40 @@ fn validate_rotary_embedding(
         && attributes
             .get("frequency_scaling")
             .is_some_and(rotary_scale::valid_wavelength_descriptor);
+    let per_frequency_descriptor = common_descriptor
+        && attributes.keys().all(|key| {
+            [
+                "theta",
+                "rotary_dimensions",
+                "rope_type",
+                "pairing",
+                "position_policy",
+                "coefficient_profile",
+                "input_layout",
+                "output_layout",
+                "tail_policy",
+                "frequency_scaling",
+            ]
+            .contains(&key.as_str())
+        })
+        && attributes
+            .get("coefficient_profile")
+            .and_then(Value::as_str)
+            == Some(rotary_scale::PER_FREQUENCY_COEFFICIENT_PROFILE)
+        && attributes.get("input_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("output_layout").and_then(Value::as_str)
+            == Some("batch_heads_sequence_feature")
+        && attributes.get("tail_policy").and_then(Value::as_str) == Some("unchanged")
+        && attributes.get("rope_type").and_then(Value::as_str) == Some("longrope")
+        && attributes.get("partial_rotary_factor").is_none()
+        && attributes.get("output_dtype").is_none()
+        && attributes.get("frequency_scaling").is_some_and(|scale| {
+            attributes
+                .get("rotary_dimensions")
+                .and_then(Value::as_u64)
+                .is_some_and(|width| rotary_scale::valid_per_frequency_descriptor(scale, width))
+        });
     let bfloat16_descriptor = common_descriptor
         && !attributes.contains_key("frequency_scaling")
         && attributes
@@ -1587,7 +1666,10 @@ fn validate_rotary_embedding(
         .any(|key| attributes.contains_key(*key))
         || attributes.get("output_dtype").and_then(Value::as_str) == Some("bfloat16")
         || attributes.get("numeric_semantics").and_then(Value::as_str) == Some("bfloat16_stepwise"))
-        && !(q30_descriptor || wavelength_descriptor || bounded_bfloat16_descriptor)
+        && !(q30_descriptor
+            || wavelength_descriptor
+            || per_frequency_descriptor
+            || bounded_bfloat16_descriptor)
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid rotary descriptors",

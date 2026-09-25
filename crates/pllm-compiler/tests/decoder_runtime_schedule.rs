@@ -27,6 +27,8 @@ const QWEN3: &[u8] = br#"{
 
 const GEMMA4_E2B: &[u8] =
     include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json");
+const PHI4_MINI: &[u8] =
+    include_bytes!("../../pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json");
 
 fn plan(config: &[u8]) -> DecoderPlan {
     lower_model_json(
@@ -106,6 +108,55 @@ fn wavelength_rotary_stays_local_in_both_compiled_decoder_phases() {
         .unwrap();
     rotary.attributes["frequency_scaling"]["kind"] = json!("unreviewed");
     assert!(lower_schedule(&tampered).is_err());
+}
+
+#[test]
+fn bounded_per_frequency_rotary_and_fused_slices_compile_without_extended_context() {
+    let source = plan(PHI4_MINI);
+    let schedule = lower_schedule(&source).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        let slices = phase
+            .steps
+            .iter()
+            .filter(|step| step.operators == [ModelOperator::Slice])
+            .count();
+        let rotary = phase
+            .steps
+            .iter()
+            .filter(|step| step.operators == [ModelOperator::RotaryEmbedding])
+            .count();
+        assert_eq!(slices, 5 * 32);
+        assert_eq!(rotary, 2 * 32);
+        assert!(phase.steps.iter().any(|step| {
+            step.executor == DecoderRuntimeExecutor::RemoteStage
+                && step
+                    .operation_ids
+                    .iter()
+                    .any(|id| id.ends_with("qkv_linear"))
+        }));
+    }
+    let mut forged = source.clone();
+    let query = forged
+        .prefill
+        .operations
+        .iter_mut()
+        .find(|op| op.id == "layer.0.q_slice")
+        .unwrap();
+    query.attributes["end"] = json!(5000);
+    assert!(lower_schedule(&forged).is_err());
+
+    let extended = lower_model_json(
+        PHI4_MINI,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 4096,
+            max_new_tokens: 2,
+        },
+    )
+    .unwrap();
+    assert!(lower_schedule(&extended)
+        .unwrap_err()
+        .contains("requires cache re-rotation"));
 }
 
 #[test]

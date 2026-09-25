@@ -40,7 +40,11 @@ tests, including full prefill/decode against a float32 reference and client-only
 and prepared gateway runs. A [pinned public Llama 3.1 8B configuration mirror](https://huggingface.co/unsloth/Meta-Llama-3.1-8B-Instruct/blob/a2856192dd7c25b842431f39c179a6c2c2f627d1/config.json)
 also lowers and compiles for a bounded 8+2-token workload without loading weights.
 Other scaling modes and real Llama checkpoint quality
-remain unvalidated. Qwen3.5 and Phi-4-mini have semantic plan coverage only.
+remain unvalidated. Qwen3.5 has semantic plan coverage only; Phi-4-mini
+compiles in its original-context regime and passes a generated tiny checkpoint
+through fused-weight binding, PyTorch reference parity, and prepared/client-only
+gateway requests. Its real checkpoint and extended-context cache transition
+remain unvalidated.
 Gemma 4 E2B/E4B both have complete baseline schedules; pinned E2B additionally
 executes locally and through a prepared in-process HTTP request, while E4B has
 no checkpoint execution. A supported importer and runtime binding must still

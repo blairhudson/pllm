@@ -93,11 +93,11 @@
       "adapter": "pllm.phi4_mini.v1",
       "model_family": "phi4_mini",
       "fixture": "crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json",
-      "baseline_schedule": false,
+      "baseline_schedule": true,
       "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache", "fused-qkv", "longrope"],
-      "baseline_blockers": ["fused-qkv", "longrope"],
-      "runtime_evidence": "Pinned configuration and semantic-plan tests only",
-      "remaining": "Partial LongRoPE, fused-weight checkpoint binding, baseline and protected execution",
+      "baseline_blockers": [],
+      "runtime_evidence": "Pinned official configuration compiles an original-context baseline schedule; generated tiny fused-QKV/gate-up checkpoint imports and passes native W8A8 prefill/decode, typed session, a PyTorch float32 reference with less than 0.05 worst logit error and matching selections, and prepared/client-only SDK and gateway requests. Extended-context LongRoPE crossing fails closed",
+      "remaining": "No official Phi checkpoint import, real-model quality or protected execution; LongRoPE context transition needs cache re-rotation and its own bounded execution contract",
       "guide": "/sdk/models/families/phi-4-mini/"
     },
     {

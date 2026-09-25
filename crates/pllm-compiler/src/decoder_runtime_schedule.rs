@@ -382,37 +382,39 @@ fn local_operator(operation: &ModelOperation) -> bool {
                 .attributes
                 .get("start")
                 .and_then(serde_json::Value::as_u64);
-            start.is_some_and(|start| {
-                operation
-                    .attributes
-                    .get("end")
-                    .and_then(serde_json::Value::as_u64)
-                    == start.checked_add(1)
-            }) && operation
+            let end = operation
+                .attributes
+                .get("end")
+                .and_then(serde_json::Value::as_u64);
+            let axis = operation
                 .attributes
                 .get("axis")
-                .and_then(serde_json::Value::as_i64)
-                == Some(2)
-                && operation
-                    .attributes
-                    .get("squeeze")
-                    .and_then(serde_json::Value::as_bool)
-                    == Some(true)
-                && operation.output_shape.len() == 3
+                .and_then(serde_json::Value::as_i64);
+            let squeeze = operation
+                .attributes
+                .get("squeeze")
+                .and_then(serde_json::Value::as_bool);
+            operation.output_shape.len() == 3
+                && match (start, end, axis, squeeze) {
+                    (Some(start), Some(end), Some(2), Some(true)) => {
+                        start.checked_add(1) == Some(end)
+                    }
+                    (Some(start), Some(end), Some(-1), Some(false)) => end > start,
+                    _ => false,
+                }
         }
         ModelOperator::RotaryEmbedding => {
-            operation
-                .attributes
-                .get("rope_type")
-                .and_then(serde_json::Value::as_str)
-                .is_none_or(|kind| matches!(kind, "default" | "proportional"))
-                && operation
-                    .attributes
-                    .get("frequency_scaling")
-                    .is_none_or(|scale| {
-                        scale.get("kind").and_then(serde_json::Value::as_str)
-                            == Some("wavelength_transition")
-                    })
+            let attrs = &operation.attributes;
+            let scaling = attrs
+                .get("frequency_scaling")
+                .and_then(|scale| scale.get("kind"))
+                .and_then(serde_json::Value::as_str);
+            match attrs.get("rope_type").and_then(serde_json::Value::as_str) {
+                None => matches!(scaling, None | Some("wavelength_transition")),
+                Some("longrope") => scaling == Some("per_frequency_context"),
+                Some("default" | "proportional") => scaling.is_none(),
+                _ => false,
+            }
         }
         _ => false,
     }
@@ -730,6 +732,22 @@ fn lower_phase(
                 "operation {} ({:?}) has no decoder runtime executor",
                 operation.id, operation.operator
             ));
+        }
+        if operation.operator == ModelOperator::RotaryEmbedding
+            && operation
+                .attributes
+                .get("frequency_scaling")
+                .and_then(|scale| scale.get("kind"))
+                .and_then(serde_json::Value::as_str)
+                == Some("per_frequency_context")
+        {
+            let original = operation.attributes["frequency_scaling"]
+                ["original_max_position_embeddings"]
+                .as_u64()
+                .ok_or("per-frequency rotary context is not bound")?;
+            if graph.maximum_key_sequence > original {
+                return Err("per-frequency rotary crossing requires cache re-rotation".into());
+            }
         }
         if !scheduled.insert(operation.id.as_str()) {
             return Err(format!("operation {} was scheduled twice", operation.id));

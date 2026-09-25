@@ -232,6 +232,50 @@ def test_wavelength_transition_matches_independent_torch_rotary_oracle() -> None
         SemanticDecoderRuntime._rotary(source, np.asarray([-1], dtype=np.int64), attrs)
 
 
+def test_per_frequency_partial_rotary_matches_independent_torch_oracle() -> None:
+    attrs = {
+        "theta": 10000, "rotary_dimensions": 6, "rope_type": "longrope",
+        "pairing": "split_half", "position_policy": "sequential_absolute",
+        "coefficient_profile": "pllm.numeric.rope.float32.per_frequency.v1",
+        "input_layout": "batch_heads_sequence_feature",
+        "output_layout": "batch_heads_sequence_feature", "tail_policy": "unchanged",
+        "frequency_scaling": {
+            "kind": "per_frequency_context", "factor": 4.0,
+            "original_max_position_embeddings": 16,
+            "short_factor": [1.0, 1.25, 2.0], "long_factor": [4.0, 5.0, 6.0],
+        },
+    }
+    positions = np.asarray([0, 1, 7, 15], dtype=np.int64)
+    source = np.linspace(-1, 1, 2 * positions.size * 8, dtype=np.float32).reshape(
+        1, 2, positions.size, 8,
+    )
+    actual = SemanticDecoderRuntime._rotary(source, positions, attrs)
+    power = torch.arange(0, 6, 2, dtype=torch.float32) / 6
+    inverse = 1 / (torch.tensor([1.0, 1.25, 2.0]) * 10000 ** power)
+    angles = torch.from_numpy(positions).float()[:, None] * inverse[None, :]
+    embedded = torch.cat((angles, angles), dim=-1)
+    attention_factor = math.sqrt(1 + math.log(4) / math.log(16))
+    cosine = embedded.cos() * attention_factor
+    sine = embedded.sin() * attention_factor
+    tensor = torch.from_numpy(source)
+    rotated = torch.cat((-tensor[..., 3:6], tensor[..., :3]), dim=-1)
+    expected = tensor.clone()
+    expected[..., :6] = (
+        tensor[..., :6] * cosine[None, None] + rotated * sine[None, None]
+    )
+    np.testing.assert_allclose(actual, expected.numpy(), rtol=0, atol=2e-6)
+    np.testing.assert_array_equal(actual[..., 6:], source[..., 6:])
+    for mutated in (
+        {**attrs, "frequency_scaling": {**attrs["frequency_scaling"], "short_factor": [1.0]}},
+        {**attrs, "frequency_scaling": {**attrs["frequency_scaling"], "long_factor": [1e-40] * 3}},
+        {**attrs, "coefficient_profile": "unreviewed"},
+    ):
+        with pytest.raises(TransformerClientError, match="per-frequency rotary"):
+            SemanticDecoderRuntime._rotary(source, positions, mutated)
+    with pytest.raises(TransformerClientError, match="short context"):
+        SemanticDecoderRuntime._rotary(source, np.asarray([0, 1, 7, 16]), attrs)
+
+
 def test_declared_operator_outputs_round_at_local_and_remote_numeric_edges(
     operations: dict[str, dict],
 ) -> None:
@@ -292,7 +336,14 @@ def test_semantic_permute_and_slice_follow_declared_axes(operations: dict[str, d
     np.testing.assert_array_equal(
         _local(operations["layer.0.q_permute"], values), values.transpose(0, 2, 1, 3)
     )
-    np.testing.assert_array_equal(_local(operations["layer.0.ple_slice"], values), values[:, :, 0, :])
+    packed = np.arange(2 * 35 * 256, dtype=np.float32).reshape(1, 2, 35, 256)
+    np.testing.assert_array_equal(
+        _local(operations["layer.0.ple_slice"], packed), packed[:, :, 0, :]
+    )
+    # A shorter request must remain valid under the compiled sequence ceiling.
+    bounded = dict(operations["layer.0.ple_slice"])
+    bounded["output_shape"] = (1, 4, 256)
+    np.testing.assert_array_equal(_local(bounded, packed), packed[:, :, 0, :])
 
 
 def test_semantic_numeric_rejects_unsupported_or_nonfinite_contracts(
@@ -306,7 +357,7 @@ def test_semantic_numeric_rejects_unsupported_or_nonfinite_contracts(
     ]:
         operation = {**operations[operation_id], "attributes": dict(operations[operation_id]["attributes"])}
         operation["attributes"][key] = bad
-        with pytest.raises(TransformerClientError, match="unsupported"):
+        with pytest.raises(TransformerClientError, match="unsupported|invalid"):
             _local(operation, source)
     with pytest.raises(SemanticNumericError, match="finite"):
         round_bfloat16(np.asarray([float("nan")], dtype=np.float32))

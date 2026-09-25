@@ -141,10 +141,18 @@ logit error under 0.05), and client-only/prepared SDK and gateway requests.
 The pinned public Llama 3.1 8B configuration mirror additionally lowers and
 compiles for a bounded 8+2-token workload without loading weights.
 Other scaling modes and real Llama checkpoint import, quality and deployment
-remain unvalidated. The pinned
+remain unvalidated. Pinned Phi-4-mini-instruct additionally compiles for an
+original-context workload. Generated tiny Phi fused-QKV/gate-up weights import
+into that schedule and pass typed-session W8A8 prefill/decode against a PyTorch
+float32 reference (matching selections; worst logit error below 0.05), plus
+client-only/prepared SDK and gateway requests. Phi's original-context factor
+vector stays fixed for the response; crossing into extended LongRoPE context
+fails closed before execution because retained KV would need re-rotation.
+Real Phi checkpoint import, generation quality and protected execution remain
+unvalidated. The pinned
 Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
-stage protocol. Public Qwen2/Qwen3 and bounded dense provider stage tables now derive ordered
+stage protocol. Admitted compiled public decoders derive provider stage tables from ordered
 weights and declared biases from that schedule; the client binds it and runs
 semantic prefill/decode operations before reserving inventory. The inference
 role re-lowers the bounded plan and checks its digest, body, stage and runtime

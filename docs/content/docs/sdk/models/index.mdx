@@ -9,9 +9,13 @@ turn bounded configuration into a model-neutral plan; they do not by themselves
 load weights or guarantee every operator executes. Qwen2.5-0.5B-Instruct is the
 current pinned real public-weight benchmark target. Dense Qwen3 has pinned
 compiled-checkpoint functionality but incomplete numeric-quality evidence.
-A bounded unscaled Llama-style source has tiny compiled tests only; Llama 3
-scaled rotary requires its own capability. Hybrid Qwen3.5, Phi-4-mini, and Gemma 4 have
-semantic plan coverage but incomplete compiler/runtime checkpoint execution.
+Bounded default and Llama 3 wavelength-transition rotary paths pass tiny compiled
+checks; the pinned public Llama 3.1 8B configuration compiles without weights.
+Phi-4-mini additionally passes generated tiny original-context fused-weight
+checkpoint tests, but not real-checkpoint or extended-context execution. Hybrid
+Qwen3.5 retains semantic-only coverage. Gemma 4 E2B executes through a local
+and prepared compiled path; E4B remains compiler-scheduled without checkpoint
+execution.
 Always check [support status](/sdk/reference/status/) and choose a compatible
 [inference option](/sdk/inference/) before serving.
 

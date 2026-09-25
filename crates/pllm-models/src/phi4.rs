@@ -1,6 +1,6 @@
 use super::{
-    DecoderGraph, DecoderMode, DecoderPlan, DecoderWorkload, ModelError, ModelOperation,
-    ModelOperator, StateKind, StateTensor,
+    full_kv_cache_update, full_kv_cache_view, DecoderGraph, DecoderMode, DecoderPlan,
+    DecoderWorkload, ModelError, ModelOperation, ModelOperator, StateKind, StateTensor,
 };
 use pllm_types::canonical_digest;
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -90,6 +90,8 @@ impl Phi4Config {
         }
         if self.original_max_position_embeddings == 0
             || self.original_max_position_embeddings > self.max_position_embeddings
+            || self.original_max_position_embeddings > (1 << 24)
+            || self.max_position_embeddings > (1 << 24)
         {
             return Err(invalid(
                 "original_max_position_embeddings must be within the maximum",
@@ -130,6 +132,13 @@ impl Phi4Config {
             return Err(unsupported("rope_scaling must use longrope"));
         }
         let head_dim = self.hidden_size / self.num_attention_heads;
+        if head_dim % 8 != 0
+            || self.max_position_embeddings > self.original_max_position_embeddings * 256
+        {
+            return Err(unsupported(
+                "partial rotary width or context expansion is unbounded",
+            ));
+        }
         let rotary_dimensions = head_dim * 3 / 4;
         let expected_factors = usize::try_from(rotary_dimensions / 2)
             .map_err(|_| invalid("rotary dimension does not fit this platform"))?;
@@ -160,6 +169,7 @@ pub(super) fn lower_phi4_json(
     let total = workload
         .max_input_tokens
         .checked_add(workload.max_new_tokens)
+        .and_then(|value| value.checked_sub(1))
         .ok_or_else(|| invalid("workload token bound overflow"))?;
     if total > config.max_position_embeddings {
         return Err(invalid(
@@ -178,8 +188,9 @@ pub(super) fn lower_phi4_json(
             DecoderMode::Prefill,
             workload.max_input_tokens,
             workload.max_input_tokens,
+            total,
         ),
-        decode: lower_graph(&config, workload, DecoderMode::Decode, 1, total),
+        decode: lower_graph(&config, workload, DecoderMode::Decode, 1, total, total),
         token_feedback: true,
     };
     plan.validate()?;
@@ -192,6 +203,7 @@ fn lower_graph(
     mode: DecoderMode,
     query_sequence: u64,
     maximum_key_sequence: u64,
+    state_capacity: u64,
 ) -> DecoderGraph {
     let batch = workload.batch;
     let hidden = config.hidden_size;
@@ -203,7 +215,8 @@ fn lower_graph(
     let hidden_shape = vec![batch, query_sequence, hidden];
     let q_shape = vec![batch, heads, query_sequence, head_dim];
     let kv_query_shape = vec![batch, kv_heads, query_sequence, head_dim];
-    let kv_state_shape = vec![batch, kv_heads, maximum_key_sequence, head_dim];
+    let kv_state_shape = vec![batch, kv_heads, state_capacity, head_dim];
+    let kv_view_shape = vec![batch, kv_heads, maximum_key_sequence, head_dim];
     let score_shape = vec![batch, heads, query_sequence, maximum_key_sequence];
     let mut operations = Vec::new();
     let mut state_inputs = Vec::new();
@@ -291,36 +304,44 @@ fn lower_graph(
         );
         let key_state = format!("state.layer.{layer}.key");
         let value_state = format!("state.layer.{layer}.value");
-        state_inputs.push(state(
-            &key_state,
-            layer,
-            StateKind::Key,
-            kv_state_shape.clone(),
-            maximum_key_sequence,
-        ));
-        state_inputs.push(state(
-            &value_state,
-            layer,
-            StateKind::Value,
-            kv_state_shape.clone(),
-            maximum_key_sequence,
-        ));
+        if mode == DecoderMode::Decode {
+            state_inputs.push(state(
+                &key_state,
+                layer,
+                StateKind::Key,
+                kv_state_shape.clone(),
+                state_capacity,
+            ));
+            state_inputs.push(state(
+                &value_state,
+                layer,
+                StateKind::Value,
+                kv_state_shape.clone(),
+                state_capacity,
+            ));
+        }
         let key_append = format!("{prefix}.key_append");
         let value_append = format!("{prefix}.value_append");
-        append(
+        full_kv_cache_update(
             &mut operations,
             &key_append,
             &key_state,
             &rope_k,
             kv_state_shape.clone(),
+            state_capacity,
+            maximum_key_sequence,
+            mode,
             StateKind::Key,
         );
-        append(
+        full_kv_cache_update(
             &mut operations,
             &value_append,
             &value_state,
             &v,
             kv_state_shape.clone(),
+            state_capacity,
+            maximum_key_sequence,
+            mode,
             StateKind::Value,
         );
         state_outputs.push(state(
@@ -328,15 +349,33 @@ fn lower_graph(
             layer,
             StateKind::Key,
             kv_state_shape.clone(),
-            maximum_key_sequence,
+            state_capacity,
         ));
         state_outputs.push(state(
             &value_append,
             layer,
             StateKind::Value,
             kv_state_shape.clone(),
-            maximum_key_sequence,
+            state_capacity,
         ));
+        let key_view = format!("{prefix}.key_view");
+        let value_view = format!("{prefix}.value_view");
+        full_kv_cache_view(
+            &mut operations,
+            &key_view,
+            &key_append,
+            kv_view_shape.clone(),
+            maximum_key_sequence,
+            StateKind::Key,
+        );
+        full_kv_cache_view(
+            &mut operations,
+            &value_view,
+            &value_append,
+            kv_view_shape.clone(),
+            maximum_key_sequence,
+            StateKind::Value,
+        );
         let scores = format!("{prefix}.attention_scores");
         let scaled = format!("{prefix}.attention_scale");
         let masked = format!("{prefix}.causal_mask");
@@ -347,7 +386,7 @@ fn lower_graph(
             &mut operations,
             &scores,
             ModelOperator::AttentionScores,
-            &[&rope_q, &key_append],
+            &[&rope_q, &key_view],
             score_shape.clone(),
             json!({"group_size": heads / kv_heads}),
         );
@@ -379,15 +418,17 @@ fn lower_graph(
             &mut operations,
             &values,
             ModelOperator::AttentionValues,
-            &[&probabilities, &value_append],
+            &[&probabilities, &value_view],
             q_shape.clone(),
             json!({"group_size": heads / kv_heads}),
         );
-        reshape(
+        push(
             &mut operations,
             &attention_hidden,
-            &values,
+            ModelOperator::Reshape,
+            &[&values],
             hidden_shape.clone(),
+            json!({"layout": "batch_sequence_hidden", "input_layout": "batch_heads_sequence_feature"}),
         );
         let o = format!("{prefix}.o_proj");
         push(
@@ -493,9 +534,9 @@ fn lower_graph(
         &mut operations,
         "last_hidden",
         ModelOperator::LastToken,
-        &["final_norm"],
+        &["final_norm", "input.sequence_lengths"],
         vec![batch, hidden],
-        json!({"axis": 1}),
+        json!({"axis": 1, "selection": "last_valid", "valid_lengths_input": "input.sequence_lengths"}),
     );
     push(
         &mut operations,
@@ -550,10 +591,17 @@ fn rotary(
         json!({
             "rope_type": "longrope", "theta": config.rope_theta,
             "rotary_dimensions": head_dim * 3 / 4,
-            "original_max_position_embeddings": config.original_max_position_embeddings,
-            "factor": config.max_position_embeddings / config.original_max_position_embeddings,
-            "short_factor": config.rope_scaling.short_factor,
-            "long_factor": config.rope_scaling.long_factor,
+            "pairing": "split_half", "position_policy": "sequential_absolute",
+            "coefficient_profile": super::rotary_scale::PER_FREQUENCY_COEFFICIENT_PROFILE,
+            "input_layout": "batch_heads_sequence_feature",
+            "output_layout": "batch_heads_sequence_feature", "tail_policy": "unchanged",
+            "frequency_scaling": {
+                "kind": "per_frequency_context",
+                "original_max_position_embeddings": config.original_max_position_embeddings,
+                "factor": config.max_position_embeddings as f64 / config.original_max_position_embeddings as f64,
+                "short_factor": config.rope_scaling.short_factor,
+                "long_factor": config.rope_scaling.long_factor,
+            },
         }),
     );
 }
@@ -585,25 +633,6 @@ fn reshape(operations: &mut Vec<ModelOperation>, id: &str, input: &str, shape: V
         shape,
         json!({"layout": "batch_heads_sequence_feature"}),
     );
-}
-
-fn append(
-    operations: &mut Vec<ModelOperation>,
-    id: &str,
-    state: &str,
-    input: &str,
-    shape: Vec<u64>,
-    kind: StateKind,
-) {
-    push(
-        operations,
-        id,
-        ModelOperator::KvCacheAppend,
-        &[state, input],
-        shape,
-        json!({"state": state}),
-    );
-    operations.last_mut().expect("append was pushed").state_kind = Some(kind);
 }
 
 fn state(
@@ -654,9 +683,9 @@ fn validate_factors(values: &[Value], expected: usize, field: &str) -> Result<()
         let number = value
             .as_f64()
             .ok_or_else(|| invalid(&format!("rope_scaling.{field} entries must be numbers")))?;
-        if !number.is_finite() || number <= 0.0 {
+        if !number.is_finite() || !(1.0 / 256.0..=256.0).contains(&number) {
             return Err(invalid(&format!(
-                "rope_scaling.{field} entries must be positive finite numbers"
+                "rope_scaling.{field} entries exceed bounded float32 factor range"
             )));
         }
     }
@@ -754,7 +783,26 @@ mod tests {
 
         assert_eq!(plan.model_family, "phi4_mini");
         assert_eq!(plan.adapter, ADAPTER);
+        assert!(plan.prefill.state_inputs.is_empty());
+        assert_eq!(plan.decode.state_inputs.len(), 64);
         assert_eq!(plan.prefill.state_outputs.len(), 64);
+        let key_append = plan
+            .prefill
+            .operations
+            .iter()
+            .find(|op| op.id == "layer.0.key_append")
+            .unwrap();
+        assert_eq!(key_append.attributes["mode"], "initialize");
+        assert_eq!(key_append.attributes["state_capacity"], 159);
+        assert_eq!(key_append.inputs.len(), 4);
+        let decode_append = plan
+            .decode
+            .operations
+            .iter()
+            .find(|op| op.id == "layer.0.key_append")
+            .unwrap();
+        assert_eq!(decode_append.attributes["mode"], "append");
+        assert_eq!(decode_append.inputs.len(), 5);
         let qkv = plan
             .prefill
             .operations
@@ -772,7 +820,14 @@ mod tests {
         assert_eq!(rotary.attributes["rope_type"], "longrope");
         assert_eq!(rotary.attributes["rotary_dimensions"], 96);
         assert_eq!(
-            rotary.attributes["long_factor"].as_array().unwrap().len(),
+            rotary.attributes["frequency_scaling"]["kind"],
+            "per_frequency_context"
+        );
+        assert_eq!(
+            rotary.attributes["frequency_scaling"]["long_factor"]
+                .as_array()
+                .unwrap()
+                .len(),
             48
         );
         assert!(plan
@@ -788,6 +843,16 @@ mod tests {
             .unwrap();
         assert_eq!(head.attributes["weight"], "model.embed_tokens.weight");
         assert_eq!(head.attributes["tied"], true);
+
+        let mut forged = plan.clone();
+        let altered = forged
+            .prefill
+            .operations
+            .iter_mut()
+            .find(|op| op.id == "layer.0.rope_q")
+            .unwrap();
+        altered.attributes["frequency_scaling"]["short_factor"][0] = json!(0.0);
+        assert!(forged.validate().is_err());
     }
 
     #[test]

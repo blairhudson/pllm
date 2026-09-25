@@ -539,13 +539,37 @@ def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict
         rope_scaling = None
     elif not nested_source and not (
         isinstance(rope_scaling, dict)
-        and set(rope_scaling) == {
-            "rope_type", "factor", "low_freq_factor", "high_freq_factor",
-            "original_max_position_embeddings",
-        }
-        and rope_scaling.get("rope_type") == "llama3"
+        and (
+            (
+                set(rope_scaling) == {
+                    "rope_type", "factor", "low_freq_factor", "high_freq_factor",
+                    "original_max_position_embeddings",
+                }
+                and rope_scaling.get("rope_type") == "llama3"
+            )
+            or (
+                set(rope_scaling) in (
+                    {"type", "short_factor", "long_factor"},
+                    {"type", "rope_type", "short_factor", "long_factor"},
+                )
+                and rope_scaling.get("type") == "longrope"
+                and rope_scaling.get("rope_type", "longrope") == "longrope"
+            )
+        )
     ):
         raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
+    if not nested_source and isinstance(rope_scaling, dict) and rope_scaling.get("type") == "longrope":
+        original = _require_int(cfg.get("original_max_position_embeddings"), "original context")
+        maximum = _require_int(cfg.get("max_position_embeddings"), "maximum context")
+        if original < 2 or maximum < original:
+            raise RuntimeBindingError("per-frequency rotary context is invalid")
+        rope_scaling = {
+            "type": "longrope",
+            "original_max_position_embeddings": original,
+            "factor": maximum / original,
+            "short_factor": rope_scaling["short_factor"],
+            "long_factor": rope_scaling["long_factor"],
+        }
     use_sliding_window = bool(cfg.get("use_sliding_window", False))
     if not nested_source and (
         use_sliding_window or any(layer != "full_attention" for layer in layer_types)
@@ -650,9 +674,17 @@ def _validate_runtime_semantics(
             if not nested_source:
                 attributes = operation.get("attributes") or {}
                 expected_scaling = (
-                    {"kind": "wavelength_transition", **{
-                        key: value for key, value in source_scaling.items() if key != "rope_type"
-                    }}
+                    {
+                        "kind": (
+                            "per_frequency_context"
+                            if source_scaling.get("type") == "longrope"
+                            else "wavelength_transition"
+                        ),
+                        **{
+                            key: value for key, value in source_scaling.items()
+                            if key not in {"rope_type", "type"}
+                        },
+                    }
                     if isinstance(source_scaling, dict) else None
                 )
                 if attributes.get("frequency_scaling") != expected_scaling:

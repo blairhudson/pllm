@@ -1,29 +1,31 @@
 ---
 title: "Phi-4 mini"
-description: "Fused-projection and LongRoPE semantic lowering for Phi-4-mini-instruct."
+description: "Bounded fused-projection and original-context LongRoPE execution for Phi-4-mini-instruct."
 ---
 
 `pllm.phi4_mini.v1` recognizes the `phi3` remote-code configuration used by `microsoft/Phi-4-mini-instruct` revision `cfbefacb99257ffa30c83adab238a50856ac3083`. The raw configuration SHA-256 is `ac65d86061d3d0d704ee2511fd0eb8713ef19eb6eedba17c3080a4165d5b933b`.
 
-The adapter emits fused QKV and gate/up projections as linear operations followed by explicit slices. LongRoPE records original context, short and long factor vectors, scaling ratio, and partial rotary width. The tied output head references the token embedding matrix.
+The adapter emits fused QKV and gate/up projections as linear operations followed by explicit slices. LongRoPE binds the original context, public short and long factor vectors, scaling ratio, partial rotary width and coefficient profile. Its short-context frequencies apply throughout a compiled response. A response crossing into extended context is rejected before execution: switching factor vectors while keeping previously rotated KV entries requires a separately specified cache re-rotation contract. The tied output head references the token embedding matrix.
 
-The upstream model name and adapter identity are Phi-4 mini even though the checked configuration discriminator is `phi3`. This page does not claim checkpoint import or runtime execution.
+The upstream model name and adapter identity are Phi-4 mini even though the checked configuration discriminator is `phi3`. The pinned configuration compiles for an original-context workload. A generated tiny checkpoint imports its fused tensors and passes W8A8 prefill/decode against a PyTorch float32 reference (matching selected tokens, worst logit error below 0.05), plus client-only and prepared SDK/gateway requests. The official Phi checkpoint, extended-context execution, representative quality and deployment are unvalidated.
 
 ## Python SDK example
 
 ```python
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
 
 fixture = Path("crates/pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json")
 plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
 operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
 assert operations["layer.0.qkv_linear"]["output_shape"] == (1, 16, 5120)
 assert operations["layer.0.rope_q"]["attributes"]["rope_type"] == "longrope"
+assert plan.runtime_schedule(MaskedLinearCpu(Model("microsoft/Phi-4-mini-instruct"))).complete
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Run this example from a PLLM source checkout; package installations do not include
-the pinned fixture. Lowering does not import or execute its checkpoint.
+the pinned fixture. This inspection only compiles the configuration; it does not load the official checkpoint.

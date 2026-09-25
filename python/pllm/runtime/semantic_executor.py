@@ -26,6 +26,7 @@ from .semantic_numeric import (
     bfloat16_scale,
     bfloat16_softmax,
     bfloat16_softcap,
+    float32_rotary_per_frequency,
     float32_rotary_wavelength,
     round_bfloat16,
 )
@@ -235,6 +236,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError(str(exc)) from exc
         if "frequency_scaling" in attributes:
             try:
+                scaling = attributes["frequency_scaling"]
+                if isinstance(scaling, dict) and scaling.get("kind") == "per_frequency_context":
+                    return float32_rotary_per_frequency(value, positions, attributes)
                 return float32_rotary_wavelength(value, positions, attributes)
             except SemanticNumericError as exc:
                 raise TransformerClientError(str(exc)) from exc
@@ -310,19 +314,39 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError("semantic permutation is unsupported")
             return source.transpose(order)
         if kind == "slice":
-            start, end = attrs.get("start"), attrs.get("end")
+            axis, start, end = attrs.get("axis"), attrs.get("start"), attrs.get("end")
+            squeezed = attrs.get("squeeze")
             if (
-                attrs.get("axis") != 2
-                or attrs.get("squeeze") is not True
+                set(attrs) != {"axis", "start", "end", "squeeze"}
+                or type(axis) is not int
                 or type(start) is not int
                 or type(end) is not int
-                or end != start + 1
-                or start < 0
-                or source.ndim != 4
-                or end > source.shape[2]
+                or type(squeezed) is not bool
+                or start < 0 or start >= end
+                or source.ndim < 1
             ):
                 raise TransformerClientError("semantic slice is unsupported")
-            return source[:, :, start, :]
+            declared = operation["output_shape"]
+            if source.ndim == 2 and len(declared) == 3 and declared[0] == 1 and not squeezed:
+                if axis not in {-1, 2} or end > source.shape[1] or declared[2] != end - start:
+                    raise TransformerClientError("semantic row-major slice shape is invalid")
+                return source[:, start:end]
+            index = axis % source.ndim
+            if (
+                axis < -source.ndim or axis >= source.ndim
+                or end > source.shape[index]
+                or (squeezed and end - start != 1)
+            ):
+                raise TransformerClientError("semantic slice exceeds its input")
+            selection: list[int | slice] = [slice(None)] * source.ndim
+            selection[index] = start if squeezed else slice(start, end)
+            result = source[tuple(selection)]
+            if len(declared) != result.ndim or any(
+                (value != bound if dimension != 1 or result.ndim < 3 else not 0 < value <= bound)
+                for dimension, (value, bound) in enumerate(zip(result.shape, declared, strict=True))
+            ):
+                raise TransformerClientError("semantic slice output shape is invalid")
+            return result
         if kind == "reshape":
             layout = attrs.get("layout")
             if layout == "batch_heads_sequence_feature":
@@ -346,7 +370,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     raise TransformerClientError("semantic attention flatten shape is invalid")
                 if attrs.get("input_layout") == "batch_sequence_heads_feature":
                     return source.reshape(source.shape[1], -1)
-                if attrs.get("input_layout") is not None:
+                if attrs.get("input_layout") not in {None, "batch_heads_sequence_feature"}:
                     raise TransformerClientError("semantic attention flatten layout is unsupported")
                 return source.transpose(0, 2, 1, 3).reshape(source.shape[2], -1)
         elif kind == "rms_norm":
@@ -379,7 +403,13 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             if type(layer) is not int:
                 raise TransformerClientError("semantic cache operation lacks a layer")
             cache = self.caches[layer]
-            tensor = values[inputs[1] if attrs["mode"] == "append" else inputs[0]][0].transpose(
+            if attrs.get("mode") == "append":
+                current_index = 1
+            elif attrs.get("mode") == "initialize":
+                current_index = 0
+            else:
+                raise TransformerClientError("semantic cache append domain is unsupported")
+            tensor = values[inputs[current_index]][0].transpose(
                 1, 0, 2
             )
             state_kind = state_kinds.get(operation["id"])
