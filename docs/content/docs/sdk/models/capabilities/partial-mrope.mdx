@@ -9,9 +9,11 @@ Sectioned rotary coordinates for text decoder heads.
 
 Semantic operator/representation: `rotary_embedding`.
 
+**Current implementation scope:** Only the Qwen3.5 text-only replicated-position, interleaved-section, partial-head float32 profile is scheduled and matched against upstream Torch at checked positions. Independent image/video axes and multimodal requests fail closed; real-checkpoint parity and protected rotary remain unchecked.
+
 ## Checked source adapters
 
-- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): declared; complete baseline schedule blocked. Pinned configuration and semantic-plan tests only **Next:** Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution.
+- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): part of its bounded complete baseline schedule. Pinned Qwen3.5-4B text configuration lowers to a complete native baseline schedule. A generated tiny checkpoint binds fused projection, convolution and decay artifacts and runs the client-only compiled prefill/decode decoder; selected tokens match the upstream float32 Torch reference and W8A8 logit drift stays below 0.05. A second generated-tiny test completes prepared SDK and gateway requests with two local children, masked stage traffic and zero plaintext prompt/token-ID bytes sent. The text-only partial MRoPE numeric profile independently matches Torch at checked positions **Next:** Official Qwen3.5 checkpoint import and independent reference quality, real-checkpoint provider serving, protected execution, independent providers and independent multimodal position axes remain unchecked.
 
 ## Candidate families
 

@@ -226,7 +226,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   }
 });
 
-test('SDK pages have checked examples or explicit API boundaries', () => {
+test('SDK pages have checked examples or explicit API boundaries', { timeout: 120_000 }, () => {
   const sdkPages = pages.filter((page) => page.canonicalUrl.startsWith('/sdk/'));
   assert.ok(sdkPages.length > 0);
 
@@ -437,7 +437,7 @@ test('research experimentation guide bridges provenance, SDK, CLI, and matched e
   }
 });
 
-test('relocated advanced guides retain executable component walkthroughs', () => {
+test('relocated advanced guides retain executable component walkthroughs', { timeout: 120_000 }, () => {
   const guides = new Map([
     ['/sdk/plans/compiler-internals/', [
       'KvCacheEviction', 'BinaryTableGatedMultiplyQ7',

@@ -7,7 +7,7 @@ description: "Hybrid full-attention and gated-delta semantic lowering for Qwen3.
 
 The plan retains the exact 3:1 linear/full layer schedule. Linear layers represent fused input projection, causal convolution state, Q/K L2 normalization, gated-delta decay and update, recurrent matrix state, and gated RMS normalization. Full-attention layers represent doubled query projection, Q/K normalization, partial multimodal rotary sections, KV state, and output gating. MTP configuration remains identity-bound but outside the base decoder graph.
 
-These newly explicit operators currently report missing compiler coverage. Semantic lowering does not claim an executable Qwen3.5 runtime, checkpoint importer, generation quality, or protected recurrent protocol.
+The bounded [causal-convolution state contract](/sdk/models/capabilities/causal-convolution/) now has an independent float32 prefill/decode reference, exact-shape checkpoint binding, and a paired compiler operation with explicit zero-initialized prefill state. It is not a complete decoder: [gated-delta recurrence](/sdk/models/capabilities/gated-delta/) and [partial MRoPE](/sdk/models/capabilities/partial-mrope/) still block scheduling, and the recurrent state lifecycle remains unbound. Semantic lowering does not claim Qwen3.5 checkpoint execution, generation quality, or a protected recurrent protocol.
 
 ## Python SDK example
 

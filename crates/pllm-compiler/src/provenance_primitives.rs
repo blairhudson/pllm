@@ -370,16 +370,20 @@ fn compute_provenance_primitives_artifact_digest() -> Digest {
                 include_bytes!("../../pllm-models/src/cache.rs"),
             ),
             file(
-                "crates/pllm-models/src/gemma4.rs",
-                include_bytes!("../../pllm-models/src/gemma4.rs"),
+                "crates/pllm-models/src/source_mappings.rs",
+                include_bytes!("../../pllm-models/src/source_mappings.rs"),
             ),
             file(
-                "crates/pllm-models/src/phi4.rs",
-                include_bytes!("../../pllm-models/src/phi4.rs"),
+                "crates/pllm-models/src/shared_kv_decoder.rs",
+                include_bytes!("../../pllm-models/src/shared_kv_decoder.rs"),
             ),
             file(
-                "crates/pllm-models/src/qwen35.rs",
-                include_bytes!("../../pllm-models/src/qwen35.rs"),
+                "crates/pllm-models/src/fused_dense_decoder.rs",
+                include_bytes!("../../pllm-models/src/fused_dense_decoder.rs"),
+            ),
+            file(
+                "crates/pllm-models/src/hybrid_text_decoder.rs",
+                include_bytes!("../../pllm-models/src/hybrid_text_decoder.rs"),
             ),
             file(
                 "schemas/decoder-plan.schema.json",

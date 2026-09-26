@@ -25,6 +25,8 @@ def _bind_state_contracts(
         for row in rows:
             layer = row.get("layer")
             kind = row.get("kind")
+            if kind in {"convolution", "recurrent"}:
+                continue
             if type(layer) is not int or not 0 <= layer < layers or kind not in {"key", "value"}:
                 raise RuntimeExecutionError("decoder state has unsupported ownership")
             layer_states = bound.setdefault(layer, {})
@@ -51,6 +53,46 @@ def _bind_state_contracts(
     return produced
 
 
+def _bind_hybrid_state_contracts(
+    prefill: dict[str, Any], decode: dict[str, Any], layers: int
+) -> dict[tuple[int, str], tuple[int, ...]]:
+    if prefill["state_inputs"]:
+        raise RuntimeExecutionError("prefill has uninitialized persistent state")
+
+    def collect(rows: list[dict[str, Any]]) -> dict[tuple[int, str], tuple[int, ...]]:
+        bound: dict[tuple[int, str], tuple[int, ...]] = {}
+        for row in rows:
+            if row.get("kind") not in {"convolution", "recurrent"}:
+                continue
+            layer, kind = row.get("layer"), row["kind"]
+            raw = row.get("shape")
+            if (
+                type(layer) is not int or not 0 <= layer < layers
+                or not isinstance(raw, list) or any(type(value) is not int or value < 1 for value in raw)
+                or (kind == "convolution" and (
+                    len(raw) != 3 or raw[0] != 1 or not 1 <= raw[1] <= 8192
+                    or not 1 <= raw[2] <= 16 or row.get("maximum_sequence") != raw[2]
+                ))
+                or (kind == "recurrent" and (
+                    len(raw) != 4 or raw[0] != 1 or not 1 <= raw[1] <= 64
+                    or not 1 <= raw[2] <= 256 or not 1 <= raw[3] <= 256
+                    or row.get("maximum_sequence") != 1
+                ))
+                or (layer, kind) in bound
+            ):
+                raise RuntimeExecutionError("hybrid decoder state has invalid ownership or geometry")
+            bound[(layer, kind)] = tuple(raw)
+        return bound
+
+    produced = collect(prefill["state_outputs"])
+    consumed = collect(decode["state_inputs"])
+    if produced != consumed:
+        raise RuntimeExecutionError("hybrid prefill/decode state contracts differ")
+    if sum(np.prod(shape, dtype=np.int64) * 4 for shape in produced.values()) > 2 << 30:
+        raise RuntimeExecutionError("hybrid state exceeds client memory budget")
+    return produced
+
+
 class CompiledRuntimeSession:
     __slots__ = (
         "_compiled",
@@ -64,6 +106,7 @@ class CompiledRuntimeSession:
         "_logrow_step",
         "_research_execution_digest",
         "_state_contracts",
+        "_hybrid_state_contracts",
         "_max_input",
         "_max_new",
         "_pending_token",
@@ -215,6 +258,7 @@ class CompiledRuntimeSession:
         self._vocab = int(compiled._bundle.cfg["vocab_size"])
         self._layers = int(compiled._bundle.cfg["num_hidden_layers"])
         self._state_contracts = _bind_state_contracts(prefill, decode, self._layers)
+        self._hybrid_state_contracts = _bind_hybrid_state_contracts(prefill, decode, self._layers)
         self._lock = threading.RLock()
         self._status = "new"
         self._position = 0
@@ -299,6 +343,8 @@ class CompiledRuntimeSession:
             )
         if np.any(value < 0) or np.any(value >= self._vocab):
             raise RuntimeExecutionError("token id is outside the bound vocabulary")
+        if any(int(item) in self._runtime._text_only_tokens for item in value):
+            raise RuntimeExecutionError("multimodal tokens require an unimplemented position policy")
         return [int(item) for item in value]
 
     def _validated_logits(self, value: Any) -> np.ndarray:
@@ -312,6 +358,17 @@ class CompiledRuntimeSession:
     def _validate_runtime_state(self, expected_position: int) -> None:
         if self._runtime.position != expected_position or len(self._runtime.caches) != self._layers:
             raise RuntimeExecutionError("runtime state does not match the bound decoder plan")
+        hybrid = self._runtime._hybrid_states
+        if set(hybrid) != (set(self._hybrid_state_contracts) if expected_position else set()):
+            raise RuntimeExecutionError("runtime hybrid state ownership differs from decoder plan")
+        for identity, value in hybrid.items():
+            if (
+                not isinstance(value, np.ndarray)
+                or value.dtype != np.float32
+                or value.shape != self._hybrid_state_contracts[identity]
+                or not np.all(np.isfinite(value))
+            ):
+                raise RuntimeExecutionError("runtime hybrid state geometry or values differ")
         for layer, cache in enumerate(self._runtime.caches):
             state = self._state_contracts.get(layer)
             if state is None:
@@ -363,6 +420,8 @@ class CompiledRuntimeSession:
                 cache.key.fill(0)
             if cache.value is not None:
                 cache.value.fill(0)
+        for value in self._runtime._hybrid_states.values():
+            value.fill(0)
         for key, value in self._runtime.shared_kv.values():
             key.fill(0)
             value.fill(0)

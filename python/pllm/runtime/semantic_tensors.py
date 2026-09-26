@@ -14,6 +14,15 @@ class SemanticTensorError(ValueError):
 def required_client_tensors(plan: ModelPlan) -> dict[str, tuple[int, ...]]:
     """Reject ambiguous or unbound local weights before any session material is issued."""
     required: dict[str, tuple[int, ...]] = {}
+    def bind(weight: object, shape: tuple[int, ...]) -> None:
+        if not isinstance(weight, str) or not weight or any(
+            type(width) is not int or width < 1 for width in shape
+        ):
+            raise SemanticTensorError("local tensor has an invalid weight or shape")
+        if weight in required and required[weight] != shape:
+            raise SemanticTensorError("local tensor shape differs between semantic uses")
+        required[weight] = shape
+
     document = plan.to_dict()
     for phase in ("prefill", "decode"):
         for operation in document[phase]["operations"]:
@@ -27,21 +36,47 @@ def required_client_tensors(plan: ModelPlan) -> dict[str, tuple[int, ...]]:
                         raise SemanticTensorError("unweighted normalization needs an explicit contract")
                     continue
                 shape = (operation["output_shape"][-1],)
+            elif kind == "rms_norm_gated":
+                weight = attrs.get("weight")
+                if (
+                    attrs.get("activation") != "silu" or attrs.get("weight_offset") != 0
+                    or attrs.get("norm_before_gate") is not True
+                ):
+                    raise SemanticTensorError("gated normalization tensor contract is unsupported")
+                shape = (operation["output_shape"][-1],)
+            elif kind == "gated_delta_decay":
+                if (
+                    attrs.get("formula") != "-exp(A_log)*softplus(a+dt_bias)"
+                    or attrs.get("compute_dtype") != "float32"
+                ):
+                    raise SemanticTensorError("gated-delta coefficient contract is unsupported")
+                shape = (operation["output_shape"][-1],)
+                for name in ("a_log", "dt_bias"):
+                    bind(attrs.get(name), shape)
+                continue
             elif kind == "scale" and isinstance(attrs.get("factor"), dict) and attrs["factor"].get("kind") == "checkpoint_scalar":
                 factor = attrs["factor"]
                 weight = factor.get("weight")
                 if factor.get("weight_shape") != [1]:
                     raise SemanticTensorError("checkpoint scalar must have a declared unit shape")
                 shape = (1,)
+            elif kind in {"causal_convolution", "convolution_state_update"}:
+                width, kernel = attrs.get("groups"), attrs.get("kernel_size")
+                weight = attrs.get("weight")
+                if (
+                    type(width) is not int
+                    or not 1 <= width <= 8192
+                    or type(kernel) is not int
+                    or not 1 <= kernel <= 16
+                    or attrs.get("bias") is not None
+                    or not isinstance(weight, str)
+                    or not weight
+                ):
+                    raise SemanticTensorError("local convolution has an invalid tensor declaration")
+                shape = (width, 1, kernel)
             else:
                 continue
-            if not isinstance(weight, str) or not weight or any(
-                type(width) is not int or width < 1 for width in shape
-            ):
-                raise SemanticTensorError("local tensor has an invalid weight or shape")
-            if weight in required and required[weight] != shape:
-                raise SemanticTensorError("local tensor shape differs between semantic uses")
-            required[weight] = shape
+            bind(weight, shape)
     return required
 
 

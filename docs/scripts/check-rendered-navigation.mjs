@@ -89,7 +89,7 @@ assert.equal((matrix.match(/<th scope="row"/g) ?? []).length, 12,
 assert.equal((matrix.match(/<th scope="col"/g) ?? []).length, 34);
 assert.match(matrix, /sticky left-0/, 'Family names must remain visible while scrolling');
 assert.match(matrix, /Phi-4-mini-instruct/);
-assert.match(matrix, /aria-label="Qwen3.5-4B text decoder: Gated-delta recurrence: missing required executable variant"/);
+assert.match(matrix, /aria-label="Qwen3.5-4B text decoder: Gated-delta recurrence: checked in the scoped baseline schedule"/);
 const moduleStart = status.indexOf('Python SDK completeness', matrixEnd);
 assert.ok(moduleStart > matrixEnd, 'SDK completeness must follow the family matrix on one page');
 assert.match(status.slice(moduleStart), /Paper stubs/);

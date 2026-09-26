@@ -344,8 +344,9 @@ def test_compiled_session_validates_declared_kv_owners_and_bfloat16_state() -> N
         caches[layer] = cache
     session = object.__new__(CompiledRuntimeSession)
     session._state_contracts = contracts
+    session._hybrid_state_contracts = {}
     session._layers = 35
-    session._runtime = SimpleNamespace(position=1, caches=caches)
+    session._runtime = SimpleNamespace(position=1, caches=caches, _hybrid_states={})
     session._validate_runtime_state(1)
 
     caches[20].length = 1

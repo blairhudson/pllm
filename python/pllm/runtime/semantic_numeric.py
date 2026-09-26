@@ -370,6 +370,59 @@ def float32_rotary_per_frequency(
     return result
 
 
+def float32_rotary_text_mrope(
+    value: np.ndarray, positions: np.ndarray, attributes: dict[str, object]
+) -> np.ndarray:
+    """Text-only partial RoPE: the three MRoPE axes share the same absolute positions."""
+    source = np.asarray(value)
+    indices = np.asarray(positions)
+    dimensions = attributes.get("rotary_dimensions")
+    theta = attributes.get("theta")
+    sections = attributes.get("mrope_section")
+    partial = attributes.get("partial_rotary_factor")
+    theta_float = float(theta) if isinstance(theta, (float, int)) and not isinstance(theta, bool) else math.nan
+    if (
+        set(attributes) != {
+            "theta", "rope_type", "rotary_dimensions", "partial_rotary_factor",
+            "mrope_interleaved", "mrope_section", "position_policy",
+        }
+        or attributes.get("rope_type") != "default"
+        or attributes.get("position_policy") != "text_replicated_axes"
+        or attributes.get("mrope_interleaved") is not True
+        or source.dtype != np.float32 or source.ndim != 4
+        or source.shape[0] != 1 or not 1 <= source.shape[1] <= 64
+        or not 1 <= source.shape[2] <= 256 or source.size > 1 << 22
+        or indices.dtype != np.int64 or indices.ndim != 1
+        or indices.size != source.shape[2]
+        or type(dimensions) is not int or not 2 <= dimensions <= source.shape[-1]
+        or dimensions % 2
+        or not math.isfinite(theta_float) or not 1 <= theta_float <= 1e12
+        or partial not in ("0.25", "1")
+        or dimensions != source.shape[-1] * (0.25 if partial == "0.25" else 1)
+        or not isinstance(sections, (list, tuple)) or len(sections) != 3
+        or any(type(part) is not int or part < 0 for part in sections)
+        or sum(sections) != dimensions // 2
+    ):
+        raise SemanticNumericError("text-only multimodal rotary descriptor is invalid")
+    if np.any(indices < 0) or np.any(indices >= 1 << 18) or not np.all(np.isfinite(source)):
+        raise SemanticNumericError("text-only rotary input exceeds its finite position domain")
+    powers = np.arange(0, dimensions, 2, dtype=np.float32) / np.float32(dimensions)
+    inverse = np.float32(1.0) / (np.float32(theta_float) ** powers)
+    angles = indices.astype(np.float32)[:, None] * inverse[None, :]
+    # Interleaving selects the time, height, and width frequency slots. All
+    # three equal these text positions, so the selection is value-preserving.
+    cosine = np.concatenate((np.cos(angles), np.cos(angles)), axis=-1)[None, None]
+    sine = np.concatenate((np.sin(angles), np.sin(angles)), axis=-1)[None, None]
+    current = source[..., :dimensions]
+    half = dimensions // 2
+    rotated = np.concatenate((-current[..., half:], current[..., :half]), axis=-1)
+    result = source.copy()
+    result[..., :dimensions] = current * cosine + rotated * sine
+    if not np.all(np.isfinite(result)):
+        raise SemanticNumericError("text-only rotary output is not finite")
+    return result
+
+
 __all__ = [
     "SemanticNumericError",
     "bfloat16_gelu_tanh",
@@ -380,5 +433,6 @@ __all__ = [
     "bfloat16_softmax",
     "float32_rotary_wavelength",
     "float32_rotary_per_frequency",
+    "float32_rotary_text_mrope",
     "round_bfloat16",
 ]

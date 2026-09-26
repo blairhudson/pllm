@@ -24,7 +24,7 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     assert {row["adapter"] for row in adapters} == EXPECTED_ADAPTERS
     assert {row["adapter"] for row in adapters if row["baseline_schedule"]} == {
         "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.dense_gated_decoder.v1",
-        "pllm.phi4_mini.v1",
+        "pllm.qwen3_5_text.v1", "pllm.phi4_mini.v1",
         "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
     }
     assert {
@@ -38,6 +38,12 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
             assert "Two-child deployment" in row["remaining"]
         elif row["adapter"] == "pllm.gemma4_e4b_text.v1":
             assert "E4B has no checkpoint execution" in row["runtime_evidence"]
+        elif row["adapter"] == "pllm.qwen3_5_text.v1":
+            assert row["evidence"] == {
+                "checkpoint": "tiny-local", "provider": "tiny-prepared", "quality": "tiny-parity",
+            }
+            assert "float32 Torch reference" in row["runtime_evidence"]
+            assert "Official Qwen3.5 checkpoint import" in row["remaining"]
         elif row["adapter"] == "pllm.phi4_mini.v1":
             assert "tiny generated" in row["runtime_evidence"].lower()
             assert "130 compiled stages" in row["runtime_evidence"]

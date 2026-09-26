@@ -1,10 +1,36 @@
 """Public persistent-state protocol declarations."""
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
+
+if TYPE_CHECKING:
+    from pllm.runtime.semantic_hybrid import (
+        BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence,
+        HybridStateError, bounded_gated_delta_decay,
+    )
+
+
+def __getattr__(name: str) -> object:
+    if name in {
+        "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence",
+        "HybridStateError", "bounded_gated_delta_decay",
+    }:
+        from pllm.runtime.semantic_hybrid import (
+            BoundedDepthwiseCausalConvolution, BoundedGatedDeltaRecurrence,
+            HybridStateError, bounded_gated_delta_decay,
+        )
+
+        return {
+            "BoundedDepthwiseCausalConvolution": BoundedDepthwiseCausalConvolution,
+            "BoundedGatedDeltaRecurrence": BoundedGatedDeltaRecurrence,
+            "HybridStateError": HybridStateError,
+            "bounded_gated_delta_decay": bounded_gated_delta_decay,
+        }[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class StateProtocol(ComponentRef, ABC):
@@ -77,6 +103,8 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
+    "BoundedDepthwiseCausalConvolution", "BoundedGatedDeltaRecurrence", "HybridStateError",
+    "bounded_gated_delta_decay",
     "ClientLocalKv", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
     "GatedDeltaRecurrence", "CausalConvolutionState", "LatentAttentionState", "LongRopeCacheRerotation",
 ]

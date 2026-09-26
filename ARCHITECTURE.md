@@ -114,6 +114,16 @@ configurations (`pllm.gemma4_e2b_text.v1` and `pllm.gemma4_e4b_text.v1`, model
 family `gemma4_text`). Other Qwen, Gemma, Nemotron, Kimi, GLM and future families
 must lower into the same IR or extend its semantic vocabulary rather than
 introduce family-specific compiler paths.
+Source-format identity, exact supported variants and checkpoint artifact paths for
+hybrid-text, fused-dense and shared-KV decoders live in
+`crates/pllm-models/src/source_mappings.rs`; reusable graph construction lives in
+`hybrid_text_decoder.rs`, `fused_dense_decoder.rs` and `shared_kv_decoder.rs`.
+Their builders accept mapped weight roles and source-validated architectural
+dimensions rather than hard-coded model names or weight paths. New source formats
+must map into these contracts or add a genuinely reusable operator/state contract;
+do not create model-family-named Rust graph files. The older Qwen2/Qwen3 and dense
+Llama reader still has graph code in `lib.rs`; it is legacy code to generalize,
+not a pattern for new families.
 Capability modules transform this IR through generic component contracts and
 record immutable, digest-bound transformation lineage on the resulting plan.
 Substitutable implementations are grouped by capability; a new family is added
@@ -243,8 +253,18 @@ There is no `research.single_evaluator` profile. The fixed-Q10 research path is 
 ordinary component composition with executable regions for dense gated-decoder operators, graph-derived
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
-composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,
-and compiler-bound E4B checkpoint execution remain incomplete; the pinned
+composed into a real-model whole decoder. Transformed MPCache and compiler-bound
+E4B checkpoint execution remain incomplete. The pinned Qwen3.5 text-only graph
+now compiles through shared convolution, gated-delta recurrence, partial-MRoPE,
+gated normalization and persistent-state contracts. Its generated four-layer
+checkpoint binds the complete native stage schedule and passes client-only W8A8
+prefill/decode against the upstream float32 Torch reference, with identical
+selected tokens and worst checked logit error below 0.05. Separate prepared SDK
+and gateway requests complete two generated tokens through two local role
+children with masked stage traffic and no plaintext prompt/token-ID bytes sent.
+The text rotary contract rejects multimodal position axes and prompt image/video
+tokens; no official Qwen3.5 checkpoint has been imported or quality-scored.
+The pinned
 Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
 functionality check, but W4A4 and one tested short-prompt W8A8 case
 diverge from the FP32 reference. Multi-process provider deployment, broad quality and matched-cost

@@ -1,3 +1,4 @@
+use super::source_mappings::FusedDenseSource;
 use super::{
     full_kv_cache_update, full_kv_cache_view, DecoderGraph, DecoderMode, DecoderPlan,
     DecoderWorkload, ModelError, ModelOperation, ModelOperator, StateKind, StateTensor,
@@ -6,10 +7,8 @@ use pllm_types::canonical_digest;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 
-const ADAPTER: &str = "pllm.phi4_mini.v1";
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct Phi4Config {
+struct FusedDenseConfig {
     model_type: String,
     hidden_size: u64,
     intermediate_size: u64,
@@ -59,11 +58,11 @@ struct LongRopeConfig {
     short_factor: Vec<Value>,
 }
 
-impl Phi4Config {
-    fn validate(&self) -> Result<(), ModelError> {
-        if self.model_type != "phi3" {
+impl FusedDenseConfig {
+    fn validate(&self, source: &FusedDenseSource) -> Result<(), ModelError> {
+        if self.model_type != source.model_type {
             return Err(unsupported(
-                "Phi-4 mini outer config must use model_type phi3",
+                "fused decoder source type does not match its adapter",
             ));
         }
         if self.hidden_act != "silu" {
@@ -107,7 +106,7 @@ impl Phi4Config {
             || self.attention_layer_norm
         {
             return Err(unsupported(
-                "Phi-4 mini requires tied embeddings, cache, bias-free projections, and no extra embedding/attention norms",
+                "fused dense decoder requires tied embeddings, cache, bias-free projections, and no extra embedding/attention norms",
             ));
         }
         zero(&self.attention_dropout, "attention_dropout")?;
@@ -119,7 +118,7 @@ impl Phi4Config {
         }
         if self.full_attn_mod != 1 || self.sliding_window < self.max_position_embeddings {
             return Err(unsupported(
-                "Phi-4 mini requires full attention for every layer",
+                "fused dense decoder requires full attention for every layer",
             ));
         }
         if self.rope_scaling.scaling_type != "longrope"
@@ -156,13 +155,14 @@ impl Phi4Config {
     }
 }
 
-pub(super) fn lower_phi4_json(
+pub(super) fn lower_source_json(
     document: &Value,
     workload: DecoderWorkload,
+    source: &FusedDenseSource,
 ) -> Result<DecoderPlan, ModelError> {
-    let config: Phi4Config = serde_json::from_value(document.clone())
+    let config: FusedDenseConfig = serde_json::from_value(document.clone())
         .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
-    config.validate()?;
+    config.validate(source)?;
     if workload.batch == 0 || workload.max_input_tokens == 0 || workload.max_new_tokens == 0 {
         return Err(invalid("workload bounds must be positive"));
     }
@@ -178,9 +178,9 @@ pub(super) fn lower_phi4_json(
     }
     let plan = DecoderPlan {
         schema_version: super::DECODER_PLAN_SCHEMA_VERSION.into(),
-        model_family: "phi4_mini".into(),
-        adapter: ADAPTER.into(),
-        config_digest: canonical_digest("pllm.phi4_mini_config.v1", &config),
+        model_family: source.family.into(),
+        adapter: source.adapter.into(),
+        config_digest: canonical_digest(source.digest_domain, &config),
         transformations: Vec::new(),
         prefill: lower_graph(
             &config,
@@ -189,8 +189,17 @@ pub(super) fn lower_phi4_json(
             workload.max_input_tokens,
             workload.max_input_tokens,
             total,
-        ),
-        decode: lower_graph(&config, workload, DecoderMode::Decode, 1, total, total),
+            source.artifacts,
+        )?,
+        decode: lower_graph(
+            &config,
+            workload,
+            DecoderMode::Decode,
+            1,
+            total,
+            total,
+            source.artifacts,
+        )?,
         token_feedback: true,
     };
     plan.validate()?;
@@ -198,13 +207,14 @@ pub(super) fn lower_phi4_json(
 }
 
 fn lower_graph(
-    config: &Phi4Config,
+    config: &FusedDenseConfig,
     workload: DecoderWorkload,
     mode: DecoderMode,
     query_sequence: u64,
     maximum_key_sequence: u64,
     state_capacity: u64,
-) -> DecoderGraph {
+    artifacts: &super::source_mappings::ArtifactLayout<'_>,
+) -> Result<DecoderGraph, ModelError> {
     let batch = workload.batch;
     let hidden = config.hidden_size;
     let heads = config.num_attention_heads;
@@ -227,7 +237,7 @@ fn lower_graph(
         ModelOperator::TokenLookup,
         &["input.tokens"],
         hidden_shape.clone(),
-        json!({"weight": "model.embed_tokens.weight"}),
+        json!({"weight": artifacts.token_embedding}),
     );
     let mut hidden_input = "token_lookup".to_owned();
     for layer in 0..config.num_hidden_layers {
@@ -240,7 +250,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&hidden_input],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.input_layernorm.weight"), "weight_offset": 0}),
+            json!({"epsilon": config.rms_norm_eps, "weight": artifacts.layer(u64::from(layer), "input_norm")?, "weight_offset": 0}),
         );
         let qkv_linear = format!("{prefix}.qkv_linear");
         push(
@@ -249,7 +259,7 @@ fn lower_graph(
             ModelOperator::Linear,
             &[&input_norm],
             vec![batch, query_sequence, q_width + 2 * kv_width],
-            json!({"weight": format!("model.layers.{layer}.self_attn.qkv_proj.weight"), "bias": Value::Null}),
+            json!({"weight": artifacts.layer(u64::from(layer), "attention_qkv")?, "bias": Value::Null}),
         );
         let q_slice = format!("{prefix}.q_slice");
         let k_slice = format!("{prefix}.k_slice");
@@ -437,7 +447,7 @@ fn lower_graph(
             ModelOperator::Linear,
             &[&attention_hidden],
             hidden_shape.clone(),
-            json!({"weight": format!("model.layers.{layer}.self_attn.o_proj.weight"), "bias": Value::Null}),
+            json!({"weight": artifacts.layer(u64::from(layer), "attention_output")?, "bias": Value::Null}),
         );
         let attention_residual = format!("{prefix}.attention_residual");
         push(
@@ -455,7 +465,7 @@ fn lower_graph(
             ModelOperator::RmsNorm,
             &[&attention_residual],
             hidden_shape.clone(),
-            json!({"epsilon": config.rms_norm_eps, "weight": format!("model.layers.{layer}.post_attention_layernorm.weight"), "weight_offset": 0}),
+            json!({"epsilon": config.rms_norm_eps, "weight": artifacts.layer(u64::from(layer), "post_attention_norm")?, "weight_offset": 0}),
         );
         let gate_up = format!("{prefix}.gate_up_proj");
         push(
@@ -464,7 +474,7 @@ fn lower_graph(
             ModelOperator::Linear,
             &[&post_norm],
             vec![batch, query_sequence, 2 * config.intermediate_size],
-            json!({"weight": format!("model.layers.{layer}.mlp.gate_up_proj.weight"), "bias": Value::Null}),
+            json!({"weight": artifacts.layer(u64::from(layer), "mlp_gate_up")?, "bias": Value::Null}),
         );
         let gate = format!("{prefix}.gate");
         let up = format!("{prefix}.up");
@@ -509,7 +519,7 @@ fn lower_graph(
             ModelOperator::Linear,
             &[&multiplied],
             hidden_shape.clone(),
-            json!({"weight": format!("model.layers.{layer}.mlp.down_proj.weight"), "bias": Value::Null}),
+            json!({"weight": artifacts.layer(u64::from(layer), "mlp_down")?, "bias": Value::Null}),
         );
         let mlp_residual = format!("{prefix}.mlp_residual");
         push(
@@ -528,7 +538,7 @@ fn lower_graph(
         ModelOperator::RmsNorm,
         &[&hidden_input],
         hidden_shape,
-        json!({"epsilon": config.rms_norm_eps, "weight": "model.norm.weight", "weight_offset": 0}),
+        json!({"epsilon": config.rms_norm_eps, "weight": artifacts.final_norm, "weight_offset": 0}),
     );
     push(
         &mut operations,
@@ -544,7 +554,7 @@ fn lower_graph(
         ModelOperator::OutputHead,
         &["last_hidden"],
         vec![batch, config.vocab_size],
-        json!({"weight": "model.embed_tokens.weight", "bias": Value::Null, "tied": true}),
+        json!({"weight": artifacts.output_head, "bias": Value::Null, "tied": true}),
     );
     push(
         &mut operations,
@@ -562,7 +572,7 @@ fn lower_graph(
         vec![batch, 1],
         json!({}),
     );
-    DecoderGraph {
+    Ok(DecoderGraph {
         mode,
         batch,
         query_sequence,
@@ -571,7 +581,7 @@ fn lower_graph(
         state_inputs,
         state_outputs,
         output: "token_feedback".into(),
-    }
+    })
 }
 
 fn rotary(
@@ -579,7 +589,7 @@ fn rotary(
     id: &str,
     input: &str,
     shape: Vec<u64>,
-    config: &Phi4Config,
+    config: &FusedDenseConfig,
     head_dim: u64,
 ) {
     push(
@@ -771,18 +781,22 @@ mod tests {
 
     #[test]
     fn lowers_phi4_mini_fused_projections_and_longrope() {
-        let plan = lower_phi4_json(
+        let plan = lower_source_json(
             &serde_json::from_str(OFFICIAL_CONFIG).unwrap(),
             DecoderWorkload {
                 batch: 2,
                 max_input_tokens: 128,
                 max_new_tokens: 32,
             },
+            &super::super::source_mappings::FUSED_DENSE,
         )
         .unwrap();
 
         assert_eq!(plan.model_family, "phi4_mini");
-        assert_eq!(plan.adapter, ADAPTER);
+        assert_eq!(
+            plan.adapter,
+            super::super::source_mappings::FUSED_DENSE.adapter
+        );
         assert!(plan.prefill.state_inputs.is_empty());
         assert_eq!(plan.decode.state_inputs.len(), 64);
         assert_eq!(plan.prefill.state_outputs.len(), 64);
@@ -856,16 +870,73 @@ mod tests {
     }
 
     #[test]
+    fn fused_decoder_uses_declared_artifact_roles() {
+        let document: Value = serde_json::from_str(OFFICIAL_CONFIG).unwrap();
+        let baseline = &super::super::source_mappings::FUSED_DENSE;
+        let rows = baseline.artifacts.layer_artifacts.to_vec();
+        let artifacts = super::super::source_mappings::ArtifactLayout {
+            token_embedding: "replacement.token.weight",
+            output_head: "replacement.token.weight",
+            final_norm: "replacement.norm.weight",
+            layer_prefix: "replacement.blocks",
+            layer_artifacts: &rows,
+            global_artifacts: &[],
+        };
+        let alternate = FusedDenseSource {
+            model_type: baseline.model_type,
+            family: baseline.family,
+            adapter: baseline.adapter,
+            digest_domain: baseline.digest_domain,
+            artifacts: &artifacts,
+        };
+        let plan = lower_source_json(
+            &document,
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 3,
+                max_new_tokens: 2,
+            },
+            &alternate,
+        )
+        .unwrap();
+        let token = plan
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.id == "token_lookup")
+            .unwrap();
+        assert_eq!(token.attributes["weight"], "replacement.token.weight");
+        let projection = plan
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.id == "layer.0.qkv_linear")
+            .unwrap();
+        assert_eq!(
+            projection.attributes["weight"],
+            "replacement.blocks.0.self_attn.qkv_proj.weight"
+        );
+        let head = plan
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.id == "output_head")
+            .unwrap();
+        assert_eq!(head.attributes["weight"], "replacement.token.weight");
+    }
+
+    #[test]
     fn rejects_phi_without_longrope() {
         let mut config: Value = serde_json::from_str(OFFICIAL_CONFIG).unwrap();
         config["rope_scaling"] = Value::Null;
-        let error = lower_phi4_json(
+        let error = lower_source_json(
             &config,
             DecoderWorkload {
                 batch: 1,
                 max_input_tokens: 4,
                 max_new_tokens: 2,
             },
+            &super::super::source_mappings::FUSED_DENSE,
         )
         .unwrap_err();
         assert!(matches!(error, ModelError::InvalidJson(_)));

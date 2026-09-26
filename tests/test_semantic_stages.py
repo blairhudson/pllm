@@ -157,6 +157,9 @@ def test_fused_token_lookup_assigns_each_declared_numeric_output(selected: str) 
     decoder = object.__new__(SemanticDecoderRuntime)
     decoder.position = 0
     decoder.caches = []
+    decoder._text_only_tokens = frozenset()
+    decoder._hybrid_states = {}
+    decoder._hybrid_contracts = {}
     decoder.bundle = SimpleNamespace(stages={"token_lookup": stage})
     primary_width = stage.out_features - stage.metadata["ple_width"]
     decoder._token_lookup = lambda _ids: (

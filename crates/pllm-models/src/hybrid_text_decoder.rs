@@ -1,13 +1,12 @@
+use super::source_mappings::{ArtifactLayout, HybridSource};
 use super::{
-    DecoderGraph, DecoderMode, DecoderPlan, DecoderWorkload, ModelError, ModelOperation,
-    ModelOperator, StateKind, StateTensor, DECODER_PLAN_SCHEMA_VERSION,
+    full_kv_cache_update, full_kv_cache_view, DecoderGraph, DecoderMode, DecoderPlan,
+    DecoderWorkload, ModelError, ModelOperation, ModelOperator, StateKind, StateTensor,
+    DECODER_PLAN_SCHEMA_VERSION,
 };
 use pllm_types::{canonical_digest, Digest};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
-
-const ADAPTER: &str = "pllm.qwen3_5_text.v1";
-const FAMILY: &str = "qwen3_5_text";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct OuterConfig {
@@ -62,24 +61,35 @@ struct RopeParameters {
     partial_rotary_factor: String,
 }
 
-pub(super) fn lower_qwen35_json(
+pub(super) fn lower_source_json(
     document: &Value,
     workload: DecoderWorkload,
+    source: &HybridSource,
 ) -> Result<DecoderPlan, ModelError> {
     let config: OuterConfig = serde_json::from_value(document.clone()).map_err(|error| {
         ModelError::InvalidConfig(format!(
-            "Qwen3.5 configuration does not match the adapter: {error}"
+            "hybrid source configuration does not match its adapter: {error}"
         ))
     })?;
-    config.validate()?;
+    config.validate(source)?;
     validate_workload(workload, config.text_config.max_position_embeddings)?;
-    let digest = canonical_digest("pllm.qwen3_5_outer_config.v1", &config);
-    let prefill = lower_graph(&config.text_config, workload, DecoderMode::Prefill)?;
-    let decode = lower_graph(&config.text_config, workload, DecoderMode::Decode)?;
+    let digest = canonical_digest(source.digest_domain, &config);
+    let prefill = lower_graph(
+        &config.text_config,
+        workload,
+        DecoderMode::Prefill,
+        source.artifacts,
+    )?;
+    let decode = lower_graph(
+        &config.text_config,
+        workload,
+        DecoderMode::Decode,
+        source.artifacts,
+    )?;
     let plan = DecoderPlan {
         schema_version: DECODER_PLAN_SCHEMA_VERSION.into(),
-        model_family: FAMILY.into(),
-        adapter: ADAPTER.into(),
+        model_family: source.family.into(),
+        adapter: source.adapter.into(),
         config_digest: digest,
         prefill,
         decode,
@@ -91,21 +101,21 @@ pub(super) fn lower_qwen35_json(
 }
 
 impl OuterConfig {
-    fn validate(&self) -> Result<(), ModelError> {
-        exact_str(&self.model_type, "qwen3_5", "model_type")?;
-        if self.architectures.as_slice() != ["Qwen3_5ForConditionalGeneration"] {
+    fn validate(&self, source: &HybridSource) -> Result<(), ModelError> {
+        exact_str(&self.model_type, source.outer_type, "model_type")?;
+        if self.architectures.as_slice() != [source.outer_architecture] {
             return Err(unsupported("architectures"));
         }
         if !self.tie_word_embeddings || !self.text_config.tie_word_embeddings {
             return Err(unsupported("tie_word_embeddings"));
         }
-        self.text_config.validate()
+        self.text_config.validate(source.text_type)
     }
 }
 
 impl TextConfig {
-    fn validate(&self) -> Result<(), ModelError> {
-        exact_str(&self.model_type, "qwen3_5_text", "text_config.model_type")?;
+    fn validate(&self, text_type: &str) -> Result<(), ModelError> {
+        exact_str(&self.model_type, text_type, "text_config.model_type")?;
         if self.hidden_size == 0
             || self.intermediate_size == 0
             || self.vocab_size == 0
@@ -179,6 +189,7 @@ fn lower_graph(
     config: &TextConfig,
     workload: DecoderWorkload,
     mode: DecoderMode,
+    artifacts: &ArtifactLayout,
 ) -> Result<DecoderGraph, ModelError> {
     let batch = workload.batch;
     let query = match mode {
@@ -188,6 +199,7 @@ fn lower_graph(
     let maximum_key_sequence = workload
         .max_input_tokens
         .checked_add(workload.max_new_tokens)
+        .and_then(|value| value.checked_sub(1))
         .ok_or_else(|| ModelError::Unsupported("workload sequence bound overflowed".into()))?;
     let hidden_shape = vec![batch, query, config.hidden_size];
     let mut operations = Vec::new();
@@ -197,7 +209,7 @@ fn lower_graph(
         ModelOperator::TokenLookup,
         &["input.tokens"],
         hidden_shape.clone(),
-        json!({"weight": "model.embed_tokens.weight"}),
+        json!({"weight": artifacts.token_embedding}),
     );
     let mut hidden = "token_lookup".to_owned();
     let mut state_inputs = Vec::new();
@@ -214,7 +226,7 @@ fn lower_graph(
             &hidden,
             hidden_shape.clone(),
             config,
-            format!("model.layers.{layer}.input_layernorm.weight"),
+            artifacts.layer(layer, "input_norm")?,
         );
         let mixer = if layer_type == "full_attention" {
             lower_full_attention(
@@ -222,6 +234,7 @@ fn lower_graph(
                 &mut state_inputs,
                 &mut state_outputs,
                 config,
+                artifacts,
                 mode,
                 layer,
                 &input_norm,
@@ -235,6 +248,7 @@ fn lower_graph(
                 &mut state_inputs,
                 &mut state_outputs,
                 config,
+                artifacts,
                 mode,
                 layer,
                 &input_norm,
@@ -258,7 +272,7 @@ fn lower_graph(
             &attention_residual,
             hidden_shape.clone(),
             config,
-            format!("model.layers.{layer}.post_attention_layernorm.weight"),
+            artifacts.layer(layer, "post_attention_norm")?,
         );
         let gate = format!("{prefix}.gate");
         let up = format!("{prefix}.up");
@@ -270,14 +284,14 @@ fn lower_graph(
             &gate,
             &post_norm,
             vec![batch, query, config.intermediate_size],
-            format!("model.layers.{layer}.mlp.gate_proj.weight"),
+            artifacts.layer(layer, "mlp_gate")?,
         );
         linear(
             &mut operations,
             &up,
             &post_norm,
             vec![batch, query, config.intermediate_size],
-            format!("model.layers.{layer}.mlp.up_proj.weight"),
+            artifacts.layer(layer, "mlp_up")?,
         );
         push(
             &mut operations,
@@ -300,7 +314,7 @@ fn lower_graph(
             &down,
             &gated,
             hidden_shape.clone(),
-            format!("model.layers.{layer}.mlp.down_proj.weight"),
+            artifacts.layer(layer, "mlp_down")?,
         );
         let output = format!("{prefix}.output");
         push(
@@ -319,7 +333,7 @@ fn lower_graph(
         &hidden,
         hidden_shape.clone(),
         config,
-        "model.norm.weight".into(),
+        artifacts.final_norm.into(),
     );
     let selected = if mode == DecoderMode::Prefill {
         push(
@@ -344,7 +358,7 @@ fn lower_graph(
         } else {
             vec![batch, 1, config.vocab_size]
         },
-        json!({"weight": "model.embed_tokens.weight", "tied": true}),
+        json!({"weight": artifacts.output_head, "tied": true}),
     );
     push(
         &mut operations,
@@ -384,6 +398,7 @@ fn lower_linear_attention(
     state_inputs: &mut Vec<StateTensor>,
     state_outputs: &mut Vec<StateTensor>,
     config: &TextConfig,
+    artifacts: &ArtifactLayout,
     mode: DecoderMode,
     layer: u64,
     input: &str,
@@ -414,31 +429,41 @@ fn lower_linear_attention(
         &qkv,
         input,
         vec![batch, query_sequence, conv_width],
-        format!("model.layers.{layer}.linear_attn.in_proj_qkv.weight"),
+        artifacts.layer(layer, "recurrent_qkv")?,
     );
     linear(
         operations,
         &z,
         input,
         vec![batch, query_sequence, value_width],
-        format!("model.layers.{layer}.linear_attn.in_proj_z.weight"),
+        artifacts.layer(layer, "recurrent_gate")?,
     );
     linear(
         operations,
         &b,
         input,
         vec![batch, query_sequence, config.linear_num_value_heads],
-        format!("model.layers.{layer}.linear_attn.in_proj_b.weight"),
+        artifacts.layer(layer, "recurrent_beta")?,
     );
     linear(
         operations,
         &a,
         input,
         vec![batch, query_sequence, config.linear_num_value_heads],
-        format!("model.layers.{layer}.linear_attn.in_proj_a.weight"),
+        artifacts.layer(layer, "recurrent_decay")?,
     );
     let conv_state = format!("state.layer.{layer}.convolution");
+    let conv_state_input = if mode == DecoderMode::Prefill {
+        format!("{prefix}.initial_convolution_state")
+    } else {
+        conv_state.clone()
+    };
     let recurrent_state = format!("state.layer.{layer}.recurrent");
+    let recurrent_state_input = if mode == DecoderMode::Prefill {
+        format!("{prefix}.initial_recurrent_state")
+    } else {
+        recurrent_state.clone()
+    };
     let conv_state_shape = vec![batch, conv_width, config.linear_conv_kernel_dim];
     let recurrent_state_shape = vec![
         batch,
@@ -446,24 +471,46 @@ fn lower_linear_attention(
         config.linear_key_head_dim,
         config.linear_value_head_dim,
     ];
-    state_inputs.push(StateTensor {
-        id: conv_state.clone(),
-        layer: Some(layer),
-        kind: StateKind::Convolution,
-        shape: conv_state_shape.clone(),
-        maximum_sequence: config.linear_conv_kernel_dim,
-    });
-    state_inputs.push(StateTensor {
-        id: recurrent_state.clone(),
-        layer: Some(layer),
-        kind: StateKind::Recurrent,
-        shape: recurrent_state_shape.clone(),
-        maximum_sequence: 1,
-    });
+    if mode == DecoderMode::Prefill {
+        push(
+            operations,
+            &conv_state_input,
+            ModelOperator::StateInitialize,
+            &[],
+            conv_state_shape.clone(),
+            json!({"initial_value": 0, "dtype": "float32", "state_kind": "convolution"}),
+        );
+    } else {
+        state_inputs.push(StateTensor {
+            id: conv_state.clone(),
+            layer: Some(layer),
+            kind: StateKind::Convolution,
+            shape: conv_state_shape.clone(),
+            maximum_sequence: config.linear_conv_kernel_dim,
+        });
+    }
+    if mode == DecoderMode::Prefill {
+        push(
+            operations,
+            &recurrent_state_input,
+            ModelOperator::StateInitialize,
+            &[],
+            recurrent_state_shape.clone(),
+            json!({"initial_value": 0, "dtype": "float32", "state_kind": "recurrent"}),
+        );
+    } else {
+        state_inputs.push(StateTensor {
+            id: recurrent_state.clone(),
+            layer: Some(layer),
+            kind: StateKind::Recurrent,
+            shape: recurrent_state_shape.clone(),
+            maximum_sequence: 1,
+        });
+    }
     let convolved = format!("{prefix}.causal_convolution");
     let next_conv_state = format!("{prefix}.convolution_state");
     let convolution_attributes = json!({
-        "weight": format!("model.layers.{layer}.linear_attn.conv1d.weight"),
+        "weight": artifacts.layer(layer, "recurrent_conv")?,
         "bias": Value::Null,
         "kernel_size": config.linear_conv_kernel_dim,
         "groups": conv_width,
@@ -474,7 +521,7 @@ fn lower_linear_attention(
         operations,
         &next_conv_state,
         ModelOperator::ConvolutionStateUpdate,
-        &[&qkv, &conv_state],
+        &[&qkv, &conv_state_input],
         conv_state_shape.clone(),
         convolution_attributes.clone(),
     );
@@ -486,7 +533,7 @@ fn lower_linear_attention(
         operations,
         &convolved,
         ModelOperator::CausalConvolution,
-        &[&qkv, &conv_state],
+        &[&qkv, &conv_state_input],
         vec![batch, query_sequence, conv_width],
         convolution_attributes,
     );
@@ -538,8 +585,8 @@ fn lower_linear_attention(
         &[&a],
         vec![batch, query_sequence, config.linear_num_value_heads],
         json!({
-            "a_log": format!("model.layers.{layer}.linear_attn.A_log"),
-            "dt_bias": format!("model.layers.{layer}.linear_attn.dt_bias"),
+            "a_log": artifacts.layer(layer, "recurrent_a_log")?,
+            "dt_bias": artifacts.layer(layer, "recurrent_dt_bias")?,
             "formula": "-exp(A_log)*softplus(a+dt_bias)",
             "compute_dtype": "float32",
         }),
@@ -561,7 +608,7 @@ fn lower_linear_attention(
         &value[..],
         &decay[..],
         &beta[..],
-        &recurrent_state[..],
+        &recurrent_state_input[..],
     ];
     push(
         operations,
@@ -607,7 +654,7 @@ fn lower_linear_attention(
             config.linear_num_value_heads,
             config.linear_value_head_dim,
         ],
-        json!({}),
+        json!({"layout": "batch_sequence_heads_feature"}),
     );
     let gated_norm = format!("{prefix}.gated_norm");
     push(
@@ -623,7 +670,7 @@ fn lower_linear_attention(
         ],
         json!({
             "epsilon": config.rms_norm_eps,
-            "weight": format!("model.layers.{layer}.linear_attn.norm.weight"),
+            "weight": artifacts.layer(layer, "recurrent_norm")?,
             "activation": "silu",
             "weight_offset": 0,
             "norm_before_gate": true,
@@ -636,7 +683,7 @@ fn lower_linear_attention(
         ModelOperator::Reshape,
         &[&gated_norm],
         vec![batch, query_sequence, value_width],
-        json!({}),
+        json!({"layout": "batch_sequence_hidden", "input_layout": "batch_sequence_heads_feature"}),
     );
     let output = format!("{prefix}.output");
     linear(
@@ -644,7 +691,7 @@ fn lower_linear_attention(
         &output,
         &merged,
         vec![batch, query_sequence, config.hidden_size],
-        format!("model.layers.{layer}.linear_attn.out_proj.weight"),
+        artifacts.layer(layer, "recurrent_output")?,
     );
     Ok(output)
 }
@@ -655,7 +702,8 @@ fn lower_full_attention(
     state_inputs: &mut Vec<StateTensor>,
     state_outputs: &mut Vec<StateTensor>,
     config: &TextConfig,
-    _mode: DecoderMode,
+    artifacts: &ArtifactLayout,
+    mode: DecoderMode,
     layer: u64,
     input: &str,
     batch: u64,
@@ -679,37 +727,70 @@ fn lower_full_attention(
         &q_projection,
         input,
         vec![batch, query_sequence, q_width * 2],
-        format!("model.layers.{layer}.self_attn.q_proj.weight"),
+        artifacts.layer(layer, "attention_query")?,
     );
     linear(
         operations,
         &k_projection,
         input,
         vec![batch, query_sequence, kv_width],
-        format!("model.layers.{layer}.self_attn.k_proj.weight"),
+        artifacts.layer(layer, "attention_key")?,
     );
     linear(
         operations,
         &v_projection,
         input,
         vec![batch, query_sequence, kv_width],
-        format!("model.layers.{layer}.self_attn.v_proj.weight"),
+        artifacts.layer(layer, "attention_value")?,
     );
-    let q_flat = slice(
+    let interleaved = format!("{prefix}.interleaved_query_gate");
+    push(
         operations,
-        &format!("{prefix}.query_flat"),
-        &q_projection,
-        vec![batch, query_sequence, q_width],
+        &interleaved,
+        ModelOperator::Reshape,
+        &[&q_projection],
+        vec![
+            batch,
+            query_sequence,
+            config.num_attention_heads,
+            config.head_dim * 2,
+        ],
+        json!({"layout": "batch_sequence_heads_feature"}),
+    );
+    let query_per_head = slice(
+        operations,
+        &format!("{prefix}.query_per_head"),
+        &interleaved,
+        vec![
+            batch,
+            query_sequence,
+            config.num_attention_heads,
+            config.head_dim,
+        ],
         0,
-        q_width,
+        config.head_dim,
     );
-    let gate = slice(
+    let gate_per_head = slice(
         operations,
-        &format!("{prefix}.output_gate"),
-        &q_projection,
+        &format!("{prefix}.gate_per_head"),
+        &interleaved,
+        vec![
+            batch,
+            query_sequence,
+            config.num_attention_heads,
+            config.head_dim,
+        ],
+        config.head_dim,
+        config.head_dim * 2,
+    );
+    let gate = format!("{prefix}.output_gate");
+    push(
+        operations,
+        &gate,
+        ModelOperator::Reshape,
+        &[&gate_per_head],
         vec![batch, query_sequence, q_width],
-        q_width,
-        q_width * 2,
+        json!({"layout": "batch_sequence_hidden", "input_layout": "batch_sequence_heads_feature"}),
     );
     let q = format!("{prefix}.query_heads");
     let k = format!("{prefix}.key_heads");
@@ -718,14 +799,14 @@ fn lower_full_attention(
         operations,
         &q,
         ModelOperator::Reshape,
-        &[&q_flat],
+        &[&query_per_head],
         vec![
             batch,
             config.num_attention_heads,
             query_sequence,
             config.head_dim,
         ],
-        json!({}),
+        json!({"layout": "batch_heads_sequence_feature", "input_layout": "batch_sequence_heads_feature"}),
     );
     push(
         operations,
@@ -738,7 +819,7 @@ fn lower_full_attention(
             query_sequence,
             config.head_dim,
         ],
-        json!({}),
+        json!({"layout": "batch_heads_sequence_feature"}),
     );
     push(
         operations,
@@ -751,7 +832,7 @@ fn lower_full_attention(
             query_sequence,
             config.head_dim,
         ],
-        json!({}),
+        json!({"layout": "batch_heads_sequence_feature"}),
     );
     let q_norm = format!("{prefix}.q_norm");
     let k_norm = format!("{prefix}.k_norm");
@@ -766,7 +847,7 @@ fn lower_full_attention(
             config.head_dim,
         ],
         config,
-        format!("model.layers.{layer}.self_attn.q_norm.weight"),
+        artifacts.layer(layer, "attention_query_norm")?,
     );
     rms_norm(
         operations,
@@ -779,7 +860,7 @@ fn lower_full_attention(
             config.head_dim,
         ],
         config,
-        format!("model.layers.{layer}.self_attn.k_norm.weight"),
+        artifacts.layer(layer, "attention_key_norm")?,
     );
     let q_rope = format!("{prefix}.q_rope");
     let k_rope = format!("{prefix}.k_rope");
@@ -790,6 +871,7 @@ fn lower_full_attention(
         "partial_rotary_factor": config.rope_parameters.partial_rotary_factor,
         "mrope_interleaved": config.rope_parameters.mrope_interleaved,
         "mrope_section": config.rope_parameters.mrope_section,
+        "position_policy": "text_replicated_axes",
     });
     push(
         operations,
@@ -829,40 +911,40 @@ fn lower_full_attention(
         (&key_state, StateKind::Key),
         (&value_state, StateKind::Value),
     ] {
-        state_inputs.push(StateTensor {
-            id: id.clone(),
-            layer: Some(layer),
-            kind,
-            shape: kv_shape.clone(),
-            maximum_sequence: maximum_key_sequence,
-        });
+        if mode == DecoderMode::Decode {
+            state_inputs.push(StateTensor {
+                id: id.clone(),
+                layer: Some(layer),
+                kind,
+                shape: kv_shape.clone(),
+                maximum_sequence: maximum_key_sequence,
+            });
+        }
     }
     let key_append = format!("{prefix}.key_append");
     let value_append = format!("{prefix}.value_append");
-    push(
+    full_kv_cache_update(
         operations,
         &key_append,
-        ModelOperator::KvCacheAppend,
-        &[&key_state, &k_rope],
+        &key_state,
+        &k_rope,
         kv_shape.clone(),
-        json!({"state": key_state}),
+        maximum_key_sequence,
+        maximum_key_sequence,
+        mode,
+        StateKind::Key,
     );
-    operations
-        .last_mut()
-        .expect("state operation exists")
-        .state_kind = Some(StateKind::Key);
-    push(
+    full_kv_cache_update(
         operations,
         &value_append,
-        ModelOperator::KvCacheAppend,
-        &[&value_state, &v],
+        &value_state,
+        &v,
         kv_shape.clone(),
-        json!({"state": value_state}),
+        maximum_key_sequence,
+        maximum_key_sequence,
+        mode,
+        StateKind::Value,
     );
-    operations
-        .last_mut()
-        .expect("state operation exists")
-        .state_kind = Some(StateKind::Value);
     state_outputs.push(StateTensor {
         id: key_append.clone(),
         layer: Some(layer),
@@ -870,6 +952,24 @@ fn lower_full_attention(
         shape: kv_shape.clone(),
         maximum_sequence: maximum_key_sequence,
     });
+    let key_view = format!("{prefix}.key_view");
+    let value_view = format!("{prefix}.value_view");
+    full_kv_cache_view(
+        operations,
+        &key_view,
+        &key_append,
+        kv_shape.clone(),
+        maximum_key_sequence,
+        StateKind::Key,
+    );
+    full_kv_cache_view(
+        operations,
+        &value_view,
+        &value_append,
+        kv_shape.clone(),
+        maximum_key_sequence,
+        StateKind::Value,
+    );
     state_outputs.push(StateTensor {
         id: value_append.clone(),
         layer: Some(layer),
@@ -887,7 +987,7 @@ fn lower_full_attention(
         operations,
         &scores,
         ModelOperator::AttentionScores,
-        &[&q_rope, &key_append],
+        &[&q_rope, &key_view],
         vec![
             batch,
             config.num_attention_heads,
@@ -913,14 +1013,27 @@ fn lower_full_attention(
         operations,
         &masked,
         ModelOperator::CausalMask,
-        &[&scaled, "input.positions"],
+        &[
+            &scaled,
+            "input.positions",
+            "input.attention_mask",
+            "input.sequence_lengths",
+        ],
         vec![
             batch,
             config.num_attention_heads,
             query_sequence,
             maximum_key_sequence,
         ],
-        json!({"maximum_key_sequence": maximum_key_sequence}),
+        json!({
+            "kind": "full_causal",
+            "maximum_position_embeddings": config.max_position_embeddings,
+            "absolute_positions_input": "input.positions",
+            "padding_mask_input": "input.attention_mask",
+            "valid_lengths_input": "input.sequence_lengths",
+            "cache_validity": "valid_lengths_fixed_capacity",
+            "key_domain": "fixed_capacity"
+        }),
     );
     push(
         operations,
@@ -939,7 +1052,7 @@ fn lower_full_attention(
         operations,
         &values,
         ModelOperator::AttentionValues,
-        &[&probabilities, &value_append],
+        &[&probabilities, &value_view],
         vec![
             batch,
             config.num_attention_heads,
@@ -955,7 +1068,7 @@ fn lower_full_attention(
         ModelOperator::Reshape,
         &[&values],
         vec![batch, query_sequence, q_width],
-        json!({}),
+        json!({"layout": "batch_sequence_hidden", "input_layout": "batch_heads_sequence_feature"}),
     );
     let sigmoid_gate = format!("{prefix}.sigmoid_gate");
     push(
@@ -981,7 +1094,7 @@ fn lower_full_attention(
         &output,
         &gated,
         vec![batch, query_sequence, config.hidden_size],
-        format!("model.layers.{layer}.self_attn.o_proj.weight"),
+        artifacts.layer(layer, "attention_output")?,
     );
     Ok(output)
 }
@@ -1088,7 +1201,7 @@ fn exact_str(actual: &str, expected: &str, field: &str) -> Result<(), ModelError
 }
 
 fn unsupported(field: &str) -> ModelError {
-    ModelError::Unsupported(format!("Qwen3.5 adapter does not support {field}"))
+    ModelError::Unsupported(format!("hybrid text decoder does not support {field}"))
 }
 
 fn exact_fraction(value: u64, decimal: &str) -> Result<u64, ModelError> {
@@ -1170,10 +1283,22 @@ mod tests {
     #[test]
     fn lowers_hybrid_qwen35_text_decoder() {
         let document: Value = serde_json::from_str(OFFICIAL_CONFIG).unwrap();
-        let plan = lower_qwen35_json(&document, workload()).unwrap();
-        assert_eq!(plan.adapter, ADAPTER);
-        assert_eq!(plan.model_family, FAMILY);
-        assert_eq!(plan.prefill.state_inputs.len(), 64);
+        let plan = lower_source_json(
+            &document,
+            workload(),
+            &super::super::source_mappings::HYBRID_TEXT,
+        )
+        .unwrap();
+        assert_eq!(
+            plan.adapter,
+            super::super::source_mappings::HYBRID_TEXT.adapter
+        );
+        assert_eq!(
+            plan.model_family,
+            super::super::source_mappings::HYBRID_TEXT.family
+        );
+        assert_eq!(plan.prefill.state_inputs.len(), 0);
+        assert_eq!(plan.decode.state_inputs.len(), 64);
         assert_eq!(plan.prefill.state_outputs.len(), 64);
 
         let first_linear = plan
@@ -1224,10 +1349,72 @@ mod tests {
     }
 
     #[test]
+    fn hybrid_graph_uses_declared_checkpoint_artifacts_not_a_family_path() {
+        let document: Value = serde_json::from_str(OFFICIAL_CONFIG).unwrap();
+        let baseline = &super::super::source_mappings::HYBRID_TEXT;
+        let mut rows = baseline.artifacts.layer_artifacts.to_vec();
+        for (role, path) in &mut rows {
+            if *role == "recurrent_conv" {
+                *path = "hybrid.depthwise.weight";
+            }
+        }
+        let artifacts = ArtifactLayout {
+            token_embedding: "alternate.token_table.weight",
+            output_head: "alternate.token_table.weight",
+            final_norm: "alternate.output_norm.weight",
+            layer_prefix: "alternate.blocks",
+            layer_artifacts: &rows,
+            global_artifacts: &[],
+        };
+        let alternate = HybridSource {
+            outer_type: baseline.outer_type,
+            outer_architecture: baseline.outer_architecture,
+            text_type: baseline.text_type,
+            family: baseline.family,
+            adapter: baseline.adapter,
+            digest_domain: baseline.digest_domain,
+            artifacts: &artifacts,
+        };
+        let default_plan = lower_source_json(&document, workload(), baseline).unwrap();
+        let remapped = lower_source_json(&document, workload(), &alternate).unwrap();
+        assert_eq!(default_plan.config_digest, remapped.config_digest);
+        assert_ne!(default_plan.digest(), remapped.digest());
+        let token = remapped
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.id == "token_lookup")
+            .unwrap();
+        assert_eq!(token.attributes["weight"], "alternate.token_table.weight");
+        let conv = remapped
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.operator == ModelOperator::CausalConvolution)
+            .unwrap();
+        assert_eq!(
+            conv.attributes["weight"],
+            "alternate.blocks.0.hybrid.depthwise.weight"
+        );
+        let output = remapped
+            .prefill
+            .operations
+            .iter()
+            .find(|row| row.id == "output_head")
+            .unwrap();
+        assert_eq!(output.attributes["weight"], "alternate.token_table.weight");
+    }
+
+    #[test]
     fn rejects_qwen35_schedule_drift() {
         let mut document: Value = serde_json::from_str(OFFICIAL_CONFIG).unwrap();
         document["text_config"]["layer_types"][0] = json!("full_attention");
-        let error = lower_qwen35_json(&document, workload()).unwrap_err();
+        let error = lower_source_json(
+            &document,
+            workload(),
+            &super::super::source_mappings::HYBRID_TEXT,
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("hybrid layer schedule"));
     }
 }

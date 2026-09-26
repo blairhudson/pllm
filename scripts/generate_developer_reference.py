@@ -1815,9 +1815,10 @@ def model_compatibility() -> dict[str, Any]:
         if (
             not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", identity)
             or not isinstance(capability, dict)
-            or set(capability) != {"name", "operator", "contract"}
+            or not {"name", "operator", "contract"} <= set(capability) <= {"name", "operator", "contract", "current_scope"}
             or any(type(capability[field]) is not str or not capability[field] for field in ("name", "contract"))
             or (capability["operator"] is not None and type(capability["operator"]) is not str)
+            or ("current_scope" in capability and (type(capability["current_scope"]) is not str or not capability["current_scope"]))
         ):
             raise ValueError("invalid model-neutral capability contract")
     if len({item.get("adapter") for item in adapters}) != len(adapters):
@@ -2117,6 +2118,8 @@ def render_model_capability_outputs() -> dict[Path, str]:
             if capability["operator"] else "This variant needs a complete model-neutral IR/numeric contract.\n\n",
             "## Checked source adapters\n\n",
         ]
+        if capability.get("current_scope"):
+            page.insert(-1, f"**Current implementation scope:** {capability['current_scope']}\n\n")
         if scoped:
             for item in scoped:
                 baseline = item["baseline_schedule"] and identity not in item["baseline_blockers"]
@@ -2155,9 +2158,23 @@ def render_model_capability_outputs() -> dict[Path, str]:
                     f"- [`{stub.module}.{stub.name}`]({module_route}) (`{stub.identity}`): {stub.gate}.\n"
                 )
             first = stubs[0]
+            numeric_example = (
+                "import numpy as np\n"
+                "from pllm.state import BoundedDepthwiseCausalConvolution\n\n"
+                "kernel = BoundedDepthwiseCausalConvolution(np.ones((2, 4), dtype=np.float32))\n"
+                "initial = kernel.initial_state()\n"
+                "prefill, retained = kernel.evaluate(\n"
+                "    np.ones((1, 2, 2), dtype=np.float32), initial, mode=\"prefill\"\n"
+                ")\n"
+                "decode, _ = kernel.evaluate(\n"
+                "    np.ones((1, 1, 2), dtype=np.float32), retained, mode=\"decode\"\n"
+                ")\n"
+                "assert prefill.shape == (1, 2, 2) and decode.shape == (1, 1, 2)\n\n"
+            ) if identity == "causal-convolution" else ""
             page.extend((
                 "\n## Python SDK example\n\n",
                 "```python\n",
+                numeric_example,
                 f"from {first.module} import {first.name}\n",
                 "from pllm.components import ModelCapabilityUnavailable\n\n",
                 "try:\n",
@@ -2167,6 +2184,8 @@ def render_model_capability_outputs() -> dict[Path, str]:
                 "else:\n",
                 '    raise AssertionError("missing capability must remain unavailable")\n',
                 "```\n\n",
+                "API: [`pllm.state.BoundedDepthwiseCausalConvolution`](/sdk/reference/python/pllm/state/#objects-and-signatures).\n\n"
+                if numeric_example else "",
                 f"API: [`{first.module}.{first.name}`](/sdk/reference/python/pllm/{_module_slug(first.module)}/#objects-and-signatures).\n\n",
                 "A later implementation must bind an actual operator or numeric lifecycle "
                 "before its status changes.\n",

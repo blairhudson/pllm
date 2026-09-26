@@ -1,3 +1,4 @@
+use super::source_mappings::SharedKvVariant;
 use super::{
     decimal_string, integral_u64, DecoderGraph, DecoderMode, DecoderPlan, DecoderWorkload,
     ModelError, ModelOperation, ModelOperator, StateKind, StateTensor, DECODER_PLAN_SCHEMA_VERSION,
@@ -7,59 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
-pub const GEMMA4_E4B_SOURCE_REVISION: &str = "ee0ef6023621cff504d758262d4e04895a5af4a2";
-pub const GEMMA4_E2B_SOURCE_REVISION: &str = "3e22461f65e89153144f8adb70e3b8c2cc9845a7";
-
-const VOCAB_SIZE: u64 = 262_144;
-const NUM_HEADS: u32 = 8;
-const LOCAL_HEAD_DIM: u64 = 256;
-const GLOBAL_HEAD_DIM: u64 = 512;
-const SLIDING_WINDOW: u64 = 512;
-const MAX_POSITIONS: u64 = 131_072;
-const PLE_DIM: u64 = 256;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Gemma4TextVariant {
-    adapter: &'static str,
-    digest_domain: &'static str,
-    source_revision: &'static str,
-    hidden_size: u64,
-    intermediate_size: u64,
-    num_layers: u32,
-    num_kv_heads: u32,
-    shared_kv_layers: u32,
-    full_attention_period: u32,
-    double_wide_mlp: bool,
-}
-
-const E4B: Gemma4TextVariant = Gemma4TextVariant {
-    adapter: "pllm.gemma4_e4b_text.v1",
-    digest_domain: "pllm.gemma4_e4b_text_config.v1",
-    source_revision: GEMMA4_E4B_SOURCE_REVISION,
-    hidden_size: 2_560,
-    intermediate_size: 10_240,
-    num_layers: 42,
-    num_kv_heads: 2,
-    shared_kv_layers: 18,
-    full_attention_period: 6,
-    double_wide_mlp: false,
-};
-
-const E2B: Gemma4TextVariant = Gemma4TextVariant {
-    adapter: "pllm.gemma4_e2b_text.v1",
-    digest_domain: "pllm.gemma4_e2b_text_config.v1",
-    source_revision: GEMMA4_E2B_SOURCE_REVISION,
-    hidden_size: 1_536,
-    intermediate_size: 6_144,
-    num_layers: 35,
-    num_kv_heads: 1,
-    shared_kv_layers: 20,
-    full_attention_period: 5,
-    double_wide_mlp: true,
-};
-
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-struct Gemma4TextConfig {
+struct SharedKvTextConfig {
     pub model_type: String,
     pub vocab_size: u64,
     pub hidden_size: u64,
@@ -93,7 +43,7 @@ struct Gemma4TextConfig {
     pub expert_intermediate_size: Value,
     pub use_double_wide_mlp: bool,
     pub use_bidirectional_attention: Value,
-    pub rope_parameters: Gemma4RopeParameters,
+    pub rope_parameters: RotaryConfigSet,
     pub dtype: String,
     #[serde(default)]
     pub per_layer_config: Option<Value>,
@@ -102,13 +52,13 @@ struct Gemma4TextConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Gemma4RopeParameters {
-    pub sliding_attention: Gemma4RopeConfig,
-    pub full_attention: Gemma4RopeConfig,
+pub struct RotaryConfigSet {
+    pub sliding_attention: RotaryDescriptorConfig,
+    pub full_attention: RotaryDescriptorConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Gemma4RopeConfig {
+pub struct RotaryDescriptorConfig {
     pub rope_type: String,
     #[serde(deserialize_with = "integral_u64")]
     pub rope_theta: u64,
@@ -116,22 +66,24 @@ pub struct Gemma4RopeConfig {
     pub partial_rotary_factor: Option<String>,
 }
 
-impl Gemma4TextConfig {
-    fn validate(&self) -> Result<&'static Gemma4TextVariant, ModelError> {
-        if self.model_type != "gemma4_text" {
+impl SharedKvTextConfig {
+    fn validate<'a>(
+        &self,
+        variants: &'a [SharedKvVariant<'a>],
+    ) -> Result<&'a SharedKvVariant<'a>, ModelError> {
+        let variant = variants
+            .iter()
+            .find(|variant| variant.num_layers == self.num_hidden_layers)
+            .ok_or_else(|| {
+                unsupported("num_hidden_layers", "a checked shared-KV source variant")
+            })?;
+        if self.model_type != variant.text_model_type {
             return Err(ModelError::Unsupported(format!(
-                "model_type {} is not gemma4_text",
-                self.model_type
+                "model_type {} does not match its shared-KV source mapping",
+                self.model_type,
             )));
         }
-        let variant = match self.num_hidden_layers {
-            42 => &E4B,
-            35 => &E2B,
-            _ => {
-                return Err(unsupported("num_hidden_layers", "35 (E2B) or 42 (E4B)"));
-            }
-        };
-        exact(self.vocab_size, VOCAB_SIZE, "vocab_size")?;
+        exact(self.vocab_size, variant.vocab_size, "vocab_size")?;
         exact(self.hidden_size, variant.hidden_size, "hidden_size")?;
         exact(
             self.intermediate_size,
@@ -143,28 +95,40 @@ impl Gemma4TextConfig {
             variant.num_layers,
             "num_hidden_layers",
         )?;
-        exact(self.num_attention_heads, NUM_HEADS, "num_attention_heads")?;
+        exact(
+            self.num_attention_heads,
+            variant.attention_heads,
+            "num_attention_heads",
+        )?;
         exact(
             self.num_key_value_heads,
             variant.num_kv_heads,
             "num_key_value_heads",
         )?;
-        exact(self.head_dim, LOCAL_HEAD_DIM, "head_dim")?;
-        exact(self.global_head_dim, GLOBAL_HEAD_DIM, "global_head_dim")?;
-        exact(self.sliding_window, SLIDING_WINDOW, "sliding_window")?;
+        exact(self.head_dim, variant.local_head_dim, "head_dim")?;
+        exact(
+            self.global_head_dim,
+            variant.global_head_dim,
+            "global_head_dim",
+        )?;
+        exact(
+            self.sliding_window,
+            variant.sliding_window,
+            "sliding_window",
+        )?;
         exact(
             self.max_position_embeddings,
-            MAX_POSITIONS,
+            variant.max_positions,
             "max_position_embeddings",
         )?;
         exact(
             self.hidden_size_per_layer_input,
-            PLE_DIM,
+            variant.per_layer_input_dim,
             "hidden_size_per_layer_input",
         )?;
         exact(
             self.vocab_size_per_layer_input,
-            VOCAB_SIZE,
+            variant.vocab_size,
             "vocab_size_per_layer_input",
         )?;
         exact(
@@ -175,7 +139,7 @@ impl Gemma4TextConfig {
         if self.layer_types != default_layer_types(variant) {
             return Err(unsupported(
                 "layer_types",
-                "the official E2B or E4B attention schedule",
+                "the checked shared-KV attention schedule",
             ));
         }
         if self.hidden_activation != "gelu_pytorch_tanh" {
@@ -251,27 +215,27 @@ impl Gemma4TextConfig {
             .find(|field| !NON_SEMANTIC_FIELDS.contains(&field.as_str()))
         {
             return Err(ModelError::Unsupported(format!(
-                "unrecognized gemma4_text semantic field {field}"
+                "unrecognized shared-KV semantic field {field}"
             )));
         }
         validate_rope(
             &self.rope_parameters.sliding_attention,
-            "default",
-            10_000,
+            variant.sliding_rope_type,
+            variant.sliding_rope_theta,
             None,
             "sliding_attention",
         )?;
         validate_rope(
             &self.rope_parameters.full_attention,
-            "proportional",
-            1_000_000,
-            Some(0.25),
+            variant.full_rope_type,
+            variant.full_rope_theta,
+            Some(variant.full_rotary_fraction.0 as f64 / variant.full_rotary_fraction.1 as f64),
             "full_attention",
         )?;
         Ok(variant)
     }
 
-    fn digest(&self, variant: &Gemma4TextVariant) -> pllm_types::Digest {
+    fn digest(&self, variant: &SharedKvVariant) -> pllm_types::Digest {
         canonical_digest(
             variant.digest_domain,
             &json!({
@@ -280,17 +244,17 @@ impl Gemma4TextConfig {
                 "attention_k_eq_v": false,
                 "enable_moe_block": false,
                 "final_logit_softcapping": 30,
-                "global_head_dim": GLOBAL_HEAD_DIM,
-                "head_dim": LOCAL_HEAD_DIM,
+                "global_head_dim": self.global_head_dim,
+                "head_dim": self.head_dim,
                 "hidden_activation": "gelu_pytorch_tanh",
                 "dtype": "bfloat16",
                 "hidden_size": variant.hidden_size,
-                "hidden_size_per_layer_input": PLE_DIM,
+                "hidden_size_per_layer_input": self.hidden_size_per_layer_input,
                 "intermediate_size": variant.intermediate_size,
                 "layer_types": self.layer_types,
-                "max_position_embeddings": MAX_POSITIONS,
-                "model_type": "gemma4_text",
-                "num_attention_heads": NUM_HEADS,
+                "max_position_embeddings": self.max_position_embeddings,
+                "model_type": variant.text_model_type,
+                "num_attention_heads": self.num_attention_heads,
                 "num_hidden_layers": variant.num_layers,
                 "num_key_value_heads": variant.num_kv_heads,
                 "num_kv_shared_layers": variant.shared_kv_layers,
@@ -299,35 +263,38 @@ impl Gemma4TextConfig {
                     "full_attention": {"partial_rotary_factor": "1/4", "rope_theta": 1_000_000, "rope_type": "proportional"},
                     "sliding_attention": {"rope_theta": 10_000, "rope_type": "default"}
                 },
-                "sliding_window": SLIDING_WINDOW,
+                "sliding_window": self.sliding_window,
                 "tie_word_embeddings": true,
                 "use_bidirectional_attention": null,
                 "use_cache": true,
                 "use_double_wide_mlp": variant.double_wide_mlp,
-                "vocab_size": VOCAB_SIZE,
-                "vocab_size_per_layer_input": VOCAB_SIZE
+                "vocab_size": self.vocab_size,
+                "vocab_size_per_layer_input": self.vocab_size_per_layer_input
             }),
         )
     }
 }
 
-pub(super) fn lower_gemma4_json(
+pub(super) fn lower_source_json(
     document: Value,
     workload: DecoderWorkload,
+    variants: &[SharedKvVariant<'_>],
 ) -> Result<DecoderPlan, ModelError> {
-    if document.get("model_type").and_then(Value::as_str) != Some("gemma4") {
+    let source = variants
+        .first()
+        .ok_or_else(|| ModelError::Unsupported("missing shared-KV source mapping".into()))?;
+    if document.get("model_type").and_then(Value::as_str) != Some(source.outer_model_type) {
         return Err(ModelError::Unsupported(
-            "pinned Gemma adapter requires outer model_type gemma4".into(),
+            "shared-KV outer source type differs from its mapping".into(),
         ));
     }
     let architectures = document.get("architectures").and_then(Value::as_array);
     if architectures.is_none_or(|architectures| {
-        architectures.len() != 1
-            || architectures[0].as_str() != Some("Gemma4ForConditionalGeneration")
+        architectures.len() != 1 || architectures[0].as_str() != Some(source.outer_architecture)
     }) {
         return Err(unsupported(
             "outer architectures",
-            "[Gemma4ForConditionalGeneration]",
+            "the mapped shared-KV source architecture",
         ));
     }
     if document.get("tie_word_embeddings").and_then(Value::as_bool) != Some(true) {
@@ -339,15 +306,19 @@ pub(super) fn lower_gemma4_json(
     let text = document
         .get("text_config")
         .cloned()
-        .ok_or_else(|| ModelError::InvalidConfig("gemma4 text_config is missing".into()))?;
-    let config: Gemma4TextConfig = serde_json::from_value(text).map_err(|error| {
-        ModelError::InvalidConfig(format!("invalid gemma4 text_config: {error}"))
+        .ok_or_else(|| ModelError::InvalidConfig("shared-KV text_config is missing".into()))?;
+    let config: SharedKvTextConfig = serde_json::from_value(text).map_err(|error| {
+        ModelError::InvalidConfig(format!("invalid shared-KV text_config: {error}"))
     })?;
-    lower(&config, workload)
+    lower(&config, workload, variants)
 }
 
-fn lower(config: &Gemma4TextConfig, workload: DecoderWorkload) -> Result<DecoderPlan, ModelError> {
-    let variant = config.validate()?;
+fn lower(
+    config: &SharedKvTextConfig,
+    workload: DecoderWorkload,
+    variants: &[SharedKvVariant<'_>],
+) -> Result<DecoderPlan, ModelError> {
+    let variant = config.validate(variants)?;
     if workload.batch == 0 || workload.max_input_tokens == 0 || workload.max_new_tokens == 0 {
         return Err(ModelError::InvalidConfig(
             "decoder workload bounds must be nonzero".into(),
@@ -358,14 +329,15 @@ fn lower(config: &Gemma4TextConfig, workload: DecoderWorkload) -> Result<Decoder
         .checked_add(workload.max_new_tokens)
         .and_then(|total| total.checked_sub(1))
         .ok_or_else(|| ModelError::InvalidConfig("decoder position bound overflowed".into()))?;
-    if processed_positions > MAX_POSITIONS {
+    if processed_positions > config.max_position_embeddings {
         return Err(ModelError::InvalidConfig(format!(
-            "decoder requires {processed_positions} processed positions but model permits {MAX_POSITIONS}"
+            "decoder requires {processed_positions} processed positions but model permits {}",
+            config.max_position_embeddings
         )));
     }
     let plan = DecoderPlan {
         schema_version: DECODER_PLAN_SCHEMA_VERSION.into(),
-        model_family: "gemma4_text".into(),
+        model_family: variant.family.into(),
         adapter: variant.adapter.into(),
         config_digest: config.digest(variant),
         transformations: Vec::new(),
@@ -376,7 +348,7 @@ fn lower(config: &Gemma4TextConfig, workload: DecoderWorkload) -> Result<Decoder
             workload.batch,
             workload.max_input_tokens,
             processed_positions,
-        ),
+        )?,
         decode: lower_graph(
             config,
             variant,
@@ -384,7 +356,7 @@ fn lower(config: &Gemma4TextConfig, workload: DecoderWorkload) -> Result<Decoder
             workload.batch,
             1,
             processed_positions,
-        ),
+        )?,
         token_feedback: true,
     };
     plan.validate()?;
@@ -392,17 +364,27 @@ fn lower(config: &Gemma4TextConfig, workload: DecoderWorkload) -> Result<Decoder
 }
 
 fn lower_graph(
-    config: &Gemma4TextConfig,
-    variant: &Gemma4TextVariant,
+    config: &SharedKvTextConfig,
+    variant: &SharedKvVariant,
     mode: DecoderMode,
     batch: u64,
     query: u64,
     state_capacity: u64,
-) -> DecoderGraph {
-    let model = "model.language_model";
+) -> Result<DecoderGraph, ModelError> {
+    let artifacts = variant.artifacts;
+    let weight = |layer: u32, role: &str| artifacts.layer(u64::from(layer), role);
     let hidden_shape = vec![batch, query, variant.hidden_size];
-    let packed_ple_shape = vec![batch, query, u64::from(variant.num_layers) * PLE_DIM];
-    let ple_shape = vec![batch, query, u64::from(variant.num_layers), PLE_DIM];
+    let packed_ple_shape = vec![
+        batch,
+        query,
+        u64::from(variant.num_layers) * config.hidden_size_per_layer_input,
+    ];
+    let ple_shape = vec![
+        batch,
+        query,
+        u64::from(variant.num_layers),
+        config.hidden_size_per_layer_input,
+    ];
     let mut operations = Vec::new();
     push(
         &mut operations,
@@ -411,7 +393,7 @@ fn lower_graph(
         &["input.tokens"],
         hidden_shape.clone(),
         json!({
-            "weight": format!("{model}.embed_tokens.weight"),
+            "weight": artifacts.token_embedding,
             "checkpoint_layout": "conditional_generation",
             "output_dtype": "bfloat16",
             "adapter_reference_revision": variant.source_revision
@@ -437,7 +419,7 @@ fn lower_graph(
         ModelOperator::TokenLookup,
         &["input.tokens"],
         packed_ple_shape.clone(),
-        json!({"weight": format!("{model}.embed_tokens_per_layer.weight"), "output_dtype": "bfloat16"}),
+        json!({"weight": artifacts.global("ple_token_embedding")?, "output_dtype": "bfloat16"}),
     );
     scale(
         &mut operations,
@@ -446,7 +428,7 @@ fn lower_graph(
         packed_ple_shape.clone(),
         json!({
             "kind": "sqrt",
-            "radicand": PLE_DIM,
+            "radicand": config.hidden_size_per_layer_input,
             "factor_source_dtype": "float32_buffer",
             "factor_rounding_dtype": "bfloat16",
             "compute_dtype": "bfloat16",
@@ -466,7 +448,7 @@ fn lower_graph(
         "ple_context_projection",
         "main_embedding_scaled",
         packed_ple_shape.clone(),
-        format!("{model}.per_layer_model_projection.weight"),
+        artifacts.global("ple_context_projection")?.into(),
     );
     scale(
         &mut operations,
@@ -495,7 +477,7 @@ fn lower_graph(
         "ple_context_norm",
         "ple_context_reshape",
         ple_shape.clone(),
-        Some(format!("{model}.per_layer_projection_norm.weight")),
+        Some(artifacts.global("ple_context_norm")?.into()),
     );
     push(
         &mut operations,
@@ -526,16 +508,25 @@ fn lower_graph(
     let first_shared_layer = variant.num_layers - variant.shared_kv_layers;
     for layer in 0..variant.num_layers {
         let prefix = format!("layer.{layer}");
-        let weights = format!("{model}.layers.{layer}");
         let layer_type = &config.layer_types[layer as usize];
         let sliding = layer_type == "sliding_attention";
         let head_dim = if sliding {
-            LOCAL_HEAD_DIM
+            config.head_dim
         } else {
-            GLOBAL_HEAD_DIM
+            config.global_head_dim
         };
-        let q_projection_shape = vec![batch, query, u64::from(NUM_HEADS), head_dim];
-        let q_attention_shape = vec![batch, u64::from(NUM_HEADS), query, head_dim];
+        let q_projection_shape = vec![
+            batch,
+            query,
+            u64::from(config.num_attention_heads),
+            head_dim,
+        ];
+        let q_attention_shape = vec![
+            batch,
+            u64::from(config.num_attention_heads),
+            query,
+            head_dim,
+        ];
         let kv_projection_shape = vec![batch, query, u64::from(variant.num_kv_heads), head_dim];
         let residual = hidden.clone();
         let input_norm = format!("{prefix}.input_norm");
@@ -544,15 +535,19 @@ fn lower_graph(
             &input_norm,
             &hidden,
             hidden_shape.clone(),
-            Some(format!("{weights}.input_layernorm.weight")),
+            Some(weight(layer, "input_norm")?),
         );
         let q_linear = format!("{prefix}.q_linear");
         linear(
             &mut operations,
             &q_linear,
             &input_norm,
-            vec![batch, query, u64::from(NUM_HEADS) * head_dim],
-            format!("{weights}.self_attn.q_proj.weight"),
+            vec![
+                batch,
+                query,
+                u64::from(config.num_attention_heads) * head_dim,
+            ],
+            weight(layer, "attention_query")?,
         );
         let q_heads = format!("{prefix}.q_heads");
         push(
@@ -569,7 +564,7 @@ fn lower_graph(
             &q_norm,
             &q_heads,
             q_projection_shape.clone(),
-            Some(format!("{weights}.self_attn.q_norm.weight")),
+            Some(weight(layer, "attention_query_norm")?),
         );
         let rope_q = format!("{prefix}.rope_q");
         push(
@@ -578,7 +573,7 @@ fn lower_graph(
             ModelOperator::RotaryEmbedding,
             &[&q_norm, "input.positions"],
             q_projection_shape,
-            rope_attributes(sliding, head_dim),
+            rope_attributes(config, variant, sliding, head_dim),
         );
         let q_permute = format!("{prefix}.q_permute");
         permute(
@@ -600,26 +595,34 @@ fn lower_graph(
                 &mut state_inputs,
                 &mut state_outputs,
                 &prefix,
-                &weights,
+                artifacts,
                 layer,
                 sliding,
                 head_dim,
                 batch,
                 query,
                 state_capacity,
+                config.sliding_window,
                 mode,
                 &input_norm,
                 &kv_projection_shape,
                 variant.num_kv_heads,
-            )
+                config,
+                variant,
+            )?
         } else {
             (
                 format!("layer.{source_layer}.key_append"),
                 format!("layer.{source_layer}.value_append"),
-                attention_bound(sliding, state_capacity),
+                attention_bound(sliding, state_capacity, config.sliding_window),
             )
         };
-        let score_shape = vec![batch, u64::from(NUM_HEADS), query, attention_bound];
+        let score_shape = vec![
+            batch,
+            u64::from(config.num_attention_heads),
+            query,
+            attention_bound,
+        ];
         let scores = format!("{prefix}.attention_scores");
         push(
             &mut operations,
@@ -628,7 +631,7 @@ fn lower_graph(
             &[&q_permute, &attention_key],
             score_shape.clone(),
             json!({
-                "group_size": NUM_HEADS / variant.num_kv_heads,
+                "group_size": config.num_attention_heads / variant.num_kv_heads,
                 "key_value_source_layer": source_layer,
                 "output_dtype": "bfloat16",
                 "key_layout": if sliding { "batch_kv_heads_query_window_feature" } else { "batch_kv_heads_sequence_feature" }
@@ -666,8 +669,8 @@ fn lower_graph(
             if sliding {
                 json!({
                     "kind": "sliding_causal",
-                    "sliding_window": SLIDING_WINDOW,
-                    "left_context": SLIDING_WINDOW - 1,
+                    "sliding_window": config.sliding_window,
+                    "left_context": config.sliding_window - 1,
                     "includes_current": true,
                     "absolute_positions_input": "input.positions",
                     "padding_mask_input": "input.attention_mask",
@@ -678,7 +681,7 @@ fn lower_graph(
             } else {
                 json!({
                     "kind": "full_causal",
-                    "maximum_position_embeddings": MAX_POSITIONS,
+                    "maximum_position_embeddings": config.max_position_embeddings,
                     "absolute_positions_input": "input.positions",
                     "padding_mask_input": "input.attention_mask",
                     "valid_lengths_input": "input.sequence_lengths",
@@ -704,7 +707,7 @@ fn lower_graph(
             &[&probabilities, &attention_value],
             q_attention_shape.clone(),
             json!({
-                "group_size": NUM_HEADS / variant.num_kv_heads,
+                "group_size": config.num_attention_heads / variant.num_kv_heads,
                 "output_dtype": "bfloat16",
                 "value_layout": if sliding { "batch_kv_heads_query_window_feature" } else { "batch_kv_heads_sequence_feature" }
             }),
@@ -714,7 +717,12 @@ fn lower_graph(
             &mut operations,
             &attention_permute,
             &values,
-            vec![batch, query, u64::from(NUM_HEADS), head_dim],
+            vec![
+                batch,
+                query,
+                u64::from(config.num_attention_heads),
+                head_dim,
+            ],
         );
         let attention_hidden = format!("{prefix}.attention_hidden");
         push(
@@ -722,7 +730,11 @@ fn lower_graph(
             &attention_hidden,
             ModelOperator::Reshape,
             &[&attention_permute],
-            vec![batch, query, u64::from(NUM_HEADS) * head_dim],
+            vec![
+                batch,
+                query,
+                u64::from(config.num_attention_heads) * head_dim,
+            ],
             json!({"layout": "batch_sequence_hidden", "input_layout": "batch_sequence_heads_feature"}),
         );
         let o_proj = format!("{prefix}.o_proj");
@@ -731,7 +743,7 @@ fn lower_graph(
             &o_proj,
             &attention_hidden,
             hidden_shape.clone(),
-            format!("{weights}.self_attn.o_proj.weight"),
+            weight(layer, "attention_output")?,
         );
         let post_attention = format!("{prefix}.post_attention_norm");
         rms_norm(
@@ -739,7 +751,7 @@ fn lower_graph(
             &post_attention,
             &o_proj,
             hidden_shape.clone(),
-            Some(format!("{weights}.post_attention_layernorm.weight")),
+            Some(weight(layer, "post_attention_norm")?),
         );
         let attention_residual = format!("{prefix}.attention_residual");
         push(
@@ -756,7 +768,7 @@ fn lower_graph(
             &pre_ffn,
             &attention_residual,
             hidden_shape.clone(),
-            Some(format!("{weights}.pre_feedforward_layernorm.weight")),
+            Some(weight(layer, "pre_feedforward_norm")?),
         );
         let gate = format!("{prefix}.gate_proj");
         let up = format!("{prefix}.up_proj");
@@ -764,7 +776,7 @@ fn lower_graph(
             variant
                 .intermediate_size
                 .checked_mul(2)
-                .expect("validated Gemma MLP width fits u64")
+                .expect("validated shared-KV MLP width fits u64")
         } else {
             variant.intermediate_size
         };
@@ -774,14 +786,14 @@ fn lower_graph(
             &gate,
             &pre_ffn,
             intermediate_shape.clone(),
-            format!("{weights}.mlp.gate_proj.weight"),
+            weight(layer, "mlp_gate")?,
         );
         linear(
             &mut operations,
             &up,
             &pre_ffn,
             intermediate_shape.clone(),
-            format!("{weights}.mlp.up_proj.weight"),
+            weight(layer, "mlp_up")?,
         );
         let activated = format!("{prefix}.gelu_tanh");
         push(
@@ -807,7 +819,7 @@ fn lower_graph(
             &down,
             &gated,
             hidden_shape.clone(),
-            format!("{weights}.mlp.down_proj.weight"),
+            weight(layer, "mlp_down")?,
         );
         let post_ffn = format!("{prefix}.post_feedforward_norm");
         rms_norm(
@@ -815,7 +827,7 @@ fn lower_graph(
             &post_ffn,
             &down,
             hidden_shape.clone(),
-            Some(format!("{weights}.post_feedforward_layernorm.weight")),
+            Some(weight(layer, "post_feedforward_norm")?),
         );
         let ffn_residual = format!("{prefix}.feedforward_residual");
         push(
@@ -832,7 +844,7 @@ fn lower_graph(
             &ple_slice,
             ModelOperator::Slice,
             &["ple_combined_scaled"],
-            vec![batch, query, PLE_DIM],
+            vec![batch, query, config.hidden_size_per_layer_input],
             json!({"axis": 2, "start": layer, "end": layer + 1, "squeeze": true}),
         );
         let ple_gate = format!("{prefix}.ple_gate");
@@ -840,8 +852,8 @@ fn lower_graph(
             &mut operations,
             &ple_gate,
             &ffn_residual,
-            vec![batch, query, PLE_DIM],
-            format!("{weights}.per_layer_input_gate.weight"),
+            vec![batch, query, config.hidden_size_per_layer_input],
+            weight(layer, "ple_gate")?,
         );
         let ple_activated = format!("{prefix}.ple_gelu_tanh");
         push(
@@ -849,7 +861,7 @@ fn lower_graph(
             &ple_activated,
             ModelOperator::GeluTanh,
             &[&ple_gate],
-            vec![batch, query, PLE_DIM],
+            vec![batch, query, config.hidden_size_per_layer_input],
             json!({"approximation": "tanh", "compute_dtype": "bfloat16", "output_dtype": "bfloat16"}),
         );
         let ple_gated = format!("{prefix}.ple_multiply");
@@ -858,7 +870,7 @@ fn lower_graph(
             &ple_gated,
             ModelOperator::Multiply,
             &[&ple_activated, &ple_slice],
-            vec![batch, query, PLE_DIM],
+            vec![batch, query, config.hidden_size_per_layer_input],
             json!({"output_dtype": "bfloat16"}),
         );
         let ple_projection = format!("{prefix}.ple_projection");
@@ -867,7 +879,7 @@ fn lower_graph(
             &ple_projection,
             &ple_gated,
             hidden_shape.clone(),
-            format!("{weights}.per_layer_projection.weight"),
+            weight(layer, "ple_projection")?,
         );
         let ple_norm = format!("{prefix}.ple_norm");
         rms_norm(
@@ -875,7 +887,7 @@ fn lower_graph(
             &ple_norm,
             &ple_projection,
             hidden_shape.clone(),
-            Some(format!("{weights}.post_per_layer_input_norm.weight")),
+            Some(weight(layer, "ple_norm")?),
         );
         let ple_residual = format!("{prefix}.ple_residual");
         push(
@@ -894,7 +906,7 @@ fn lower_graph(
             hidden_shape.clone(),
             json!({
                 "kind": "checkpoint_scalar",
-                "weight": format!("{weights}.layer_scalar"),
+                "weight": weight(layer, "layer_scalar")?,
                 "weight_shape": [1],
                 "factor_source_dtype": "bfloat16",
                 "factor_rounding_dtype": "bfloat16",
@@ -909,7 +921,7 @@ fn lower_graph(
         "final_norm",
         &hidden,
         hidden_shape,
-        Some(format!("{model}.norm.weight")),
+        Some(artifacts.final_norm.into()),
     );
     push(
         &mut operations,
@@ -924,15 +936,15 @@ fn lower_graph(
         "output_head",
         ModelOperator::OutputHead,
         &["last_hidden"],
-        vec![batch, VOCAB_SIZE],
-        json!({"weight": format!("{model}.embed_tokens.weight"), "tied": true, "output_dtype": "bfloat16"}),
+        vec![batch, config.vocab_size],
+        json!({"weight": artifacts.output_head, "tied": true, "output_dtype": "bfloat16"}),
     );
     push(
         &mut operations,
         "logit_softcap",
         ModelOperator::Softcap,
         &["output_head"],
-        vec![batch, VOCAB_SIZE],
+        vec![batch, config.vocab_size],
         json!({"cap": 30, "formula": "cap*tanh(input/cap)", "compute_dtype": "bfloat16", "output_dtype": "bfloat16"}),
     );
     push(
@@ -951,7 +963,7 @@ fn lower_graph(
         vec![batch, 1],
         json!({"policy": "pllm.greedy.v1", "source": "execution_policy"}),
     );
-    DecoderGraph {
+    Ok(DecoderGraph {
         mode,
         batch,
         query_sequence: query,
@@ -960,7 +972,7 @@ fn lower_graph(
         state_inputs,
         state_outputs,
         output: "token_feedback".into(),
-    }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -969,18 +981,21 @@ fn producer_kv(
     state_inputs: &mut Vec<StateTensor>,
     state_outputs: &mut Vec<StateTensor>,
     prefix: &str,
-    weights: &str,
+    artifacts: &super::source_mappings::ArtifactLayout<'_>,
     layer: u32,
     sliding: bool,
     head_dim: u64,
     batch: u64,
     query: u64,
     state_capacity: u64,
+    sliding_window: u64,
     mode: DecoderMode,
     input_norm: &str,
     kv_projection_shape: &[u64],
     num_kv_heads: u32,
-) -> (String, String, u64) {
+    config: &SharedKvTextConfig,
+    variant: &SharedKvVariant<'_>,
+) -> Result<(String, String, u64), ModelError> {
     let kv_width = u64::from(num_kv_heads) * head_dim;
     let k_linear = format!("{prefix}.k_linear");
     let v_linear = format!("{prefix}.v_linear");
@@ -989,14 +1004,14 @@ fn producer_kv(
         &k_linear,
         input_norm,
         vec![batch, query, kv_width],
-        format!("{weights}.self_attn.k_proj.weight"),
+        artifacts.layer(u64::from(layer), "attention_key")?,
     );
     linear(
         operations,
         &v_linear,
         input_norm,
         vec![batch, query, kv_width],
-        format!("{weights}.self_attn.v_proj.weight"),
+        artifacts.layer(u64::from(layer), "attention_value")?,
     );
     let k_heads = format!("{prefix}.k_heads");
     let v_heads = format!("{prefix}.v_heads");
@@ -1023,7 +1038,7 @@ fn producer_kv(
         &k_norm,
         &k_heads,
         kv_projection_shape.to_vec(),
-        Some(format!("{weights}.self_attn.k_norm.weight")),
+        Some(artifacts.layer(u64::from(layer), "attention_key_norm")?),
     );
     rms_norm(
         operations,
@@ -1039,16 +1054,16 @@ fn producer_kv(
         ModelOperator::RotaryEmbedding,
         &[&k_norm, "input.positions"],
         kv_projection_shape.to_vec(),
-        rope_attributes(sliding, head_dim),
+        rope_attributes(config, variant, sliding, head_dim),
     );
     let k_permute = format!("{prefix}.k_permute");
     let v_permute = format!("{prefix}.v_permute");
     let kv_attention_shape = vec![batch, u64::from(num_kv_heads), query, head_dim];
     permute(operations, &k_permute, &rope_k, kv_attention_shape.clone());
     permute(operations, &v_permute, &v_norm, kv_attention_shape);
-    let bound = attention_bound(sliding, state_capacity);
+    let bound = attention_bound(sliding, state_capacity, sliding_window);
     let persistent = if sliding {
-        SLIDING_WINDOW - 1
+        sliding_window - 1
     } else {
         state_capacity
     };
@@ -1058,7 +1073,7 @@ fn producer_kv(
             batch,
             u64::from(num_kv_heads),
             query,
-            SLIDING_WINDOW,
+            sliding_window,
             head_dim,
         ]
     } else {
@@ -1157,12 +1172,12 @@ fn producer_kv(
             maximum_sequence: persistent,
         });
     }
-    (key_append, value_append, bound)
+    Ok((key_append, value_append, bound))
 }
 
-fn attention_bound(sliding: bool, state_capacity: u64) -> u64 {
+fn attention_bound(sliding: bool, state_capacity: u64, sliding_window: u64) -> u64 {
     if sliding {
-        SLIDING_WINDOW
+        sliding_window
     } else {
         state_capacity
     }
@@ -1253,42 +1268,38 @@ fn cache_suffix(
         .state_kind = Some(kind);
 }
 
-fn rope_attributes(sliding: bool, head_dim: u64) -> Value {
-    if sliding {
-        json!({
-            "rope_type": "default",
-            "theta": 10_000,
-            "head_dim": head_dim,
-            "partial_rotary_factor": {"numerator": 1, "denominator": 1},
-            "attention_scaling": {"numerator": 1, "denominator": 1},
-            "frequency_compute_dtype": "float32",
-            "input_layout": "batch_sequence_heads_feature",
-            "output_layout": "batch_sequence_heads_feature",
-            "pairing": "split_half",
-            "position_policy": "sequential_absolute",
-            "coefficient_profile": "pllm.numeric.rope.bfloat16_stepwise.v1",
-            "tail_policy": "zero_frequency_pass_through",
-            "numeric_semantics": "bfloat16_stepwise",
-            "output_dtype": "bfloat16"
-        })
+fn rope_attributes(
+    config: &SharedKvTextConfig,
+    variant: &SharedKvVariant<'_>,
+    sliding: bool,
+    head_dim: u64,
+) -> Value {
+    let descriptor = if sliding {
+        &config.rope_parameters.sliding_attention
     } else {
-        json!({
-            "rope_type": "proportional",
-            "theta": 1_000_000,
-            "head_dim": head_dim,
-            "partial_rotary_factor": {"numerator": 1, "denominator": 4},
-            "attention_scaling": {"numerator": 1, "denominator": 1},
-            "frequency_compute_dtype": "float32",
-            "input_layout": "batch_sequence_heads_feature",
-            "output_layout": "batch_sequence_heads_feature",
-            "pairing": "split_half",
-            "position_policy": "sequential_absolute",
-            "coefficient_profile": "pllm.numeric.rope.bfloat16_stepwise.v1",
-            "tail_policy": "zero_frequency_pass_through",
-            "numeric_semantics": "bfloat16_stepwise",
-            "output_dtype": "bfloat16"
-        })
-    }
+        &config.rope_parameters.full_attention
+    };
+    let fraction = if sliding {
+        (1, 1)
+    } else {
+        variant.full_rotary_fraction
+    };
+    json!({
+        "rope_type": descriptor.rope_type,
+        "theta": descriptor.rope_theta,
+        "head_dim": head_dim,
+        "partial_rotary_factor": {"numerator": fraction.0, "denominator": fraction.1},
+        "attention_scaling": {"numerator": 1, "denominator": 1},
+        "frequency_compute_dtype": "float32",
+        "input_layout": "batch_sequence_heads_feature",
+        "output_layout": "batch_sequence_heads_feature",
+        "pairing": "split_half",
+        "position_policy": "sequential_absolute",
+        "coefficient_profile": "pllm.numeric.rope.bfloat16_stepwise.v1",
+        "tail_policy": "zero_frequency_pass_through",
+        "numeric_semantics": "bfloat16_stepwise",
+        "output_dtype": "bfloat16"
+    })
 }
 
 fn rms_norm(
@@ -1417,7 +1428,7 @@ fn layer_type(layer: u32, full_attention_period: u32) -> &'static str {
 }
 
 fn validate_rope(
-    config: &Gemma4RopeConfig,
+    config: &RotaryDescriptorConfig,
     rope_type: &str,
     theta: u64,
     partial: Option<f64>,
@@ -1426,7 +1437,7 @@ fn validate_rope(
     if config.rope_type != rope_type || config.rope_theta != theta {
         return Err(unsupported(
             &format!("rope_parameters.{name}"),
-            "the official E4B RoPE",
+            "the checked shared-KV rotary contract",
         ));
     }
     match (&config.partial_rotary_factor, partial) {
@@ -1436,7 +1447,7 @@ fn validate_rope(
         }
         _ => Err(unsupported(
             &format!("{name}.partial_rotary_factor"),
-            "the official E4B value",
+            "the checked shared-KV numeric value",
         )),
     }
 }
@@ -1482,7 +1493,7 @@ where
     }
 }
 
-fn default_layer_types(variant: &Gemma4TextVariant) -> Vec<String> {
+fn default_layer_types(variant: &SharedKvVariant) -> Vec<String> {
     (0..variant.num_layers)
         .map(|layer| layer_type(layer, variant.full_attention_period))
         .map(str::to_owned)
@@ -1490,7 +1501,7 @@ fn default_layer_types(variant: &Gemma4TextVariant) -> Vec<String> {
 }
 
 fn shared_kv_source(
-    config: &Gemma4TextConfig,
+    config: &SharedKvTextConfig,
     first_shared_layer: u32,
     layer_type: &str,
 ) -> Option<u32> {
@@ -1504,6 +1515,9 @@ fn shared_kv_source(
 mod tests {
     use super::*;
     use sha2::{Digest as _, Sha256};
+
+    const E2B: SharedKvVariant<'static> = super::super::source_mappings::SHARED_KV_E2B;
+    const E4B: SharedKvVariant<'static> = super::super::source_mappings::SHARED_KV_E4B;
 
     const OFFICIAL_OUTER: &str =
         include_str!("../tests/fixtures/gemma-4-E4B-it-ee0ef602-config.json");
@@ -1520,6 +1534,52 @@ mod tests {
 
     fn plan() -> DecoderPlan {
         super::super::lower_model_json(OFFICIAL_OUTER.as_bytes(), workload()).unwrap()
+    }
+
+    #[test]
+    fn shared_kv_graph_uses_source_artifact_roles() {
+        let document: Value = serde_json::from_str(OFFICIAL_E2B_OUTER).unwrap();
+        let baseline =
+            super::super::lower_model_json(OFFICIAL_E2B_OUTER.as_bytes(), workload()).unwrap();
+        let mut layer_rows = E2B.artifacts.layer_artifacts.to_vec();
+        for (role, path) in &mut layer_rows {
+            if *role == "attention_query" {
+                *path = "multihead.wq.weight";
+            }
+        }
+        let mut global_rows = E2B.artifacts.global_artifacts.to_vec();
+        for (role, path) in &mut global_rows {
+            if *role == "ple_token_embedding" {
+                *path = "alternate.per_layer_tokens.weight";
+            }
+        }
+        let artifacts = super::super::source_mappings::ArtifactLayout {
+            token_embedding: "alternate.tokens.weight",
+            output_head: "alternate.tokens.weight",
+            final_norm: "alternate.norm.weight",
+            layer_prefix: "alternate.blocks",
+            layer_artifacts: &layer_rows,
+            global_artifacts: &global_rows,
+        };
+        let alternate = SharedKvVariant {
+            artifacts: &artifacts,
+            ..E2B
+        };
+        let plan = lower_source_json(document, workload(), &[alternate]).unwrap();
+        assert_eq!(plan.config_digest, baseline.config_digest);
+        assert_ne!(plan.digest(), baseline.digest());
+        assert_eq!(
+            operation(&plan.prefill, "main_embedding").attributes["weight"],
+            "alternate.tokens.weight",
+        );
+        assert_eq!(
+            operation(&plan.prefill, "ple_token_embedding").attributes["weight"],
+            "alternate.per_layer_tokens.weight",
+        );
+        assert_eq!(
+            operation(&plan.prefill, "layer.0.q_linear").attributes["weight"],
+            "alternate.blocks.0.multihead.wq.weight",
+        );
     }
 
     fn e2b_plan() -> DecoderPlan {
@@ -1617,7 +1677,7 @@ mod tests {
         );
         assert_eq!(
             operation(&plan.prefill, "main_embedding").attributes["adapter_reference_revision"],
-            GEMMA4_E2B_SOURCE_REVISION
+            E2B.source_revision
         );
     }
 
@@ -1641,7 +1701,7 @@ mod tests {
         );
         assert_eq!(
             operation(&plan.prefill, "main_embedding").attributes["adapter_reference_revision"],
-            GEMMA4_E4B_SOURCE_REVISION
+            E4B.source_revision
         );
     }
 
@@ -2064,7 +2124,7 @@ mod tests {
             OFFICIAL_OUTER.as_bytes(),
             DecoderWorkload {
                 batch: 1,
-                max_input_tokens: MAX_POSITIONS,
+                max_input_tokens: E4B.max_positions,
                 max_new_tokens: 1,
             },
         )
@@ -2074,7 +2134,7 @@ mod tests {
                 OFFICIAL_OUTER.as_bytes(),
                 DecoderWorkload {
                     batch: 1,
-                    max_input_tokens: MAX_POSITIONS,
+                    max_input_tokens: E4B.max_positions,
                     max_new_tokens: 2,
                 }
             ),

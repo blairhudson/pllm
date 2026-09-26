@@ -60,6 +60,14 @@ LOCAL_OPERATORS = frozenset(
         "softcap",
         "permute",
         "slice",
+        "state_initialize",
+        "causal_convolution",
+        "convolution_state_update",
+        "gated_delta_decay",
+        "sigmoid",
+        "gated_delta_rule",
+        "gated_delta_state_update",
+        "rms_norm_gated",
     }
 )
 BOUNDARY_STAGE_IDS = frozenset({"token_lookup", "lm_head"})
@@ -700,10 +708,19 @@ def _validate_runtime_semantics(
                 )
                 if attributes.get("frequency_scaling") != expected_scaling:
                     raise RuntimeBindingError("rotary frequency scaling diverges from the source")
-            if nested_source and operation.get("attributes", {}).get("head_dim") != _last_dim(
-                source.get("output_shape"), f"{phase} rotary input"
-            ):
-                raise RuntimeBindingError("runtime rotary width diverges from the semantic plan")
+            if nested_source:
+                attributes = operation.get("attributes", {})
+                width = _last_dim(source.get("output_shape"), f"{phase} rotary input")
+                head_dim = attributes.get("head_dim")
+                partial_dim = attributes.get("rotary_dimensions")
+                if (
+                    (head_dim is not None and head_dim != width)
+                    or (head_dim is None and partial_dim is None)
+                    or (partial_dim is not None and (
+                        type(partial_dim) is not int or not 0 < partial_dim <= width
+                    ))
+                ):
+                    raise RuntimeBindingError("runtime rotary width diverges from the semantic plan")
     if nested_source:
         # Native re-lowering and numeric-flow checks validate every operator;
         # flattened transport controls are constrained to the locked source.
@@ -884,10 +901,32 @@ def compile_runtime_model(
     phases = {phase: _phase_operations(document, phase) for phase in ("prefill", "decode")}
     _validate_runtime_semantics(runtime_config, phases, nested_source=nested_source)
     prefill_ops, decode_ops = phases["prefill"][1], phases["decode"][1]
-    if set(prefill_ops) != set(decode_ops):
-        raise RuntimeBindingError("prefill and decode operations differ")
+    prefill_only = set(prefill_ops) - set(decode_ops)
+    prefill_initializers = {
+        op_id for op_id, op in prefill_ops.items()
+        if op.get("operator") in {"state_initialize", "kv_cache_initialize"}
+        or (op.get("operator") == "last_token" and op_id not in decode_ops)
+    }
+    if (
+        set(decode_ops) - set(prefill_ops)
+        or prefill_only != prefill_initializers
+        or any(
+            prefill_ops[op_id].get("operator") == "state_initialize"
+            and prefill_ops[op_id].get("attributes") not in (
+                {"initial_value": 0, "dtype": "float32", "state_kind": "convolution"},
+                {"initial_value": 0, "dtype": "float32", "state_kind": "recurrent"},
+            )
+            for op_id in prefill_only
+        )
+    ):
+        raise RuntimeBindingError(
+            "prefill and decode operations differ: "
+            f"decode-only={sorted(set(decode_ops) - set(prefill_ops))}, "
+            f"unexpected-prefill={sorted(prefill_only - prefill_initializers)}, "
+            f"missing-initializers={sorted(prefill_initializers - prefill_only)}"
+        )
     if any(
-        prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in prefill_ops
+        prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in decode_ops
     ):
         raise RuntimeBindingError("prefill and decode operators differ")
 
@@ -1473,8 +1512,27 @@ def compile_runtime_model(
             raise RuntimeBindingError(
                 f"bundle stage {stage_id!r} bias does not match the model plan"
             )
-    if mapped_shapes["prefill"] != mapped_shapes["decode"]:
+    if set(mapped_shapes["prefill"]) != set(mapped_shapes["decode"]):
         raise RuntimeBindingError("prefill and decode stage mappings differ")
+    for op_id, bound in mapped_shapes["prefill"].items():
+        decoded = mapped_shapes["decode"][op_id]
+        if bound == decoded:
+            continue
+        prefill_source = bound[3][0] if len(bound[3]) == 1 else None
+        decode_source = decoded[3][0] if len(decoded[3]) == 1 else None
+        selector = prefill_ops.get(prefill_source, {})
+        if not (
+            prefill_ops[op_id]["operator"] == "output_head"
+            and bound[0] == decoded[0] == "lm_head"
+            and bound[:3] == decoded[:3]
+            and selector.get("operator") == "last_token"
+            and selector.get("inputs") == [decode_source, "input.sequence_lengths"]
+            and selector.get("attributes") == {
+                "axis": 1, "selection": "last_valid",
+                "valid_lengths_input": "input.sequence_lengths",
+            }
+        ):
+            raise RuntimeBindingError("prefill and decode stage mappings differ")
     for stage_id, qualified in stage_semantics.items():
         prefill_ids = {item.split(":", 1)[1] for item in qualified if item.startswith("prefill:")}
         decode_ids = {item.split(":", 1)[1] for item in qualified if item.startswith("decode:")}

@@ -9,9 +9,11 @@ Finite-window convolution state and update.
 
 Semantic operator/representation: `causal_convolution`.
 
+**Current implementation scope:** A bounded float32 client-side reference matches PyTorch across zero-initialized prefill and retained-state decode. The compiler admits paired convolution operators, an exact local checkpoint weight shape, and a matching prefill-to-decode state handoff. Generated tiny checkpoint execution passes local prefill/decode parity; no provider-protected or real-checkpoint claim follows.
+
 ## Checked source adapters
 
-- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): declared; complete baseline schedule blocked. Pinned configuration and semantic-plan tests only **Next:** Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution.
+- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): part of its bounded complete baseline schedule. Pinned Qwen3.5-4B text configuration lowers to a complete native baseline schedule. A generated tiny checkpoint binds fused projection, convolution and decay artifacts and runs the client-only compiled prefill/decode decoder; selected tokens match the upstream float32 Torch reference and W8A8 logit drift stays below 0.05. A second generated-tiny test completes prepared SDK and gateway requests with two local children, masked stage traffic and zero plaintext prompt/token-ID bytes sent. The text-only partial MRoPE numeric profile independently matches Torch at checked positions **Next:** Official Qwen3.5 checkpoint import and independent reference quality, real-checkpoint provider serving, protected execution, independent providers and independent multimodal position axes remain unchecked.
 
 ## Candidate families
 
@@ -26,6 +28,19 @@ The following **importable, non-executable** classes reserve missing reusable co
 ## Python SDK example
 
 ```python
+import numpy as np
+from pllm.state import BoundedDepthwiseCausalConvolution
+
+kernel = BoundedDepthwiseCausalConvolution(np.ones((2, 4), dtype=np.float32))
+initial = kernel.initial_state()
+prefill, retained = kernel.evaluate(
+    np.ones((1, 2, 2), dtype=np.float32), initial, mode="prefill"
+)
+decode, _ = kernel.evaluate(
+    np.ones((1, 1, 2), dtype=np.float32), retained, mode="decode"
+)
+assert prefill.shape == (1, 2, 2) and decode.shape == (1, 1, 2)
+
 from pllm.state import CausalConvolutionState
 from pllm.components import ModelCapabilityUnavailable
 
@@ -36,6 +51,8 @@ except ModelCapabilityUnavailable as exc:
 else:
     raise AssertionError("missing capability must remain unavailable")
 ```
+
+API: [`pllm.state.BoundedDepthwiseCausalConvolution`](/sdk/reference/python/pllm/state/#objects-and-signatures).
 
 API: [`pllm.state.CausalConvolutionState`](/sdk/reference/python/pllm/state/#objects-and-signatures).
 

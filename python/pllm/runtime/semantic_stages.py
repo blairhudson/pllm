@@ -83,10 +83,14 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
         == 1
     ):
         return "mlp_gate_up"
-    if len(operation_ids) == 1 and operators == ["linear"]:
+    if operators == ["linear"] * len(operation_ids):
         input_ids = step.get("input_ids")
         if not isinstance(input_ids, list) or len(input_ids) != 1:
-            raise ValueError("remote linear stage must have one semantic input")
+            raise ValueError("grouped remote linear stage must have one semantic input")
+        if len(operation_ids) > 1:
+            if any(tuple(operations[operation_id].get("inputs") or ()) != tuple(input_ids) for operation_id in operation_ids):
+                raise ValueError("grouped linear projections must share one semantic input")
+            return "semantic_linear"
         source = input_ids[0]
         if _graph_reaches(source, "attention_values", operations, reverse=True):
             return "attention_output"

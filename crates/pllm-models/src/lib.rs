@@ -10,10 +10,11 @@ use std::error::Error;
 use std::fmt;
 
 mod dense_gated_source;
-mod gemma4;
-mod phi4;
-mod qwen35;
+mod fused_dense_decoder;
+mod hybrid_text_decoder;
 mod rotary_scale;
+mod shared_kv_decoder;
+mod source_mappings;
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 
@@ -269,6 +270,7 @@ pub enum ModelOperator {
     GeluTanh,
     Softcap,
     CacheSuffix,
+    StateInitialize,
     Permute,
     Sigmoid,
     GatedDeltaDecay,
@@ -396,23 +398,7 @@ pub fn lower_model_json(
     bytes: &[u8],
     workload: DecoderWorkload,
 ) -> Result<DecoderPlan, ModelError> {
-    let document: Value = serde_json::from_slice(bytes)
-        .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
-    let model_type = document
-        .get("model_type")
-        .and_then(Value::as_str)
-        .ok_or_else(|| ModelError::InvalidConfig("model_type must be a string".into()))?;
-    match model_type {
-        "qwen2" => lower_qwen_decoder(&QwenConfig::from_json(bytes)?, workload),
-        "qwen3" => lower_qwen3_decoder(&Qwen3Config::from_json(bytes)?, workload),
-        "llama" => dense_gated_source::lower_json(bytes, workload),
-        "gemma4" => gemma4::lower_gemma4_json(document, workload),
-        "phi3" => phi4::lower_phi4_json(&document, workload),
-        "qwen3_5" => qwen35::lower_qwen35_json(&document, workload),
-        other => Err(ModelError::Unsupported(format!(
-            "model_type {other} has no decoder adapter"
-        ))),
-    }
+    source_mappings::lower_json(bytes, workload)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1309,6 +1295,7 @@ fn validate_operation(
         | ModelOperator::SecureTopK
         | ModelOperator::ClusterBounds
         | ModelOperator::SharedIndices => Some(1),
+        ModelOperator::StateInitialize => Some(0),
         ModelOperator::RotaryEmbedding
         | ModelOperator::AttentionScores
         | ModelOperator::AttentionValues
@@ -1363,6 +1350,7 @@ fn validate_operation(
             &["qk_l2_normalize", "query_scale"][..]
         }
         ModelOperator::RmsNormGated => &["epsilon", "weight", "activation"][..],
+        ModelOperator::StateInitialize => &["initial_value", "dtype"][..],
         ModelOperator::CacheActiveIndices => &[
             "static_keep",
             "prefill_maximum_sequence",
@@ -1661,6 +1649,43 @@ fn validate_rotary_embedding(
                 _ => false,
             }
         });
+    let text_mrope_descriptor = attributes.len() == 7
+        && attributes.get("rope_type").and_then(Value::as_str) == Some("default")
+        && attributes.get("position_policy").and_then(Value::as_str)
+            == Some("text_replicated_axes")
+        && attributes.get("mrope_interleaved") == Some(&Value::Bool(true))
+        && attributes
+            .get("theta")
+            .and_then(Value::as_f64)
+            .is_some_and(|value| value.is_finite() && (1.0..=1e12).contains(&value))
+        && operation
+            .inputs
+            .get(1)
+            .is_some_and(|id| id == "input.positions")
+        && attributes
+            .get("rotary_dimensions")
+            .and_then(Value::as_u64)
+            .is_some_and(|width| {
+                let expected = match attributes
+                    .get("partial_rotary_factor")
+                    .and_then(Value::as_str)
+                {
+                    Some("0.25") if input_shape[3] % 4 == 0 => input_shape[3] / 4,
+                    Some("1") => input_shape[3],
+                    _ => return false,
+                };
+                width == expected
+                    && attributes
+                        .get("mrope_section")
+                        .and_then(Value::as_array)
+                        .is_some_and(|sections| {
+                            sections.len() == 3
+                                && sections
+                                    .iter()
+                                    .try_fold(0_u64, |sum, part| sum.checked_add(part.as_u64()?))
+                                    == Some(width / 2)
+                        })
+            });
     if (descriptor_keys
         .iter()
         .any(|key| attributes.contains_key(*key))
@@ -1669,7 +1694,8 @@ fn validate_rotary_embedding(
         && !(q30_descriptor
             || wavelength_descriptor
             || per_frequency_descriptor
-            || bounded_bfloat16_descriptor)
+            || bounded_bfloat16_descriptor
+            || text_mrope_descriptor)
     {
         return Err(ModelError::Incomplete(format!(
             "operation {} has invalid rotary descriptors",
