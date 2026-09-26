@@ -148,8 +148,28 @@ float32 reference (matching selections; worst logit error below 0.05), plus
 client-only/prepared SDK and gateway requests. Phi's original-context factor
 vector stays fixed for the response; crossing into extended LongRoPE context
 fails closed before execution because retained KV would need re-rotation.
-Real Phi checkpoint import, generation quality and protected execution remain
-unvalidated. The pinned
+The pinned official Phi BF16 checkpoint additionally imports 194 verified
+artifacts into 130 compiled stages and completes a short original-context
+local-clear prefill/decode. A two-prompt locked float32 reference-quality
+comparison scores 0/2 W4A4 and 1/2 W8A8 top-token agreement (worst absolute
+logit errors 40.67 and 29.90). A separate same-token diagnostic with float32
+body projections and the W8 token/head boundary recovers both checked top
+tokens, identifying compounded activation and weight quantization as the
+immediate fidelity gate. This is functionality and a narrow quality measurement,
+not validated generation quality or protected execution. A separately selectable
+public offline per-channel equalized W8A8 component fits an immutable,
+source-locked profile from public token IDs, binds scales into body/stage
+digests, applies them at the trusted client and uses the same prepared role
+protocol. The pinned Phi cohort scores 2/2 top-1 with 9.59 worst logit error
+versus plain W8A8's 1/2 and 29.90; five other public prompts score 3/5 for
+both W8A8 choices. This narrow improvement does not establish broad quality.
+Matched real-checkpoint prepared requests completed through two separate
+co-located child roles. Both sent zero plaintext prompt/token-ID bytes and
+performed 128 masked remote stages. Equalization reduced covered online
+application bodies by 827,392 upload and 802,816 download bytes, while its
+2.23 MB public profile increased cold bundle distribution. Full wire costs,
+full-response aggregate compute, operator independence and a real-checkpoint
+gateway request remain unvalidated. The pinned
 Qwen2.5-0.5B-Instruct checkpoint additionally passes a clear native-kernel
 prefill-to-decode functionality test; a separate tiny test exercises the masked
 stage protocol. Admitted compiled public decoders derive provider stage tables from ordered
@@ -224,7 +244,7 @@ ordinary component composition with executable regions for dense gated-decoder o
 Q14-to-Q10 edges, clear attention and layer composites, and bounded one-use Q7
 SiLU/multiply material, but those protected and fixed-scale components are not yet
 composed into a real-model whole decoder. Transformed MPCache execution, Qwen3.5,
-Phi and compiler-bound E4B checkpoint execution remain incomplete; the pinned
+and compiler-bound E4B checkpoint execution remain incomplete; the pinned
 Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
 functionality check, but W4A4 and one tested short-prompt W8A8 case
 diverge from the FP32 reference. Multi-process provider deployment, broad quality and matched-cost
@@ -499,7 +519,10 @@ cohort against a pinned local float32 checkpoint for up to eight immutable
 Experiments, using their selected W4/W8 and A4/A8 settings. It records exact
 checkpoint, dataset, token-cohort, configuration and environment digests plus
 aggregate top-1, top-k and worst-logit-error scores, without archiving prompt
-text, token IDs or logits. This is a compiled local clear-kernel numeric
+text, token IDs or logits. Source safetensors are capped at 12 GiB and the
+bounded in-memory logit working set at 512 MiB; candidate kernels are released
+before loading the float32 reference. These bounds do not measure peak memory.
+This is a compiled local clear-kernel numeric
 diagnostic; reference loading, provider traffic, privacy and whole-generation
 quality are outside its measured scope.
 

@@ -8,6 +8,7 @@ import ast
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from functools import cache
+from html import escape as html_escape
 import importlib
 import inspect
 import json
@@ -22,11 +23,13 @@ PYTHON_ROOT = ROOT / "python"
 if str(PYTHON_ROOT) not in sys.path:
     sys.path.insert(0, str(PYTHON_ROOT))
 from pllm.components._planned import PendingComponent, planned_components
+from pllm.components._model_capabilities import PendingModelCapability, model_capabilities
 from pllm.configuration import ComponentRef
 
 CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
 SDK_GUIDES_ROOT = ROOT / "docs/content/docs/sdk"
 MODEL_COMPATIBILITY = ROOT / "docs/data/model-compatibility.json"
+MODEL_CAPABILITY_DOC_ROOT = SDK_GUIDES_ROOT / "models/capabilities"
 CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "topology", "benchmark", "dev")
 
 
@@ -1502,6 +1505,8 @@ def _guide_title(route: str) -> str:
 def _object_user_guides(
     module: str, name: str, value: object, exports: list[str]
 ) -> tuple[tuple[str, str], ...]:
+    if inspect.isclass(value) and issubclass(value, PendingModelCapability) and value is not PendingModelCapability:
+        return (("Reusable model capability", value.sdk_route), ("Model support matrix", "/sdk/reference/status/"))
     if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
         direct = _guide_backlinks().get((module, name), ())
         return (*direct[:2], ("Research method roadmap", "/sdk/components/research-method-roadmap/"))
@@ -1530,6 +1535,11 @@ def _object_summary(item: dict[str, Any], public_module: str) -> str:
     value = item["value"]
     canonical = str(item["canonical"])
     name = canonical.rsplit(".", 1)[-1]
+    if inspect.isclass(value) and issubclass(value, PendingModelCapability) and value is not PendingModelCapability:
+        return (
+            f"`{name}` reserves a reusable model capability but is not executable. "
+            f"See [the capability contract]({value.sdk_route})."
+        )
     if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
         return (
             f"`{name}` reserves a paper-linked Python API but cannot be constructed or used "
@@ -1738,7 +1748,14 @@ def render_python_module_reference(module: str) -> str:
             + "\n"
         )
         paper_method = _PAPER_METHODS.get((module, display_name))
-        if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+        if inspect.isclass(value) and issubclass(value, PendingModelCapability) and value is not PendingModelCapability:
+            body.extend((
+                "- Status: **Missing model capability** (`ModelCapabilityUnavailable` on construction).\n",
+                f"- Reusable contract: [capability page]({value.sdk_route}).\n",
+                f"- Next gate: {value.next_gate}.\n",
+                "- Search: excluded until compiler, checkpoint and runtime gates pass.\n",
+            ))
+        elif inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
             body.extend((
                 f"- Status: **Not yet implemented** (`NotYetImplementedError` on construction).\n",
                 f"- Research source: [paper and provenance]({value.paper_route}).\n",
@@ -1805,13 +1822,13 @@ def model_compatibility() -> dict[str, Any]:
             raise ValueError("invalid model-neutral capability contract")
     if len({item.get("adapter") for item in adapters}) != len(adapters):
         raise ValueError("model compatibility adapters must be unique")
-    required = {"name", "adapter", "model_family", "baseline_schedule", "runtime_evidence", "remaining", "guide", "requires", "baseline_blockers"}
+    required = {"name", "adapter", "model_family", "baseline_schedule", "runtime_evidence", "remaining", "guide", "requires", "baseline_blockers", "evidence"}
     for item in adapters:
         if (
             not isinstance(item, dict)
             or set(item) - {"pinned_real_checkpoint_functionality", "scaled_fixture"}
                 not in (required | {"fixture"}, required | {"config"})
-            or any(type(item[field]) is not str or not item[field] for field in required - {"baseline_schedule", "requires", "baseline_blockers"})
+            or any(type(item[field]) is not str or not item[field] for field in required - {"baseline_schedule", "requires", "baseline_blockers", "evidence"})
             or type(item["baseline_schedule"]) is not bool
             or not item["guide"].startswith("/sdk/models/families/")
             or not isinstance(item["requires"], list)
@@ -1823,6 +1840,14 @@ def model_compatibility() -> dict[str, Any]:
             or any(type(value) is not str for value in item["baseline_blockers"])
             or not set(item["baseline_blockers"]) <= set(item["requires"])
             or item["baseline_schedule"] == bool(item["baseline_blockers"])
+            or type(item["evidence"]) is not dict
+            or set(item["evidence"]) != {"checkpoint", "provider", "quality"}
+            or item["evidence"]["checkpoint"] not in {"real-local", "tiny-local", "none"}
+            or item["evidence"]["provider"] not in {"real-prepared-local", "real-inprocess", "tiny-prepared", "none"}
+            or item["evidence"]["quality"] not in {"unmeasured", "narrow-gap", "tiny-parity", "narrow-improvement", "narrow-parity", "none"}
+            or (item["evidence"]["checkpoint"] == "real-local") != bool(item.get("pinned_real_checkpoint_functionality"))
+            or (item["evidence"]["provider"].startswith("real-") and item["evidence"]["checkpoint"] != "real-local")
+            or (not item["baseline_schedule"] and item["evidence"] != {"checkpoint": "none", "provider": "none", "quality": "none"})
         ):
             raise ValueError("invalid model compatibility adapter")
         if "fixture" in item and (
@@ -1855,19 +1880,21 @@ def model_compatibility() -> dict[str, Any]:
     for item in candidates:
         if (
             not isinstance(item, dict)
-            or set(item) != {"name", "model_type", "source", "priority", "gap", "requires"}
+            or set(item) - {"missing_variants"} != {"name", "model_type", "source", "priority", "gap", "requires"}
             or any(type(item[field]) is not str or not item[field] for field in ("name", "model_type", "source", "priority", "gap"))
             or not isinstance(item["requires"], list)
             or any(type(value) is not str for value in item["requires"])
             or not item["requires"] or not set(item["requires"]) <= capabilities.keys()
             or not item["source"].startswith("https://")
+            or not isinstance(item.get("missing_variants", []), list)
+            or not set(item.get("missing_variants", [])) <= set(item["requires"])
         ):
             raise ValueError("invalid model evaluation candidate")
     return document
 
 
 def render_python_status() -> str:
-    """Summarize the entire public Python namespace from its actual exports."""
+    """Two linked summaries: bounded family coverage and Python API completeness."""
     compatibility = model_compatibility()
     adapters = compatibility["adapters"]
     exports = public_exports()
@@ -1885,7 +1912,14 @@ def render_python_status() -> str:
             raise ValueError(f"Component plan status does not match {plan.module}.{plan.name}")
         if plan.status == "implemented" and plan.kind == "candidate" and not issubclass(cls, ComponentRef):
             raise ValueError(f"Implemented candidate must have a component contract: {plan.name}")
-    if pending_count != sum(plan.status == "pending" for plan in planned_components()):
+    for stub in model_capabilities():
+        cls = getattr(importlib.import_module(stub.module), stub.name)
+        pending = inspect.isclass(cls) and issubclass(cls, PendingModelCapability)
+        if pending != (stub.status == "pending"):
+            raise ValueError(f"Model capability plan status does not match {stub.module}.{stub.name}")
+    pending_paper = sum(plan.status == "pending" for plan in planned_components())
+    pending_model = sum(stub.status == "pending" for stub in model_capabilities())
+    if pending_count != pending_paper + pending_model:
         raise ValueError("Pending component count must match the public Python exports")
 
     def percent(completed: int, total: int) -> str:
@@ -1897,103 +1931,130 @@ def render_python_status() -> str:
     ]
     body = [
         _frontmatter(
-            "SDK implementation and model compatibility",
-            "Checked model architecture requirements, runtime evidence, and Python API status.",
+            "Model and SDK status",
+            "Two linked matrices: model capability coverage and public Python implementation completeness.",
         ),
-        f"The SDK exposes **{len(PUBLIC_MODULES)} public Python modules** and **{declared} module exports**. "
-        f"**{declared - pending_count}** exports are implemented Python symbols or public contracts; "
-        f"**{pending_count}** are paper-linked classes that raise `NotYetImplementedError`. "
-        f"That makes **{percent(declared - pending_count, declared)}** of the declared Python "
-        "API implemented at the API surface. An implemented export can still be an abstract "
-        "contract, a bounded primitive, "
-        "or a narrow experimental implementation: this is **not** a whole-decoder, security, "
-        "or benchmark-coverage percentage.\n\n",
-        "The [research method roadmap](/sdk/components/research-method-roadmap/) describes each "
-        "pending symbol's next gate. The [component catalog](/sdk/reference/components/) "
-        "separately lists executable component descriptors.\n\n",
-        "## Python SDK example\n\n",
-        "```python\n",
-        "from pllm.components import planned_component, planned_components\n\n",
-        "assert len(planned_components()) == 84\n",
-        'assert planned_component("ring-pcg").module == "pllm.correlation"\n',
-        "```\n\n",
-        "API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signatures)\n\n",
-        "## Decoder architecture compatibility\n\n",
+        "Use the first table for **scoped decoder evidence** and the second for **public Python API "
+        "completeness**. A complete baseline schedule is not protected whole-model support; "
+        "an importable API symbol is not necessarily executable. Each row and capability heading "
+        "links to its detailed contract or reference.\n\n",
+        "## Model families × reusable capabilities\n\n",
         f"**{len(adapters)} checked semantic adapters**, "
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
         f"and **{len(real_checkpoint_paths)} pinned local real-checkpoint functionality paths** "
         f"({', '.join(real_checkpoint_paths)}). "
-        "Generated tiny Qwen2/Qwen3, bounded dense and short-context Phi requests share the compiler-bound execution "
-        "schedule with local numeric tests. "
-        "No protected whole-decoder model execution is established. Lowering a config does not "
-        "load weights; producing a schedule does not prove checkpoint execution; a tiny synthetic "
-        "test does not establish real-model quality. Rows describe text decoder scope only.\n\n",
-        "| Architecture scope | Semantic plan | Baseline schedule | Checkpoint/runtime evidence | Remaining uplift |\n",
-        "| --- | --- | --- | --- | --- |\n",
+        "**No row has full model support:** protected whole-decoder execution, representative "
+        "generation quality, and independently operated provider privacy remain unvalidated. "
+        "This matrix is for bounded text-decoder scopes. A config plan, compiled schedule, "
+        "real local checkpoint, and prepared request are distinct evidence gates.\n\n",
+        "Read across a row to see which reusable pieces the family needs, what is checked, "
+        "and which deployment and quality gates have run. "
+        "**✓** = required and checked in this family's complete baseline schedule; "
+        "**◇** = shared executable piece exists, but this family has no complete checked schedule; "
+        "**×** = required variant has no admitted shared execution; "
+        "**·** = not required. Candidate rows never receive ✓ from another family's tests. "
+        "Select any symbol or heading for the [individual capability page](/sdk/models/capabilities/). "
+        "The first column stays visible while you scroll sideways.\n\n",
     ]
-    for item in adapters:
-        body.append(
-            f"| [{item['name']}]({item['guide']}) (`{item['adapter']}`) | "
-            f"Checked config | {'Complete' if item['baseline_schedule'] else 'Incomplete'} | "
-            f"{item['runtime_evidence']} | {item['remaining']} |\n"
-        )
+    abbreviated = {
+        "gqa": "GQA", "rotary": "RoPE", "qkv-bias": "QKV+", "rmsnorm": "RMS", "gated-silu": "SiLU",
+        "kv-cache": "KV", "head-width": "Heads", "qk-norm": "QK", "gated-delta": "Delta",
+        "causal-convolution": "Conv", "partial-mrope": "mRoPE", "fused-qkv": "Fused", "longrope": "Long",
+        "local-global": "L/G", "shared-kv": "Shared", "gelu-tanh": "GeLU", "bf16-operator-composition": "BF16",
+        "checkpoint-scalar-binding": "Scalar", "branch-norm": "Branch", "ple": "PLE", "softcap": "Cap",
+        "untied-head": "Untied", "sliding-window": "Slide", "rope-scaling": "RoPE+", "expert-routing": "MoE",
+        "latent-attention": "Latent", "mxfp4-import": "MXFP4", "fp8-import": "FP8",
+    }
+    if set(abbreviated) != set(compatibility["capabilities"]):
+        raise ValueError("capability matrix headings do not match the checked inventory")
+    capability_ids = tuple(compatibility["capabilities"])
+    checked = set().union(*(set(item["requires"]) for item in adapters if item["baseline_schedule"]))
+    evidence = {
+        "checkpoint": {"real-local": "Real local", "tiny-local": "Tiny only", "none": "None"},
+        "provider": {"real-prepared-local": "Real: 2 local children", "real-inprocess": "Real: in process", "tiny-prepared": "Tiny prepared", "none": "None"},
+        "quality": {"unmeasured": "Not scored", "narrow-gap": "1/2 W8", "tiny-parity": "Tiny parity", "narrow-improvement": "2/2 opt-in; 3/5 other", "narrow-parity": "2/2 narrow", "none": "None"},
+    }
+    columns = 6 + len(capability_ids)
     body.extend((
-        "\nBaseline schedule means untransformed, batch-one `baseline.masked_linear_cpu` "
-        "semantic schedule only. It does **not** authorize verified or experimental methods. "
-        "See [model families](/sdk/models/families/) for adapter limits.\n\n",
-        "### Reusable requirements per architecture\n\n",
-        "Each row names **generic** semantic/numeric/state or import contracts, not "
-        "a family-named compiler implementation. Baseline blockers identify principal "
-        "missing capabilities; other checkpoint, trust and quality gaps remain above. "
-        "Existing named source readers normalize upstream config into the shared decoder IR.\n\n",
-        "| Source configuration | Reusable requirements | Principal baseline blockers |\n",
-        "| --- | --- | --- |\n",
+        '<div className="not-prose mb-6 max-w-full overflow-x-auto rounded-xl border border-fd-border" '
+        'role="region" aria-label="Model family and reusable capability matrix" tabIndex={0}>\n',
+        '<table className="min-w-max border-collapse text-xs">\n<thead>\n<tr>\n',
+        '<th scope="col" className="sticky left-0 z-20 min-w-52 border-r border-fd-border bg-fd-background px-3 py-3 text-left">Model family</th>\n',
+        '<th scope="col" className="px-2 py-3">Config</th><th scope="col" className="px-2 py-3">Schedule</th>'
+        '<th scope="col" className="px-2 py-3">Checkpoint</th><th scope="col" className="px-2 py-3">Provider</th>'
+        '<th scope="col" className="px-2 py-3">Quality</th>\n',
     ))
-    for item in adapters:
+    for identity in capability_ids:
+        name = html_escape(compatibility["capabilities"][identity]["name"], quote=True)
         body.append(
-            f"| [{item['name']}]({item['guide']}) | "
-            f"{', '.join(f'`{identity}`' for identity in item['requires'])} | "
-            f"{', '.join(f'`{identity}`' for identity in item['baseline_blockers']) or 'None for the tested semantic schedule'} |\n"
+            f'<th scope="col" className="px-2 py-3"><a href="/sdk/models/capabilities/{identity}/" '
+            f'aria-label="{name}"><abbr title="{name}">{abbreviated[identity]}</abbr></a></th>\n'
         )
+    body.append('</tr>\n</thead>\n<tbody>\n')
+
+    def matrix_row(item: dict[str, Any], *, candidate: bool) -> str:
+        requires = set(item["requires"])
+        blockers = set(item.get("baseline_blockers", ())) | set(item.get("missing_variants", ()))
+        name = html_escape(item["name"])
+        link = html_escape(item["source"] if candidate else item["guide"], quote=True)
+        status = item.get("evidence", {"checkpoint": "none", "provider": "none", "quality": "none"})
+        cells = [
+            '<tr className="border-t border-fd-border hover:bg-fd-muted/40">',
+            f'<th scope="row" className="sticky left-0 z-10 max-w-52 border-r border-fd-border bg-fd-background px-3 py-2 text-left font-medium"><a href="{link}">{name}</a></th>',
+            f'<td className="px-2 py-2 text-center">{"Unverified" if candidate else "Checked"}</td>',
+            f'<td className="px-2 py-2 text-center">{"Unverified" if candidate else "Complete" if item["baseline_schedule"] else "Blocked"}</td>',
+            *(f'<td className="px-2 py-2 text-center">{evidence[key][status[key]]}</td>' for key in ("checkpoint", "provider", "quality")),
+        ]
+        for identity in capability_ids:
+            symbol = (
+                "·" if identity not in requires else
+                "×" if identity in blockers or identity not in checked else
+                "◇" if candidate or not item["baseline_schedule"] else "✓"
+            )
+            meaning = {"·": "not required", "×": "missing required executable variant", "◇": "shared piece available but this family unchecked", "✓": "checked in the scoped baseline schedule"}[symbol]
+            cells.append(
+                f'<td className="px-2 py-2 text-center" aria-label="{name}: '
+                f'{html_escape(compatibility["capabilities"][identity]["name"])}: {meaning}">'
+                f'<a href="/sdk/models/capabilities/{identity}/" aria-label="Read {html_escape(compatibility["capabilities"][identity]["name"])} contract for {name}">{symbol}</a></td>'
+            )
+        cells.append('</tr>\n')
+        return "".join(cells)
+
+    body.append(f'<tr><th colSpan={{{columns}}} className="bg-fd-muted px-3 py-2 text-left">Checked source adapters</th></tr>\n')
+    body.extend(matrix_row(item, candidate=False) for item in adapters)
+    body.append(f'<tr><th colSpan={{{columns}}} className="bg-fd-muted px-3 py-2 text-left">Candidates requiring exact adapter and runtime checks</th></tr>\n')
+    body.extend(matrix_row(item, candidate=True) for item in compatibility["candidates"])
     body.extend((
-        "\n### Shared capability contracts\n\n",
-        "| Piece | Current semantic IR | Reusable contract |\n",
-        "| --- | --- | --- |\n",
+        '</tbody>\n</table>\n</div>\n\n',
+        "A ✓ checks a scoped baseline, not protected execution. For candidates, ◇ is a shared "
+        "piece checked **elsewhere**; × is a missing variant even if a narrower implementation "
+        "exists. Follow the capability or [model-family](/sdk/models/families/) links for exact "
+        "operators, evidence, limitations and next gates.\n\n",
     ))
-    for identity, capability in compatibility["capabilities"].items():
-        operator = f"`{capability['operator']}`" if capability["operator"] else "New IR/numeric contract needed"
-        body.append(f"| `{identity}` — {capability['name']} | {operator} | {capability['contract']} |\n")
     body.extend((
-        "\nA listed semantic operator only describes a plan, not executable coverage. "
-        "Model-specific configuration readers may be needed to parse external schemas, "
-        "but shared compiler/runtime passes must use these typed contracts rather than "
-        "source family names.\n\n",
-        "### Architectures to evaluate next\n\n",
-        "Candidate list is implementation triage, not model support or a popularity ranking. "
-        "A bounded unscaled reader does not establish complete support for scaled Llama 3 "
-        "or any candidate's real-model inference and quality evidence.\n\n",
-        "| Candidate | Evaluation scope | Reusable requirements | First missing capabilities |\n",
-        "| --- | --- | --- | --- |\n",
-    ))
-    for item in compatibility["candidates"]:
-        body.append(
-            f"| [{item['name']}]({item['source']}) | {item['priority']} | "
-            f"{', '.join(f'`{identity}`' for identity in item['requires'])} | {item['gap']} |\n"
-        )
-    body.extend((
-        "\nPrefer reusable semantic operators and tested checkpoint binding over model-name "
-        "dispatch. Require generation/quality evidence before entering a matched benchmark cohort.\n\n",
-        "## Public modules\n\n",
-        "| Python module | Implemented API symbols | Pending classes | Declared exports | Implemented API % |\n",
-        "| --- | ---: | ---: | ---: | ---: |\n",
+        "## Python SDK completeness\n\n",
+        f"**{len(PUBLIC_MODULES)} modules**, **{declared - pending_count} implemented exports**, "
+        f"**{pending_paper} paper-linked stubs** and **{pending_model} reusable model-capability stubs** "
+        f"({percent(declared - pending_count, declared)} of public exports implemented at the API surface). "
+        "Implemented here means importable or configured, not whole-decoder, privacy or quality coverage. "
+        "Stubs raise typed errors and are excluded from executable component discovery. "
+        "See the [paper-method roadmap](/sdk/components/research-method-roadmap/), "
+        "[model capabilities](/sdk/models/capabilities/), and "
+        "[executable component catalog](/sdk/reference/components/).\n\n",
+        "| Python module | Implemented API symbols | Paper stubs | Model capability stubs | Declared exports | Implemented API % |\n",
+        "| --- | ---: | ---: | ---: | ---: | ---: |\n",
     ))
     for module in PUBLIC_MODULES:
         values = [item["value"] for item in exports if item["module"] == module]
-        pending = sum(
+        model_pending = sum(
             inspect.isclass(value)
-            and issubclass(value, PendingComponent)
-            and value is not PendingComponent
+            and issubclass(value, PendingModelCapability)
+            and value is not PendingModelCapability
             for value in values
+        )
+        pending = sum(
+            inspect.isclass(value) and issubclass(value, PendingComponent)
+            and value is not PendingComponent for value in values
         )
         ready = len(values) - pending
         route = (
@@ -2002,16 +2063,126 @@ def render_python_status() -> str:
             else f"/sdk/reference/python/pllm/{_module_slug(module)}/"
         )
         body.append(
-            f"| [`{module}`]({route}) | {ready} | {pending} | {len(values)} | "
-            f"{percent(ready, len(values))} |\n"
+            f"| [`{module}`]({route}) | {ready} | {pending - model_pending} | {model_pending} | {len(values)} | "
+            f"{100 * ready / len(values):.1f}% |\n"
         )
     body.append(
         "\nRows count each module's own `__all__` exports, so names re-exported across "
         "modules can appear in multiple rows. The total above counts those public "
-        "module exports, not unique Python object identities. Pending classes are "
-        "never registered as executable components or admitted to experiment search.\n"
+        "module exports, not unique Python object identities.\n\n"
+        "## Python SDK example\n\n"
+        "```python\nfrom pllm.components import model_capability, planned_component\n\n"
+        'assert model_capability("gated-delta").module == "pllm.state"\n'
+        'assert planned_component("ring-pcg").module == "pllm.correlation"\n'
+        "```\n\n"
+        "API: [`pllm.components`](/sdk/reference/python/pllm/components/#objects-and-signatures).\n"
     )
     return "".join(body)
+
+
+def render_model_capability_outputs() -> dict[Path, str]:
+    """Give every matrix column one independently linkable, evidence-scoped contract."""
+    inventory = model_compatibility()
+    adapters = inventory["adapters"]
+    candidates = inventory["candidates"]
+    pages: dict[Path, str] = {
+        MODEL_CAPABILITY_DOC_ROOT / "meta.json": json.dumps(
+            {"title": "Reusable capabilities", "pages": ["index"]}, indent=2,
+        ) + "\n",
+    }
+    index = [
+        _frontmatter("Reusable model capabilities", "Model-neutral contracts, checked decoder scopes, and missing executable variants."),
+        "The [family × capability matrix](/sdk/reference/status/) summarizes status. "
+        "Each capability below has its own scoped contract, source-family links, "
+        "and next gate. An isolated numeric primitive is not full model support. "
+        "**No public Python API is exposed for selecting capabilities from this index**; "
+        "use the linked model plan and typed pending capability APIs where available.\n\n",
+    ]
+    pending_by_capability: dict[str, list[Any]] = {}
+    for stub in model_capabilities():
+        pending_by_capability.setdefault(stub.capability, []).append(stub)
+    for identity, capability in inventory["capabilities"].items():
+        name = capability["name"]
+        route = f"/sdk/models/capabilities/{identity}/"
+        index.append(f"- [{name}]({route}) — {capability['contract']}.\n")
+        scoped = [item for item in adapters if identity in item["requires"]]
+        interested = [item for item in candidates if identity in item["requires"]]
+        stubs = pending_by_capability.get(identity, [])
+        page = [
+            _frontmatter(name, f"Reusable {name} contract and family-specific execution gates."),
+            f"[Model status matrix](/sdk/reference/status/) · "
+            f"[all reusable capabilities](/sdk/models/capabilities/)\n\n",
+            f"{capability['contract']}.\n\n",
+            f"Semantic operator/representation: `{capability['operator']}`.\n\n"
+            if capability["operator"] else "This variant needs a complete model-neutral IR/numeric contract.\n\n",
+            "## Checked source adapters\n\n",
+        ]
+        if scoped:
+            for item in scoped:
+                baseline = item["baseline_schedule"] and identity not in item["baseline_blockers"]
+                page.append(
+                    f"- [{item['name']}]({item['guide']}): "
+                    f"{'part of its bounded complete baseline schedule' if baseline else 'declared; complete baseline schedule blocked'}. "
+                    f"{item['runtime_evidence']} "
+                    f"**Next:** {item['remaining']}.\n"
+                )
+        else:
+            page.append("No checked source adapter currently requires this capability.\n")
+        page.append("\n## Candidate families\n\n")
+        if interested:
+            for item in interested:
+                unavailable = identity in item.get("missing_variants", ()) or all(
+                    identity not in adapter["requires"] or not adapter["baseline_schedule"]
+                    for adapter in adapters
+                )
+                page.append(
+                    f"- [{item['name']}]({item['source']}): "
+                    f"{'required executable variant missing' if unavailable else 'shared machinery exists, but this family is unchecked'}. "
+                    f"{item['gap']}.\n"
+                )
+        else:
+            page.append("No additional candidate family is currently mapped to this contract.\n")
+        page.append("\n## Selection and next gate\n\n")
+        if stubs:
+            page.append(
+                "The following **importable, non-executable** classes reserve missing reusable "
+                "contracts. They are excluded from component discovery, Experiment selection, "
+                "search and provider registration:\n\n"
+            )
+            for stub in stubs:
+                module_route = f"/sdk/reference/python/pllm/{_module_slug(stub.module)}/#{stub.name.lower()}"
+                page.append(
+                    f"- [`{stub.module}.{stub.name}`]({module_route}) (`{stub.identity}`): {stub.gate}.\n"
+                )
+            first = stubs[0]
+            page.extend((
+                "\n## Python SDK example\n\n",
+                "```python\n",
+                f"from {first.module} import {first.name}\n",
+                "from pllm.components import ModelCapabilityUnavailable\n\n",
+                "try:\n",
+                f"    {first.name}()\n",
+                "except ModelCapabilityUnavailable as exc:\n",
+                f'    assert exc.identity == "{first.identity}"\n',
+                "else:\n",
+                '    raise AssertionError("missing capability must remain unavailable")\n',
+                "```\n\n",
+                f"API: [`{first.module}.{first.name}`](/sdk/reference/python/pllm/{_module_slug(first.module)}/#objects-and-signatures).\n\n",
+                "A later implementation must bind an actual operator or numeric lifecycle "
+                "before its status changes.\n",
+            ))
+        else:
+            page.append(
+                "This contract is selected through source lowering and compiler admission, not "
+                "by a stand-alone component. **No public Python API is exposed for selecting this "
+                "operator independently.** Use the [model workflow](/sdk/models/) to inspect a "
+                "source's supported scope.\n"
+            )
+        pages[MODEL_CAPABILITY_DOC_ROOT / f"{identity}.mdx"] = "".join(page)
+    pages[MODEL_CAPABILITY_DOC_ROOT / "index.mdx"] = "".join(index)
+    if {stub.capability for stub in model_capabilities()} - set(inventory["capabilities"]):
+        raise ValueError("model capability stubs must map to documented matrix columns")
+    return pages
 
 
 def component_catalog() -> tuple[dict[str, Any], ...]:
@@ -2067,6 +2238,7 @@ def render_component_catalog() -> str:
 def render_outputs() -> dict[Path, str]:
     outputs = render_cli_reference_outputs()
     outputs.update(render_python_reference_outputs())
+    outputs.update(render_model_capability_outputs())
     outputs.update(
         {
             ROOT / "docs/content/docs/reference/components.mdx": render_component_catalog(),
@@ -2079,7 +2251,7 @@ def render_outputs() -> dict[Path, str]:
 
 def generate(*, check: bool = False) -> int:
     outputs = render_outputs()
-    managed_roots = (PYTHON_REFERENCE_ROOT, CLI_REFERENCE_ROOT)
+    managed_roots = (PYTHON_REFERENCE_ROOT, CLI_REFERENCE_ROOT, MODEL_CAPABILITY_DOC_ROOT)
     expected_reference_paths = {
         path for path in outputs if any(path.is_relative_to(root) for root in managed_roots)
     }

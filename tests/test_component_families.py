@@ -37,7 +37,7 @@ from pllm.preparation import (
     ModelAwareCorrections,
     PreparationProvider,
 )
-from pllm.quantization import SymmetricPerRow
+from pllm.quantization import PublicPerChannelEqualized, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
     CleartextLinear,
@@ -93,6 +93,7 @@ def _instances():
         ClientOnlyRoles(),
         PreparedProviderRoles(),
         Perplexity(dataset="fixture"),
+        PublicPerChannelEqualized(profile_digest="a" * 64),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
         ScalarProtectedTensorSchedule(),

@@ -78,6 +78,7 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "quantization_chunk_rows": 64,
         "verification_component": _env("PLLM_VERIFICATION_COMPONENT", "none"),
         "verification_target_failure_bits": int(_env("PLLM_VERIFICATION_TARGET_FAILURE_BITS", "0")),
+        "public_equalization_digest": None,
         "weight_bits": 8,
         "activation_bits": 8,
         "model": [],
@@ -245,6 +246,10 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         "verification_component": args.verification_component,
         "verification_target_failure_bits": args.verification_target_failure_bits,
     }
+    if args.public_equalization_digest is not None:
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("public equalization requires a public masked-linear engine")
+        engine_kwargs["public_equalization_digest"] = args.public_equalization_digest
     if engine_type is GuardedBlindedTransformerEngine:
         engine_kwargs["guard_policy"] = GuardPolicy(
             max_rows_per_request=args.guard_max_rows_per_request,

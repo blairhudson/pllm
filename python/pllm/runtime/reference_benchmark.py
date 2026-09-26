@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import hashlib
 import json
 import platform
@@ -16,12 +17,15 @@ from pllm.metrics import ReferenceAgreement, measure_reference_agreement
 from pllm.model_loader import resolve_model
 from pllm.profiles import resolve_runtime_composition
 from pllm.runtime.model_binding import compile_runtime_model
+from pllm.runtime.public_equalization import equalize_activation
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
 from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 
 SCHEMA = "pllm.reference_quality_benchmark.v1"
+MAX_CHECKPOINT_BYTES = 12 * 1024**3
+MAX_LOGIT_WORKING_SET_BYTES = 512 * 1024**2
 
 
 class ReferenceBenchmarkError(ValueError):
@@ -38,6 +42,8 @@ def _candidate_remote(engine: MaskedTransformerEngine, model_id: str):
 
     def remote(stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = stages[stage_id]
+        if stage.input_equalization is not None:
+            activation = equalize_activation(activation, stage.input_equalization)
         q_activation = quantize_activation_per_row(activation, bits=stage.spec.activation_bits)
         integer = stage.compiled_weight.clear(q_activation.values)
         output = dequantize_matmul(
@@ -114,9 +120,9 @@ def run_reference_benchmark(
             for row in resolved.manifest.metadata["source_lock"]["files"]
             if row["path"].endswith(".safetensors")
         ]
-        if not weight_files or sum(row["size"] for row in weight_files) > 2 * 1024**3:
+        if not weight_files or sum(row["size"] for row in weight_files) > MAX_CHECKPOINT_BYTES:
             raise ReferenceBenchmarkError(
-                "quality diagnostic requires at most 2 GiB of safetensors"
+                "quality diagnostic requires at most 12 GiB of safetensors"
             )
         if source_lock is not None and resolved.source_lock_digest != source_lock:
             raise ReferenceBenchmarkError("quality Experiments must bind the same source lock")
@@ -130,6 +136,12 @@ def run_reference_benchmark(
         raise ReferenceBenchmarkError(
             "quality candidates must have unique names and configurations"
         )
+    # Hold only bounded logits from clear candidates, release their stage kernels,
+    # then load the float32 reference. This avoids keeping two large model bodies
+    # resident at once and does not put logits or token IDs in the report.
+    logit_bytes = (len(experiments) + 1) * len(prompt_set) * resolved_source.manifest.vocab_size * 4
+    if logit_bytes > MAX_LOGIT_WORKING_SET_BYTES:
+        raise ReferenceBenchmarkError("quality logit working set exceeds 512 MiB")
 
     try:
         import torch
@@ -137,17 +149,6 @@ def run_reference_benchmark(
     except ImportError as exc:
         raise ReferenceBenchmarkError("quality diagnostic requires torch and transformers") from exc
     reference_threads = torch.get_num_threads()
-    try:
-        reference = transformers.AutoModelForCausalLM.from_pretrained(
-            resolved_source.path,
-            local_files_only=True,
-            trust_remote_code=False,
-            dtype=torch.float32,
-            attn_implementation="eager",
-        ).eval()
-    except Exception as exc:
-        raise ReferenceBenchmarkError("the locked local FP32 reference cannot be loaded") from exc
-
     checkpoint_digest = resolved_source.checkpoint_digest
     if source_lock is None or checkpoint_digest is None:
         raise ReferenceBenchmarkError("reference checkpoint has no source lock")
@@ -158,7 +159,7 @@ def run_reference_benchmark(
         top_k=top_k,
     )
     token_cohort: tuple[tuple[int, ...], ...] | None = None
-    candidates: list[dict[str, Any]] = []
+    pending: list[tuple[dict[str, Any], list[np.ndarray]]] = []
     for experiment, options, resolved in configurations:
         assert resolved.path is not None
         model_id = resolved.manifest.id
@@ -167,6 +168,7 @@ def run_reference_benchmark(
             weight_bits=options.weight_bits,
             activation_bits=options.activation_bits,
             threads=threads,
+            public_equalization_digest=options.public_equalization_digest,
         )
         asyncio.run(engine.load(resolved.manifest))
         bundle = ClientBundle.unpack(engine.client_bundle(model_id))
@@ -182,7 +184,7 @@ def run_reference_benchmark(
         compiled = compile_runtime_model(plan, bundle, composition=experiment.pipeline)
         remote = _candidate_remote(engine, model_id)
         ids_this_candidate: list[tuple[int, ...]] = []
-        samples: list[dict[str, float]] = []
+        actual_rows: list[np.ndarray] = []
         for prompt in prompt_set:
             ids = tuple(compiled.runtime(remote).encode_prompt(prompt))
             if not 1 <= len(ids) <= experiment.budget.max_input_tokens:
@@ -191,16 +193,15 @@ def run_reference_benchmark(
                 )
             ids_this_candidate.append(ids)
             session = compiled.session(remote)
-            actual = session.prefill_ids(ids)
+            actual = np.array(session.prefill_ids(ids), dtype=np.float32, copy=True)
             session.finish()
-            with torch.inference_mode():
-                expected = reference(input_ids=torch.tensor([ids])).logits[0, -1].float().numpy()
-            samples.append(measure_reference_agreement(actual, expected, top_k=top_k))
+            actual_rows.append(actual)
+            del session
         current_cohort = tuple(ids_this_candidate)
         if token_cohort is not None and token_cohort != current_cohort:
             raise ReferenceBenchmarkError("quality candidates tokenized the cohort differently")
         token_cohort = current_cohort
-        candidates.append(
+        pending.append((
             {
                 "name": experiment.name,
                 "configuration_digest": experiment.configuration_digest(),
@@ -208,13 +209,46 @@ def run_reference_benchmark(
                 "weight_bits": options.weight_bits,
                 "activation_bits": options.activation_bits,
                 "kernel_threads": threads,
-                "sample_count": len(samples),
-                "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
-                "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
-                "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
-            }
-        )
+                **({
+                    "public_equalization_profile_digest": options.public_equalization_digest,
+                    "public_calibration_digest": engine._public_equalization_profile.calibration_digest,
+                    "public_profile_bytes": len(engine._public_equalization_profile.pack()),
+                } if engine._public_equalization_profile is not None else {}),
+            }, actual_rows,
+        ))
+        del remote, compiled, bundle, engine
+        gc.collect()
     assert token_cohort is not None
+    try:
+        reference = transformers.AutoModelForCausalLM.from_pretrained(
+            resolved_source.path,
+            local_files_only=True,
+            trust_remote_code=False,
+            dtype=torch.float32,
+            attn_implementation="eager",
+        ).eval()
+    except Exception as exc:
+        raise ReferenceBenchmarkError("the locked local FP32 reference cannot be loaded") from exc
+    with torch.inference_mode():
+        expected_rows = [
+            reference(input_ids=torch.tensor([ids])).logits[0, -1].float().numpy().copy()
+            for ids in token_cohort
+        ]
+    del reference
+    gc.collect()
+    candidates: list[dict[str, Any]] = []
+    for metadata, actual_rows in pending:
+        samples = [
+            measure_reference_agreement(actual, expected, top_k=top_k)
+            for actual, expected in zip(actual_rows, expected_rows, strict=True)
+        ]
+        candidates.append({
+            **metadata,
+            "sample_count": len(samples),
+            "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
+            "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
+            "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
+        })
     environment = {
         "system": platform.system(),
         "machine": platform.machine(),

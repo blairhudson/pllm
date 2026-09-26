@@ -8,7 +8,7 @@ from typing import Any
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import Cpu, KernelBackend
 from pllm.preparation import ModelAwareCorrections, PreparationProvider
-from pllm.quantization import QuantizationScheme, SymmetricPerRow
+from pllm.quantization import PublicPerChannelEqualized, QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
     CleartextLinear,
@@ -107,12 +107,12 @@ class MaskedLinearCpu(_TypedPipeline):
         quantization: QuantizationScheme | None = None,
     ) -> None:
         if quantization is not None:
-            _slot(
-                "quantization",
-                quantization,
-                QuantizationScheme,
+            _slot("quantization", quantization, QuantizationScheme)
+            if quantization.component not in {
                 SymmetricPerRow.descriptor.component,
-            )
+                PublicPerChannelEqualized.descriptor.component,
+            }:
+                raise ConfigurationError("masked linear requires a supported quantization component")
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -142,7 +142,7 @@ class MaskedLinearCpu(_TypedPipeline):
         return self.components["kernels"]
 
     @property
-    def quantization(self) -> SymmetricPerRow | None:
+    def quantization(self) -> QuantizationScheme | None:
         return self.components.get("quantization")
 
 
@@ -163,10 +163,12 @@ class ClientOnlyCpu(_TypedPipeline):
         topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
     ) -> None:
         if quantization is not None:
-            _slot(
-                "quantization", quantization, QuantizationScheme,
+            _slot("quantization", quantization, QuantizationScheme)
+            if quantization.component not in {
                 SymmetricPerRow.descriptor.component,
-            )
+                PublicPerChannelEqualized.descriptor.component,
+            }:
+                raise ConfigurationError("client-only requires a supported quantization component")
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -191,7 +193,7 @@ class ClientOnlyCpu(_TypedPipeline):
         return self.components["kernels"]
 
     @property
-    def quantization(self) -> SymmetricPerRow | None:
+    def quantization(self) -> QuantizationScheme | None:
         return self.components.get("quantization")
 
     @property
@@ -441,19 +443,29 @@ class RuntimeComposition:
     verification_target_failure_bits: int = 0
     weight_bits: int = 8
     activation_bits: int = 8
+    public_equalization_digest: str | None = None
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
     quantization = pipeline.components.get("quantization")
+    equalization_digest = None
     if quantization is not None:
-        if (
+        if quantization.component == PublicPerChannelEqualized.descriptor.component:
+            if (
+                set(quantization.params) != {"profile_digest"}
+                or type(quantization.params["profile_digest"]) is not str
+                or len(quantization.params["profile_digest"]) != 64
+                or any(character not in "0123456789abcdef" for character in quantization.params["profile_digest"])
+                or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
+                or "verification" in identities
+            ):
+                return None
+            equalization_digest = quantization.params["profile_digest"]
+        elif (
             quantization.component != SymmetricPerRow.descriptor.component
             or set(quantization.params) != {"weight_bits", "activation_bits"}
-            or any(
-                type(value) is not int or value not in {4, 8}
-                for value in quantization.params.values()
-            )
+            or any(type(value) is not int or value not in {4, 8} for value in quantization.params.values())
             or identities.get("linear") not in {
                 "pllm/masked-linear", "pllm/cleartext-linear", "pllm/two-online-offset-linear/v1",
             }
@@ -465,7 +477,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "weight_bits": quantization.params["weight_bits"],
             "activation_bits": quantization.params["activation_bits"],
         }
-        if quantization is not None
+        if quantization is not None and equalization_digest is None
         else {}
     )
     kernels = pipeline.components.get("kernels")
@@ -481,6 +493,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         return RuntimeComposition(
             "client_only", "none", False, "none", "compiled_client_local_v1",
             f"local_clear_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
+            public_equalization_digest=equalization_digest,
             **bits,
         )
     if identities == {
@@ -493,6 +506,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         return RuntimeComposition(
             "offset_public", "none", False, "none", "compiled_offset_v1",
             f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
+            public_equalization_digest=equalization_digest,
             **bits,
         )
     if topology is not None:
@@ -550,7 +564,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         and not pipeline.components["inference"].params
     ):
         return RuntimeComposition(
-            "public", "guarded", True, "bfv", "masked_transformer_v1", None, **bits
+            "public", "guarded", True, "bfv", "masked_transformer_v1", None,
+            public_equalization_digest=equalization_digest, **bits,
         )
     if (
         identities

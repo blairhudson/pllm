@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -35,6 +36,22 @@ def test_reference_benchmark_rejects_malformed_cohorts_before_import() -> None:
         run_reference_benchmark([experiment], ["Hello"], top_k=True)
     with pytest.raises(ReferenceBenchmarkError, match="request budget"):
         run_reference_benchmark([experiment], ["A", "B", "C"])
+
+
+def test_quality_preflights_checkpoint_and_aggregate_logit_memory(monkeypatch) -> None:
+    experiment = _experiment("bounded-w8", 8)
+    manifest = SimpleNamespace(
+        metadata={"source_lock": {"files": [{"path": "model.safetensors", "size": 12 * 1024**3 + 1}]}},
+        vocab_size=200064,
+    )
+    resolved = SimpleNamespace(path=Path("/unused"), manifest=manifest, source_lock_digest="0" * 64)
+    monkeypatch.setattr("pllm.runtime.reference_benchmark.resolve_model", lambda _: resolved)
+    with pytest.raises(ReferenceBenchmarkError, match="12 GiB"):
+        run_reference_benchmark([experiment], ["A"])
+    manifest.metadata["source_lock"]["files"][0]["size"] = 12 * 1024**3
+    manifest.vocab_size = 200_000_000
+    with pytest.raises(ReferenceBenchmarkError, match="512 MiB"):
+        run_reference_benchmark([experiment], ["A"])
 
 
 @pytest.mark.rust
@@ -100,24 +117,40 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
 @pytest.mark.rust
 @pytest.mark.slow
 @pytest.mark.parametrize(
-    ("env_name", "model_id", "model_key", "evidence_file"),
+    ("env_name", "model_id", "model_key", "evidence_file", "max_input", "max_new", "deployment_root"),
     [
         (
             "PLLM_REAL_QWEN_PATH",
             "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
             "qwen2",
             "qwen2.5-0.5b-reference-quality-2026-09-24.json",
+            16,
+            2,
+            "local://qwen2-reference-quality",
         ),
         (
             "PLLM_REAL_QWEN3_PATH",
             "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
             "qwen3",
             "qwen3-0.6b-reference-quality-2026-09-24.json",
+            16,
+            2,
+            "local://qwen3-reference-quality",
+        ),
+        (
+            "PLLM_REAL_PHI_PATH",
+            "microsoft/Phi-4-mini-instruct@cfbefacb99257ffa30c83adab238a50856ac3083",
+            "phi4-mini",
+            "phi4mini-reference-quality-2026-09-24.json",
+            32,
+            1,
+            "local://phi-real-quality",
         ),
     ],
 )
 def test_pinned_reference_cohort_matches_retained_report(
-    env_name: str, model_id: str, model_key: str, evidence_file: str
+    env_name: str, model_id: str, model_key: str, evidence_file: str,
+    max_input: int, max_new: int, deployment_root: str,
 ) -> None:
     if not os.getenv(env_name):
         pytest.skip(f"pinned checkpoint path is not configured: {env_name}")
@@ -133,8 +166,10 @@ def test_pinned_reference_cohort_matches_retained_report(
                 source,
                 quantization=SymmetricPerRow(weight_bits=bits, activation_bits=bits),
             ),
-            deployment=pllm.Deployment.local(root=f"local://{model_key}-reference-quality"),
-            budget=pllm.ExecutionBudget(requests=2, max_input_tokens=16, max_new_tokens=2),
+            deployment=pllm.Deployment.local(root=deployment_root),
+            budget=pllm.ExecutionBudget(
+                requests=2, max_input_tokens=max_input, max_new_tokens=max_new,
+            ),
         )
         for bits in (4, 8)
     ]
@@ -153,3 +188,47 @@ def test_pinned_reference_cohort_matches_retained_report(
         assert actual["top1_agreement"] == archived["top1_agreement"]
         assert actual["top_k_recall"] == archived["top_k_recall"]
         assert abs(actual["max_abs_logit_error"] - archived["max_abs_logit_error"]) < 0.1
+
+
+@pytest.mark.rust
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ("cohort_path", "evidence_file", "request_count"),
+    [
+        ("reference_prompts.json", "phi4mini-equalization-quality-2026-09-26.json", 2),
+        ("phi4mini_holdout_prompts.json", "phi4mini-equalization-holdout-2026-09-26.json", 5),
+    ],
+)
+def test_pinned_phi_public_equalization_reproduces_both_reference_cohorts(
+    cohort_path: str, evidence_file: str, request_count: int,
+) -> None:
+    if not os.getenv("PLLM_REAL_PHI_PATH"):
+        pytest.skip("pinned Phi checkpoint path is not configured")
+    pytest.importorskip("transformers")
+    from examples.benchmarks.phi4mini_equalized_quality import equalized
+    from examples.benchmarks.phi4mini_reference_quality import w8a8
+
+    root = Path(__file__).resolve().parents[1]
+    prompts = json.loads((root / "examples/benchmarks" / cohort_path).read_text())
+    evidence_text = (root / "docs/evidence" / evidence_file).read_text()
+    assert all(prompt not in evidence_text for prompt in prompts)
+    archived = json.loads(evidence_text)
+    report = run_reference_benchmark(
+        [
+            w8a8.with_params(budget__requests=request_count),
+            equalized.with_params(budget__requests=request_count),
+        ],
+        prompts,
+    )
+    assert report["model"] == archived["model"]
+    assert report["cohort"] == archived["cohort"]
+    for actual, expected in zip(report["candidates"], archived["candidates"], strict=True):
+        assert actual["pipeline_digest"] == expected["pipeline_digest"]
+        assert actual["configuration_digest"] == expected["configuration_digest"]
+        assert actual["top1_agreement"] == expected["top1_agreement"]
+        assert actual["top_k_recall"] == expected["top_k_recall"]
+        assert abs(actual["max_abs_logit_error"] - expected["max_abs_logit_error"]) < 0.1
+        if "public_equalization_profile_digest" in expected:
+            assert actual["public_equalization_profile_digest"] == expected["public_equalization_profile_digest"]
+            assert actual["public_calibration_digest"] == expected["public_calibration_digest"]
+            assert actual["public_profile_bytes"] == expected["public_profile_bytes"]

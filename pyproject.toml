@@ -88,6 +88,8 @@ include = [
   { path = "python/**/*.pyi", format = "sdist" },
   { path = "python/pllm/components/planned_methods.json", format = "sdist" },
   { path = "python/pllm/components/planned_methods.json", format = "wheel" },
+  { path = "python/pllm/components/model_capabilities.json", format = "sdist" },
+  { path = "python/pllm/components/model_capabilities.json", format = "wheel" },
   { path = "python/pllm/dashboard/**/*", format = "sdist" },
   { path = "Cargo.toml", format = "sdist" },
   { path = "schemas/**/*.json", format = "sdist" },

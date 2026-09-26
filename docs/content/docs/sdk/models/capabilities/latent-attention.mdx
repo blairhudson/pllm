@@ -1,0 +1,42 @@
+---
+title: "Latent attention"
+description: "Reusable Latent attention contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Compressed latent KV state and query/value projection semantics.
+
+This variant needs a complete model-neutral IR/numeric contract.
+
+## Checked source adapters
+
+No checked source adapter currently requires this capability.
+
+## Candidate families
+
+- [DeepSeek-V3 family](https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json): required executable variant missing. Multi-head latent attention, routed/shared experts, YaRN, FP8 import and complete protected/quality coverage.
+
+## Selection and next gate
+
+The following **importable, non-executable** classes reserve missing reusable contracts. They are excluded from component discovery, Experiment selection, search and provider registration:
+
+- [`pllm.state.LatentAttentionState`](/sdk/reference/python/pllm/state/#latentattentionstate) (`pllm/planned-model-capability/latent-attention/v1`): Bind compressed latent KV ownership and query/value projections to exact bounded state transitions..
+
+## Python SDK example
+
+```python
+from pllm.state import LatentAttentionState
+from pllm.components import ModelCapabilityUnavailable
+
+try:
+    LatentAttentionState()
+except ModelCapabilityUnavailable as exc:
+    assert exc.identity == "pllm/planned-model-capability/latent-attention/v1"
+else:
+    raise AssertionError("missing capability must remain unavailable")
+```
+
+API: [`pllm.state.LatentAttentionState`](/sdk/reference/python/pllm/state/#objects-and-signatures).
+
+A later implementation must bind an actual operator or numeric lifecycle before its status changes.

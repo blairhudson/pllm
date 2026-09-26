@@ -76,4 +76,29 @@ const apiReference = rendered('sdk/reference/python/pllm').page;
 assert.ok(apiReference.includes('href="/sdk/experiments/"'), 'Experiment API needs a user-guide backlink');
 assert.ok(apiReference.includes('href="/sdk/models/"'), 'Model API needs a user-guide backlink');
 
+const status = rendered('sdk/reference/status').page;
+const matrixStart = status.indexOf('aria-label="Model family and reusable capability matrix"');
+assert.ok(matrixStart >= 0, 'Model family matrix missing from rendered status');
+const matrixEnd = status.indexOf('</table>', matrixStart);
+assert.ok(matrixEnd > matrixStart, 'Model family matrix did not render as a table');
+const matrix = status.slice(matrixStart, matrixEnd);
+assert.match(status.slice(matrixStart - 200, matrixStart), /overflow-x-auto/,
+  'Wide capability matrix must scroll inside its own region on mobile');
+assert.equal((matrix.match(/<th scope="row"/g) ?? []).length, 12,
+  'Checked and candidate families must share one rendered matrix');
+assert.equal((matrix.match(/<th scope="col"/g) ?? []).length, 34);
+assert.match(matrix, /sticky left-0/, 'Family names must remain visible while scrolling');
+assert.match(matrix, /Phi-4-mini-instruct/);
+assert.match(matrix, /aria-label="Qwen3.5-4B text decoder: Gated-delta recurrence: missing required executable variant"/);
+const moduleStart = status.indexOf('Python SDK completeness', matrixEnd);
+assert.ok(moduleStart > matrixEnd, 'SDK completeness must follow the family matrix on one page');
+assert.match(status.slice(moduleStart), /Paper stubs/);
+assert.match(status.slice(moduleStart), /Model capability stubs/);
+assert.ok(status.indexOf('</table>', moduleStart) > moduleStart,
+  'SDK completeness must render as the second table');
+const capability = rendered('sdk/models/capabilities/gated-delta').page;
+assert.match(capability, /GatedDeltaRecurrence/);
+assert.match(capability, /ModelCapabilityUnavailable/);
+assert.match(capability, /href="\/sdk\/reference\/status\/"/);
+
 console.log(`Rendered navigation, inline import links, API backlinks, and ${expected.length} Research paper links passed.`);

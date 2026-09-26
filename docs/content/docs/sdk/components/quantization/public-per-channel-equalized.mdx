@@ -1,0 +1,87 @@
+---
+title: "Public per-channel equalized W8A8"
+description: "A checkpoint-bound public calibration option for compiled masked-linear stages."
+---
+
+[`PublicPerChannelEqualized`](/sdk/reference/python/pllm/quantization/#publicperchannelequalized)
+selects `pllm/public-per-channel-equalized/v1` as an immutable W8A8
+numeric component. Five declared **public** token sequences fit one bounded
+input-channel scale vector per remote linear stage, using a clear offline
+checkpoint evaluation. The profile binds the complete checkpoint source lock,
+calibration cohort, stage identities, and alpha=0.75. Its exact bytes and
+SHA-256 digest must exist beside the checkpoint at every role; missing,
+malformed, forged or cross-checkpoint profiles fail before execution. Calibration
+tokens must be public; they are never private prompts from an active request.
+
+Each provider quantizes the transformed public matrix `W · s` into its normal
+per-output-row signed W8 snapshot. The client quantizes `x / s` as A8 before
+one-time masking. The client receives stage scale vectors with the public
+boundary bundle. Stage commitments and the model-body fingerprint bind those
+vectors; no provider sees unmasked activations. This selection uses the usual
+compiled schedule, Experiment, role supervisor, gateway and
+[`benchmark run`](/cli/reference/benchmark/run/) paths. It is supported for
+client-only and prepared baseline roles, not the verifier, two-online-offset,
+or proprietary compositions. It does not change the model's semantic graph.
+
+The [pinned Phi comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-equalization-quality-2026-09-26.json)
+scored **2/2** top-1 and 0.50 mean top-5 recall on the original two-prompt
+prefill cohort, against **1/2** and 0.30 for plain W8A8. Worst absolute logit
+error was 9.59 versus 29.90. Those two prompts influenced the choice of alpha.
+On a separate five-prompt cohort, **both** choices scored 3/5 top-1: this is
+not general generation-quality evidence or an unconditional numeric win.
+
+The pinned real Phi prepared request also completed in **two co-located child
+processes**, with 128 masked remote stages and zero plaintext prompt/token-ID
+traffic. Relative to matched plain W8A8, covered **online protocol bodies**
+fell by roughly 0.83 MB upload and 0.80 MB download as re-quantized stage
+bounds chose narrower rings; the 2.23 MB public profile increased cold bundle
+distribution. These are not full wire bytes. Public calibration, checkpoint
+loading, bundle delivery, and role CPU/memory must enter a full-response cost
+comparison before claiming the aggregate-compute cap or independent-provider
+privacy.
+
+To reproduce the local comparison, set `PLLM_REAL_PHI_PATH` to a pinned
+`microsoft/Phi-4-mini-instruct` checkpoint directory and run from the repository
+root with the `quality` dependencies installed:
+
+```bash
+python examples/benchmarks/phi4mini_fit_equalization.py
+python -m pllm benchmark quality \
+  --experiment examples/benchmarks/phi4mini_reference_quality.py:w8a8 \
+  --experiment examples/benchmarks/phi4mini_equalized_quality.py:equalized \
+  --trust-python --prompts-file examples/benchmarks/reference_prompts.json \
+  --format json
+```
+
+The first command writes only a digest-named public profile beside the
+checkpoint. The second uses the ordinary exact-cohort quality benchmark;
+reports contain digests and aggregate scores, never calibration tokens or
+prompt text. [`fit_public_equalization_profile`](/sdk/reference/python/pllm/quantization/#fit_public_equalization_profile)
+also accepts a caller-declared bounded public token cohort for other model
+sources. A new checkpoint or cohort requires a new immutable profile.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import PublicPerChannelEqualized
+
+profile_digest = "6e2074d87d546ac98e2eb8518ff26495996a34b9f3202bfc2ee9ecc953eea683"
+pipeline = MaskedLinearCpu(
+    Model.tiny("qwen2"), quantization=PublicPerChannelEqualized(profile_digest)
+)
+experiment = Experiment(
+    name="equalized-w8a8", pipeline=pipeline,
+    deployment=Deployment.local(root="local://public-equalized"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
+)
+assert experiment.resolve().composition_digest == pipeline.digest()
+assert pipeline.quantization.get_params()["profile_digest"] == profile_digest
+```
+
+This snippet checks selection only. To execute, use a checkpoint and its
+source-matched profile; the displayed digest was fitted for the pinned Phi
+checkpoint, not the tiny model in the inspection example.
+
+API: [`pllm.quantization`](/sdk/reference/python/pllm/quantization/#objects-and-signatures).

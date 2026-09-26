@@ -32,6 +32,13 @@ The retained two-prompt [Qwen2.5-0.5B](https://github.com/blairhudson/pllm/blob/
 and [Qwen3-0.6B](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
 quality cohorts both scored 0/2 W4A4 and 1/2 W8A8 top-token agreement. Their
 distinct checkpoint digests prevent treating them as a single cohort.
+The opt-in [public equalization choice](/sdk/components/quantization/public-per-channel-equalized/)
+keeps W8A8 integer widths but changes public stage matrices and body fingerprint;
+it must be benchmarked as a separate immutable composition.
+The separate pinned [Phi-4-mini comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-reference-quality-2026-09-24.json)
+likewise scored 0/2 W4A4 and 1/2 W8A8; W8A8 worst logit error was 29.90.
+It exercises checkpoint-bound compiled prefill locally, not provider-backed
+inference or representative generation quality.
 
 ## Python SDK example
 

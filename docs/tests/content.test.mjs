@@ -334,6 +334,7 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/preparation/he-authenticated-preprocessing/', 'pllm/he-authenticated-preprocessing', null],
     ['/sdk/components/correlation/seeded-expansion/', 'pllm/seeded-expansion', null],
     ['/sdk/components/quantization/symmetric-per-row/', 'pllm/symmetric-per-row-quantization/v1', null],
+    ['/sdk/components/quantization/public-per-channel-equalized/', 'pllm/public-per-channel-equalized/v1', null],
     ['/sdk/components/kernels/cpu/', 'pllm/cpu', null],
     ['/sdk/components/nonlinear/arithmetic-garbling-silu-q7/', 'pllm/arithmetic-garbling-silu-q7/v1', '/research/papers/dash/'],
     ['/sdk/components/nonlinear/binary-table/', 'pllm/binary-table/v1', null],
@@ -807,28 +808,38 @@ test('authored copy uses direct technical English and SDK status is derived from
   const status = byRoute.get('/sdk/reference/status/').content;
   const modules = JSON.parse(fs.readFileSync(path.join(siteRoot, 'content/docs/reference/python/pllm/meta.json'), 'utf8')).pages;
   const planned = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/planned_methods.json'), 'utf8')).entries;
-  const rows = [...status.matchAll(/^\| \[`(pllm(?:\.[^`]+)?)`\]\([^)]+\) \| (\d+) \| (\d+) \| (\d+) \| ([\d.]+%|—) \|$/gm)];
+  const missing = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/model_capabilities.json'), 'utf8')).entries;
+  const rows = [...status.matchAll(/^\| \[`(pllm(?:\.[^`]+)?)`\]\([^)]+\) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| ([\d.]+%|—) \|$/gm)];
   assert.equal(rows.length, modules.length);
   assert.equal(rows.reduce((sum, row) => sum + Number(row[3]), 0),
     planned.filter((method) => method.status !== 'implemented').length);
+  assert.equal(rows.reduce((sum, row) => sum + Number(row[4]), 0),
+    missing.filter((capability) => (capability.status ?? 'pending') === 'pending').length);
   for (const row of rows) {
-    assert.equal(Number(row[2]) + Number(row[3]), Number(row[4]), row[1]);
+    assert.equal(Number(row[2]) + Number(row[3]) + Number(row[4]), Number(row[5]), row[1]);
   }
-  assert.match(status, /\*\*not\*\* a whole-decoder, security,/);
+  assert.match(status, /not whole-decoder, privacy or quality coverage/);
   const compatibility = JSON.parse(fs.readFileSync(path.join(siteRoot, 'data/model-compatibility.json'), 'utf8'));
   assert.equal(compatibility.schema, 'pllm.model_compatibility.v1');
   for (const row of compatibility.adapters) {
-    assert.ok(status.includes(`| [${row.name}](${row.guide}) (\`${row.adapter}\`) | Checked config | ${row.baseline_schedule ? 'Complete' : 'Incomplete'} |`), row.adapter);
-    for (const requirement of row.requires) assert.ok(status.includes(`\`${requirement}\``), requirement);
+    const family = status.split('\n').find((line) => line.includes(`>${row.name}</a></th>`));
+    assert.ok(family?.includes(`href="${row.guide}"`), row.adapter);
+    assert.ok(family.includes(`>${row.baseline_schedule ? 'Complete' : 'Blocked'}</td>`), row.adapter);
+    for (const requirement of row.requires) {
+      assert.ok(family.includes(`href="/sdk/models/capabilities/${requirement}/"`), requirement);
+    }
     assert.ok(row.baseline_blockers.every((blocker) => row.requires.includes(blocker)), row.adapter);
   }
   for (const [identity, piece] of Object.entries(compatibility.capabilities)) {
-    assert.ok(status.includes(`| \`${identity}\` — ${piece.name} |`), identity);
+    const route = `/sdk/models/capabilities/${identity}/`;
+    assert.ok(status.includes(`href="${route}"`), identity);
+    assert.ok(byRoute.has(route), identity);
+    assert.ok(byRoute.get(route).content.includes(piece.contract), identity);
   }
   for (const row of compatibility.candidates) {
-    assert.ok(status.includes(`[${row.name}](${row.source})`), row.name);
+    assert.ok(status.includes(`href="${row.source}">${row.name}</a>`), row.name);
   }
-  assert.match(status, /No protected whole-decoder model execution is established/);
+  assert.match(status, /No row has full model support/);
 });
 
 test('every docs source is publication-discovered without registry duplication', () => {

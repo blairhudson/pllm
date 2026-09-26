@@ -119,6 +119,7 @@ class LocalTopology:
         "_tenseal_path",
         "_verification_component",
         "_verification_target_failure_bits",
+        "_public_equalization_digest",
         "_weight_bits",
     )
 
@@ -142,6 +143,7 @@ class LocalTopology:
         guard_output_dither: int,
         verification_component: str | None,
         verification_target_failure_bits: int,
+        public_equalization_digest: str | None,
         tenseal_path: str | None,
         hf_cache_dir: str | None,
         reserved_ports: tuple[int, ...],
@@ -174,6 +176,7 @@ class LocalTopology:
         self._guard_output_dither = guard_output_dither
         self._verification_component = verification_component or "none"
         self._verification_target_failure_bits = verification_target_failure_bits
+        self._public_equalization_digest = public_equalization_digest
         self._tenseal_path = tenseal_path
         self._hf_cache_dir = hf_cache_dir
         self._reserved_ports = reserved_ports
@@ -354,6 +357,8 @@ class LocalTopology:
             options.extend(("--tenseal-path", self._tenseal_path))
         if self._hf_cache_dir is not None:
             options.extend(("--hf-cache-dir", self._hf_cache_dir))
+        if self._public_equalization_digest is not None:
+            options.extend(("--public-equalization-digest", self._public_equalization_digest))
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
@@ -555,6 +560,7 @@ class LocalTopology:
                 engine = MaskedTransformerEngine(
                     threads=self._engine_threads, weight_bits=self._weight_bits,
                     activation_bits=self._activation_bits,
+                    public_equalization_digest=self._public_equalization_digest,
                 )
 
                 def load() -> None:
@@ -955,6 +961,7 @@ def build_roles(
         guard_output_dither=runtime_options.output_dither_bound,
         verification_component=runtime_options.verification_component,
         verification_target_failure_bits=runtime_options.verification_target_failure_bits,
+        public_equalization_digest=runtime_options.public_equalization_digest,
         tenseal_path=tenseal_path,
         hf_cache_dir=hf_cache_dir,
         reserved_ports=reserved,

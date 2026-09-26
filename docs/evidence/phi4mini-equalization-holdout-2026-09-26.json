@@ -1,0 +1,75 @@
+{
+  "candidates": [
+    {
+      "activation_bits": 8,
+      "configuration_digest": "58df49e3cb7c08cbffc2202dc0e8a32c9267d0a14cdf2c6d4b2cc18327a9467a",
+      "kernel_threads": 1,
+      "max_abs_logit_error": 7.076442718505859,
+      "name": "phi4-mini-w8a8",
+      "pipeline_digest": "2b7621314a82c30751259be03aa0159fa713d6f5b237f3b28ec48d00f1bcd0e4",
+      "sample_count": 5,
+      "top1_agreement": 0.6,
+      "top_k_recall": 0.8,
+      "weight_bits": 8
+    },
+    {
+      "activation_bits": 8,
+      "configuration_digest": "b870edd726d304e1ba7756ecd7fd4b7143a0989f278eb1859aa9c748d61c8b0e",
+      "kernel_threads": 1,
+      "max_abs_logit_error": 5.86384391784668,
+      "name": "Pinned Phi-4-mini public equalized W8A8 reference quality",
+      "pipeline_digest": "d8826c0b5827433aca7af9ce6599da149557cc2d0d5e456d3ee7a01a0191e545",
+      "public_calibration_digest": "0a42be92de24b9ea75353f37275aa582e8b1450cd2afe743e056adb3450c101b",
+      "public_equalization_profile_digest": "6e2074d87d546ac98e2eb8518ff26495996a34b9f3202bfc2ee9ecc953eea683",
+      "public_profile_bytes": 2232425,
+      "sample_count": 5,
+      "top1_agreement": 0.6,
+      "top_k_recall": 0.8800000000000001,
+      "weight_bits": 8
+    }
+  ],
+  "cohort": {
+    "dataset_digest": "b9ca598ee05cd8bed0656f401e1e0c85388aad3324d874e6d8fa47b0335866b0",
+    "input_token_counts": [
+      7,
+      6,
+      3,
+      7,
+      7
+    ],
+    "metric": {
+      "component": "pllm/reference-agreement/v1",
+      "params": {
+        "dataset_digest": "b9ca598ee05cd8bed0656f401e1e0c85388aad3324d874e6d8fa47b0335866b0",
+        "reference_checkpoint_digest": "f15a8291bab673b306c4c35a4f4a62321012919a3bd60d391c21aedcb5d274cf",
+        "top_k": 5
+      }
+    },
+    "phase": "prefill",
+    "prompt_count": 5,
+    "token_cohort_digest": "af675c96fb76c15086e5d4a5024ac816daeecfc81cd5b78913e3c63ea822f6f8"
+  },
+  "environment": {
+    "machine": "arm64",
+    "numpy": "2.5.3",
+    "python_reference": "transformers/5.16.1",
+    "reference_attention": "eager",
+    "reference_dtype": "float32",
+    "reference_threads": 4,
+    "system": "Darwin",
+    "torch": "2.14.0"
+  },
+  "environment_digest": "166317d6511596fabc36f80da2c4878f3fb7bc8b2b90f96bb7ae28dde49e7d2b",
+  "limitations": [
+    "local clear integer kernels, not a provider transport or privacy measurement",
+    "prefill next-token reference agreement, not full-generation or task accuracy",
+    "float32 reference loading and evaluation excluded from provider latency and cost"
+  ],
+  "model": {
+    "checkpoint_digest": "f15a8291bab673b306c4c35a4f4a62321012919a3bd60d391c21aedcb5d274cf",
+    "id": "microsoft/Phi-4-mini-instruct@cfbefacb99257ffa30c83adab238a50856ac3083",
+    "source_lock_digest": "fcbfb79626e33b43c77f7d400cb3b2b7940d527a2810175c03c0abf32654c084"
+  },
+  "schema_version": "pllm.reference_quality_benchmark.v1",
+  "scope": "local-compiled-clear-kernel-prefill-reference"
+}

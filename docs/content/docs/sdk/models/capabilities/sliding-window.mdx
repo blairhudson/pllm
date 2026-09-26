@@ -1,0 +1,22 @@
+---
+title: "Sliding-window attention"
+description: "Reusable Sliding-window attention contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Per-layer window and valid-prefix attention state.
+
+Semantic operator/representation: `causal_mask`.
+
+## Checked source adapters
+
+No checked source adapter currently requires this capability.
+
+## Candidate families
+
+- [gpt-oss 20B](https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json): required executable variant missing. Alternating sliding/full attention, MoE routing, YaRN, MXFP4 weight representation and checkpoint binding.
+
+## Selection and next gate
+
+This contract is selected through source lowering and compiler admission, not by a stand-alone component. **No public Python API is exposed for selecting this operator independently.** Use the [model workflow](/sdk/models/) to inspect a source's supported scope.

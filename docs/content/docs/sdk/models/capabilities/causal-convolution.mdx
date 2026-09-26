@@ -1,0 +1,42 @@
+---
+title: "Causal convolution"
+description: "Reusable Causal convolution contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Finite-window convolution state and update.
+
+Semantic operator/representation: `causal_convolution`.
+
+## Checked source adapters
+
+- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): declared; complete baseline schedule blocked. Pinned configuration and semantic-plan tests only **Next:** Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution.
+
+## Candidate families
+
+No additional candidate family is currently mapped to this contract.
+
+## Selection and next gate
+
+The following **importable, non-executable** classes reserve missing reusable contracts. They are excluded from component discovery, Experiment selection, search and provider registration:
+
+- [`pllm.state.CausalConvolutionState`](/sdk/reference/python/pllm/state/#causalconvolutionstate) (`pllm/planned-model-capability/causal-convolution/v1`): Execute bounded causal convolution with exact window ownership across prefill, decode, and checkpoint artifacts..
+
+## Python SDK example
+
+```python
+from pllm.state import CausalConvolutionState
+from pllm.components import ModelCapabilityUnavailable
+
+try:
+    CausalConvolutionState()
+except ModelCapabilityUnavailable as exc:
+    assert exc.identity == "pllm/planned-model-capability/causal-convolution/v1"
+else:
+    raise AssertionError("missing capability must remain unavailable")
+```
+
+API: [`pllm.state.CausalConvolutionState`](/sdk/reference/python/pllm/state/#objects-and-signatures).
+
+A later implementation must bind an actual operator or numeric lifecycle before its status changes.

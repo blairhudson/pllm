@@ -1,0 +1,69 @@
+{
+  "candidates": [
+    {
+      "activation_bits": 4,
+      "configuration_digest": "92d404b7ee6a66eb453d56367cfdc12844253f673158087c035d2b78973fb881",
+      "kernel_threads": 1,
+      "max_abs_logit_error": 40.66615104675293,
+      "name": "phi4-mini-w4a4",
+      "pipeline_digest": "efe19b0ef3292dc7014dd65439f999a0bef14eabf17847b6433a093486758bda",
+      "sample_count": 2,
+      "top1_agreement": 0.0,
+      "top_k_recall": 0.0,
+      "weight_bits": 4
+    },
+    {
+      "activation_bits": 8,
+      "configuration_digest": "ca4d0cd836d01298e62d43302a8c66cc68e4f50251617d40f46024bb99fc7a3f",
+      "kernel_threads": 1,
+      "max_abs_logit_error": 29.90370225906372,
+      "name": "phi4-mini-w8a8",
+      "pipeline_digest": "2b7621314a82c30751259be03aa0159fa713d6f5b237f3b28ec48d00f1bcd0e4",
+      "sample_count": 2,
+      "top1_agreement": 0.5,
+      "top_k_recall": 0.3,
+      "weight_bits": 8
+    }
+  ],
+  "cohort": {
+    "dataset_digest": "f34b9ea1f089f2a3afdd711736c38d31eafbf526c8ab44ac249f724c393ce245",
+    "input_token_counts": [
+      1,
+      5
+    ],
+    "metric": {
+      "component": "pllm/reference-agreement/v1",
+      "params": {
+        "dataset_digest": "f34b9ea1f089f2a3afdd711736c38d31eafbf526c8ab44ac249f724c393ce245",
+        "reference_checkpoint_digest": "f15a8291bab673b306c4c35a4f4a62321012919a3bd60d391c21aedcb5d274cf",
+        "top_k": 5
+      }
+    },
+    "phase": "prefill",
+    "prompt_count": 2,
+    "token_cohort_digest": "ea5f35f98d5715d3dd04b83dbbaefb6dc11c6bc506300ed5da3ecc108039c9c9"
+  },
+  "environment": {
+    "machine": "arm64",
+    "numpy": "2.5.3",
+    "python_reference": "transformers/5.16.1",
+    "reference_attention": "eager",
+    "reference_dtype": "float32",
+    "reference_threads": 4,
+    "system": "Darwin",
+    "torch": "2.14.0"
+  },
+  "environment_digest": "166317d6511596fabc36f80da2c4878f3fb7bc8b2b90f96bb7ae28dde49e7d2b",
+  "limitations": [
+    "local clear integer kernels, not a provider transport or privacy measurement",
+    "prefill next-token reference agreement, not full-generation or task accuracy",
+    "float32 reference loading and evaluation excluded from provider latency and cost"
+  ],
+  "model": {
+    "checkpoint_digest": "f15a8291bab673b306c4c35a4f4a62321012919a3bd60d391c21aedcb5d274cf",
+    "id": "microsoft/Phi-4-mini-instruct@cfbefacb99257ffa30c83adab238a50856ac3083",
+    "source_lock_digest": "fcbfb79626e33b43c77f7d400cb3b2b7940d527a2810175c03c0abf32654c084"
+  },
+  "schema_version": "pllm.reference_quality_benchmark.v1",
+  "scope": "local-compiled-clear-kernel-prefill-reference"
+}

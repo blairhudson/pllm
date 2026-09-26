@@ -22,6 +22,7 @@ from pllm.runtime.quantization import (
     quantize_activation_per_row,
     signed_dot_bound,
 )
+from pllm.runtime.public_equalization import equalize_activation
 from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
 from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
@@ -99,7 +100,7 @@ class ClientLinearExecutor:
             or engine.activation_bits != privacy.get("activation_bits")
         ):
             raise RuntimeBindingError("client-owned kernel differs from the bound model body")
-        stages: dict[str, tuple[Any, int, int, int, np.ndarray, np.ndarray | None]] = {}
+        stages: dict[str, tuple[Any, int, int, int, np.ndarray, np.ndarray | None, np.ndarray | None]] = {}
         for row in binding._stages:
             if row.stage_id in BOUNDARY_STAGE_IDS:
                 continue
@@ -118,12 +119,16 @@ class ClientLinearExecutor:
                 or not np.array_equal(runtime.weight.scales, bound.weight_scales)
                 or (runtime.bias is None) != (bound.bias is None)
                 or (runtime.bias is not None and not np.array_equal(runtime.bias, bound.bias))
+                or runtime.equalization_profile_digest != bound.equalization_profile_digest
+                or (runtime.input_equalization is None) != (bound.input_equalization is None)
+                or (runtime.input_equalization is not None and not np.array_equal(runtime.input_equalization, bound.input_equalization))
             ):
                 raise RuntimeBindingError(f"client-owned stage {row.stage_id!r} differs from plan")
             stages[row.stage_id] = (
                 runtime.compiled_weight, row.in_features, row.out_features,
                 row.activation_bits, bound.weight_scales.copy(),
                 None if bound.bias is None else bound.bias.copy(),
+                None if bound.input_equalization is None else bound.input_equalization.copy(),
             )
         if not stages:
             raise RuntimeBindingError("client-owned kernel has no bound body stages")
@@ -139,7 +144,7 @@ class ClientLinearExecutor:
 
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         try:
-            matrix, in_features, out_features, bits, scales, bias = self._stages[stage_id]
+            matrix, in_features, out_features, bits, scales, bias, equalization = self._stages[stage_id]
         except KeyError as exc:
             raise RuntimeBindingError("stage is not in the client-owned plan") from exc
         values = np.asarray(activation)
@@ -150,6 +155,8 @@ class ClientLinearExecutor:
             or not np.all(np.isfinite(values))
         ):
             raise RuntimeBindingError("client-owned stage input has an invalid shape")
+        if equalization is not None:
+            values = equalize_activation(values, equalization)
         quantized = quantize_activation_per_row(values, bits=bits)
         integer = matrix.clear(quantized.values)
         output = dequantize_matmul(
@@ -447,8 +454,7 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
             continue
         scales = stage.weight_scales.astype("<f4", copy=False).tobytes()
         bias = None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes()
-        body.append(
-            {
+        body_row = {
                 "id": stage_id,
                 "op": stage.op,
                 "in": stage.in_features,
@@ -459,9 +465,7 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
                 "weight_scales": scales,
                 "bias": bias,
             }
-        )
-        commitment.append(
-            {
+        commitment_row = {
                 "id": stage_id,
                 "weight": stage.weight_digest,
                 "in": stage.in_features,
@@ -470,7 +474,14 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
                 "ab": stage.activation_bits,
                 "profile": stage.seeded_profile.to_dict(),
             }
-        )
+        if stage.input_equalization is not None:
+            equalization = stage.input_equalization.astype("<f4", copy=False).tobytes()
+            body_row["input_equalization"] = equalization
+            body_row["equalization_profile_digest"] = stage.equalization_profile_digest
+            commitment_row["input_equalization"] = equalization
+            commitment_row["equalization_profile_digest"] = stage.equalization_profile_digest
+        body.append(body_row)
+        commitment.append(commitment_row)
     return (
         _sha256(msgpack.packb(body, use_bin_type=True)),
         _sha256(msgpack.packb(commitment, use_bin_type=True)),
@@ -962,6 +973,12 @@ def compile_runtime_model(
     )
     if verification_component != "none" or verification_failure_bits != 0:
         raise RuntimeBindingError("masked-linear execution cannot claim unbound verification")
+    equalization_digest = runtime_options.public_equalization_digest
+    if (
+        privacy.get("public_equalization_digest") != equalization_digest
+        or (equalization_digest is not None and (weight_bits, activation_bits) != (8, 8))
+    ):
+        raise RuntimeBindingError("client bundle equalization profile differs from its composition")
 
     canonical: dict[str, Any] = {}
     for key, stage in bundle.stages.items():
@@ -977,6 +994,13 @@ def compile_runtime_model(
     ]
     if len(set(named_roles)) != len(named_roles):
         raise RuntimeBindingError("bundle named stage roles and layers must be unique")
+    for stage_id, stage in canonical.items():
+        expected_digest = None if stage_id in BOUNDARY_STAGE_IDS else equalization_digest
+        if (
+            stage.equalization_profile_digest != expected_digest
+            or (stage.input_equalization is None) != (expected_digest is None)
+        ):
+            raise RuntimeBindingError("stage equalization differs from composed numeric profile")
 
     spec_rows: dict[str, dict[str, Any]] = {}
     for row in manifest.get("stages") or []:
@@ -1025,6 +1049,8 @@ def compile_runtime_model(
         raise RuntimeBindingError("manifest lacks the compiled topology contract")
     if manifest_metadata.get("runtime_config_digest") != runtime_config_digest:
         raise RuntimeBindingError("client runtime config does not match its manifest commitment")
+    if manifest_metadata.get("public_equalization_digest") != equalization_digest:
+        raise RuntimeBindingError("manifest equalization differs from the bound numeric profile")
     if any(
         manifest_metadata.get(key) != privacy.get(key)
         for key in (

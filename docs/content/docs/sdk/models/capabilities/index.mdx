@@ -1,0 +1,35 @@
+---
+title: "Reusable model capabilities"
+description: "Model-neutral contracts, checked decoder scopes, and missing executable variants."
+---
+
+The [family × capability matrix](/sdk/reference/status/) summarizes status. Each capability below has its own scoped contract, source-family links, and next gate. An isolated numeric primitive is not full model support. **No public Python API is exposed for selecting capabilities from this index**; use the linked model plan and typed pending capability APIs where available.
+
+- [Grouped-query attention](/sdk/models/capabilities/gqa/) — Head grouping, scoring and attention-value shapes.
+- [Rotary positions](/sdk/models/capabilities/rotary/) — Position bases and rotated head dimensions.
+- [Attention projection biases](/sdk/models/capabilities/qkv-bias/) — Authenticated Q/K/V bias after each weight projection.
+- [RMSNorm](/sdk/models/capabilities/rmsnorm/) — Public weight and bounded normalization semantics.
+- [Gated SiLU MLP](/sdk/models/capabilities/gated-silu/) — SiLU and gated multiplication with explicit numeric conversions.
+- [Persistent KV cache](/sdk/models/capabilities/kv-cache/) — Bounded valid-prefix attention state.
+- [Explicit attention head width](/sdk/models/capabilities/head-width/) — Projection width independent of hidden width.
+- [Per-head Q/K normalization](/sdk/models/capabilities/qk-norm/) — Normalization between Q/K projection and rotary position.
+- [Gated-delta recurrence](/sdk/models/capabilities/gated-delta/) — Stateful recurrent update and decay.
+- [Causal convolution](/sdk/models/capabilities/causal-convolution/) — Finite-window convolution state and update.
+- [Partial multimodal rotary](/sdk/models/capabilities/partial-mrope/) — Sectioned rotary coordinates for text decoder heads.
+- [Fused QKV projections](/sdk/models/capabilities/fused-qkv/) — One fused checkpoint artifact, separate typed Q/K/V slices.
+- [Partial LongRoPE](/sdk/models/capabilities/longrope/) — Short/long factors, partial rotation, context and scale.
+- [Local and global attention](/sdk/models/capabilities/local-global/) — Layer-specific windows and correct global attention.
+- [Cross-layer KV sharing](/sdk/models/capabilities/shared-kv/) — Shared valid-prefix KV suffix and state ownership.
+- [GeLU-tanh branch](/sdk/models/capabilities/gelu-tanh/) — Bounded GeLU-tanh activation and numeric representation.
+- [BF16 operator composition](/sdk/models/capabilities/bf16-operator-composition/) — Consistent BF16 rounding at every local and remote numeric edge.
+- [Checkpoint scalar binding](/sdk/models/capabilities/checkpoint-scalar-binding/) — Client-owned one-element checkpoint factors bound to exact scale operations.
+- [Branch-output normalization](/sdk/models/capabilities/branch-norm/) — Post-branch normalization and weight mapping.
+- [Per-layer embedding path](/sdk/models/capabilities/ple/) — Per-layer embedding input and compatible state.
+- [Logit softcap](/sdk/models/capabilities/softcap/) — Bounded final score softcap and numeric semantics.
+- [Untied output head](/sdk/models/capabilities/untied-head/) — Distinct embedding and output matrices with exact checkpoint ownership.
+- [Sliding-window attention](/sdk/models/capabilities/sliding-window/) — Per-layer window and valid-prefix attention state.
+- [Scaled rotary positions](/sdk/models/capabilities/rope-scaling/) — Bounded public wavelength-transition frequencies with a compiled float32 rotary profile; other scaling types still fail closed.
+- [Sparse expert routing](/sdk/models/capabilities/expert-routing/) — Model-neutral expert selection, private dispatch and aggregation.
+- [Latent attention](/sdk/models/capabilities/latent-attention/) — Compressed latent KV state and query/value projection semantics.
+- [MXFP4 checkpoint import](/sdk/models/capabilities/mxfp4-import/) — Numeric and packed-weight import with exact artifact binding.
+- [FP8 checkpoint import](/sdk/models/capabilities/fp8-import/) — Block-scale numeric and packed-weight import with exact artifact binding.

@@ -1,0 +1,42 @@
+---
+title: "Gated-delta recurrence"
+description: "Reusable Gated-delta recurrence contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Stateful recurrent update and decay.
+
+Semantic operator/representation: `gated_delta_rule`.
+
+## Checked source adapters
+
+- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): declared; complete baseline schedule blocked. Pinned configuration and semantic-plan tests only **Next:** Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution.
+
+## Candidate families
+
+No additional candidate family is currently mapped to this contract.
+
+## Selection and next gate
+
+The following **importable, non-executable** classes reserve missing reusable contracts. They are excluded from component discovery, Experiment selection, search and provider registration:
+
+- [`pllm.state.GatedDeltaRecurrence`](/sdk/reference/python/pllm/state/#gateddeltarecurrence) (`pllm/planned-model-capability/gated-delta/v1`): Bind recurrent state transitions, numeric updates, and complete hybrid-layer prefill/decode to the shared compiler and checkpoint..
+
+## Python SDK example
+
+```python
+from pllm.state import GatedDeltaRecurrence
+from pllm.components import ModelCapabilityUnavailable
+
+try:
+    GatedDeltaRecurrence()
+except ModelCapabilityUnavailable as exc:
+    assert exc.identity == "pllm/planned-model-capability/gated-delta/v1"
+else:
+    raise AssertionError("missing capability must remain unavailable")
+```
+
+API: [`pllm.state.GatedDeltaRecurrence`](/sdk/reference/python/pllm/state/#objects-and-signatures).
+
+A later implementation must bind an actual operator or numeric lifecycle before its status changes.

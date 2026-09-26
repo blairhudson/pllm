@@ -90,6 +90,38 @@ def test_generated_developer_reference_is_fresh_and_deterministic() -> None:
     assert all("do not edit" not in content.casefold() for content in first.values())
 
 
+def test_status_keeps_family_matrix_and_sdk_completeness_table_with_capability_links() -> None:
+    outputs = reference.render_outputs()
+    status = outputs[DOCS_ROOT / "reference/status.mdx"]
+    inventory = reference.model_compatibility()
+    assert status.count("<table ") == status.count("</table>") == 1
+    assert status.count("| Python module | Implemented API symbols | Paper stubs | Model capability stubs |") == 1
+    assert "overflow-x-auto" in status and "sticky left-0" in status
+    assert status.count('<th scope="row"') == len(inventory["adapters"]) + len(inventory["candidates"])
+    assert status.count('<th scope="col"') == 6 + len(inventory["capabilities"])
+    assert "No row has full model support" in status
+    assert "2/2 opt-in; 3/5 other" in status
+    qwen2_row = next(line for line in status.splitlines() if ">Dense Qwen2 (Qwen2.5-0.5B-Instruct)</a></th>" in line)
+    assert ">1/2 W8</td>" in qwen2_row
+    assert 'aria-label="Model family and reusable capability matrix"' in status
+    for identity in inventory["capabilities"]:
+        route = f"/sdk/models/capabilities/{identity}/"
+        assert f'href="{route}"' in status
+        page = outputs[DOCS_ROOT / f"sdk/models/capabilities/{identity}.mdx"]
+        assert "## Checked source adapters" in page
+        assert "## Candidate families" in page
+        assert "## Selection and next gate" in page
+    for row in inventory["adapters"]:
+        assert f'{row["name"]}</a>' in status
+        for identity in row["baseline_blockers"]:
+            assert f'{row["name"]}: {inventory["capabilities"][identity]["name"]}: missing required executable variant' in status
+    assert "## Python SDK completeness" in status
+    assert "9 reusable model-capability stubs" in status
+    assert "## Python SDK example" in status
+    assert DOCS_ROOT / "reference/python-status.mdx" not in outputs
+    assert "ModelCapabilityUnavailable" in outputs[DOCS_ROOT / "sdk/models/capabilities/gated-delta.mdx"]
+
+
 def test_cli_parser_help_is_split_exactly_across_generated_pages() -> None:
     sections = reference.cli_help_sections()
     parent_commands = {command.rsplit(" ", 1)[0] for command, _ in sections if " " in command}

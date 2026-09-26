@@ -30,7 +30,7 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     assert {
         row["pinned_real_checkpoint_functionality"]
         for row in adapters if row.get("pinned_real_checkpoint_functionality")
-    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Gemma 4 E2B"}
+    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Phi-4-mini", "Gemma 4 E2B"}
     for row in adapters:
         if row["adapter"] == "pllm.gemma4_e2b_text.v1":
             assert "prefill-to-decode" in row["runtime_evidence"]
@@ -39,8 +39,13 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
         elif row["adapter"] == "pllm.gemma4_e4b_text.v1":
             assert "E4B has no checkpoint execution" in row["runtime_evidence"]
         elif row["adapter"] == "pllm.phi4_mini.v1":
-            assert "generated tiny" in row["runtime_evidence"]
-            assert "No official Phi checkpoint" in row["remaining"]
+            assert "tiny generated" in row["runtime_evidence"].lower()
+            assert "130 compiled stages" in row["runtime_evidence"]
+            assert row["evidence"] == {
+                "checkpoint": "real-local", "provider": "real-prepared-local",
+                "quality": "narrow-improvement",
+            }
+            assert "real-checkpoint gateway" in row["remaining"]
         elif row["adapter"] == "pllm.dense_gated_decoder.v1":
             scaled = pllm.lower_model(
                 (ROOT / row["scaled_fixture"]).read_bytes(),

@@ -151,6 +151,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
         choices=("none", "pllm/freivalds-verify/v1"),
     )
     parser.add_argument("--verification-target-failure-bits", type=int)
+    parser.add_argument("--public-equalization-digest")
     parser.add_argument("--guard-max-rows-per-request", type=int)
     parser.add_argument("--guard-max-rows-per-stage", type=int)
     parser.add_argument("--guard-max-requests-per-minute", type=int)
@@ -1149,6 +1150,13 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
                     f"--{name.replace('_', '-')} conflicts with the experiment quantization",
                 )
             setattr(args, name, selected)
+        if (args.public_equalization_digest is not None
+                and args.public_equalization_digest != runtime_options.public_equalization_digest):
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_CONFLICT",
+                "--public-equalization-digest conflicts with experiment quantization",
+            )
+        args.public_equalization_digest = runtime_options.public_equalization_digest
         if role == "preparation" and not runtime_options.requires_preparation:
             raise ResolutionError(
                 "SERVE_CONFIGURATION",

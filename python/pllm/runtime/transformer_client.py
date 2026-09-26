@@ -20,6 +20,7 @@ from .preparation_protocol import (
     expand_preparation_mask,
 )
 from .quantization import dequantize_matmul, quantize_activation_per_row, signed_qmax
+from .public_equalization import PublicEqualizationError, equalize_activation, validate_input_scale
 from .protocol import ProtocolError
 from .stage_protocol import (
     MaskedStageRequest,
@@ -187,6 +188,8 @@ class StageMetadata:
     client_aux_weight: np.ndarray | None = None
     client_aux_scales: np.ndarray | None = None
     seeded_profile: SeededRingProfile | None = None
+    input_equalization: np.ndarray | None = None
+    equalization_profile_digest: str | None = None
 
     @property
     def scales(self) -> np.ndarray:
@@ -313,6 +316,21 @@ class ClientBundle:
             bias = None if bias_payload is None else np.frombuffer(bias_payload, dtype="<f4").copy()
             if bias is not None and bias.shape != (out_features,):
                 raise TransformerClientError(f"invalid bias count for {stage_id}")
+            raw_equalization = row.get("input_equalization")
+            equalization = None
+            if raw_equalization is not None:
+                if type(raw_equalization) is not bytes or len(raw_equalization) != int(row["in_features"]) * 4:
+                    raise TransformerClientError(f"invalid equalization bytes for {stage_id}")
+                equalization = np.frombuffer(raw_equalization, dtype="<f4").copy()
+                try:
+                    validate_input_scale(equalization, int(row["in_features"]))
+                except PublicEqualizationError as exc:
+                    raise TransformerClientError(f"invalid equalization scale for {stage_id}") from exc
+                digest = row.get("equalization_profile_digest")
+                if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                    raise TransformerClientError(f"invalid equalization profile for {stage_id}")
+            elif "equalization_profile_digest" in row:
+                raise TransformerClientError(f"equalization profile lacks scale for {stage_id}")
             spec = stage_specs.get(stage_id, {})
             seeded_profile = None
             if "seeded_profile" in row:
@@ -426,6 +444,8 @@ class ClientBundle:
                 client_aux_weight=client_aux_weight,
                 client_aux_scales=client_aux_scales,
                 seeded_profile=seeded_profile,
+                input_equalization=equalization,
+                equalization_profile_digest=row.get("equalization_profile_digest"),
             )
         # Keep the legacy embedding stage name as a read-only alias. Round 8
         # fuses the token embedding and Gemma PLE table into ``token_lookup``,
@@ -759,6 +779,8 @@ class RemoteLinear:
             raise TransformerClientError(
                 f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
             )
+        if stage.input_equalization is not None:
+            value = equalize_activation(value, stage.input_equalization)
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
         rows = self.correlations.take_many(stage, quantized.rows)
         if len(rows) != quantized.rows:
@@ -870,6 +892,8 @@ class PreparedRemoteLinear:
             raise TransformerClientError(
                 f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
             )
+        if stage.input_equalization is not None:
+            value = equalize_activation(value, stage.input_equalization)
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
         profile = stage.seeded_profile
         if profile is None:

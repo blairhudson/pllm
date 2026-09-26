@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 
 
 class KernelBackend(ComponentRef, ABC):
@@ -52,4 +53,14 @@ class SecureGpuBackend(PendingMethod):
     pass
 
 
-__all__ = ["Cpu", "KernelBackend", "SecureGpuBackend"]
+@model_capability_stub("partial-mrope")
+class PartialMultimodalRotary(PendingModelCapability):
+    pass
+
+
+@model_capability_stub("yarn-rotary-scaling")
+class YarnRotaryScaling(PendingModelCapability):
+    pass
+
+
+__all__ = ["Cpu", "KernelBackend", "SecureGpuBackend", "PartialMultimodalRotary", "YarnRotaryScaling"]

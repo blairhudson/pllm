@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 
 
 class StateProtocol(ComponentRef, ABC):
@@ -55,4 +56,27 @@ class SpeculativePrivateDecode(PendingMethod):
     pass
 
 
-__all__ = ["ClientLocalKv", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode"]
+@model_capability_stub("gated-delta")
+class GatedDeltaRecurrence(PendingModelCapability):
+    pass
+
+
+@model_capability_stub("causal-convolution")
+class CausalConvolutionState(PendingModelCapability):
+    pass
+
+
+@model_capability_stub("latent-attention")
+class LatentAttentionState(PendingModelCapability):
+    pass
+
+
+@model_capability_stub("longrope-cache-rerotation")
+class LongRopeCacheRerotation(PendingModelCapability):
+    pass
+
+
+__all__ = [
+    "ClientLocalKv", "StateProtocol", "EncryptedKvState", "ProtectedKvSelection", "SpeculativePrivateDecode",
+    "GatedDeltaRecurrence", "CausalConvolutionState", "LatentAttentionState", "LongRopeCacheRerotation",
+]

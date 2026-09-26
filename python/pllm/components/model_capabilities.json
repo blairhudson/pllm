@@ -1,0 +1,41 @@
+{
+  "schema": "pllm.model_capability_plans.v1",
+  "entries": [
+    {
+      "slug": "gated-delta", "capability": "gated-delta", "module": "pllm.state", "name": "GatedDeltaRecurrence",
+      "gate": "Bind recurrent state transitions, numeric updates, and complete hybrid-layer prefill/decode to the shared compiler and checkpoint."
+    },
+    {
+      "slug": "causal-convolution", "capability": "causal-convolution", "module": "pllm.state", "name": "CausalConvolutionState",
+      "gate": "Execute bounded causal convolution with exact window ownership across prefill, decode, and checkpoint artifacts."
+    },
+    {
+      "slug": "partial-mrope", "capability": "partial-mrope", "module": "pllm.kernels", "name": "PartialMultimodalRotary",
+      "gate": "Validate and execute sectioned rotary coordinates through a complete hybrid decoder against an upstream numeric oracle."
+    },
+    {
+      "slug": "expert-routing", "capability": "expert-routing", "module": "pllm.passes", "name": "SparseExpertRouting",
+      "gate": "Lower typed expert selection and dispatch with bounded routing, exact checkpoint binding, and protected execution coverage."
+    },
+    {
+      "slug": "latent-attention", "capability": "latent-attention", "module": "pllm.state", "name": "LatentAttentionState",
+      "gate": "Bind compressed latent KV ownership and query/value projections to exact bounded state transitions."
+    },
+    {
+      "slug": "mxfp4-import", "capability": "mxfp4-import", "module": "pllm.quantization", "name": "Mxfp4CheckpointImport",
+      "gate": "Validate MXFP4 packed checkpoint blocks, scales, and their executable numeric conversion."
+    },
+    {
+      "slug": "fp8-import", "capability": "fp8-import", "module": "pllm.quantization", "name": "Fp8BlockScaleImport",
+      "gate": "Validate FP8 packed checkpoint artifacts, block scales, and executable numeric conversion."
+    },
+    {
+      "slug": "yarn-rotary-scaling", "capability": "rope-scaling", "module": "pllm.kernels", "name": "YarnRotaryScaling",
+      "gate": "Implement bounded YaRN rotary frequencies and their reference oracle before admitting gpt-oss or DeepSeek scaled positions."
+    },
+    {
+      "slug": "longrope-cache-rerotation", "capability": "longrope", "module": "pllm.state", "name": "LongRopeCacheRerotation",
+      "gate": "Specify and validate KV re-rotation when a response switches from original to extended LongRoPE context."
+    }
+  ]
+}

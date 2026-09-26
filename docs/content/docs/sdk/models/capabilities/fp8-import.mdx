@@ -1,0 +1,42 @@
+---
+title: "FP8 checkpoint import"
+description: "Reusable FP8 checkpoint import contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Block-scale numeric and packed-weight import with exact artifact binding.
+
+This variant needs a complete model-neutral IR/numeric contract.
+
+## Checked source adapters
+
+No checked source adapter currently requires this capability.
+
+## Candidate families
+
+- [DeepSeek-V3 family](https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json): required executable variant missing. Multi-head latent attention, routed/shared experts, YaRN, FP8 import and complete protected/quality coverage.
+
+## Selection and next gate
+
+The following **importable, non-executable** classes reserve missing reusable contracts. They are excluded from component discovery, Experiment selection, search and provider registration:
+
+- [`pllm.quantization.Fp8BlockScaleImport`](/sdk/reference/python/pllm/quantization/#fp8blockscaleimport) (`pllm/planned-model-capability/fp8-import/v1`): Validate FP8 packed checkpoint artifacts, block scales, and executable numeric conversion..
+
+## Python SDK example
+
+```python
+from pllm.quantization import Fp8BlockScaleImport
+from pllm.components import ModelCapabilityUnavailable
+
+try:
+    Fp8BlockScaleImport()
+except ModelCapabilityUnavailable as exc:
+    assert exc.identity == "pllm/planned-model-capability/fp8-import/v1"
+else:
+    raise AssertionError("missing capability must remain unavailable")
+```
+
+API: [`pllm.quantization.Fp8BlockScaleImport`](/sdk/reference/python/pllm/quantization/#objects-and-signatures).
+
+A later implementation must bind an actual operator or numeric lifecycle before its status changes.

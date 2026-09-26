@@ -1,0 +1,22 @@
+---
+title: "Attention projection biases"
+description: "Reusable Attention projection biases contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Authenticated Q/K/V bias after each weight projection.
+
+Semantic operator/representation: `linear`.
+
+## Checked source adapters
+
+- [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/): part of its bounded complete baseline schedule. Pinned Qwen2.5-0.5B local prefill/decode functionality test; tiny compiled two-role protocol test. The historical baseline cohort predates compiler-bound live execution **Next:** Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent.
+
+## Candidate families
+
+No additional candidate family is currently mapped to this contract.
+
+## Selection and next gate
+
+This contract is selected through source lowering and compiler admission, not by a stand-alone component. **No public Python API is exposed for selecting this operator independently.** Use the [model workflow](/sdk/models/) to inspect a source's supported scope.

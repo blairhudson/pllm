@@ -180,6 +180,6 @@ pipeline = ClientOnlyCpu(TinyModel(model_id="client-only-clear-control"))
 assert pipeline.components["linear"] == method
 ```
 
-Check [current Python support](/sdk/reference/status/#public-modules) before moving
+Check [current Python support](/sdk/reference/status/#python-sdk-completeness) before moving
 from configuration to execution. Experimental [garbling components](/sdk/components/nonlinear/garbling/)
 protect nonlinear regions and are not another end-to-end linear protocol.

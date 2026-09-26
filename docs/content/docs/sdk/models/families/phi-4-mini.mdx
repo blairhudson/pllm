@@ -7,7 +7,24 @@ description: "Bounded fused-projection and original-context LongRoPE execution f
 
 The adapter emits fused QKV and gate/up projections as linear operations followed by explicit slices. LongRoPE binds the original context, public short and long factor vectors, scaling ratio, partial rotary width and coefficient profile. Its short-context frequencies apply throughout a compiled response. A response crossing into extended context is rejected before execution: switching factor vectors while keeping previously rotated KV entries requires a separately specified cache re-rotation contract. The tied output head references the token embedding matrix.
 
-The upstream model name and adapter identity are Phi-4 mini even though the checked configuration discriminator is `phi3`. The pinned configuration compiles for an original-context workload. A generated tiny checkpoint imports its fused tensors and passes W8A8 prefill/decode against a PyTorch float32 reference (matching selected tokens, worst logit error below 0.05), plus client-only and prepared SDK/gateway requests. The official Phi checkpoint, extended-context execution, representative quality and deployment are unvalidated.
+The upstream model name and adapter identity are Phi-4 mini even though the checked configuration discriminator is `phi3`. The pinned official BF16 checkpoint imports all 194 required artifacts into **130 compiled stages**. An original-context 5+2-token workload completes full local-clear prefill/decode. On two fixed same-token prefixes, an unquantized float32 body with the W8 token/head boundary recovers both PyTorch float32 top tokens (maximum logit difference below 1.8); this is a local diagnostic, not a selectable provider precision.
+
+The retained [two-prompt quality cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-reference-quality-2026-09-24.json) scores **0/2 top-1** and 0.0 mean top-5 recall for W4A4; **1/2 top-1** and 0.30 mean top-5 recall for W8A8. Worst absolute logit differences are 40.67 and 29.90 respectively. A separate fixed-token prefill/decode probe finds activation quantization alone can produce the short-prefix mismatch. A selectable [public per-channel equalized W8A8 component](/sdk/components/quantization/public-per-channel-equalized/) scores **2/2** and 0.50 mean top-5 recall on that same cohort (9.59 worst logit error), but both W8A8 choices score only **3/5** on a separate five-prompt cohort. The two prompts influenced alpha selection; none of these results measures general generation quality.
+
+The generated tiny checkpoint separately passes W8A8 PyTorch parity (selected tokens match; worst logit error below 0.05) and client-only/prepared SDK/gateway requests. With the pinned **real** checkpoint, a prepared equalized response completed 128 masked remote stages through two co-located role children: zero plaintext prompt/token-ID bytes went to providers, and covered online application bodies decreased versus the matched plain-W8A8 response. Its public profile increases cold bundle delivery. These checks establish provider protocol connectivity, not independent operators, full wire/cold compute accounting, or real-model generation quality. Real-checkpoint gateway, protected execution, and extended-context cache transition remain unvalidated.
+
+To repeat the scoped quality comparison with the pinned official checkpoint cached locally, set `PLLM_REAL_PHI_PATH` to its checkpoint directory and run from the repository root (with the optional `quality` dependencies installed):
+
+```bash
+python -m pllm benchmark quality \
+  --experiment examples/benchmarks/phi4mini_reference_quality.py:w4a4 \
+  --experiment examples/benchmarks/phi4mini_reference_quality.py:w8a8 \
+  --trust-python \
+  --prompts-file examples/benchmarks/reference_prompts.json \
+  --format json
+```
+
+The same source lock and token cohort bind both immutable Experiments. [Fit the public profile and compare equalized W8A8](/sdk/components/quantization/public-per-channel-equalized/) as a separate option; this changes the body fingerprint. The local clear-kernel quality comparison does not measure provider privacy or full-response cost.
 
 ## Python SDK example
 

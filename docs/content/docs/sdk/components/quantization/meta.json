@@ -1,4 +1,4 @@
 {
   "title": "Quantization",
-  "pages": ["index", "symmetric-per-row"]
+  "pages": ["index", "symmetric-per-row", "public-per-channel-equalized"]
 }

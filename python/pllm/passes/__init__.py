@@ -6,6 +6,7 @@ from typing import Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 
 
 def _integer(value: object, path: str) -> int:
@@ -196,9 +197,15 @@ class FevBddDecisionDiagramFactoring(PendingMethod):
     pass
 
 
+@model_capability_stub("expert-routing")
+class SparseExpertRouting(PendingModelCapability):
+    pass
+
+
 __all__ += [
     "AtlasApproximationSearch", "EncformerRepresentationAssignment", "FuseFssPredicateFusion",
     "RosettaCkksTfheAssignment", "BreakingLayerBarrierAssignment", "CipherPruneTokenPruning",
     "RedashGarbledScaling", "DittoQuantizationAwareTransform", "MpcMinimizedClientServerPartition",
     "MpcFormerDistillation", "HyccHybridProtocolAssignment", "FevBddDecisionDiagramFactoring",
+    "SparseExpertRouting",
 ]

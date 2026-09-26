@@ -1,0 +1,23 @@
+---
+title: "Cross-layer KV sharing"
+description: "Reusable Cross-layer KV sharing contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Shared valid-prefix KV suffix and state ownership.
+
+Semantic operator/representation: `cache_suffix`.
+
+## Checked source adapters
+
+- [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/): part of its bounded complete baseline schedule. Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16; one prepared HTTP request completes through separate in-process inference and preparation services with masked online traffic **Next:** Two-child deployment, independent-provider privacy, representative generation quality and matched cost evidence.
+- [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/): part of its bounded complete baseline schedule. Pinned complete compiler prefill/decode schedule and isolated BF16 tests; E2B checkpoint executes locally but E4B has no checkpoint execution **Next:** E4B checkpoint import, provider-backed prepared execution, quality and cost evidence.
+
+## Candidate families
+
+No additional candidate family is currently mapped to this contract.
+
+## Selection and next gate
+
+This contract is selected through source lowering and compiler admission, not by a stand-alone component. **No public Python API is exposed for selecting this operator independently.** Use the [model workflow](/sdk/models/) to inspect a source's supported scope.

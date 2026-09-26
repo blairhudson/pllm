@@ -10,7 +10,7 @@ download weights or tokenizers, choose a device, or start a runtime.
 Current source readers validate exact upstream configuration contracts and
 produce the same model-neutral plan format. The plan records operators, layers,
 weight references, persistent state, workload limits, and source identity.
-The [architecture compatibility matrix](/sdk/reference/status/#decoder-architecture-compatibility)
+The [architecture compatibility matrix](/sdk/reference/status/)
 breaks each source configuration into reusable semantic, numeric, state, and
 import requirements with explicit runtime blockers. When a model needs a new
 piece, PLLM extends that shared contract instead of implementing a family-named
@@ -41,10 +41,11 @@ and prepared gateway runs. A [pinned public Llama 3.1 8B configuration mirror](h
 also lowers and compiles for a bounded 8+2-token workload without loading weights.
 Other scaling modes and real Llama checkpoint quality
 remain unvalidated. Qwen3.5 has semantic plan coverage only; Phi-4-mini
-compiles in its original-context regime and passes a generated tiny checkpoint
-through fused-weight binding, PyTorch reference parity, and prepared/client-only
-gateway requests. Its real checkpoint and extended-context cache transition
-remain unvalidated.
+imports the pinned official checkpoint and executes a short original-context
+prefill/decode through 130 compiled stages. Its two-prompt W8A8 quality cohort
+agrees with the float32 top token once in two prompts; only the generated tiny
+checkpoint has prepared/client-only gateway coverage. Extended-context cache
+transition remains unvalidated.
 Gemma 4 E2B/E4B both have complete baseline schedules; pinned E2B additionally
 executes locally and through a prepared in-process HTTP request, while E4B has
 no checkpoint execution. A supported importer and runtime binding must still
@@ -72,5 +73,6 @@ Save as `experiment.py`; install optional `he` via
 [Installation](/learn/installation/) and run
 `pllm gateway --local --experiment experiment.py:experiment --trust-python`.
 The pinned Qwen2 path is runnable. Pinned Gemma E2B has its separately scoped
-local-clear and prepared loopback diagnostics; Qwen3.5, Phi and E4B remain
-plan-only or incomplete at the checkpoint-execution boundary.
+local-clear and prepared loopback diagnostics; pinned Phi has local compiled
+checkpoint functionality but fails the checked numeric-quality gate, while
+Qwen3.5 and E4B remain incomplete at the checkpoint-execution boundary.

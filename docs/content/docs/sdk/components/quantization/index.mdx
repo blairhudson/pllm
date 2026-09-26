@@ -4,16 +4,20 @@ description: "Choose masked-linear numeric precision as a versioned Experiment c
 ---
 
 [`SymmetricPerRow`](/sdk/components/quantization/symmetric-per-row/) selects
-weight and activation precision for public prepared masked-linear stages. The
-choice lives in `Pipeline.components["quantization"]`: different bit widths get
-different composition and `Experiment` digests. Omitting the slot preserves old
-pipeline identities and uses the existing eight-bit local-role default.
+weight and activation precision. [Public per-channel equalized W8A8](/sdk/components/quantization/public-per-channel-equalized/)
+is a second, explicit numeric choice: it uses fixed public offline calibration
+bound to the checkpoint, transforms each body weight stage and adjusts its
+activation on the client before masked inference. The choice lives in
+`Pipeline.components["quantization"]`; the equalization profile digest also
+binds the stage/body identity. Omitting the slot preserves old pipeline
+identities and uses the existing eight-bit local-role default.
 
-Available choices: four or eight bits for each dimension, independently. Only
-the masked-linear public baseline and its opt-in verified counterpart admit this
-component. Incompatible protocols and unknown numeric implementations fail
-closed at resolution. Selection binds the same settings across client,
-preparation and inference; a conflicting explicit role override is rejected.
+`SymmetricPerRow` offers four or eight bits for each dimension, independently,
+in the masked-linear baseline or opt-in verified counterpart. Equalized W8A8
+works with public baseline client-owned or prepared stages. Other protocols,
+missing calibration artifacts, and unknown numeric implementations fail closed.
+Selection binds the same settings across client, preparation and inference; a
+conflicting explicit role override is rejected.
 
 This is an execution choice, not a quality score. See
 [reference agreement](/sdk/evaluate/metrics/reference-agreement/) and compare measurements on the

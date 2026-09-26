@@ -1,0 +1,22 @@
+---
+title: "Explicit attention head width"
+description: "Reusable Explicit attention head width contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Projection width independent of hidden width.
+
+Semantic operator/representation: `reshape`.
+
+## Checked source adapters
+
+- [Dense Qwen3 (Qwen3-0.6B)](/sdk/models/families/qwen3/): part of its bounded complete baseline schedule. Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark **Next:** W4A4 fails top-token parity on two checked prompts; the local-role default W8A8 also fails one short prompt. Quantization-quality, real-checkpoint serving and matched benchmark evidence, and protected whole-decoder execution remain open.
+
+## Candidate families
+
+No additional candidate family is currently mapped to this contract.
+
+## Selection and next gate
+
+This contract is selected through source lowering and compiler admission, not by a stand-alone component. **No public Python API is exposed for selecting this operator independently.** Use the [model workflow](/sdk/models/) to inspect a source's supported scope.

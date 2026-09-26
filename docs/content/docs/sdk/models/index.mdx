@@ -11,8 +11,9 @@ current pinned real public-weight benchmark target. Dense Qwen3 has pinned
 compiled-checkpoint functionality but incomplete numeric-quality evidence.
 Bounded default and Llama 3 wavelength-transition rotary paths pass tiny compiled
 checks; the pinned public Llama 3.1 8B configuration compiles without weights.
-Phi-4-mini additionally passes generated tiny original-context fused-weight
-checkpoint tests, but not real-checkpoint or extended-context execution. Hybrid
+Phi-4-mini additionally imports and runs its pinned real checkpoint in the
+original-context compiled path, but the two-prompt W8A8 fidelity test agrees
+only once and real-checkpoint provider execution remains untested. Hybrid
 Qwen3.5 retains semantic-only coverage. Gemma 4 E2B executes through a local
 and prepared compiled path; E4B remains compiler-scheduled without checkpoint
 execution.

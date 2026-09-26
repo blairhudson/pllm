@@ -1,5 +1,5 @@
 {
   "title": "Models",
   "root": true,
-  "pages": ["index", "sources", "families"]
+  "pages": ["index", "sources", "families", "capabilities"]
 }

@@ -131,6 +131,10 @@ def planned_identity(identity: str) -> PlannedComponent | None:
 
 def require_implemented_identity(identity: str) -> None:
     """Keep both known and forged planned IDs outside all executable paths."""
+    if identity.startswith("pllm/planned-model-capability/"):
+        from pllm.components._model_capabilities import require_model_capability_identity
+
+        require_model_capability_identity(identity)
     if identity.startswith("pllm/planned/"):
         stub = planned_identity(identity)
         if stub is None:

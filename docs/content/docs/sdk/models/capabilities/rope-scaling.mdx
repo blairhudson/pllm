@@ -1,0 +1,44 @@
+---
+title: "Scaled rotary positions"
+description: "Reusable Scaled rotary positions contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Bounded public wavelength-transition frequencies with a compiled float32 rotary profile; other scaling types still fail closed.
+
+Semantic operator/representation: `rotary_embedding`.
+
+## Checked source adapters
+
+- [Bounded dense bias-free decoder (tiny Llama-style fixtures)](/sdk/models/families/): part of its bounded complete baseline schedule. A pinned public Llama 3.1 8B configuration mirror lowers and compiles for a bounded 8+2 token workload without loading weights. Generated tiny bias-free checkpoints pass unscaled tied/untied parity and bounded wavelength-transition scaling: scaled W8A8 prefill/decode matches PyTorch selections with less than 0.05 worst logit error; prepared and client-only SDK/gateway requests complete **Next:** No real Llama checkpoint, tokenizer or representative quality evidence; other RoPE scaling types, sliding attention, projection bias and protected execution remain unsupported.
+
+## Candidate families
+
+- [Llama 3.x text decoders](https://huggingface.co/docs/transformers/model_doc/llama): shared machinery exists, but this family is unchecked. Pinned public source config lowers and schedules without weights; bounded wavelength-transition scaling passes a generated tiny decoder and float32 oracle. Official Llama 3 checkpoint import, tokenizer, generation quality and deployment remain unvalidated; linear, YaRN and other scaling modes still fail closed.
+- [gpt-oss 20B](https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json): required executable variant missing. Alternating sliding/full attention, MoE routing, YaRN, MXFP4 weight representation and checkpoint binding.
+- [DeepSeek-V3 family](https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/main/config.json): required executable variant missing. Multi-head latent attention, routed/shared experts, YaRN, FP8 import and complete protected/quality coverage.
+
+## Selection and next gate
+
+The following **importable, non-executable** classes reserve missing reusable contracts. They are excluded from component discovery, Experiment selection, search and provider registration:
+
+- [`pllm.kernels.YarnRotaryScaling`](/sdk/reference/python/pllm/kernels/#yarnrotaryscaling) (`pllm/planned-model-capability/yarn-rotary-scaling/v1`): Implement bounded YaRN rotary frequencies and their reference oracle before admitting gpt-oss or DeepSeek scaled positions..
+
+## Python SDK example
+
+```python
+from pllm.kernels import YarnRotaryScaling
+from pllm.components import ModelCapabilityUnavailable
+
+try:
+    YarnRotaryScaling()
+except ModelCapabilityUnavailable as exc:
+    assert exc.identity == "pllm/planned-model-capability/yarn-rotary-scaling/v1"
+else:
+    raise AssertionError("missing capability must remain unavailable")
+```
+
+API: [`pllm.kernels.YarnRotaryScaling`](/sdk/reference/python/pllm/kernels/#objects-and-signatures).
+
+A later implementation must bind an actual operator or numeric lifecycle before its status changes.

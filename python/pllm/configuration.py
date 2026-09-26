@@ -691,6 +691,7 @@ class ExperimentProfile:
     privacy_protocol: str | None
     verification_component: str | None
     verification_target_failure_bits: int
+    public_equalization_digest: str | None
     role_graph: RoleGraph | None
 
     def __init__(self, experiment: Experiment) -> None:
@@ -728,6 +729,7 @@ class ExperimentProfile:
                 "verification_target_failure_bits",
                 runtime_options.verification_target_failure_bits,
             )
+            object.__setattr__(self, "public_equalization_digest", runtime_options.public_equalization_digest)
             return
         from pllm import _native
 
@@ -757,6 +759,7 @@ class ExperimentProfile:
             "verification_target_failure_bits",
             runtime_options.verification_target_failure_bits,
         )
+        object.__setattr__(self, "public_equalization_digest", runtime_options.public_equalization_digest)
 
 
 def _replace_path(target: Any, path: list[str], value: object) -> Any:

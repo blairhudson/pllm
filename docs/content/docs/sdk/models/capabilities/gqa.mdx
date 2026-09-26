@@ -1,0 +1,31 @@
+---
+title: "Grouped-query attention"
+description: "Reusable Grouped-query attention contract and family-specific execution gates."
+---
+
+[Model status matrix](/sdk/reference/status/) · [all reusable capabilities](/sdk/models/capabilities/)
+
+Head grouping, scoring and attention-value shapes.
+
+Semantic operator/representation: `attention_scores`.
+
+## Checked source adapters
+
+- [Dense Qwen2 (Qwen2.5-0.5B-Instruct)](/sdk/models/families/qwen2/): part of its bounded complete baseline schedule. Pinned Qwen2.5-0.5B local prefill/decode functionality test; tiny compiled two-role protocol test. The historical baseline cohort predates compiler-bound live execution **Next:** Other Qwen2 checkpoints need their own import, configuration, and quality checks; protected whole decoder absent.
+- [Dense Qwen3 (Qwen3-0.6B)](/sdk/models/families/qwen3/): part of its bounded complete baseline schedule. Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark **Next:** W4A4 fails top-token parity on two checked prompts; the local-role default W8A8 also fails one short prompt. Quantization-quality, real-checkpoint serving and matched benchmark evidence, and protected whole-decoder execution remain open.
+- [Bounded dense bias-free decoder (tiny Llama-style fixtures)](/sdk/models/families/): part of its bounded complete baseline schedule. A pinned public Llama 3.1 8B configuration mirror lowers and compiles for a bounded 8+2 token workload without loading weights. Generated tiny bias-free checkpoints pass unscaled tied/untied parity and bounded wavelength-transition scaling: scaled W8A8 prefill/decode matches PyTorch selections with less than 0.05 worst logit error; prepared and client-only SDK/gateway requests complete **Next:** No real Llama checkpoint, tokenizer or representative quality evidence; other RoPE scaling types, sliding attention, projection bias and protected execution remain unsupported.
+- [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): declared; complete baseline schedule blocked. Pinned configuration and semantic-plan tests only **Next:** Hybrid gated-delta recurrent/convolution operators, checkpoint binding, baseline and protected execution.
+- [Phi-4-mini-instruct](/sdk/models/families/phi-4-mini/): part of its bounded complete baseline schedule. Pinned official BF16 checkpoint imports all 194 required artifacts into 130 compiled stages and executes original-context prefill/decode locally. On the same two-prompt float32 reference cohort, W4A4 scores 0/2, W8A8 1/2 (29.90 worst logit error), and checkpoint-bound public equalized W8A8 2/2 (9.59); five other prompts score 3/5 for both W8A8 choices. A separate two-child local prepared request completes 128 masked remote stages, with zero plaintext prompt/token-ID traffic and 1.63 MB fewer covered online bodies than matched W8A8, while increasing client bundle bytes. Tiny generated weights also pass reference parity and SDK/gateway requests. Extended-context crossing fails closed **Next:** Narrow cohorts do not establish representative generation quality or full-response compute-cap compliance; two co-located children do not establish independent-provider privacy; real-checkpoint gateway, protected execution and LongRoPE context transition (KV re-rotation) remain open.
+- [Gemma 4 E2B text decoder](/sdk/models/families/gemma-4/): part of its bounded complete baseline schedule. Pinned E2B: 213 checkpoint-bound compiled stages, two local-clear W8A8 prefill-to-decode runs; 2/2 same-token top-1, 0.70 mean top-5 recall and 3.5625 worst logit error against BF16; one prepared HTTP request completes through separate in-process inference and preparation services with masked online traffic **Next:** Two-child deployment, independent-provider privacy, representative generation quality and matched cost evidence.
+- [Gemma 4 E4B text decoder](/sdk/models/families/gemma-4/): part of its bounded complete baseline schedule. Pinned complete compiler prefill/decode schedule and isolated BF16 tests; E2B checkpoint executes locally but E4B has no checkpoint execution **Next:** E4B checkpoint import, provider-backed prepared execution, quality and cost evidence.
+
+## Candidate families
+
+- [Mistral 7B Instruct v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3/blob/main/config.json): shared machinery exists, but this family is unchecked. Untied embeddings and Mistral checkpoint layout; this exact v0.3 config has no sliding window, while other variants need explicit window policy.
+- [Llama 3.x text decoders](https://huggingface.co/docs/transformers/model_doc/llama): shared machinery exists, but this family is unchecked. Pinned public source config lowers and schedules without weights; bounded wavelength-transition scaling passes a generated tiny decoder and float32 oracle. Official Llama 3 checkpoint import, tokenizer, generation quality and deployment remain unvalidated; linear, YaRN and other scaling modes still fail closed.
+- [Qwen3 MoE](https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507/blob/main/config.json): shared machinery exists, but this family is unchecked. Routed/shared experts, expert selection, protected state, distribution and checkpoint import.
+- [gpt-oss 20B](https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json): shared machinery exists, but this family is unchecked. Alternating sliding/full attention, MoE routing, YaRN, MXFP4 weight representation and checkpoint binding.
+
+## Selection and next gate
+
+This contract is selected through source lowering and compiler admission, not by a stand-alone component. **No public Python API is exposed for selecting this operator independently.** Use the [model workflow](/sdk/models/) to inspect a source's supported scope.

@@ -1778,19 +1778,12 @@ fn validate_bounded_linear_composition(
     }
     let quantization = pipeline.components.get("quantization");
     if let Some(quantization) = quantization {
-        let bits = |key: &str| {
-            quantization
-                .params
-                .get(key)
-                .and_then(serde_json::Value::as_u64)
-        };
-        if quantization.component != "pllm/symmetric-per-row-quantization/v1"
-            || quantization.params.len() != 2
-            || !matches!(bits("weight_bits"), Some(4 | 8))
-            || !matches!(bits("activation_bits"), Some(4 | 8))
+        if !(valid_baseline_quantization(quantization)
+            || (linear_identity == "pllm/cleartext-linear"
+                && valid_public_equalization(quantization)))
         {
             return Err(format!(
-                "{name} quantization requires exact 4- or 8-bit symmetric per-row settings"
+                "{name} quantization requires a supported exact numeric component"
             ));
         }
     }
@@ -1808,21 +1801,14 @@ fn validate_masked_linear_composition(
     validate_masked_linear_core(pipeline)?;
     let quantization = pipeline.components.get("quantization");
     if let Some(quantization) = quantization {
-        let bits = |key: &str| {
-            quantization
-                .params
-                .get(key)
-                .and_then(serde_json::Value::as_u64)
-        };
-        if quantization.component != "pllm/symmetric-per-row-quantization/v1"
-            || quantization.params.len() != 2
-            || !matches!(bits("weight_bits"), Some(4 | 8))
-            || !matches!(bits("activation_bits"), Some(4 | 8))
-        {
+        if !valid_baseline_quantization(quantization) && !valid_public_equalization(quantization) {
             return Err("masked-linear quantization requires exact 4- or 8-bit symmetric per-row weight and activation settings".into());
         }
     }
     let verification = pipeline.components.get("verification");
+    if verification.is_some() && quantization.is_some_and(valid_public_equalization) {
+        return Err("public equalization has no verified-stage contract".into());
+    }
     let topology = pipeline.components.get("topology");
     if let Some(topology) = topology {
         if topology.component != "pllm/one-online-provider-offline-preparation/v1"
@@ -1855,6 +1841,34 @@ fn validate_masked_linear_composition(
         return Err("Freivalds verification requires target_failure_bits from 1 to 80".into());
     }
     Ok(MaskedLinearComposition::Verified)
+}
+
+fn valid_baseline_quantization(quantization: &ExperimentComponent) -> bool {
+    let bits = |key: &str| {
+        quantization
+            .params
+            .get(key)
+            .and_then(serde_json::Value::as_u64)
+    };
+    quantization.component == "pllm/symmetric-per-row-quantization/v1"
+        && quantization.params.len() == 2
+        && matches!(bits("weight_bits"), Some(4 | 8))
+        && matches!(bits("activation_bits"), Some(4 | 8))
+}
+
+fn valid_public_equalization(quantization: &ExperimentComponent) -> bool {
+    let digest = quantization
+        .params
+        .get("profile_digest")
+        .and_then(serde_json::Value::as_str);
+    quantization.component == "pllm/public-per-channel-equalized/v1"
+        && quantization.params.len() == 1
+        && digest.is_some_and(|digest| {
+            digest.len() == 64
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
 }
 
 fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), String> {

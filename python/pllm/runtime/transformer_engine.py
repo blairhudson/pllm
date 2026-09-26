@@ -40,6 +40,13 @@ from .quantization import (
     quantize_weight_per_row,
     signed_qmax,
 )
+from .public_equalization import (
+    PublicEqualizationError,
+    PublicEqualizationProfile,
+    equalize_weight_chunk,
+    load_public_equalization_profile,
+    validate_input_scale,
+)
 from .safetensors_store import SafeTensorStore, TensorStoreError
 from .semantic_tensors import (
     SemanticTensorError,
@@ -70,10 +77,11 @@ class StageMetadata:
     layer_index: int | None = None
     ring: str = "prime"
     weight_digest: str = ""
+    input_equalization: np.ndarray | None = None
+    equalization_profile_digest: str | None = None
 
     def pack(self) -> bytes:
-        return msgpack.packb(
-            {
+        descriptor = {
                 "v": 1,
                 "id": self.id,
                 "op": self.op,
@@ -91,9 +99,11 @@ class StageMetadata:
                 "layer_index": self.layer_index,
                 "ring": self.ring,
                 "weight_digest": self.weight_digest,
-            },
-            use_bin_type=True,
-        )
+            }
+        if self.input_equalization is not None:
+            descriptor["input_equalization"] = self.input_equalization.astype("<f4", copy=False).tobytes()
+            descriptor["equalization_profile_digest"] = self.equalization_profile_digest
+        return msgpack.packb(descriptor, use_bin_type=True)
 
     @classmethod
     def unpack(cls, payload: bytes) -> "StageMetadata":
@@ -108,6 +118,21 @@ class StageMetadata:
         bias = None if bias_payload is None else np.frombuffer(bias_payload, dtype="<f4").copy()
         if bias is not None and bias.shape != (out_features,):
             raise TransformerEngineError("invalid stage bias count")
+        equalization = row.get("input_equalization")
+        scale = None
+        if equalization is not None:
+            if type(equalization) is not bytes or len(equalization) != int(row["in_features"]) * 4:
+                raise TransformerEngineError("invalid stage equalization length")
+            scale = np.frombuffer(equalization, dtype="<f4").copy()
+            try:
+                validate_input_scale(scale, int(row["in_features"]))
+            except PublicEqualizationError as exc:
+                raise TransformerEngineError("invalid stage equalization scale") from exc
+            digest = row.get("equalization_profile_digest")
+            if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise TransformerEngineError("invalid stage equalization profile")
+        elif "equalization_profile_digest" in row:
+            raise TransformerEngineError("stage equalization profile has no input scale")
         return cls(
             id=str(row["id"]),
             op=str(row["op"]),
@@ -123,6 +148,8 @@ class StageMetadata:
             layer_index=row.get("layer_index"),
             ring=str(row.get("ring", "prime")),
             weight_digest=str(row.get("weight_digest", "")),
+            input_equalization=scale,
+            equalization_profile_digest=row.get("equalization_profile_digest"),
         )
 
 
@@ -138,6 +165,8 @@ class StageRuntime:
     rows: int = 0
     server_ns: int = 0
     compiled_weight: Any = None
+    input_equalization: np.ndarray | None = None
+    equalization_profile_digest: str | None = None
     _weight_digest: str = field(init=False)
     _signed_output_bound: int = field(init=False)
 
@@ -163,6 +192,8 @@ class StageRuntime:
             role=self.spec.role,
             layer_index=self.spec.layer_index,
             weight_digest=self.weight_digest,
+            input_equalization=self.input_equalization,
+            equalization_profile_digest=self.equalization_profile_digest,
         )
 
     @property
@@ -208,6 +239,9 @@ class StageRuntime:
             }
         if include_seeded_profile:
             descriptor["seeded_profile"] = self.seeded_profile.to_dict()
+        if self.input_equalization is not None:
+            descriptor["input_equalization"] = self.input_equalization.astype("<f4", copy=False).tobytes()
+            descriptor["equalization_profile_digest"] = self.equalization_profile_digest
         return descriptor
 
 
@@ -231,8 +265,7 @@ def _body_fingerprint(stages: dict[str, StageRuntime]) -> str:
     for stage_id, runtime in sorted(stages.items()):
         if stage_id in {"token_lookup", "lm_head"}:
             continue
-        body.append(
-            {
+        row = {
                 "id": stage_id,
                 "op": runtime.spec.op,
                 "in": runtime.spec.in_features,
@@ -245,13 +278,19 @@ def _body_fingerprint(stages: dict[str, StageRuntime]) -> str:
                 if runtime.bias is None
                 else runtime.bias.astype("<f4", copy=False).tobytes(),
             }
-        )
+        if runtime.input_equalization is not None:
+            row["input_equalization"] = runtime.input_equalization.astype("<f4", copy=False).tobytes()
+            row["equalization_profile_digest"] = runtime.equalization_profile_digest
+        body.append(row)
     return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
 
 
 def _seeded_stage_commitment(stages: dict[str, StageRuntime]) -> str:
-    body = [
-        {
+    body = []
+    for stage_id, runtime in sorted(stages.items()):
+        if stage_id in {"token_lookup", "lm_head"}:
+            continue
+        row = {
             "id": stage_id,
             "weight": runtime.weight_digest,
             "in": runtime.spec.in_features,
@@ -260,9 +299,10 @@ def _seeded_stage_commitment(stages: dict[str, StageRuntime]) -> str:
             "ab": runtime.spec.activation_bits,
             "profile": runtime.seeded_profile.to_dict(),
         }
-        for stage_id, runtime in sorted(stages.items())
-        if stage_id not in {"token_lookup", "lm_head"}
-    ]
+        if runtime.input_equalization is not None:
+            row["input_equalization"] = runtime.input_equalization.astype("<f4", copy=False).tobytes()
+            row["equalization_profile_digest"] = runtime.equalization_profile_digest
+        body.append(row)
     return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
 
 
@@ -381,6 +421,7 @@ class MaskedTransformerEngine:
         quantization_chunk_rows: int = 64,
         verification_component: str = "none",
         verification_target_failure_bits: int = 0,
+        public_equalization_digest: str | None = None,
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -407,6 +448,14 @@ class MaskedTransformerEngine:
             raise ValueError("unsupported verification component")
         self.verification_component = verification_component
         self.verification_target_failure_bits = verification_target_failure_bits
+        if public_equalization_digest is not None:
+            if (self.weight_bits, self.activation_bits) != (8, 8) or verification_component != "none":
+                raise ValueError("public equalization requires unverified W8A8 stages")
+            from .public_equalization import profile_path
+
+            profile_path(".", public_equalization_digest)
+        self.public_equalization_digest = public_equalization_digest
+        self._public_equalization_profile: PublicEqualizationProfile | None = None
         self.models: dict[str, LoadedTransformer] = {}
         self._rng = np.random.default_rng(local_correlation_seed)
         self._rng_lock = threading.Lock()
@@ -427,14 +476,16 @@ class MaskedTransformerEngine:
         from pllm.configuration import Model
         from pllm.modeling import lower_model
         from pllm.profiles import MaskedLinearCpu
-        from pllm.quantization import SymmetricPerRow
+        from pllm.quantization import PublicPerChannelEqualized, SymmetricPerRow
 
         from .semantic_stages import scheduled_stage_specs
 
         composition = MaskedLinearCpu(
             Model(manifest.id),
-            quantization=SymmetricPerRow(
-                weight_bits=self.weight_bits, activation_bits=self.activation_bits
+            quantization=(
+                PublicPerChannelEqualized(self.public_equalization_digest)
+                if self.public_equalization_digest is not None
+                else SymmetricPerRow(weight_bits=self.weight_bits, activation_bits=self.activation_bits)
             ),
         )
         try:
@@ -533,6 +584,23 @@ class MaskedTransformerEngine:
             )
             for stage in stages
         ]
+        if self.public_equalization_digest is not None:
+            lock = manifest.source_lock_digest
+            if lock is None or semantic_plan is None:
+                raise TransformerEngineError("public equalization requires a locked semantic decoder")
+            try:
+                profile_record = load_public_equalization_profile(
+                    source, self.public_equalization_digest, lock,
+                )
+            except PublicEqualizationError as exc:
+                raise TransformerEngineError(str(exc)) from exc
+            body_specs = {stage.id: stage for stage in stages if stage.id not in {"token_lookup", "lm_head"}}
+            if set(profile_record.stage_scales) != set(body_specs) or any(
+                profile_record.stage_scales[stage_id].shape != (spec.in_features,)
+                for stage_id, spec in body_specs.items()
+            ):
+                raise TransformerEngineError("calibration profile does not cover exact body stages")
+            self._public_equalization_profile = profile_record
         manifest.stages = stages
         manifest.metadata.update(
             {
@@ -565,6 +633,8 @@ class MaskedTransformerEngine:
                 "preprocessed": True,
                 "model_weight_correlations_disclosed": True,
                 "model_privacy_threat_model": "public_weights",
+                **({"public_equalization_digest": self.public_equalization_digest}
+                   if self.public_equalization_digest is not None else {}),
             }
         )
 
@@ -702,6 +772,10 @@ class MaskedTransformerEngine:
                 )
             ],
         }
+        if self.public_equalization_digest is not None and stage.id not in {"token_lookup", "lm_head"}:
+            scale = self._stage_equalization(stage)
+            payload["public_equalization_digest"] = self.public_equalization_digest
+            payload["input_equalization_digest"] = hashlib.sha256(scale.tobytes()).hexdigest()
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
@@ -739,6 +813,17 @@ class MaskedTransformerEngine:
                 value = value.T
             yield np.ascontiguousarray(value, dtype=np.float32)
 
+    def _stage_equalization(self, stage: StageSpec) -> np.ndarray | None:
+        if self.public_equalization_digest is None or stage.id in {"token_lookup", "lm_head"}:
+            return None
+        profile = self._public_equalization_profile
+        if profile is None:
+            raise TransformerEngineError("public equalization is not bound to its checkpoint")
+        scale = profile.stage_scales.get(stage.id)
+        if scale is None:
+            raise TransformerEngineError("stage is absent from public calibration")
+        return validate_input_scale(scale, stage.in_features)
+
     def _quantize_sources(
         self,
         store: SafeTensorStore,
@@ -757,6 +842,7 @@ class MaskedTransformerEngine:
                 f"{(out_features, in_features)} from {[key for key, _ in sources]}"
             )
         bits = stage.weight_bits or self.weight_bits
+        input_equalization = self._stage_equalization(stage)
         elements = out_features * in_features
         if elements < self.streaming_threshold_elements:
             matrices: list[np.ndarray] = []
@@ -764,6 +850,8 @@ class MaskedTransformerEngine:
                 value = store.get_linear((key,))
                 matrices.append(np.ascontiguousarray(value.T if transpose else value))
             matrix = np.concatenate(matrices, axis=0) if len(matrices) > 1 else matrices[0]
+            if input_equalization is not None:
+                matrix = equalize_weight_chunk(matrix, input_equalization)
             return quantize_weight_per_row(matrix, bits=bits)
 
         cache_key = self._stage_cache_key(store, stage, sources)
@@ -779,6 +867,9 @@ class MaskedTransformerEngine:
             "bits": bits,
             "sources": [key for key, _ in sources],
         }
+        if input_equalization is not None:
+            metadata["public_equalization_digest"] = self.public_equalization_digest
+            metadata["input_equalization_digest"] = hashlib.sha256(input_equalization.tobytes()).hexdigest()
         expected_bytes = elements
 
         def open_cached() -> QuantizedWeight | None:
@@ -845,6 +936,8 @@ class MaskedTransformerEngine:
                         transpose=transpose,
                         chunk_rows=self.quantization_chunk_rows,
                     ):
+                        if input_equalization is not None:
+                            chunk = equalize_weight_chunk(chunk, input_equalization)
                         rows = chunk.shape[0]
                         max_abs = np.max(np.abs(chunk), axis=1)
                         row_scales = np.where(max_abs > 0, max_abs / qmax, 1.0).astype(np.float32)
@@ -965,6 +1058,11 @@ class MaskedTransformerEngine:
             source_keys=tuple(resolved),
             bias=bias,
             compiled_weight=self.kernel.compile(quantized.values),
+            input_equalization=self._stage_equalization(stage),
+            equalization_profile_digest=(
+                self.public_equalization_digest
+                if stage.id not in {"token_lookup", "lm_head"} else None
+            ),
         )
 
     @staticmethod
@@ -1614,6 +1712,8 @@ class MaskedTransformerEngine:
                     "activation_bits": self.activation_bits,
                     "verification_component": self.verification_component,
                     "verification_target_failure_bits": self.verification_target_failure_bits,
+                    **({"public_equalization_digest": self.public_equalization_digest}
+                       if self.public_equalization_digest is not None else {}),
                 },
             },
             use_bin_type=True,

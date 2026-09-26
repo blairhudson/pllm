@@ -51,8 +51,15 @@ counts and aggregate prefill scores. It needs the optional `quality` dependencie
 (Torch and Transformers). The
 [pinned Qwen3-0.6B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen3-0.6b-reference-quality-2026-09-24.json)
 and [pinned Qwen2.5-0.5B comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json)
+and [pinned Phi-4-mini comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-reference-quality-2026-09-24.json)
 each measured W4A4 and W8A8 on the same two-prompt text. Each has its own
 checkpoint/reference cohort. This diagnostic is separate
 from the [provider transport benchmark](/sdk/evaluate/benchmark/).
+An additional [Phi equalized W8A8 comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/phi4mini-equalization-quality-2026-09-26.json)
+uses the *same* checkpoint and two-prompt cohort as plain W8A8 (2/2 versus
+1/2 top-1); a separate five-prompt cohort yields 3/5 for both choices.
+Profile fitting uses only declared public calibration tokens; neither report
+stores those tokens, prompts, IDs or logits. Small cohorts and selected
+hyperparameters do not establish representative generation quality.
 
 API: [`ReferenceAgreement` and `measure_reference_agreement`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
