@@ -72,11 +72,19 @@ def _digest(domain: bytes, value: Any) -> str:
     return hashlib.sha256(domain + _canonical(value)).hexdigest()
 
 
-def _file_digest(path: Path) -> str:
+def _file_digest(path: Path, *, expected_sha1: str | None = None) -> str:
     digest = hashlib.sha256()
+    etag_digest = hashlib.sha1() if expected_sha1 is not None else None
+    if etag_digest is not None:
+        # Non-LFS Hugging Face blob names use the Git blob object ID.
+        etag_digest.update(f"blob {path.stat().st_size}\0".encode("ascii"))
     with path.open("rb") as stream:
         while block := stream.read(1024 * 1024):
             digest.update(block)
+            if etag_digest is not None:
+                etag_digest.update(block)
+    if etag_digest is not None and etag_digest.hexdigest() != expected_sha1:
+        raise ModelLoadError(f"shared HF blob digest mismatch for {path.name}")
     return digest.hexdigest()
 
 
@@ -136,6 +144,22 @@ def _source_files(path: Path) -> tuple[Path, ...]:
 def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
     root = path if path.is_dir() else path.parent
     resolver = _resolver_metadata(root)
+    hub_commit = None
+    source_is_local = Path(model.source).expanduser().exists()
+    if not source_is_local and model.kind == "huggingface":
+        expected_repo = "models--" + model.source.replace("/", "--")
+        if (
+            root.parent.name == "snapshots"
+            and root.parent.parent.name == expected_repo
+            and re.fullmatch(r"[0-9a-f]{40}", root.name)
+        ):
+            hub_commit = root.name
+            if (
+                model.revision is not None
+                and re.fullmatch(r"[0-9a-f]{40}", model.revision)
+                and hub_commit != model.revision
+            ):
+                raise ModelLoadError("shared HF snapshot differs from the pinned revision")
     recorded = {
         str(row.get("path")): row
         for row in resolver.get("files", [])
@@ -156,7 +180,17 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
         size = before.st_size
         record = recorded.get(relative, {})
         candidate = record.get("sha256")
-        sha256 = _file_digest(source)
+        etag = None
+        if hub_commit is not None and source.is_symlink():
+            blob = source.resolve(strict=True)
+            if blob.parent != (root.parent.parent / "blobs").resolve():
+                raise ModelLoadError(f"shared HF snapshot escapes its blob cache: {relative}")
+            etag = blob.name
+            if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", etag) is None:
+                raise ModelLoadError(f"shared HF blob has no content identity: {relative}")
+        sha256 = _file_digest(source, expected_sha1=etag if etag is not None and len(etag) == 40 else None)
+        if etag is not None and len(etag) == 64 and sha256 != etag:
+            raise ModelLoadError(f"shared HF blob digest mismatch for {relative}")
         after = source.stat()
         if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
             after.st_dev,
@@ -179,9 +213,9 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
     lock = {
         "schema": _SOURCE_LOCK_SCHEMA,
         "kind": model.kind,
-        "repo_id": resolver.get("repo_id"),
+        "repo_id": resolver.get("repo_id") or (model.source if hub_commit else None),
         "revision": resolver.get("revision") or model.revision,
-        "commit": resolver.get("commit"),
+        "commit": resolver.get("commit") or hub_commit,
         "files": rows,
         "checkpoint_digest": checkpoint,
     }

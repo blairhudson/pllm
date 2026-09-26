@@ -7,17 +7,21 @@ description: "Check prepared public-weight stage outputs with authenticated one-
 (`pllm/freivalds-verify/v1`) is constructed, serialized, and accepted by
 `VerifiedMaskedLinearCpu` in the verification slot. Trusted Preparation authenticates
 projections for a bounded session attempt budget; the client verifies claimed
-integer stage results before dequantization and burns used material. This
-composition has tiny real-role transport coverage. Compiler-bound verified
-execution has its own fail-closed gate and cannot be inferred from baseline
-semantic scheduling. It cannot stop colluding or malicious Preparation; there is
-no whole-deployment cryptographic proof.
+integer stage results before dequantization and burns used material. A distinct
+verified executor now binds the [compiled decoder](/sdk/inference/verified-masked-linear/)
+to those one-use rows; a bare remote callback cannot claim verified execution.
+The optional `PreparedProviderRoles` topology selects separate local role children
+through the ordinary SDK, gateway and benchmark command. A complete static
+schedule does not itself prove verification: runtime admission checks the actual
+prepared verifier inventory. It cannot stop colluding or malicious Preparation;
+there is no whole-deployment cryptographic proof.
 
 ## Python SDK example
 
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment
 from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.roles import PreparedProviderRoles
 from pllm.sources import TinyModel
 from pllm.verification import FreivaldsVerify
 
@@ -26,6 +30,7 @@ experiment = Experiment(
     pipeline=VerifiedMaskedLinearCpu(
         TinyModel(model_id="freivalds-guide-tiny"),
         verification=FreivaldsVerify(target_failure_bits=48),
+        topology=PreparedProviderRoles(),
     ),
     deployment=Deployment.local(root="local://freivalds-guide"),
     budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
@@ -33,12 +38,17 @@ experiment = Experiment(
 resolved = experiment.resolve()
 assert resolved.verification_target_failure_bits == 48
 assert resolved.requires_preparation
+assert len(resolved.role_graph.roles) == 3
 ```
 
-Save as `experiment.py`; install optional `he` via
-[Installation](/learn/installation/) and run
+Save as `experiment.py`; [install the base package](/learn/installation/) and run
 `pllm gateway --local --experiment experiment.py:experiment --trust-python`.
-For comparable results replace tiny weights with a supported pinned checkpoint.
+For a comparable checkpoint-bound diagnostic, use
+`pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:verified_cpu_1 --trust-python --max-output-tokens 16`
+alongside `cpu_1` or a client-owned experiment on the same checkpoint and token
+cohort. The benchmark records covered offline and online serialized bodies and
+available per-role CPU, but not full wire cost or the complete aggregate-compute
+cap. Tiny weights test the protocol, not model quality.
 
 API: [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#objects-and-signatures)
 
@@ -48,5 +58,8 @@ API: [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#objects-and-si
 linear work. PLLM uses authenticated projections with trusted offline Preparation
 and a different non-collusion boundary; this is not a TEE reproduction. Its
 current benchmark evidence does not establish Slalom's system-level claims.
+The paper's attested-enclave-plus-untrusted-accelerator placement remains a
+distinct pending topology requiring real attestation, protected key release and
+enclave-local nonlinear/KV execution before it can run.
 
 </Callout>

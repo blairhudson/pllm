@@ -1,0 +1,71 @@
+{
+  "scope": "one matched, single-host loopback diagnostic per topology; not a privacy, full-wire or aggregate-compute-cap result",
+  "source": {
+    "repository": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+  },
+  "comparison": {
+    "schema": "pllm.loopback_benchmark_comparison.v1",
+    "matched_workload": true,
+    "input_tokens": 30,
+    "output_tokens": 1,
+    "max_output_tokens": 1,
+    "warm": false,
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "repetitions_per_topology": 1
+  },
+  "results": [
+    {
+      "topology": "client-only",
+      "configuration_digest": "054a0172183aef5af11230ae033decd434c36b3fd346cc707e3526411a3646c3",
+      "full_seconds": 5.325518333,
+      "online_all_link_body_bytes": 0,
+      "initial_distribution_and_inventory_body_bytes": null,
+      "run_window_aggregate_cpu_seconds": 4.768148
+    },
+    {
+      "topology": "prepared baseline",
+      "configuration_digest": "76d1646e0cf862e508aa380ef56e0164ad3145b3f1fe81d0b08c427bf7770774",
+      "full_seconds": 6.516855167,
+      "online_all_link_body_bytes": 47885568,
+      "initial_distribution_and_inventory_body_bytes": 205799212,
+      "run_window_aggregate_cpu_seconds": 6.1523768
+    },
+    {
+      "topology": "two-online-offset comparator",
+      "configuration_digest": "cab4550d0266759761a72c915c4438838e956db3a27b02b2d528e9d33e32012a",
+      "full_seconds": 10.658888833,
+      "online_all_link_body_bytes": 95805056,
+      "initial_distribution_and_inventory_body_bytes": null,
+      "run_window_aggregate_cpu_seconds": 10.196902
+    },
+    {
+      "topology": "Freivalds-verified prepared",
+      "configuration_digest": "1866e96a2779bf9da367ba11d04ba1cf5c02ab16ab94efb2fe438084c8d9736e",
+      "full_seconds": 10.314885,
+      "online_all_link_body_bytes": 47885568,
+      "initial_distribution_and_inventory_body_bytes": 298608280,
+      "run_window_aggregate_cpu_seconds": 10.006653088,
+      "extra_initial_bodies_over_unverified_prepared": 92809068,
+      "remote_verified_stages": 96
+    }
+  ],
+  "checks": {
+    "all_runs_completed": true,
+    "no_plaintext_prompt_or_token_ids_sent": true,
+    "no_online_preparation_requests": true,
+    "full_response_compute_cap_checked": false,
+    "total_wire_bytes_measured": false,
+    "independent_operators_verified": false,
+    "top_token_parity_across_all_roles_measured": false,
+    "verified_and_offset_output_text_matches_client_on_one_checked_request": true
+  },
+  "limitations": [
+    "Online window CPU excludes offline Freivalds projection generation, model import and cold distribution; one noisy CPU sample cannot admit the verified candidate under the two-worker full-response compute cap.",
+    "The two co-located offset workers do not provide a non-collusion guarantee; the prepared roles also share a host.",
+    "The two-worker run includes a client bundle in its run-window body ledger, while prepared initial bundle and inventory bodies are in a separate startup ledger; these are covered application bodies, not full-network totals.",
+    "Verifier projections were prepared offline; verified and unverified prepared paths exchanged identical measured online stage bodies in this cohort."
+  ]
+}

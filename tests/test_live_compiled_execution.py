@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator
 from conftest import start_gateway, start_preparation
 from pllm import Deployment, ExecutionBudget, Experiment, Model, Pipeline
 from pllm.modeling import lower_model
-from pllm.profiles import MaskedLinearCpu
+from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
 from pllm.quantization import SymmetricPerRow
 from pllm.roles import PreparedProviderRoles
 from pllm.runtime import OpenAI
@@ -130,6 +130,41 @@ def test_live_prepared_decoder_binds_compiled_schedule_before_use(
     finally:
         gateway.close()
         preparation.close()
+
+
+def test_verified_compiled_decoder_uses_prepared_roles_and_gateway(tmp_path: Path) -> None:
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
+    )
+    model_id = "verified-compiled"
+    experiment = Experiment(
+        name="verified-compiled",
+        pipeline=VerifiedMaskedLinearCpu(
+            Model.path(str(root), model_id=model_id),
+            topology=PreparedProviderRoles(),
+            quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+        ),
+        deployment=Deployment.local(root=str(tmp_path / "roles")),
+        budget=ExecutionBudget(requests=2, max_input_tokens=64, max_new_tokens=2),
+    )
+    with build_roles(experiment, engine_threads=1) as topology:
+        with topology.client() as client:
+            result = client.responses.create(
+                model=model_id, input="verified execution", max_output_tokens=2,
+            )
+            assert result.usage is not None and result.usage.output_tokens > 0
+            audit = client.privacy_audit.to_dict()
+            assert audit["online_steps"] > 0
+            assert audit["preparation_download_bytes"] > 0
+            assert audit["plaintext_prompt_bytes_sent"] == 0
+            assert audit["plaintext_token_ids_sent"] == 0
+        with TestClient(topology.gateway_app(local_api_key="verified-test")) as gateway:
+            response = gateway.post(
+                "/v1/responses", headers={"Authorization": "Bearer verified-test"},
+                json={"model": model_id, "input": "verified gateway", "max_output_tokens": 1},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["usage"]["output_tokens"] == 1
 
 
 def test_provider_checks_semantic_plan_before_reserving_material(tmp_path: Path) -> None:

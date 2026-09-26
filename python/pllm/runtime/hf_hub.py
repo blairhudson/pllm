@@ -5,9 +5,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .hf_download import cached_huggingface_model, download_huggingface_model
-
-
 class HuggingFaceSourceError(RuntimeError):
     pass
 
@@ -96,37 +93,24 @@ def resolve_huggingface_source(
         repo_id = raw
         _configure_hf_transfer()
         try:
-            cached = cached_huggingface_model(repo_id, revision=revision, cache_dir=cache_dir)
+            from huggingface_hub import snapshot_download
+
             offline = local_files_only or os.environ.get("HF_HUB_OFFLINE", "").lower() in {
                 "1",
                 "on",
                 "true",
                 "yes",
             }
-            if cached is not None:
-                path = cached
-            elif offline:
-                from huggingface_hub import snapshot_download
-
-                downloaded = snapshot_download(
-                    repo_id=repo_id,
-                    revision=revision,
-                    token=token,
-                    cache_dir=None if cache_dir is None else str(cache_dir),
-                    local_files_only=True,
-                    allow_patterns=list(_HF_ALLOW_PATTERNS),
-                    ignore_patterns=list(_HF_IGNORE_PATTERNS),
-                )
-                path = Path(downloaded).resolve()
-            else:
-                path = download_huggingface_model(
-                    repo_id,
-                    revision=revision,
-                    token=token,
-                    cache_dir=cache_dir,
-                    allow_patterns=_HF_ALLOW_PATTERNS,
-                    ignore_patterns=_HF_IGNORE_PATTERNS,
-                )
+            downloaded = snapshot_download(
+                repo_id=repo_id,
+                revision=revision,
+                token=token,
+                cache_dir=None if cache_dir is None else str(cache_dir),
+                local_files_only=offline,
+                allow_patterns=list(_HF_ALLOW_PATTERNS),
+                ignore_patterns=list(_HF_IGNORE_PATTERNS),
+            )
+            path = Path(downloaded).resolve()
         except Exception as exc:
             raise HuggingFaceSourceError(f"failed to resolve Hugging Face model {repo_id!r}: {exc}") from exc
         resolved_id = model_id or repo_id

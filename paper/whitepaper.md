@@ -88,9 +88,11 @@ an earlier runtime revision, not current compiler or WAN results.
 
 ![Historical Qwen2.5-0.5B full-response medians for three distinct token cohorts; no cross-system performance claim.](paper/figures/qwen-baseline.png)
 
-An optional verification component has only a separate, one-run **tiny-model**
-functional comparison. Garbling and cache transformations remain bounded or
-uncomposed, not whole-model Qwen speedups. Next: complete protected decoder
+Optional client-side verification now also has a separate one-response, pinned
+Qwen2.5 four-topology diagnostic. It kept prepared **online** bodies unchanged
+but added offline material; full compute and network cost remain unknown.
+Garbling and cache transformations remain bounded or uncomposed, not
+whole-model Qwen speedups. Next: complete protected decoder
 coverage, deploy genuinely independent roles, and compare alternatives on the
 same checkpoint and workload with measured cost and quality. The
 [technical paper](https://pllm.run/research/paper/) records precise methods,

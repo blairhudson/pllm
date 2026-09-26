@@ -19,11 +19,13 @@ market operation, model quality, malicious security, operator independence, or
 secure erasure. Historical BFV results in the evidence archive are separate and
 are not reused as current-runtime evidence.
 
-The current model-neutral compiler binds baseline untransformed Qwen2 and dense
-Qwen3 schedules. The public two-role client now binds and executes this schedule
-for tiny Qwen2/Qwen3 prefill and decode, with the provider checking plan and body
-commitments at session start; verified and proprietary protocols are not yet
-compiler-bound. Pinned Qwen2.5-0.5B and Qwen3-0.6B checkpoints pass separate
+The model-neutral compiler binds untransformed Qwen2, dense Qwen3 and the
+text-only Qwen3.5 decoder, among other checked adapters. The public prepared,
+client-owned, two-worker offset, and Freivalds-verified prepared choices bind
+the same compiled stages; verified stages require one-use verifier material
+before session execution. The provider checks plan and body commitments at
+session start. Proprietary protocols remain separate. Pinned Qwen2.5-0.5B and
+Qwen3-0.6B checkpoints pass separate
 **clear native-kernel** prefill-to-decode functionality tests. Qwen3-0.6B's
 W4A4 path differs from the FP32 reference on two checked prompts, and
 its W8A8 path differs on a short prompt. These tests do not establish real-model
@@ -43,3 +45,13 @@ each on the same generated tiny workload. They demonstrate optional verified
 transport functionality only: no warmup, real-model check, PlanLock digest,
 performance conclusion, or malicious-Preparation guarantee follows. Neither
 cohort can be merged with the historical Qwen2.5 performance study.
+
+`docs/evidence/slalom-prepared-topologies-2026-09-26.json` separately records
+one pinned real Qwen2.5 W8A8 response per four selectable role graphs, with
+the same fingerprint, input/output counts and covered online bodies. The
+verified path sent no extra online stage bodies but added 92.81 MB of covered
+initial material; offline CPU, full wire and full-response compute-cap
+admission remain unmeasured. The generated Qwen3.5 path now also has a
+separate pinned official-checkpoint prefill/decode diagnostic and two-child
+request at `docs/evidence/qwen35-4b-text-reference-2026-09-26.json`;
+W8A8's 2/4 same-token selection agreement does not establish generation quality.

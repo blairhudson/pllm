@@ -1,13 +1,15 @@
 ---
 title: "Qwen3.5"
-description: "Hybrid full-attention and gated-delta semantic lowering for Qwen3.5-4B."
+description: "Bounded text-decoder schedule, official checkpoint functionality, and narrow quality evidence."
 ---
 
 `pllm.qwen3_5_text.v1` lowers the text decoder in `Qwen/Qwen3.5-4B` revision `851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`. The upstream configuration SHA-256 is `ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670`; the checked fixture adds one repository newline and is verified against both representations.
 
 The plan retains the exact 3:1 linear/full layer schedule. Linear layers represent fused input projection, causal convolution state, Q/K L2 normalization, gated-delta decay and update, recurrent matrix state, and gated RMS normalization. Full-attention layers represent doubled query projection, Q/K normalization, partial multimodal rotary sections, KV state, and output gating. MTP configuration remains identity-bound but outside the base decoder graph.
 
-The bounded [causal-convolution state contract](/sdk/models/capabilities/causal-convolution/) now has an independent float32 prefill/decode reference, exact-shape checkpoint binding, and a paired compiler operation with explicit zero-initialized prefill state. It is not a complete decoder: [gated-delta recurrence](/sdk/models/capabilities/gated-delta/) and [partial MRoPE](/sdk/models/capabilities/partial-mrope/) still block scheduling, and the recurrent state lifecycle remains unbound. Semantic lowering does not claim Qwen3.5 checkpoint execution, generation quality, or a protected recurrent protocol.
+The shared compiler now schedules the full text decoder, including [causal-convolution state](/sdk/models/capabilities/causal-convolution/), [gated-delta recurrence](/sdk/models/capabilities/gated-delta/), and text-only [partial MRoPE](/sdk/models/capabilities/partial-mrope/). An official checkpoint binds **426** required text artifacts into **130** stages and completes prefill/decode. On two public prefixes with the upstream BF16 reference, clear W8A8 agrees on **2/4** same-token prefill/decode selections (worst absolute logit error **3.66**). Keeping the W8 token/head boundary but using float32 body projections recovers **3/4** (worst **0.46**). These are narrow numeric diagnostics, not representative generation quality. The [reproducible evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen35-4b-text-reference-2026-09-26.json) contains no prompts, token IDs, or logits.
+
+One SDK response and one gateway response complete from the same pinned checkpoint through two local preparation/inference children, with masked stage traffic and no plaintext prompt/token-ID bytes sent. Co-located roles do not prove independent-provider privacy; protected recurrent execution, independent image/video position axes, matched provider costs, and broader quality remain open.
 
 ## Python SDK example
 
@@ -26,4 +28,4 @@ assert operations["layer.3.self_attention.q_rope"]["attributes"]["mrope_section"
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Run this example from a PLLM source checkout; package installations do not include
-the pinned fixture. Inspecting its plan is not an execution claim.
+the pinned fixture. Inspecting its plan performs no checkpoint import.

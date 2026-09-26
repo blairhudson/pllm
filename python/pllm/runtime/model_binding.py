@@ -337,6 +337,27 @@ class CompiledRuntimeModel:
                 or remote._closed
             ):
                 raise RuntimeBindingError("offset plan requires its authenticated two-worker session")
+        if options is not None and options.verification_component is not None:
+            from .transformer_client import PreparedInventoryLease, PreparedRemoteLinear
+
+            if (
+                type(remote) is not PreparedRemoteLinear
+                or remote.verification_component != options.verification_component
+                or remote.model_id != self._bundle.model_id
+                or remote.body_fingerprint != self._bundle.privacy.get("body_fingerprint")
+                or remote.stages is not self._bundle.stages
+                or type(remote.inventory) is not PreparedInventoryLease
+                or remote.inventory._closed
+                or any(
+                    stage.id not in remote.inventory.stages
+                    or remote.inventory.stages[stage.id].verification is None
+                    for stage in self._bundle.stages.values()
+                    if stage.client_weight is None and stage.id != "embed_tokens"
+                )
+            ):
+                raise RuntimeBindingError(
+                    "verified plan requires a matching one-use prepared verifier-bound executor"
+                )
         schedule = self._plan.runtime_schedule(composition).to_dict()
         bindings = {
             operation: stage.stage_id
@@ -496,7 +517,10 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
     )
 
 
-def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict[str, Any]:
+def _runtime_config(
+    cfg: dict[str, Any], *, nested_source: bool = False,
+    tokenizer_descriptor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     hidden = _require_int(cfg.get("hidden_size"), "config hidden_size")
     intermediate = _require_int(cfg.get("intermediate_size"), "config intermediate_size")
     layers = _require_int(cfg.get("num_hidden_layers"), "config num_hidden_layers")
@@ -606,6 +630,34 @@ def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict
         raise RuntimeBindingError("compiled runtime profile does not implement this activation")
     if token_lookup_batch <= 0:
         raise RuntimeBindingError("config token_lookup_batch must be positive")
+    source_bos = cfg.get("bos_token_id")
+    if nested_source:
+        raw_source = cfg.get("semantic_source_config")
+        if isinstance(raw_source, dict) and isinstance(raw_source.get("text_config"), dict):
+            raw_bos = raw_source["text_config"].get("bos_token_id")
+            if raw_bos is None:
+                if (
+                    cfg.get("bos_token_policy") != "nonempty_only"
+                    or not isinstance(tokenizer_descriptor, dict)
+                    or tokenizer_descriptor.get("add_bos_token") is not False
+                    or source_bos != tokenizer_descriptor.get("bos_token_id")
+                ):
+                    raise RuntimeBindingError("absent source BOS requires a bound nonempty-input policy")
+            elif source_bos != raw_bos or "bos_token_policy" in cfg:
+                raise RuntimeBindingError("runtime BOS policy differs from its source")
+    if source_bos is None:
+        # A tokenizer without an automatic BOS can still serve nonempty text.
+        # Preserve that fact in the source lock; its descriptor's fallback is
+        # used only for the existing integer runtime field, not for prefill.
+        if (
+            not isinstance(tokenizer_descriptor, dict)
+            or tokenizer_descriptor.get("add_bos_token") is not False
+        ):
+            raise RuntimeBindingError("source without BOS requires a tokenizer that does not add BOS")
+        source_bos = tokenizer_descriptor.get("bos_token_id")
+    bos_token_id = _require_int(source_bos, "config bos_token_id")
+    if not 0 <= bos_token_id < _require_int(cfg.get("vocab_size"), "config vocab_size"):
+        raise RuntimeBindingError("config BOS fallback is outside the vocabulary")
     return {
         "hidden_size": hidden,
         "intermediate_size": intermediate,
@@ -635,7 +687,7 @@ def _runtime_config(cfg: dict[str, Any], *, nested_source: bool = False) -> dict
         "attention_bias": attention_bias,
         "per_layer_config": per_layer,
         "hidden_activation": hidden_activation,
-        "bos_token_id": _require_int(cfg.get("bos_token_id"), "config bos_token_id"),
+        "bos_token_id": bos_token_id,
         "eos_token_id": _require_int(cfg.get("eos_token_id"), "config eos_token_id"),
         "vocab_size": _require_int(cfg.get("vocab_size"), "config vocab_size"),
         "model_type": str(cfg.get("model_type", "")),
@@ -811,9 +863,14 @@ def compile_runtime_model(
         raise RuntimeBindingError("compiled runtime component composition is unsupported")
     client_owned = runtime_options.client_runtime == "compiled_client_local_v1"
     offset_public = runtime_options.client_runtime == "compiled_offset_v1"
-    if runtime_options.verification_component is not None:
+    verified_public = runtime_options.verification_component is not None
+    if verified_public and (
+        client_owned or offset_public
+        or runtime_options.verification_component != "pllm/freivalds-verify/v1"
+        or not 1 <= runtime_options.verification_target_failure_bits <= 80
+    ):
         raise RuntimeBindingError(
-            "compiled runtime does not yet accept a verifier-bound remote executor"
+            "compiled verifier requires the bounded prepared Freivalds executor"
         )
     from pllm.model_loader import expected_model_id
 
@@ -894,7 +951,9 @@ def compile_runtime_model(
     runtime_schedule_digest = runtime_schedule.digest
 
     nested_source = source_config is not cfg
-    runtime_config = _runtime_config(cfg, nested_source=nested_source)
+    runtime_config = _runtime_config(
+        cfg, nested_source=nested_source, tokenizer_descriptor=bundle.tokenizer_descriptor,
+    )
     runtime_config_digest = _sha256(_canonical_json(cfg))
     tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
 
@@ -1010,8 +1069,11 @@ def compile_runtime_model(
     verification_failure_bits = _require_int(
         privacy.get("verification_target_failure_bits", 0), "verification failure bits"
     )
-    if verification_component != "none" or verification_failure_bits != 0:
-        raise RuntimeBindingError("masked-linear execution cannot claim unbound verification")
+    if (
+        verification_component != (runtime_options.verification_component or "none")
+        or verification_failure_bits != runtime_options.verification_target_failure_bits
+    ):
+        raise RuntimeBindingError("masked-linear verification differs from its composition")
     equalization_digest = runtime_options.public_equalization_digest
     if (
         privacy.get("public_equalization_digest") != equalization_digest
@@ -1134,7 +1196,9 @@ def compile_runtime_model(
         used_stages: set[str] = set()
         for step in phase_schedule.get("steps") or ():
             if not isinstance(step, dict) or step.get("executor") != (
-                "client_linear" if client_owned else "remote_stage"
+                "client_linear" if client_owned else (
+                    "verified_remote_stage" if verified_public else "remote_stage"
+                )
             ):
                 continue
             order = _require_int(step.get("order"), f"native {phase} runtime step order")
@@ -1587,7 +1651,11 @@ def compile_runtime_model(
                 raise RuntimeBindingError(f"native {phase} runtime weights are malformed")
             stage_offset = 0
             remote_stage = None
-            if executor == ("client_linear" if client_owned else "remote_stage"):
+            if executor == (
+                "client_linear" if client_owned else (
+                    "verified_remote_stage" if verified_public else "remote_stage"
+                )
+            ):
                 expected_weights = [
                     operation["attributes"].get("weight") for operation in operations
                 ]

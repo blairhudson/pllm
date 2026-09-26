@@ -1577,14 +1577,13 @@ class RuntimeClient:
         max_new_tokens: int,
     ) -> Any | None:
         """Bind supported public execution before claiming any provider material."""
-        if state.privacy_mode not in {"public", "client_only", "offset_public"} or state.bundle.privacy.get(
-            "verification_component", "none"
-        ) != "none":
+        if state.privacy_mode not in {"public", "client_only", "offset_public"}:
             return None
         from pllm.configuration import Model, Pipeline
         from pllm.modeling import lower_model
-        from pllm.profiles import MaskedLinearCpu
+        from pllm.profiles import MaskedLinearCpu, VerifiedMaskedLinearCpu
         from pllm.quantization import SymmetricPerRow
+        from pllm.verification import FreivaldsVerify
         from .model_binding import compile_runtime_model
         from .semantic_source import semantic_source_config
 
@@ -1596,13 +1595,19 @@ class RuntimeClient:
         if self.experiment is not None:
             composition = Pipeline.from_spec(json.loads(self.experiment.canonical_composition))
         else:
-            composition = MaskedLinearCpu(
-                Model(state.bundle.model_id),
-                quantization=SymmetricPerRow(
-                    weight_bits=int(state.bundle.privacy["weight_bits"]),
-                    activation_bits=int(state.bundle.privacy["activation_bits"]),
-                ),
+            numeric = SymmetricPerRow(
+                weight_bits=int(state.bundle.privacy["weight_bits"]),
+                activation_bits=int(state.bundle.privacy["activation_bits"]),
             )
+            if state.bundle.privacy.get("verification_component", "none") == "pllm/freivalds-verify/v1":
+                composition = VerifiedMaskedLinearCpu(
+                    Model(state.bundle.model_id), quantization=numeric,
+                    verification=FreivaldsVerify(
+                        target_failure_bits=int(state.bundle.privacy["verification_target_failure_bits"])
+                    ),
+                )
+            else:
+                composition = MaskedLinearCpu(Model(state.bundle.model_id), quantization=numeric)
         try:
             plan = lower_model(
                 semantic_source_config(state.bundle.cfg),
@@ -1618,7 +1623,15 @@ class RuntimeClient:
             if state.privacy_mode == "client_only":
                 raise ModelError("client-owned model has no semantic decoder adapter") from exc
             return None
-        if not plan.coverage(composition).complete:
+        coverage = plan.coverage(composition)
+        verified = (
+            state.bundle.privacy.get("verification_component") == "pllm/freivalds-verify/v1"
+            and (
+                self.experiment is None
+                or self.experiment.verification_component == "pllm/freivalds-verify/v1"
+            )
+        )
+        if not coverage.complete and not verified:
             # Existing runtime-only operators remain on their separately admitted
             # path until their generic compiler capabilities are implemented.
             if state.privacy_mode == "client_only":
@@ -2744,6 +2757,8 @@ class RuntimeClient:
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         tokenizer = state.bundle.tokenizer()
         input_ids = tokenizer.encode(rendered, add_bos=add_bos)
+        if not input_ids and state.bundle.config.get("bos_token_policy") == "nonempty_only":
+            raise ModelError("model without a BOS token requires nonempty input")
         required_input_rows = len(input_ids or [int(state.bundle.config["bos_token_id"])])
         if previous_id:
             with self._transformer_conversation_lock:

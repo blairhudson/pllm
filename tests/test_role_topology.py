@@ -14,7 +14,7 @@ from pllm.components import create_component, get_component
 from pllm.configuration import ComponentRef, ConfigurationError
 from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu, VerifiedMaskedLinearCpu
 from pllm.roles import (
-    Channel, ClientOnlyRoles, PreparedProviderRoles, Role, RoleGraph,
+    Channel, ClientOnlyRoles, PreparedProviderRoles, Role, RoleGraph, TwoOnlineOffsetRoles,
     client_only_reference_graph, two_online_reference_graph,
 )
 
@@ -140,18 +140,20 @@ def test_prepared_topology_is_an_explicit_round_trippable_experiment_option() ->
 
 def test_explicit_prepared_roles_compose_with_verification() -> None:
     verified = VerifiedMaskedLinearCpu(Model.tiny())
+    selected = VerifiedMaskedLinearCpu(Model.tiny(), topology=PreparedProviderRoles())
     experiment = Experiment(
         name="verified-roles",
-        pipeline=Pipeline(
-            model=verified.model,
-            components={**verified.components, "topology": PreparedProviderRoles()},
-        ),
+        pipeline=selected,
         deployment=Deployment.local(root="local://verified-roles"),
         budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=2),
     )
     resolved = experiment.resolve()
     assert resolved.verification_component == "pllm/freivalds-verify/v1"
     assert Channel("preparation", "client", "offline", "verification_projection") in resolved.role_graph.channels
+    assert selected.digest() != verified.digest()
+    assert Experiment.from_spec(experiment.to_spec()).resolve().composition_digest == selected.digest()
+    with pytest.raises(ConfigurationError, match="topology"):
+        VerifiedMaskedLinearCpu(Model.tiny(), topology=TwoOnlineOffsetRoles())
 
 
 @pytest.mark.parametrize(

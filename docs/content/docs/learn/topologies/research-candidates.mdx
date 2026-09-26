@@ -1,0 +1,39 @@
+---
+title: "Research topology candidates"
+description: "Which paper-derived role arrangements are newly expressible, runnable, or still blocked."
+---
+
+The role graph is no longer synonymous with Client + Preparation + Inference.
+That **representation** opens more paper-derived arrangements for comparison;
+only client-only, prepared, two-online-offset, and Freivalds-verified prepared
+are executable `Experiment` choices today. A source paper specifies its own
+trust and cryptographic assumptions, not a speedup or a runnable PLLM graph.
+Source review depth varies: for example, Grotto's 2+1 role structure is
+documented, but its full protocol has not been reviewed here. Original-protocol
+review precedes a new native implementation.
+
+| Candidate role arrangement | Paper sources | First vertical slice and admission gate |
+| --- | --- | --- |
+| Two online share-holders with protected nonlinear and persistent state | [Nimbus](/research/papers/nimbus/), [CipherGPT](/research/papers/ciphergpt/), [CryptFlow2](/research/papers/cryptflow2/), [PUMA](/research/papers/puma/) | Give each independently operated worker **one** activation/KV share, execute an exact bounded nonlinear + truncation contract, and compare matched full decoder and client/all-link traffic. Existing offset workers reconstruct at the client between linear stages and are **not** a resident MPC implementation. The research shared-transformer truncation cannot pass the real Qwen 40-bit session budget. |
+| Dealer/helper-assisted keys or correlations | [Grotto](/research/papers/grotto/), [FSS preprocessing](/research/papers/fss-preprocessing/), [Silent OT](/research/papers/silent-ot/), [Ring PCG](/research/papers/ring-pcg/), [compressed VOLE](/research/papers/compressing-vole/) | Declare offline dealer/helper and online share-holders, their key recipients and erasure/one-use rules, exact ring/field and client/server links. Start with one independently tested protected operator and count setup, expansion, cancellation, disk/memory and provider-to-provider traffic. A PCG seed is not a replacement for the current masked-correction seed. |
+| Attested enclave delegated to an untrusted accelerator | [Slalom](/research/papers/slalom/), [Bifrost](/research/papers/bifrost/) | Bind a fresh hardware quote to plan, role, nonce and channel key; enforce protected key release, private state and accelerator data movement, then implement a whole-model checked stage path. PLLM's current Freivalds-verified *client* adaptation reuses Slalom's linear-check idea but does **not** run an enclave or reproduce Slalom. Bifrost's FHE boundary adds keys, conversion and encrypted-work costs. |
+| Distinct owners for input, model and masked outsourced work | [MOSAIC](/research/papers/mosaic/), [EMVP](/research/papers/emvp/), [Maverick](/research/papers/maverick/) | Identify what each owner sees and which role generates or can reconstruct masks/codes. Implement a bounded linear stage with a source-locked security/numeric contract before composing full token generation; test public-subspace leakage on any proposed replacement mask basis. These are *different* privacy or verification contracts from the existing public-weight prepared protocol. |
+| One-provider encrypted or hybrid private state | [Cachemir](/research/papers/cachemir/), [Rosetta](/research/papers/rosetta/), [Gazelle](/research/papers/gazelle/) | Keep keys and private KV state with their rightful owners, bind ciphertext/circuit conversions, and score multi-token output plus cold/warm key/material costs. Existing clear local KV and a dormant BFV correlation backend do not supply encrypted whole-decoder execution. These options may be benchmarked, but the two-worker aggregate-compute cap still applies to any candidate claiming eligibility. |
+| Additional verification for a declared execution graph | [LAMP](/research/papers/lamp/), [DeepProve](/research/papers/deepprove/), [matrix coding verification](/research/papers/matrix-coding-verification/) | Define exactly what is proved: one `W·x` stage, an entire decode, or a full matrix product. Match soundness over the committed ring and whole-session attempt budget; time proof/preparation generation and verification, not just online response traffic. A full-product proof cannot silently stand in for a delegated matvec check. |
+
+**Priority from the new topology space:** first measure a complete client +
+two-worker privacy/compute baseline across the same pinned checkpoint and
+quality cohort, including startup CPU. Then implement one *resident* two-share
+nonlinear/state vertical slice under a reviewed truncation contract, or one
+dealer-assisted protected operator with explicit key recipient channels. The
+TEE branch requires real attestation before any input crosses that boundary.
+New components remain pending until their actual protocol and benchmark gates
+pass; a declared placement alone never activates them.
+
+[Breaking Euston](/research/papers/breaking-euston/),
+[Carnival](/research/papers/carnival/) and
+[Game of Arrows](/research/papers/game-of-arrows/) are adversarial review inputs
+for masking or enclave partitioning, not candidate speedups. The corpus includes
+unavailable/unverified leads; [MOAI](/research/papers/moai/) and
+[MoZZarella](/research/papers/mozzarella/) lack a verified local publisher PDF,
+while [Ripple](/research/papers/ripple/) still lacks a verified standalone source.

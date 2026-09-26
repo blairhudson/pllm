@@ -113,6 +113,65 @@ def test_remote_huggingface_model_uses_the_canonical_resolver(tmp_path: Path, mo
     assert str(tmp_path / "cache") not in serialized
 
 
+def test_shared_hf_snapshot_binds_commit_and_rejects_wrong_revision(tmp_path: Path, monkeypatch) -> None:
+    commit = "a" * 40
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "models--org--model" / "snapshots" / commit, num_hidden_layers=1,
+    )
+
+    def fake(source, **kwargs):
+        return ResolvedModelSource(
+            path=root.resolve(), model_id=source, repo_id=source, revision=kwargs["revision"],
+        )
+
+    monkeypatch.setattr("pllm.model_loader.resolve_huggingface_source", fake)
+    manifest = pllm.load_model(pllm.Model.hf("org/model", revision=commit))
+    assert manifest.metadata["source_lock"]["commit"] == commit
+    assert manifest.metadata["source_lock"]["repo_id"] == "org/model"
+    assert str(tmp_path) not in json.dumps(manifest.metadata["source_lock"])
+    with pytest.raises(ModelLoadError, match="pinned revision"):
+        pllm.load_model(pllm.Model.hf("org/model", revision="b" * 40))
+
+
+def test_shared_hf_blob_content_is_checked_against_its_cache_identity(tmp_path: Path) -> None:
+    import hashlib
+
+    from pllm.model_loader import _source_lock
+
+    commit = "a" * 40
+    repository = tmp_path / "models--org--model"
+    root = repository / "snapshots" / commit
+    blobs = repository / "blobs"
+    root.mkdir(parents=True)
+    blobs.mkdir()
+    payload = b"cached checkpoint source"
+    etag = hashlib.sha256(payload).hexdigest()
+    blob = blobs / etag
+    blob.write_bytes(payload)
+    link = root / "model.safetensors"
+    link.symlink_to(blob)
+    model = pllm.Model.hf("org/model", revision=commit)
+    _source_lock(root, model)
+    blob.write_bytes(b"cached checkpoint sourcf")
+    with pytest.raises(ModelLoadError, match="shared HF blob digest mismatch"):
+        _source_lock(root, model)
+    link.unlink()
+    outside = tmp_path / "user-data"
+    outside.write_bytes(payload)
+    link.symlink_to(outside)
+    with pytest.raises(ModelLoadError, match="escapes its blob cache"):
+        _source_lock(root, model)
+    link.unlink()
+    git_etag = hashlib.sha1(f"blob {len(payload)}\0".encode("ascii") + payload).hexdigest()
+    git_blob = blobs / git_etag
+    git_blob.write_bytes(payload)
+    link.symlink_to(git_blob)
+    _source_lock(root, model)
+    git_blob.write_bytes(b"cached checkpoint sourcf")
+    with pytest.raises(ModelLoadError, match="shared HF blob digest mismatch"):
+        _source_lock(root, model)
+
+
 def test_runtime_model_request_accepts_canonical_and_legacy_shapes() -> None:
     canonical = model_from_runtime_spec({
         "engine": "masked",

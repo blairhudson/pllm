@@ -54,7 +54,7 @@
         },
         "layer": {"type": ["integer", "null"], "minimum": 0},
         "input_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "executor": {"enum": ["client_local", "client_linear", "remote_stage"]},
+        "executor": {"enum": ["client_local", "client_linear", "remote_stage", "verified_remote_stage"]},
         "weight_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/output"}}
       }

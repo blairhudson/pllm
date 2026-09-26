@@ -436,6 +436,10 @@ class MaskedTransformerEngine:
         self.compiled_cache_dir = Path(
             compiled_cache_dir or (Path.home() / ".cache" / "pllm" / "compiled")
         )
+        from .compiled_cache import compiled_cache_max_bytes
+
+        self.compiled_cache_max_bytes = compiled_cache_max_bytes()
+        self._active_cache_entries: dict[str, set[Path]] = {}
         self.streaming_threshold_elements = max(1, int(streaming_threshold_elements))
         self.quantization_chunk_rows = max(1, int(quantization_chunk_rows))
         if verification_component == "none":
@@ -620,7 +624,7 @@ class MaskedTransformerEngine:
                 ),
                 "decoder_execution": (
                     "semantic_schedule_v1"
-                    if profile.stage_plan == "semantic" and self.verification_component == "none"
+                    if profile.stage_plan == "semantic"
                     else "legacy_verified_runtime_v1"
                     if self.verification_component != "none"
                     else "legacy_runtime_graph_v1"
@@ -676,20 +680,52 @@ class MaskedTransformerEngine:
             )
         except SemanticTensorError as exc:
             raise TransformerEngineError(str(exc)) from exc
+        tokenizer_descriptor = self._load_tokenizer_descriptor(source, manifest, config)
+        if config.get("bos_token_id") is None:
+            if tokenizer_descriptor.get("add_bos_token") is not False:
+                raise TransformerEngineError(
+                    "source without BOS requires a tokenizer that does not add BOS"
+                )
+            fallback = tokenizer_descriptor.get("bos_token_id")
+            if type(fallback) is not int or not 0 <= fallback < manifest.vocab_size:
+                raise TransformerEngineError("tokenizer BOS fallback is outside the vocabulary")
+            # The source lock keeps the absent BOS. The transport field remains
+            # an integer for existing tokenizers; it cannot authorize empty input.
+            config["bos_token_id"] = fallback
+            config["bos_token_policy"] = "nonempty_only"
         loaded = LoadedTransformer(
             manifest=manifest,
             store=store,
             config=config,
             stages=runtimes,
             local_tensors=self._load_local_tensors(store, required=local_requirements),
-            tokenizer=self._load_tokenizer_descriptor(source, manifest, config),
+            tokenizer=tokenizer_descriptor,
         )
         self.models[manifest.id] = loaded
         self._bundle_runtime_config(loaded)
+        self._active_cache_entries[manifest.id] = {
+            Path(runtime.weight.values.filename).parent
+            for runtime in runtimes.values()
+            if isinstance(runtime.weight.values, np.memmap)
+        }
+        self._trim_compiled_cache()
 
     async def unload(self, model_id: str) -> None:
         if self.models.pop(model_id, None) is None:
             raise TransformerEngineError(f"unknown model {model_id!r}")
+        self._active_cache_entries.pop(model_id, None)
+        self._trim_compiled_cache()
+
+    def _trim_compiled_cache(self) -> None:
+        from .compiled_cache import cache_lock, trim_compiled_cache
+
+        protected = set().union(*self._active_cache_entries.values()) if self._active_cache_entries else set()
+        with cache_lock(self.compiled_cache_dir):
+            trim_compiled_cache(
+                self.compiled_cache_dir,
+                max_bytes=self.compiled_cache_max_bytes,
+                protected=protected,
+            )
 
     def model_manifest(self, model_id: str) -> ModelManifest:
         return self._model(model_id).manifest
@@ -854,7 +890,25 @@ class MaskedTransformerEngine:
                 matrix = equalize_weight_chunk(matrix, input_equalization)
             return quantize_weight_per_row(matrix, bits=bits)
 
+        from .compiled_cache import cache_lock
+
+        with cache_lock(self.compiled_cache_dir):
+            return self._quantize_sources_disk(
+                store, stage, sources, out_features, in_features, bits, input_equalization,
+            )
+
+    def _quantize_sources_disk(
+        self,
+        store: SafeTensorStore,
+        stage: StageSpec,
+        sources: list[tuple[str, bool]],
+        out_features: int,
+        in_features: int,
+        bits: int,
+        input_equalization: np.ndarray | None,
+    ) -> QuantizedWeight:
         cache_key = self._stage_cache_key(store, stage, sources)
+        elements = out_features * in_features
         safe_stage = re.sub(r"[^A-Za-z0-9_.-]+", "_", stage.id)
         root = self.compiled_cache_dir / cache_key[:2] / cache_key
         root.mkdir(parents=True, exist_ok=True)
@@ -902,6 +956,7 @@ class MaskedTransformerEngine:
 
         cached = open_cached()
         if cached is not None:
+            metadata_path.touch()
             return cached
 
         lock_path = root / f"{safe_stage}.compile.lock"
@@ -909,6 +964,7 @@ class MaskedTransformerEngine:
             # Another worker may have finished while this process waited.
             cached = open_cached()
             if cached is not None:
+                metadata_path.touch()
                 return cached
 
             nonce = f"{os.getpid()}.{threading.get_ident()}.{secrets.token_hex(4)}"

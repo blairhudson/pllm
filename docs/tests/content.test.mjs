@@ -1100,10 +1100,26 @@ test('technical paper keeps historical and tiny verified cohorts separate and re
     assert.equal(record.repetitions, 1);
     assert.equal(record.plan_lock_digest, null);
   }
+  const topologies = JSON.parse(fs.readFileSync(
+    path.join(siteRoot, 'evidence/slalom-prepared-topologies-2026-09-26.json'), 'utf8',
+  ));
+  assert.equal(topologies.comparison.matched_workload, true);
+  assert.equal(new Set(topologies.results.map((row) => row.configuration_digest)).size, 4);
+  const baseline = topologies.results.find((row) => row.topology === 'prepared baseline');
+  const verified = topologies.results.find((row) => row.topology === 'Freivalds-verified prepared');
+  const offset = topologies.results.find((row) => row.topology === 'two-online-offset comparator');
+  assert.equal(verified.online_all_link_body_bytes, baseline.online_all_link_body_bytes);
+  assert.equal(verified.extra_initial_bodies_over_unverified_prepared,
+    verified.initial_distribution_and_inventory_body_bytes - baseline.initial_distribution_and_inventory_body_bytes);
+  assert.ok(offset.online_all_link_body_bytes > verified.online_all_link_body_bytes);
+  assert.equal(topologies.checks.full_response_compute_cap_checked, false);
+  assert.ok(paper.includes((verified.online_all_link_body_bytes / 1e6).toFixed(2)));
+  assert.ok(paper.includes((offset.online_all_link_body_bytes / 1e6).toFixed(2)));
   assert.match(paper, /historical masked-protocol measurements are separate/i);
   assert.match(paper, /\*\*not\*\* a security proof or a matched external SOTA benchmark/i);
-  assert.match(paper, /no cited method has pinned-Qwen comparative evidence/i);
+  assert.match(paper, /the verified diagnostic lacks cold compute and full-wire parity/i);
   assert.match(whitepaper, /\*\*has\s+not measured prices, energy, or an economic return\*\*/i);
+  assert.match(whitepaper, /full compute and network cost remain unknown/i);
   assert.match(whitepaper, /high-performance private LLM multi-party inference runtime and\s+extensible autonomous research harness/i);
   assert.doesNotMatch(whitepaper, /\$\$/);
   for (const [title, source] of [

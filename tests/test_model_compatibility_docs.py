@@ -30,7 +30,7 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     assert {
         row["pinned_real_checkpoint_functionality"]
         for row in adapters if row.get("pinned_real_checkpoint_functionality")
-    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Phi-4-mini", "Gemma 4 E2B"}
+    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Qwen3.5-4B text", "Phi-4-mini", "Gemma 4 E2B"}
     for row in adapters:
         if row["adapter"] == "pllm.gemma4_e2b_text.v1":
             assert "prefill-to-decode" in row["runtime_evidence"]
@@ -40,10 +40,11 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
             assert "E4B has no checkpoint execution" in row["runtime_evidence"]
         elif row["adapter"] == "pllm.qwen3_5_text.v1":
             assert row["evidence"] == {
-                "checkpoint": "tiny-local", "provider": "tiny-prepared", "quality": "tiny-parity",
+                "checkpoint": "real-local", "provider": "real-prepared-local", "quality": "narrow-partial-four",
             }
             assert "float32 Torch reference" in row["runtime_evidence"]
-            assert "Official Qwen3.5 checkpoint import" in row["remaining"]
+            assert "426 required BF16/F32 artifacts" in row["runtime_evidence"]
+            assert "W8A8 still misses two" in row["remaining"]
         elif row["adapter"] == "pllm.phi4_mini.v1":
             assert "tiny generated" in row["runtime_evidence"].lower()
             assert "130 compiled stages" in row["runtime_evidence"]

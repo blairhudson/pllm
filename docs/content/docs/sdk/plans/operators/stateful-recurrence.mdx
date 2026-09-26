@@ -7,24 +7,28 @@ Hybrid decoders declare convolution and recurrent state separately from key/valu
 
 Separate result and state-transition operations avoid implicit multi-output graph edges. Their shared inputs and attributes bind both records to one semantic update. `rms_norm_gated`, `gated_delta_decay`, and `sigmoid` retain the surrounding gating equations.
 
-Presence in a validated plan is not implementation coverage. Current compiler profiles fail closed on these operators.
+Presence in a validated plan alone is not execution coverage. The bounded
+masked-linear composition now compiles these state transitions and executes a
+checked text-only decoder; a different component composition must still prove
+its own coverage before it can run. [Qwen3.5 support](/sdk/models/families/qwen3-5/)
+separates real-checkpoint functionality from its narrow numeric-quality result.
 
 ## Python SDK example
 
 ```python
 from pathlib import Path
 
-from pllm import lower_model
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
 
 fixture = Path("crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
 plan = lower_model(fixture.read_bytes(), batch=1, max_input_tokens=16, max_new_tokens=4)
 operators = {operation["operator"] for operation in plan.prefill["operations"]}
-missing = [row["operator"] for row in plan.coverage().operators if row["level"] == "missing"]
 assert {"causal_convolution", "gated_delta_rule", "gated_delta_state_update"} <= operators
-assert "gated_delta_rule" in missing
+assert plan.runtime_schedule(MaskedLinearCpu(Model("org/model"))).complete
 ```
 
 API: [Python SDK objects and signatures](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Run this example from a PLLM source checkout; package installations do not include
-the pinned Qwen3.5 fixture. This reports unsupported operators without executing them.
+the pinned Qwen3.5 fixture. It inspects a bounded schedule without loading weights.

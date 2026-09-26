@@ -134,8 +134,18 @@ def test_model_aware_runtime_schedule_is_complete_and_digest_bound() -> None:
         assert remote[-1]["weight_ids"] == ["model.embed_tokens.weight"]
         assert document[phase]["steps"][-1]["operation_ids"] == ["token_feedback"]
 
-    with pytest.raises(ValueError, match="verifier-bound execution"):
-        plan.runtime_schedule(VerifiedMaskedLinearCpu(pllm.Model("org/model")))
+    verified = plan.runtime_schedule(VerifiedMaskedLinearCpu(pllm.Model("org/model")))
+    assert verified.complete is True
+    assert verified.digest != schedule.digest
+    assert all(
+        step["executor"] != "remote_stage"
+        for phase in ("prefill", "decode") for step in verified.to_dict()[phase]["steps"]
+    )
+    assert any(
+        step["executor"] == "verified_remote_stage"
+        for phase in ("prefill", "decode") for step in verified.to_dict()[phase]["steps"]
+    )
+    Draft202012Validator(schedule_schema).validate(verified.to_dict())
     batched = pllm.lower_model(CONFIG, batch=2, max_input_tokens=8, max_new_tokens=2)
     assert batched.coverage(composition).complete is False
     with pytest.raises(ValueError, match="requires batch one"):

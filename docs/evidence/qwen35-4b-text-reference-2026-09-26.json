@@ -1,0 +1,34 @@
+{
+  "schema": "pllm.qwen35_text_reference_diagnostic.v1",
+  "checkpoint": {
+    "repository": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "source_lock_digest": "ce00dd1dd79324884ab356be3b9ab7c2f25e86077fb5d0354390e809a777cd75",
+    "required_text_artifacts": 426,
+    "compiled_stages": 130,
+    "remote_stages": 128
+  },
+  "cohort": {
+    "public_prefixes": 2,
+    "prefill_selections": 2,
+    "same_token_decode_selections": 2,
+    "reference": "upstream Transformers 5.16.1 PyTorch 2.14.0 CPU BF16, eager attention",
+    "numeric_path": "local clear W8A8 projection kernels with quantized token/head boundary"
+  },
+  "w8a8": {
+    "top1_agreement": "2/4",
+    "worst_absolute_logit_error": 3.6564
+  },
+  "diagnostic_float32_body_with_w8_token_head_boundary": {
+    "top1_agreement": "3/4",
+    "worst_absolute_logit_error": 0.463324
+  },
+  "prepared_path": {
+    "two_separate_local_role_children": true,
+    "sdk_responses": 1,
+    "gateway_responses": 1,
+    "masked_stage_traffic": true,
+    "plaintext_prompt_or_token_id_bytes_sent": 0
+  },
+  "scope": "Four same-token selections and two local prepared requests establish bounded functionality. This cohort does not establish representative generation quality, independent-provider privacy, or full-wire and full-response compute costs."
+}

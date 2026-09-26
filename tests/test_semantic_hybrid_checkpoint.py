@@ -66,7 +66,12 @@ def _generated_hybrid_checkpoint(root: Path):
         for name in step.get("weight_ids", [])
     }
     needed.update(required_client_tensors(plan))
-    upstream_weights = upstream.state_dict()
+    # Text-only Torch model stores tensors under `model.*`. Official outer
+    # checkpoint nests the same decoder under `model.language_model.*`.
+    upstream_weights = {
+        "model.language_model." + name.removeprefix("model."): value
+        for name, value in upstream.state_dict().items()
+    }
     absent = sorted(needed - set(upstream_weights))
     assert not absent, f"semantic artifacts missing from upstream text decoder: {absent}"
     root.mkdir(parents=True)
@@ -102,7 +107,10 @@ def test_generated_hybrid_checkpoint_binds_and_matches_torch(tmp_path: Path) -> 
     logits = session.prefill_ids(tokens)
     with torch.no_grad():
         reference = upstream(torch.tensor(tokens, dtype=torch.long)[None], use_cache=False).logits[0, -1]
-    weights = upstream.state_dict()
+    weights = {
+        "model.language_model." + name.removeprefix("model."): value
+        for name, value in upstream.state_dict().items()
+    }
     def clear_body(stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = engine.models[model_id].stages[stage_id]
         ordered = np.concatenate([weights[key].numpy() for key in stage.spec.weight_keys], axis=0)

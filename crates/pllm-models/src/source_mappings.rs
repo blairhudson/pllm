@@ -46,10 +46,10 @@ impl ArtifactLayout<'_> {
 }
 
 const HYBRID_ARTIFACTS: ArtifactLayout<'static> = ArtifactLayout {
-    token_embedding: "model.embed_tokens.weight",
-    output_head: "model.embed_tokens.weight",
-    final_norm: "model.norm.weight",
-    layer_prefix: "model.layers",
+    token_embedding: "model.language_model.embed_tokens.weight",
+    output_head: "model.language_model.embed_tokens.weight",
+    final_norm: "model.language_model.norm.weight",
+    layer_prefix: "model.language_model.layers",
     layer_artifacts: &[
         ("input_norm", "input_layernorm.weight"),
         ("post_attention_norm", "post_attention_layernorm.weight"),

@@ -204,6 +204,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             self.caches[layer] = WindowedLayerCache(window=window)
 
     def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
+        if len(ids) == 0 and self.cfg.get("bos_token_policy") == "nonempty_only":
+            raise TransformerClientError("model without a BOS token requires nonempty input")
         if not self._window_contracts:
             return super().prepare_ids(ids)
         if len(ids) == 0:
@@ -834,7 +836,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 values[op_ids[0]] = self._numeric_output(
                     operation, self._local(operation, values, state_kinds, pending_keys)
                 )
-            elif step["executor"] in {"remote_stage", "client_linear"}:
+            elif step["executor"] in {"remote_stage", "verified_remote_stage", "client_linear"}:
                 stage_ids = {self._stages[f"{phase}:{op_id}"] for op_id in op_ids}
                 if len(stage_ids) != 1:
                     raise TransformerClientError("semantic remote step has multiple stage bindings")

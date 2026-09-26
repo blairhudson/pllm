@@ -18,10 +18,14 @@ or establish a cryptographic proof. One-use material still burns on failure,
 cancellation or replay. Protected regions must cover every operation before
 they can move from the client to another role.
 
-An alternative two-online-server offset comparator gives independent servers
-fresh additive input shares and has the client reconstruct each linear result.
-Its protocol and placement require separate review and execution; merely
-declaring a two-server graph does not activate it. See
+The selectable two-online-server offset comparator gives each worker a fresh
+additive input share and has the client reconstruct each linear result.
+Separate local processes execute this graph, but a single host/operator can
+combine both shares; production privacy would require verified independent
+operators. The selectable Freivalds variant keeps the prepared role graph and
+adds one-use client-side verification of every compiled remote linear stage;
+it neither changes who holds masks nor protects against colluding Preparation.
+See
 [traffic and compute](/learn/topologies/network-and-compute/) for the matched
 comparison and [TEE trust](/learn/topologies/trusted-execution/) for a different
 hardware-backed assumption.

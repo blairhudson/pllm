@@ -44,15 +44,15 @@ def test_huggingface_local_source_resolution(tmp_path: Path):
     assert resolved.repo_id is None
 
 
-def test_huggingface_repo_resolution_uses_parallel_downloader(tmp_path: Path, monkeypatch):
+def test_huggingface_repo_resolution_uses_shared_hub_snapshot(tmp_path: Path, monkeypatch):
     root = create_tiny_gemma4_checkpoint(tmp_path / "snapshot")
     captured = {}
 
     def fake_download(repo_id, **kwargs):
         captured.update(repo_id=repo_id, **kwargs)
-        return root.resolve()
+        return str(root.resolve())
 
-    monkeypatch.setattr(hf_hub, "download_huggingface_model", fake_download)
+    monkeypatch.setattr("huggingface_hub.snapshot_download", fake_download)
     resolved = resolve_huggingface_source(
         "org/model",
         revision="abc123",
@@ -64,7 +64,8 @@ def test_huggingface_repo_resolution_uses_parallel_downloader(tmp_path: Path, mo
     assert captured["repo_id"] == "org/model"
     assert captured["revision"] == "abc123"
     assert captured["token"] == "secret"
-    assert captured["cache_dir"] == tmp_path / "cache"
+    assert captured["cache_dir"] == str(tmp_path / "cache")
+    assert captured["local_files_only"] is False
     assert "*.safetensors" in captured["allow_patterns"]
     assert "*.bin" in captured["ignore_patterns"]
 
@@ -87,11 +88,26 @@ def test_huggingface_environment_auth_and_cache_are_delegated(tmp_path: Path, mo
         captured.update(repo_id=repo_id, **kwargs)
         return root.resolve()
 
-    monkeypatch.setattr(hf_hub, "download_huggingface_model", fake_download)
+    monkeypatch.setattr("huggingface_hub.snapshot_download", fake_download)
     monkeypatch.setenv("HF_TOKEN", "environment-token")
     monkeypatch.setenv("HF_HOME", str(tmp_path / "hf-home"))
     resolve_huggingface_source("org/model")
     assert captured["token"] is None
+    assert captured["cache_dir"] is None
+
+
+def test_huggingface_offline_source_uses_shared_cache(tmp_path: Path, monkeypatch):
+    root = create_tiny_gemma4_checkpoint(tmp_path / "snapshot")
+    captured = {}
+
+    def fake_download(repo_id, **kwargs):
+        captured.update(repo_id=repo_id, **kwargs)
+        return str(root.resolve())
+
+    monkeypatch.setattr("huggingface_hub.snapshot_download", fake_download)
+    resolved = resolve_huggingface_source("org/model", local_files_only=True)
+    assert resolved.path == root.resolve()
+    assert captured["local_files_only"] is True
     assert captured["cache_dir"] is None
 
 

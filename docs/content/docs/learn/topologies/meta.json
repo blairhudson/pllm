@@ -1,5 +1,5 @@
 {
   "title": "Topologies",
   "root": true,
-  "pages": ["index", "roles-and-trust", "network-and-compute", "trusted-execution"]
+  "pages": ["index", "roles-and-trust", "network-and-compute", "trusted-execution", "research-candidates"]
 }

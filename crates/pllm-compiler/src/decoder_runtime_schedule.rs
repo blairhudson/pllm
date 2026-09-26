@@ -19,6 +19,7 @@ pub enum DecoderRuntimeExecutor {
     ClientLocal,
     ClientLinear,
     RemoteStage,
+    VerifiedRemoteStage,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1451,10 +1452,10 @@ pub fn lower_decoder_runtime_schedule(
         super::DecoderCompositionKind::MaskedLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::TwoOnlineOffsetLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::ClientOnlyLinear => DecoderRuntimeExecutor::ClientLinear,
+        // The schedule declares a distinct executor; it cannot itself prove that
+        // the online session supplied the authenticated one-use verifier material.
         super::DecoderCompositionKind::VerifiedMaskedLinear => {
-            return Err(
-                "verified runtime scheduling requires verifier-bound execution evidence".into(),
-            );
+            DecoderRuntimeExecutor::VerifiedRemoteStage
         }
         super::DecoderCompositionKind::Other => {
             return Err(

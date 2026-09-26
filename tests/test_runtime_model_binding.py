@@ -785,12 +785,11 @@ def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path:
         verification=FreivaldsVerify(target_failure_bits=40),
     )
 
-    with pytest.raises(RuntimeBindingError, match="verifier-bound remote executor"):
-        compile_runtime_model(
-            plan,
-            verified,
-            composition=composition,
-        )
+    compiled = compile_runtime_model(plan, verified, composition=composition)
+    assert compiled.complete
+    assert compiled.runtime_schedule_digest == plan.runtime_schedule(composition).digest
+    with pytest.raises(RuntimeBindingError, match="verifier-bound executor"):
+        compiled.runtime(lambda _stage_id, activation: activation)
 
     _, baseline, _ = _bundle(tmp_path, model_id="baseline-model")
     forged = dataclasses.replace(
@@ -801,11 +800,12 @@ def test_verified_profile_fails_closed_without_verifier_bound_executor(tmp_path:
             "verification_target_failure_bits": 40,
         },
     )
-    with pytest.raises(RuntimeBindingError, match="verifier-bound remote executor"):
+    matching_model = VerifiedMaskedLinearCpu(pllm.Model("baseline-model"))
+    with pytest.raises(RuntimeBindingError, match="verification profile does not match its manifest"):
         compile_runtime_model(
             plan,
             forged,
-            composition=composition,
+            composition=matching_model,
         )
 
 

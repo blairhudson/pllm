@@ -10,7 +10,7 @@ edition: "08"
 description: A prepared private-inference runtime, independent paper-derived components, and matched evidence for capability selection.
 pdf: paper.pdf
 subject: private language-model inference, multi-party systems, autonomous research harness, reproducible benchmarking, additive masking
-web-note: Paper-derived methods are partial and independently implemented; measured real-model baseline and tiny verification belong to separate cohorts.
+web-note: Paper-derived methods are partial and independently implemented; historical baseline, tiny verification and current pinned four-topology diagnostics have separate scopes.
 abstract: |
   PLLM is a private LLM multi-party inference runtime and extensible autonomous
   research harness. Its public-weight path uses trusted Client, non-colluding
@@ -20,8 +20,9 @@ abstract: |
   search and matched evidence enable comparison of eligible candidates. We map
   six cited research directions to independently implemented *portions* of
   PLLM, not complete reproductions. Historical CPU-loopback measurements cover
-  nine Qwen2.5-0.5B baseline responses; optional verified linear work has only
-  a separate one-run tiny-model matched control. Garbling and cache components
+  nine Qwen2.5-0.5B baseline responses. Optional verified linear work has a
+  separate tiny control and a pinned, one-run four-topology diagnostic with
+  incomplete cold compute/wire accounting. Garbling and cache components
   lack whole-model comparative measurements. Thus these data neither establish
   economic value nor rank PLLM against external state of the art. We define
   comparability and metric gates required to make such a claim.
@@ -152,14 +153,15 @@ The pinned Qwen2.5-0.5B checkpoint passes a **clear native-kernel**
 prefill-to-decode check; historical masked-protocol measurements are separate.
 Pinned Qwen3-0.6B passes the same clear compiled prefill-to-decode functionality
 check; its W4A4 output fails a small FP32 next-token parity probe, so model
-quality remains unestablished. Verified compiled execution, transformed cache,
-and protected whole-decoder composition remain incomplete.
+quality remains unestablished. Verified prepared compilation now runs with
+one-use verifier inventory; transformed cache and protected whole-decoder
+composition remain incomplete.
 
 ### Cited work versus runnable baseline
 
 Table 1 maps **independent PLLM adaptations**, not original authors' code, to
-the strongest evidence available. The pinned Qwen2.5-0.5B baseline is the only
-row with real-checkpoint masked-runtime timing. A paper citation is neither
+the strongest evidence available. Historical baseline and current pinned
+verified timings are distinct cohorts. A paper citation is neither
 evidence of a whole-paper reimplementation nor a cross-method speedup.
 
 | Source | PLLM part | Current measurement | Pinned Qwen? |
@@ -169,12 +171,12 @@ evidence of a whole-paper reimplementation nor a cross-method speedup.
 | ReDASH [@maurer2025redash] | Bounded Q7 rescale/arithmetic | Numeric tests only | No |
 | CRT garbling [@ball2017garbling] | Q7 multiply gadget | 245,397 B scalar payload | No |
 | Half-gates [@zahur2015halfgates] | Boolean circuit reference | Correctness tests only | No |
-| Slalom [@tramer2019slalom] | Freivalds stage check | One-run tiny paired control | No |
+| Slalom [@tramer2019slalom] | Freivalds stage check | One-run four-topology diagnostic | Yes, current revision |
 | MPCache [@zeng2025mpcache] | KV-eviction plan pass | Plan lineage only | No |
 
 : Scope of independent research adaptations. The masked baseline is PLLM's
 protocol, not a Slalom reproduction. Payload bytes are not response traffic
-or latency; no cited method has pinned-Qwen comparative evidence.
+or latency; the verified diagnostic lacks cold compute and full-wire parity.
 
 ### Component extensions, search, and evidence
 
@@ -202,8 +204,8 @@ Signed bounds prevent field wrap; independent checks and process-wide attempt
 accounting bound false acceptance. Preparation sends authenticated one-use
 projections bound to inventory and stage; Inference sees no challenge.
 Malicious Preparation and collusion remain out of scope. Verification does
-**not** reduce online traffic. Compiled verified execution fails closed until
-bound to a verifier-enforcing executor.
+**not** reduce online traffic. The compiled verified executor admits a session
+only with matching one-use verifier inventory; bare callbacks fail closed.
 
 ## Evaluation and evidence boundaries
 
@@ -248,11 +250,20 @@ forged stage output, authenticated material import, one-use consumption, and
 session-wide attempt accounting; they do not establish malicious Preparation
 resistance.
 
+**Compiled Qwen2.5 diagnostic.** A separate [pinned, four-topology W8A8
+one-response cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-2026-09-26.json)
+matched body fingerprint and 30+1 tokens: verified Preparation exchanged the
+same 47.89 MB covered online bodies as ordinary Preparation, against 95.81 MB
+for two online offset workers. Verification added 92.81 MB covered initial
+material. Full offline CPU and wire bytes remain unmeasured, so this does not
+establish the aggregate-compute cap, generation parity, or independent-party
+privacy.
+
 **Limits.** No measured concurrent load, physical network, accelerator,
 model-quality study, secure-erasure study, independent operator deployment, or
 cross-system matched cohort exists. Offline preparation incurs substantial
-traffic and full latency. These results cannot be extrapolated to other models,
-current compiled execution, operating cost, or provider-level security.
+traffic and full latency. The historical results cannot be extrapolated to
+operating cost or provider-level security.
 
 ## Defining an eligible state-of-the-art comparison
 
@@ -295,7 +306,8 @@ replace the prepared additive-masking protocol.
 ## Conclusion
 
 PLLM combines prepared private inference with independently implemented,
-composition-bound research components. Its Qwen baseline, tiny verified
-control, and isolated numeric/garbling tests are **different evidence levels**.
+composition-bound research components. Its historical Qwen baseline, tiny
+verified control, pinned four-topology diagnostic and isolated numeric/garbling
+tests are **different evidence levels**.
 Protected whole-decoder execution, matched method measurements on the pinned
 model, and external SOTA and economic comparisons remain open.

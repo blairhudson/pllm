@@ -10,6 +10,14 @@ path-independent checkpoint lock. For a supported Qwen2.5-0.5B-Instruct
 checkpoint, a public masked-linear experiment can run locally; generic HF
 repository names do not imply compatible tensor shapes or compiler coverage.
 The base package constructs and inspects the source without downloading it.
+Remote pulls use Hugging Face's shared snapshot cache (`HF_HUB_CACHE`, or the
+standard `~/.cache/huggingface/hub`), including when `local_files_only=True`.
+`--hf-cache-dir` selects that same cache root, rather than a second PLLM model
+store. A pinned revision and the actual source-file hashes enter the checkpoint
+lock. Streamed integer compilation uses a separate regenerable cache at
+`~/.cache/pllm/compiled`: its default 6 GiB limit prunes least-recently-used
+completed stages after loading, keeping active stages until unload. Set
+`PLLM_COMPILED_CACHE_MAX_BYTES` to a positive byte count to change that limit.
 
 ## Python SDK example
 

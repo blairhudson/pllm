@@ -231,7 +231,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
     stages: list[StageSpec] = []
     seen: set[tuple[str, int | None]] = set()
     for step in prefill["steps"]:
-        if step["executor"] != "remote_stage":
+        if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
             continue
         role = semantic_stage_role(step, operations)
         layer = step["layer"]

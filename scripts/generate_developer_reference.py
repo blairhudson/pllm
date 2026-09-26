@@ -1845,7 +1845,7 @@ def model_compatibility() -> dict[str, Any]:
             or set(item["evidence"]) != {"checkpoint", "provider", "quality"}
             or item["evidence"]["checkpoint"] not in {"real-local", "tiny-local", "none"}
             or item["evidence"]["provider"] not in {"real-prepared-local", "real-inprocess", "tiny-prepared", "none"}
-            or item["evidence"]["quality"] not in {"unmeasured", "narrow-gap", "tiny-parity", "narrow-improvement", "narrow-parity", "none"}
+            or item["evidence"]["quality"] not in {"unmeasured", "narrow-gap", "narrow-partial-four", "tiny-parity", "narrow-improvement", "narrow-parity", "none"}
             or (item["evidence"]["checkpoint"] == "real-local") != bool(item.get("pinned_real_checkpoint_functionality"))
             or (item["evidence"]["provider"].startswith("real-") and item["evidence"]["checkpoint"] != "real-local")
             or (not item["baseline_schedule"] and item["evidence"] != {"checkpoint": "none", "provider": "none", "quality": "none"})
@@ -1973,7 +1973,7 @@ def render_python_status() -> str:
     evidence = {
         "checkpoint": {"real-local": "Real local", "tiny-local": "Tiny only", "none": "None"},
         "provider": {"real-prepared-local": "Real: 2 local children", "real-inprocess": "Real: in process", "tiny-prepared": "Tiny prepared", "none": "None"},
-        "quality": {"unmeasured": "Not scored", "narrow-gap": "1/2 W8", "tiny-parity": "Tiny parity", "narrow-improvement": "2/2 opt-in; 3/5 other", "narrow-parity": "2/2 narrow", "none": "None"},
+        "quality": {"unmeasured": "Not scored", "narrow-gap": "1/2 W8", "narrow-partial-four": "2/4 W8", "tiny-parity": "Tiny parity", "narrow-improvement": "2/2 opt-in; 3/5 other", "narrow-parity": "2/2 narrow", "none": "None"},
     }
     columns = 6 + len(capability_ids)
     body.extend((

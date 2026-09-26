@@ -18,7 +18,10 @@ from pllm.protocols import (
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
-from pllm.roles import ClientOnlyRoles, Inference, InferenceRole, RoleTopology, TwoOnlineOffsetRoles
+from pllm.roles import (
+    ClientOnlyRoles, Inference, InferenceRole, PreparedProviderRoles, RoleTopology,
+    TwoOnlineOffsetRoles,
+)
 from pllm.sources import ModelSource
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
@@ -256,7 +259,10 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
 
 class VerifiedMaskedLinearCpu(_TypedPipeline):
     PROFILE = "research.verified_masked_linear_cpu"
-    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "verification", "quantization")
+    SLOT_NAMES = (
+        "linear", "preparation", "inference", "kernels", "verification", "quantization",
+        "topology",
+    )
     __slots__ = ()
 
     def __init__(
@@ -269,6 +275,7 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
         kernels: KernelBackend = _DEFAULT_KERNELS,
         verification: VerificationScheme = _DEFAULT_FREIVALDS,
         quantization: QuantizationScheme | None = None,
+        topology: RoleTopology | None = None,
     ) -> None:
         if quantization is not None:
             _slot(
@@ -291,6 +298,9 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
                     "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
+                **({"topology": _slot(
+                    "topology", topology, RoleTopology, PreparedProviderRoles.descriptor.component,
+                )} if topology is not None else {}),
             },
         )
 
@@ -317,6 +327,10 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
     @property
     def quantization(self) -> SymmetricPerRow | None:
         return self.components.get("quantization")
+
+    @property
+    def topology(self) -> PreparedProviderRoles | None:
+        return self.components.get("topology")
 
 
 class ProprietaryGuarded(_TypedPipeline):

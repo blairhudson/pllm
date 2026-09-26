@@ -383,9 +383,22 @@ fn bounded_gemma_text_decoder_uses_the_same_schedule_contract() {
 }
 
 #[test]
-fn verified_composition_requires_verifier_bound_execution_evidence() {
-    let error = lower_decoder_runtime_schedule(&plan(QWEN2), &composition(true)).unwrap_err();
-    assert!(error.contains("verifier-bound"));
+fn verified_composition_declares_a_distinct_remote_executor() {
+    let plan = plan(QWEN2);
+    let verified = lower_decoder_runtime_schedule(&plan, &composition(true)).unwrap();
+    let baseline = lower_schedule(&plan).unwrap();
+    assert!(verified.complete);
+    assert!(!verified.protected_execution);
+    assert_ne!(verified.digest(), baseline.digest());
+    for phase in [&verified.prefill, &verified.decode] {
+        assert!(phase.steps.iter().any(|step| {
+            step.operators.contains(&ModelOperator::Linear)
+                && step.executor == DecoderRuntimeExecutor::VerifiedRemoteStage
+        }));
+        assert!(phase.steps.iter().all(|step| {
+            step.executor != DecoderRuntimeExecutor::RemoteStage
+        }));
+    }
 }
 
 #[test]

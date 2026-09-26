@@ -47,7 +47,7 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Original PLLM manuscript reports nine Qwen runs; this archive is not a fresh reproduction of Slalom. PLLM now separately implements `pllm.method.slalom-trusted-client-freivalds` through `research.verified_masked_linear_cpu`: trusted Preparation computes authenticated per-row projections, and the trusted Client verifies every remote public linear result before dequantization. A matched tiny CPU loopback functionality result is retained under `docs/evidence/slalom-freivalds-tiny-2026-09-19.json`; real-Qwen evidence was unavailable.
+Original PLLM manuscript reports nine historical Qwen runs; this archive is not a fresh reproduction of Slalom. PLLM separately implements `pllm.method.slalom-trusted-client-freivalds` as a selectable `VerifiedMaskedLinearCpu` component composition on the prepared role graph: trusted Preparation computes authenticated per-row projections and the trusted Client verifies each compiled remote linear result before dequantization. The tiny functionality fixture is retained under `docs/evidence/slalom-freivalds-tiny-2026-09-19.json`. A separate pinned real Qwen2.5 one-response, four-topology W8A8 comparison is under `docs/evidence/slalom-prepared-topologies-2026-09-26.json`: verified Preparation adds 92.81 MB of covered startup bodies and no measured online stage bodies over the unverified path. Full offline aggregate CPU, full wire cost, operator independence, malicious-Preparation resistance and the original TEE boundary remain unvalidated.
 
 The original experiments and limitations are under `legacy/`. The implemented record is explicitly a trusted-client/trusted-preparation engineering adaptation, **not a completed native reproduction of the paper's TEE deployment**.
 
@@ -63,4 +63,4 @@ The eventual method page needs a worked operator example, a role diagram in pros
 
 ## Default policy
 
-`eligible_default = false` until implementation, full coverage, source/security review and deployment gates are met. The track restriction remains binding even after successful reproduction. Experimental or comparison methods cannot silently enter the preferred single-evaluator/no-HE profile.
+`eligible_default = false` until source/security review and deployment gates are met. The track restriction remains binding even after successful reproduction. Experimental or comparison methods cannot silently become the default component composition.

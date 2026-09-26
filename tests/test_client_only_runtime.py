@@ -158,7 +158,7 @@ def test_client_only_runs_through_existing_benchmark_cli(tmp_path: Path) -> None
     assert json.loads(gateway.stdout)["data"]["dry_run"] is True
 
 
-def test_prepared_and_client_owned_match_in_existing_experiment_comparison(
+def test_prepared_verified_and_client_owned_match_in_existing_experiment_comparison(
     tmp_path: Path,
 ) -> None:
     local, _ = _setup(tmp_path)
@@ -168,8 +168,19 @@ def test_prepared_and_client_owned_match_in_existing_experiment_comparison(
         deployment=Deployment.local(root=str(tmp_path / "prepared")),
         budget=local.budget,
     )
+    from pllm.profiles import VerifiedMaskedLinearCpu
+    from pllm.roles import PreparedProviderRoles
+
+    verified = Experiment(
+        name="verified-same-checkpoint",
+        pipeline=VerifiedMaskedLinearCpu(
+            local.pipeline.model, topology=PreparedProviderRoles(),
+        ),
+        deployment=Deployment.local(root=str(tmp_path / "verified")),
+        budget=local.budget,
+    )
     candidates = []
-    for experiment in (local, prepared):
+    for experiment in (local, prepared, verified):
         report = run_loopback_benchmark(
             model=experiment.pipeline.model.source,
             model_id=experiment.resolve().model,
@@ -190,3 +201,8 @@ def test_prepared_and_client_owned_match_in_existing_experiment_comparison(
     assert {
         frozenset(report["configuration"]["roles"]) for _, report in candidates
     } == {frozenset({"client"}), frozenset({"client", "preparation", "inference"})}
+    verified_report = candidates[2][1]
+    assert verified_report["topology_accounting"]["runs"][0]["online_all_link_serialized_body_bytes"] > 0
+    assert comparison["candidates"][2]["pipeline"]["components"]["verification"]["component"] == (
+        "pllm/freivalds-verify/v1"
+    )

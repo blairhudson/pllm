@@ -158,9 +158,11 @@ def test_declared_hybrid_decay_and_retained_recurrence_bind_local_coefficients()
     update = next(row for row in ops if row["operator"] == "gated_delta_state_update" and row["layer"] == decay["layer"])
     initializer = next(row for row in ops if row["operator"] == "state_initialize"
                        and row["attributes"]["state_kind"] == "recurrent")
+    gated_norm = next(row for row in ops if row["operator"] == "rms_norm_gated"
+                      and row["layer"] == decay["layer"])
     assert required[decay["attributes"]["a_log"]] == (32,)
     assert required[decay["attributes"]["dt_bias"]] == (32,)
-    assert required[f"model.layers.{decay['layer']}.linear_attn.norm.weight"] == (128,)
+    assert required[gated_norm["attributes"]["weight"]] == (128,)
 
     runtime = object.__new__(SemanticDecoderRuntime)
     runtime._tensors = {decay["attributes"]["a_log"]: "a", decay["attributes"]["dt_bias"]: "dt"}

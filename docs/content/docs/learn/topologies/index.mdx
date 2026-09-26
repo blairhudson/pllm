@@ -8,23 +8,21 @@ what each role computes; a deployment says which operator and machine runs each
 role. Changing a URL does not change a privacy protocol or give two processes
 independent operators.
 
-Today's public prepared execution uses the trusted client, trusted offline
-Preparation, and online Inference. `pllm topology inspect` displays their
-role/channel graph for a resolved Experiment. On `Deployment.local(...)`, both
-services share one operator, so the required Preparation–Inference separation
-is **not** satisfied. The local run is a functionality check, not proof of
-independent providers.
+Four executable CPU compositions share the compiled decoder: client-only,
+one online provider plus offline Preparation, two online additive-offset
+workers, and Freivalds-verified offline Preparation plus one online provider.
+`pllm topology inspect` displays each resolved Experiment's role/channel
+graph. `Deployment.local(...)` co-locates service roles under one operator;
+their separation requirements are **not** satisfied by a local run.
 
-The single-party reference executes the full model on the client. Prompts and
-activations never leave that machine; online provider bytes are zero, while
-checkpoint distribution, local weight storage, memory and client computation
-belong in the comparison. It is a measured local baseline, not the public
-remote-inference Experiment choice.
+The selectable client-only option executes the full model on the client:
+online provider bytes are zero, while checkpoint distribution, weight
+storage, memory and client computation belong in the comparison.
 
 Learn the [role and trust boundaries](/learn/topologies/roles-and-trust/),
-[network and compute comparison](/learn/topologies/network-and-compute/), and
+[network and compute comparison](/learn/topologies/network-and-compute/),
+[research topology candidates](/learn/topologies/research-candidates/), and
 [TEE conventions](/learn/topologies/trusted-execution/). Use the
-[SDK topology guide](/sdk/topologies/) to inspect or explicitly select this
-installed prepared graph, or
+[SDK topology guide](/sdk/topologies/) to inspect/select implemented choices, or
 the [CLI guide](/cli/topologies/) to inspect a saved Experiment. Paper methods
 are [research provenance](/research/papers/), not enabled topologies by name.

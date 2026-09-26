@@ -123,6 +123,86 @@ def test_real_qwen_checkpoint_binds_and_executes_complete_schedule(
     )
 
 
+@pytest.mark.skipif(not QWEN2_PATH, reason="PLLM_REAL_QWEN_PATH is not configured")
+def test_real_qwen_offset_topology_executes_compiled_session(tmp_path: Path) -> None:
+    from pllm import Deployment, ExecutionBudget, Experiment, Model
+    from pllm.profiles import ClientOnlyCpu, TwoOnlineOffsetCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.servers import build_roles
+
+    assert QWEN2_PATH is not None
+    model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+    experiment = Experiment(
+        name="real-offset-runtime",
+        pipeline=TwoOnlineOffsetCpu(
+            Model.path(QWEN2_PATH, model_id=model_id),
+            quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+        ),
+        deployment=Deployment.local(root=str(tmp_path / "offset")),
+        budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+    )
+    with build_roles(experiment) as topology, topology.client() as client:
+        response = client.responses.create(model=model_id, input="A", max_output_tokens=1)
+        assert response.usage.output_tokens == 1
+        assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+        assert client.privacy_audit.plaintext_token_ids_sent == 0
+    local = Experiment(
+        name="real-offset-control",
+        pipeline=ClientOnlyCpu(
+            Model.path(QWEN2_PATH, model_id=model_id),
+            quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+        ),
+        deployment=Deployment.local(root=str(tmp_path / "control")),
+        budget=experiment.budget,
+    )
+    with build_roles(local) as topology, topology.client() as client:
+        control = client.responses.create(model=model_id, input="A", max_output_tokens=1)
+    assert response.output_text == control.output_text
+
+
+@pytest.mark.skipif(not QWEN2_PATH, reason="PLLM_REAL_QWEN_PATH is not configured")
+def test_real_qwen_verified_prepared_topology_matches_client(tmp_path: Path) -> None:
+    from pllm import Deployment, ExecutionBudget, Experiment, Model
+    from pllm.profiles import ClientOnlyCpu, VerifiedMaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from pllm.roles import PreparedProviderRoles
+    from pllm.runtime.servers import build_roles
+    from pllm.verification import FreivaldsVerify
+
+    assert QWEN2_PATH is not None
+    model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+    model = Model.path(QWEN2_PATH, model_id=model_id)
+    bits = SymmetricPerRow(weight_bits=8, activation_bits=8)
+    budget = ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1)
+    verified = Experiment(
+        name="real-verified-runtime",
+        pipeline=VerifiedMaskedLinearCpu(
+            model,
+            quantization=bits,
+            verification=FreivaldsVerify(target_failure_bits=40),
+            topology=PreparedProviderRoles(),
+        ),
+        deployment=Deployment.local(root=str(tmp_path / "verified")),
+        budget=budget,
+    )
+    with build_roles(verified) as topology, topology.client() as client:
+        result = client.responses.create(model=model_id, input="A", max_output_tokens=1)
+        assert result.usage.output_tokens == 1
+        assert client.privacy_audit.inference_stage_calls == 96
+        assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+        assert client.privacy_audit.plaintext_token_ids_sent == 0
+        assert client.privacy_audit.preparation_requests_during_online == 0
+    local = Experiment(
+        name="real-verified-control",
+        pipeline=ClientOnlyCpu(model, quantization=bits),
+        deployment=Deployment.local(root=str(tmp_path / "control")),
+        budget=budget,
+    )
+    with build_roles(local) as topology, topology.client() as client:
+        control = client.responses.create(model=model_id, input="A", max_output_tokens=1)
+    assert result.output_text == control.output_text
+
+
 @pytest.mark.skipif(not QWEN3_PATH, reason="PLLM_REAL_QWEN3_PATH is not configured")
 def test_real_qwen3_has_scoped_clear_reference_parity() -> None:
     assert QWEN3_PATH is not None

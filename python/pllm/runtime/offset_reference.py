@@ -140,7 +140,10 @@ class _TwoOnlineShareEvaluator:
         mask = np.frombuffer(raw_mask, dtype="<u4").reshape(rows, stage.in_features)
         left = np.asarray((clear - mask.astype(np.int64)) % modulus, dtype=np.uint32)
         try:
-            mask %= modulus
+            # Every uint32 value is already a valid residue modulo 2**32;
+            # NumPy cannot cast that modulus itself to a uint32 scalar.
+            if modulus != 1 << 32:
+                mask %= modulus
             def request(share: np.ndarray, session_id: str) -> tuple[str, bytes]:
                 ticket = secrets.token_hex(16)
                 return ticket, MaskedStageRequest(

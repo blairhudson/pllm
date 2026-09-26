@@ -32,3 +32,9 @@ runnable. Compare future TEE candidates with the same per-link network and
 aggregate-compute ledger as other topologies, while preserving their distinct
 hardware assumption. [SDK status](/sdk/reference/status/) reports what is
 currently implemented.
+
+The currently runnable [Freivalds-verified prepared path](/sdk/inference/verified-masked-linear/)
+keeps verification, plaintext activations and KV state at the **client**. It
+does not move those operations into a TEE or satisfy Slalom's enclave trust
+contract. [Other paper-derived role graphs](/learn/topologies/research-candidates/)
+need their own complete execution and attestation evidence.

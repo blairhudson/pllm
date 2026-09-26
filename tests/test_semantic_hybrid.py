@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +10,7 @@ import pytest
 
 from pllm import Model, lower_model
 from pllm.profiles import MaskedLinearCpu
+from pllm.runtime.model_binding import RuntimeBindingError, _runtime_config
 from pllm.runtime.semantic_stages import scheduled_stage_specs
 from pllm.state import BoundedDepthwiseCausalConvolution, HybridStateError
 
@@ -139,3 +141,26 @@ def test_pinned_hybrid_source_has_explicit_state_and_native_schedule() -> None:
         (stage.id, stage.role, len(stage.weight_keys))
         for stage in stages if len(stage.weight_keys) > 1
     ][:8]
+
+
+def test_missing_source_bos_requires_explicit_non_adding_tokenizer() -> None:
+    config = json.loads((
+        Path(__file__).resolve().parents[1]
+        / "crates/pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json"
+    ).read_text())["text_config"]
+    assert "bos_token_id" not in config
+    descriptor = {"bos_token_id": 2, "add_bos_token": False}
+    transport = {
+        **config,
+        "bos_token_id": 2,
+        "bos_token_policy": "nonempty_only",
+        "semantic_source_config": {"text_config": config},
+    }
+    runtime = _runtime_config(transport, nested_source=True, tokenizer_descriptor=descriptor)
+    assert runtime["bos_token_id"] == 2
+    assert "bos_token_id" not in config
+    for forged in (None, {**descriptor, "add_bos_token": True}, {**descriptor, "bos_token_id": -1}):
+        with pytest.raises(RuntimeBindingError, match="BOS"):
+            _runtime_config(transport, nested_source=True, tokenizer_descriptor=forged)
+    with pytest.raises(RuntimeBindingError, match="BOS"):
+        _runtime_config({**transport, "bos_token_policy": "ignored"}, nested_source=True, tokenizer_descriptor=descriptor)

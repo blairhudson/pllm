@@ -9,6 +9,9 @@ plus [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#freivaldsverif
 Preparation authenticates per-row projections to the client; inference never
 receives challenges or projections. The client checks bounded integer stage
 results before dequantizing, and claimed material burns on success or failure.
+The verified remote stage is now a distinct compiled executor; constructing a
+compiled session requires the matching one-use verifier inventory before
+execution. A static schedule alone cannot certify a live session.
 This checks inference against the trusted preparation result; it does not protect
 against malicious or colluding preparation, nor reduce online traffic. Inspired
 by [Slalom](/research/papers/slalom/); not its TEE deployment or security claim.
@@ -18,6 +21,7 @@ by [Slalom](/research/papers/slalom/); not its TEE deployment or security claim.
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment
 from pllm.profiles import VerifiedMaskedLinearCpu
+from pllm.roles import PreparedProviderRoles
 from pllm.sources import TinyModel
 from pllm.verification import FreivaldsVerify
 
@@ -26,6 +30,7 @@ experiment = Experiment(
     pipeline=VerifiedMaskedLinearCpu(
         TinyModel(model_id="verified-guide-tiny"),
         verification=FreivaldsVerify(target_failure_bits=48),
+        topology=PreparedProviderRoles(),
     ),
     deployment=Deployment.local(root="local://verified-guide"),
     budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
@@ -33,9 +38,14 @@ experiment = Experiment(
 assert experiment.resolve().verification_component == "pllm/freivalds-verify/v1"
 ```
 
-Save as `experiment.py`; install the optional `he` dependency from
-[Installation](/learn/installation/) and serve with
+Save as `experiment.py`; use the [base installation](/learn/installation/) and serve with
 `pllm gateway --local --experiment experiment.py:experiment --trust-python`.
 Tiny weights test the protocol, not generation quality.
+
+For a checkpoint-bound benchmark candidate, inspect the selectable
+[`verified_cpu_1` experiment](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/qwen_prepared.py)
+and use `pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:verified_cpu_1 --trust-python --max-output-tokens 16`.
+Its preparation projections increase offline traffic; matched local role graphs
+do not prove operator independence or satisfy a full-response compute cap.
 
 API: [`VerifiedMaskedLinearCpu`](/sdk/reference/python/pllm/profiles/#objects-and-signatures)

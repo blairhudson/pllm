@@ -262,8 +262,16 @@ prefill/decode against the upstream float32 Torch reference, with identical
 selected tokens and worst checked logit error below 0.05. Separate prepared SDK
 and gateway requests complete two generated tokens through two local role
 children with masked stage traffic and no plaintext prompt/token-ID bytes sent.
-The text rotary contract rejects multimodal position axes and prompt image/video
-tokens; no official Qwen3.5 checkpoint has been imported or quality-scored.
+The pinned official Qwen3.5-4B checkpoint additionally validates 426 required
+text artifacts, imports 130 compiled stages and completes prefill/decode.
+Against an independent upstream BF16 same-token reference, W8A8 matches 2/4
+selected tokens with 3.66 worst absolute logit error; a float32-body
+diagnostic with the same W8 token/head boundary matches 3/4 with 0.46 worst
+error. A real-checkpoint SDK and gateway response each complete through two
+local prepared-role children, with masked traffic and no plaintext prompt or
+token-ID bytes sent. This narrow cohort does not establish representative
+quality, independent operators or matched provider costs. The text rotary
+contract still rejects multimodal position axes and prompt image/video tokens.
 The pinned
 Qwen3-0.6B checkpoint passes a local clear-kernel compiled prefill-to-decode
 functionality check, but W4A4 and one tested short-prompt W8A8 case
@@ -417,6 +425,13 @@ count that storage and buffer conversion work.
 Moving arithmetic to Rust does not remove dependent client-to-inference stage
 exchanges, offline preparation work, or client attention state. No speed claim
 follows merely from the choice of implementation language.
+
+Hugging Face sources use the standard shared Hub snapshot cache for both online
+and offline resolution, with immutable snapshot commits recorded in source locks.
+Streamed integer stage weights use a separate regenerable compiled cache whose
+default 6 GiB LRU limit evicts completed inactive entries after model load/unload.
+An active checkpoint may temporarily exceed that limit; client-bundle cache
+payloads remain separately disposable.
 
 The legacy packed-BFV correlation backend remains available to research and
 confidential-weight protocol code but is not selected by public inference.
