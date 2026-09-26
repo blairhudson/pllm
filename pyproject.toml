@@ -59,7 +59,7 @@ dev = [
   "ruff>=0.12,<1",
   "build>=1.2,<2",
   "maturin>=1.9,<2",
-  "twine>=6,<7",
+  "twine>=6,<8",
   "torch>=2.7,<3",
   "openai-agents>=0.7,<1",
 ]
