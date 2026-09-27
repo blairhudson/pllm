@@ -1,0 +1,43 @@
+{
+  "schema_version": "pllm.apple_metal.warm.v1",
+  "source_commit": "f4ed3e8",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "hardware": "Apple M5; macOS 26.5.2 arm64; MLX 0.32.2",
+  "workload": {
+    "input_tokens": 30,
+    "output_tokens": 1,
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "warmups": 1,
+    "measured_repetitions": 3,
+    "same_prompt_in_one_local_benchmark_invocation": true
+  },
+  "candidates": {
+    "client_only_cpu_threads_1": {
+      "configuration_digest": "054a0172183aef5af11230ae033decd434c36b3fd346cc707e3526411a3646c3",
+      "median_full_seconds": 5.210817417,
+      "median_online_seconds": 4.603923292
+    },
+    "client_only_metal_min_rows_8": {
+      "configuration_digest": "3fa52d83964ece97cba7d97b36f0549a8544eb0b3038c2cf78492bf628439d38",
+      "median_full_seconds": 4.724763042,
+      "median_online_seconds": 4.11621675
+    }
+  },
+  "comparison": {
+    "full_latency_improvement_percent": 9.33,
+    "online_latency_improvement_percent": 10.59,
+    "matched_model_body_and_token_counts": true,
+    "same_backend": false,
+    "benchmark_winner_admitted": false
+  },
+  "scope": "co-located single-host client-only warm latency; exact output-token match checked in a separate pinned real-checkpoint test",
+  "unmeasured": [
+    "GPU compute and GPU energy",
+    "GPU peak memory",
+    "cold checkpoint transfer",
+    "whole-response quality and independent privacy"
+  ]
+}
