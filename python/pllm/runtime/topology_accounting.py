@@ -237,7 +237,60 @@ def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def cold_process_cpu_accounting(
+    readings: Mapping[str, Any] | None,
+    *,
+    roles: tuple[str, ...],
+    first_measurement_is_cold: bool,
+) -> dict[str, Any]:
+    """Account cumulative CPU from role birth/dashboard start through first response.
+
+    A missing role or a replaced PID invalidates the aggregate. No sampled GPU
+    time, upstream source distribution, or later warm-run CPU is inferred here.
+    """
+    expected = frozenset(roles)
+
+    def checked(key: str) -> dict[str, float] | None:
+        value = readings.get(key) if readings is not None else None
+        if type(value) is not dict or set(value) != expected:
+            return None
+        result: dict[str, float] = {}
+        for role in roles:
+            sample = value[role]
+            if type(sample) not in (int, float) or not math.isfinite(sample) or sample < 0:
+                return None
+            result[role] = float(sample)
+        return result
+
+    startup = checked("startup")
+    complete = checked("first_response") if first_measurement_is_cold else None
+    if startup is not None and complete is not None and any(
+        complete[role] < startup[role] for role in roles
+    ):
+        complete = None
+    return {
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": (
+            "dashboard/client CPU from benchmark startup and role CPU from process birth; "
+            "through the first cold measured response"
+        ),
+        "startup_cpu_seconds_by_role": startup,
+        "aggregate_startup_cpu_seconds": sum(startup.values()) if startup is not None else None,
+        "cold_first_response_cpu_seconds_by_role": complete,
+        "aggregate_cold_first_response_cpu_seconds": (
+            sum(complete.values()) if complete is not None else None
+        ),
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger",
+        ],
+    }
+
+
 __all__ = [
-    "ACCOUNTING_SCHEMA", "client_owned_body_accounting", "prepared_body_accounting",
+    "ACCOUNTING_SCHEMA", "client_owned_body_accounting", "cold_process_cpu_accounting",
+    "prepared_body_accounting",
     "two_worker_body_accounting",
 ]

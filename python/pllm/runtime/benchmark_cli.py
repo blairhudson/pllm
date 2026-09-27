@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import secrets
 import signal
 import socket
@@ -122,10 +123,12 @@ def build_loopback_report(
     roles: tuple[str, ...] = ("client", "preparation", "inference"),
     initial_preparation_audit: dict[str, int] | None = None,
     client_model_ownership: dict[str, int | None] | None = None,
+    cold_process_cpu: dict[str, dict[str, float | None] | None] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import (
-        client_owned_body_accounting, prepared_body_accounting, two_worker_body_accounting,
+        client_owned_body_accounting, cold_process_cpu_accounting,
+        prepared_body_accounting, two_worker_body_accounting,
     )
 
     all_runs = [*warmup_runs, *runs]
@@ -190,6 +193,13 @@ def build_loopback_report(
         },
         "warmup_runs": warmup_runs,
         "runs": runs,
+        "process_cpu_accounting": cold_process_cpu_accounting(
+            cold_process_cpu,
+            roles=roles,
+            first_measurement_is_cold=(
+                not warmup_runs and bool(runs) and runs[0].get("cold") is True
+            ),
+        ),
         "topology_accounting": (
             {"startup": (
                 {"schema": "pllm.topology_model_ownership.v1", **client_model_ownership}
@@ -314,11 +324,54 @@ def build_comparison_report(
             "max_output_tokens": comparison_key[3],
             "warm": comparison_key[4],
         }
+    offset_references = [
+        record for (experiment, _), record in zip(candidates, records, strict=True)
+        if (
+            experiment.pipeline.components.get("topology") is not None
+            and experiment.pipeline.components["topology"].component
+            == "pllm/two-online-offset-workers/v1"
+        )
+    ]
+    cpu_comparison: dict[str, Any] | None = None
+    if comparable and checks["all_candidates_passed"] and len(offset_references) == 1:
+        baseline = offset_references[0]
+        reference_cpu = baseline["report"].get("process_cpu_accounting", {}).get(
+            "aggregate_cold_first_response_cpu_seconds"
+        )
+        if type(reference_cpu) in (int, float) and math.isfinite(reference_cpu) and reference_cpu > 0:
+            observations: list[dict[str, Any]] = []
+            for record in records:
+                value = record["report"].get("process_cpu_accounting", {}).get(
+                    "aggregate_cold_first_response_cpu_seconds"
+                )
+                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    observations = []
+                    break
+                observations.append({
+                    "configuration_digest": record["configuration_digest"],
+                    "cpu_seconds": value,
+                    "ratio_to_offset": value / reference_cpu,
+                    "measured_cpu_not_above_offset": value <= reference_cpu,
+                })
+            if observations:
+                cpu_comparison = {
+                    "schema": "pllm.offset_cold_cpu_diagnostic.v1",
+                    "reference_configuration_digest": baseline["configuration_digest"],
+                    "reference_cpu_seconds": reference_cpu,
+                    "observations": observations,
+                    "full_response_compute_cap_admitted": False,
+                    "scope": "single-host cold process CPU; one measured response per composition",
+                    "limitation": (
+                        "Diagnostic CPU ratios do not establish independent-operator privacy, "
+                        "accelerator compute, full wire cost, or a representative cohort"
+                    ),
+                }
     return {
         "schema_version": COMPARISON_REPORT_SCHEMA,
         "scope": "single-host-loopback-diagnostic-comparison",
         "checks": {"passed": all(checks.values()), **checks},
         "comparison_key": comparison,
+        "compute_cap_diagnostic": cpu_comparison,
         "candidates": records,
         "rankings": rankings,
         "winners": winners,
@@ -560,6 +613,7 @@ def _run_loopback_benchmark(
                         progress_label=f"Measurement {index + 1}/{repetitions} running",
                     )
                 )
+            cold_process_cpu = dashboard_app.state.dashboard_runtime.cold_process_cpu()
     except KeyboardInterrupt as exc:
         raise LoopbackBenchmarkError("benchmark interrupted") from exc
     except LoopbackBenchmarkError as exc:
@@ -582,6 +636,7 @@ def _run_loopback_benchmark(
         roles=roles,
         initial_preparation_audit=initial_preparation_audit,
         client_model_ownership=client_model_ownership,
+        cold_process_cpu=cold_process_cpu,
     )
     if not report["checks"]["passed"]:
         raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")

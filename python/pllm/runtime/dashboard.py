@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import numpy as np
+import psutil
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from google.protobuf.message import DecodeError
@@ -389,6 +390,10 @@ class DashboardRuntime:
         self._background_threads: set[threading.Thread] = set()
         self._last_privacy_delta: dict[str, int] = {}
         self._initial_preparation_audit: dict[str, int] | None = None
+        self._cold_cpu_start_ns: int | None = None
+        self._role_births: dict[str, tuple[int, float]] = {}
+        self._startup_cpu: dict[str, float | None] | None = None
+        self._cold_first_response_cpu: dict[str, float | None] | None = None
 
     def initial_preparation_audit(self) -> dict[str, int] | None:
         """Only numeric startup deltas; no prompt, token or correction payloads."""
@@ -403,6 +408,49 @@ class DashboardRuntime:
         if topology is None or topology.statuses:
             return None
         return topology.client_model_ownership()
+
+    def cold_process_cpu(self) -> dict[str, dict[str, float | None] | None]:
+        """CPU from benchmark startup through the first response, including import/preparation.
+
+        The dashboard process includes client execution and local control work. Role
+        children are sampled from their birth, not from the later OTLP run window.
+        Missing or replaced processes stay unknown rather than becoming zero CPU.
+        """
+        with self._lock:
+            return {
+                "startup": None if self._startup_cpu is None else dict(self._startup_cpu),
+                "first_response": (
+                    None if self._cold_first_response_cpu is None
+                    else dict(self._cold_first_response_cpu)
+                ),
+            }
+
+    def _sample_lifetime_cpu(self) -> dict[str, float | None]:
+        since = self._cold_cpu_start_ns
+        result: dict[str, float | None] = {
+            "client": (
+                max(0.0, (time.process_time_ns() - since) / 1_000_000_000)
+                if since is not None else None
+            )
+        }
+        topology = self._topology
+        if topology is None:
+            return result
+        for status in topology.statuses:
+            identity = self._role_births.get(status.role)
+            if identity is None or not status.running or status.pid != identity[0]:
+                result[status.role] = None
+                continue
+            try:
+                process = psutil.Process(status.pid)
+                if process.create_time() != identity[1]:
+                    result[status.role] = None
+                    continue
+                times = process.cpu_times()
+                result[status.role] = times.user + times.system
+            except (psutil.Error, OSError):
+                result[status.role] = None
+        return result
 
     def _services_healthy(self) -> bool:
         topology = getattr(self, "_topology", None)
@@ -505,6 +553,7 @@ class DashboardRuntime:
 
     async def start(self) -> None:
         try:
+            self._cold_cpu_start_ns = time.process_time_ns()
             self._temporary = tempfile.TemporaryDirectory(prefix="pllm-dashboard-")
             root = Path(self._temporary.name)
             experiment = self.config.experiment
@@ -535,6 +584,15 @@ class DashboardRuntime:
                 progress=lambda role: self._set(startup_step=role),
             )
             await asyncio.to_thread(self._topology.start)
+            for status in self._topology.statuses:
+                pid = getattr(status, "pid", None)
+                if pid is not None and status.running:
+                    try:
+                        self._role_births[status.role] = (
+                            pid, psutil.Process(pid).create_time(),
+                        )
+                    except (psutil.Error, OSError):
+                        pass
             client_options: dict[str, Any] = {"timeout": 300}
             if self._topology.statuses:
                 client_options["bundle_cache_dir"] = root / "bundle-cache"
@@ -574,6 +632,9 @@ class DashboardRuntime:
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
+            startup_cpu = self._sample_lifetime_cpu()
+            with self._lock:
+                self._startup_cpu = startup_cpu
             self._set(
                 phase="ready",
                 startup_step="ready",
@@ -1042,6 +1103,10 @@ class DashboardRuntime:
         except Exception as history_error:
             if display_error is None:
                 display_error = f"history write failed: {type(history_error).__name__}"
+        if capture.cold:
+            cold_cpu = self._sample_lifetime_cpu()
+            with self._lock:
+                self._cold_first_response_cpu = cold_cpu
         with self._lock:
             if self._active_run is capture:
                 self._active_run = None

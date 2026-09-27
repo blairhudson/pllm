@@ -24,7 +24,7 @@ constraint can cover online work or the full response with honestly amortized
 preprocessing. CPU and GPU work need measured, hardware-matched accounting;
 adding unlike resource units into one unexplained score is not a comparison.
 
-The [client-only, two-worker and prepared options](/sdk/topologies/options/)
+The [client-only, two-worker, prepared and verified options](/sdk/topologies/options/)
 are selectable `Experiment` compositions. The ordinary gateway and
 [`benchmark run`](/cli/benchmarking/) use the same native semantic schedule
 and runtime driver. In the two-worker graph, separate authenticated processes
@@ -42,9 +42,9 @@ the two-worker path, and prepared startup and per-run bodies separately. It
 also records run-window CPU for the client and both offset workers when
 authenticated samples exist. The prepared path's generated selections are
 **not** compared, so matching body and counts are not a model-quality proof.
-Unmeasured HTTP/TLS frames, checkpoint distribution, cold setup CPU and
-incomplete control traffic prevent a total-network winner or full-response
-compute-cap finding. Two loopback workers share one operator and fail the
+Unmeasured HTTP/TLS frames, checkpoint distribution and incomplete control
+traffic prevent a total-network winner; a separate pinned cohort now measures
+cold CPU. Two loopback workers share one operator and fail the
 independent-operator privacy condition.
 
 An additional [pinned Qwen2.5-0.5B diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-2026-09-26.json)
@@ -63,12 +63,18 @@ Verified and unverified prepared inference exchanged the same measured online
 stage bodies; offline projections added **92.81 MB** of covered initial bodies.
 These are one-run serialized *application bodies*, not complete network totals.
 The two-worker run counts its cold bundle inside its run ledger while the
-prepared paths report bundle/inventory at startup. Run-window CPU omits the
-much heavier verified offline projection generation and model import. Even
-though its single online sample is below the offset sample, **no full-response
-aggregate-compute cap has been checked**, and no local pair proves independent
-operators or security against malicious Preparation. Real-checkpoint numeric
-quality is a separate gate.
+prepared paths report bundle/inventory at startup. This first cohort's CPU
+window omitted offline projection generation and model import. A separate
+[pinned cold-CPU cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json)
+samples the dashboard/client from benchmark startup and each role from process
+birth through the first response. The measured aggregates were **11.71 s**
+client-only, **34.66 s** prepared, **28.65 s** offset, and **142.83 s** verified;
+verified Preparation consumed **109.87 s**. Thus the verified path misses the
+offset CPU comparator by **4.98×** on this single cold CPU-only request, despite
+lower online application bodies. Full wire, hardware independence, accelerator
+work, broader cohorts, and the full policy's compute-cap admission remain unset.
+No local pair proves independent operators or security against malicious
+Preparation. Real-checkpoint numeric quality is a separate gate.
 
 Reproduce with the existing CLI and [four pinned
 Experiments](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/qwen_prepared.py):
@@ -91,7 +97,7 @@ Gemma E2B's pinned W8A8 client bundle alone
 measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
 warm-token results. Search over new topology choices and per-edge objective
 selection remain planned. The [existing benchmark](/cli/benchmarking/) selects
-all three CPU topologies but does not rank unqualified network/compute
+all four CPU topologies but does not rank unqualified network/compute
 objectives or establish deployed privacy.
 
 It now records a partial **per-link stage-body ledger** for the current

@@ -31,13 +31,14 @@ dependencies = [
   "opentelemetry-instrumentation-httpx>=0.57b0,<1",
   "opentelemetry-instrumentation-system-metrics>=0.57b0,<1",
   "opentelemetry-sdk>=1.36,<2",
-  "prompt-toolkit>=3.0,<4", "pyyaml>=6,<7", "rich>=13.9,<16", "safetensors>=0.4,<1",
+  "prompt-toolkit>=3.0,<4", "psutil>=5.9,<8", "pyyaml>=6,<7", "rich>=13.9,<16", "safetensors>=0.4,<1",
   "sentencepiece>=0.2,<1", "tokenizers>=0.21,<1", "uvicorn>=0.30,<1",
   "websockets>=15,<16",
 ]
 
 [project.optional-dependencies]
 he = ["tenseal==0.3.17"]
+metal = ["mlx>=0.30,<1; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 sdk = ["openai>=3,<4"]
 # Transformers is only required for experiments that use its model classes.
 huggingface = ["transformers>=5,<6"]

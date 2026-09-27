@@ -45,6 +45,12 @@ cryptographic dependency.
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
 runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,
 quantization, masking, output subtraction, and operating system random sampling.
+The separate opt-in `pllm.native.MetalGEMM` MLX/Metal direct kernel accepts
+bounded signed-i8 weights and i8/u32 inputs for exact clear and wrap32 outputs
+on Apple Silicon. It owns a GPU weight snapshot and synchronizes output to
+NumPy; it is not a compiled-plan placement or provider backend. Transfer-inclusive
+single-stage measurements must not be counted as whole-decoder or CPU-only
+topology acceleration.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
@@ -355,6 +361,15 @@ Run-window application bodies and authenticated CPU samples appear in the
 ordinary topology ledger. Co-located workers remain ineligible for an
 independent-provider privacy claim; full-response compute-cap validation
 remains open.
+The ordinary four-topology benchmark now separately samples each local role's
+cumulative CPU from process birth and client/dashboard CPU from benchmark startup
+through the first cold response. A pinned Qwen2.5-0.5B W8A8 30+1-token cohort
+measured 11.71 s client-only, 34.66 s prepared, 28.65 s two-worker offset and
+142.83 s Freivalds-verified, of which 109.87 s belonged to Preparation. The
+verified path misses the measured CPU comparator by 4.98x on this one response.
+This supplements, rather than rewrites, historical run-window cohorts; incomplete
+full-wire metering, cold checkpoint distribution, representative measurements and
+operator independence still prevent full policy admission.
 
 The same bounded diagnostic uses client-only clear W8A8 execution as its
 single-party comparator: one body matrix operation per stage, no online

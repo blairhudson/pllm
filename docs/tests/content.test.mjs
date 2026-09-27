@@ -1115,9 +1115,27 @@ test('technical paper keeps historical and tiny verified cohorts separate and re
   assert.equal(topologies.checks.full_response_compute_cap_checked, false);
   assert.ok(paper.includes((verified.online_all_link_body_bytes / 1e6).toFixed(2)));
   assert.ok(paper.includes((offset.online_all_link_body_bytes / 1e6).toFixed(2)));
+  const cold = JSON.parse(fs.readFileSync(
+    path.join(siteRoot, 'evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json'), 'utf8',
+  ));
+  assert.equal(cold.source.body_fingerprint, topologies.source.body_fingerprint);
+  assert.equal(new Set(cold.results.map((row) => row.configuration_digest)).size, 4);
+  for (const row of cold.results) {
+    const roleSum = Object.values(row.cpu_seconds_by_role).reduce((sum, value) => sum + value, 0);
+    assert.ok(Math.abs(roleSum - row.cold_first_response_cpu_seconds) < 1e-6);
+    assert.ok(row.cold_first_response_cpu_seconds >= row.startup_cpu_seconds);
+  }
+  const coldVerified = cold.results.find((row) => row.topology === 'Freivalds-verified prepared');
+  const coldOffset = cold.results.find((row) => row.topology === 'two-online-offset comparator');
+  assert.ok(Math.abs(cold.diagnostic.verified_to_offset_cold_cpu_ratio -
+    coldVerified.cold_first_response_cpu_seconds / coldOffset.cold_first_response_cpu_seconds) < 1e-6);
+  assert.equal(cold.diagnostic.verified_measured_cpu_below_offset, false);
+  assert.equal(cold.diagnostic.full_response_compute_cap_admitted, false);
+  assert.ok(paper.includes(coldVerified.cold_first_response_cpu_seconds.toFixed(2)));
+  assert.ok(paper.includes(coldOffset.cold_first_response_cpu_seconds.toFixed(2)));
   assert.match(paper, /historical masked-protocol measurements are separate/i);
   assert.match(paper, /\*\*not\*\* a security proof or a matched external SOTA benchmark/i);
-  assert.match(paper, /the verified diagnostic lacks cold compute and full-wire parity/i);
+  assert.match(paper, /measured cpu comparator by 4\.98/i);
   assert.match(whitepaper, /\*\*has\s+not measured prices, energy, or an economic return\*\*/i);
   assert.match(whitepaper, /full compute and network cost remain unknown/i);
   assert.match(whitepaper, /high-performance private LLM multi-party inference runtime and\s+extensible autonomous research harness/i);

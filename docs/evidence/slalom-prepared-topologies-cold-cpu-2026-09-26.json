@@ -1,0 +1,81 @@
+{
+  "scope": "one matched cold CPU-only loopback response per topology; no full-wire, independent-operator or representative-cohort claim",
+  "source": {
+    "repository": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+  },
+  "cohort": {
+    "input_tokens": 30,
+    "output_tokens": 1,
+    "max_output_tokens": 1,
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "cold": true,
+    "repetitions_per_topology": 1,
+    "collector": "pllm.topology_process_cpu.v1",
+    "window": "benchmark startup and role process birth through first response completion"
+  },
+  "results": [
+    {
+      "topology": "client-only",
+      "configuration_digest": "054a0172183aef5af11230ae033decd434c36b3fd346cc707e3526411a3646c3",
+      "startup_cpu_seconds": 6.328554,
+      "cold_first_response_cpu_seconds": 11.708944,
+      "cpu_seconds_by_role": {"client": 11.708944},
+      "online_all_link_body_bytes": 0
+    },
+    {
+      "topology": "prepared baseline",
+      "configuration_digest": "76d1646e0cf862e508aa380ef56e0164ad3145b3f1fe81d0b08c427bf7770774",
+      "startup_cpu_seconds": 27.38472664,
+      "cold_first_response_cpu_seconds": 34.658675936,
+      "cpu_seconds_by_role": {
+        "client": 6.290924,
+        "inference": 13.687156224,
+        "preparation": 14.680595712
+      },
+      "online_all_link_body_bytes": 47885568,
+      "initial_distribution_and_inventory_body_bytes": 205799212
+    },
+    {
+      "topology": "two-online-offset comparator",
+      "configuration_digest": "cab4550d0266759761a72c915c4438838e956db3a27b02b2d528e9d33e32012a",
+      "startup_cpu_seconds": 17.015086584,
+      "cold_first_response_cpu_seconds": 28.652455056,
+      "cpu_seconds_by_role": {
+        "client": 8.82825,
+        "worker_a": 10.110815488,
+        "worker_b": 9.713389568
+      },
+      "online_all_link_body_bytes": 95805056
+    },
+    {
+      "topology": "Freivalds-verified prepared",
+      "configuration_digest": "1866e96a2779bf9da367ba11d04ba1cf5c02ab16ab94efb2fe438084c8d9736e",
+      "startup_cpu_seconds": 130.2203406,
+      "cold_first_response_cpu_seconds": 142.827331512,
+      "cpu_seconds_by_role": {
+        "client": 18.049443,
+        "inference": 14.905822208,
+        "preparation": 109.872066304
+      },
+      "online_all_link_body_bytes": 47885568,
+      "initial_distribution_and_inventory_body_bytes": 298608280
+    }
+  ],
+  "diagnostic": {
+    "verified_to_offset_cold_cpu_ratio": 4.984820017441789,
+    "verified_exceeds_offset_cpu_by_seconds": 114.174876456,
+    "verified_measured_cpu_below_offset": false,
+    "full_response_compute_cap_admitted": false,
+    "total_wire_bytes_measured": false,
+    "independent_operators_verified": false
+  },
+  "limitations": [
+    "One cold, co-located CPU sample cannot establish a representative latency or security result.",
+    "The dashboard process includes client inference and local control work; role samples include model import and offline preparation from child birth.",
+    "These CPU-only configurations have no accelerator work. Source resolution before dashboard startup, complete HTTP framing and cold checkpoint distribution bytes remain outside the measured scope.",
+    "Verified preparation's 109.87 seconds of measured preparation CPU makes this single-response candidate fail the measured cold CPU comparator even though its online serialized bodies are lower."
+  ]
+}

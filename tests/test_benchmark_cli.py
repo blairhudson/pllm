@@ -111,6 +111,15 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     )
     assert report["checks"]["passed"] is True
     assert report["summary"]["completed_runs"] == 1
+    compute = report["process_cpu_accounting"]
+    assert set(compute["startup_cpu_seconds_by_role"]) == {
+        "client", "inference", "preparation",
+    }
+    assert compute["aggregate_startup_cpu_seconds"] > 0
+    assert compute["aggregate_cold_first_response_cpu_seconds"] >= (
+        compute["aggregate_startup_cpu_seconds"]
+    )
+    assert compute["full_response_compute_cap_checked"] is False
     processes = report["runs"][0]["processes"]
     assert set(processes) == {"client", "inference", "preparation"}
     assert processes["client"]["cpu_seconds"] is not None
@@ -193,6 +202,7 @@ def test_two_worker_experiment_uses_existing_benchmark_cli(tmp_path: Path) -> No
     assert report["checks"]["passed"]
     assert report["configuration"]["roles"] == ["client", "worker_a", "worker_b"]
     assert report["topology_accounting"]["runs"][0]["online_all_link_serialized_body_bytes"] > 0
+    assert report["process_cpu_accounting"]["aggregate_cold_first_response_cpu_seconds"] > 0
     assert "user: A" not in result.stdout
     assert report["runs"][0]["privacy"]["plaintext_token_ids_sent"] == 0
     assert all("token_ids" not in run for run in report["runs"])
@@ -244,6 +254,10 @@ def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
     comparison = build_comparison_report(runs)
     assert comparison["checks"]["matched_workload"]
     assert comparison["comparison_key"]["model_fingerprint"]
+    diagnostic = comparison["compute_cap_diagnostic"]
+    assert diagnostic["reference_configuration_digest"] == experiments[1].configuration_digest()
+    assert len(diagnostic["observations"]) == 3
+    assert diagnostic["full_response_compute_cap_admitted"] is False
     assert runs[0][1]["topology_accounting"]["runs"][0]["online_client_serialized_body_bytes"] == 0
     ownership = runs[0][1]["topology_accounting"]["startup"]
     assert ownership["schema"] == "pllm.topology_model_ownership.v1"
@@ -254,6 +268,68 @@ def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
     assert runs[1][1]["privacy_admission"]["independent_operators_verified"] is False
     assert runs[1][1]["topology_accounting"]["runs"][0]["online_client_serialized_body_bytes"] > 0
     assert runs[2][1]["topology_accounting"]["startup"]["all_link_serialized_body_bytes"] > 0
+    assert all(
+        report["process_cpu_accounting"]["aggregate_cold_first_response_cpu_seconds"] > 0
+        for _, report in runs
+    )
+
+
+def test_cold_cpu_accounting_rejects_missing_role_or_nonmonotonic_samples() -> None:
+    from pllm.runtime.topology_accounting import cold_process_cpu_accounting
+
+    roles = ("client", "worker_a", "worker_b")
+    sample = {
+        "startup": {"client": 2.0, "worker_a": 4.0, "worker_b": 3.0},
+        "first_response": {"client": 5.0, "worker_a": 5.0, "worker_b": 7.0},
+    }
+    accounted = cold_process_cpu_accounting(sample, roles=roles, first_measurement_is_cold=True)
+    assert accounted["aggregate_startup_cpu_seconds"] == 9.0
+    assert accounted["aggregate_cold_first_response_cpu_seconds"] == 17.0
+    assert accounted["full_response_compute_cap_checked"] is False
+
+    sample["first_response"]["worker_a"] = 3.0
+    assert cold_process_cpu_accounting(
+        sample, roles=roles, first_measurement_is_cold=True,
+    )["aggregate_cold_first_response_cpu_seconds"] is None
+    del sample["first_response"]["worker_a"]
+    assert cold_process_cpu_accounting(
+        sample, roles=roles, first_measurement_is_cold=True,
+    )["aggregate_cold_first_response_cpu_seconds"] is None
+    assert cold_process_cpu_accounting(
+        sample, roles=roles, first_measurement_is_cold=False,
+    )["aggregate_cold_first_response_cpu_seconds"] is None
+
+
+def test_offset_cpu_diagnostic_flags_excess_without_admitting_a_compute_cap(tmp_path: Path) -> None:
+    from pllm import Deployment, ExecutionBudget, Model
+    from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu
+
+    model = Model("Qwen/Qwen2.5-0.5B-Instruct")
+    budget = ExecutionBudget(max_input_tokens=128, max_new_tokens=24, requests=1)
+    baseline = Experiment(
+        name="offset", pipeline=TwoOnlineOffsetCpu(model),
+        deployment=Deployment.local(root=str(tmp_path)), budget=budget,
+    )
+    candidate = Experiment(
+        name="verified", pipeline=MaskedLinearCpu(model),
+        deployment=Deployment.local(root=str(tmp_path)), budget=budget,
+    )
+    offset_report, candidate_report = _report(), _report()
+    offset_report["process_cpu_accounting"] = {
+        "aggregate_cold_first_response_cpu_seconds": 28.0,
+    }
+    candidate_report["process_cpu_accounting"] = {
+        "aggregate_cold_first_response_cpu_seconds": 142.0,
+    }
+    matched = build_comparison_report([(baseline, offset_report), (candidate, candidate_report)])
+    diagnostic = matched["compute_cap_diagnostic"]
+    assert diagnostic["observations"][1]["ratio_to_offset"] > 5.0
+    assert diagnostic["observations"][1]["measured_cpu_not_above_offset"] is False
+    assert diagnostic["full_response_compute_cap_admitted"] is False
+    del candidate_report["process_cpu_accounting"]
+    assert build_comparison_report([
+        (baseline, offset_report), (candidate, candidate_report),
+    ])["compute_cap_diagnostic"] is None
 
 
 def test_prepared_link_ledger_charges_serialized_body_once_and_never_invents_wire() -> None:

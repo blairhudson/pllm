@@ -47,8 +47,13 @@ For a comparable checkpoint-bound diagnostic, use
 `pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:verified_cpu_1 --trust-python --max-output-tokens 16`
 alongside `cpu_1` or a client-owned experiment on the same checkpoint and token
 cohort. The benchmark records covered offline and online serialized bodies and
-available per-role CPU, but not full wire cost or the complete aggregate-compute
-cap. Tiny weights test the protocol, not model quality.
+available per-role CPU from process birth through the first cold response, but
+not full wire cost or accelerator work. In a matched Qwen2.5-0.5B CPU-only
+[cold diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json),
+this verifier used **142.83 s** aggregate CPU against **28.65 s** for the
+two-worker offset comparator; Preparation alone used **109.87 s**. It fails
+the measured cold CPU objective on this one response. Tiny weights test the
+protocol, not model quality.
 
 API: [`FreivaldsVerify`](/sdk/reference/python/pllm/verification/#objects-and-signatures)
 

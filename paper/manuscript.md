@@ -21,8 +21,9 @@ abstract: |
   six cited research directions to independently implemented *portions* of
   PLLM, not complete reproductions. Historical CPU-loopback measurements cover
   nine Qwen2.5-0.5B baseline responses. Optional verified linear work has a
-  separate tiny control and a pinned, one-run four-topology diagnostic with
-  incomplete cold compute/wire accounting. Garbling and cache components
+  separate tiny control and pinned four-topology diagnostics: measured cold CPU
+  rejects the verified option against our two-worker comparator. Full wire
+  remains unmeasured. Garbling and cache components
   lack whole-model comparative measurements. Thus these data neither establish
   economic value nor rank PLLM against external state of the art. We define
   comparability and metric gates required to make such a claim.
@@ -176,7 +177,8 @@ evidence of a whole-paper reimplementation nor a cross-method speedup.
 
 : Scope of independent research adaptations. The masked baseline is PLLM's
 protocol, not a Slalom reproduction. Payload bytes are not response traffic
-or latency; the verified diagnostic lacks cold compute and full-wire parity.
+or latency; cold CPU rejects the verified path against the offset comparator,
+while full-wire and independent-operator evidence remain absent.
 
 ### Component extensions, search, and evidence
 
@@ -255,9 +257,11 @@ one-response cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence
 matched body fingerprint and 30+1 tokens: verified Preparation exchanged the
 same 47.89 MB covered online bodies as ordinary Preparation, against 95.81 MB
 for two online offset workers. Verification added 92.81 MB covered initial
-material. Full offline CPU and wire bytes remain unmeasured, so this does not
-establish the aggregate-compute cap, generation parity, or independent-party
-privacy.
+material. A separate [matched cold-CPU diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/slalom-prepared-topologies-cold-cpu-2026-09-26.json)
+measured 142.83 s for verified versus 28.65 s for offset, including 109.87 s
+at Preparation. This **misses** the measured CPU comparator by 4.98× on one
+co-located CPU-only response; full wire, representative compute admission,
+generation parity and independent-party privacy remain unverified.
 
 **Limits.** No measured concurrent load, physical network, accelerator,
 model-quality study, secure-erasure study, independent operator deployment, or
