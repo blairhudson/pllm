@@ -7,6 +7,7 @@ pub mod activation;
 mod attention;
 mod attention_values;
 pub mod codec;
+pub mod coded_linear;
 pub mod compact;
 pub mod fixed_point;
 mod freivalds;
@@ -32,6 +33,10 @@ pub use attention_values::{
     AttentionValuesQ10, ATTENTION_VALUE_Q10_MAX_MULTIPLY_ACCUMULATES,
     ATTENTION_VALUE_Q10_MAX_OUTPUT_ELEMENTS, ATTENTION_VALUE_Q10_MAX_ROUNDING_ERROR_RAW,
     ATTENTION_VALUE_Q30_Q10_PROFILE,
+};
+pub use coded_linear::{
+    CodedMatVecVerifier, CODED_LINEAR_CHALLENGE_WEIGHT, CODED_LINEAR_FIELD,
+    CODED_LINEAR_MAX_CLAIMS, CODED_LINEAR_REPETITIONS,
 };
 pub use compact::{fit_compact_silu_q7, CompactQ7Error, CompactQ7Piece, CompactQ7Profile};
 pub use fixed_point::{

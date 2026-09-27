@@ -48,9 +48,20 @@ quantization, masking, output subtraction, and operating system random sampling.
 The separate opt-in `pllm.native.MetalGEMM` MLX/Metal direct kernel accepts
 bounded signed-i8 weights and i8/u32 inputs for exact clear and wrap32 outputs
 on Apple Silicon. It owns a GPU weight snapshot and synchronizes output to
-NumPy; it is not a compiled-plan placement or provider backend. Transfer-inclusive
+NumPy. The `AppleMetal` component can select the kernel for client-owned
+compiled-plan prefill at or above its bound row threshold; smaller work uses
+native CPU, and provider/protected topologies cannot select it. Transfer-inclusive
 single-stage measurements must not be counted as whole-decoder or CPU-only
 topology acceleration.
+Core also contains a bounded, non-selectable coded-matvec verifier inspired by
+Maverick's public preprocessing and sparse-check algebra. Its Walsh-linear code
+proves half-distance over BabyBear for six to ten output rows; exponential code
+length, no LPN input privacy, no batch projection delegation or full-width
+resource admission prevent activation in a decoder or topology.
+A separate bounded RAA numeric reference checks repeat/permute/weighted
+accumulation, the sparse transpose, and offline mask-correction algebra against
+field matrix products, without secure mask sampling, a code-distance certificate
+or an executable verifier contract.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
