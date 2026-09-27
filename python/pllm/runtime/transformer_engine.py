@@ -422,6 +422,7 @@ class MaskedTransformerEngine:
         verification_component: str = "none",
         verification_target_failure_bits: int = 0,
         public_equalization_digest: str | None = None,
+        metal_min_rows: int | None = None,
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -433,6 +434,16 @@ class MaskedTransformerEngine:
         self.modulus = self.fixed_modulus
         self.tenseal_path = tenseal_path
         self.kernel = MaskedGEMM(native_library, threads=threads)
+        if metal_min_rows is not None:
+            if type(self) is not MaskedTransformerEngine or type(metal_min_rows) is not int or not 2 <= metal_min_rows <= 256:
+                raise ValueError("public Metal kernel requires a min_rows integer from 2 to 256")
+            from .metal import MetalGEMM
+
+            self._metal_kernel = MetalGEMM()
+        else:
+            self._metal_kernel = None
+        self._metal_min_rows = metal_min_rows
+        self._metal_stages: dict[str, dict[str, Any]] = {}
         self.compiled_cache_dir = Path(
             compiled_cache_dir or (Path.home() / ".cache" / "pllm" / "compiled")
         )
@@ -612,7 +623,8 @@ class MaskedTransformerEngine:
                 "runtime": "masked_transformer",
                 "engine": self.capabilities.name,
                 "native_masked_gemm": self.kernel.available,
-                "kernel_backend": self.kernel.backend,
+                "kernel_backend": "mlx-metal+cpu" if self._metal_kernel is not None else self.kernel.backend,
+                **({"kernel_min_rows": self._metal_min_rows} if self._metal_min_rows is not None else {}),
                 "weight_bits": self.weight_bits,
                 "activation_bits": self.activation_bits,
                 "model_family": profile.family,
@@ -646,6 +658,27 @@ class MaskedTransformerEngine:
             stage.id: await asyncio.to_thread(self._load_stage, store, stage, manifest)
             for stage in stages
         }
+        metal_stages: dict[str, Any] = {}
+        if self._metal_kernel is not None:
+            from .native import NativeKernelError
+
+            existing = sum(
+                matrix.weight_bytes
+                for matrices in self._metal_stages.values()
+                for matrix in matrices.values()
+            )
+            try:
+                metal_stages = await asyncio.to_thread(
+                    self._metal_kernel.bind_stages,
+                    {
+                        stage_id: runtime.weight.values
+                        for stage_id, runtime in runtimes.items()
+                        if runtime.spec.op == "linear"
+                    },
+                    already_resident=existing,
+                )
+            except NativeKernelError as exc:
+                raise TransformerEngineError(f"public Metal stage admission failed: {exc}") from exc
         moduli = sorted({runtime.modulus for runtime in runtimes.values()})
         manifest.metadata.update(
             {
@@ -702,6 +735,8 @@ class MaskedTransformerEngine:
             tokenizer=tokenizer_descriptor,
         )
         self.models[manifest.id] = loaded
+        if self._metal_kernel is not None:
+            self._metal_stages[manifest.id] = metal_stages
         self._bundle_runtime_config(loaded)
         self._active_cache_entries[manifest.id] = {
             Path(runtime.weight.values.filename).parent
@@ -713,6 +748,7 @@ class MaskedTransformerEngine:
     async def unload(self, model_id: str) -> None:
         if self.models.pop(model_id, None) is None:
             raise TransformerEngineError(f"unknown model {model_id!r}")
+        self._metal_stages.pop(model_id, None)
         self._active_cache_entries.pop(model_id, None)
         self._trim_compiled_cache()
 
@@ -726,6 +762,14 @@ class MaskedTransformerEngine:
                 max_bytes=self.compiled_cache_max_bytes,
                 protected=protected,
             )
+
+    def _public_stage_matrix(self, model_id: str, runtime: StageRuntime, rows: int) -> Any:
+        if self._metal_min_rows is not None and rows >= self._metal_min_rows:
+            metal = self._metal_stages.get(model_id, {}).get(runtime.spec.id)
+            if metal is None:
+                raise TransformerEngineError("admitted Metal stage is missing from loaded model")
+            return metal
+        return runtime.compiled_weight
 
     def model_manifest(self, model_id: str) -> ModelManifest:
         return self._model(model_id).manifest
@@ -1262,8 +1306,9 @@ class MaskedTransformerEngine:
             dtype=np.uint32,
         )
         started = time.perf_counter_ns()
+        matrix = self._public_stage_matrix(model_id, runtime, combined.shape[0])
         output = await asyncio.to_thread(
-            runtime.compiled_weight.wrap32 if ring == "u32" else runtime.compiled_weight.modular,
+            matrix.wrap32 if ring == "u32" else matrix.modular,
             combined,
             *(() if ring == "u32" else ((modulus,) if wrapping_profile else (runtime.modulus,))),
         )
@@ -1315,10 +1360,11 @@ class MaskedTransformerEngine:
         mask = expand_preparation_mask(request)
         output_mask = expand_output_mask(request)
         started = time.perf_counter_ns()
+        matrix = self._public_stage_matrix(request.model, runtime, request.rows)
         transformed = await asyncio.to_thread(
-            runtime.compiled_weight.wrap32
+            matrix.wrap32
             if request.ring == "u32"
-            else runtime.compiled_weight.modular,
+            else matrix.modular,
             mask,
             *(() if request.ring == "u32" else (request.modulus,)),
         )

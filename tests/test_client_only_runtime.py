@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -12,7 +14,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.configuration import ConfigurationError
 from pllm.profiles import ClientOnlyCpu, ClientOnlyMetal, MaskedLinearCpu
 from pllm.runtime.benchmark_cli import build_comparison_report, run_loopback_benchmark
 from pllm.runtime.client import OpenAI, ProtocolError
@@ -21,6 +22,15 @@ from pllm.runtime.masked_runtime import ModelError
 from pllm.runtime.servers import TopologyError, build_roles
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+
+def _require_metal() -> None:
+    if (
+        platform.system() != "Darwin"
+        or platform.machine() != "arm64"
+        or importlib.util.find_spec("mlx") is None
+    ):
+        pytest.skip("Apple Silicon and pllm.run[metal] are required")
 
 
 def _setup(tmp_path: Path) -> tuple[Experiment, MaskedTransformerEngine]:
@@ -61,6 +71,7 @@ def test_client_only_responses_have_no_provider_channel_or_inventory(tmp_path: P
 def test_client_metal_executes_prefill_on_gpu_and_decode_on_cpu(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _require_metal()
     from pllm.kernels import AppleMetal
     from pllm.runtime.metal import MetalCompiledMatrix
 
@@ -118,7 +129,7 @@ def test_client_metal_executes_prefill_on_gpu_and_decode_on_cpu(
     assert mixed["compute_cap_diagnostic"] is None
 
 
-def test_metal_kernel_cannot_authorize_provider_or_cpu_only_composition() -> None:
+def test_metal_kernel_requires_explicit_component_selection() -> None:
     from pllm.kernels import AppleMetal, Cpu
     from pllm.sources import TinyModel
 
@@ -131,8 +142,9 @@ def test_metal_kernel_cannot_authorize_provider_or_cpu_only_composition() -> Non
         deployment=Deployment.local(root="local://metal-provider-rejection"),
         budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
     )
-    with pytest.raises(ConfigurationError, match="kernel|cpu"):
-        experiment.resolve()
+    assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+    with pytest.raises(ValueError, match="min_rows"):
+        AppleMetal(min_rows=1)
 
 
 def test_client_only_rejects_endpoint_overrides_and_wrong_weight_ownership(tmp_path: Path) -> None:
@@ -284,3 +296,72 @@ def test_prepared_verified_and_client_owned_match_in_existing_experiment_compari
     assert comparison["candidates"][2]["pipeline"]["components"]["verification"]["component"] == (
         "pllm/freivalds-verify/v1"
     )
+
+
+@pytest.mark.parametrize("topology", ["prepared", "verified", "offset"])
+def test_metal_kernel_executes_public_provider_experiment(
+    tmp_path: Path, topology: str,
+) -> None:
+    _require_metal()
+    from pllm.kernels import AppleMetal
+    from pllm.profiles import TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
+    from pllm.roles import PreparedProviderRoles
+
+    local, _ = _setup(tmp_path)
+    model = local.pipeline.model
+    if topology == "prepared":
+        pipeline = MaskedLinearCpu(model, kernels=AppleMetal(min_rows=2))
+    elif topology == "verified":
+        pipeline = VerifiedMaskedLinearCpu(
+            model, topology=PreparedProviderRoles(), kernels=AppleMetal(min_rows=2),
+        )
+    else:
+        pipeline = TwoOnlineOffsetCpu(model, kernels=AppleMetal(min_rows=2))
+    metal = Experiment(
+        name=f"metal-{topology}",
+        pipeline=pipeline,
+        deployment=Deployment.local(root=str(tmp_path / topology)),
+        budget=local.budget,
+    )
+    assert metal.resolve().composition_digest == pipeline.digest()
+    report = run_loopback_benchmark(
+        model=model.source,
+        model_id=metal.resolve().model,
+        tiny=False,
+        prompt="A",
+        max_output_tokens=2,
+        warmups=0,
+        repetitions=1,
+        timeout_seconds=120.0,
+        experiment=metal,
+    )
+    assert report["checks"]["passed"], report["checks"]
+    assert report["configuration"]["roles"] == (
+        ["client", "inference", "preparation"]
+        if topology != "offset" else ["client", "worker_a", "worker_b"]
+    )
+    assert report["topology_accounting"]["runs"][0]["online_all_link_serialized_body_bytes"] > 0
+    reference_pipeline = (
+        MaskedLinearCpu(model) if topology == "prepared"
+        else VerifiedMaskedLinearCpu(model, topology=PreparedProviderRoles())
+        if topology == "verified" else TwoOnlineOffsetCpu(model)
+    )
+    reference = Experiment(
+        name=f"cpu-{topology}", pipeline=reference_pipeline,
+        deployment=Deployment.local(root=str(tmp_path / f"cpu-{topology}")),
+        budget=local.budget,
+    )
+    outputs = []
+    for candidate in (reference, metal):
+        with build_roles(candidate) as roles, TestClient(
+            roles.gateway_app(local_api_key="metal-parity")
+        ) as gateway:
+            result = gateway.post(
+                "/v1/responses",
+                headers={"Authorization": "Bearer metal-parity"},
+                json={"model": candidate.resolve().model, "input": "A", "max_output_tokens": 2,
+                      "temperature": 0},
+            )
+            assert result.status_code == 200, result.text
+            outputs.append(result.json()["output"][0]["content"][0]["text"])
+    assert outputs[0] == outputs[1]

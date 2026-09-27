@@ -1413,7 +1413,10 @@ class RuntimeClient:
             descriptor = self._client_bundle_descriptor(model_id)
             expected_runtime = None
             expected_protocol = None
+            selected_metal_rows = None
             if self.experiment is not None:
+                from pllm.configuration import Pipeline
+
                 expected_runtime = self.experiment.client_runtime
                 expected_protocol = self.experiment.privacy_protocol
                 metadata = descriptor.get("metadata") or {}
@@ -1428,7 +1431,16 @@ class RuntimeClient:
                         "verification_target_failure_bits": runtime.get(
                             "verification_target_failure_bits", 0
                         ),
+                        "kernel_backend": runtime.get("kernel_backend"),
+                        "kernel_min_rows": runtime.get("kernel_min_rows"),
                     }
+                composition = Pipeline.from_spec(json.loads(self.experiment.canonical_composition))
+                kernels = composition.components.get("kernels")
+                selected_metal_rows = (
+                    kernels.params["min_rows"]
+                    if kernels is not None and kernels.component == "pllm/apple-metal-int8/v1"
+                    else None
+                )
                 if (
                     metadata.get("client_runtime") != expected_runtime
                     or metadata.get("privacy_mode") != self.experiment.privacy_mode
@@ -1440,6 +1452,10 @@ class RuntimeClient:
                     != (self.experiment.verification_component or "none")
                     or int(metadata.get("verification_target_failure_bits", 0))
                     != self.experiment.verification_target_failure_bits
+                    or (selected_metal_rows is not None and (
+                        metadata.get("kernel_backend") != "mlx-metal+cpu"
+                        or metadata.get("kernel_min_rows") != selected_metal_rows
+                    ))
                 ):
                     raise ProtocolError(
                         "Experiment runtime contract does not match inference metadata", 409
@@ -1480,6 +1496,11 @@ class RuntimeClient:
                 if len(inference_models) != 1:
                     raise ProtocolError("inference service does not serve the requested model", 404)
                 inference = inference_models[0].get("runtime") or {}
+                if self.experiment is not None and selected_metal_rows is not None and (
+                    inference.get("kernel_backend") != "mlx-metal+cpu"
+                    or inference.get("kernel_min_rows") != selected_metal_rows
+                ):
+                    raise ProtocolError("Metal inference kernel differs from Experiment", 409)
                 if (
                     inference.get("body_fingerprint")
                     != state.bundle.privacy.get("body_fingerprint")
@@ -1504,6 +1525,11 @@ class RuntimeClient:
                         "preparation service does not serve the requested model", 404
                     )
                 preparation = preparation_models[0].get("preparation") or {}
+                if self.experiment is not None and selected_metal_rows is not None and (
+                    preparation.get("kernel_backend") != "mlx-metal+cpu"
+                    or preparation.get("kernel_min_rows") != selected_metal_rows
+                ):
+                    raise ProtocolError("Metal preparation kernel differs from Experiment", 409)
                 remote_stages = self._remote_stages(state)
                 if not remote_stages or any(
                     not stage.weight_digest or stage.seeded_profile is None

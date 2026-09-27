@@ -353,6 +353,8 @@ def create_preparation_app(
                         "stage_commitment": manifest.metadata.get("seeded_stage_commitment"),
                         "weight_bits": engine.weight_bits,
                         "activation_bits": engine.activation_bits,
+                        "kernel_backend": manifest.metadata.get("kernel_backend"),
+                        "kernel_min_rows": manifest.metadata.get("kernel_min_rows"),
                     },
                 }
             )

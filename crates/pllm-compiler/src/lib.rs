@@ -1775,8 +1775,7 @@ fn validate_bounded_linear_composition(
             .get("threads")
             .and_then(serde_json::Value::as_u64)
             .is_some_and(|threads| threads > 0);
-    let metal = name == "client-only"
-        && kernels.component == "pllm/apple-metal-int8/v1"
+    let metal = kernels.component == "pllm/apple-metal-int8/v1"
         && kernels.params.len() == 1
         && kernels
             .params
@@ -1785,7 +1784,7 @@ fn validate_bounded_linear_composition(
             .is_some_and(|rows| (2..=256).contains(&rows));
     if !cpu && !metal {
         return Err(format!(
-            "{name} composition requires pllm/cpu or client-owned pllm/apple-metal-int8/v1 with bounded parameters"
+            "{name} composition requires pllm/cpu or public-stage pllm/apple-metal-int8/v1 with bounded parameters"
         ));
     }
     let quantization = pipeline.components.get("quantization");
@@ -1810,7 +1809,7 @@ fn validate_bounded_linear_composition(
 fn validate_masked_linear_composition(
     pipeline: &ExperimentPipeline,
 ) -> Result<MaskedLinearComposition, String> {
-    validate_masked_linear_core(pipeline)?;
+    validate_masked_linear_core(pipeline, true)?;
     let quantization = pipeline.components.get("quantization");
     if let Some(quantization) = quantization {
         if !valid_baseline_quantization(quantization) && !valid_public_equalization(quantization) {
@@ -1883,7 +1882,10 @@ fn valid_public_equalization(quantization: &ExperimentComponent) -> bool {
         })
 }
 
-fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), String> {
+fn validate_masked_linear_core(
+    pipeline: &ExperimentPipeline,
+    allow_public_metal: bool,
+) -> Result<(), String> {
     for (slot, required) in [
         ("linear", "pllm/masked-linear"),
         ("preparation", "pllm/model-aware-corrections"),
@@ -1899,18 +1901,26 @@ fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), Stri
         }
     }
     let kernels = pipeline.components.get("kernels").ok_or_else(|| {
-        "masked-linear composition requires kernels component pllm/cpu".to_string()
+        "masked-linear composition requires a kernels component".to_string()
     })?;
-    if kernels.component != "pllm/cpu"
-        || kernels.params.len() != 1
-        || kernels
+    let cpu = kernels.component == "pllm/cpu"
+        && kernels.params.len() == 1
+        && kernels
             .params
             .get("threads")
             .and_then(serde_json::Value::as_u64)
-            .is_none_or(|threads| threads == 0)
-    {
+            .is_some_and(|threads| threads > 0);
+    let metal = allow_public_metal
+        && kernels.component == "pllm/apple-metal-int8/v1"
+        && kernels.params.len() == 1
+        && kernels
+            .params
+            .get("min_rows")
+            .and_then(serde_json::Value::as_u64)
+            .is_some_and(|rows| (2..=256).contains(&rows));
+    if !cpu && !metal {
         return Err(
-            "masked-linear composition requires kernels component pllm/cpu with positive integer threads"
+            "masked-linear composition requires pllm/cpu or public-stage pllm/apple-metal-int8/v1 with bounded parameters"
                 .into(),
         );
     }
@@ -1918,7 +1928,7 @@ fn validate_masked_linear_core(pipeline: &ExperimentPipeline) -> Result<(), Stri
 }
 
 fn validate_silu_q7_composition(pipeline: &ExperimentPipeline) -> Result<u64, String> {
-    validate_masked_linear_core(pipeline)?;
+    validate_masked_linear_core(pipeline, false)?;
     if pipeline.components.len() != 6 {
         return Err(
             "Q7 SiLU composition requires exact masked-linear core, nonlinear, and nonlinear_schedule slots"

@@ -49,7 +49,7 @@ class Cpu(KernelBackend):
 
 
 class AppleMetal(KernelBackend):
-    """Client-owned integer prefill on MLX/Metal, with declared CPU decode."""
+    """Public integer stages on MLX/Metal above min_rows; CPU below it."""
 
     __slots__ = ()
     descriptor = ComponentDescriptor(
@@ -67,7 +67,7 @@ class AppleMetal(KernelBackend):
             "additionalProperties": False,
         },
         capabilities=("apple-metal-int8", "cpu-decode"),
-        role_eligibility=("client",),
+        role_eligibility=("client", "preparation", "inference", "worker"),
     )
 
     def __init__(self, *, min_rows: int = 8) -> None:

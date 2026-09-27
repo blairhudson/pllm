@@ -85,6 +85,53 @@ def test_reference_benchmark_compares_real_tiny_decoder_without_retaining_payloa
 
 @pytest.mark.rust
 @pytest.mark.slow
+def test_quality_benchmark_uses_selected_metal_stage_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib.util
+    import platform
+
+    if (
+        platform.system() != "Darwin"
+        or platform.machine() != "arm64"
+        or importlib.util.find_spec("mlx") is None
+    ):
+        pytest.skip("Apple Silicon and pllm.run[metal] are required")
+    pytest.importorskip("transformers")
+    pytest.importorskip("mlx.core")
+    from pllm.kernels import AppleMetal
+    from pllm.runtime.metal import MetalCompiledMatrix
+
+    calls: list[int] = []
+    original_clear = MetalCompiledMatrix.clear
+
+    def counted_clear(self, inputs):
+        calls.append(inputs.shape[0])
+        return original_clear(self, inputs)
+
+    monkeypatch.setattr(MetalCompiledMatrix, "clear", counted_clear)
+
+    cpu = _experiment("quality-cpu", 8)
+    metal = pllm.Experiment(
+        name="quality-metal",
+        pipeline=MaskedLinearCpu(
+            cpu.pipeline.model, kernels=AppleMetal(min_rows=2),
+            quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+        ),
+        deployment=cpu.deployment,
+        budget=cpu.budget,
+    )
+    report = run_reference_benchmark([cpu, metal], ["Hello"], top_k=5)
+    assert calls and all(rows >= 2 for rows in calls)
+    assert [row["kernel_backend"] for row in report["candidates"]] == [
+        "pllm/cpu", "pllm/apple-metal-int8/v1",
+    ]
+    assert report["candidates"][0]["top1_agreement"] == report["candidates"][1]["top1_agreement"]
+    assert report["candidates"][0]["max_abs_logit_error"] == report["candidates"][1]["max_abs_logit_error"]
+
+
+@pytest.mark.rust
+@pytest.mark.slow
 def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_path) -> None:
     pytest.importorskip("transformers")
     prompt = "Hello"

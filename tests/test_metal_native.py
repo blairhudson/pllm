@@ -49,3 +49,24 @@ def test_metal_rejects_unsupported_domains_before_gpu_dispatch():
         metal.modular(np.ones((2, 3), dtype=np.uint32), 2_013_265_921)
     with pytest.raises(NativeKernelError, match="512 MiB"):
         metal.wrap32(np.broadcast_to(np.array([1], dtype=np.uint32), (70_000_000, 3)))
+
+
+def test_metal_stage_group_preflights_before_any_gpu_allocation(monkeypatch):
+    import pllm.runtime.metal as metal_module
+
+    kernel = MetalGEMM()
+    monkeypatch.setattr(metal_module, "_MAX_RESIDENT_WEIGHTS", 8)
+    calls = []
+    original_compile = kernel.compile
+
+    def counted_compile(weights):
+        calls.append(weights.shape)
+        return original_compile(weights)
+
+    monkeypatch.setattr(kernel, "compile", counted_compile)
+    with pytest.raises(NativeKernelError, match="GPU memory budget"):
+        kernel.bind_stages({
+            "stage-1": np.ones((2, 3), dtype=np.int8),
+            "stage-2": np.ones((2, 3), dtype=np.int8),
+        })
+    assert calls == []

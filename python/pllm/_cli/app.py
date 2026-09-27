@@ -142,6 +142,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=None,
     )
+    parser.add_argument("--metal-min-rows", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--native-library")
     parser.add_argument("--compiled-cache-dir")
     parser.add_argument("--streaming-threshold-elements", type=int)
@@ -1106,6 +1107,7 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
             or args.model
             or args.model_id
             or args.engine_threads is not None
+            or args.metal_min_rows is not None
             or args.privacy_mode is not None
             or args.proprietary_protocol is not None
             or args.guard_max_rows_per_request is not None
@@ -1178,6 +1180,8 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
         kernels = experiment.pipeline.components.get("kernels")
         if kernels is not None and kernels.component == "pllm/cpu":
             args.engine_threads = int(kernels.params["threads"])
+        if kernels is not None and kernels.component == "pllm/apple-metal-int8/v1":
+            args.metal_min_rows = int(kernels.params["min_rows"])
     preview: dict[str, Any] = {}
     if args.config:
         try:

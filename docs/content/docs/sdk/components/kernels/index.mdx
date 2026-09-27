@@ -5,7 +5,7 @@ description: "Select bounded CPU execution separately from protocol and model co
 
 [`Cpu`](/sdk/components/kernels/cpu/) supports the shipped provider and
 client-owned compositions. The optional
-[`AppleMetal`](/sdk/components/kernels/apple-metal/) runs client-owned public
+[`AppleMetal`](/sdk/components/kernels/apple-metal/) runs client-owned or provider-owned public
 integer prefill on Apple Silicon with a declared CPU decode fallback.
 `threads` is an explicit positive CPU bound, not evidence
 of a speedup. Native matrix execution, scalar/SIMD dispatch, conversions, and

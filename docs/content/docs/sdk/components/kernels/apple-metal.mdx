@@ -1,6 +1,6 @@
 ---
 title: "Apple Silicon Metal kernel"
-description: "Run client-owned public integer prefill on Metal, with bound CPU decode fallback."
+description: "Run eligible public integer stages on Metal across client and provider roles."
 ---
 
 [`AppleMetal`](/sdk/reference/python/pllm/kernels/#applemetal) selects an opt-in,
@@ -12,11 +12,13 @@ reference; quantized checkpoint and protocol commitments still come from the
 compiled plan. Install `pllm.run[metal]` on Apple Silicon.
 
 `ClientOnlyMetal` places the public body on the client, with no provider child.
-It is distinct from [prepared provider roles](/sdk/components/roles/prepared-provider/)
-and does not activate Metal inside a remote provider or any protected share
-protocol. The GPU holds an additional stage-weight snapshot, limited to 2 GiB
-across the bound stages. An unavailable device, oversized model, or invalid
-kernel material fails rather than silently changing the Experiment.
+The same kernel slot is selectable in [prepared provider roles](/sdk/components/roles/prepared-provider/),
+Freivalds-verified prepared placement, and the two-worker offset topology. Each
+process owns its public stage weights on its own GPU; it does not expose prompt
+tokens or clear activations to an untrusted provider. Proprietary/FHE execution
+and incomplete protected compositions remain ineligible. GPU stage weights are
+preflighted against 2 GiB **per role**. An unavailable device, oversized model,
+or invalid kernel material fails rather than silently changing the Experiment.
 
 ## Python SDK example
 
@@ -36,6 +38,26 @@ experiment = Experiment(
 )
 assert experiment.pipeline.kernels.params["min_rows"] == 8
 assert tuple(role.id for role in experiment.resolve().role_graph.roles) == ("client",)
+
+# The kernel is a composable Pipeline slot, also available to public roles.
+from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
+from pllm.roles import PreparedProviderRoles
+
+model = TinyModel(model_id="metal-provider-guide")
+other_pipelines = (
+    MaskedLinearCpu(model, kernels=AppleMetal(min_rows=8)),
+    VerifiedMaskedLinearCpu(
+        model, topology=PreparedProviderRoles(), kernels=AppleMetal(min_rows=8),
+    ),
+    TwoOnlineOffsetCpu(model, kernels=AppleMetal(min_rows=8)),
+)
+for pipeline in other_pipelines:
+    candidate = Experiment(
+        name="metal-public-role", pipeline=pipeline,
+        deployment=Deployment.local(root="local://metal-public-role"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+    )
+    assert candidate.resolve().composition_digest == pipeline.digest()
 ```
 
 A generated tiny checkpoint passed prefill/decode through SDK, gateway and the

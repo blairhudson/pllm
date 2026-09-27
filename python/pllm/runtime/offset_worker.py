@@ -113,6 +113,12 @@ def create_offset_worker_app(
             engine.weight_bits, engine.activation_bits,
         ):
             raise ValueError("offset worker numeric settings differ from its composition")
+        kernels = composition.components["kernels"]
+        if engine._metal_min_rows != (
+            kernels.params["min_rows"]
+            if kernels.component == "pllm/apple-metal-int8/v1" else None
+        ):
+            raise ValueError("offset worker kernel differs from its composition")
         composition_digest = composition.digest()
     bundle_lock = threading.Lock()
     bundle_record: tuple[bytes, dict[str, Any]] | None = None
@@ -422,8 +428,12 @@ def main() -> None:
         args.weight_bits, args.activation_bits,
     ):
         parser.error("offset worker numeric settings differ from its Experiment")
+    kernels = composition.components["kernels"]
     worker = MaskedTransformerEngine(
         threads=1, weight_bits=args.weight_bits, activation_bits=args.activation_bits,
+        metal_min_rows=(
+            kernels.params["min_rows"] if kernels.component == "pllm/apple-metal-int8/v1" else None
+        ),
     )
     asyncio.run(worker.load(load_hf_directory(args.checkpoint, model_id=args.model_id)))
     app = create_offset_worker_app(worker, model_id=args.model_id,

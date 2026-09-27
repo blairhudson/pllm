@@ -353,6 +353,10 @@ class LocalTopology:
             options.append("--local-files-only")
         if self._engine_threads is not None:
             options.extend(("--engine-threads", str(self._engine_threads)))
+        if self._experiment is not None:
+            kernels = self._experiment.pipeline.components.get("kernels")
+            if kernels is not None and kernels.component == "pllm/apple-metal-int8/v1":
+                options.extend(("--metal-min-rows", str(kernels.params["min_rows"])))
         if self._tenseal_path is not None:
             options.extend(("--tenseal-path", self._tenseal_path))
         if self._hf_cache_dir is not None:
@@ -448,6 +452,8 @@ class LocalTopology:
             environment["PLLM_OFFSET_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
             return environment
         environment = os.environ.copy()
+        if self._experiment is not None:
+            environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
         if role == "inference":
             environment["PLLM_API_KEY"] = self._inference_key
             if self._push_key:

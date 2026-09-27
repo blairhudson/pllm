@@ -48,9 +48,13 @@ quantization, masking, output subtraction, and operating system random sampling.
 The separate opt-in `pllm.native.MetalGEMM` MLX/Metal direct kernel accepts
 bounded signed-i8 weights and i8/u32 inputs for exact clear and wrap32 outputs
 on Apple Silicon. It owns a GPU weight snapshot and synchronizes output to
-NumPy. The `AppleMetal` component can select the kernel for client-owned
-compiled-plan prefill at or above its bound row threshold; smaller work uses
-native CPU, and provider/protected topologies cannot select it. Transfer-inclusive
+NumPy. The `AppleMetal` component can select it for client-owned or public
+provider-owned integer stages at or above its digest-bound row threshold.
+Prepared Inference and Preparation, the Freivalds-verified prepared placement,
+and the two offset workers each bind their own GPU stage weights and use native
+CPU for smaller work, including decode. Proprietary, FHE and incomplete
+protected compositions cannot select it. Metal stage weights are preflighted
+against a 2 GiB per-role bound before allocation. Transfer-inclusive
 single-stage measurements must not be counted as whole-decoder or CPU-only
 topology acceleration.
 Core also contains a bounded, non-selectable coded-matvec verifier inspired by

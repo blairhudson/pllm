@@ -208,7 +208,11 @@ def test_real_qwen_client_metal_matches_cpu(tmp_path: Path) -> None:
     import importlib.util
     import platform
 
-    if platform.machine() != "arm64" or importlib.util.find_spec("mlx") is None:
+    if (
+        platform.system() != "Darwin"
+        or platform.machine() != "arm64"
+        or importlib.util.find_spec("mlx") is None
+    ):
         pytest.skip("Apple Silicon and pllm.run[metal] are required")
     from pllm import Deployment, ExecutionBudget, Experiment, Model
     from pllm.kernels import AppleMetal, Cpu

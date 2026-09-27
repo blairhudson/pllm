@@ -31,6 +31,13 @@ CHECKPOINT = Model.hf(MODEL, revision="7ae557604adf67be50417f59c2c2f167def9a775"
 cpu_1 = _prepared_experiment("qwen-prepared-cpu-1", CHECKPOINT, threads=1)
 cpu_4 = _prepared_experiment("qwen-prepared-cpu-4", CHECKPOINT, threads=4)
 
+prepared_metal_8 = Experiment(
+    name="qwen-prepared-metal-8",
+    pipeline=MaskedLinearCpu(CHECKPOINT, kernels=AppleMetal(min_rows=8)),
+    deployment=Deployment.local(root=".pllm/benchmarks/qwen-prepared-metal-8"),
+    budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
+)
+
 verified_cpu_1 = Experiment(
     name="qwen-verified-cpu-1",
     pipeline=VerifiedMaskedLinearCpu(
@@ -43,6 +50,18 @@ verified_cpu_1 = Experiment(
     budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
 )
 
+verified_metal_8 = Experiment(
+    name="qwen-verified-metal-8",
+    pipeline=VerifiedMaskedLinearCpu(
+        CHECKPOINT,
+        kernels=AppleMetal(min_rows=8),
+        verification=FreivaldsVerify(target_failure_bits=40),
+        topology=PreparedProviderRoles(),
+    ),
+    deployment=Deployment.local(root=".pllm/benchmarks/qwen-verified-metal-8"),
+    budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
+)
+
 offset_cpu_1 = Experiment(
     name="qwen-offset-cpu-1",
     pipeline=TwoOnlineOffsetCpu(
@@ -50,6 +69,16 @@ offset_cpu_1 = Experiment(
         quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
     ),
     deployment=Deployment.local(root=".pllm/benchmarks/qwen-offset-cpu-1"),
+    budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
+)
+
+offset_metal_8 = Experiment(
+    name="qwen-offset-metal-8",
+    pipeline=TwoOnlineOffsetCpu(
+        CHECKPOINT, kernels=AppleMetal(min_rows=8),
+        quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    ),
+    deployment=Deployment.local(root=".pllm/benchmarks/qwen-offset-metal-8"),
     budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
 )
 

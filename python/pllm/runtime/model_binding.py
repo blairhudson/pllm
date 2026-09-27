@@ -146,16 +146,13 @@ class ClientLinearExecutor:
             raise RuntimeBindingError("client-owned kernel has no bound body stages")
         metal_stages: dict[str, Any] = {}
         if metal:
-            total = sum(model.stages[stage_id].weight.values.nbytes for stage_id in stages)
-            if total > 2 * 1024 * 1024 * 1024:
-                raise RuntimeBindingError("client Metal body exceeds the 2 GiB GPU weight budget")
             from pllm.runtime.metal import MetalGEMM
             from pllm.runtime.native import NativeKernelError
 
             try:
-                gpu = MetalGEMM()
-                for stage_id in stages:
-                    metal_stages[stage_id] = gpu.compile(model.stages[stage_id].weight.values)
+                metal_stages = MetalGEMM().bind_stages({
+                    stage_id: model.stages[stage_id].weight.values for stage_id in stages
+                })
             except NativeKernelError as exc:
                 raise RuntimeBindingError(f"client Metal stage admission failed: {exc}") from exc
         self = object.__new__(cls)

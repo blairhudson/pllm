@@ -72,6 +72,7 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "fixed_batch_wait": False,
         "allow_insecure_local_correlations": False,
         "engine_threads": int(_env("PLLM_ENGINE_THREADS", "0") or 0),
+        "metal_min_rows": None,
         "native_library": _env("PLLM_NATIVE_LIBRARY"),
         "compiled_cache_dir": _env("PLLM_COMPILED_CACHE"),
         "streaming_threshold_elements": 50_000_000,
@@ -133,6 +134,39 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
             "Arbitrary Hugging Face Transformer serving fails closed until the secure graph "
             "compiler is complete"
         )
+    metal_min_rows = args.metal_min_rows
+    if metal_min_rows is not None:
+        import json
+
+        from pllm.configuration import Experiment
+        from pllm.profiles import resolve_runtime_composition
+
+        experiment = getattr(args, "resolved_experiment", None)
+        if experiment is None:
+            raw = os.environ.get("PLLM_ROLE_EXPERIMENT_JSON")
+            if raw is not None:
+                try:
+                    experiment = Experiment.from_spec(json.loads(raw))
+                    experiment.resolve()
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise RuntimeCLIError("role Metal Experiment is invalid") from exc
+        if experiment is None:
+            raise RuntimeCLIError("Metal provider kernel requires a bound Experiment")
+        kernels = experiment.pipeline.components.get("kernels")
+        options = resolve_runtime_composition(experiment.pipeline)
+        if (
+            options is None
+            or options.client_runtime not in {"masked_transformer_v1", "compiled_offset_v1"}
+            or options.privacy_mode not in {"public", "offset_public"}
+            or kernels is None
+            or kernels.component != "pllm/apple-metal-int8/v1"
+            or kernels.params.get("min_rows") != metal_min_rows
+            or (preparation and not options.requires_preparation)
+            or options.weight_bits != args.weight_bits
+            or options.activation_bits != args.activation_bits
+            or (not preparation and mode is not PrivacyMode.PUBLIC)
+        ):
+            raise RuntimeCLIError("role Metal kernel differs from its Experiment")
 
     value = config.to_dict()
     value["privacy_mode"] = mode.value
@@ -245,6 +279,7 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         "activation_bits": args.activation_bits,
         "verification_component": args.verification_component,
         "verification_target_failure_bits": args.verification_target_failure_bits,
+        "metal_min_rows": metal_min_rows,
     }
     if args.public_equalization_digest is not None:
         if engine_type is not MaskedTransformerEngine:

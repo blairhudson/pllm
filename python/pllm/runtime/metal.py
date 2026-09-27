@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import platform
+from collections.abc import Mapping
 
 import numpy as np
 
 from .native import NativeKernelError, _integer_array
 
 _MAX_WORKING_BYTES = 512 * 1024 * 1024
+_MAX_RESIDENT_WEIGHTS = 2 * 1024 * 1024 * 1024
 _SOURCE = """
     uint idx = thread_position_in_grid.x;
     uint out_dim = weights_shape[0];
@@ -52,6 +54,24 @@ class MetalGEMM:
 
     def compile(self, weights: np.ndarray) -> MetalCompiledMatrix:
         return MetalCompiledMatrix(self, weights)
+
+    def bind_stages(
+        self, weights: Mapping[str, np.ndarray], *, already_resident: int = 0,
+    ) -> dict[str, MetalCompiledMatrix]:
+        """Preflight aggregate GPU weights before allocating any new stage."""
+        if type(already_resident) is not int or already_resident < 0:
+            raise NativeKernelError("invalid resident Metal weight count")
+        total = already_resident
+        for name, value in weights.items():
+            if type(name) is not str or not name:
+                raise NativeKernelError("Metal stage identity must be a nonempty string")
+            raw = np.asarray(value)
+            if raw.dtype != np.int8 or raw.ndim != 2 or min(raw.shape) < 1:
+                raise NativeKernelError("Metal stage weights require a nonempty int8 matrix")
+            total += raw.nbytes
+            if total > _MAX_RESIDENT_WEIGHTS or raw.nbytes > _MAX_WORKING_BYTES:
+                raise NativeKernelError("Metal stage weights exceed GPU memory budget")
+        return {name: self.compile(value) for name, value in weights.items()}
 
 
 class MetalCompiledMatrix:

@@ -66,6 +66,26 @@ fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> 
 }
 
 #[test]
+fn public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_policy() {
+    let plan = plan(QWEN2);
+    let cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+    let expected = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&cpu)).unwrap();
+    for verified in [false, true] {
+        let mut selected: serde_json::Value = serde_json::from_slice(&composition(verified)).unwrap();
+        selected["components"]["kernels"] = json!({
+            "component": "pllm/apple-metal-int8/v1", "params": {"min_rows": 8}
+        });
+        let schedule = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).unwrap();
+        assert_eq!(schedule.prefill.steps.len(), expected.prefill.steps.len());
+        assert_eq!(schedule.decode.steps.len(), expected.decode.steps.len());
+        selected["components"]["kernels"]["params"]["min_rows"] = json!(1);
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).is_err());
+        selected["components"]["kernels"]["params"] = json!({"min_rows": 8, "extra": 1});
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).is_err());
+    }
+}
+
+#[test]
 fn wavelength_rotary_stays_local_in_both_compiled_decoder_phases() {
     let scaled = json!({
         "model_type": "llama", "hidden_size": 16, "intermediate_size": 32,

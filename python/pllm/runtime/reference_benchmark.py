@@ -45,7 +45,7 @@ def _candidate_remote(engine: MaskedTransformerEngine, model_id: str):
         if stage.input_equalization is not None:
             activation = equalize_activation(activation, stage.input_equalization)
         q_activation = quantize_activation_per_row(activation, bits=stage.spec.activation_bits)
-        integer = stage.compiled_weight.clear(q_activation.values)
+        integer = engine._public_stage_matrix(model_id, stage, q_activation.rows).clear(q_activation.values)
         output = dequantize_matmul(
             integer,
             q_activation.scales,
@@ -163,11 +163,14 @@ def run_reference_benchmark(
     for experiment, options, resolved in configurations:
         assert resolved.path is not None
         model_id = resolved.manifest.id
-        threads = experiment.pipeline.components["kernels"].params["threads"]
+        kernel_choice = experiment.pipeline.components["kernels"]
+        threads = kernel_choice.params.get("threads")
+        metal_min_rows = kernel_choice.params.get("min_rows")
         engine = MaskedTransformerEngine(
             weight_bits=options.weight_bits,
             activation_bits=options.activation_bits,
             threads=threads,
+            metal_min_rows=metal_min_rows,
             public_equalization_digest=options.public_equalization_digest,
         )
         asyncio.run(engine.load(resolved.manifest))
@@ -209,6 +212,7 @@ def run_reference_benchmark(
                 "weight_bits": options.weight_bits,
                 "activation_bits": options.activation_bits,
                 "kernel_threads": threads,
+                "kernel_backend": kernel_choice.component,
                 **({
                     "public_equalization_profile_digest": options.public_equalization_digest,
                     "public_calibration_digest": engine._public_equalization_profile.calibration_digest,

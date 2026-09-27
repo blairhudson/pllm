@@ -254,7 +254,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
                 "linear": _slot(
                     "linear", linear, ProtocolMethod, TwoOnlineOffsetLinear.descriptor.component,
                 ),
-                "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+                "kernels": _slot("kernels", kernels, KernelBackend),
                 "topology": _slot(
                     "topology", topology, RoleTopology, TwoOnlineOffsetRoles.descriptor.component,
                 ),
@@ -267,7 +267,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
         return self.components["linear"]
 
     @property
-    def kernels(self) -> Cpu:
+    def kernels(self) -> KernelBackend:
         return self.components["kernels"]
 
     @property
@@ -315,7 +315,7 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
                     "preparation", preparation, PreparationProvider, "pllm/model-aware-corrections"
                 ),
                 "inference": _slot("inference", inference, InferenceRole, "pllm/inference"),
-                "kernels": _slot("kernels", kernels, KernelBackend, "pllm/cpu"),
+                "kernels": _slot("kernels", kernels, KernelBackend),
                 "verification": _slot(
                     "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
                 ),
@@ -525,15 +525,14 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         and type(kernels.params["min_rows"]) is int
         and 2 <= kernels.params["min_rows"] <= 256
     )
+    kernel_id = identities.get("kernels")
+    public_kernel_valid = (kernel_id == "pllm/cpu" and kernels_valid) or metal_valid
     topology = pipeline.components.get("topology")
     if identities == {
         "linear": "pllm/cleartext-linear",
         "kernels": identities.get("kernels"),
         "topology": "pllm/client-only/v1",
-    } and (
-        (identities.get("kernels") == "pllm/cpu" and kernels_valid)
-        or metal_valid
-    ) and all(
+    } and public_kernel_valid and all(
         not pipeline.components[slot].params for slot in ("linear", "topology")
     ):
         return RuntimeComposition(
@@ -544,9 +543,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         )
     if identities == {
         "linear": "pllm/two-online-offset-linear/v1",
-        "kernels": "pllm/cpu",
+        "kernels": kernel_id,
         "topology": "pllm/two-online-offset-workers/v1",
-    } and kernels_valid and all(
+    } and public_kernel_valid and all(
         not pipeline.components[slot].params for slot in ("linear", "topology")
     ):
         return RuntimeComposition(
@@ -568,20 +567,20 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         "linear": "pllm/masked-linear",
         "preparation": "pllm/model-aware-corrections",
         "inference": "pllm/inference",
-        "kernels": "pllm/cpu",
+        "kernels": kernel_id,
         "verification": "pllm/freivalds-verify/v1",
-    }:
+    } and public_kernel_valid:
         expected = {
             "linear": "pllm/masked-linear",
             "preparation": "pllm/model-aware-corrections",
             "inference": "pllm/inference",
-            "kernels": "pllm/cpu",
+            "kernels": kernel_id,
             "verification": "pllm/freivalds-verify/v1",
         }
         verification = pipeline.components["verification"]
         if (
             identities != expected
-            or not kernels_valid
+            or not public_kernel_valid
             or set(verification.params) != {"target_failure_bits"}
         ):
             return None
@@ -602,9 +601,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "linear": "pllm/masked-linear",
             "preparation": "pllm/model-aware-corrections",
             "inference": "pllm/inference",
-            "kernels": "pllm/cpu",
+            "kernels": kernel_id,
         }
-        and kernels_valid
+        and public_kernel_valid
         and not pipeline.components["linear"].params
         and not pipeline.components["preparation"].params
         and not pipeline.components["inference"].params

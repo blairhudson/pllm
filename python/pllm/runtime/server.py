@@ -449,6 +449,8 @@ def create_app(
                         "fingerprint": manifest.fingerprint,
                         "body_fingerprint": manifest.metadata.get("body_fingerprint"),
                         "stage_commitment": manifest.metadata.get("seeded_stage_commitment"),
+                        "kernel_backend": manifest.metadata.get("kernel_backend"),
+                        "kernel_min_rows": manifest.metadata.get("kernel_min_rows"),
                         "client_bundle": bundle_descriptor,
                     },
                     "client_bundle": bundle_descriptor,

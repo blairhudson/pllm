@@ -163,6 +163,43 @@ def test_experiment_rejects_nonpublic_transformer_runtime():
         http.close()
 
 
+def test_metal_experiment_rejects_provider_with_different_kernel_before_traffic():
+    from pllm.kernels import AppleMetal
+
+    original = baseline_experiment()
+    experiment = Experiment(
+        name="metal-provider-contract",
+        pipeline=MaskedLinearCpu(original.pipeline.model, kernels=AppleMetal(min_rows=8)),
+        deployment=original.deployment,
+        budget=original.budget,
+    )
+    http = inert_client("https://inference.example")
+    core = RuntimeClient(
+        base_url="https://inference.example",
+        api_key="inference-key",
+        http_client=http,
+        experiment=experiment,
+    )
+    core._client_bundle_descriptor = lambda _model: {
+        "sha256": "0" * 64,
+        "metadata": {
+            "client_runtime": "masked_transformer_v1",
+            "privacy_mode": "public",
+            "privacy_protocol": experiment.resolve().privacy_protocol,
+            "verification_component": "none",
+            "verification_target_failure_bits": 0,
+            "kernel_backend": "mlx-metal+cpu",
+            "kernel_min_rows": 9,
+        },
+    }
+    try:
+        with pytest.raises(ProtocolError, match="runtime contract"):
+            core._transformer_state("model-a")
+    finally:
+        core.close()
+        http.close()
+
+
 def test_experiment_requires_seeded_inventory_preparation(monkeypatch):
     model = "model-a"
     commitment = {

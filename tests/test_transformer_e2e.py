@@ -30,11 +30,13 @@ def prepared_service(
     *,
     verification_component: str = "none",
     verification_target_failure_bits: int = 0,
+    metal_min_rows: int | None = None,
 ):
     engine = MaskedTransformerEngine(
         threads=1,
         verification_component=verification_component,
         verification_target_failure_bits=verification_target_failure_bits,
+        metal_min_rows=metal_min_rows,
     )
     asyncio.run(engine.load(load_hf_directory(root, model_id=model_id)))
     return start_preparation(engine, gateway.base_url, gateway.push_api_key), engine
@@ -272,6 +274,75 @@ def test_seeded_preparation_executes_w8_without_sending_prompt(tmp_path: Path):
             assert prompt.encode() not in raw_audit
         assert engine.stats()["execute_items"] > 0
         assert preparation_engine.stats()["execute_items"] > 0
+    finally:
+        gateway.close()
+        preparation.close()
+
+
+def test_metal_public_roles_dispatch_prefill_and_preparation_to_gpu_but_decode_to_cpu(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib.util
+    import platform
+
+    if (
+        platform.system() != "Darwin"
+        or platform.machine() != "arm64"
+        or importlib.util.find_spec("mlx") is None
+    ):
+        pytest.skip("Apple Silicon and pllm.run[metal] are required")
+    from pllm.runtime.metal import MetalCompiledMatrix
+
+    root = create_tiny_llama_checkpoint(
+        tmp_path / "tiny-metal", model_type="qwen2", num_hidden_layers=1,
+    )
+    model_id = "tiny-metal-roles"
+    engine = MaskedTransformerEngine(threads=1, metal_min_rows=2)
+    gateway = start_gateway(engines={engine.capabilities.name: engine})
+    preparation, preparation_engine = prepared_service(
+        root, model_id, gateway, metal_min_rows=2,
+    )
+    gpu_rows = []
+    original_modular = MetalCompiledMatrix.modular
+
+    def counted_modular(self, inputs, modulus):
+        gpu_rows.append(inputs.shape[0])
+        return original_modular(self, inputs, modulus)
+
+    monkeypatch.setattr(MetalCompiledMatrix, "modular", counted_modular)
+    inference_rows = []
+    original_stage_matrix = engine._public_stage_matrix
+
+    def counted_stage_matrix(model, stage, rows):
+        inference_rows.append(rows)
+        return original_stage_matrix(model, stage, rows)
+
+    monkeypatch.setattr(engine, "_public_stage_matrix", counted_stage_matrix)
+    try:
+        with httpx.Client(base_url=gateway.base_url, timeout=30) as admin:
+            loaded = admin.post(
+                "/v1/runtime/models/load",
+                headers={"Authorization": f"Bearer {gateway.api_key}"},
+                json={"engine": engine.capabilities.name, "kind": "huggingface",
+                      "path": str(root), "model_id": model_id},
+            )
+            assert loaded.status_code == 200, loaded.text
+        with OpenAI(
+            api_key=gateway.api_key, base_url=gateway.base_url,
+            preparation_base_url=preparation.base_url,
+            preparation_api_key=preparation.api_key,
+            prepared_inventory_rows=16, background_inventory_refill=False,
+        ) as client:
+            response = client.responses.create(
+                model=model_id, input="a few input tokens", max_output_tokens=2,
+                temperature=0,
+            )
+            assert response.status == "incomplete"
+            assert client.privacy_audit.plaintext_prompt_bytes_sent == 0
+        assert gpu_rows and all(rows >= 2 for rows in gpu_rows)
+        assert inference_rows and 1 in inference_rows and any(rows >= 2 for rows in inference_rows)
+        assert preparation_engine._metal_stages[model_id]
+        assert engine._metal_stages[model_id]
     finally:
         gateway.close()
         preparation.close()
