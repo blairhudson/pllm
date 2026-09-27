@@ -275,6 +275,10 @@ def build_comparison_report(
 
     keys = [_comparison_key(report) for _, report in candidates]
     comparable = all(key is not None for key in keys) and len(set(keys)) == 1
+    kernel_backends = {
+        experiment.pipeline.components["kernels"].component for experiment, _ in candidates
+    }
+    matched_backend = len(kernel_backends) == 1
     comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
     metrics = {
         "full_seconds": ("median_full_seconds", False),
@@ -284,7 +288,9 @@ def build_comparison_report(
     }
     rankings: dict[str, list[dict[str, Any]]] = {metric: [] for metric in metrics}
     winners: dict[str, str | None] = {metric: None for metric in metrics}
-    if comparable:
+    if comparable and matched_backend and all(
+        report.get("checks", {}).get("passed") is True for _, report in candidates
+    ):
         for metric, (summary_key, reverse) in metrics.items():
             values = [
                 (
@@ -314,6 +320,7 @@ def build_comparison_report(
         ),
         "unique_configurations": len(set(digests)) == len(digests),
         "matched_workload": comparable,
+        "matched_kernel_backend": matched_backend,
     }
     comparison = None
     if comparison_key is not None:
@@ -333,7 +340,7 @@ def build_comparison_report(
         )
     ]
     cpu_comparison: dict[str, Any] | None = None
-    if comparable and checks["all_candidates_passed"] and len(offset_references) == 1:
+    if comparable and matched_backend and checks["all_candidates_passed"] and len(offset_references) == 1:
         baseline = offset_references[0]
         reference_cpu = baseline["report"].get("process_cpu_accounting", {}).get(
             "aggregate_cold_first_response_cpu_seconds"
@@ -378,7 +385,7 @@ def build_comparison_report(
         "limitations": [
             "single host and loopback network",
             "diagnostic comparison, not a canonical EvidenceReport",
-            "rankings exist only for exact matched measured workloads",
+            "rankings require exact matched measured workloads and kernel backends",
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],
     }

@@ -80,7 +80,7 @@ class RuntimeBindingError(ValueError):
 class ClientLinearExecutor:
     """Plan-bound client-owned native matrices behind a linear-stage callback."""
 
-    __slots__ = ("_binding_digest", "_stages", "_integer_macs")
+    __slots__ = ("_binding_digest", "_stages", "_integer_macs", "_metal_stages", "_min_metal_rows")
 
     def __init__(self) -> None:
         raise RuntimeBindingError("client linear execution requires a compiled binding")
@@ -96,6 +96,10 @@ class ClientLinearExecutor:
         options = resolve_runtime_composition(composition)
         if options is None or options.client_runtime != "compiled_client_local_v1":
             raise RuntimeBindingError("client-owned kernel requires the client-only topology")
+        from pllm.kernels import AppleMetal
+
+        kernels = composition.components["kernels"]
+        metal = kernels.component == AppleMetal.descriptor.component
         model = engine.models.get(binding._bundle.model_id)
         if model is None:
             raise RuntimeBindingError("client-owned kernel has no loaded checkpoint")
@@ -140,10 +144,26 @@ class ClientLinearExecutor:
             )
         if not stages:
             raise RuntimeBindingError("client-owned kernel has no bound body stages")
+        metal_stages: dict[str, Any] = {}
+        if metal:
+            total = sum(model.stages[stage_id].weight.values.nbytes for stage_id in stages)
+            if total > 2 * 1024 * 1024 * 1024:
+                raise RuntimeBindingError("client Metal body exceeds the 2 GiB GPU weight budget")
+            from pllm.runtime.metal import MetalGEMM
+            from pllm.runtime.native import NativeKernelError
+
+            try:
+                gpu = MetalGEMM()
+                for stage_id in stages:
+                    metal_stages[stage_id] = gpu.compile(model.stages[stage_id].weight.values)
+            except NativeKernelError as exc:
+                raise RuntimeBindingError(f"client Metal stage admission failed: {exc}") from exc
         self = object.__new__(cls)
         self._binding_digest = binding.digest
         self._stages = stages
         self._integer_macs = 0
+        self._metal_stages = metal_stages
+        self._min_metal_rows = kernels.params["min_rows"] if metal else 0
         return self
 
     @property
@@ -166,7 +186,12 @@ class ClientLinearExecutor:
         if equalization is not None:
             values = equalize_activation(values, equalization)
         quantized = quantize_activation_per_row(values, bits=bits)
-        integer = matrix.clear(quantized.values)
+        metal_matrix = self._metal_stages.get(stage_id)
+        integer = (
+            metal_matrix.clear(quantized.values)
+            if metal_matrix is not None and quantized.rows >= self._min_metal_rows
+            else matrix.clear(quantized.values)
+        )
         output = dequantize_matmul(
             integer, quantized.scales, scales,
             output_shape=quantized.original_shape[:-1] + (out_features,),

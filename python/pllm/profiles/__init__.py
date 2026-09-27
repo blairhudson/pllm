@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pllm.configuration import ConfigurationError, Model, Pipeline
-from pllm.kernels import Cpu, KernelBackend
+from pllm.kernels import AppleMetal, Cpu, KernelBackend
 from pllm.preparation import ModelAwareCorrections, PreparationProvider
 from pllm.quantization import PublicPerChannelEqualized, QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
@@ -179,7 +179,7 @@ class ClientOnlyCpu(_TypedPipeline):
                 "linear": _slot(
                     "linear", linear, ProtocolMethod, CleartextLinear.descriptor.component,
                 ),
-                "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+                "kernels": _slot("kernels", kernels, KernelBackend),
                 "topology": _slot(
                     "topology", topology, RoleTopology, ClientOnlyRoles.descriptor.component,
                 ),
@@ -192,7 +192,7 @@ class ClientOnlyCpu(_TypedPipeline):
         return self.components["linear"]
 
     @property
-    def kernels(self) -> Cpu:
+    def kernels(self) -> KernelBackend:
         return self.components["kernels"]
 
     @property
@@ -202,6 +202,28 @@ class ClientOnlyCpu(_TypedPipeline):
     @property
     def topology(self) -> ClientOnlyRoles:
         return self.components["topology"]
+
+
+class ClientOnlyMetal(ClientOnlyCpu):
+    """Client-owned compiled decoder with Metal prefill and CPU decode."""
+
+    PROFILE = "baseline.client_only_metal"
+    __slots__ = ()
+
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = _DEFAULT_CLEARTEXT,
+        kernels: KernelBackend = AppleMetal(),
+        quantization: QuantizationScheme | None = None,
+        topology: RoleTopology = _DEFAULT_CLIENT_ONLY,
+    ) -> None:
+        _slot("kernels", kernels, KernelBackend, AppleMetal.descriptor.component)
+        super().__init__(
+            model, linear=linear, kernels=kernels,
+            quantization=quantization, topology=topology,
+        )
 
 
 class TwoOnlineOffsetCpu(_TypedPipeline):
@@ -496,12 +518,22 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     )
     kernels = pipeline.components.get("kernels")
     kernels_valid = kernels is not None and set(kernels.params) == {"threads"}
+    metal_valid = (
+        kernels is not None
+        and kernels.component == AppleMetal.descriptor.component
+        and set(kernels.params) == {"min_rows"}
+        and type(kernels.params["min_rows"]) is int
+        and 2 <= kernels.params["min_rows"] <= 256
+    )
     topology = pipeline.components.get("topology")
     if identities == {
         "linear": "pllm/cleartext-linear",
-        "kernels": "pllm/cpu",
+        "kernels": identities.get("kernels"),
         "topology": "pllm/client-only/v1",
-    } and kernels_valid and all(
+    } and (
+        (identities.get("kernels") == "pllm/cpu" and kernels_valid)
+        or metal_valid
+    ) and all(
         not pipeline.components[slot].params for slot in ("linear", "topology")
     ):
         return RuntimeComposition(
@@ -647,6 +679,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
 
 __all__ = [
     "ClientOnlyCpu",
+    "ClientOnlyMetal",
     "TwoOnlineOffsetCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",

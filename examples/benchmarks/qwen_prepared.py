@@ -1,8 +1,8 @@
 """SDK-defined Experiment pipelines for matched local benchmarking."""
 
 from pllm import Deployment, ExecutionBudget, Experiment, MaskedLinearCpu, Model, Pipeline
-from pllm.kernels import Cpu
-from pllm.profiles import ClientOnlyCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
+from pllm.kernels import AppleMetal, Cpu
+from pllm.profiles import ClientOnlyCpu, ClientOnlyMetal, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
 from pllm.quantization import SymmetricPerRow
 from pllm.roles import PreparedProviderRoles
 from pllm.verification import FreivaldsVerify
@@ -60,5 +60,16 @@ client_cpu_1 = Experiment(
         quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
     ),
     deployment=Deployment.local(root=".pllm/benchmarks/qwen-client-cpu-1"),
+    budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
+)
+
+client_metal_8 = Experiment(
+    name="qwen-client-metal-8",
+    pipeline=ClientOnlyMetal(
+        CHECKPOINT,
+        kernels=AppleMetal(min_rows=8),
+        quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    ),
+    deployment=Deployment.local(root=".pllm/benchmarks/qwen-client-metal-8"),
     budget=ExecutionBudget(requests=4, max_input_tokens=128, max_new_tokens=16),
 )

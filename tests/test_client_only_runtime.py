@@ -12,7 +12,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.profiles import ClientOnlyCpu, MaskedLinearCpu
+from pllm.configuration import ConfigurationError
+from pllm.profiles import ClientOnlyCpu, ClientOnlyMetal, MaskedLinearCpu
 from pllm.runtime.benchmark_cli import build_comparison_report, run_loopback_benchmark
 from pllm.runtime.client import OpenAI, ProtocolError
 from pllm.runtime.loaders import load_hf_directory
@@ -55,6 +56,83 @@ def test_client_only_responses_have_no_provider_channel_or_inventory(tmp_path: P
             client.runtime.capabilities()
         with pytest.raises(ModelError, match="preparation inventory"):
             client.preprocess()
+
+
+def test_client_metal_executes_prefill_on_gpu_and_decode_on_cpu(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pllm.kernels import AppleMetal
+    from pllm.runtime.metal import MetalCompiledMatrix
+
+    cpu, engine = _setup(tmp_path)
+    metal = Experiment(
+        name="client-metal-check",
+        pipeline=ClientOnlyMetal(cpu.pipeline.model, kernels=AppleMetal(min_rows=2)),
+        deployment=cpu.deployment,
+        budget=cpu.budget,
+    )
+    assert metal.resolve().composition_digest != cpu.resolve().composition_digest
+    calls: list[int] = []
+    original_clear = MetalCompiledMatrix.clear
+
+    def counted_clear(self, inputs):
+        calls.append(inputs.shape[0])
+        return original_clear(self, inputs)
+
+    monkeypatch.setattr(MetalCompiledMatrix, "clear", counted_clear)
+    with OpenAI(experiment=cpu, local_engine=engine) as baseline:
+        expected = baseline.responses.create(input="A", max_output_tokens=2, temperature=0)
+    with OpenAI(experiment=metal, local_engine=engine) as client:
+        actual = client.responses.create(input="A", max_output_tokens=2, temperature=0)
+        assert client.privacy_audit.inference_stage_calls == 0
+    assert actual.output_text == expected.output_text
+    assert actual.usage.output_tokens == expected.usage.output_tokens
+    assert calls and all(rows >= 2 for rows in calls)
+    with build_roles(metal) as topology, TestClient(
+        topology.gateway_app(local_api_key="metal-test")
+    ) as gateway:
+        response = gateway.post(
+            "/v1/responses",
+            headers={"Authorization": "Bearer metal-test"},
+            json={"model": metal.resolve().model, "input": "A", "max_output_tokens": 2},
+        )
+        assert response.status_code == 200, response.text
+        assert topology.statuses == ()
+    report = run_loopback_benchmark(
+        model=metal.pipeline.model.source,
+        model_id=metal.resolve().model,
+        tiny=False,
+        prompt="A",
+        max_output_tokens=2,
+        warmups=0,
+        repetitions=1,
+        timeout_seconds=120.0,
+        experiment=metal,
+    )
+    assert report["checks"]["passed"], report["checks"]
+    assert report["configuration"]["roles"] == ["client"]
+    mixed = build_comparison_report([(cpu, report), (metal, report)])
+    assert mixed["checks"]["matched_workload"]
+    assert not mixed["checks"]["matched_kernel_backend"]
+    assert all(winner is None for winner in mixed["winners"].values())
+    assert mixed["compute_cap_diagnostic"] is None
+
+
+def test_metal_kernel_cannot_authorize_provider_or_cpu_only_composition() -> None:
+    from pllm.kernels import AppleMetal, Cpu
+    from pllm.sources import TinyModel
+
+    source = TinyModel(model_id="metal-provider-rejection")
+    with pytest.raises(ValueError, match="pllm/apple-metal-int8/v1"):
+        ClientOnlyMetal(source, kernels=Cpu(threads=2))
+    experiment = Experiment(
+        name="metal-provider-rejection",
+        pipeline=MaskedLinearCpu(source).with_params(kernels=AppleMetal(min_rows=8)),
+        deployment=Deployment.local(root="local://metal-provider-rejection"),
+        budget=ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=1),
+    )
+    with pytest.raises(ConfigurationError, match="kernel|cpu"):
+        experiment.resolve()
 
 
 def test_client_only_rejects_endpoint_overrides_and_wrong_weight_ownership(tmp_path: Path) -> None:

@@ -48,6 +48,41 @@ class Cpu(KernelBackend):
         return cls.descriptor
 
 
+class AppleMetal(KernelBackend):
+    """Client-owned integer prefill on MLX/Metal, with declared CPU decode."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/apple-metal-int8/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/kernel-backend",
+        category_version="1",
+        lifecycle_phase="compilation",
+        parameter_schema={
+            "type": "object",
+            "properties": {"min_rows": {"type": "integer", "minimum": 2, "maximum": 256}},
+            "required": ["min_rows"],
+            "additionalProperties": False,
+        },
+        capabilities=("apple-metal-int8", "cpu-decode"),
+        role_eligibility=("client",),
+    )
+
+    def __init__(self, *, min_rows: int = 8) -> None:
+        if type(min_rows) is not int or not 2 <= min_rows <= 256:
+            raise ConfigurationError("apple-metal.min_rows must be an integer from 2 to 256")
+        super().__init__(self.descriptor.component, {"min_rows": min_rows})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"min_rows": self.params["min_rows"]}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 @pending("piranha")
 class SecureGpuBackend(PendingMethod):
     pass
@@ -63,4 +98,4 @@ class YarnRotaryScaling(PendingModelCapability):
     pass
 
 
-__all__ = ["Cpu", "KernelBackend", "SecureGpuBackend", "PartialMultimodalRotary", "YarnRotaryScaling"]
+__all__ = ["AppleMetal", "Cpu", "KernelBackend", "SecureGpuBackend", "PartialMultimodalRotary", "YarnRotaryScaling"]

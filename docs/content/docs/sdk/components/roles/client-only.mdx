@@ -5,10 +5,11 @@ description: "Run the compiled public model on the trusted client without provid
 
 [`ClientOnlyRoles`](/sdk/reference/python/pllm/roles/#clientonlyroles)
 (`pllm/client-only/v1`) places every semantic decoder operator and its public
-body weights on the client. Use the complete `ClientOnlyCpu` composition with
-`CleartextLinear` and the CPU kernel; merely adding this topology to a masked
-provider pipeline is rejected. The normal SDK, gateway and `benchmark run`
-drivers use a zero-child role graph for this choice.
+body weights on the client. Use a complete `ClientOnlyCpu` composition with
+`CleartextLinear` and `Cpu`, or opt into
+[`ClientOnlyMetal`](/sdk/components/kernels/apple-metal/) on Apple Silicon;
+merely adding this topology to a masked provider pipeline is rejected. The
+normal SDK, gateway and `benchmark run` drivers use a zero-child role graph.
 
 ## Python SDK example
 

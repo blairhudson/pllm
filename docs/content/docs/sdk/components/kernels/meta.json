@@ -1,4 +1,4 @@
 {
   "title": "Kernels",
-  "pages": ["index", "cpu", "native-matrix"]
+  "pages": ["index", "cpu", "apple-metal", "native-matrix"]
 }

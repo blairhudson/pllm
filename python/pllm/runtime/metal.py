@@ -112,3 +112,13 @@ class MetalCompiledMatrix:
         if x.shape[1] != self.shape[1]:
             raise NativeKernelError("expected weights [out,in] and inputs [batch,in]")
         return self._run(x)
+
+    def modular(self, inputs: np.ndarray, modulus: int) -> np.ndarray:
+        """Exact u16/u24/u32 rings; prime-field stages require a distinct kernel."""
+        if type(modulus) is not int or modulus not in (1 << 16, 1 << 24, 1 << 32):
+            raise NativeKernelError("Metal stage requires a declared u16/u24/u32 ring")
+        values = self._input(inputs, "<u4", low=0, high=modulus - 1)
+        if values.shape[1] != self.shape[1]:
+            raise NativeKernelError("expected weights [out,in] and inputs [batch,in]")
+        wrapped = self._run(values)
+        return wrapped if modulus == 1 << 32 else wrapped % np.uint32(modulus)

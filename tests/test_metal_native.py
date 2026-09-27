@@ -34,6 +34,9 @@ def test_metal_integer_stage_matches_neon_and_owns_weights(shape, batch):
         clear[0, 0] = -128
     assert np.array_equal(metal.clear(clear), neon.clear(clear))
     assert np.array_equal(metal.wrap32(ring), neon.wrap32(ring))
+    for modulus in (1 << 16, 1 << 24):
+        reduced = ring % modulus
+        assert np.array_equal(metal.modular(reduced, modulus), neon.modular(reduced, modulus))
 
 
 def test_metal_rejects_unsupported_domains_before_gpu_dispatch():
@@ -42,5 +45,7 @@ def test_metal_rejects_unsupported_domains_before_gpu_dispatch():
         metal.wrap32(np.ones((2, 4), dtype=np.uint32))
     with pytest.raises(NativeKernelError, match="values"):
         metal.clear(np.array([[0, 256, 0]]))
+    with pytest.raises(NativeKernelError, match="declared u16/u24/u32 ring"):
+        metal.modular(np.ones((2, 3), dtype=np.uint32), 2_013_265_921)
     with pytest.raises(NativeKernelError, match="512 MiB"):
         metal.wrap32(np.broadcast_to(np.array([1], dtype=np.uint32), (70_000_000, 3)))

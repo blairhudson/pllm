@@ -1767,17 +1767,25 @@ fn validate_bounded_linear_composition(
     let kernels = pipeline
         .components
         .get("kernels")
-        .ok_or_else(|| format!("{name} composition requires kernels component pllm/cpu"))?;
-    if kernels.component != "pllm/cpu"
-        || kernels.params.len() != 1
-        || kernels
+        .ok_or_else(|| format!("{name} composition requires a kernels component"))?;
+    let cpu = kernels.component == "pllm/cpu"
+        && kernels.params.len() == 1
+        && kernels
             .params
             .get("threads")
             .and_then(serde_json::Value::as_u64)
-            .is_none_or(|threads| threads == 0)
-    {
+            .is_some_and(|threads| threads > 0);
+    let metal = name == "client-only"
+        && kernels.component == "pllm/apple-metal-int8/v1"
+        && kernels.params.len() == 1
+        && kernels
+            .params
+            .get("min_rows")
+            .and_then(serde_json::Value::as_u64)
+            .is_some_and(|rows| (2..=256).contains(&rows));
+    if !cpu && !metal {
         return Err(format!(
-            "{name} composition requires a positive pllm/cpu thread count"
+            "{name} composition requires pllm/cpu or client-owned pllm/apple-metal-int8/v1 with bounded parameters"
         ));
     }
     let quantization = pipeline.components.get("quantization");
@@ -1793,7 +1801,7 @@ fn validate_bounded_linear_composition(
     }
     if pipeline.components.len() != 3 + usize::from(quantization.is_some()) {
         return Err(format!(
-            "{name} composition requires only linear, cpu, topology and optional quantization"
+            "{name} composition requires only linear, kernels, topology and optional quantization"
         ));
     }
     Ok(())

@@ -1,0 +1,25 @@
+{
+  "schema": "pllm.apple_metal_local_comparison.v1",
+  "source": "pllm benchmark run --experiment examples/benchmarks/qwen_prepared.py:client_cpu_1 --experiment examples/benchmarks/qwen_prepared.py:client_metal_8 --trust-python --prompt Hello --max-output-tokens 1 --warmups 0 --repetitions 1 --timeout 900 --format json",
+  "platform": "Apple M5, macOS 26.5.2, arm64, 32 GiB unified memory",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "workload": {"input_tokens": 30, "output_tokens": 1, "weight_bits": 8, "activation_bits": 8},
+  "runs": {
+    "cpu_one_thread": {
+      "configuration_digest": "054a0172183aef5af11230ae033decd434c36b3fd346cc707e3526411a3646c3",
+      "full_seconds": 5.409567542,
+      "online_seconds": 4.803178917,
+      "client_cpu_seconds_from_startup": 11.094656
+    },
+    "apple_metal_min_rows_eight": {
+      "configuration_digest": "3fa52d83964ece97cba7d97b36f0549a8544eb0b3038c2cf78492bf628439d38",
+      "full_seconds": 4.794863375,
+      "online_seconds": 4.189767333,
+      "client_cpu_seconds_from_startup": 9.668235
+    }
+  },
+  "parity": "separate pinned SDK test matched CPU and Metal one-token response",
+  "comparison": "One sequential local cold sample; 0.615 seconds lower full latency, 0.613 seconds lower online latency with Metal prefill and native CPU decode. Not a ranked winner: backends differ.",
+  "unmeasured": ["GPU compute time", "GPU energy", "GPU peak residency", "model download", "multiple independent cold runs", "generation quality"]
+}

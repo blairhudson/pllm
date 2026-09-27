@@ -203,6 +203,43 @@ def test_real_qwen_verified_prepared_topology_matches_client(tmp_path: Path) -> 
     assert result.output_text == control.output_text
 
 
+@pytest.mark.skipif(not QWEN2_PATH, reason="PLLM_REAL_QWEN_PATH is not configured")
+def test_real_qwen_client_metal_matches_cpu(tmp_path: Path) -> None:
+    import importlib.util
+    import platform
+
+    if platform.machine() != "arm64" or importlib.util.find_spec("mlx") is None:
+        pytest.skip("Apple Silicon and pllm.run[metal] are required")
+    from pllm import Deployment, ExecutionBudget, Experiment, Model
+    from pllm.kernels import AppleMetal, Cpu
+    from pllm.profiles import ClientOnlyCpu, ClientOnlyMetal
+    from pllm.quantization import SymmetricPerRow
+    from pllm.runtime.servers import build_roles
+
+    assert QWEN2_PATH is not None
+    model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+    model = Model.path(QWEN2_PATH, model_id=model_id)
+    quantization = SymmetricPerRow(weight_bits=8, activation_bits=8)
+    budget = ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1)
+    results = []
+    for name, pipeline in (
+        ("metal", ClientOnlyMetal(model, kernels=AppleMetal(min_rows=8), quantization=quantization)),
+        ("cpu", ClientOnlyCpu(model, kernels=Cpu(threads=1), quantization=quantization)),
+    ):
+        experiment = Experiment(
+            name=f"real-client-{name}",
+            pipeline=pipeline,
+            deployment=Deployment.local(root=str(tmp_path / name)),
+            budget=budget,
+        )
+        with build_roles(experiment) as topology, topology.client() as client:
+            response = client.responses.create(model=model_id, input="A", max_output_tokens=1)
+            assert response.usage.output_tokens == 1
+            assert client.privacy_audit.inference_stage_calls == 0
+            results.append(response.output_text)
+    assert results[0] == results[1]
+
+
 @pytest.mark.skipif(not QWEN3_PATH, reason="PLLM_REAL_QWEN3_PATH is not configured")
 def test_real_qwen3_has_scoped_clear_reference_parity() -> None:
     assert QWEN3_PATH is not None

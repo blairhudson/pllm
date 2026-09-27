@@ -1,0 +1,53 @@
+---
+title: "Apple Silicon Metal kernel"
+description: "Run client-owned public integer prefill on Metal, with bound CPU decode fallback."
+---
+
+[`AppleMetal`](/sdk/reference/python/pllm/kernels/#applemetal) selects an opt-in,
+model-neutral i8 matrix kernel through MLX on Apple Silicon. Its `min_rows`
+threshold is bound to the composition digest: prefill batches of at least that
+size run on the GPU; smaller batches (including decode) use the original native
+CPU kernel. Clear and exact u16/u24/u32-ring results match the native integer
+reference; quantized checkpoint and protocol commitments still come from the
+compiled plan. Install `pllm.run[metal]` on Apple Silicon.
+
+`ClientOnlyMetal` places the public body on the client, with no provider child.
+It is distinct from [prepared provider roles](/sdk/components/roles/prepared-provider/)
+and does not activate Metal inside a remote provider or any protected share
+protocol. The GPU holds an additional stage-weight snapshot, limited to 2 GiB
+across the bound stages. An unavailable device, oversized model, or invalid
+kernel material fails rather than silently changing the Experiment.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment
+from pllm.kernels import AppleMetal
+from pllm.profiles import ClientOnlyMetal
+from pllm.sources import TinyModel
+
+experiment = Experiment(
+    name="apple-metal-guide",
+    pipeline=ClientOnlyMetal(
+        TinyModel(model_id="apple-metal-guide"), kernels=AppleMetal(min_rows=8),
+    ),
+    deployment=Deployment.local(root="local://apple-metal-guide"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.kernels.params["min_rows"] == 8
+assert tuple(role.id for role in experiment.resolve().role_graph.roles) == ("client",)
+```
+
+A generated tiny checkpoint passed prefill/decode through SDK, gateway and the
+ordinary benchmark driver, matching the CPU composition's output. Isolated
+transfer-inclusive 4096-wide, 64-row integer work measured 16.6 ms on Metal
+and 99.5 ms on native NEON; a one-row decode measured 1.73 vs 1.32 ms. These
+are single-stage diagnostics, not whole-response speedups. CPU and GPU
+compositions cannot share latency rankings or CPU-only compute-cap diagnostics;
+measure cold weight transfer, peak unified memory, GPU work and energy before
+making a whole-model resource claim.
+
+A [pinned Qwen2.5-0.5B matched run](https://github.com/blairhudson/pllm/blob/main/docs/evidence/apple-metal-qwen25-local-2026-09-26.json) on an Apple M5 produced one token after 30 input tokens with the same W8A8 body fingerprint. The single cold CPU/Metal runs measured 5.41/4.79 seconds full and 4.80/4.19 seconds online, respectively; a separate real-checkpoint SDK test matched the output token. MLX GPU compute, peak GPU memory and energy were not separately metered. Since the backends differ, the benchmark does **not** rank one as a topology/compute-cap winner. Compare repeated cohorts and whole-response accelerator costs before drawing a speed or efficiency conclusion.
+
+API: [`AppleMetal`](/sdk/reference/python/pllm/kernels/#objects-and-signatures),
+[`ClientOnlyMetal`](/sdk/reference/python/pllm/profiles/#clientonlymetal)
