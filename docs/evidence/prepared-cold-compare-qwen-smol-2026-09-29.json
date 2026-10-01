@@ -1,0 +1,71 @@
+{
+  "schema": "pllm.decoder_cold_cpu_body_gate.v1",
+  "status": "six completed 39+32-token W8A8 loopback responses with fresh client bundle caches, cached source checkpoints and per-process cold CPU samples; two samples per model/topology",
+  "method": {
+    "bench": "ordinary build_roles and run_loopback_benchmark, zero warmups, one response per model/topology, request-sized inventory for prepared placements",
+    "plan_bounds": {"input_tokens": 64, "new_tokens": 32},
+    "token_cohort": {"input_tokens": 39, "output_tokens": 32},
+    "all_roles_are_co_located": true,
+    "client_bundle_cache": "fresh disposable per run; source safetensors already cached in shared Hugging Face snapshot",
+    "privacy_audit": "zero plaintext prompt and token-ID bytes sent in all three responses",
+    "covered_body_bytes_not_full_wire": true,
+    "compute_scope": "sum of authenticated process CPU from child-role birth and benchmark/client startup through the first response; source resolution beforehand excluded"
+  },
+  "qwen25_prepared": {
+    "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "cold_client_bundle_delivery_body_bytes": 145977006,
+    "covered_online_body_bytes": 113545024,
+    "covered_cold_all_link_body_bytes": 324947564,
+    "stage_body_bytes_reconciled": true,
+    "cold_cpu_seconds_by_role": {"client": 8.920246, "inference": 17.98489728, "preparation": 13.876317696},
+    "aggregate_cold_cpu_seconds": 40.781460976
+  },
+  "qwen25_two_online_offset": {
+    "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "cold_client_bundle_delivery_body_bytes": 145975756,
+    "covered_online_body_bytes": 227079424,
+    "covered_cold_all_link_body_bytes": null,
+    "stage_body_bytes_reconciled": false,
+    "cold_cpu_seconds_by_role": {"client": 12.351695, "worker_a": 12.9780544, "worker_b": 12.751353344},
+    "aggregate_cold_cpu_seconds": 38.081102744
+  },
+  "smollm2_prepared": {
+    "source": "HuggingFaceTB/SmolLM2-135M-Instruct@12fd25f77366fa6b3b4b768ec3050bf629380bac",
+    "body_fingerprint": "9adb95b8cda428d8c6ff6367020fc5f365651bf50dcb7e712219886ecadc5469",
+    "cold_client_bundle_delivery_body_bytes": 31675483,
+    "covered_online_body_bytes": 55676860,
+    "covered_cold_all_link_body_bytes": 120079309,
+    "stage_body_bytes_reconciled": true,
+    "cold_cpu_seconds_by_role": {"client": 6.514084, "inference": 10.26251968, "preparation": 6.480134144},
+    "aggregate_cold_cpu_seconds": 23.256737824
+  },
+  "repeat_cold_cpu_seconds_by_role": {
+    "qwen25_prepared": {"client": 9.097565, "inference": 18.251604992, "preparation": 13.922619776},
+    "qwen25_two_online_offset": {"client": 12.396289, "worker_a": 12.843182336, "worker_b": 12.691951872},
+    "smollm2_prepared": {"client": 6.760455, "inference": 10.446321728, "preparation": 6.493621184}
+  },
+  "repeat_aggregate_cold_cpu_seconds": {
+    "qwen25_prepared": 41.271789768,
+    "qwen25_two_online_offset": 37.931423208,
+    "smollm2_prepared": 23.700397912
+  },
+  "two_sample_median_aggregate_cold_cpu_seconds": {
+    "qwen25_prepared": 41.026625372,
+    "qwen25_two_online_offset": 38.006262976,
+    "smollm2_prepared": 23.478567868
+  },
+  "repeat_identity_and_body_check": "all three repeated runs preserved their corresponding model fingerprint, token counts, covered online and cold bundle body counts, zero plaintext prompt/token-ID bytes, and prepared stage reconciliation",
+  "limitations": [
+    "Two co-located samples do not establish a representative aggregate-CPU cap; Qwen prepared CPU was higher than the matched offset comparator in both samples. HTTP/TLS/control wire bytes and complete two-worker cold all-link bodies remain unmeasured.",
+    "Qwen prepared and offset share a model, W8A8 body fingerprint and token cohort, but remain co-located and cannot establish independent-provider privacy.",
+    "SmolLM is a different checkpoint and a different prompt with the same input/output token counts; its byte/CPU differences are not a quality-qualified cross-model ranking.",
+    "Source checkpoint downloads, both-worker source distribution, complete disk/cache activity, memory, energy and GPU costs are not included."
+  ],
+  "reproduce": [
+    "uv run --no-sync python scripts/probe_decoder_cold_cpu.py qwen",
+    "uv run --no-sync python scripts/probe_decoder_cold_cpu.py qwen --offset",
+    "uv run --no-sync python scripts/probe_decoder_cold_cpu.py smol"
+  ]
+}

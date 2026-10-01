@@ -1,0 +1,33 @@
+{
+  "schema": "pllm.rank_interface_affine_residual_oracle.v1",
+  "reproduce": "uv run --no-sync python scripts/probe_rank_interface.py --mode affine_residual --ranks 16 32 --cut-strides 1 2 4",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "weights_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+    "prompts_sha256": "c8fe1457d2082b79602cd7e694b325ec69a986d6d95e9e854b4233a81d8e3d56",
+    "token_cohort_digest": "209bee2b9a89306fe6e63c6b1a14afb232ecd91243572c164f8ee4e1b3994ea4"
+  },
+  "method": "Per layer: ridge-fit a public 896×896 affine map from 322 offline calibration rows; after computing the original full MLP on a held-out trajectory, project its residual around that affine estimate to rank 16 or 32. Twelve held-out prompts include four 27–29-token inputs. One same-token decode step and a separate freely fed back second token follow each prefill.",
+  "results": {
+    "rank16_cuts6": {"prefill_top1": 7, "decode_same_token_top1": 7, "free_second_token_matches": 5, "maximum_reference_trajectory_relative_residual": 0.8437984585762024},
+    "rank16_cuts12": {"prefill_top1": 3, "decode_same_token_top1": 6, "free_second_token_matches": 2, "maximum_reference_trajectory_relative_residual": 0.8437984585762024},
+    "rank16_cuts24": {"prefill_top1": 2, "decode_same_token_top1": 0, "free_second_token_matches": 0, "maximum_reference_trajectory_relative_residual": 0.84505295753479},
+    "rank32_cuts6": {"prefill_top1": 8, "decode_same_token_top1": 7, "free_second_token_matches": 6, "maximum_reference_trajectory_relative_residual": 0.8281795382499695},
+    "rank32_cuts12": {"prefill_top1": 5, "decode_same_token_top1": 7, "free_second_token_matches": 4, "maximum_reference_trajectory_relative_residual": 0.8281795382499695},
+    "rank32_cuts24": {"prefill_top1": 3, "decode_same_token_top1": 0, "free_second_token_matches": 0, "maximum_reference_trajectory_relative_residual": 0.829884946346283}
+  },
+  "candidate_model_distribution": {
+    "public_affine_maps_float32_bytes_per_worker": 77070336,
+    "full_profile_float32_bytes_per_worker_rank16": 78704640,
+    "full_profile_float32_bytes_per_worker_rank32": 80080896,
+    "both_workers_copy_public_map": true,
+    "cold_checkpoint_delivery_measured": false
+  },
+  "decision": "A separately fitted affine bypass improves some six-cut prefill selections over direct projection, but six rank32 cuts still miss four of twelve top tokens at prefill and five of twelve at decode. All 24 rank32 cuts match only three of twelve prefills and zero decodes. No retrospective margin witnesses passed. Stop Qwen retrofit; next research gate is a jointly trained architecture with a narrow executable cut, exact fixed-point numeric contract and quality testing. Do not promote this oracle or its codebook cost projection as inference.",
+  "limitations": [
+    "The original full Qwen MLP and all unprojected layers still execute on every trial; the residual is not computable from a rank-width input in this experiment.",
+    "The results are float32 oracle diagnostics on twelve public prompts, not representative generation quality or a certified token decision.",
+    "Precomputed affine maps add public cold storage and distribution; output vocabulary compression, independent-party transport and whole-response CPU and wire costs are unimplemented."
+  ]
+}

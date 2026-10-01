@@ -1,0 +1,103 @@
+{
+  "schema": "pllm.predictive_modular_cost_gate.v1",
+  "status": "no-go for 10/50/90% public-weight sparse integer predictors on the current prepared Qwen W8A8 stage schedule",
+  "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "method": {
+    "schedule": "complete 96-stage compiled native W8A8 Qwen2.5 clear-kernel prefill plus greedy decode, 39 input tokens; generated tokens remain client-local",
+    "public_predictor": "for each stage, keep 10%, 50% or 90% of columns ordered by public sum of absolute signed i8 weight values; discarded columns are zero; indices are public u16",
+    "certificate": "B_j = 127 * sum_i |W_ji-A_ji| for independent signed i8 inputs; exact integer lifting requires 2*max_j(B_j) < 2^wire_bits; observed residuals cannot certify private inputs",
+    "projection": "packed q-bit masked inputs, responses and one correction per executed stage row; omits ticket/control, model and predictor distribution, startup, complete wire and client predictor CPU",
+    "privacy": "bounded one-use numeric reference tests separate client masks/predictor from provider public weights/correction; no distributed security claim"
+  },
+  "cohorts": {
+    "39_plus_8": {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "token_cohort_digest": "1c33f0714b519911677546fc0171d5651f3149118ff0c0b03782cf84dccdce04",
+      "semantic_plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "runtime_schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "stage_summaries_sha256": "3f0fc175db0043ff6dbc0e5b4225f15ae35c94219c731df9bf20cbe5d1eb62d0",
+      "covered_prepared_all_link_body_bytes": 116843966,
+      "covered_prepared_online_body_bytes": 73831744,
+      "tenfold_all_link_budget_bytes": 11684396,
+      "tenfold_online_budget_bytes": 7383174,
+      "unattained_uniform_two_bit_arithmetic_floor_bytes": 9079296,
+      "remote_integer_macs": 16460021760,
+      "predictors": {
+        "10": {
+          "client_integer_macs": 1637806080,
+          "public_i8_predictor_bytes_including_u16_indices": 35640624,
+          "certified_ring_bits_min_max": [23, 26],
+          "observed_ring_bits_max_not_an_admission": 20,
+          "optimistic_certified_all_link_arithmetic_bytes": 106516864,
+          "optimistic_certified_online_arithmetic_bytes": 66012576
+        },
+        "50": {
+          "client_integer_macs": 8230010880,
+          "public_i8_predictor_bytes_including_u16_indices": 179094528,
+          "certified_ring_bits_min_max": [22, 25],
+          "observed_ring_bits_max_not_an_admission": 20,
+          "optimistic_certified_all_link_arithmetic_bytes": 105125088,
+          "optimistic_certified_online_arithmetic_bytes": 65004992
+        },
+        "90": {
+          "client_integer_macs": 14808225792,
+          "public_i8_predictor_bytes_including_u16_indices": 322244112,
+          "certified_ring_bits_min_max": [19, 22],
+          "observed_ring_bits_max_not_an_admission": 18,
+          "optimistic_certified_all_link_arithmetic_bytes": 92992864,
+          "optimistic_certified_online_arithmetic_bytes": 57612608
+        }
+      }
+    },
+    "39_plus_32": {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "token_cohort_digest": "e51aa8308553e223418e1605764fd4d3058977c285e9065e9bc9ee225d657ef7",
+      "semantic_plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "runtime_schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "stage_summaries_sha256": "46988d73f304b65053508318961cea739ba6d781872adca1d0afe8b5f1782b9b",
+      "covered_prepared_all_link_body_bytes": 178970558,
+      "covered_prepared_online_body_bytes": 113545024,
+      "tenfold_all_link_budget_bytes": 17897055,
+      "tenfold_online_budget_bytes": 11354502,
+      "unattained_uniform_two_bit_arithmetic_floor_bytes": 13816320,
+      "remote_integer_macs": 25047859200,
+      "predictors": {
+        "10": {
+          "client_integer_macs": 2492313600,
+          "public_i8_predictor_bytes_including_u16_indices": 35640624,
+          "certified_ring_bits_min_max": [23, 26],
+          "observed_ring_bits_max_not_an_admission": 20,
+          "optimistic_certified_all_link_arithmetic_bytes": 162090880,
+          "optimistic_certified_online_arithmetic_bytes": 100453920
+        },
+        "50": {
+          "client_integer_macs": 12523929600,
+          "public_i8_predictor_bytes_including_u16_indices": 179094528,
+          "certified_ring_bits_min_max": [22, 25],
+          "observed_ring_bits_max_not_an_admission": 20,
+          "optimistic_certified_all_link_arithmetic_bytes": 159972960,
+          "optimistic_certified_online_arithmetic_bytes": 98920640
+        },
+        "90": {
+          "client_integer_macs": 22534256640,
+          "public_i8_predictor_bytes_including_u16_indices": 322244112,
+          "certified_ring_bits_min_max": [19, 22],
+          "observed_ring_bits_max_not_an_admission": 18,
+          "optimistic_certified_all_link_arithmetic_bytes": 141510880,
+          "optimistic_certified_online_arithmetic_bytes": 87671360
+        }
+      }
+    }
+  },
+  "conclusion": "None of the 96 stages certifies even an eight-bit ring at any tested width. At 39+32 the optimistic best of the tested predictors is 141.51 MB all-link, 87.67 MB online plus 322.24 MB once-per-model client predictor bytes and 90% duplicate client MACs; it misses both tenfold budgets before overhead. Under unrestricted W8A8, q=4 and an integer linear predictor require A=W exactly, duplicating all remote integer MACs. No live or selectable topology is authorized by this result.",
+  "reproduce": [
+    "uv run --no-sync python scripts/probe_predictive_modular.py --max-output-tokens 8 --summary",
+    "uv run --no-sync python scripts/probe_predictive_modular.py --max-output-tokens 32 --summary",
+    "uv run --no-sync pytest -q tests/test_predictive_modular_reference.py"
+  ]
+}

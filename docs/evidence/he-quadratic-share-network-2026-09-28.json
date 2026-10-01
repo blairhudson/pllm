@@ -1,0 +1,108 @@
+{
+  "schema": "pllm.he_quadratic_share_evidence.v1",
+  "scope": "in-process BFV-to-two-additive-shares reference, exact x^2+3x+7 in F_65537, one ciphertext pair per island",
+  "backend": "TenSEAL BFV, degree 4096, 65537 plaintext modulus, explicit relinearization keys, one worker thread",
+  "roles": "A owns BFV secret key and input share; B receives public context and ciphertext and owns independent input share plus fresh uniform output mask; B returns only masked encrypted output; A decrypts only its output share",
+  "source": "pllm.metrics.EncryptedQuadraticShareCostProbe(rows=..., width=32, islands=...).run()",
+  "measured_one_process_samples": [
+    {
+      "rows": 1,
+      "islands": 1,
+      "public_context_body_bytes": 411124,
+      "worker_a_to_b_body_bytes": 88770,
+      "worker_b_to_a_body_bytes": 88722,
+      "online_all_link_body_bytes": 177492,
+      "setup_cpu_seconds": 0.032655,
+      "encryption_cpu_seconds": 0.002571,
+      "evaluation_cpu_seconds": 0.006106,
+      "decryption_cpu_seconds": 0.000958,
+      "process_lifetime_peak_rss_after_bytes": 59473920
+    },
+    {
+      "rows": 39,
+      "islands": 1,
+      "public_context_body_bytes": 411085,
+      "worker_a_to_b_body_bytes": 88697,
+      "worker_b_to_a_body_bytes": 88722,
+      "online_all_link_body_bytes": 177419,
+      "setup_cpu_seconds": 0.016923,
+      "encryption_cpu_seconds": 0.002603,
+      "evaluation_cpu_seconds": 0.010262,
+      "decryption_cpu_seconds": 0.000705,
+      "process_lifetime_peak_rss_after_bytes": 61325312
+    },
+    {
+      "rows": 1,
+      "islands": 8,
+      "public_context_body_bytes": 410982,
+      "worker_a_to_b_body_bytes": 709859,
+      "worker_b_to_a_body_bytes": 709989,
+      "online_all_link_body_bytes": 1419848,
+      "setup_cpu_seconds": 0.019878,
+      "encryption_cpu_seconds": 0.019989,
+      "evaluation_cpu_seconds": 0.048025,
+      "decryption_cpu_seconds": 0.00599,
+      "process_lifetime_peak_rss_after_bytes": 62816256
+    },
+    {
+      "rows": 1,
+      "islands": 32,
+      "public_context_body_bytes": 410988,
+      "worker_a_to_b_body_bytes": 2839478,
+      "worker_b_to_a_body_bytes": 2839172,
+      "online_all_link_body_bytes": 5678650,
+      "setup_cpu_seconds": 0.015677,
+      "encryption_cpu_seconds": 0.054219,
+      "evaluation_cpu_seconds": 0.131935,
+      "decryption_cpu_seconds": 0.016305,
+      "process_lifetime_peak_rss_after_bytes": 62832640
+    }
+  ],
+  "existing_he_authenticated_triple_check": {
+    "source": "HEAuthenticatedPreprocessor(seed=7, threads=1, enable_linear_correlations=False).multiplication_triple((4096,))",
+    "authenticated_triples": 4096,
+    "exact_product_parity": true,
+    "public_context_body_bytes": 411016,
+    "uploaded_body_bytes": 177000,
+    "downloaded_body_bytes": 354239,
+    "covered_batch_bodies_before_context_bytes": 531239,
+    "optimistic_single_multiplication_per_32_wide_bottleneck_for_24_layers_and_70_rows": 53760,
+    "necessary_4096_triple_batches": 14,
+    "projected_batch_bodies_before_online_compute_bytes": 7437346,
+    "interpretation": "Existing BFV batching generates ordinary independent one-use authenticated triples, not a compact reusable correlated seed. One multiplication per bottleneck element is only an optimistic illustrative gate, not a SiLU or full-decoder cost."
+  },
+  "matched_control_reference": "docs/evidence/latent-response-network-qwen25-2026-09-28.json; real prepared Qwen2.5 W8A8 39+8 and 39+32 covered all-link bodies, not measured HE decoder execution",
+  "response_cost_gates": [
+    {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "measured_prepared_covered_body_bytes": 116843966,
+      "hundredfold_body_budget_bytes": 1168439,
+      "measured_eight_islands_only_bytes": 1419848,
+      "hypothetical_24_layers_times_eight_islands_bytes": 34076352,
+      "hundredfold_admitted_before_other_traffic": false
+    },
+    {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "measured_prepared_covered_body_bytes": 178970558,
+      "hundredfold_body_budget_bytes": 1789705,
+      "measured_32_islands_only_bytes": 5678650,
+      "hypothetical_24_layers_times_32_islands_bytes": 136287600,
+      "hundredfold_admitted_before_other_traffic": false
+    }
+  ],
+  "qualifications": [
+    "The 8/32-island measurements are sequential independent bounded inputs with one context reused, not dependent autoregressive model execution. The 24-layer body multiplication is a byte-count projection, not a measured decoder.",
+    "39 one-token-shaped rows pack into one BFV island, but future autoregressive rows cannot be batched without new private token feedback.",
+    "The exact quadratic field operation has no SiLU, BF16, rounding, truncation, decoder-activation range, or real-checkpoint quality parity.",
+    "Public context is distributed once per local probe, not included in online-only counts; cold covered counts add it once. Secret-key storage and process startup are not full model distribution costs.",
+    "Peak RSS is process-lifetime peak, not marginal HE allocation; all roles share one Python process, no external operator privacy or full TLS/control wire metering.",
+    "Honest-execution reference only: no malicious-evaluator output proof, reviewed cryptographic security contract, authenticated network protocol, share-resident tensor schedule or production role admission.",
+    "Existing BFV authenticated-triple batching is measured separately and requires distribution of each fresh triple; no compact correlated seed or multi-gate compressed material is implemented. One small encrypted polynomial evaluation cannot be counted as savings on one-use key distribution."
+  ],
+  "reproduction": [
+    "uv run --no-sync pytest -q tests/test_he_quadratic_share.py -m he",
+    "uv run --no-sync python -c 'from pllm.metrics import EncryptedQuadraticShareCostProbe as P; import json; fields=(\"rows\",\"islands\",\"public_context_body_bytes\",\"worker_a_to_b_body_bytes\",\"worker_b_to_a_body_bytes\",\"online_all_link_body_bytes\",\"setup_cpu_seconds\",\"encryption_cpu_seconds\",\"evaluation_cpu_seconds\",\"decryption_cpu_seconds\",\"process_peak_rss_after_bytes\"); [print(json.dumps({k:r[k] for k in fields},separators=(\",\",\":\"))) for r in (P(rows=n,islands=i).run() for n,i in ((1,1),(39,1),(1,8),(1,32)))]'"
+  ]
+}

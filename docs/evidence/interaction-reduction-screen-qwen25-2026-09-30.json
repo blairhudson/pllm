@@ -1,0 +1,208 @@
+{
+  "schema": "pllm.interaction_reduction_screen.v1",
+  "source": {
+    "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+    "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "control_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36"
+  },
+  "environment": {
+    "ckks_context_threads": 1,
+    "cpu_samples": "local process_time; synthetic primitives only, not complete-response CPU",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "cohorts": {
+    "8": {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "executed_rows": 46,
+      "all_link_tenfold_budget_bytes": 11684396,
+      "online_tenfold_budget_bytes": 7383174,
+      "fusion_audit": {
+        "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+        "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+        "scope": "conservative serial-linear discovery, not a graph optimizer or exhaustive algebra search",
+        "phases": {
+          "prefill": {
+            "body_norms_per_executed_row": 48,
+            "serial_linear_candidate_edges": [],
+            "source_operator_barriers": {"attention_values": 24, "last_token": 1, "multiply": 24, "rms_norm": 120},
+            "existing_parallel_linear_groups": 48,
+            "existing_duplicate_input_sends_avoided": 72,
+            "new_exact_w8a8_fusions": 0,
+            "additional_remote_messages_eliminated": 0,
+            "rounding_barrier": "intermediate dynamic activation quantization and float32 edges cannot be removed algebraically"
+          },
+          "decode": {
+            "body_norms_per_executed_row": 48,
+            "serial_linear_candidate_edges": [],
+            "source_operator_barriers": {"attention_values": 24, "last_token": 1, "multiply": 24, "rms_norm": 120},
+            "existing_parallel_linear_groups": 48,
+            "existing_duplicate_input_sends_avoided": 72,
+            "new_exact_w8a8_fusions": 0,
+            "additional_remote_messages_eliminated": 0,
+            "rounding_barrier": "intermediate dynamic activation quantization and float32 edges cannot be removed algebraically"
+          }
+        }
+      },
+      "rmsnorm_projection": {
+        "body_norm_invocations": 2208,
+        "known_online_floor_bytes": 31671552,
+        "known_dealer_floor_bytes": 47516160,
+        "inverse_sqrt_rounding_attention_mlp_unpriced": true
+      },
+      "lookup_projection": {
+        "all_token_query_bytes_both_workers": 40112,
+        "direct_embedding_u32_shares_bytes_both_workers": 329728,
+        "saved_boundary_upload_body_bytes": 289616,
+        "additional_lookup_table_macs_both_workers": 12524388352,
+        "amortized_checkpoint_table_distribution_not_included": true
+      }
+    },
+    "32": {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "executed_rows": 70,
+      "all_link_tenfold_budget_bytes": 17897055,
+      "online_tenfold_budget_bytes": 11354502,
+      "fusion_audit": {
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+        "scope": "conservative serial-linear discovery, not a graph optimizer or exhaustive algebra search",
+        "phases": {
+          "prefill": {
+            "body_norms_per_executed_row": 48,
+            "serial_linear_candidate_edges": [],
+            "source_operator_barriers": {"attention_values": 24, "last_token": 1, "multiply": 24, "rms_norm": 120},
+            "existing_parallel_linear_groups": 48,
+            "existing_duplicate_input_sends_avoided": 72,
+            "new_exact_w8a8_fusions": 0,
+            "additional_remote_messages_eliminated": 0,
+            "rounding_barrier": "intermediate dynamic activation quantization and float32 edges cannot be removed algebraically"
+          },
+          "decode": {
+            "body_norms_per_executed_row": 48,
+            "serial_linear_candidate_edges": [],
+            "source_operator_barriers": {"attention_values": 24, "last_token": 1, "multiply": 24, "rms_norm": 120},
+            "existing_parallel_linear_groups": 48,
+            "existing_duplicate_input_sends_avoided": 72,
+            "new_exact_w8a8_fusions": 0,
+            "additional_remote_messages_eliminated": 0,
+            "rounding_barrier": "intermediate dynamic activation quantization and float32 edges cannot be removed algebraically"
+          }
+        }
+      },
+      "rmsnorm_projection": {
+        "body_norm_invocations": 3360,
+        "known_online_floor_bytes": 48195840,
+        "known_dealer_floor_bytes": 72307200,
+        "inverse_sqrt_rounding_attention_mlp_unpriced": true
+      },
+      "lookup_projection": {
+        "all_token_query_bytes_both_workers": 61040,
+        "direct_embedding_u32_shares_bytes_both_workers": 501760,
+        "saved_boundary_upload_body_bytes": 440720,
+        "additional_lookup_table_macs_both_workers": 19058851840,
+        "amortized_checkpoint_table_distribution_not_included": true
+      }
+    }
+  },
+  "secure_reduction": {
+    "width": 896,
+    "ring_bits": 32,
+    "synthetic_signed_input_bound": 127,
+    "exact_modular_statistic_parity": true,
+    "sum_of_squares_body_bytes_online_both_directions": 7168,
+    "sum_of_squares_dealer_body_bytes_both_parties": 7176,
+    "generic_elementwise_beaver_square_online_bytes": 14336,
+    "generic_elementwise_beaver_square_dealer_bytes": 21504,
+    "synthetic_issuance_cpu_seconds": 0.000096,
+    "synthetic_online_local_cpu_seconds": 0.000056,
+    "broadcast_multiply_exact_modular_parity": true,
+    "broadcast_multiply_online_bytes": 7176,
+    "broadcast_multiply_dealer_bytes": 14344,
+    "broadcast_inverse_is_synthetic_not_rmsnorm_inverse": true,
+    "full_rmsnorm_known_online_floor_including_broadcast_scalar_multiply_bytes": 14344,
+    "full_rmsnorm_known_dealer_floor_including_broadcast_scalar_multiply_bytes": 21520,
+    "generic_square_plus_normalize_online_bytes": 28672,
+    "generic_square_plus_normalize_dealer_bytes": 43008,
+    "missing_full_rmsnorm_work": [
+      "private inverse square root and division by public width",
+      "exact rescaling/output quantization and per-edge rounding",
+      "weights/scales, authentication, distributed dealer and full wire"
+    ],
+    "numeric_order_counterexample": {
+      "input": [1, 1],
+      "divisor": 2,
+      "sum_of_per_element_ties_even_rounded_squares": 0,
+      "ties_even_rounded_sum_of_squares": 1
+    },
+    "whole_rmsnorm_executable": false,
+    "checkpoint_numeric_fidelity": false
+  },
+  "private_lookup": {
+    "vocabulary": 151936,
+    "width": 896,
+    "table_kind": "public synthetic signed-i8, no per-token float scales",
+    "table_sha256": "c33260cf1c3fc0ec8b8a3fc392856bb6c07803b3ea9f498170dbe6d6566ec7fc",
+    "table_bytes_each_worker": 136134656,
+    "query_body_bytes_both_workers": 872,
+    "query_body_bytes_per_worker": [436, 436],
+    "direct_client_embedding_u32_shares_bytes_both_workers": 7168,
+    "dense_u32_selector_shares_bytes_both_workers": 1215488,
+    "result_share_bytes_both_workers_if_returned_to_client": 7168,
+    "results_can_stay_worker_local_without_this_return": true,
+    "modular_table_macs_per_worker_per_token": 136134656,
+    "table_read_bytes_per_worker_per_token_at_least": 136134656,
+    "selector_storage_bytes_each_worker": 607744,
+    "maximum_conversion_window_bytes": 3670016,
+    "key_generation_cpu_seconds": 0.000329,
+    "key_expansion_hash_and_table_scan_cpu_seconds_each_worker": [1.324603, 1.32693],
+    "exact_quantized_code_lookup_parity": true,
+    "checkpoint_embedding_scale_and_numeric_conversion_validated": false,
+    "he_embedding_conversion_available": false,
+    "security_scope": "bounded local DPF research construction, no security review or authenticated independent-worker transport"
+  },
+  "he": {
+    "tenseal_version": "0.3.17",
+    "poly_modulus_degree": 8192,
+    "coeff_modulus_bits": [60, 40, 40, 60],
+    "scale_bits": 40,
+    "provider_has_secret_key": false,
+    "batching": {
+      "samples": [
+        {"independent_same_client_sequences": 1, "hidden_width": 896, "slots_per_ciphertext": 4096, "ciphertexts_each_direction": 1, "values_per_ciphertext": [896], "upload_body_bytes": 331553, "download_body_bytes": 235109, "both_direction_body_bytes_per_sequence": 566662.0, "encryption_cpu_seconds": 0.004789, "provider_square_cpu_seconds": 0.003563, "provider_square_cpu_seconds_per_sequence": 0.003563, "max_absolute_error": 1.4789091576372648e-8},
+        {"independent_same_client_sequences": 4, "hidden_width": 896, "slots_per_ciphertext": 4096, "ciphertexts_each_direction": 1, "values_per_ciphertext": [3584], "upload_body_bytes": 331161, "download_body_bytes": 235091, "both_direction_body_bytes_per_sequence": 141563.0, "encryption_cpu_seconds": 0.004715, "provider_square_cpu_seconds": 0.003166, "provider_square_cpu_seconds_per_sequence": 0.0007915, "max_absolute_error": 2.233219124903041e-8},
+        {"independent_same_client_sequences": 16, "hidden_width": 896, "slots_per_ciphertext": 4096, "ciphertexts_each_direction": 4, "values_per_ciphertext": [3584, 3584, 3584, 3584], "upload_body_bytes": 1325533, "download_body_bytes": 940106, "both_direction_body_bytes_per_sequence": 141602.4375, "encryption_cpu_seconds": 0.018, "provider_square_cpu_seconds": 0.012525, "provider_square_cpu_seconds_per_sequence": 0.0007828125, "max_absolute_error": 7.827391768078229e-8}
+      ],
+      "scope": "one synthetic ciphertext square only, no attention/rotations/KV or decoder",
+      "mixed_client_keys_supported": false,
+      "single_sequence_latency_improvement_established": false
+    },
+    "seeded_serialization": {
+      "samples": [
+        {"encryption_mode": "ASYMMETRIC", "provider_has_secret_key": false, "samples": [{"request_bytes": 331030, "evaluated_response_bytes": 235096}, {"request_bytes": 330921, "evaluated_response_bytes": 235154}, {"request_bytes": 331603, "evaluated_response_bytes": 235098}]},
+        {"encryption_mode": "SYMMETRIC", "provider_has_secret_key": false, "samples": [{"request_bytes": 331580, "evaluated_response_bytes": 235005}, {"request_bytes": 331214, "evaluated_response_bytes": 235134}, {"request_bytes": 331073, "evaluated_response_bytes": 235099}]}
+      ],
+      "ckks_vector_serialize_signature": "(self) -> bytes",
+      "seeded_low_level_return_failure": {"type": "TypeError", "message": "Unable to convert function return value to a Python type! The signature was\n\t(self: _tenseal_cpp.Encryptor) -> seal::Serializable<seal::Ciphertext>"},
+      "seeded_ciphertext_transport_supported_by_tested_python_api": false,
+      "symmetric_encryption_is_not_seeded_serialization": true,
+      "secret_key_never_sent_to_provider": true
+    }
+  },
+  "limitations": [
+    "One local synthetic sample per SIMD batch size and lookup; three random serialization samples per encryption mode. CPU numbers are primitive measurements, not response costs.",
+    "Norm projections apply only to the specified 32-bit dealer-correlated construction, not to every secure-reduction protocol. The inverse and rounded numeric contract remain unimplemented.",
+    "Lookup outputs quantized integer codes only. Public per-token scales, private scale arithmetic, independent role transport and HE representation conversion remain unimplemented.",
+    "Same-client SIMD preserves only the checked independent square. Decoder rotation layouts, private attention/KV and depth refresh remain unimplemented.",
+    "No operator was activated in Experiment, serving, search or benchmark execution."
+  ],
+  "whole_decoder_executable": false,
+  "checkpoint_quality_validated": false,
+  "full_wire_measured": false,
+  "aggregate_compute_cap_validated": false,
+  "reproduce": "uv run --no-sync python scripts/probe_interaction_reductions.py"
+}

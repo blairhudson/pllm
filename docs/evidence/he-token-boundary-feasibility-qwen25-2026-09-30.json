@@ -1,0 +1,117 @@
+{
+  "schema": "pllm.token_boundary_he_feasibility_evidence.v1",
+  "method": "non-executable compiler-bound arithmetic-circuit depth and token-boundary count, with real TenSEAL 0.3.17 public-key contexts and bounded 896-element synthetic ciphertext multiplication; no encrypted Qwen layer is executed",
+  "source": {
+    "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+    "matched_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "precision": "W8A8"
+  },
+  "depth_contract": {
+    "per_layer_optimistic_minimum": 4,
+    "path": "encrypted Q*K attention_scores, then ciphertext attention_probabilities*V; a non-affine polynomial SiLU gate, then ciphertext SiLU(gate)*up. These four products are causally ordered per layer; public linear operations are assumed free for this lower depth estimate.",
+    "not_charged": "two data-dependent RMSNorms, stable masked softmax, approximate SiLU fidelity, real-checkpoint public projections, ciphertext-plaintext rescaling, rotary packing, encrypted persistent KV, ciphertext refresh, full wire, and aggregate CPU or memory",
+    "prefill_or_decode_one_forward_minimum": 96,
+    "across_generated_tokens": "persistent encrypted KV and sequential feedback may require additional refreshes; 96 is not an upper bound on whole-response depth"
+  },
+  "sampled_backend": {
+    "tenseal_version": "0.3.17",
+    "provider_has_secret_key": false,
+    "python_bootstrap_methods": [],
+    "8192_degree_60_40_40_60": {
+      "slots": 4096,
+      "sampled_serial_ciphertext_product_depth": 2,
+      "next_attempt": "scale out of bounds",
+      "public_context_with_rotation_and_relinearization_keys_body_bytes_approx": 35290936,
+      "one_896_value_input_ciphertext_body_bytes_approx": 331141,
+      "depth2_output_ciphertext_body_bytes_approx": 131217
+    },
+    "16384_degree_60_40_40_40_40_60": {
+      "slots": 8192,
+      "sampled_serial_ciphertext_product_depth": 4,
+      "next_attempt": "scale out of bounds",
+      "public_context_with_rotation_and_relinearization_keys_body_bytes_approx": 179497152,
+      "one_896_value_input_ciphertext_body_bytes_approx": 1053211,
+      "depth4_output_ciphertext_body_bytes_approx": 262292
+    },
+    "measurement_caveat": "one run, randomized ciphertext byte lengths and local setup CPU; these are illustrative serialized bodies, not universal cryptographic lower bounds or full decoder measurements"
+  },
+  "cohorts": {
+    "8": {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "layer_provenance_sha256": {
+        "prefill": "18e2df06ec43fa6f09f1c2457b100d62c28a3756637bd9e1ff415c9f84e018bc",
+        "decode": "3b1fc59f8504bdf393ffac512029dae310757c7251f0463bc3c9dfffb6d11bd5"
+      },
+      "idealized_both_direction_ciphertexts": 24,
+      "maximum_average_ciphertext_bytes_for_online_tenfold": 307632,
+      "covered_online_body_tenfold_budget_bytes": 7383174,
+      "covered_all_link_body_tenfold_budget_bytes": 11684396,
+      "optimistic_minimum_serial_product_depth_per_forward": 96,
+      "sampled_contexts": [
+        {
+          "poly_modulus_degree": 8192,
+          "idealized_upload_and_download_ciphertexts_at_sampled_slots": [16, 8],
+          "confirmed_serial_ciphertext_product_depth": 2,
+          "depth_shortfall_even_ignoring_norms_and_softmax": 94,
+          "illustrative_online_boundary_bytes": 6347992,
+          "sampled_boundary_exceeds_online_tenfold_budget": false,
+          "one_client_key_public_eval_context_exceeds_all_link_tenfold_budget": true
+        },
+        {
+          "poly_modulus_degree": 16384,
+          "idealized_upload_and_download_ciphertexts_at_sampled_slots": [12, 8],
+          "confirmed_serial_ciphertext_product_depth": 4,
+          "depth_shortfall_even_ignoring_norms_and_softmax": 92,
+          "illustrative_online_boundary_bytes": 14736868,
+          "sampled_boundary_exceeds_online_tenfold_budget": true,
+          "one_client_key_public_eval_context_exceeds_all_link_tenfold_budget": true
+        }
+      ]
+    },
+    "32": {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "layer_provenance_sha256": {
+        "prefill": "18e2df06ec43fa6f09f1c2457b100d62c28a3756637bd9e1ff415c9f84e018bc",
+        "decode": "c87f3ce8d3f4faba53e9815f4bceda413a0ff9de24510f7aa01551b71a07ce17"
+      },
+      "idealized_both_direction_ciphertexts": 72,
+      "maximum_average_ciphertext_bytes_for_online_tenfold": 157701,
+      "covered_online_body_tenfold_budget_bytes": 11354502,
+      "covered_all_link_body_tenfold_budget_bytes": 17897055,
+      "optimistic_minimum_serial_product_depth_per_forward": 96,
+      "sampled_contexts": [
+        {
+          "poly_modulus_degree": 8192,
+          "idealized_upload_and_download_ciphertexts_at_sampled_slots": [40, 32],
+          "confirmed_serial_ciphertext_product_depth": 2,
+          "depth_shortfall_even_ignoring_norms_and_softmax": 94,
+          "illustrative_online_boundary_bytes": 17444584,
+          "sampled_boundary_exceeds_online_tenfold_budget": true,
+          "one_client_key_public_eval_context_exceeds_all_link_tenfold_budget": true
+        },
+        {
+          "poly_modulus_degree": 16384,
+          "idealized_upload_and_download_ciphertexts_at_sampled_slots": [36, 32],
+          "confirmed_serial_ciphertext_product_depth": 4,
+          "depth_shortfall_even_ignoring_norms_and_softmax": 92,
+          "illustrative_online_boundary_bytes": 46308940,
+          "sampled_boundary_exceeds_online_tenfold_budget": true,
+          "one_client_key_public_eval_context_exceeds_all_link_tenfold_budget": true
+        }
+      ]
+    }
+  },
+  "conclusion": "This TenSEAL/CKKS backend and both sampled parameter sets cannot execute the complete encrypted Qwen decoder without intermediate client decryptions or unsupported bootstrapping. At 39+32, even idealized token-boundary application bodies extrapolated from actual synthetic ciphertext sizes exceed the 10x online budget. These findings veto this backend/packing proposal, not all FHE schemes or revised model/protocol designs.",
+  "whole_layer_executable": false,
+  "numeric_fidelity_validated": false,
+  "full_wire_measured": false,
+  "reproduce": "uv run --no-sync python scripts/probe_he_token_boundary.py --summary"
+}

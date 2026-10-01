@@ -1,0 +1,62 @@
+{
+  "schema": "pllm.selective_subspace_quality_evidence.v1",
+  "sources": [
+    "https://arxiv.org/html/2506.01260v3",
+    "https://arxiv.org/html/2606.22768v1#A4.SS3",
+    "https://arxiv.org/abs/2601.02360"
+  ],
+  "reproduce": [
+    "OPENBLAS_NUM_THREADS=4 VECLIB_MAXIMUM_THREADS=4 uv run --no-sync python scripts/probe_selective_subspace.py",
+    "OPENBLAS_NUM_THREADS=4 VECLIB_MAXIMUM_THREADS=4 uv run --no-sync python scripts/probe_selective_subspace.py --confirmation examples/benchmarks/selective_subspace_confirmation.json"
+  ],
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "weights_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+    "calibration_and_tuning_prompts_sha256": "43507e81f7c4a7766bb8d3f3814c1dc6ba5692666a501aff8b1078af5f5dd8ff",
+    "confirmation_prompts_sha256": "9cfce245f0bf75cd6e4a71265e6ef323d7df682ef4f682a9ad4e746b34fc1fe8",
+    "initial_token_cohort_digest": "32aa107d1e9371cb6b643e0bf214ce22573a4d02a6d8e7e2aad9ef74cb64d880",
+    "confirmation_token_cohort_digest": "657c1505f26f0f5e457d68bac796987191383ab17c90dbd2b03ee15a3d31ffca"
+  },
+  "method": "Public 20-prompt calibration supplies 322 hidden rows per layer. A distinct six-prompt tuning set ranks individual rank-32 layer perturbations by full-vocabulary prefill/decode Jensen-Shannon divergence. Twenty-four local rank-128 bases and shared raw/balanced rank-128 bases are fitted without training. Rank allocations and exact-preserved layers are fixed before each twelve-prompt held-out prefill and one-step decode evaluation. Every candidate still computes the full original Qwen MLP before any projection.",
+  "shared_space_gate": {
+    "pooled_calibration_output_energy_at_rank128": 0.9961136181637128,
+    "equal_layer_weighted_calibration_output_energy_at_rank128": 0.48959356847304614,
+    "layer_0_shared_calibration_energy": 0.2211091836838173,
+    "layer_0_shared_initial_heldout_energy": 0.21494198477561782,
+    "layer_0_local_calibration_energy": 0.9127735319013965,
+    "layer_0_local_initial_heldout_energy": 0.6526183817646583,
+    "interpretation": "The global 99.61% average is dominated by large-norm layers, while the same shared basis retains only 22.11% of layer-0 calibration energy and 21.49% of its held-out energy. Local rank-128 also loses held-out energy relative to calibration. These are squared projection energies, not token-quality scores."
+  },
+  "candidate_profiles": {
+    "uniform64": {"projected_cut_body_bytes": 3776640, "pilot_prefill": 5, "pilot_same_token_decode": 0, "confirmation_prefill": 6, "confirmation_same_token_decode": 2, "confirmation_free_second_token": 0},
+    "sensitivity32_64_96": {"projected_cut_body_bytes": 3776640, "pilot_prefill": 5, "pilot_same_token_decode": 0, "confirmation_prefill": 7, "confirmation_same_token_decode": 1, "confirmation_free_second_token": 0},
+    "reverse32_64_96": {"projected_cut_body_bytes": 3776640, "pilot_prefill": 5, "pilot_same_token_decode": 1, "confirmation_prefill": 5, "confirmation_same_token_decode": 1, "confirmation_free_second_token": 0},
+    "uniform128": {"projected_cut_body_bytes": 7217280, "pilot_prefill": 5, "pilot_same_token_decode": 2, "confirmation_prefill": 8, "confirmation_same_token_decode": 2, "confirmation_free_second_token": 1},
+    "shared128": {"projected_cut_body_bytes": 7217280, "pilot_prefill": 0, "pilot_same_token_decode": 0, "confirmation_prefill": 0, "confirmation_same_token_decode": 0, "confirmation_free_second_token": 0},
+    "balanced_shared128": {"projected_cut_body_bytes": 7217280, "pilot_prefill": 0, "pilot_same_token_decode": 1, "confirmation_prefill": 0, "confirmation_same_token_decode": 0, "confirmation_free_second_token": 0},
+    "full2_top64": {"projected_cut_body_bytes": 7504000, "pilot_prefill": 5, "pilot_same_token_decode": 1, "confirmation_prefill": 7, "confirmation_same_token_decode": 1, "confirmation_free_second_token": 0},
+    "full2_bottom64": {"projected_cut_body_bytes": 7504000, "pilot_prefill": 5, "pilot_same_token_decode": 0, "confirmation_prefill": 8, "confirmation_same_token_decode": 2, "confirmation_free_second_token": 1},
+    "full4_top64": {"projected_cut_body_bytes": 11231360, "pilot_prefill": 5, "pilot_same_token_decode": 1, "confirmation_prefill": 8, "confirmation_same_token_decode": 2, "confirmation_free_second_token": 1},
+    "full4_bottom64": {"projected_cut_body_bytes": 11231360, "pilot_prefill": 6, "pilot_same_token_decode": 1, "confirmation_prefill": 7, "confirmation_same_token_decode": 1, "confirmation_free_second_token": 0}
+  },
+  "comparison": {
+    "heldout_prompts_per_cohort": 12,
+    "two_worker_cut_projection_rows": 70,
+    "cut_frame_bytes": 50,
+    "hypothetical_word_bytes": 8,
+    "pinned_39_plus_32_prepared_covered_all_link_control_bytes": 178970558,
+    "pinned_39_plus_32_prepared_online_body_control_bytes": 113545024,
+    "tenfold_online_body_target_bytes": 11354502,
+    "dependent_cut_round_trips_if_sequential": 1680,
+    "cut_body_scope": "four rank-width framed messages per layer and row across two workers for a hypothetical 39+32-token response; conditional incomplete body estimate, not measured transport or complete response. Quality cohorts have shorter prompts and one decode, so cost and quality are not a matched cohort"
+  },
+  "decision": "No promotion. At equal projected bytes, JS sensitivity allocation changes prefill agreement by at most one prompt but does not improve same-token decode. Keeping two or four most-sensitive layers unprojected is no better than cheaper uniform rank-128 on confirmation. Shared rank-128 fails both held-out cohorts even though aggregate calibration energy appears high. The full original MLP still executes locally, and projected bodies exclude attention, token boundary, offline material, full wire and CPU. None establishes a 10x private inference path or model-quality parity.",
+  "limitations": [
+    "Pilot and confirmation sets are independent of calibration and tuning, but are small public prompts with one-step decode, not representative generation.",
+    "The full nonlinear MLP and original float32 attention/head are executed before every projection. A protected narrow nonlinear region, exact ring conversion and real two-worker schedule do not exist.",
+    "These optimistic 39+32-token byte projections cannot be compared with complete covered-body or full-wire traffic as measured savings; the 12-prompt quality cohorts use shorter inputs and one decode.",
+    "The best four-full-layer cut projection leaves only 123142 bytes below the tenfold online-body target for every omitted channel, operator and protocol body."
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "pllm.ckks_boundary_cost_evidence.v1",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "input_tokens": 39,
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36"
+  },
+  "method": {
+    "inspiration": "BLB (arXiv:2508.19525); independent, isolated PLLM probe, not an implementation of BLB",
+    "backend": "TenSEAL CKKS, poly modulus degree 8192, 4096 slots, coefficient bits 60/40/40/60, scale 2^40",
+    "sample": "one ciphertext of public synthetic values in [-0.5,0.5] with server-side encrypted affine 0.75*x+0.125, decrypted and checked against plaintext",
+    "provider_has_secret_key": false,
+    "public_context_body_bytes_approx": 465000,
+    "smallest_observed_outbound_ciphertext_body_bytes": 235077,
+    "counting": "pack each prefill layer gate over all 39 rows, but each autoregressive decode row separately; use smallest of three observed ciphertext sizes for every chunk, charge only one outbound gate ciphertext per chunk",
+    "full_wire_measured": false,
+    "whole_decoder_executable": false
+  },
+  "cohorts": [
+    {
+      "output_tokens": 8,
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "prefill_gate_ciphertexts": 1128,
+      "decode_gate_ciphertexts": 336,
+      "optimistic_one_way_gate_body_bytes": 344152728,
+      "measured_prepared_online_body_bytes": 73831744,
+      "measured_prepared_covered_all_link_body_bytes": 116843966
+    },
+    {
+      "output_tokens": 32,
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "prefill_gate_ciphertexts": 1128,
+      "decode_gate_ciphertexts": 1488,
+      "optimistic_one_way_gate_body_bytes": 614961432,
+      "measured_prepared_online_body_bytes": 113545024,
+      "measured_prepared_covered_all_link_body_bytes": 178970558
+    }
+  ],
+  "conclusion": "For this sampled CKKS-to-protected-SiLU boundary, gate ciphertext output alone exceeds the matched prepared covered-body control at both lengths. The current prepared schedule already groups Q/K/V and gate/up projections and has no HE/MPC conversions or MPC truncation for BLB to eliminate. These samples do not veto BLB's secure conversion, optimized packing, approximate nonlinear decomposition, or other HE implementations.",
+  "unmeasured": "CKKS/MPC conversion, masking and feedback, attention, two-way traffic, provider compute, real Qwen numeric fidelity, cold keys and complete wire",
+  "reproduction": "uv run --no-sync python scripts/probe_ckks_boundary_cost.py"
+}

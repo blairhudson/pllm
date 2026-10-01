@@ -1,0 +1,77 @@
+{
+  "schema": "pllm.extracted_mlp_affine_quality_evidence.v1",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "weights_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+    "prompts_sha256": "c8fe1457d2082b79602cd7e694b325ec69a986d6d95e9e854b4233a81d8e3d56",
+    "token_cohort_digest": "209bee2b9a89306fe6e63c6b1a14afb232ecd91243572c164f8ee4e1b3994ea4"
+  },
+  "method": "Compare the existing public-mean Taylor expansion with closed-form per-channel 2x2 ridge affine coefficients from the same pinned public calibration. No pretrained gate/up/down weight changes, gradient fitting, or private-prompt data. Fixed ridge ratio is 0.001. Selected original channels retain their original nonlinear arithmetic. No extra online data are needed at a given channel width.",
+  "three_layer_cohort": {
+    "layers": [0, 12, 23],
+    "evaluation_prompts": 12,
+    "results": {
+      "taylor_all_prefill": {
+        "public_rows_per_layer": 322,
+        "width_0": {"prefill_top1": 0, "decode_top1": 0},
+        "width_128": {"prefill_top1": 5, "decode_top1": 9},
+        "width_2048": {"prefill_top1": 11, "decode_top1": 11}
+      },
+      "least_squares_all_prefill": {
+        "public_rows_per_layer": 322,
+        "width_0": {"prefill_top1": 6, "decode_top1": 8},
+        "width_128": {"prefill_top1": 5, "decode_top1": 9},
+        "width_2048": {"prefill_top1": 12, "decode_top1": 11},
+        "width_128_profile_digests": {
+          "0": "cf3c2b76ddd4251287a64dc26cbfdf862be6de6c4bb4975b255bcac5d67a1102",
+          "12": "51c40aea1b0aab977c89f12c4459d9b2e6717ab763e33e46b5931146e9167f9b",
+          "23": "c850d528c8dfa59ed5238fe896012fc8a9dd9da3b56837922a5e00f797877599"
+        }
+      },
+      "least_squares_decision_and_decode": {
+        "public_rows_per_layer": 40,
+        "width_0": {"prefill_top1": 0, "decode_top1": 0},
+        "width_128": {"prefill_top1": 1, "decode_top1": 0},
+        "width_2048": {"prefill_top1": 9, "decode_top1": 7}
+      },
+      "least_squares_all_prefill_and_decode": {
+        "public_rows_per_layer": 342,
+        "width_0": {"prefill_top1": 7, "decode_top1": 7},
+        "width_128": {"prefill_top1": 5, "decode_top1": 9},
+        "width_2048": {"prefill_top1": 12, "decode_top1": 10},
+        "width_128_profile_digests": {
+          "0": "661f451c1c5e1fd65e24490ea1b3e4772b2216ef3eabb1c8e1bff437830af83c",
+          "12": "38f241b8e973d1d521d167f62f93c6b486c450ccbb7e9c46a0ab1e4b99427a53",
+          "23": "65245d40b83c97471890e60b0143ddf1550d5069ef2ab1f6de81b95bf5c6d0f7"
+        }
+      }
+    }
+  },
+  "last_layer_all_prefill": {
+    "layer": 23,
+    "taylor_width_0": {"prefill_top1": 9, "decode_top1": 10},
+    "least_squares_width_0": {"prefill_top1": 12, "decode_top1": 9},
+    "least_squares_width_128": {"prefill_top1": 11, "decode_top1": 8}
+  },
+  "reproduce": [
+    "uv run --no-sync python scripts/probe_mlp_channel_extraction.py --layers 0 12 23 --widths 0 128 2048 4864 --affine-method least_squares --calibration-phase all_prefill",
+    "uv run --no-sync python scripts/probe_mlp_channel_extraction.py --layers 0 12 23 --widths 0 128 2048 4864 --affine-method least_squares --calibration-phase decision_and_decode",
+    "uv run --no-sync python scripts/probe_mlp_channel_extraction.py --layers 0 12 23 --widths 0 128 2048 4864 --affine-method least_squares --calibration-phase all_prefill_and_decode",
+    "uv run --no-sync python scripts/probe_mlp_channel_extraction.py --layers 23 --widths 0 128 4864 --affine-method least_squares --calibration-phase all_prefill"
+  ],
+  "cost_gate": {
+    "tenfold_online_body_limit_bytes": 11354502,
+    "width_128_if_all_layers_cut_body_bytes": 10657920,
+    "width_2048_if_all_layers_cut_body_bytes": 165486720,
+    "one_full_width_layer_cut_body_bytes": 16357040,
+    "additional_online_body_bytes_vs_taylor_at_same_width": 0,
+    "whole_decoder_provider_execution_validated": false
+  },
+  "decision": "An analytic public fit can improve an isolated last-layer prefill without altering original weights, but no checked calibration method improves the three-layer 128-channel 5/12 prefill and 9/12 decode result. Decision-row-only fitting overfits, and a broad cohort plus public decode rows does not recover quality. Do not promote as a 10x whole-model path. Compare novel source-preserving methods only on a fresh held-out cohort rather than selecting from these repeated diagnostics.",
+  "limitations": [
+    "Twelve prompts are a narrow same-token and one-step-feedback diagnostic, not generation quality.",
+    "Profile digests bind public calibration rows and the affine method; no private-prompt calibration is admissible.",
+    "All byte figures are unimplemented two-worker logical cut projections; full wire, attention, head, numeric ring, cold model distribution and matched compute are unmeasured."
+  ]
+}

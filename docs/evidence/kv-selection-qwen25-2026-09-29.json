@@ -1,0 +1,55 @@
+{
+  "schema": "pllm.kv_selection_quality_evidence.v1",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "model_reference": "upstream Qwen2 float32 eager attention",
+    "primary_input_tokens": [175, 175, 175],
+    "confirmation_input_tokens": [173, 173, 176],
+    "output_tokens": 8,
+    "selection": "greedy",
+    "prompts": "six public synthetic chat prompts defined in scripts/probe_kv_selection.py; two disjoint sets of three"
+  },
+  "method": {
+    "inspiration": "MPCache (arXiv:2501.06807); independent deterministic static selection oracle, not its private dynamic gather",
+    "oracle": "unmodified full prefill and full allocated KV cache; in every following decode attention head use fixed first/spaced and recent positions, preserving absolute RoPE positions",
+    "matching": "same-token selected-logit and free-generation token agreement versus independent unfiltered same-checkpoint output",
+    "attention_calls_per_candidate_per_cohort": 504,
+    "runtime_state_evicted": false,
+    "transformed_plan_executable": false,
+    "network_measured": false
+  },
+  "primary": {
+    "plan_digest": "516d8673e994bb0c223510ec242bee02a8128bef86a81266294238ad007c2618",
+    "schedule_digest": "c080b527d389f8763e582bd10837cc11514c1ddd8536241b57957c552ca21cb6",
+    "transformed_plan_digest": "e099a1dd2af17d1c9c7ac72c9e38149e46d5d2a8f850afd8b46586744c2ef4ae",
+    "reference_decode_attention_width": 182,
+    "structural_transform_decode_attention_width": 16,
+    "candidate_scores": {
+      "recent8_spaced8": {"same_token_top1_matches": 24, "free_generation_token_matches": 24, "checked": 24, "attention_position_fraction": 0.0893854748603352},
+      "recent32_spaced32": {"same_token_top1_matches": 22, "free_generation_token_matches": 10, "checked": 24, "attention_position_fraction": 0.3575418994413408},
+      "recent64_spaced64": {"same_token_top1_matches": 23, "free_generation_token_matches": 17, "checked": 24, "attention_position_fraction": 0.7150837988826816}
+    }
+  },
+  "confirmation": {
+    "plan_digest": "f0ae0aa7fedfd9b198105cc5fcbd25381c85018826ed7029dad81e26d6c48e53",
+    "schedule_digest": "8ca54a0bd0a49d3b7a113c5a7e6edcaa3768153ae5e2dc03f84259063fbd4925",
+    "transformed_plan_digest": "df1cb9db279b63d0131b77fe22207807cf93bcc379847e9952cdd7b71d5be2f2",
+    "candidate_scores": {
+      "recent8_spaced8": {"same_token_top1_matches": 17, "free_generation_token_matches": 18, "checked": 24},
+      "recent32_spaced32": {"same_token_top1_matches": 21, "free_generation_token_matches": 20, "checked": 24},
+      "recent64_spaced64": {"same_token_top1_matches": 22, "free_generation_token_matches": 22, "checked": 24}
+    }
+  },
+  "network_gate": {
+    "remote_linear_stage_shapes_identical_before_and_after_structural_kv_transform": true,
+    "prepared_online_stage_body_savings_from_kv_selection_bytes": 0,
+    "why": "Current compiled prepared path evaluates attention and KV on the client; the transform changes attention-width and protected-state requirements, not remotely exchanged linear tensor widths. The transformed schedule is rejected, so 0 is a conditional stage-body projection, not a measured request.",
+    "related_distinct_control": "175+1-token prefix-reuse comparison at docs/evidence/client-prefix-reuse-qwen25-2026-09-28.json measured 279291648 warm online body bytes without reuse; not a 175+8 KV-selection benchmark"
+  },
+  "conclusion": "Six public prompts show selection fidelity depends on input cohort and policy; 16 retained positions' 24/24 primary agreement falls to 17/24 same-token and 18/24 free-generation agreement on confirmation. No protected dynamic selection, all-link byte savings, or whole-decoder execution is established.",
+  "reproduction": [
+    "OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 uv run --no-sync python scripts/probe_kv_selection.py",
+    "OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 uv run --no-sync python scripts/probe_kv_selection.py --confirmation"
+  ]
+}

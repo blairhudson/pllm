@@ -1,0 +1,22 @@
+{
+  "schema": "pllm.socket_meter_admission_gate.v1",
+  "status": "rejected; no nettop meter is selectable in the benchmark",
+  "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "cohort": "one co-located prepared W8A8 39+32 response with request-sized inventory and a fresh client-bundle cache",
+  "method": "macOS nettop -L 1 -t loopback -P -x -J bytes_in,bytes_out per role PID immediately before and after the response; non-loopback checkpoint distribution excluded",
+  "reconciled_protocol_body_counters": {
+    "covered_online_all_link_bytes": 113545024,
+    "covered_cold_all_link_bytes": 324947564,
+    "stage_bodies_reconciled": true
+  },
+  "nettop_process_loopback_counter_deltas": {
+    "summed_role_sent_bytes": 70434226,
+    "summed_role_received_bytes": 70434226,
+    "client_sent_bytes": 2007233,
+    "inference_sent_bytes": 1984928,
+    "preparation_sent_bytes": 66442065
+  },
+  "veto": "the nettop sent-byte delta is 43,110,798 bytes smaller than covered online protocol bodies alone; even the audited online minimum is not captured, so process snapshots cannot stand in for per-response traffic or complete full wire. Short-lived sockets may disappear from nettop summaries before the after-sample.",
+  "consequence": "removed the opt-in meter and retained full_wire_bytes as unknown; packet-level or equivalently reconciled per-connection capture is needed for full-wire admission"
+}

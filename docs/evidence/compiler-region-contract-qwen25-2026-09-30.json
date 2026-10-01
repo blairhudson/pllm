@@ -1,0 +1,112 @@
+{
+  "schema": "pllm.compiler_region_contract_cost_evidence.v1",
+  "method": "non-executable optimistic serialized arithmetic-body lower bounds from a model-neutral compiled W8A8 semantic schedule and two independent hidden-source dependencies",
+  "source": {
+    "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36"
+  },
+  "placements": {
+    "client_attention_remote_mlp": "separate 24-bit client→each-worker MLP input shares and separate 32-bit each-worker→client complete MLP output shares for all 24 layers",
+    "resident_24": "each worker sends one 24-bit masked opening to the other for each independent attention-query and post-attention MLP source; client sends each worker a 24-bit token embedding share and receives a 32-bit final hidden share",
+    "resident_12": "identical resident topology with hypothetical packed 12-bit hidden-source peer openings, retaining 24-bit client token ingress and 32-bit final-hidden egress; exact shared lifting/rescaling is unimplemented"
+  },
+  "cohorts": [
+    {
+      "input_tokens": 39,
+      "output_tokens": 8,
+      "executed_rows": 46,
+      "semantic_layers": 24,
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "layer_provenance_sha256": "36b42012717f964fc53e172e2c17350d6bb5d33d85a93de9e20b100b355d8b95",
+      "matched_prepared": {
+        "covered_all_link_body_bytes": 116843966,
+        "covered_online_body_bytes": 73831744,
+        "tenfold_all_link_budget_bytes": 11684396,
+        "tenfold_online_budget_bytes": 7383174
+      },
+      "client_attention_remote_mlp": {
+        "known_online_body_floor_bytes": 13848576,
+        "client_to_worker_a_body_bytes": 2967552,
+        "client_to_worker_b_body_bytes": 2967552,
+        "worker_a_to_client_body_bytes": 3956736,
+        "worker_b_to_client_body_bytes": 3956736,
+        "additional_client_i8_weight_and_f32_scale_bytes_once_per_model": 44236800,
+        "provider_mlp_i8_weight_and_f32_scale_bytes_per_worker_once_per_model": 314806272,
+        "client_attention_projection_integer_macs": 2025848832,
+        "remote_mlp_projection_integer_macs_per_worker": 14434172928,
+        "client_output_head_integer_macs": 1089077248,
+        "remote_fraction_of_tracked_body_projection_macs": 0.8769230769230769,
+        "current_quadratic_numerator_two_party_dealer_comparator_bytes": 172965888,
+        "vetoed_on_known_online_and_all_link_floor": true
+      },
+      "two_worker_resident": {
+        "24_bit_known_online_body_floor_bytes": 12174848,
+        "24_bit_known_floor_exceeds_both_budgets": true,
+        "12_bit_known_online_body_floor_bytes": 6239744,
+        "12_bit_peer_opening_body_bytes": 5935104,
+        "token_boundary_body_bytes": 304640,
+        "12_bit_remaining_online_budget_bytes": 1143430,
+        "12_bit_remaining_all_link_budget_bytes": 5444652,
+        "remote_body_projection_integer_macs_per_worker": 16460021760,
+        "12_bit_byte_admitted": false
+      }
+    },
+    {
+      "input_tokens": 39,
+      "output_tokens": 32,
+      "executed_rows": 70,
+      "semantic_layers": 24,
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "layer_provenance_sha256": "aefc3af6c4f61f270c0eabdd020f739780772f31b1335e1c95e064593b6919f1",
+      "matched_prepared": {
+        "covered_all_link_body_bytes": 178970558,
+        "covered_online_body_bytes": 113545024,
+        "tenfold_all_link_budget_bytes": 17897055,
+        "tenfold_online_budget_bytes": 11354502
+      },
+      "client_attention_remote_mlp": {
+        "known_online_body_floor_bytes": 21073920,
+        "client_to_worker_a_body_bytes": 4515840,
+        "client_to_worker_b_body_bytes": 4515840,
+        "worker_a_to_client_body_bytes": 6021120,
+        "worker_b_to_client_body_bytes": 6021120,
+        "additional_client_i8_weight_and_f32_scale_bytes_once_per_model": 44236800,
+        "provider_mlp_i8_weight_and_f32_scale_bytes_per_worker_once_per_model": 314806272,
+        "client_attention_projection_integer_macs": 3082813440,
+        "remote_mlp_projection_integer_macs_per_worker": 21965045760,
+        "client_output_head_integer_macs": 4356308992,
+        "remote_fraction_of_tracked_body_projection_macs": 0.8769230769230769,
+        "current_quadratic_numerator_two_party_dealer_comparator_bytes": 263208960,
+        "vetoed_on_known_online_and_all_link_floor": true
+      },
+      "two_worker_resident": {
+        "24_bit_known_online_body_floor_bytes": 18669056,
+        "24_bit_known_floor_exceeds_both_budgets": true,
+        "12_bit_known_online_body_floor_bytes": 9637376,
+        "12_bit_peer_opening_body_bytes": 9031680,
+        "token_boundary_body_bytes": 605696,
+        "12_bit_remaining_online_budget_bytes": 1717126,
+        "12_bit_remaining_all_link_budget_bytes": 8259679,
+        "remote_body_projection_integer_macs_per_worker": 25047859200,
+        "12_bit_byte_admitted": false
+      }
+    }
+  ],
+  "required_unpriced_work": [
+    "Both placements need independent one-use dealer distributions, authenticated peer nonlinear work and protected exact scale transitions; no jointly generated correlation is specified or measured.",
+    "Resident layers also need protected attention scores/softmax, normalization, private KV and share-state maintenance. Its 12-bit source openings lack a Qwen-valid exact share-lift and rounding contract.",
+    "Actual client attention/norm/KV CPU, 44.24 MB extra cold attention snapshot delivery, source checkpoint distribution to both workers, framing, full wire, disk and peak memory remain unmeasured.",
+    "Output head remains at the trusted client, and token selection/feedback occurs once per generated token. No private full-vocabulary argmax or deferred selection is assumed.",
+    "The tracked 87.69% remote body-projection MAC fraction in the client-attention placement excludes local head, norms, attention arithmetic, memory, and runtime CPU; it is not an aggregate compute ranking."
+  ],
+  "12_bit_share_lift_numeric_check": "For signed-i8 x shared as a+b mod 4096, embedding each share directly in mod 2^32 produces a+b=x+4096k with k in {0,1,2}. Exhaustive 4096-share checks for x=-127,-1,0,1,127 verify correction and show k=0 excludes negative x while k=2 excludes positive x; revealing k is not privacy-compatible. No secure carry/rounding protocol or cost exists.",
+  "whole_layer_executable": false,
+  "whole_response_byte_admitted": false,
+  "reproduce": [
+    "uv run --no-sync python scripts/probe_region_contract_cost.py --max-output-tokens 8 --summary",
+    "uv run --no-sync python scripts/probe_region_contract_cost.py --max-output-tokens 32 --summary"
+  ]
+}

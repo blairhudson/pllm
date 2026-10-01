@@ -1,0 +1,60 @@
+{
+  "schema": "pllm.prepared_compiled_stage_body_gate.v1",
+  "status": "measured, compiler-bound application-body attribution; no full-wire claim",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "prompt_tokens": 39
+  },
+  "cohort": "one warm measured response after one warmup, request-sized offline inventory, 96 semantic remote stages, 24 layers; identical experiment, checkpoint and public prompt",
+  "cohorts": {
+    "8": {
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "covered_all_link_body_bytes": 116843966,
+      "covered_online_body_bytes": 73831744,
+      "attributed_stage_body_bytes": 116841152,
+      "other_setup_control_and_bundle_body_bytes": 2814,
+      "stage_body_bytes_by_semantic_role": {
+        "attention_output": 9037736,
+        "qkv_projection": 10734248,
+        "mlp_gate_up": 67540904,
+        "mlp_down": 29528264
+      },
+      "optimistic_remaining_if_all_mlp_stages_free_bytes": 19774798,
+      "tenfold_all_link_budget_bytes": 11684396,
+      "hundredfold_all_link_budget_bytes": 1168439,
+      "stage_protocol_edges_reconciled": true
+    },
+    "32": {
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "covered_all_link_body_bytes": 178970558,
+      "covered_online_body_bytes": 113545024,
+      "attributed_stage_body_bytes": 178967744,
+      "other_setup_control_and_bundle_body_bytes": 2814,
+      "stage_body_bytes_by_semantic_role": {
+        "attention_output": 14043848,
+        "qkv_projection": 16627400,
+        "mlp_gate_up": 103070408,
+        "mlp_down": 45226088
+      },
+      "optimistic_remaining_if_all_mlp_stages_free_bytes": 30674062,
+      "tenfold_all_link_budget_bytes": 17897055,
+      "hundredfold_all_link_budget_bytes": 1789705,
+      "stage_protocol_edges_reconciled": true
+    }
+  },
+  "limits": [
+    "The stage ledger counts client/preparation/inference serialized application bodies once and matches all five relevant audit counters. It excludes unrelated bundle, authorization and control traffic from semantic-stage rows.",
+    "Zeroing all MLP bodies is a counterfactual optimistic subtraction, not an executable privacy-preserving method; it leaves more bytes than the tenfold all-link budget in both cohorts.",
+    "Neither full HTTP/TLS/WebSocket wire costs, cold checkpoint/model distribution, energy, independent provider operation nor whole-response generation quality are established. This one warm response does not sample representative performance."
+  ],
+  "reproduction": [
+    "uv run --no-sync python scripts/probe_prepared_stage_bytes.py --max-output-tokens 8",
+    "uv run --no-sync python scripts/probe_prepared_stage_bytes.py --max-output-tokens 32"
+  ]
+}

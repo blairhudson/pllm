@@ -1,0 +1,117 @@
+{
+  "schema": "pllm.conditional_execution_research_evidence.v1",
+  "date": "2026-10-01",
+  "scope": "Non-selectable clear-kernel numeric/verification diagnostics and explicit arithmetic projections. No protected runtime, deployed privacy, full-wire, peak-memory or latency-ranking claim.",
+  "environment": {
+    "python": "3.13.15",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "numpy": "2.5.3",
+    "torch": "2.14.0",
+    "transformers": "5.16.1",
+    "pllm.run": "0.1.0a2",
+    "measurement_note": "Independent screens ran concurrently; CPU samples are process-local diagnostics, not matched wall-time/compute-cap measurements."
+  },
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "baseline_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "plan_digest_39_32": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+    "schedule_digest_39_32": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "binding_digest": "21950dd489163d6e8429275e95f780294b5d650584a1a30fea0f89d202abb720"
+  },
+  "mixed_precision": {
+    "script": "scripts/probe_wire_precision.py",
+    "public_cohort": "examples/benchmarks/wire_precision_prompts.json",
+    "public_cohort_digest": "23298b3aedfc4388ac0a6f1d143d37258dd78353e8bdff366ca72519153d4266",
+    "token_cohort_digest": "ba452e7556f487b155f7226a4575b26b2890e0cfaaa7e173c5490899970bbd82",
+    "candidate_selection": "Highest sum of weight/activation precision crossing a real wire threshold per semantic role; sparse MLP-down placements added before held-out scoring. Highest projected saving among candidates matching all tuning decisions.",
+    "tuning_samples": 4,
+    "tuning": {
+      "attention_output_W4A4": {"prefill_matches": 2, "decode_matches": 4, "worst_logit_error": 6.628134727478027},
+      "mlp_down_W8A6": {"prefill_matches": 3, "decode_matches": 4, "worst_logit_error": 5.37272834777832},
+      "mlp_down_every4_W8A6": {"prefill_matches": 2, "decode_matches": 4, "worst_logit_error": 3.9006357192993164},
+      "mlp_down_last1_W8A6": {"prefill_matches": 3, "decode_matches": 4, "worst_logit_error": 3.8026928901672363},
+      "mlp_down_last4_W8A6": {"prefill_matches": 4, "decode_matches": 4, "worst_logit_error": 4.165502071380615},
+      "mlp_gate_up_W4A4": {"prefill_matches": 0, "decode_matches": 0, "worst_logit_error": 21.74441909790039},
+      "qkv_projection_W4A4": {"prefill_matches": 0, "decode_matches": 4, "worst_logit_error": 17.926319122314453}
+    },
+    "selected_override": {"role": "mlp_down", "layers": [20, 21, 22, 23], "weight_bits": 8, "activation_bits": 6, "saved_bytes": 1863680},
+    "override_digest": "5cd944b329c7a32dd6527fbda7cc0ff44899505a784995f4eb1db80f9cb4578b",
+    "heldout": {"samples": 6, "prefill_matches": 3, "same_token_decode_matches": 4, "worst_logit_error": 5.653471946716309},
+    "confirmation": {"samples": 6, "prefill_matches": 6, "same_token_decode_matches": 6, "worst_logit_error": 4.780440330505371},
+    "matched_requests": {
+      "39+8": {
+        "baseline_online_arithmetic_bytes": 73340928,
+        "mixed_online_arithmetic_bytes": 72281088,
+        "baseline_correction_arithmetic_bytes": 42958848,
+        "mixed_correction_arithmetic_bytes": 42793984,
+        "body_integer_macs_each": 16460021760,
+        "free_generation_matches": 8,
+        "outputs": 8,
+        "trajectory_logit_error": 4.794679641723633,
+        "baseline_output_digest": "8ee6f35bfee37094e7d80784ed6b3b49b3ddde1996e976378d7eb6b38441ec42",
+        "mixed_output_digest": "8ee6f35bfee37094e7d80784ed6b3b49b3ddde1996e976378d7eb6b38441ec42"
+      },
+      "39+32": {
+        "baseline_online_arithmetic_bytes": 111605760,
+        "mixed_online_arithmetic_bytes": 109992960,
+        "baseline_correction_arithmetic_bytes": 65372160,
+        "mixed_correction_arithmetic_bytes": 65121280,
+        "body_integer_macs_each": 25047859200,
+        "free_generation_matches": 8,
+        "outputs": 32,
+        "trajectory_logit_error": 25.117630004882812,
+        "baseline_output_digest": "f8d0fb46b8cf12eebb80efef3e841cf86d2582b93be37cd3601bba2d377a02d0",
+        "mixed_output_digest": "1c0f0a80d48602f88917fc4421abc1722c125ef44bee9848d6576d058f361939"
+      }
+    },
+    "cost_scope": "Arithmetic inputs, outputs and one correction per consumed row; no tickets, protocol framing, distribution or unused inventory. These are smaller than historical accounted application bodies and cannot replace those totals.",
+    "decision": "Reject tested tuning-selected override: held-out and 32-token parity fail; 1863680-byte arithmetic saving is only about 1.05% of baseline arithmetic bodies. No live mixed-precision component."
+  },
+  "speculation": {
+    "script": "scripts/probe_greedy_speculation.py",
+    "draft": "HuggingFaceTB/SmolLM2-135M-Instruct@12fd25f77366fa6b3b4b768ec3050bf629380bac",
+    "draft_checkpoint_digest": "e5d0ae683eb686300e078014697676a55c2827c245338eafc091253cd82f2076",
+    "draft_source_lock_digest": "98969b59dd7f10d874dd2b2b9fdcf8ffd9ddd6137c225a5ee1f0e9a7a76c7e5e",
+    "sampling": "Greedy fixed cap, no EOS early stop; draft text retokenized to target vocabulary. No sampling-distribution claim.",
+    "controller": "Exact sequential verification and KV rollback; rejected evaluations remain charged. Current compiled decode has one query row. No protected inventory/transport or round-batching implementation.",
+    "requests": {
+      "39+8_width2": {"draft_offered": 7, "draft_accepted": 4, "rejected_rows": 3, "target_decode_rows": 10, "baseline_decode_rows": 7, "verification_windows": 4, "retained_position": 46, "greedy_parity": true, "online_arithmetic_bytes": 78124032, "correction_arithmetic_bytes": 45760512, "integer_macs": 17533501440, "stage_calls": 1056, "stage_rows": 4704, "draft_cpu_seconds": 0.8280020000000015, "aggregate_local_cpu_seconds": 5.220915999999999},
+      "39+8_width4": {"draft_offered": 12, "draft_accepted": 4, "rejected_rows": 8, "target_decode_rows": 15, "baseline_decode_rows": 7, "verification_windows": 4, "retained_position": 46, "greedy_parity": true, "online_arithmetic_bytes": 86095872, "correction_arithmetic_bytes": 50429952, "integer_macs": 19322634240, "stage_calls": 1536, "stage_rows": 5184, "draft_cpu_seconds": 0.8221130000000016, "aggregate_local_cpu_seconds": 5.958114000000002},
+      "39+32_width2": {"draft_offered": 29, "draft_accepted": 17, "rejected_rows": 12, "target_decode_rows": 43, "baseline_decode_rows": 31, "verification_windows": 15, "retained_position": 70, "greedy_parity": true, "online_arithmetic_bytes": 130738176, "correction_arithmetic_bytes": 76578816, "integer_macs": 29341777920, "stage_calls": 4224, "stage_rows": 7872, "draft_cpu_seconds": 4.122736999999994, "aggregate_local_cpu_seconds": 13.152989000000005},
+      "39+32_width4": {"draft_offered": 54, "draft_accepted": 18, "rejected_rows": 36, "target_decode_rows": 67, "baseline_decode_rows": 31, "verification_windows": 14, "retained_position": 70, "greedy_parity": true, "online_arithmetic_bytes": 169003008, "correction_arithmetic_bytes": 98992128, "integer_macs": 37929615360, "stage_calls": 6528, "stage_rows": 10176, "draft_cpu_seconds": 3.6229720000000043, "aggregate_local_cpu_seconds": 15.661900999999993}
+    },
+    "decision": "Tested draft pairing raises 39+32 target row/body work by 17.14%/51.43%. Controller is correct, but one-row schedule cannot realize latency batching; not a fresh-prompt byte reduction."
+  },
+  "certification": {
+    "script": "scripts/probe_decision_refinement.py",
+    "scope": "Already-exact body/KV, correlated unresolved quantized head features bounded by [-127,127]. Pairwise public coefficient differences plus conservative float32 rounding bounds. No omitted-body or approximate-KV certificate.",
+    "public_cohort_digest": "23298b3aedfc4388ac0a6f1d143d37258dd78353e8bdff366ca72519153d4266",
+    "token_cohort_digest": "824893f0fc00127a155883f6bb7629b4ad77ee7a12e7c7dc0647a7ac06a44377",
+    "samples": 12,
+    "head_width": 896,
+    "block_features": 128,
+    "certified_before_full_head": 0,
+    "resolved_features": [896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896, 896],
+    "rounded_target_parity": true,
+    "provider_bytes_avoided": 0,
+    "body_work_avoided": 0,
+    "tests": "Exhaustive bounded completions, ties, subnormals and invalid scales; complete tiny compiled prefill/decode retains exact body/KV. Correlated synthetic shared-tail case certifies early.",
+    "decision": "Public-domain correlated head bound gives no early certificate on checked Qwen heads. Stop this bound before complete protected refinement integration; does not rule out tighter trajectory-aware certificates."
+  },
+  "three_party": {
+    "script": "scripts/probe_three_party_cost.py",
+    "protocol_source": "https://eprint.iacr.org/2018/403",
+    "privacy": "Three noncolluding operators, at most one semi-honest corruption; replicated party holds two adjacent shares. Algebra oracle uses test-local randomness, not secure distributed material.",
+    "scope": "32-bit replicated arithmetic layouts; public linear MAC counts and one-word-per-party gated multiplication bodies. Neither full Qwen numeric execution nor measured CPU/wire.",
+    "cohorts": {
+      "39+8": {"executed_rows": 46, "two_offset_linear_macs": 32920043520, "ordinary_replicated_linear_macs": 98760130560, "unique_compute_then_reshare_linear_macs": 49380065280, "unique_compute_linear_peer_bytes": 167878656, "gated_product_peer_bytes": 64438272, "online_target_bytes": 7383174},
+      "39+32": {"executed_rows": 70, "two_offset_linear_macs": 50095718400, "ordinary_replicated_linear_macs": 150287155200, "unique_compute_then_reshare_linear_macs": 75143577600, "unique_compute_linear_peer_bytes": 255467520, "gated_product_peer_bytes": 98058240, "online_target_bytes": 11354502}
+    },
+    "unpriced": ["fresh zero-sharing generation", "private quantization", "exact truncation", "softmax", "SiLU", "state lifecycle", "framing", "operator independence"],
+    "decision": "Specified layouts miss online target before omitted operations; six-copy public linear work is 3x offset, three-copy reshare is 1.5x plus peer traffic. Not an impossibility result for all three-party protocols."
+  }
+}

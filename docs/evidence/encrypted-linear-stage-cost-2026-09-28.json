@@ -1,0 +1,14 @@
+{
+  "schema": "pllm.encrypted_linear_cost_probe.v1",
+  "scope": "isolated exact public-weight 32-input by 64-output tiled BFV stage; not encrypted whole-layer or decoder execution",
+  "source": "EncryptedLinearCostProbe(32, 64, rows).run() for rows in (1, 8, 32)",
+  "reproduction": "uv run --no-sync pytest -q tests/test_network_cost_probes.py -m he",
+  "backend": "SEAL/TenSEAL tiled BFV with 65537 plaintext modulus",
+  "measured_application_bodies": [
+    {"rows": 1, "public_context_bytes": 4336111, "client_to_provider_bytes": 432541, "provider_to_client_bytes": 432542, "online_all_link_bytes": 865083},
+    {"rows": 8, "public_context_bytes": 4335328, "client_to_provider_bytes": 865188, "provider_to_client_bytes": 864979, "online_all_link_bytes": 1730167},
+    {"rows": 32, "public_context_bytes": 4336019, "client_to_provider_bytes": 3460918, "provider_to_client_bytes": 3460476, "online_all_link_bytes": 6921394}
+  ],
+  "exact_modular_parity": true,
+  "notes": "Ciphertext sizes vary across runs because encryption and serialization use fresh randomness. Key setup, context distribution and client/provider CPU are measured by the probe per run; these retained counts isolate application-body bytes. No plaintext prompt or input values are retained. Full wire, private KV, nonlinearities, and whole-model costs remain unmeasured."
+}

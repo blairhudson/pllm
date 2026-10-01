@@ -1,0 +1,122 @@
+{
+  "schema": "pllm.pretrained_bottleneck_screen.v1",
+  "status": "six source-validated semantic schedules, one real-checkpoint prepared response and reference-quality control, and independent float32 held-out rank cuts; no protected composition admitted",
+  "comparison": {
+    "execution_shape": "39 input tokens plus 32 selected tokens, 70 executed decoder rows",
+    "pinned_qwen25_w8a8_covered_all_link_control_body_bytes": 178970558,
+    "tenfold_cross_model_aspiration_bytes": 17897055,
+    "hundredfold_cross_model_aspiration_bytes": 1789705,
+    "protocol_projection": "Existing prepared stage shape with one optimistically u16 input, u16 output and u16 offline correction per remote stage row, with zero frame/control overhead; not a lower bound for new cryptographic protocols or a measured response on another model.",
+    "opening_projection": "Two independent four-byte hidden-state source openings per layer row; excludes arithmetic, keys, rescaling, token selection and full wire. These bytes alone cannot establish a safe protocol.",
+    "remote_fraction_scope": "Only counted remote transformer-body linear MACs versus the client output head; excludes attention, norms, source transfer, GPU and client setup."
+  },
+  "semantic_candidates": {
+    "Qwen/Qwen2.5-0.5B-Instruct": {
+      "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+      "hidden_width": 896, "layers": 24, "remote_stages": 96,
+      "optimistic_u16_stage_body_bytes": 110530560,
+      "optimistic_two_source_opening_bytes": 12042240,
+      "i8_remote_weight_bytes_excluding_scales": 357826560,
+      "tracked_remote_linear_macs": 25047859200,
+      "tracked_local_head_macs": 4356308992
+    },
+    "HuggingFaceTB/SmolLM2-135M-Instruct": {
+      "revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+      "config_sha256": "8eb740e8bbe4cff95ea7b4588d17a2432deb16e8075bc5828ff7ba9be94d982a",
+      "weight_sha256": "5af571cbf074e6d21a03528d2330792e532ca608f24ac70a143f6b369968ab8c",
+      "semantic_plan_digest": "0ece04092c8265d1a3386e51a1e6cd1dfe44aa1323da69447bddf15a29fdef13",
+      "schedule_digest": "d197d6a4eaf2f8077b3bdb66120f273d017932f6a528058a236f75a94be23214",
+      "hidden_width": 576, "layers": 30, "remote_stages": 120,
+      "optimistic_u16_stage_body_bytes": 57254400,
+      "optimistic_two_source_opening_bytes": 9676800,
+      "i8_remote_weight_bytes_excluding_scales": 106168320,
+      "tracked_remote_linear_macs": 7431782400,
+      "tracked_local_head_macs": 905969664
+    },
+    "Qwen/Qwen3-0.6B": {
+      "config_sha256": "cfbd7059ee9d6c98b5c742823bd9d375f5b516f7948a09b95e741cfcc81b645b",
+      "hidden_width": 1024, "layers": 28, "remote_stages": 112,
+      "optimistic_u16_stage_body_bytes": 124436480,
+      "optimistic_two_source_opening_bytes": 16056320,
+      "i8_remote_weight_bytes_excluding_scales": 440401920,
+      "tracked_remote_linear_macs": 30828134400,
+      "tracked_local_head_macs": 4978638848
+    },
+    "Qwen/Qwen3.5-4B": {
+      "config_sha256": "4d02c8384ab8bd5f38244ee3fb5c227e38ac23ba466faa369bd8080af0f9df45",
+      "hidden_width": 2560, "layers": 32, "remote_stages": 128,
+      "optimistic_u16_stage_body_bytes": 399544320,
+      "optimistic_two_source_opening_bytes": 45875200,
+      "i8_remote_weight_bytes_excluding_scales": 3569090560,
+      "tracked_remote_linear_macs": 249836339200,
+      "tracked_local_head_macs": 20342374400
+    },
+    "google/gemma-4-E2B-it": {
+      "config_sha256": "1b28f3d2c3100f6c594754b81107428bd7b822a7f48272ca681dae9d2ec38330",
+      "hidden_width": 1536, "layers": 35, "remote_stages": 211,
+      "optimistic_u16_stage_body_bytes": 349475840,
+      "optimistic_two_source_opening_bytes": 30105600,
+      "i8_remote_weight_bytes_excluding_scales": 1876819968,
+      "tracked_remote_linear_macs": 131377397760,
+      "tracked_local_head_macs": 12884901888
+    },
+    "microsoft/Phi-4-mini-instruct": {
+      "config_sha256": "ac65d86061d3d0d704ee2511fd0eb8713ef19eb6eedba17c3080a4165d5b933b",
+      "hidden_width": 3072, "layers": 32, "remote_stages": 128,
+      "optimistic_u16_stage_body_bytes": 325713920,
+      "optimistic_two_source_opening_bytes": 55050240,
+      "i8_remote_weight_bytes_excluding_scales": 3221225472,
+      "tracked_remote_linear_macs": 225485783040,
+      "tracked_local_head_macs": 19667091456
+    }
+  },
+  "smollm_prepared_candidate_control": {
+    "experiment": "W8A8 baseline MaskedLinearCpu, two distinct co-located role child processes, one warmup and one measured 39+32 response, request-sized inventory",
+    "body_fingerprint": "9adb95b8cda428d8c6ff6367020fc5f365651bf50dcb7e712219886ecadc5469",
+    "input_tokens": 39,
+    "output_tokens": 32,
+    "remote_stages": 120,
+    "covered_all_link_body_bytes": 88403826,
+    "covered_online_body_bytes": 55676860,
+    "compiler_stage_body_bytes_reconciled": 88400360,
+    "one_warmup_client_bundle_delivery_body_bytes": 31675483,
+    "one_warmup_client_bundle_cache": "newly initialized isolated client cache; not an end-to-end cold model-distribution cohort",
+    "reference_quality": {
+      "scope": "local compiled clear W8A8 prefill next-token logits versus same-token frozen float32 reference; not generation quality",
+      "source_lock_digest": "98969b59dd7f10d874dd2b2b9fdcf8ffd9ddd6137c225a5ee1f0e9a7a76c7e5e",
+      "dataset_digest": "8a155f56542860ad8545f880425eced9f53c33fcb7ff5d019a0bac7b0279f932",
+      "token_cohort_digest": "75de58dbd4c48ee6f0bc5077bc1e5abf370e01fcdd53be59e6cca636c3d3214a",
+      "top1_matches": 11,
+      "prompts": 12,
+      "top5_recall": 0.9,
+      "worst_absolute_logit_error": 3.873399496078491
+    }
+  },
+  "smollm_frozen_output_rank_oracle": {
+    "public_calibration_and_tuning_sha256": "43507e81f7c4a7766bb8d3f3814c1dc6ba5692666a501aff8b1078af5f5dd8ff",
+    "disjoint_confirmation_sha256": "9cfce245f0bf75cd6e4a71265e6ef323d7df682ef4f682a9ad4e746b34fc1fe8",
+    "cohorts": "20 public calibration, six separate tuning prompts left unused, 12 held-out prompts, 12 disjoint confirmation prompts; input-token counts range 7-35, not the 39-token cost cohort",
+    "precision": "frozen float32 pretrained checkpoint; no fine-tuning or distillation",
+    "observations": {
+      "all_30_layers_rank16": {"heldout_prefill": 1, "heldout_same_token_decode": 1, "confirmation_prefill": 2, "confirmation_same_token_decode": 1, "projected_cut_bodies_39_plus_32_bytes": 1495200},
+      "all_30_layers_rank32": {"heldout_prefill": 0, "heldout_same_token_decode": 0, "confirmation_prefill": 3, "confirmation_same_token_decode": 2, "projected_cut_bodies_39_plus_32_bytes": 2570400},
+      "all_30_layers_rank64": {"heldout_prefill": 5, "heldout_same_token_decode": 1, "confirmation_prefill": 4, "confirmation_same_token_decode": 2, "projected_cut_bodies_39_plus_32_bytes": 4720800},
+      "all_30_layers_rank128": {"heldout_prefill": 4, "heldout_same_token_decode": 3, "confirmation_prefill": 6, "confirmation_same_token_decode": 3, "projected_cut_bodies_39_plus_32_bytes": 9021600},
+      "every_tenth_layer_rank64": {"heldout_prefill": 10, "heldout_same_token_decode": 10, "confirmation_prefill": 9, "confirmation_same_token_decode": 8, "projected_cut_bodies_39_plus_32_bytes": 472080},
+      "every_tenth_layer_rank128": {"heldout_prefill": 10, "heldout_same_token_decode": 11, "confirmation_prefill": 10, "confirmation_same_token_decode": 8, "projected_cut_bodies_39_plus_32_bytes": 902160}
+    },
+    "denominator_per_quality_cohort": 12,
+    "decision": "No candidate preserves held-out prefill and decode decisions at the whole-decoder cut. Sparse three-layer cuts retain most decisions but cannot remove other remote stages; they do not qualify as a protected whole-decoder topology."
+  },
+  "limitations": [
+    "Pinned SmolLM checkpoint import and one matched-token prepared SDK response do complete; the separate prefill reference-quality diagnostic is narrow numeric parity, not task quality, same-token W8A8 decode parity or independent-provider privacy evidence.",
+    "The numeric oracle evaluates the complete original MLP before projecting its output. Its rank traffic projection omits attention, remaining MLPs, correlations, source loading, feedback and complete wire.",
+    "SmolLM and Qwen each returned 39+32 tokens, but their texts, source bodies and model utility differ. Their covered-body counts are not a cohort-safe quality/performance ranking. A Qwen-specific tenfold byte target remains only an architectural aspiration for other pretrained models.",
+    "The 256-width per-layer token table in Gemma 4 is not a 256-width residual-stream or nonlinear interface; its compiled remote plan retains a wider hidden stream."
+  ],
+  "reproduction": [
+    "uv run --no-sync python scripts/probe_pretrained_bottleneck.py --structure-only",
+    "OPENBLAS_NUM_THREADS=4 VECLIB_MAXIMUM_THREADS=4 uv run --no-sync python scripts/probe_pretrained_bottleneck.py",
+    "uv run --no-sync python scripts/probe_prepared_candidate_bytes.py --reference-quality"
+  ]
+}

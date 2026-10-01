@@ -1,0 +1,74 @@
+{
+  "schema": "pllm.share_linear_feedback_cost_gate.v1",
+  "status": "test-local toy finite-field parity and matched-shape body projections; no trained decoder or independent deployment",
+  "reproduce": [
+    "uv run --no-sync pytest -q tests/test_share_linear_feedback_reference.py",
+    "PLLM_RUN_REAL_QWEN25=1 uv run --no-sync pytest -q tests/test_rank_interface_reference.py"
+  ],
+  "execution_reference": {
+    "field_modulus": 65521,
+    "scalar_operator": "x^2 + 3x + 7 modulo 65521, calculated only by the trusted client at each rank-width cut",
+    "public_weights": "bounded signed coefficients [-2, 2]; one independently held activation/state share per worker",
+    "toy_workload": "3 prompt rows plus 2 teacher-selected feedback rows; 3 layers, hidden width 8, rank 4, 8 output codes",
+    "two_workers_match_clear_prefill_and_decode": true,
+    "all_link_serialized_frame_body_bytes": 4456,
+    "worker_to_worker_body_bytes": 0,
+    "offline_one_use_body_bytes": 0,
+    "remote_integer_macs": 5824,
+    "client_nonlinear_elements": 60,
+    "session_and_frame_binding": "unique session digest, party, monotonically increasing token position and layer, bounded tensor length; replay or malformed field residue erases that worker's state",
+    "transport_security_claim": false
+  },
+  "measured_control": {
+    "source": "docs/evidence/latent-response-network-qwen25-2026-09-28.json",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "input_tokens": 39,
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "eight_output_covered_all_link_body_bytes": 116843966,
+    "thirty_two_output_covered_all_link_body_bytes": 178970558
+  },
+  "hypothetical_24_layer_896_wide_costs": {
+    "scope": "public-weight 64-code model that does not exist; only reference frame/header algebra is implemented for two-byte field words; four/eight-byte words require new exact numeric and transport contracts",
+    "input_rows": 39,
+    "output_code_choices": 64,
+    "extra_output_rows_are_output_tokens_minus_one": true,
+    "public_i16_weight_bytes_per_worker_rank32": 78393344,
+    "public_i16_weight_bytes_both_workers_rank32": 156786688,
+    "model_distribution_counted": false,
+    "four_byte_word": {
+      "eight_outputs_rank16_all_link_body_bytes": 518808,
+      "eight_outputs_rank32_all_link_body_bytes": 807320,
+      "thirty_two_outputs_rank16_all_link_body_bytes": 801624,
+      "thirty_two_outputs_rank32_all_link_body_bytes": 1240664,
+      "thirty_two_outputs_rank32_remote_integer_macs": 5482889216,
+      "thirty_two_outputs_rank32_client_nonlinear_elements": 53760
+    },
+    "eight_byte_word": {
+      "thirty_two_outputs_rank16_all_link_body_bytes": 1257048,
+      "thirty_two_outputs_rank32_all_link_body_bytes": 2135128
+    },
+    "thirty_two_output_dependent_cut_exchanges_as_implemented": 1680,
+    "thirty_two_output_wavefront_lower_bound_if_new_batching_is_proven": 806
+  },
+  "pinned_quality_gate": "docs/evidence/rank-interface-output-oracle-qwen25-2026-09-29.json",
+  "pinned_affine_quality_gate": "docs/evidence/affine-residual-oracle-qwen25-2026-09-29.json",
+  "admission_gates": {
+    "four_byte_rank16_and_rank32_body_projections_below_100x_control": true,
+    "four_byte_exact_arithmetic_executable": false,
+    "eight_byte_rank32_body_projection_below_100x_control": false,
+    "trained_full_vocabulary_generation_quality": "unmeasured_no_model",
+    "independent_worker_transport_and_full_wire_accounting": "not_implemented",
+    "matched_cold_aggregate_cpu_below_two_worker_control": "unmeasured_no_model",
+    "causal_wavefront_prefill_batched": false,
+    "in_process_reference_ready_for_composed_experiment": false
+  },
+  "decision": "No rank16/32 Qwen retrofit: 24 optimistic rank32 output projections matched 3/12 prefill and 1/12 same-token decode selections; the separately fitted affine-residual oracle reaches 3/12 and 0/12 at 24 cuts. Neither found a retrospective margin witness. Do not promote the toy field or body projections as a decoder or 100x network result. A jointly trained, exact-numeric low-rank architecture must first pass real-text quality, full-response transport, cold CPU and all-link/disk budgets.",
+  "limitations": [
+    "The toy output vocabulary has 8 codes and the hypothetical model allows at most 64; there is no trained replacement for Qwen's 151936-way output head.",
+    "The field quadratic has no fixed-point parity with Qwen; using 4/8-byte words changes the numeric contract and is not implemented.",
+    "Bodies include typed frame headers but exclude HTTP/TLS, independent-host traffic, setup and public checkpoint distribution.",
+    "The in-process workers do not authenticate transport or demonstrate operator independence; the client is trusted with cut activations.",
+    "The recurrence has a secret-dependent nonlinear cut at every layer and token; prefill cannot simply batch all tokens per layer. The wavefront figure is a scheduling lower bound, not an implemented path.",
+    "Integer MAC count is not a CPU time, memory, generation-quality or matched-compute measurement."
+  ]
+}

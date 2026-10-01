@@ -1,0 +1,66 @@
+{
+  "schema": "pllm.rank_interface_output_oracle.v1",
+  "scope": "full-reference-MLP-output-projected-after-nonlinearity; no protected execution or actual low-rank MLP",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "weights_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+  "prompts_sha256": "c8fe1457d2082b79602cd7e694b325ec69a986d6d95e9e854b4233a81d8e3d56",
+  "token_cohort_digest": "209bee2b9a89306fe6e63c6b1a14afb232ecd91243572c164f8ee4e1b3994ea4",
+  "environment": {
+    "python": "3.13.15",
+    "torch": "2.14.0",
+    "transformers": "5.16.1",
+    "reference_dtype": "float32",
+    "threads": 4
+  },
+  "calibration_rows_per_layer": 322,
+  "calibration_input_token_counts": [12, 13, 13, 13, 13, 13, 15, 10, 12, 11, 14, 13, 13, 12, 12, 14, 28, 32, 31, 28],
+  "evaluation_input_token_counts": [12, 5, 10, 12, 12, 12, 11, 11, 28, 29, 27, 29],
+  "reproduce": "uv run --no-sync python scripts/probe_rank_interface.py",
+  "results": {
+    "rank16_cuts6": {
+      "prefill": {"top1_matches": 6, "total": 12, "mean_top5_recall": 0.45, "worst_logit_error": 9.96301555633545, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 7, "total": 12, "mean_top5_recall": 0.6666666666666666, "worst_logit_error": 12.925975799560547, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 3,
+      "maximum_layer_eval_trajectory_relative_residual": 0.9067421555519104
+    },
+    "rank16_cuts12": {
+      "prefill": {"top1_matches": 4, "total": 12, "mean_top5_recall": 0.2833333333333334, "worst_logit_error": 12.78328800201416, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 5, "total": 12, "mean_top5_recall": 0.3833333333333333, "worst_logit_error": 16.789756774902344, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 3,
+      "maximum_layer_eval_trajectory_relative_residual": 0.9067421555519104
+    },
+    "rank16_cuts24": {
+      "prefill": {"top1_matches": 3, "total": 12, "mean_top5_recall": 0.18333333333333335, "worst_logit_error": 16.788612365722656, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 1, "total": 12, "mean_top5_recall": 0.13333333333333333, "worst_logit_error": 25.661331176757812, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 0,
+      "maximum_layer_eval_trajectory_relative_residual": 0.9067421555519104
+    },
+    "rank32_cuts6": {
+      "prefill": {"top1_matches": 6, "total": 12, "mean_top5_recall": 0.5333333333333333, "worst_logit_error": 9.24828815460205, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 8, "total": 12, "mean_top5_recall": 0.6666666666666666, "worst_logit_error": 12.507176399230957, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 5,
+      "maximum_layer_eval_trajectory_relative_residual": 0.8810349106788635
+    },
+    "rank32_cuts12": {
+      "prefill": {"top1_matches": 2, "total": 12, "mean_top5_recall": 0.3833333333333333, "worst_logit_error": 12.752424240112305, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 6, "total": 12, "mean_top5_recall": 0.43333333333333335, "worst_logit_error": 17.47971534729004, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 3,
+      "maximum_layer_eval_trajectory_relative_residual": 0.8810349106788635
+    },
+    "rank32_cuts24": {
+      "prefill": {"top1_matches": 3, "total": 12, "mean_top5_recall": 0.3, "worst_logit_error": 15.600808143615723, "retrospective_margin_witnesses": 0},
+      "decode_same_token": {"top1_matches": 1, "total": 12, "mean_top5_recall": 0.10000000000000002, "worst_logit_error": 23.329683303833008, "retrospective_margin_witnesses": 0},
+      "free_second_token_matches": 0,
+      "maximum_layer_eval_trajectory_relative_residual": 0.8810349106788635
+    }
+  },
+  "limitations": [
+    "Full proprietary nonlinear outputs are calculated before every rank projection; this is an optimistic oracle, not a rank-width client cut or a trainable factorization.",
+    "Sparse-cut variants retain all unprojected full-precision MLPs; they do not model a decoder trained with only six or twelve nonlinear cuts.",
+    "Residual measurements use only held-out reference trajectories, not calibration rows.",
+    "Observed errors on reference queries are not a priori error bounds or live token-decision certificates.",
+    "No two-worker execution, wire accounting, cold model cost, or representative generation quality is established."
+  ]
+}

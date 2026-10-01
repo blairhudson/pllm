@@ -1,0 +1,113 @@
+{
+  "schema": "pllm.latent_response_network_evidence.v1",
+  "status": "bounded comparisons; no executable private latent loop",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "weight_bits": 8,
+    "activation_bits": 8,
+    "input_tokens": 39,
+    "public_default_prompt_token_cohort_digest": "19e0ccffc29480aa183584bd478a9e95af2257f3334357a1c1b9579e08256d9e",
+    "token_cohort_digest_domain": "pllm.latent.token_cohort.v1\\0; signed IDs encoded as 4-byte unsigned little-endian integers",
+    "separate_benchmark_prompt_digests": "per-invocation salted; exact default CLI prompt and pinned tokenizer identify the common cohort",
+    "configuration_digest": "cff25efde2ea4c9d8691572151bab5bdc422670103a334725e7c3c5158ee3069",
+    "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36"
+  },
+  "method": {
+    "benchmarks": "one warm measured response after one warmup; request-sized offline inventory; identical public prompt and W8A8 model; two co-located provider-role processes",
+    "compiler_projection": "same 24-layer/151936-vocabulary semantic plan, 39-token prefill, one-token decode for each additional generated token",
+    "remote_mlp_assumption": "one masked 24-bit hidden input and 32-bit hidden output per executed layer row; per-token Q7 polynomial material for both parties is counted separately",
+    "resident_assumption": "one independent 24-bit masked MLP hidden input and one attention-query hidden input per row; attention arithmetic and protected rescale omitted",
+    "selection_assumption": "reference-specific minimum: one 17-bit field-value multiplication per logit bit, requiring two i64 opened operands between parties, 32 bytes; actual existing reference reveals the token to the client and uses far more work",
+    "bounded_selection_trial": {
+      "choices": 8,
+      "actual_authenticated_openings": 5249,
+      "reference_uploaded_body_bytes": 83984,
+      "reference_downloaded_body_bytes": 41992,
+      "selected_index_visible_to_client": true,
+      "extrapolation_to_full_vocabulary_admitted": false
+    },
+    "vocabulary_size": 151936,
+    "full_wire_metered": false,
+    "whole_response_executable": false
+  },
+  "cohorts": [
+    {
+      "output_tokens": 8,
+      "official_plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "official_schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "prepared_control": {
+        "all_runs_completed": true,
+        "actual_output_tokens": 8,
+        "no_plaintext_prompt_or_token_id_bytes_sent": true,
+        "online_all_link_body_bytes": 73831744,
+        "offline_correction_and_control_body_bytes": 43012222,
+        "covered_all_link_body_bytes": 116843966,
+        "tenfold_online_budget_bytes": 7383174,
+        "tenfold_covered_budget_bytes": 11684396
+      },
+      "remote_mlp_cut": {
+        "optimistic_online_narrow_boundary_bytes": 6924288,
+        "one_use_dealer_body_bytes_both_parties": 167030784,
+        "optimistic_covered_body_bytes": 173955072,
+        "offline_key_budget_after_narrow_boundary_bytes": 4760108,
+        "decoder_numeric_and_protected_execution_validated": false
+      },
+      "resident_two_source": {
+        "optimistic_online_opening_bytes_before_attention_math": 11870208,
+        "one_use_dealer_body_bytes_both_parties": 172965888
+      },
+      "existing_selection_reference": {
+        "required_secret_feedback_steps_before_last_client_selection": 7,
+        "optimistic_peer_opening_bytes_before_lookup": 578572288,
+        "can_keep_token_private_from_both_workers": false
+      }
+    },
+    {
+      "output_tokens": 32,
+      "official_plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "official_schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "prepared_control": {
+        "all_runs_completed": true,
+        "actual_output_tokens": 32,
+        "no_plaintext_prompt_or_token_id_bytes_sent": true,
+        "online_all_link_body_bytes": 113545024,
+        "offline_correction_and_control_body_bytes": 65425534,
+        "covered_all_link_body_bytes": 178970558,
+        "tenfold_online_budget_bytes": 11354502,
+        "tenfold_covered_budget_bytes": 17897055
+      },
+      "remote_mlp_cut": {
+        "optimistic_online_narrow_boundary_bytes": 10536960,
+        "one_use_dealer_body_bytes_both_parties": 254177280,
+        "optimistic_covered_body_bytes": 264714240,
+        "offline_key_budget_after_narrow_boundary_bytes": 7360095,
+        "decoder_numeric_and_protected_execution_validated": false
+      },
+      "resident_two_source": {
+        "optimistic_online_opening_bytes_before_attention_math": 18063360,
+        "one_use_dealer_body_bytes_both_parties": 263208960
+      },
+      "existing_selection_reference": {
+        "required_secret_feedback_steps_before_last_client_selection": 31,
+        "optimistic_peer_opening_bytes_before_lookup": 2562248704,
+        "can_keep_token_private_from_both_workers": false
+      }
+    }
+  ],
+  "privacy_and_cost_gates": [
+    "The existing compiler places greedy selection and token feedback at the client; no provider-protected selector or private selected-index lookup is admitted.",
+    "The bounded point FSS comparison handles at most 10 bits, not this 151936-token shared-index embedding lookup.",
+    "Moving output delivery to the end does not remove the token dependency; sharing the selection across workers needs a new evaluated protocol.",
+    "One-use material remains per response, even if model weights are downloaded once; repeated seeds or public low-rank masks do not satisfy the privacy boundary.",
+    "The quadratic Q7 method has no proven Qwen activation range, exact rescale, protected attention or whole-decoder parity.",
+    "Control/TLS/wire costs, separate-operator privacy, full-response cold compute and real-model quality for either proposed composition are unmeasured."
+  ],
+  "reproduction": [
+    "uv run --no-sync pllm --format json benchmark run --experiment examples/benchmarks/latent_response_cohort.py:prepared --max-output-tokens 8 --warmups 1 --repetitions 1 --trust-python --inventory-policy request-sized",
+    "uv run --no-sync pllm --format json benchmark run --experiment examples/benchmarks/latent_response_cohort.py:prepared --max-output-tokens 32 --warmups 1 --repetitions 1 --trust-python --inventory-policy request-sized",
+    "uv run --no-sync pytest -q tests/test_latent_response_cost.py"
+  ]
+}
