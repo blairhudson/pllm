@@ -1,0 +1,32 @@
+{
+  "schema": "pllm.coded_delegation_resource_lower_bound.v1",
+  "scope": "Pinned Qwen2.5-0.5B-shaped public config and complete semantic prefill schedule; no checkpoint weight import or field execution",
+  "source": {
+    "paper": "R24 Maverick, arXiv:2609.10264v1",
+    "code_rate": "1/8 for separate input-privacy and output-verification codes",
+    "field": "BabyBear",
+    "field_modulus": 2013265921,
+    "field_element_bytes": 4,
+    "model_config": "tests/test_coded_resources.py::_QWEN25_CONFIG",
+    "plan_digest": "3e31fd3b2dc8044d7198fa8b1d2d165eaf5e181f68b6c1828af106e76c5a3621",
+    "schedule_digest": "f84de383f82d512ed17d41fc621ba8f47733c7ae023db2c00de1f007d4f001c1",
+    "composition_digest": "67af8cb691e1d3143b538de219b3008a0c1f00fdc1de043d522added21b415c4"
+  },
+  "remote_stages": 96,
+  "public_w8_weight_bytes": 357826560,
+  "privacy_p_bytes_lower_bound": 11450449920,
+  "verification_q_bytes_lower_bound": 11450449920,
+  "preprocessing_bytes_lower_bound": 22900899840,
+  "largest_stage_auxiliary_bytes_lower_bound": 557842432,
+  "client_resident_budget_bytes": 2147483648,
+  "compiled_cache_budget_bytes": 6442450944,
+  "fully_resident_within_budget": false,
+  "fully_cached_within_budget": false,
+  "executable": false,
+  "missing": [
+    "full-width RAA distance certificate and concrete dual-LPN review",
+    "batch verification auxiliary storage and challenge transport",
+    "source-locked field/checkpoint numeric parity",
+    "checkpoint distribution, cold CPU and total-wire measurements"
+  ]
+}

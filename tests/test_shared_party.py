@@ -9,6 +9,7 @@ import pytest
 from pllm.runtime.shared_attention import NetworkSharedAttention, SharedKVCache
 from pllm.runtime.shared_mlp import SharedMLPWeights
 from pllm.runtime.shared_mpc import (
+    ExactSessionSlot,
     PartyRuntime,
     PublicQuantizedMatrix,
     ReferenceDealer,
@@ -334,11 +335,22 @@ def test_malformed_inner_opening_aborts_session_after_preprocessing_burn() -> No
     asyncio.run(run())
 
 
-def test_network_causal_attention_uses_resident_shared_kv() -> None:
+@pytest.mark.parametrize("truncation", [
+    "probabilistic", "exact", "fss_lowbits_exact_highbits",
+])
+def test_network_causal_attention_uses_resident_shared_kv(truncation: str) -> None:
     async def run() -> None:
-        session = "network-attention"
+        session = f"network-attention-{truncation}"
         scale = 1 << 8
-        dealer = ReferenceDealer(session, session_security_bits=16, opened_element_budget=80)
+        dealer = ReferenceDealer(
+            session, session_security_bits=16,
+            opened_element_budget=192 if truncation != "probabilistic" else 80,
+        )
+
+        def issue_mask(shape, name, *, bits):
+            if truncation != "probabilistic":
+                return (tuple(shape), bits)
+            return dealer.truncation_masks(shape, name, bits=bits)
         query = dealer.split(
             np.array([[[[128, 0], [128, 0]], [[128, 0], [128, 0]]]], dtype=np.int64),
             "query",
@@ -357,74 +369,133 @@ def test_network_causal_attention_uses_resident_shared_kv() -> None:
             caches[party].append(key_parts[0][party], value_parts[0][party])
             caches[party].append(key_parts[1][party], value_parts[1][party])
 
-        operation_values = [
-            ("attention.qk.0", dealer.multiplication_triples((1, 2, 2, 2, 2), "attn-qk")),
+        def attention_material(prefix: str, query_tokens: int, key_tokens: int):
+            score_shape = (1, 2, query_tokens, key_tokens)
+            pair_shape = (*score_shape, 2)
+            scalar_shape = (1, 2, query_tokens, 1)
+            operation_values = [
+            (f"{prefix}.qk.0", dealer.multiplication_triples(pair_shape, f"{prefix}-qk")),
             (
-                "attention.score_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-score-t", bits=8),
+                f"{prefix}.score_truncate",
+                issue_mask(score_shape, f"{prefix}.score_truncate", bits=8),
             ),
             (
-                "attention.scale_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-scale-t", bits=8),
+                f"{prefix}.scale_truncate",
+                issue_mask(score_shape, f"{prefix}.scale_truncate", bits=8),
             ),
-            ("attention.square", dealer.multiplication_triples((1, 2, 2, 2), "attn-square")),
+            (f"{prefix}.square", dealer.multiplication_triples(score_shape, f"{prefix}-square")),
             (
-                "attention.square_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-square-t", bits=8),
-            ),
-            (
-                "attention.half_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-half-t", bits=8),
+                f"{prefix}.square_truncate",
+                issue_mask(score_shape, f"{prefix}.square_truncate", bits=8),
             ),
             (
-                "attention.probability",
-                dealer.multiplication_triples((1, 2, 2, 2), "attn-probability"),
+                f"{prefix}.half_truncate",
+                issue_mask(score_shape, f"{prefix}.half_truncate", bits=8),
             ),
             (
-                "attention.probability_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-probability-t", bits=8),
+                f"{prefix}.probability",
+                dealer.multiplication_triples(score_shape, f"{prefix}-probability"),
             ),
             (
-                "attention.value.0",
-                dealer.multiplication_triples((1, 2, 2, 2, 2), "attn-value"),
+                f"{prefix}.probability_truncate",
+                issue_mask(score_shape, f"{prefix}.probability_truncate", bits=8),
             ),
             (
-                "attention.value_truncate",
-                dealer.truncation_masks((1, 2, 2, 2), "attn-value-t", bits=16),
+                f"{prefix}.value.0",
+                dealer.multiplication_triples(pair_shape, f"{prefix}-value"),
             ),
-        ]
-        for iteration in range(4):
-            shape = (1, 2, 2, 1)
-            operation_values.extend(
-                [
-                    (
-                        f"attention.inverse_refine_{iteration}.product",
-                        dealer.multiplication_triples(shape, f"attn-refine-{iteration}-p"),
-                    ),
-                    (
-                        f"attention.inverse_refine_{iteration}.truncate",
-                        dealer.truncation_masks(shape, f"attn-refine-{iteration}-pt", bits=8),
-                    ),
-                    (
-                        f"attention.inverse_refine_{iteration}.update",
-                        dealer.multiplication_triples(shape, f"attn-refine-{iteration}-u"),
-                    ),
-                    (
-                        f"attention.inverse_refine_{iteration}.update_truncate",
-                        dealer.truncation_masks(shape, f"attn-refine-{iteration}-ut", bits=16),
-                    ),
-                ]
+            (
+                f"{prefix}.value_truncate",
+                issue_mask((1, 2, query_tokens, 2), f"{prefix}.value_truncate", bits=16),
+            ),
+            ]
+            for iteration in range(4):
+                operation_values.extend(
+                    [
+                        (
+                            f"{prefix}.inverse_refine_{iteration}.product",
+                            dealer.multiplication_triples(scalar_shape, f"{prefix}-refine-{iteration}-p"),
+                        ),
+                        (
+                            f"{prefix}.inverse_refine_{iteration}.truncate",
+                            issue_mask(scalar_shape, f"{prefix}.inverse_refine_{iteration}.truncate", bits=8),
+                        ),
+                        (
+                            f"{prefix}.inverse_refine_{iteration}.update",
+                            dealer.multiplication_triples(scalar_shape, f"{prefix}-refine-{iteration}-u"),
+                        ),
+                        (
+                            f"{prefix}.inverse_refine_{iteration}.update_truncate",
+                            issue_mask(scalar_shape, f"{prefix}.inverse_refine_{iteration}.update_truncate", bits=16),
+                        ),
+                    ]
+                )
+            return operation_values
+
+        operation_values = attention_material("attention", 2, 2)
+        admission = None
+        if truncation != "probabilistic":
+            operation_values.extend(attention_material("attention_decode", 1, 3))
+            admission = dealer.admit_exact_session(
+                _digest(f"attention-graph-{truncation}"),
+                tuple(
+                    ExactSessionSlot(
+                        operation, values[0], values[1],
+                        "fss" if truncation == "fss_lowbits_exact_highbits" and values[1] <= 10
+                        else "hybrid" if truncation == "fss_lowbits_exact_highbits"
+                        else "beaver",
+                        8 if truncation == "fss_lowbits_exact_highbits" and values[1] > 10 else 0,
+                    )
+                    for operation, values in operation_values if type(values[1]) is int
+                ),
             )
+            def materialize(record):
+                operation, values = record
+                if type(values[1]) is not int:
+                    return record
+                shape, bits = values
+                return (operation, (
+                    dealer.fss_truncation_masks(
+                        shape, operation, bits=bits, low_bits=min(bits, 8)
+                    )
+                    if truncation == "fss_lowbits_exact_highbits"
+                    else dealer.exact_truncation_masks(shape, operation, bits=bits)
+                ))
+
+            operation_values = [materialize(record) for record in operation_values]
+        extra_steps = sum(values[0].bits - (
+            values[0].comparison_bits if hasattr(values[0], "comparison_keys") else 1
+        ) for _, values in operation_values
+                           if truncation != "probabilistic" and not hasattr(values[0], "triple_id"))
+        extra_steps += sum(1 for _, values in operation_values
+                           if hasattr(values[0], "comparison_keys"))
+        operation_count = len(operation_values) + extra_steps
         inventories = (
-            LocalPreprocessingInventory(session, 0, capacity=len(operation_values)),
-            LocalPreprocessingInventory(session, 1, capacity=len(operation_values)),
+            LocalPreprocessingInventory(session, 0, capacity=operation_count),
+            LocalPreprocessingInventory(session, 1, capacity=operation_count),
         )
         for operation, values in operation_values:
             for party in (0, 1):
                 if hasattr(values[party], "triple_id"):
                     inventories[party].add_triple(operation, values[party])
+                elif truncation == "fss_lowbits_exact_highbits":
+                    inventories[party].add_fss_truncation(operation, values[party])
+                elif truncation != "probabilistic":
+                    inventories[party].add_exact_truncation(operation, values[party])
                 else:
                     inventories[party].add_truncation(operation, values[party])
+            if truncation != "probabilistic" and not hasattr(values[0], "triple_id"):
+                low = values[0].comparison_bits if hasattr(values[0], "comparison_keys") else 1
+                for bit in range(low, values[0].bits):
+                    name = f"{operation}.carry.{bit}"
+                    triples = dealer.multiplication_triples(values[0].value.shape, name)
+                    for party in (0, 1):
+                        inventories[party].add_triple(name, triples[party])
+
+        if truncation != "probabilistic":
+            assert admission is not None
+            for inventory in inventories:
+                inventory.bind_exact_admission(admission)
 
         sockets = _Socket(), _Socket()
         sockets[0].peer, sockets[1].peer = sockets[1], sockets[0]
@@ -432,10 +503,10 @@ def test_network_causal_attention_uses_resident_shared_kv() -> None:
             session_id=session,
             model_id="model",
             model_fingerprint=_digest("model"),
-            graph_fingerprint=_digest("attention-graph"),
+            graph_fingerprint=_digest(f"attention-graph-{truncation}"),
             scale_fingerprint=_digest("scales"),
             party_fingerprints=(_digest("party-0"), _digest("party-1")),
-            maximum_operations=len(operation_values),
+            maximum_operations=operation_count,
         )
         models = []
         for party in (0, 1):
@@ -450,6 +521,7 @@ def test_network_causal_attention_uses_resident_shared_kv() -> None:
                 ),
                 inventories[party],
                 max_opening_elements=32,
+                truncation=truncation,
             )
             models.append(
                 NetworkSharedAttention(
@@ -481,6 +553,41 @@ def test_network_causal_attention_uses_resident_shared_kv() -> None:
             ),
             atol=8,
         )
+        if truncation != "probabilistic":
+            decode_query = dealer.split(
+                np.array([[[[128, 0]], [[128, 0]]]], dtype=np.int64),
+                "decode-query", scale=scale,
+            )
+            decode_key = dealer.split(
+                np.array([[[[0, 128]]]], dtype=np.int64), "decode-key", scale=scale
+            )
+            decode_value = dealer.split(
+                np.array([[[[1280, 1536]]]], dtype=np.int64), "decode-value", scale=scale
+            )
+            for party in (0, 1):
+                caches[party].append(decode_key[party], decode_value[party])
+            decode_models = [NetworkSharedAttention(
+                models[i].party, scale=scale, prefix="attention_decode",
+                probability_scale=1 << 16,
+            ) for i in (0, 1)]
+            decoded = await asyncio.gather(*[
+                decode_models[i].run(
+                    decode_query[i], *caches[i].tensors(),
+                    query_bound=128, key_bound=128, value_bound=1536,
+                ) for i in (0, 1)
+            ])
+            decoded_clear = reconstruct(*decoded).view(np.int64)
+            reference_scores = np.array([0.25, -0.25, 0.0]) / np.sqrt(2.0)
+            reference_probs = np.exp(reference_scores)
+            reference_probs /= reference_probs.sum()
+            reference = np.rint(reference_probs @ np.array([
+                [256, 512], [768, 1024], [1280, 1536]
+            ], dtype=np.float64)).astype(np.int64)
+            np.testing.assert_allclose(
+                decoded_clear,
+                np.broadcast_to(reference[None, None, None, :], decoded_clear.shape),
+                atol=8,
+            )
         assert inventories[0].remaining == inventories[1].remaining == 0
 
     asyncio.run(run())

@@ -1,0 +1,34 @@
+{
+  "schema": "pllm.resident_mlp_resource_gate.v1",
+  "scope": "optimistic cost projection for the existing Beaver gated-product and 8-bit FSS exact-rescale reference; no compiled share-resident decoder",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "plan_digest": "3e31fd3b2dc8044d7198fa8b1d2d165eaf5e181f68b6c1828af106e76c5a3621",
+    "schedule_digest": "f84de383f82d512ed17d41fc621ba8f47733c7ae023db2c00de1f007d4f001c1",
+    "composition_digest": "67af8cb691e1d3143b538de219b3008a0c1f00fdc1de043d522added21b415c4"
+  },
+  "cohort": {
+    "input_tokens": 30,
+    "output_tokens": 1,
+    "decode_steps": 0,
+    "batch": 1,
+    "fixed_scale_bits": 8,
+    "prefill_gated_product_elements": 3502080,
+    "decode_gated_product_elements": 0
+  },
+  "minimum_material_body_bytes_per_party": 735436800,
+  "minimum_material_body_bytes_two_parties": 1470873600,
+  "minimum_online_all_link_body_bytes": 168975360,
+  "material_budget_bytes_per_party": 268435456,
+  "matched_offset_online_application_body_bytes": 95805056,
+  "material_within_budget": false,
+  "online_below_offset_body_comparator": false,
+  "executable": false,
+  "full_wire_measured": false,
+  "limitations": [
+    "Counts only one Beaver gated product and one exact FSS rescale per semantic MLP output; norms, SiLU, attention, other truncations, metadata and checkpoint transfer add cost.",
+    "This is a lower bound for the bounded reference construction, not an information-theoretic lower bound for all two-party inference methods.",
+    "The checked semantic schedule is unprotected float32 execution; fixed-scale numeric parity and a compiler-bound two-party executor are absent.",
+    "Offset comparator comes from a separate single-response cold loopback measurement with matching model, token counts, and baseline composition; projected MPC material and body bytes were not transported or measured on a wire."
+  ]
+}

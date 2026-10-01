@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 import sqlite3
 from math import ceil, log2
@@ -11,6 +12,8 @@ from typing import Any, Protocol, Sequence
 
 import msgpack
 import numpy as np
+
+from pllm.runtime.shared_dpf import PointKeyDealer, PointKeyShare
 
 
 class SharedMPCError(RuntimeError):
@@ -472,6 +475,113 @@ class TruncationMaskShare:
 
 
 @dataclass(frozen=True, slots=True)
+class ExactTruncationMaskShare:
+    """Party-local mask for faithful signed shifting; issued only by the test dealer.
+
+    The low bits and sign bit are *additive shares*, not the corresponding
+    plaintext mask bits. The mask itself is uniform in the full 64-bit ring.
+    """
+
+    session_id: str
+    mask_id: str
+    party: int
+    bits: int
+    opened_element_budget: int
+    value: np.ndarray
+    shifted: np.ndarray
+    low_bit_shares: np.ndarray
+    sign_bit_share: np.ndarray
+
+    def __post_init__(self) -> None:
+        if not self.session_id or not self.mask_id or type(self.party) is not int or self.party not in (0, 1):
+            raise SharedMPCError("exact truncation mask identity is invalid")
+        if (
+            type(self.bits) is not int
+            or not 0 < self.bits < 63
+            or type(self.opened_element_budget) is not int
+            or self.opened_element_budget <= 0
+        ):
+            raise SharedMPCError("exact truncation mask budget or bit width is invalid")
+        if (
+            self.value.dtype != np.uint64
+            or self.value.ndim == 0
+            or not self.value.size
+            or self.value.size > 1_048_576 // self.bits
+            or not self.value.flags.c_contiguous
+            or self.shifted.dtype != np.uint64
+            or self.shifted.shape != self.value.shape
+            or self.low_bit_shares.dtype != np.uint64
+            or self.low_bit_shares.shape != (*self.value.shape, self.bits)
+            or self.sign_bit_share.dtype != np.uint64
+            or self.sign_bit_share.shape != self.value.shape
+        ):
+            raise SharedMPCError("exact truncation mask tensors are invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class FssTruncationMaskShare:
+    """One party's low-bit point keys and optional high-bit carry shares."""
+
+    session_id: str
+    mask_id: str
+    party: int
+    bits: int
+    opened_element_budget: int
+    value: np.ndarray
+    shifted: np.ndarray
+    sign_bit_share: np.ndarray
+    comparison_keys: tuple[PointKeyShare, ...]
+    xor_mask_share: np.ndarray
+    ring_mask_share: np.ndarray
+    comparison_bits: int
+    high_bit_shares: np.ndarray
+
+    def __post_init__(self) -> None:
+        if not self.session_id or not self.mask_id or type(self.party) is not int or self.party not in (0, 1):
+            raise SharedMPCError("FSS truncation mask identity is invalid")
+        if (
+            type(self.bits) is not int or not 0 < self.bits < 63
+            or type(self.comparison_bits) is not int
+            or not 0 < self.comparison_bits <= min(10, self.bits)
+            or (self.bits <= 10 and self.comparison_bits != self.bits)
+        ):
+            raise SharedMPCError("FSS truncation comparison width is unsupported")
+        if type(self.opened_element_budget) is not int or self.opened_element_budget <= 0:
+            raise SharedMPCError("FSS truncation opening budget is invalid")
+        if (
+            self.value.dtype != np.uint64 or self.value.ndim == 0 or not self.value.size
+            or self.value.size > 1_048_576 // self.bits or not self.value.flags.c_contiguous
+        ):
+            raise SharedMPCError("FSS truncation mask exceeds the bounded uint64 tensor contract")
+        if any(
+            array.dtype != np.uint64 or array.shape != self.value.shape
+            for array in (self.shifted, self.sign_bit_share, self.ring_mask_share)
+        ):
+            raise SharedMPCError("FSS truncation ring shares have invalid shape or type")
+        if (
+            self.high_bit_shares.dtype != np.uint64
+            or self.high_bit_shares.shape != (*self.value.shape, self.bits - self.comparison_bits)
+            or not self.high_bit_shares.flags.c_contiguous
+        ):
+            raise SharedMPCError("FSS high-bit carry shares have invalid shape or type")
+        if self.xor_mask_share.dtype != np.uint8 or self.xor_mask_share.shape != self.value.shape:
+            raise SharedMPCError("FSS truncation bit share has invalid shape or type")
+        if np.any(self.xor_mask_share > 1):
+            raise SharedMPCError("FSS truncation bit share must be Boolean")
+        if len(self.comparison_keys) != self.value.size or any(
+            key.session_id != self.session_id or key.party != self.party
+            or key.bits != self.comparison_bits
+            or key.gate_id != f"{self.mask_id}.{index}"
+            for index, key in enumerate(self.comparison_keys)
+        ):
+            raise SharedMPCError("FSS truncation comparison keys do not match mask")
+
+    @property
+    def key_bytes(self) -> int:
+        return sum(key.key_bytes for key in self.comparison_keys)
+
+
+@dataclass(frozen=True, slots=True)
 class MultiplicationState:
     operation_id: str
     triple: BeaverTripleShare
@@ -484,6 +594,13 @@ class TruncationState:
     mask: TruncationMaskShare
     output_scale: int
     offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class ExactTruncationState:
+    operation_id: str
+    mask: ExactTruncationMaskShare | FssTruncationMaskShare
+    output_scale: int
 
 
 @dataclass(slots=True)
@@ -499,6 +616,7 @@ class PreprocessingSource(Protocol):
 
     session_id: str
     party: int
+    exact_admission: ExactSessionAdmission | None
 
     def take_multiplication(
         self,
@@ -516,6 +634,44 @@ class PreprocessingSource(Protocol):
         party: int,
         bits: int,
     ) -> TruncationMaskShare: ...
+
+    def take_exact_truncation(
+        self,
+        session_id: str,
+        operation_id: str,
+        shape: Sequence[int],
+        party: int,
+        bits: int,
+    ) -> ExactTruncationMaskShare: ...
+
+    def preflight_exact_truncation(
+        self,
+        session_id: str,
+        operation_id: str,
+        shape: Sequence[int],
+        party: int,
+        bits: int,
+    ) -> None: ...
+
+    def preflight_fss_truncation(
+        self,
+        session_id: str,
+        operation_id: str,
+        shape: Sequence[int],
+        party: int,
+        bits: int,
+    ) -> None: ...
+
+    def take_fss_truncation(
+        self,
+        session_id: str,
+        operation_id: str,
+        shape: Sequence[int],
+        party: int,
+        bits: int,
+    ) -> FssTruncationMaskShare: ...
+
+    def cancel(self) -> None: ...
 
 
 class PartyRuntime:
@@ -829,6 +985,181 @@ class PartyRuntime:
             state.output_scale,
         )
 
+    def begin_exact_truncate(
+        self,
+        value: SharedTensor,
+        mask: ExactTruncationMaskShare | FssTruncationMaskShare,
+        operation_id: str,
+        *,
+        signed_bound: int,
+    ) -> tuple[ExactTruncationState, ValueOpeningFrame]:
+        """Open x + uniform r + 2^62, keeping x and r with separate parties."""
+        self._check(value)
+        if mask.session_id != self.session_id or mask.party != self.party or mask.value.shape != value.shape:
+            raise SharedMPCError("exact truncation mask does not match party or tensor")
+        if not operation_id or mask.mask_id in self._burned_masks:
+            raise SharedMPCError("exact truncation mask is invalid or already consumed")
+        # The offset puts the signed input in [0, 2^63); this is the exact
+        # precondition for the cheap wrap identity in SIGMA section 4.2.1.
+        if type(signed_bound) is not int or not 0 < signed_bound < 1 << 62:
+            raise SharedMPCError("exact truncation requires a strict signed gap")
+        divisor = 1 << mask.bits
+        if value.scale % divisor:
+            raise SharedMPCError("tensor scale cannot be truncated by requested bits")
+        profile = (64, 64, mask.opened_element_budget)
+        if self._truncation_profile is not None and self._truncation_profile != profile:
+            raise SharedMPCError("truncation masks use inconsistent session security accounting")
+        if self._truncation_opened_elements + value.values.size > mask.opened_element_budget:
+            raise SharedMPCError("truncation session opening budget exhausted")
+        self._burn_ledger.burn_truncation(
+            self.session_id, self.party, mask.mask_id, profile, int(value.values.size)
+        )
+        self._truncation_profile = profile
+        self._truncation_opened_elements += int(value.values.size)
+        self._burned_masks.add(mask.mask_id)
+        offset = np.uint64((1 << 62) if self.party == 0 else 0)
+        frame = ValueOpeningFrame(
+            self.session_id, operation_id, self.party, value.values + mask.value + offset
+        )
+        self.stats.uploaded_bytes += len(frame.pack())
+        return ExactTruncationState(operation_id, mask, value.scale // divisor), frame
+
+    def _open_exact(
+        self,
+        state: ExactTruncationState,
+        local: ValueOpeningFrame,
+        peer: ValueOpeningFrame,
+    ) -> np.ndarray:
+        if (
+            local.session_id != self.session_id
+            or peer.session_id != self.session_id
+            or state.operation_id != local.operation_id
+            or local.operation_id != peer.operation_id
+            or local.party != self.party
+            or peer.party == self.party
+            or local.value.shape != state.mask.value.shape
+            or peer.value.shape != state.mask.value.shape
+        ):
+            raise SharedMPCError("exact truncation opening does not match state")
+        opened = local.value + peer.value
+        self.stats.opened_elements += int(opened.size)
+        self.stats.downloaded_bytes += len(peer.pack())
+        return opened
+
+    def exact_carry_start(
+        self,
+        state: ExactTruncationState,
+        local: ValueOpeningFrame,
+        peer: ValueOpeningFrame,
+    ) -> tuple[np.ndarray, SharedTensor]:
+        if not isinstance(state.mask, ExactTruncationMaskShare):
+            raise SharedMPCError("exact carry requires Beaver comparison shares")
+        opened = self._open_exact(state, local, peer)
+        public_low_bit = opened & np.uint64(1)
+        initial = state.mask.low_bit_shares[..., 0] * (np.uint64(1) - public_low_bit)
+        return opened, SharedTensor(
+            self.session_id, f"{state.operation_id}:carry:0", self.party,
+            np.ascontiguousarray(initial), 1,
+        )
+
+    def exact_carry_bit(
+        self,
+        state: ExactTruncationState,
+        opened: np.ndarray,
+        carry: SharedTensor,
+        product: SharedTensor,
+        bit: int,
+    ) -> SharedTensor:
+        """Update r_low > opened_low, from LSB to MSB using one secure AND."""
+        self._check(carry, product)
+        mask = state.mask
+        if (
+            type(bit) is not int or not 0 < bit < mask.bits
+            or opened.shape != carry.shape
+            or (isinstance(mask, FssTruncationMaskShare) and bit < mask.comparison_bits)
+        ):
+            raise SharedMPCError("exact truncation carry step is invalid")
+        mask_bits = (
+            mask.low_bit_shares[..., bit] if isinstance(mask, ExactTruncationMaskShare)
+            else mask.high_bit_shares[..., bit - mask.comparison_bits]
+        )
+        public_zero = np.uint64(1) - ((opened >> np.uint64(bit)) & np.uint64(1))
+        next_share = product.values + public_zero * (
+            mask_bits + carry.values - np.uint64(2) * product.values
+        )
+        return SharedTensor(
+            self.session_id, f"{state.operation_id}:carry:{bit}", self.party,
+            np.ascontiguousarray(next_share), 1,
+        )
+
+    def fss_carry_share(
+        self,
+        state: ExactTruncationState,
+        opened: np.ndarray,
+        public_comparison: np.ndarray,
+    ) -> SharedTensor:
+        mask = state.mask
+        if not isinstance(mask, FssTruncationMaskShare):
+            raise SharedMPCError("FSS carry requires FSS comparison shares")
+        if (
+            opened.shape != mask.value.shape or public_comparison.shape != opened.shape
+            or public_comparison.dtype != np.uint64
+            or np.any(public_comparison > 1)
+        ):
+            raise SharedMPCError("FSS comparison result is invalid")
+        # If b is the opened XOR of carry and an independent mask bit c,
+        # carry = b + c - 2bc. The arithmetic shares of c stay role-local.
+        share = mask.ring_mask_share * (np.uint64(1) - np.uint64(2) * public_comparison)
+        if self.party == 0:
+            share = share + public_comparison
+        return SharedTensor(
+            self.session_id, f"{state.operation_id}:carry:fss", self.party,
+            np.ascontiguousarray(share), 1,
+        )
+
+    def finish_exact_truncate(
+        self,
+        state: ExactTruncationState,
+        opened: np.ndarray,
+        carry: SharedTensor,
+        tensor_id: str,
+    ) -> SharedTensor:
+        self._check(carry)
+        if carry.shape != state.mask.value.shape or opened.shape != carry.shape:
+            raise SharedMPCError("exact truncation correction shape is invalid")
+        bits = state.mask.bits
+        # SIGMA's wrap identity applies since x+offset is in [0, 2^63).
+        wrap = state.mask.sign_bit_share * (
+            np.uint64(1) - (opened >> np.uint64(63))
+        )
+        result = -state.mask.shifted - carry.values + wrap * np.uint64(1 << (64 - bits))
+        if self.party == 0:
+            result += (opened >> np.uint64(bits)) - np.uint64((1 << 62) >> bits)
+        return SharedTensor(
+            self.session_id, tensor_id, self.party, np.ascontiguousarray(result),
+            state.output_scale,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ExactSessionSlot:
+    operation_id: str
+    shape: tuple[int, ...]
+    bits: int
+    method: str
+    low_bits: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ExactSessionAdmission:
+    session_id: str
+    graph_digest: str
+    schedule_digest: str
+    total_opened_elements: int
+    per_party_key_bytes: int
+    slots: tuple[ExactSessionSlot, ...]
+    per_party_material_body_bytes: int = 0
+
 
 class ReferenceDealer:
     """Test-only dealer. Never use where either online party can inspect it."""
@@ -845,8 +1176,107 @@ class ReferenceDealer:
         self.session_id = session_id
         self._triple_ids: set[str] = set()
         self._mask_ids: set[str] = set()
+        self._exact_issued_elements = 0
+        self._exact_admission: ExactSessionAdmission | None = None
+        self._exact_next_slot = 0
         self.session_security_bits = session_security_bits
         self.opened_element_budget = opened_element_budget
+
+    def admit_exact_session(
+        self,
+        graph_digest: str,
+        slots: Sequence[ExactSessionSlot],
+        *,
+        max_key_bytes_per_party: int = 256 * 1024 * 1024,
+        max_material_body_bytes_per_party: int = 256 * 1024 * 1024,
+    ) -> ExactSessionAdmission:
+        """Test-local whole-session admission before the first correlated byte."""
+        if (
+            self._mask_ids or self._exact_admission is not None
+            or len(graph_digest) != 64 or any(c not in "0123456789abcdef" for c in graph_digest)
+            or not slots or len(slots) > 4096
+            or type(max_key_bytes_per_party) is not int or max_key_bytes_per_party <= 0
+            or type(max_material_body_bytes_per_party) is not int
+            or max_material_body_bytes_per_party <= 0
+        ):
+            raise SharedMPCError("exact session admission identity or limits are invalid")
+        if self.opened_element_budget is None or self.opened_element_budget <= 0:
+            raise SharedMPCError("exact session opening budget is required")
+        seen: set[str] = set()
+        total = 0
+        keys = 0
+        body = 0
+        for slot in slots:
+            if (
+                not isinstance(slot, ExactSessionSlot) or not slot.operation_id
+                or slot.operation_id in seen or slot.method not in ("beaver", "fss", "hybrid")
+                or type(slot.bits) is not int or not 0 < slot.bits < 63
+                or (slot.method == "fss" and slot.bits > 10)
+                or type(slot.low_bits) is not int
+                or (slot.method != "hybrid" and slot.low_bits != 0)
+                or (slot.method == "hybrid" and not 1 <= slot.low_bits <= 10)
+                or (slot.method == "hybrid" and slot.low_bits >= slot.bits)
+            ):
+                raise SharedMPCError("exact session contains invalid correlation slot")
+            seen.add(slot.operation_id)
+            shape = _shape(slot.shape)
+            elements = _bounded_elements(shape, 1_048_576 // slot.bits)
+            total += elements
+            if total > self.opened_element_budget:
+                raise SharedMPCError("exact session aggregate opening budget exceeded")
+            if slot.method in ("fss", "hybrid"):
+                low = slot.bits if slot.method == "fss" else slot.low_bits
+                key_bytes = elements * (17 + 17 * low)
+                keys += key_bytes
+                if key_bytes > 32 * 1024 * 1024:
+                    raise SharedMPCError("exact session FSS stage key budget exceeded")
+                # Four ring shares, one bit share, high mask bits and their Beaver triples.
+                body += elements * (33 + 8 * (slot.bits - low) + 24 * (slot.bits - low)) + key_bytes
+            else:
+                # Mask, shifted mask, sign, low mask bits, and one triple per carry step.
+                body += elements * (8 * (3 + slot.bits) + 24 * (slot.bits - 1))
+            if body > max_material_body_bytes_per_party:
+                raise SharedMPCError("exact session aggregate material body budget exceeded")
+        if keys > max_key_bytes_per_party:
+            raise SharedMPCError("exact session aggregate FSS key budget exceeded")
+        pinned = tuple(slots)
+        canonical = json.dumps({
+            "schema": "pllm.exact_reference_schedule.v1",
+            "session": self.session_id,
+            "graph": graph_digest,
+            "slots": [{"operation": s.operation_id, "shape": s.shape, "bits": s.bits,
+                       "method": s.method, "low_bits": s.low_bits}
+                      for s in pinned],
+        }, sort_keys=True, separators=(",", ":")).encode()
+        admission = ExactSessionAdmission(
+            self.session_id, graph_digest, hashlib.sha256(canonical).hexdigest(),
+            total, keys, pinned, body,
+        )
+        self._exact_admission = admission
+        return admission
+
+    def _expect_exact_slot(
+        self, shape: tuple[int, ...], mask_id: str, bits: int, method: str,
+        low_bits: int = 0,
+    ) -> None:
+        admission = self._exact_admission
+        if admission is not None and (
+            self._exact_next_slot >= len(admission.slots)
+            or admission.slots[self._exact_next_slot]
+            != ExactSessionSlot(mask_id, shape, bits, method, low_bits)
+        ):
+            raise SharedMPCError("exact material does not match admitted slot and order")
+
+    def _reserve_exact(self, elements: int, mask_id: str) -> None:
+        if (
+            self.opened_element_budget is None
+            or self._exact_issued_elements + elements > self.opened_element_budget
+        ):
+            raise SharedMPCError("exact session aggregate opening budget exceeded")
+        self._mask_ids.add(mask_id)
+        self._exact_issued_elements += elements
+        if self._exact_admission is not None:
+            self._exact_next_slot += 1
 
     def split(
         self,
@@ -935,6 +1365,104 @@ class ReferenceDealer:
                 opened_element_budget,
                 mask - value0,
                 shifted - shifted0,
+            ),
+        )
+
+    def exact_truncation_masks(
+        self,
+        shape: Sequence[int],
+        mask_id: str,
+        *,
+        bits: int,
+    ) -> tuple[ExactTruncationMaskShare, ExactTruncationMaskShare]:
+        target = _shape(shape)
+        if not mask_id or mask_id in self._mask_ids or type(bits) is not int or not 0 < bits < 63:
+            raise SharedMPCError("exact truncation mask identifier or bit width is invalid")
+        elements = _bounded_elements(target, 1_048_576 // bits)
+        if self.opened_element_budget is None or self.opened_element_budget < elements:
+            raise SharedMPCError("exact truncation session opening budget is invalid")
+        self._expect_exact_slot(target, mask_id, bits, "beaver")
+        self._reserve_exact(elements, mask_id)
+        mask = _random_ring(target)
+        shifted = mask >> np.uint64(bits)
+        bit_values = np.ascontiguousarray(np.stack(
+            [(mask >> np.uint64(bit)) & np.uint64(1) for bit in range(bits)], axis=-1
+        ))
+        sign = mask >> np.uint64(63)
+        value0 = _random_ring(target)
+        shifted0 = _random_ring(target)
+        bits0 = _random_ring((*target, bits))
+        sign0 = _random_ring(target)
+        return (
+            ExactTruncationMaskShare(
+                self.session_id, mask_id, 0, bits, self.opened_element_budget,
+                value0, shifted0, bits0, sign0,
+            ),
+            ExactTruncationMaskShare(
+                self.session_id, mask_id, 1, bits, self.opened_element_budget,
+                mask - value0, shifted - shifted0, bit_values - bits0, sign - sign0,
+            ),
+        )
+
+    def fss_truncation_masks(
+        self,
+        shape: Sequence[int],
+        mask_id: str,
+        *,
+        bits: int,
+        low_bits: int | None = None,
+    ) -> tuple[FssTruncationMaskShare, FssTruncationMaskShare]:
+        target = _shape(shape)
+        if low_bits is None:
+            low_bits = bits
+        if (
+            not mask_id or mask_id in self._mask_ids or type(bits) is not int
+            or not 0 < bits < 63 or type(low_bits) is not int
+            or not 0 < low_bits <= min(bits, 10)
+            or (bits <= 10 and low_bits != bits)
+        ):
+            raise SharedMPCError("FSS truncation mask identifier or bit width is invalid")
+        elements = _bounded_elements(target, 1_048_576 // bits)
+        if self.opened_element_budget is None or self.opened_element_budget < elements:
+            raise SharedMPCError("FSS truncation session opening budget is invalid")
+        # Bound all key material before creating any prefix or reserving identity.
+        if elements * (17 + 17 * low_bits) > 32 * 1024 * 1024:
+            raise SharedMPCError("FSS truncation key body exceeds stage budget")
+        self._expect_exact_slot(
+            target, mask_id, bits, "fss" if low_bits == bits else "hybrid", low_bits if low_bits != bits else 0,
+        )
+        self._reserve_exact(elements, mask_id)
+        mask = _random_ring(target)
+        shifted = mask >> np.uint64(bits)
+        sign = mask >> np.uint64(63)
+        value0 = _random_ring(target)
+        shifted0 = _random_ring(target)
+        sign0 = _random_ring(target)
+        boolean_mask = (_random_ring(target) & np.uint64(1)).astype(np.uint8)
+        boolean0 = (_random_ring(target) & np.uint64(1)).astype(np.uint8)
+        ring0 = _random_ring(target)
+        high_bits = np.ascontiguousarray(np.stack(
+            [(mask >> np.uint64(bit)) & np.uint64(1) for bit in range(low_bits, bits)], axis=-1
+        )) if low_bits < bits else np.empty((*target, 0), dtype=np.uint64)
+        high0 = _random_ring((*target, bits - low_bits)) if low_bits < bits else high_bits.copy()
+        dealer = PointKeyDealer(self.session_id)
+        pairs = [
+            dealer.issue(f"{mask_id}.{index}", int(point), bits=low_bits)
+            for index, point in enumerate((mask & np.uint64((1 << low_bits) - 1)).flat)
+        ]
+        return (
+            FssTruncationMaskShare(
+                self.session_id, mask_id, 0, bits, self.opened_element_budget,
+                value0, shifted0, sign0, tuple(pair[0] for pair in pairs),
+                boolean0, ring0, low_bits, high0,
+            ),
+            FssTruncationMaskShare(
+                self.session_id, mask_id, 1, bits, self.opened_element_budget,
+                mask - value0, shifted - shifted0, sign - sign0,
+                tuple(pair[1] for pair in pairs),
+                np.bitwise_xor(boolean_mask, boolean0),
+                boolean_mask.astype(np.uint64) - ring0, low_bits,
+                np.ascontiguousarray(high_bits - high0),
             ),
         )
 

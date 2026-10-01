@@ -1,0 +1,65 @@
+{
+  "schema": "pllm.resident_quadratic_layer_gate_evidence.v1",
+  "scope": "Qwen2.5-0.5B-shaped public configuration, 39 input tokens and one generated token; analytic serialized-body lower bounds, not a real-checkpoint MPC run",
+  "source": {
+    "model_type": "qwen2",
+    "hidden_size": 896,
+    "intermediate_size": 4864,
+    "num_hidden_layers": 24,
+    "plan_digest": "4287c0ee15d837899691d6f75499421334375caea4468c2f87c987fe00bec451",
+    "composition_digest": "67af8cb691e1d3143b538de219b3008a0c1f00fdc1de043d522added21b415c4",
+    "schedule_digest": "fc0933068b5ed8a7b4d8eb1d0c6e570dae1662b9d11340323af12eb0c06ad331"
+  },
+  "cohort": {
+    "input_tokens": 39,
+    "output_tokens": 1,
+    "layers": 24,
+    "gated_elements_per_layer": 189696,
+    "normalized_hidden_elements_per_layer": 34944
+  },
+  "budgets": {
+    "online_all_link_body_bytes": 6000000,
+    "online_body_bytes_per_layer": 250000,
+    "one_use_material_bytes_per_party": 268435456
+  },
+  "candidates": {
+    "dense_q3_two_input_lookup": {
+      "minimum_online_body_bytes_per_layer": 379392,
+      "minimum_online_all_link_body_bytes": 9105408,
+      "minimum_material_body_bytes_per_party": 9333043200,
+      "minimum_dealer_to_both_parties_body_bytes": 18666086400,
+      "passes_gate_only_budgets": false
+    },
+    "dense_q7_two_input_lookup": {
+      "minimum_online_body_bytes_per_layer": 758784,
+      "minimum_online_all_link_body_bytes": 18210816,
+      "minimum_material_body_bytes_per_party": 2386937180160,
+      "minimum_dealer_to_both_parties_body_bytes": 4773874360320,
+      "passes_gate_only_budgets": false
+    },
+    "quadratic_q7_correlated_mlp_source": {
+      "minimum_online_body_bytes_per_layer": 209664,
+      "minimum_online_all_link_body_bytes": 5031936,
+      "minimum_material_body_bytes_per_party": 70806528,
+      "minimum_dealer_to_both_parties_body_bytes": 141613056,
+      "passes_gate_only_budgets": true,
+      "whole_layer_executable": false
+    },
+    "quadratic_q7_distinct_attention_and_mlp_sources": {
+      "minimum_online_body_bytes_per_layer": 419328,
+      "minimum_online_all_link_body_bytes": 10063872,
+      "minimum_material_body_bytes_per_party": 73322496,
+      "minimum_dealer_to_both_parties_body_bytes": 146644992,
+      "passes_two_source_layer_budgets": false,
+      "whole_layer_executable": false
+    }
+  },
+  "numeric_scope": "The one-use in-process parties match the integer polynomial numerator (256g+g^2)u modulo 2^24 on bounded Q7 inputs; this numerator has scale 65536 and does not match the separately rounded Q7 SiLU-then-multiply composite. The Qwen activation range and its BF16/W8A8 scale transitions have not been admitted.",
+  "limits": [
+    "The two-source bound charges only independent 24-bit masked hidden openings and polynomial coefficients; attention products, softmax, normalization, output shares, transport framing and protected rescaling add cost.",
+    "The 24-bit masked-source width is a research assumption, not validated against real Qwen weights or scales.",
+    "The dealer and both party objects run in one process for tests; no provider execution, independent operator, full wire, disk or peak memory is measured.",
+    "The 6 MB target is a selected tenfold online-body objective, not a proven security lower bound or whole-decoder performance guarantee."
+  ],
+  "reproduction": "uv run --no-sync pytest -q tests/test_shared_gate_reference.py tests/test_shared_gate_projected.py tests/test_shared_gate_polynomial.py tests/test_shared_gate_resources.py"
+}
