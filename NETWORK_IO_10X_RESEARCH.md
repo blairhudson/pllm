@@ -1,5 +1,22 @@
 # Tenfold network-I/O research: existing-model privacy
 
+## Network-aware direction
+
+The proposed next product architecture is a compiler-driven multi-party inference
+network: registered parties advertise capabilities and participation constraints;
+the client selects and admits a compatible execution under explicit privacy and
+resource policy. See [CLI/SDK network design](NETWORK_INFERENCE_DESIGN.md) for the
+proposed records, command grammar, versioning, live reservation lifecycle and
+implementation slices. Those new APIs/commands are designs, not available features.
+
+Next experiments target exact batched continuation and inventory waste, measured
+placement plus artifact-granular public-weight reuse, and a bounded real-shape
+exact HE linear-region screen. Shallow HE would replace a priced prepared boundary
+while retaining client nonlinear work; it does not resurrect the depth-incomplete
+token-boundary decoder. All paths retain matched body, numeric, compute and
+cold/steady evidence gates. Detailed scope and stop conditions are in section 8
+of the network design.
+
 ## Current direction: measured incremental gains
 
 The tenfold target below is the original research screen, not a requirement for
@@ -872,3 +889,88 @@ The combined new focused suite passes **65 cases**, with one ordinary-run opt-in
 checkpoint replay skip; the cache-only real temporal probe was separately run
 and locked. New Python files pass scoped lint and format checks. Concurrent
 resource samples are diagnostics, not a matched compute/latency ranking.
+
+## Practical follow-up gates — 2026-10-01
+
+All four recommended directions were explored under fixed-checkpoint/no-training
+constraints. These results distinguish an implemented storage improvement from
+placement forecasts, narrow task evidence and a rejected protected-region design.
+
+### Exact block-shared prefill state
+
+The existing prefix cache now retains immutable eight-row KV blocks shared by
+checkpoints. Hits materialize independent state; last-reference eviction erases
+buffers. An independent old-LRU payload model retains five checkpoints using
+62.32 MB under a 64 MiB cap, while the executed new cache retains 68 using
+13.19 MB at synthetic pinned-Qwen dimensions. The common 384-token prefix is
+retained only by the latter. This is payload accounting, not peak-memory evidence.
+
+A generated-checkpoint two-child branch reuses 128/151 input tokens, preserving
+selected output and usage while reducing online masked bodies from 6.11 to
+1.83 MB. Sequential suffix execution makes 736 stage calls versus 32 fresh
+batched calls, so latency improvement is unproven. General generated-prefix
+promotion and a compiler-bound batched continuation remain unimplemented.
+
+Evidence: [state screen](docs/evidence/block-shared-state-screen-2026-10-01.json)
+and [review](docs/evidence/block-shared-state-review-2026-10-01.md).
+
+### Placement frontier and explicit compute denominators
+
+All 96 pinned public W8A8 stages were re-quantized offline: 72 use u24 and 24 u32.
+Twenty-three valid placements resolve into native schedules and pass 207 exact
+tiny logit-vector comparisons; six budget winners additionally pass two-child SDK
+controls. New-placement body values remain forecasts, not measured traffic.
+
+At 39+32, best forecast under at least 95% body-linear MACs remote is one prefix
+layer (171.51 MB); at 90%, QKV-only (162.34 MB); at 80%, attention (148.30 MB).
+Attention's 87.69% body-linear remote fraction becomes **74.70% all-linear** after
+token/head work. Requiring 80% all-linear remote instead selects attention-output
+only (164.93 MB). Cold delivery, native snapshots and scales are charged separately;
+none of these MAC fractions measures whole-response CPU.
+
+Evidence: [screen](docs/evidence/placement-frontier-screen-2026-10-01.json)
+and [review](docs/evidence/placement-frontier-review-2026-10-01.md).
+
+### Task-qualified existing models
+
+Sixteen new fixed public extraction, arithmetic, classification and formatting
+tasks form disjoint eight-task screen/review cohorts. Exact objective answers and
+EOS within 32 tokens are required. Greedy compiled W8A8 scores Qwen **9/16** and
+SmolLM2 **0/16**; both miss the fixed 75% success gate. Smol-then-Qwen fallback
+retains 9 successes but costs 1.58x/1.56x projected bytes per success on the two
+cohorts, including every failed attempt and unused preparation.
+
+The first canonical mismatch was sampling: ordinary benchmark default 0.8 versus
+clear argmax. Explicit benchmark temperature 0 now produces matching output
+digests and accounting on all four prespecified examples. Reports bind effective
+sampling to cohort comparison; historical unreported sampling cannot be silently
+ranked. Default SDK sampling remains preserved. Cohort costs are arithmetic
+projections; four examples measure role bodies, not full wire or broad task quality.
+
+Evidence: [screen](docs/evidence/task-qualified-models-screen-2026-10-01.json)
+and [review](docs/evidence/task-qualified-models-review-2026-10-01.md).
+
+### Complete protected MLP construction
+
+One conventional two-worker R32/Boolean garbling contract prices A2B, gate/up
+accumulators, exact rounded nonlinear/quantizer obligations, B2A, down projection,
+residual return and fresh material. Known bodies alone reach **86.34 / 131.39 GB**
+for 39+8 / 39+32; even the optimistic smaller-label comparator is **43.20 / 65.73 GB**.
+Missing exact exp, private max/scale, conversions, OT and transport are additional
+unknowns; complete cost is null and executable admission fails closed.
+
+For narrow removal of the 98.18 MB gate/up output/correction boundary at 39+32,
+replacement allowances are 61.11 MB for 25% savings and 24.03 MB for 50%. Full-region
+retirement has a different, explicitly conserved budget. This construction misses
+both; no general lower bound on compressed FSS or other protocols is claimed.
+
+Evidence: [screen](docs/evidence/complete-mlp-contract-screen-2026-10-01.json)
+and [complete specification](docs/evidence/complete-mlp-contract-review-2026-10-01.md).
+
+### Next gate
+
+Prioritize a compiler-bound batched continuation and matched real-checkpoint
+branching/eviction measurements. Measure QKV-only, output-only and attention
+placements at identical sampling and workloads with full client compute/storage
+denominators. Park this Smol task-routing policy and the chosen complete-MLP
+garbling construction; reopen only when task fidelity or their dominant cost changes.
