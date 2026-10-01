@@ -222,7 +222,7 @@ class ClientBundle:
         return self.arrays
 
     @classmethod
-    def unpack(cls, payload: bytes) -> "ClientBundle":
+    def unpack(cls, payload: bytes | bytearray) -> "ClientBundle":
         try:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
@@ -286,7 +286,33 @@ class ClientBundle:
         if str(value.get("model", manifest.get("id", ""))) != str(manifest.get("id", "")):
             raise TransformerClientError("client bundle model descriptor mismatch")
         privacy = dict(value["privacy"])
+        client_prefix_layers = privacy.get("client_prefix_layers", 0)
+        client_linear_roles = privacy.get("client_linear_roles", [])
+        if client_linear_roles:
+            from pllm.roles import ClientLinearRoles
+
+            try:
+                canonical_roles = ClientLinearRoles(client_linear_roles).roles
+            except (ValueError, TypeError) as exc:
+                raise TransformerClientError("invalid client linear role placement") from exc
+            if (
+                list(canonical_roles) != client_linear_roles
+                or client_prefix_layers
+                or privacy.get("mode") != "public"
+                or value.get("runtime") != "masked_transformer"
+            ):
+                raise TransformerClientError("invalid client linear role placement")
+        elif client_linear_roles != []:
+            raise TransformerClientError("invalid client linear role placement")
+        if (
+            type(client_prefix_layers) is not int
+            or not 0 <= client_prefix_layers <= 8
+            or client_prefix_layers
+            and (privacy.get("mode") != "public" or value.get("runtime") != "masked_transformer")
+        ):
+            raise TransformerClientError("invalid client-owned prefix bundle placement")
         client_weights: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        extra_client_bytes = 0
         for weight_id, weight_row in weight_rows.items():
             if not isinstance(weight_row, dict) or set(weight_row) != {
                 "dtype",
@@ -298,6 +324,12 @@ class ClientBundle:
             shape = tuple(int(item) for item in weight_row["shape"])
             if weight_row["dtype"] != "i1" or len(shape) != 2:
                 raise TransformerClientError(f"invalid client weight shape for {weight_id}")
+            if weight_id not in {"token_lookup", "lm_head", "tied_embeddings", "token_lookup_aux"}:
+                extra_client_bytes += len(weight_row["data"]) + len(weight_row["scales"])
+                if extra_client_bytes > 512 << 20:
+                    raise TransformerClientError(
+                        "client-owned prefix exceeds its 512 MiB weight bound"
+                    )
             matrix = np.frombuffer(weight_row["data"], dtype=np.int8).copy()
             scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
             if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
@@ -319,15 +351,24 @@ class ClientBundle:
             raw_equalization = row.get("input_equalization")
             equalization = None
             if raw_equalization is not None:
-                if type(raw_equalization) is not bytes or len(raw_equalization) != int(row["in_features"]) * 4:
+                if (
+                    type(raw_equalization) is not bytes
+                    or len(raw_equalization) != int(row["in_features"]) * 4
+                ):
                     raise TransformerClientError(f"invalid equalization bytes for {stage_id}")
                 equalization = np.frombuffer(raw_equalization, dtype="<f4").copy()
                 try:
                     validate_input_scale(equalization, int(row["in_features"]))
                 except PublicEqualizationError as exc:
-                    raise TransformerClientError(f"invalid equalization scale for {stage_id}") from exc
+                    raise TransformerClientError(
+                        f"invalid equalization scale for {stage_id}"
+                    ) from exc
                 digest = row.get("equalization_profile_digest")
-                if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                if (
+                    type(digest) is not str
+                    or len(digest) != 64
+                    or any(c not in "0123456789abcdef" for c in digest)
+                ):
                     raise TransformerClientError(f"invalid equalization profile for {stage_id}")
             elif "equalization_profile_digest" in row:
                 raise TransformerClientError(f"equalization profile lacks scale for {stage_id}")
@@ -345,11 +386,20 @@ class ClientBundle:
             client_weight_layout = "linear"
             weight_row = row.get("client_weight")
             if weight_row is not None:
-                if privacy.get("mode") not in {"public", "offset_public"} or stage_id not in {
-                    "token_lookup", "lm_head",
-                }:
+                from .semantic_stages import client_owns_linear
+
+                local_prefix = client_owns_linear(
+                    spec,
+                    client_prefix_layers=client_prefix_layers,
+                    client_linear_roles=tuple(client_linear_roles),
+                )
+                if (
+                    privacy.get("mode") not in {"public", "offset_public"}
+                    or stage_id not in {"token_lookup", "lm_head"}
+                    and not local_prefix
+                ):
                     raise TransformerClientError(
-                        "client stage weights require public boundary stages"
+                        "client stage weights require public boundary or bound prefix stages"
                     )
                 if not isinstance(weight_row, dict):
                     raise TransformerClientError(f"invalid client weight for {stage_id}")
@@ -357,6 +407,12 @@ class ClientBundle:
                     if set(weight_row) != {"ref", "layout"}:
                         raise TransformerClientError(
                             f"invalid client weight reference for {stage_id}"
+                        )
+                    if local_prefix and (
+                        weight_row["ref"] != stage_id or weight_row["layout"] != "linear"
+                    ):
+                        raise TransformerClientError(
+                            "client-owned prefix stage requires its own linear weight"
                         )
                     reference = client_weights.get(str(weight_row["ref"]))
                     if reference is None:
@@ -904,10 +960,9 @@ class PreparedRemoteLinear:
         clear = clear_signed.astype(np.int64, copy=False) % profile.modulus
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         verifier = self.inventory.take_verifier(stage_id)
-        if (
-            self.verification_component not in {"none", "pllm/freivalds-verify/v1"}
-            or (verifier is None) != (self.verification_component == "none")
-        ):
+        if self.verification_component not in {"none", "pllm/freivalds-verify/v1"} or (
+            verifier is None
+        ) != (self.verification_component == "none"):
             if verifier is not None:
                 verifier.cancel()
             raise TransformerClientError("prepared stage verification does not match its contract")

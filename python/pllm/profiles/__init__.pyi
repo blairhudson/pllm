@@ -2,16 +2,18 @@ from typing import Any
 
 from pllm.configuration import Pipeline
 from pllm.kernels import KernelBackend
-from pllm.preparation import PreparationProvider
+from pllm.preparation import PreparationProvider, PreparedInventory
 from pllm.quantization import QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
+    ClientBundleTransport,
     DirectFHE,
     GuardedLinear,
     ProtocolMethod,
 )
-from pllm.roles import InferenceRole
+from pllm.roles import ClientPlacement, InferenceRole, OutputHeadAtInference
 from pllm.sources import ModelSource
+from pllm.state import ClientPrefixReuse
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
 class RuntimeComposition:
@@ -29,6 +31,14 @@ class RuntimeComposition:
     verification_target_failure_bits: int
     weight_bits: int
     activation_bits: int
+    prefix_cache_bytes: int
+    prefix_cache_bound_tokens: int | None
+    remote_output_head: bool
+    client_prefix_layers: int
+    client_linear_roles: tuple[str, ...]
+    inventory_policy: str
+    prepared_inventory_rows: int
+    bundle_compression: str
     def __init__(
         self,
         privacy_mode: str,
@@ -60,6 +70,11 @@ class MaskedLinearCpu(Pipeline):
         inference: InferenceRole = ...,
         kernels: KernelBackend = ...,
         quantization: QuantizationScheme | None = ...,
+        cache: ClientPrefixReuse | None = ...,
+        boundary: OutputHeadAtInference | None = ...,
+        placement: ClientPlacement | None = ...,
+        inventory: PreparedInventory | None = ...,
+        delivery: ClientBundleTransport | None = ...,
     ) -> None: ...
     @property
     def linear(self) -> ProtocolMethod: ...
@@ -71,6 +86,16 @@ class MaskedLinearCpu(Pipeline):
     def kernels(self) -> KernelBackend: ...
     @property
     def quantization(self) -> SymmetricPerRow | None: ...
+    @property
+    def cache(self) -> ClientPrefixReuse | None: ...
+    @property
+    def boundary(self) -> OutputHeadAtInference | None: ...
+    @property
+    def placement(self) -> ClientPlacement | None: ...
+    @property
+    def inventory(self) -> PreparedInventory | None: ...
+    @property
+    def delivery(self) -> ClientBundleTransport | None: ...
     def get_params(self, deep: bool = True) -> dict[str, Any]: ...
     def with_params(self, **changes: object) -> MaskedLinearCpu: ...
 

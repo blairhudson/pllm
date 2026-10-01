@@ -69,6 +69,19 @@ class ParetoFrontier:
     def results(self) -> tuple[SearchEvaluation, ...]: ...
     def excluded(self) -> tuple[SearchEvaluation, ...]: ...
 
+class QualityLockedNetworkSearch:
+    minimum_top1_agreement: float
+    minimum_top_k_recall: float
+    maximum_abs_logit_error: float
+    def __init__(
+        self, minimum_top1_agreement: float, minimum_top_k_recall: float,
+        maximum_abs_logit_error: float,
+    ) -> None: ...
+    def select(
+        self, quality_report: Mapping[str, Any],
+        candidates: Sequence[tuple[Experiment, Mapping[str, Any]]],
+    ) -> dict[str, Any]: ...
+
 def evaluate_search(
     candidates: Iterable[SearchCandidate],
     evaluator: Callable[[SearchCandidate], BenchmarkResult],

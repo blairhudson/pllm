@@ -5,6 +5,8 @@ from pllm.configuration import Model
 from pllm.runtime.loaders import ModelLoadError as ModelLoadError
 from pllm.runtime.models import ModelManifest as ModelManifest
 
+def expected_model_id(model: Model) -> str: ...
+
 def load_model(
     value: Model | str | Mapping[str, Any],
     *,

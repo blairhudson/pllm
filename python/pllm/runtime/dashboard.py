@@ -194,7 +194,8 @@ class OTelStore:
         with self._lock:
             names = {"pllm-client", "pllm-preparation", "pllm-inference"}
             names.update(
-                service for service in self._metrics
+                service
+                for service in self._metrics
                 if service in {"pllm-worker_a", "pllm-worker_b"}
             )
             services = {
@@ -234,8 +235,38 @@ class OTelStore:
         with self._lock:
             return self._protocol_sequence
 
+    def stage_body_snapshot(
+        self,
+        *,
+        client_local: dict[tuple[str, str, str], int] | None = None,
+    ) -> dict[tuple[str, str, str], int]:
+        """Cumulative, public-stage body counters; never archive protocol spans."""
+        with self._lock:
+            result: dict[tuple[str, str, str], int] = defaultdict(int)
+            for service, metrics in self._metrics.items():
+                if client_local is not None and service == "pllm-client":
+                    continue
+                for (name, attributes), value in metrics.items():
+                    if name != "pllm.protocol.bytes":
+                        continue
+                    labels = dict(attributes)
+                    source, destination, stage = (
+                        labels.get("source"),
+                        labels.get("destination"),
+                        labels.get("stage"),
+                    )
+                    if source and destination and stage and value >= 0 and value.is_integer():
+                        result[(source, destination, stage)] += int(value)
+            if client_local is not None:
+                for key, value in client_local.items():
+                    result[key] += value
+            return dict(result)
+
     def begin_run_window(
-        self, run_id: str, *, roles: tuple[str, ...] = ("client", "preparation", "inference"),
+        self,
+        run_id: str,
+        *,
+        roles: tuple[str, ...] = ("client", "preparation", "inference"),
     ) -> None:
         with self._lock:
             if run_id in self._run_windows:
@@ -290,6 +321,11 @@ class DashboardConfig:
     default_max_output_tokens: int
     history_path: Path | str | None = None
     startup_inventory_rows: int | None = None
+    defer_inventory_until_request: bool = False
+    bundle_compression: str | None = None
+    prefill_cache_mib: int = 0
+    prefill_cache_mode: str = "exact"
+    prefill_cache_bound_tokens: int | None = None
     experiment: Any | None = None
     otel_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
 
@@ -343,6 +379,26 @@ class DashboardRuntime:
         history: BenchmarkHistory | None = None,
     ) -> None:
         self.config = config
+        self._bundle_compression = getattr(config, "bundle_compression", None)
+        experiment = getattr(config, "experiment", None)
+        profile = experiment.resolve() if experiment is not None else None
+        if profile is not None and "delivery" in experiment.pipeline.components:
+            if (
+                self._bundle_compression is not None
+                and self._bundle_compression != profile.bundle_compression
+            ):
+                raise ValueError("dashboard bundle encoding conflicts with immutable Experiment")
+            self._bundle_compression = profile.bundle_compression
+        self._bundle_compression = self._bundle_compression or "none"
+        if self._bundle_compression not in {"none", "zlib"}:
+            raise ValueError("bundle_compression must be none or zlib")
+        self._prefill_cache_mib = getattr(config, "prefill_cache_mib", 0)
+        if type(self._prefill_cache_mib) is not int or not 0 <= self._prefill_cache_mib <= 256:
+            raise ValueError("prefill_cache_mib must be in [0, 256]")
+        self._prefill_cache_mode = getattr(config, "prefill_cache_mode", "exact")
+        self._prefill_cache_bound_tokens = getattr(config, "prefill_cache_bound_tokens", None)
+        if self._prefill_cache_mode not in {"exact", "prefix"}:
+            raise ValueError("prefill cache mode must be exact or prefix")
         experiment = getattr(config, "experiment", None)
         self.store = store
         self.history = history
@@ -370,9 +426,25 @@ class DashboardRuntime:
             "configured_max_output_tokens": config.default_max_output_tokens,
             "protocol_start_cursor": 0,
         }
-        self._inventory_rows = getattr(config, "startup_inventory_rows", None) or (
-            256 if config.model_path is None and experiment is None else 64
+        configured_inventory_rows = getattr(config, "startup_inventory_rows", None)
+        self._defer_inventory = getattr(config, "defer_inventory_until_request", False)
+        if profile is not None and "inventory" in experiment.pipeline.components:
+            if (
+                configured_inventory_rows is not None
+                and configured_inventory_rows != profile.prepared_inventory_rows
+            ):
+                raise ValueError("dashboard inventory rows conflict with immutable Experiment")
+            configured_inventory_rows = profile.prepared_inventory_rows
+            self._defer_inventory = profile.inventory_policy == "request-sized"
+        self._inventory_rows = (
+            configured_inventory_rows
+            if configured_inventory_rows is not None
+            else (256 if config.model_path is None and experiment is None else 64)
         )
+        if type(self._inventory_rows) is not int or self._inventory_rows < 1:
+            raise ValueError("startup inventory rows must be positive")
+        if type(getattr(config, "defer_inventory_until_request", False)) is not bool:
+            raise ValueError("deferred inventory selection must be Boolean")
         self._online_traffic_baseline: dict[str, float] = {}
         self._preparation_cpu_baseline: float | None = None
         self._online_traffic_final: dict[str, float] | None = None
@@ -385,6 +457,7 @@ class DashboardRuntime:
         self._active_run: _RunCapture | None = None
         self._has_started_run = False
         self._model_fingerprint: str | None = None
+        self.source_lock_digest: str | None = None
         self._stopping = threading.Event()
         self._stop_started = False
         self._background_threads: set[threading.Thread] = set()
@@ -399,7 +472,8 @@ class DashboardRuntime:
         """Only numeric startup deltas; no prompt, token or correction payloads."""
         with self._lock:
             return (
-                None if self._initial_preparation_audit is None
+                None
+                if self._initial_preparation_audit is None
                 else dict(self._initial_preparation_audit)
             )
 
@@ -408,6 +482,45 @@ class DashboardRuntime:
         if topology is None or topology.statuses:
             return None
         return topology.client_model_ownership()
+
+    def client_body_placement(self) -> dict[str, Any] | None:
+        """Sample public body storage and declared per-row matrix work, not peak RAM."""
+        if self._client is None:
+            return None
+        core = self._client._core
+        with core._transformer_state_lock:
+            state = core._transformer_states.get(self.config.model_id)
+        if state is None:
+            return None
+        bundle = state.bundle
+        stages = {
+            key: stage
+            for key, stage in bundle.stages.items()
+            if stage.layer_index is not None and stage.op == "linear"
+        }
+        local = {key: stage for key, stage in stages.items() if stage.client_weight is not None}
+        with bundle._local_lock:
+            snapshots = set(bundle._local_matrices)
+        local_macs = sum(stage.in_features * stage.out_features for stage in local.values())
+        total_macs = sum(stage.in_features * stage.out_features for stage in stages.values())
+        return {
+            "schema": "pllm.client_body_placement.v1",
+            "sample_boundary": "after-final-measured-response",
+            "local_stage_count": len(local),
+            "remote_stage_count": len(stages) - len(local),
+            "client_body_i8_weight_bytes": sum(
+                stage.client_weight.nbytes for stage in local.values()
+            ),
+            "client_body_scale_bytes": sum(
+                stage.client_weight_scales.nbytes for stage in local.values()
+            ),
+            "native_body_i8_snapshot_bytes": sum(
+                stage.client_weight.nbytes for key, stage in local.items() if key in snapshots
+            ),
+            "declared_body_linear_macs_per_row_client": local_macs,
+            "declared_body_linear_macs_per_row_remote": total_macs - local_macs,
+            "peak_client_memory_bytes": None,
+        }
 
     def cold_process_cpu(self) -> dict[str, dict[str, float | None] | None]:
         """CPU from benchmark startup through the first response, including import/preparation.
@@ -420,7 +533,8 @@ class DashboardRuntime:
             return {
                 "startup": None if self._startup_cpu is None else dict(self._startup_cpu),
                 "first_response": (
-                    None if self._cold_first_response_cpu is None
+                    None
+                    if self._cold_first_response_cpu is None
                     else dict(self._cold_first_response_cpu)
                 ),
             }
@@ -430,7 +544,8 @@ class DashboardRuntime:
         result: dict[str, float | None] = {
             "client": (
                 max(0.0, (time.process_time_ns() - since) / 1_000_000_000)
-                if since is not None else None
+                if since is not None
+                else None
             )
         }
         topology = self._topology
@@ -461,7 +576,8 @@ class DashboardRuntime:
             and not topology.closed
             and (
                 all(status.running for status in topology.statuses)
-                if topology.statuses else topology.is_healthy()
+                if topology.statuses
+                else topology.is_healthy()
             )
         )
 
@@ -524,18 +640,26 @@ class DashboardRuntime:
             int(inventory.get("burned", 0)) + self._inventory_burned_total,
         )
 
-    def _discover_model_fingerprint(self) -> str | None:
+    def _discover_model_identity(self) -> tuple[str | None, str | None]:
         if self._client is None:
-            return None
+            return None, None
         try:
             models = self._client.models.list().get("data", [])
         except Exception:
-            return None
+            return None, None
         for model in models:
             if not isinstance(model, dict) or model.get("id") != self.config.model_id:
                 continue
             raw_runtime = model.get("runtime")
             runtime: dict[str, Any] = raw_runtime if isinstance(raw_runtime, dict) else {}
+            lock = runtime.get("source_lock_digest")
+            source_lock = (
+                lock
+                if isinstance(lock, str)
+                and len(lock) == 64
+                and all(char in "0123456789abcdef" for char in lock)
+                else None
+            )
             value = (
                 runtime.get("body_fingerprint")
                 or model.get("fingerprint")
@@ -548,8 +672,8 @@ class DashboardRuntime:
                     and len(fingerprint) <= 256
                     and not any(ord(char) < 32 for char in fingerprint)
                 ):
-                    return fingerprint
-        return None
+                    return fingerprint, source_lock
+        return None, None
 
     async def start(self) -> None:
         try:
@@ -589,46 +713,60 @@ class DashboardRuntime:
                 if pid is not None and status.running:
                     try:
                         self._role_births[status.role] = (
-                            pid, psutil.Process(pid).create_time(),
+                            pid,
+                            psutil.Process(pid).create_time(),
                         )
                     except (psutil.Error, OSError):
                         pass
             client_options: dict[str, Any] = {"timeout": 300}
+            client_options["bundle_compression"] = self._bundle_compression
+            client_options["prefill_cache_bytes"] = self._prefill_cache_mib << 20
+            client_options["prefill_cache_mode"] = self._prefill_cache_mode
+            client_options["prefill_cache_bound_tokens"] = self._prefill_cache_bound_tokens
             if self._topology.statuses:
                 client_options["bundle_cache_dir"] = root / "bundle-cache"
             if self._topology.requires_preparation:
                 client_options.update(
-                    prepared_inventory_rows=self._inventory_rows,
+                    prepared_inventory_rows=(
+                        self._inventory_rows
+                        if self.config.experiment is not None
+                        and "inventory" in self.config.experiment.pipeline.components
+                        else 1
+                        if self._defer_inventory
+                        else self._inventory_rows
+                    ),
                     background_inventory_refill=False,
                 )
             self._client = self._topology.client(**client_options)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
-            endpoints = {
-                status.role: status.url for status in self._topology.statuses
-            }
+            endpoints = {status.role: status.url for status in self._topology.statuses}
             self._set(
                 phase="preparing",
                 startup_step=(
-                    "inventory" if self._topology.requires_preparation else
-                    ("client" if not endpoints else "inference")
+                    "inventory"
+                    if self._topology.requires_preparation
+                    else ("client" if not endpoints else "inference")
                 ),
                 endpoints=endpoints,
             )
             if self._topology.requires_preparation:
                 before_preparation = self._audit_snapshot()
-                await self._background_call(
-                    self._client.preprocess,
-                    self.config.model_id,
-                    count=self._inventory_rows,
-                )
+                if not self._defer_inventory:
+                    await self._background_call(
+                        self._client.preprocess,
+                        self.config.model_id,
+                        count=self._inventory_rows,
+                    )
                 after_preparation = self._audit_snapshot()
                 with self._lock:
                     self._initial_preparation_audit = {
                         key: max(0, count - before_preparation.get(key, 0))
                         for key, count in after_preparation.items()
                     }
-            self._model_fingerprint = await self._background_call(self._discover_model_fingerprint)
+            self._model_fingerprint, self.source_lock_digest = await self._background_call(
+                self._discover_model_identity
+            )
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -676,9 +814,11 @@ class DashboardRuntime:
                     capture.worker_metrics_before = self._topology.worker_process_metrics()
                 except (httpx.HTTPError, ValueError, RuntimeError):
                     capture.worker_metrics_before = None
-            roles = ("client", *(
-                status.role for status in self._topology.statuses
-            )) if self._topology is not None else ("client",)
+            roles = (
+                ("client", *(status.role for status in self._topology.statuses))
+                if self._topology is not None
+                else ("client",)
+            )
             self.store.begin_run_window(run_id, roles=roles)
             self._has_started_run = True
             self._active_run = capture
@@ -724,9 +864,7 @@ class DashboardRuntime:
             if self._topology is not None and self._topology.requires_preparation:
                 capture.preparation_started_at_ns = time.time_ns()
                 capture.preparation_started_monotonic_ns = time.monotonic_ns()
-                self._set(
-                    preparation_started_at=capture.preparation_started_at_ns / 1_000_000_000
-                )
+                self._set(preparation_started_at=capture.preparation_started_at_ns / 1_000_000_000)
                 previous_inventory = self._client.prepared_inventory_status(self.config.model_id)
                 (
                     capture.inventory_consumed_before,
@@ -758,9 +896,7 @@ class DashboardRuntime:
                 capture.preparation_finished_at_ns = time.time_ns()
                 capture.preparation_finished_monotonic_ns = time.monotonic_ns()
                 self._set(
-                    preparation_finished_at=(
-                        capture.preparation_finished_at_ns / 1_000_000_000
-                    )
+                    preparation_finished_at=(capture.preparation_finished_at_ns / 1_000_000_000)
                 )
             else:
                 current_inventory = {"required": False}
@@ -997,8 +1133,10 @@ class DashboardRuntime:
                     capture.process_metrics[role] = {
                         "cpu_seconds": (
                             max(0.0, (after_cpu - before_cpu) / 1_000_000_000)
-                            if before_cpu is not None and after_cpu is not None
-                            and after_cpu >= before_cpu else None
+                            if before_cpu is not None
+                            and after_cpu is not None
+                            and after_cpu >= before_cpu
+                            else None
                         ),
                         "rss_peak_bytes": after_value.get("peak_rss_bytes"),
                     }
@@ -1008,9 +1146,7 @@ class DashboardRuntime:
                 display_error = f"telemetry failed: {type(telemetry_error).__name__}"
         inventory: dict[str, Any] = {}
         client = self._client
-        if client is not None and (
-            self._topology is None or self._topology.requires_preparation
-        ):
+        if client is not None and (self._topology is None or self._topology.requires_preparation):
             try:
                 inventory = client.prepared_inventory_status(self.config.model_id)
             except Exception:
@@ -1133,8 +1269,7 @@ class DashboardRuntime:
         topology = getattr(self, "_topology", None)
         statuses = () if topology is None else topology.statuses
         state["processes"] = {
-            status.role: {"pid": status.pid, "running": status.running}
-            for status in statuses
+            status.role: {"pid": status.pid, "running": status.running} for status in statuses
         }
         audit = self._audit_snapshot()
         with self._lock:

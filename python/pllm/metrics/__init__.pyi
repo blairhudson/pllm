@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+from typing import Any
 import numpy as np
-from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.configuration import ComponentDescriptor, ComponentRef, Pipeline
+from pllm.modeling import ModelPlan
 
 class Metric(ComponentRef): ...
 
@@ -64,3 +66,75 @@ class Cost(Metric):
     def __init__(self, *, currency: str = "USD", basis: str = "request") -> None: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
+
+class ResidentMlpCostProbe:
+    fixed_scale_bits: int
+    maximum_material_bytes_per_party: int
+    maximum_online_all_link_body_bytes: int
+    def __init__(
+        self, fixed_scale_bits: int, maximum_material_bytes_per_party: int,
+        maximum_online_all_link_body_bytes: int,
+    ) -> None: ...
+    def run(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    ) -> dict[str, Any]: ...
+
+class ResidentFusedGateCostProbe:
+    domain_bits: int
+    maximum_material_bytes_per_party: int
+    maximum_online_all_link_body_bytes: int
+    maximum_online_body_bytes_per_layer: int
+    def __init__(
+        self, domain_bits: int, maximum_material_bytes_per_party: int,
+        maximum_online_all_link_body_bytes: int,
+        maximum_online_body_bytes_per_layer: int,
+    ) -> None: ...
+    def run(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    ) -> dict[str, Any]: ...
+
+class ResidentQuadraticGateCostProbe:
+    maximum_material_bytes_per_party: int
+    maximum_online_all_link_body_bytes: int
+    maximum_online_body_bytes_per_layer: int
+    def __init__(
+        self, maximum_material_bytes_per_party: int,
+        maximum_online_all_link_body_bytes: int,
+        maximum_online_body_bytes_per_layer: int,
+    ) -> None: ...
+    def run(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    ) -> dict[str, Any]: ...
+    def run_two_source_layer_bound(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    ) -> dict[str, Any]: ...
+
+class LatentResponseCostProbe:
+    maximum_online_all_link_body_bytes: int
+    maximum_total_all_link_body_bytes: int
+    maximum_material_bytes_per_party: int
+    def __init__(
+        self, maximum_online_all_link_body_bytes: int,
+        maximum_total_all_link_body_bytes: int,
+        maximum_material_bytes_per_party: int,
+    ) -> None: ...
+    def run(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    ) -> dict[str, Any]: ...
+
+class EncryptedLinearCostProbe:
+    input_width: int
+    output_width: int
+    rows: int
+    modulus: int
+    def __init__(
+        self, input_width: int, output_width: int, rows: int = 1, modulus: int = 65_537,
+    ) -> None: ...
+    def run(self) -> dict[str, Any]: ...
+
+class EncryptedQuadraticShareCostProbe:
+    width: int
+    rows: int
+    islands: int
+    def __init__(self, width: int = 32, rows: int = 1, islands: int = 1) -> None: ...
+    def run(self) -> dict[str, Any]: ...

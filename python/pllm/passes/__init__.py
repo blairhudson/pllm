@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 
 
@@ -209,3 +209,5 @@ __all__ += [
     "MpcFormerDistillation", "HyccHybridProtocolAssignment", "FevBddDecisionDiagramFactoring",
     "SparseExpertRouting",
 ]
+
+install_planned_components(globals())

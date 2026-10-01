@@ -45,7 +45,9 @@ def _candidate_remote(engine: MaskedTransformerEngine, model_id: str):
         if stage.input_equalization is not None:
             activation = equalize_activation(activation, stage.input_equalization)
         q_activation = quantize_activation_per_row(activation, bits=stage.spec.activation_bits)
-        integer = engine._public_stage_matrix(model_id, stage, q_activation.rows).clear(q_activation.values)
+        integer = engine._public_stage_matrix(model_id, stage, q_activation.rows).clear(
+            q_activation.values
+        )
         output = dequantize_matmul(
             integer,
             q_activation.scales,
@@ -172,6 +174,9 @@ def run_reference_benchmark(
             threads=threads,
             metal_min_rows=metal_min_rows,
             public_equalization_digest=options.public_equalization_digest,
+            client_prefix_layers=options.client_prefix_layers,
+            client_linear_roles=options.client_linear_roles,
+            remote_output_head=options.remote_output_head,
         )
         asyncio.run(engine.load(resolved.manifest))
         bundle = ClientBundle.unpack(engine.client_bundle(model_id))
@@ -204,22 +209,29 @@ def run_reference_benchmark(
         if token_cohort is not None and token_cohort != current_cohort:
             raise ReferenceBenchmarkError("quality candidates tokenized the cohort differently")
         token_cohort = current_cohort
-        pending.append((
-            {
-                "name": experiment.name,
-                "configuration_digest": experiment.configuration_digest(),
-                "pipeline_digest": experiment.pipeline.digest(),
-                "weight_bits": options.weight_bits,
-                "activation_bits": options.activation_bits,
-                "kernel_threads": threads,
-                "kernel_backend": kernel_choice.component,
-                **({
-                    "public_equalization_profile_digest": options.public_equalization_digest,
-                    "public_calibration_digest": engine._public_equalization_profile.calibration_digest,
-                    "public_profile_bytes": len(engine._public_equalization_profile.pack()),
-                } if engine._public_equalization_profile is not None else {}),
-            }, actual_rows,
-        ))
+        pending.append(
+            (
+                {
+                    "name": experiment.name,
+                    "configuration_digest": experiment.configuration_digest(),
+                    "pipeline_digest": experiment.pipeline.digest(),
+                    "weight_bits": options.weight_bits,
+                    "activation_bits": options.activation_bits,
+                    "kernel_threads": threads,
+                    "kernel_backend": kernel_choice.component,
+                    **(
+                        {
+                            "public_equalization_profile_digest": options.public_equalization_digest,
+                            "public_calibration_digest": engine._public_equalization_profile.calibration_digest,
+                            "public_profile_bytes": len(engine._public_equalization_profile.pack()),
+                        }
+                        if engine._public_equalization_profile is not None
+                        else {}
+                    ),
+                },
+                actual_rows,
+            )
+        )
         del remote, compiled, bundle, engine
         gc.collect()
     assert token_cohort is not None
@@ -246,13 +258,15 @@ def run_reference_benchmark(
             measure_reference_agreement(actual, expected, top_k=top_k)
             for actual, expected in zip(actual_rows, expected_rows, strict=True)
         ]
-        candidates.append({
-            **metadata,
-            "sample_count": len(samples),
-            "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
-            "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
-            "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
-        })
+        candidates.append(
+            {
+                **metadata,
+                "sample_count": len(samples),
+                "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
+                "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
+                "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
+            }
+        )
     environment = {
         "system": platform.system(),
         "machine": platform.machine(),

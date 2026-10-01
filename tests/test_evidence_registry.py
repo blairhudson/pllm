@@ -119,7 +119,7 @@ def test_metric_components_are_typed_registered_and_immutable() -> None:
         Perplexity(dataset="fixture"),
         Cost(),
     )
-    assert len(list_component_classes()) == 38
+    assert len(list_component_classes()) == 44
     for metric in metrics:
         assert get(metric.component) is type(metric)
         assert metric.describe().category == "pllm/benchmark-metric"
@@ -146,13 +146,16 @@ def test_benchmark_result_is_schema_valid_canonical_and_digest_bound() -> None:
         "latency-full-median",
         "throughput-token",
     ]
-    assert result.canonical_bytes() == json.dumps(
-        result.to_dict(),
-        allow_nan=False,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
+    assert (
+        result.canonical_bytes()
+        == json.dumps(
+            result.to_dict(),
+            allow_nan=False,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    )
     with pytest.raises(TypeError):
         result.data["status"] = "failed"
     with pytest.raises(ValueError, match="canonical"):
@@ -241,6 +244,7 @@ def test_retained_freivalds_tiny_results_form_a_matched_cohort() -> None:
     assert "pllm/freivalds-verify/v1" not in baseline["component_ids"]
     assert "pllm/freivalds-verify/v1" in verified["component_ids"]
     assert baseline["limitations"] == verified["limitations"]
+
 
 def test_not_available_result_requires_explicit_reason_and_no_samples() -> None:
     document = result_document("not-available")

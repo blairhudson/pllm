@@ -49,6 +49,7 @@ def test_otel_store_aggregates_process_and_protocol_metrics() -> None:
     point.as_int = 4096
     _resource_attribute(point, "source", "client")
     _resource_attribute(point, "destination", "inference")
+    _resource_attribute(point, "stage", "layers.0.self_attn.qkv_proj")
 
     store = OTelStore()
     store.ingest_metrics(request.SerializeToString())
@@ -57,6 +58,9 @@ def test_otel_store_aggregates_process_and_protocol_metrics() -> None:
     assert snapshot["services"]["pllm-client"]["cpu_seconds"] == 12.5
     assert snapshot["services"]["pllm-client"]["memory_bytes"] == 64 * 1024 * 1024
     assert snapshot["traffic"]["client->inference"] == 4096
+    assert store.stage_body_snapshot() == {
+        ("client", "inference", "layers.0.self_attn.qkv_proj"): 4096
+    }
 
 
 def test_otel_store_keeps_bounded_span_details() -> None:

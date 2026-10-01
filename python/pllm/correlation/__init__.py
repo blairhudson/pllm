@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 
 class CorrelationSource(ComponentRef, ABC):
@@ -87,3 +87,5 @@ __all__ += [
     "SecretReplicationPcf", "FiniteFieldPcg", "RingPcg", "SparseUnitVectorCorrelation",
     "RingVectorOle", "RingLpnPcg", "SilentOtExtension", "CompressedVectorOle",
 ]
+
+install_planned_components(globals())

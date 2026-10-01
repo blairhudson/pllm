@@ -53,6 +53,7 @@ from .semantic_tensors import (
     preflight_semantic_checkpoint,
     required_client_tensors,
 )
+from .semantic_stages import client_owns_linear
 from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
@@ -82,26 +83,26 @@ class StageMetadata:
 
     def pack(self) -> bytes:
         descriptor = {
-                "v": 1,
-                "id": self.id,
-                "op": self.op,
-                "in_features": self.in_features,
-                "out_features": self.out_features,
-                "weight_bits": self.weight_bits,
-                "activation_bits": self.activation_bits,
-                "modulus": self.modulus,
-                "wire_bits": self.wire_bits,
-                "weight_scales": self.weight_scales.astype("<f4", copy=False).tobytes(),
-                "bias": None
-                if self.bias is None
-                else self.bias.astype("<f4", copy=False).tobytes(),
-                "role": self.role,
-                "layer_index": self.layer_index,
-                "ring": self.ring,
-                "weight_digest": self.weight_digest,
-            }
+            "v": 1,
+            "id": self.id,
+            "op": self.op,
+            "in_features": self.in_features,
+            "out_features": self.out_features,
+            "weight_bits": self.weight_bits,
+            "activation_bits": self.activation_bits,
+            "modulus": self.modulus,
+            "wire_bits": self.wire_bits,
+            "weight_scales": self.weight_scales.astype("<f4", copy=False).tobytes(),
+            "bias": None if self.bias is None else self.bias.astype("<f4", copy=False).tobytes(),
+            "role": self.role,
+            "layer_index": self.layer_index,
+            "ring": self.ring,
+            "weight_digest": self.weight_digest,
+        }
         if self.input_equalization is not None:
-            descriptor["input_equalization"] = self.input_equalization.astype("<f4", copy=False).tobytes()
+            descriptor["input_equalization"] = self.input_equalization.astype(
+                "<f4", copy=False
+            ).tobytes()
             descriptor["equalization_profile_digest"] = self.equalization_profile_digest
         return msgpack.packb(descriptor, use_bin_type=True)
 
@@ -129,7 +130,11 @@ class StageMetadata:
             except PublicEqualizationError as exc:
                 raise TransformerEngineError("invalid stage equalization scale") from exc
             digest = row.get("equalization_profile_digest")
-            if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            if (
+                type(digest) is not str
+                or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest)
+            ):
                 raise TransformerEngineError("invalid stage equalization profile")
         elif "equalization_profile_digest" in row:
             raise TransformerEngineError("stage equalization profile has no input scale")
@@ -240,7 +245,9 @@ class StageRuntime:
         if include_seeded_profile:
             descriptor["seeded_profile"] = self.seeded_profile.to_dict()
         if self.input_equalization is not None:
-            descriptor["input_equalization"] = self.input_equalization.astype("<f4", copy=False).tobytes()
+            descriptor["input_equalization"] = self.input_equalization.astype(
+                "<f4", copy=False
+            ).tobytes()
             descriptor["equalization_profile_digest"] = self.equalization_profile_digest
         return descriptor
 
@@ -266,29 +273,45 @@ def _body_fingerprint(stages: dict[str, StageRuntime]) -> str:
         if stage_id in {"token_lookup", "lm_head"}:
             continue
         row = {
-                "id": stage_id,
-                "op": runtime.spec.op,
-                "in": runtime.spec.in_features,
-                "out": runtime.spec.out_features,
-                "weight_bits": runtime.spec.weight_bits,
-                "activation_bits": runtime.spec.activation_bits,
-                "weight_digest": runtime.weight_digest,
-                "weight_scales": runtime.weight.scales.astype("<f4", copy=False).tobytes(),
-                "bias": None
-                if runtime.bias is None
-                else runtime.bias.astype("<f4", copy=False).tobytes(),
-            }
+            "id": stage_id,
+            "op": runtime.spec.op,
+            "in": runtime.spec.in_features,
+            "out": runtime.spec.out_features,
+            "weight_bits": runtime.spec.weight_bits,
+            "activation_bits": runtime.spec.activation_bits,
+            "weight_digest": runtime.weight_digest,
+            "weight_scales": runtime.weight.scales.astype("<f4", copy=False).tobytes(),
+            "bias": None
+            if runtime.bias is None
+            else runtime.bias.astype("<f4", copy=False).tobytes(),
+        }
         if runtime.input_equalization is not None:
-            row["input_equalization"] = runtime.input_equalization.astype("<f4", copy=False).tobytes()
+            row["input_equalization"] = runtime.input_equalization.astype(
+                "<f4", copy=False
+            ).tobytes()
             row["equalization_profile_digest"] = runtime.equalization_profile_digest
         body.append(row)
     return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
 
 
-def _seeded_stage_commitment(stages: dict[str, StageRuntime]) -> str:
+def _seeded_stage_commitment(
+    stages: dict[str, StageRuntime],
+    *,
+    remote_output_head: bool = False,
+    client_prefix_layers: int = 0,
+    client_linear_roles: tuple[str, ...] = (),
+) -> str:
     body = []
     for stage_id, runtime in sorted(stages.items()):
-        if stage_id in {"token_lookup", "lm_head"}:
+        if (
+            stage_id == "token_lookup"
+            or (stage_id == "lm_head" and not remote_output_head)
+            or client_owns_linear(
+                runtime.spec,
+                client_prefix_layers=client_prefix_layers,
+                client_linear_roles=client_linear_roles,
+            )
+        ):
             continue
         row = {
             "id": stage_id,
@@ -300,7 +323,9 @@ def _seeded_stage_commitment(stages: dict[str, StageRuntime]) -> str:
             "profile": runtime.seeded_profile.to_dict(),
         }
         if runtime.input_equalization is not None:
-            row["input_equalization"] = runtime.input_equalization.astype("<f4", copy=False).tobytes()
+            row["input_equalization"] = runtime.input_equalization.astype(
+                "<f4", copy=False
+            ).tobytes()
             row["equalization_profile_digest"] = runtime.equalization_profile_digest
         body.append(row)
     return hashlib.sha256(msgpack.packb(body, use_bin_type=True)).hexdigest()
@@ -423,6 +448,9 @@ class MaskedTransformerEngine:
         verification_target_failure_bits: int = 0,
         public_equalization_digest: str | None = None,
         metal_min_rows: int | None = None,
+        remote_output_head: bool = False,
+        client_prefix_layers: int = 0,
+        client_linear_roles: tuple[str, ...] = (),
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
@@ -435,7 +463,11 @@ class MaskedTransformerEngine:
         self.tenseal_path = tenseal_path
         self.kernel = MaskedGEMM(native_library, threads=threads)
         if metal_min_rows is not None:
-            if type(self) is not MaskedTransformerEngine or type(metal_min_rows) is not int or not 2 <= metal_min_rows <= 256:
+            if (
+                type(self) is not MaskedTransformerEngine
+                or type(metal_min_rows) is not int
+                or not 2 <= metal_min_rows <= 256
+            ):
                 raise ValueError("public Metal kernel requires a min_rows integer from 2 to 256")
             from .metal import MetalGEMM
 
@@ -463,8 +495,44 @@ class MaskedTransformerEngine:
             raise ValueError("unsupported verification component")
         self.verification_component = verification_component
         self.verification_target_failure_bits = verification_target_failure_bits
+        if type(remote_output_head) is not bool or (
+            remote_output_head and verification_component != "none"
+        ):
+            raise ValueError("remote output head requires unverified prepared public execution")
+        self.remote_output_head = remote_output_head
+        if (
+            type(client_prefix_layers) is not int
+            or not 0 <= client_prefix_layers <= 8
+            or (
+                client_prefix_layers
+                and (
+                    type(self) is not MaskedTransformerEngine
+                    or verification_component != "none"
+                    or metal_min_rows is not None
+                )
+            )
+        ):
+            raise ValueError("client-owned prefix requires bounded CPU prepared public execution")
+        self.client_prefix_layers = client_prefix_layers
+        if client_linear_roles:
+            from pllm.roles import ClientLinearRoles
+
+            if (
+                client_prefix_layers
+                or type(self) is not MaskedTransformerEngine
+                or verification_component != "none"
+                or metal_min_rows is not None
+            ):
+                raise ValueError("client linear roles require CPU baseline prepared execution")
+            client_linear_roles = ClientLinearRoles(client_linear_roles).roles
+        elif not isinstance(client_linear_roles, (tuple, list)):
+            raise ValueError("client linear roles must be a sequence")
+        self.client_linear_roles = tuple(client_linear_roles)
         if public_equalization_digest is not None:
-            if (self.weight_bits, self.activation_bits) != (8, 8) or verification_component != "none":
+            if (self.weight_bits, self.activation_bits) != (
+                8,
+                8,
+            ) or verification_component != "none":
                 raise ValueError("public equalization requires unverified W8A8 stages")
             from .public_equalization import profile_path
 
@@ -478,6 +546,14 @@ class MaskedTransformerEngine:
     async def load(self, manifest: ModelManifest) -> None:
         if manifest.id in self.models:
             raise TransformerEngineError(f"model {manifest.id!r} is already loaded")
+        if self.remote_output_head and manifest.tied_embeddings:
+            raise TransformerEngineError(
+                "remote output head requires an untied token/head checkpoint"
+            )
+        if self.client_prefix_layers and self.client_prefix_layers >= manifest.num_hidden_layers:
+            raise TransformerEngineError(
+                "client-owned prefix must leave at least one remote decoder layer"
+            )
         source = Path(manifest.source)
         store = SafeTensorStore(source)
         raw_config = json.loads((source / "config.json").read_text(encoding="utf-8"))
@@ -491,6 +567,7 @@ class MaskedTransformerEngine:
         from pllm.configuration import Model
         from pllm.modeling import lower_model
         from pllm.profiles import MaskedLinearCpu
+        from pllm.roles import ClientLinearRoles, ClientPrefixLayers, OutputHeadAtInference
         from pllm.quantization import PublicPerChannelEqualized, SymmetricPerRow
 
         from .semantic_stages import scheduled_stage_specs
@@ -500,19 +577,29 @@ class MaskedTransformerEngine:
             quantization=(
                 PublicPerChannelEqualized(self.public_equalization_digest)
                 if self.public_equalization_digest is not None
-                else SymmetricPerRow(weight_bits=self.weight_bits, activation_bits=self.activation_bits)
+                else SymmetricPerRow(
+                    weight_bits=self.weight_bits, activation_bits=self.activation_bits
+                )
+            ),
+            boundary=OutputHeadAtInference() if self.remote_output_head else None,
+            placement=(
+                ClientPrefixLayers(self.client_prefix_layers)
+                if self.client_prefix_layers
+                else ClientLinearRoles(self.client_linear_roles)
+                if self.client_linear_roles
+                else None
             ),
         )
         try:
-            semantic_plan = lower_model(
-                raw_config, batch=1, max_input_tokens=1, max_new_tokens=1
-            )
+            semantic_plan = lower_model(raw_config, batch=1, max_input_tokens=1, max_new_tokens=1)
         except ValueError as exc:
             if not any(
                 marker in str(exc)
                 for marker in ("has no decoder adapter", "model_type must be a string")
             ):
-                raise TransformerEngineError("model cannot lower into the semantic decoder") from exc
+                raise TransformerEngineError(
+                    "model cannot lower into the semantic decoder"
+                ) from exc
             semantic_plan = None
         if semantic_plan is not None:
             try:
@@ -523,7 +610,9 @@ class MaskedTransformerEngine:
             try:
                 stages = scheduled_stage_specs(semantic_plan, composition)
             except ValueError as exc:
-                raise TransformerEngineError("semantic decoder cannot materialize its stages") from exc
+                raise TransformerEngineError(
+                    "semantic decoder cannot materialize its stages"
+                ) from exc
             # These fields keep the existing bundle wire representation while
             # the stage and execution graphs come solely from semantic lowering.
             profile = ArchitectureProfile(
@@ -602,14 +691,20 @@ class MaskedTransformerEngine:
         if self.public_equalization_digest is not None:
             lock = manifest.source_lock_digest
             if lock is None or semantic_plan is None:
-                raise TransformerEngineError("public equalization requires a locked semantic decoder")
+                raise TransformerEngineError(
+                    "public equalization requires a locked semantic decoder"
+                )
             try:
                 profile_record = load_public_equalization_profile(
-                    source, self.public_equalization_digest, lock,
+                    source,
+                    self.public_equalization_digest,
+                    lock,
                 )
             except PublicEqualizationError as exc:
                 raise TransformerEngineError(str(exc)) from exc
-            body_specs = {stage.id: stage for stage in stages if stage.id not in {"token_lookup", "lm_head"}}
+            body_specs = {
+                stage.id: stage for stage in stages if stage.id not in {"token_lookup", "lm_head"}
+            }
             if set(profile_record.stage_scales) != set(body_specs) or any(
                 profile_record.stage_scales[stage_id].shape != (spec.in_features,)
                 for stage_id, spec in body_specs.items()
@@ -623,8 +718,14 @@ class MaskedTransformerEngine:
                 "runtime": "masked_transformer",
                 "engine": self.capabilities.name,
                 "native_masked_gemm": self.kernel.available,
-                "kernel_backend": "mlx-metal+cpu" if self._metal_kernel is not None else self.kernel.backend,
-                **({"kernel_min_rows": self._metal_min_rows} if self._metal_min_rows is not None else {}),
+                "kernel_backend": "mlx-metal+cpu"
+                if self._metal_kernel is not None
+                else self.kernel.backend,
+                **(
+                    {"kernel_min_rows": self._metal_min_rows}
+                    if self._metal_min_rows is not None
+                    else {}
+                ),
                 "weight_bits": self.weight_bits,
                 "activation_bits": self.activation_bits,
                 "model_family": profile.family,
@@ -649,11 +750,37 @@ class MaskedTransformerEngine:
                 "preprocessed": True,
                 "model_weight_correlations_disclosed": True,
                 "model_privacy_threat_model": "public_weights",
-                **({"public_equalization_digest": self.public_equalization_digest}
-                   if self.public_equalization_digest is not None else {}),
+                **({"remote_output_head": True} if self.remote_output_head else {}),
+                **(
+                    {"client_prefix_layers": self.client_prefix_layers}
+                    if self.client_prefix_layers
+                    else {}
+                ),
+                **(
+                    {"client_linear_roles": list(self.client_linear_roles)}
+                    if self.client_linear_roles
+                    else {}
+                ),
+                **(
+                    {"public_equalization_digest": self.public_equalization_digest}
+                    if self.public_equalization_digest is not None
+                    else {}
+                ),
             }
         )
 
+        if self.client_prefix_layers or self.client_linear_roles:
+            if profile.stage_plan != "semantic":
+                raise TransformerEngineError(
+                    "client placement requires a complete semantic schedule"
+                )
+            local_specs = [stage for stage in stages if self._client_owns_stage(stage)]
+            local_bytes = sum(
+                stage.in_features * stage.out_features + 4 * stage.out_features
+                for stage in local_specs
+            )
+            if not local_specs or local_bytes > 512 << 20:
+                raise TransformerEngineError("client-owned prefix exceeds its 512 MiB weight bound")
         runtimes = {
             stage.id: await asyncio.to_thread(self._load_stage, store, stage, manifest)
             for stage in stages
@@ -686,7 +813,12 @@ class MaskedTransformerEngine:
                 "plain_moduli": moduli,
                 "stage_specific_moduli": self.fixed_modulus is None,
                 "body_fingerprint": _body_fingerprint(runtimes),
-                "seeded_stage_commitment": _seeded_stage_commitment(runtimes),
+                "seeded_stage_commitment": _seeded_stage_commitment(
+                    runtimes,
+                    remote_output_head=self.remote_output_head,
+                    client_prefix_layers=self.client_prefix_layers,
+                    client_linear_roles=self.client_linear_roles,
+                ),
             }
         )
         if self.modulus is None:
@@ -755,7 +887,11 @@ class MaskedTransformerEngine:
     def _trim_compiled_cache(self) -> None:
         from .compiled_cache import cache_lock, trim_compiled_cache
 
-        protected = set().union(*self._active_cache_entries.values()) if self._active_cache_entries else set()
+        protected = (
+            set().union(*self._active_cache_entries.values())
+            if self._active_cache_entries
+            else set()
+        )
         with cache_lock(self.compiled_cache_dir):
             trim_compiled_cache(
                 self.compiled_cache_dir,
@@ -781,7 +917,9 @@ class MaskedTransformerEngine:
         manifest: ModelManifest,
     ) -> list[tuple[str, bool]]:
         semantic = manifest.metadata.get("stage_origin") == "semantic_schedule_v1"
-        keys = stage.weight_keys if semantic else stage.weight_keys or self._default_weight_keys(stage)
+        keys = (
+            stage.weight_keys if semantic else stage.weight_keys or self._default_weight_keys(stage)
+        )
         if semantic:
             if not keys:
                 raise TransformerEngineError(f"semantic stage {stage.id} has no declared weight")
@@ -852,7 +990,10 @@ class MaskedTransformerEngine:
                 )
             ],
         }
-        if self.public_equalization_digest is not None and stage.id not in {"token_lookup", "lm_head"}:
+        if self.public_equalization_digest is not None and stage.id not in {
+            "token_lookup",
+            "lm_head",
+        }:
             scale = self._stage_equalization(stage)
             payload["public_equalization_digest"] = self.public_equalization_digest
             payload["input_equalization_digest"] = hashlib.sha256(scale.tobytes()).hexdigest()
@@ -938,7 +1079,13 @@ class MaskedTransformerEngine:
 
         with cache_lock(self.compiled_cache_dir):
             return self._quantize_sources_disk(
-                store, stage, sources, out_features, in_features, bits, input_equalization,
+                store,
+                stage,
+                sources,
+                out_features,
+                in_features,
+                bits,
+                input_equalization,
             )
 
     def _quantize_sources_disk(
@@ -967,7 +1114,9 @@ class MaskedTransformerEngine:
         }
         if input_equalization is not None:
             metadata["public_equalization_digest"] = self.public_equalization_digest
-            metadata["input_equalization_digest"] = hashlib.sha256(input_equalization.tobytes()).hexdigest()
+            metadata["input_equalization_digest"] = hashlib.sha256(
+                input_equalization.tobytes()
+            ).hexdigest()
         expected_bytes = elements
 
         def open_cached() -> QuantizedWeight | None:
@@ -1086,7 +1235,9 @@ class MaskedTransformerEngine:
             if stage.bias_keys and len(stage.bias_keys) != len(sources):
                 raise TransformerEngineError("semantic stage bias order disagrees with weights")
             declared_parts: list[np.ndarray] = []
-            for index, ((resolved_key, _), shape) in enumerate(zip(sources, source_shapes, strict=True)):
+            for index, ((resolved_key, _), shape) in enumerate(
+                zip(sources, source_shapes, strict=True)
+            ):
                 declared = stage.bias_keys[index] if stage.bias_keys else ""
                 inferred = resolved_key.removesuffix(".weight") + ".bias"
                 if not declared and store.get_optional((inferred,), dtype=np.float32) is not None:
@@ -1095,7 +1246,9 @@ class MaskedTransformerEngine:
                     try:
                         value = store.get(store.resolve(declared), dtype=np.float32)
                     except TensorStoreError as exc:
-                        raise TransformerEngineError("semantic stage declared a missing bias") from exc
+                        raise TransformerEngineError(
+                            "semantic stage declared a missing bias"
+                        ) from exc
                     if value is None:
                         raise TransformerEngineError("semantic stage declared a missing bias")
                     value = np.asarray(value, dtype=np.float32).reshape(-1)
@@ -1107,7 +1260,9 @@ class MaskedTransformerEngine:
             if stage.bias_keys:
                 bias = np.concatenate(declared_parts)
         else:
-            bias = store.get_optional(stage.bias_keys, dtype=np.float32) if stage.bias_keys else None
+            bias = (
+                store.get_optional(stage.bias_keys, dtype=np.float32) if stage.bias_keys else None
+            )
         if bias is None and stage.id != "token_lookup" and not semantic:
             bias_parts: list[np.ndarray | None] = []
             any_bias = False
@@ -1161,7 +1316,8 @@ class MaskedTransformerEngine:
             input_equalization=self._stage_equalization(stage),
             equalization_profile_digest=(
                 self.public_equalization_digest
-                if stage.id not in {"token_lookup", "lm_head"} else None
+                if stage.id not in {"token_lookup", "lm_head"}
+                else None
             ),
         )
 
@@ -1192,7 +1348,9 @@ class MaskedTransformerEngine:
                 except TensorStoreError as exc:
                     raise TransformerEngineError("semantic client tensor is missing") from exc
                 if value.shape != expected_shape or not np.all(np.isfinite(value)):
-                    raise TransformerEngineError("semantic client tensor has invalid shape or values")
+                    raise TransformerEngineError(
+                        "semantic client tensor has invalid shape or values"
+                    )
                 result[key] = value
             return result
         for key in store.keys:
@@ -1362,9 +1520,7 @@ class MaskedTransformerEngine:
         started = time.perf_counter_ns()
         matrix = self._public_stage_matrix(request.model, runtime, request.rows)
         transformed = await asyncio.to_thread(
-            matrix.wrap32
-            if request.ring == "u32"
-            else matrix.modular,
+            matrix.wrap32 if request.ring == "u32" else matrix.modular,
             mask,
             *(() if request.ring == "u32" else (request.modulus,)),
         )
@@ -1416,10 +1572,21 @@ class MaskedTransformerEngine:
             policy,
         )
 
+    def _client_owns_stage(self, stage: StageSpec) -> bool:
+        return client_owns_linear(
+            stage,
+            client_prefix_layers=self.client_prefix_layers,
+            client_linear_roles=self.client_linear_roles,
+        )
+
     def seeded_stage_ids(self, model_id: str) -> tuple[str, ...]:
         model = self._model(model_id)
         return tuple(
-            stage_id for stage_id in model.stages if stage_id not in {"token_lookup", "lm_head"}
+            stage_id
+            for stage_id, runtime in model.stages.items()
+            if stage_id != "token_lookup"
+            and (stage_id != "lm_head" or self.remote_output_head)
+            and not self._client_owns_stage(runtime.spec)
         )
 
     def validate_seeded_correction(self, correction: CorrectionPush) -> None:
@@ -1466,7 +1633,9 @@ class MaskedTransformerEngine:
         remote = [
             runtime
             for stage_id, runtime in model.stages.items()
-            if stage_id not in {"token_lookup", "lm_head"}
+            if stage_id != "token_lookup"
+            and (stage_id != "lm_head" or self.remote_output_head)
+            and not self._client_owns_stage(runtime.spec)
         ]
         weight_bits = {runtime.spec.weight_bits for runtime in remote}
         activation_bits = {runtime.spec.activation_bits for runtime in remote}
@@ -1674,7 +1843,10 @@ class MaskedTransformerEngine:
         return config
 
     def client_bundle(
-        self, model_id: str, *, include_local_weights: bool = True,
+        self,
+        model_id: str,
+        *,
+        include_local_weights: bool = True,
         placement: str = "prepared",
     ) -> bytes:
         if placement not in {"prepared", "client", "offset"}:
@@ -1683,8 +1855,24 @@ class MaskedTransformerEngine:
             raise TransformerEngineError("client-owned execution requires local token boundaries")
         if placement != "prepared" and self.verification_component != "none":
             raise TransformerEngineError("non-prepared execution cannot claim remote verification")
+        if self.remote_output_head and (placement != "prepared" or not include_local_weights):
+            raise TransformerEngineError("remote output head requires prepared client token lookup")
+        if (self.client_prefix_layers or self.client_linear_roles) and (
+            placement != "prepared" or not include_local_weights
+        ):
+            raise TransformerEngineError("client-owned prefix requires prepared client weights")
         model = self._model(model_id)
-        local_stage_ids = {"token_lookup", "lm_head"} if include_local_weights else set()
+        local_stage_ids = (
+            ({"token_lookup"} if self.remote_output_head else {"token_lookup", "lm_head"})
+            if include_local_weights
+            else set()
+        )
+        if self.client_prefix_layers or self.client_linear_roles:
+            local_stage_ids.update(
+                sid
+                for sid, runtime in model.stages.items()
+                if self._client_owns_stage(runtime.spec)
+            )
         stage_descriptors = {
             sid: runtime.public_descriptor(
                 include_weight=False,
@@ -1712,6 +1900,8 @@ class MaskedTransformerEngine:
                 and token_lookup.source_keys[0] == lm_head.source_keys[0]
             )
             if tied:
+                if self.remote_output_head:
+                    raise TransformerEngineError("tied token/head table cannot be remote-only")
                 add_client_weight("tied_embeddings", lm_head.weight)
                 stage_descriptors["lm_head"]["client_weight"] = {
                     "ref": "tied_embeddings",
@@ -1733,7 +1923,10 @@ class MaskedTransformerEngine:
                         "ref": "token_lookup_aux"
                     }
             else:
-                for stage_id, runtime in (("token_lookup", token_lookup), ("lm_head", lm_head)):
+                boundaries = (("token_lookup", token_lookup), ("lm_head", lm_head))
+                for stage_id, runtime in boundaries:
+                    if stage_id == "lm_head" and self.remote_output_head:
+                        continue
                     add_client_weight(stage_id, runtime.weight)
                     stage_descriptors[stage_id]["client_weight"] = {
                         "ref": stage_id,
@@ -1741,6 +1934,13 @@ class MaskedTransformerEngine:
                             "transposed_embedding" if stage_id == "token_lookup" else "linear"
                         ),
                     }
+            for stage_id in sorted(local_stage_ids - {"token_lookup", "lm_head"}):
+                runtime = model.stages[stage_id]
+                add_client_weight(stage_id, runtime.weight)
+                stage_descriptors[stage_id]["client_weight"] = {
+                    "ref": stage_id,
+                    "layout": "linear",
+                }
         tensors = {
             key: {
                 "shape": list(value.shape),
@@ -1775,7 +1975,8 @@ class MaskedTransformerEngine:
                 "privacy_protocol": privacy_protocol,
             }
             fingerprint_payload = {
-                key: value for key, value in manifest.items()
+                key: value
+                for key, value in manifest.items()
                 if key not in {"fingerprint", "created_at"}
             }
             manifest["fingerprint"] = hashlib.sha256(
@@ -1814,8 +2015,22 @@ class MaskedTransformerEngine:
                     "activation_bits": self.activation_bits,
                     "verification_component": self.verification_component,
                     "verification_target_failure_bits": self.verification_target_failure_bits,
-                    **({"public_equalization_digest": self.public_equalization_digest}
-                       if self.public_equalization_digest is not None else {}),
+                    **({"remote_output_head": True} if self.remote_output_head else {}),
+                    **(
+                        {"client_prefix_layers": self.client_prefix_layers}
+                        if self.client_prefix_layers
+                        else {}
+                    ),
+                    **(
+                        {"client_linear_roles": list(self.client_linear_roles)}
+                        if self.client_linear_roles
+                        else {}
+                    ),
+                    **(
+                        {"public_equalization_digest": self.public_equalization_digest}
+                        if self.public_equalization_digest is not None
+                        else {}
+                    ),
                 },
             },
             use_bin_type=True,

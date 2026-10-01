@@ -1,0 +1,2166 @@
+{
+  "code_sha256": {
+    "crates/pllm-compiler/src/decoder_runtime_schedule.rs": "27c66bd4451a0c0d23ccab175480ab307b6326e111e5d595a0298b099e88bf49",
+    "crates/pllm-compiler/src/lib.rs": "b498fa8e6291ea203cc69aeb3cc94ffeddb086508e23a0458641d5be32ca6e5d",
+    "examples/benchmarks/conversation_contexts.json": "7de5a758de9ae70708585d1d07e39fd5e847b4efe982b6679258249701710a8a",
+    "examples/benchmarks/incremental_network.py": "eb7817880c9fac308d50be23553e7275eaded661bdde56a73901d26a25bad191",
+    "python/pllm/_cli/app.py": "73d8317ca284d2659167aa50a1bbc563b7e2a57695b193659cedd713f8007ff9",
+    "python/pllm/preparation.py": "c09ed45801463c4221af80c0c8b658451533ad2797519ae6d47d26aa1e6e025f",
+    "python/pllm/profiles/__init__.py": "42aef43cebcaea7223dd0464599f3159485a002008d80137b7c3e77bb3d096ad",
+    "python/pllm/protocols/bundle_transport.py": "a52ff26dda031ae5c2b87f0b17bbbf381e74be88bce132f0ed0edd967736ff2f",
+    "python/pllm/roles/__init__.py": "c339ea3348e6a9781d795ecbec80322b53d041de154fc7418086cecd3b7fd4b7",
+    "python/pllm/runtime/benchmark_cli.py": "fd616ed67205e533628d85863035971b04c811b5586972d4da67b2bc029a336a",
+    "python/pllm/runtime/client.py": "1b3bc410b8e632bd9a55ee9b60d6a44d572ddcbc4533bc64eb6db95ee7d8ce53",
+    "python/pllm/runtime/dashboard.py": "80ba530157a22121724cf8ad6ce4c433a08d6ddb3100b3867624bb9f3cdaa6bf",
+    "python/pllm/runtime/model_binding.py": "077731b1994fc4c8445f62628e42616eb391ddd9689b47817769cf911ab506cb",
+    "python/pllm/runtime/semantic_stages.py": "2fc7c10594cc4c6aaed0b59338c7158623ee5cde7962abc0da2277ec4da8a2fc",
+    "python/pllm/runtime/servers.py": "0eb4aded52b300bf497da5fa64df1249132c444692a30bbca26ddcfedc9c5948",
+    "python/pllm/runtime/transformer_client.py": "a8840ecc138a7222c4e5d2978096a06f90c02189ff470153aec98c5b858c61a7",
+    "python/pllm/runtime/transformer_engine.py": "df0ae105e6d80c4675cc226d9c64ec7d4a75c42e3746a012379dba1b1ac6fb38"
+  },
+  "cohorts": [
+    {
+      "candidates": [
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 34.426643504,
+            "aggregate_startup_cpu_seconds": 24.904348712,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 6.39251,
+              "inference": 14.098224640000002,
+              "preparation": 13.935908864
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.949865,
+              "inference": 9.062496768,
+              "preparation": 13.891986944
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "1cb210be7936a1e3b836db8e2003d0acef6eabcb74e11be87ae3f15523aa3a2f",
+          "name": "prepared-prewarm",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 279630956,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 73831744,
+            "median_full_seconds": 7.127607,
+            "median_online_all_link_serialized_body_bytes": 73831744,
+            "median_online_seconds": 6.289228375,
+            "median_tokens_per_second": 4.677679092670586,
+            "median_ttft_seconds": 4.787837125,
+            "total_accounted_benchmark_body_bytes": 279630956,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 73831744,
+            "total_run_full_seconds": 7.127607,
+            "total_run_online_all_link_serialized_body_bytes": 73831744
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 31.409478136,
+            "aggregate_startup_cpu_seconds": 17.461836368,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 6.065051,
+              "inference": 13.485613056,
+              "preparation": 11.85881408
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.10917,
+              "inference": 8.287660416,
+              "preparation": 8.065005952
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "c1f6e187d26671eda3452c4f991909ab66ca13fef23aa4af0ac8801c93255881",
+          "name": "prepared-request-sized",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 262820972,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 262820972,
+            "median_full_seconds": 8.980552083,
+            "median_online_all_link_serialized_body_bytes": 73831744,
+            "median_online_seconds": 6.121173541,
+            "median_tokens_per_second": 4.7881344556036485,
+            "median_ttft_seconds": 4.654376666,
+            "total_accounted_benchmark_body_bytes": 262820972,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 262820972,
+            "total_run_full_seconds": 8.980552083,
+            "total_run_online_all_link_serialized_body_bytes": 73831744
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 14909440,
+            "client_body_scale_bytes": 50688,
+            "declared_body_linear_macs_per_row_client": 14909440,
+            "declared_body_linear_macs_per_row_remote": 342917120,
+            "local_stage_count": 4,
+            "native_body_i8_snapshot_bytes": 14909440,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 92,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 30.908610648,
+            "aggregate_startup_cpu_seconds": 17.371923408,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 6.187943,
+              "inference": 13.094525183999998,
+              "preparation": 11.626142464
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.104162,
+              "inference": 8.277794432,
+              "preparation": 7.989966976
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "df455669cd1512f3cd20d0c890a1daff0e9c784fe6eff86ea459c71d8d5f54c0",
+          "name": "client-prefix-one",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 272913010,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 272913010,
+            "median_full_seconds": 8.771415042,
+            "median_online_all_link_serialized_body_bytes": 70755454,
+            "median_online_seconds": 5.965973875,
+            "median_tokens_per_second": 4.9697928323966565,
+            "median_ttft_seconds": 4.548485542,
+            "total_accounted_benchmark_body_bytes": 272913010,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 272913010,
+            "total_run_full_seconds": 8.771415042,
+            "total_run_online_all_link_serialized_body_bytes": 70755454
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 29818880,
+            "client_body_scale_bytes": 101376,
+            "declared_body_linear_macs_per_row_client": 29818880,
+            "declared_body_linear_macs_per_row_remote": 328007680,
+            "local_stage_count": 8,
+            "native_body_i8_snapshot_bytes": 29818880,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 88,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 31.413602007999998,
+            "aggregate_startup_cpu_seconds": 17.429725656000002,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 6.371303,
+              "inference": 13.165270016,
+              "preparation": 11.877028992
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.105447,
+              "inference": 8.336282496,
+              "preparation": 7.98799616
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "93edec5197ea4a4330bc3fe5f540397e9347dc9506509898eedf768a259644e2",
+          "name": "client-prefix-two",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 283005004,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 283005004,
+            "median_full_seconds": 9.029634375,
+            "median_online_all_link_serialized_body_bytes": 67679164,
+            "median_online_seconds": 6.007396834,
+            "median_tokens_per_second": 5.134025729263821,
+            "median_ttft_seconds": 4.639500209,
+            "total_accounted_benchmark_body_bytes": 283005004,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 283005004,
+            "total_run_full_seconds": 9.029634375,
+            "total_run_online_all_link_serialized_body_bytes": 67679164
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 30.842605184,
+            "aggregate_startup_cpu_seconds": 17.365369536,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 6.588928,
+              "inference": 12.455097088,
+              "preparation": 11.798580096
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.100584,
+              "inference": 8.278868992,
+              "preparation": 7.985916544
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "ae1fe1a7b67592b8ab3c37f9d9f121046ac9e26eda30ec10a9ba9fcfe0de71a7",
+          "name": "client-attention",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 287288642,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 287288642,
+            "median_full_seconds": 8.342472958,
+            "median_online_all_link_serialized_body_bytes": 60868088,
+            "median_online_seconds": 5.505788,
+            "median_tokens_per_second": 6.560073537449715,
+            "median_ttft_seconds": 4.435498125,
+            "total_accounted_benchmark_body_bytes": 287288642,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 287288642,
+            "total_run_full_seconds": 8.342472958,
+            "total_run_online_all_link_serialized_body_bytes": 60868088
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 36.82337404,
+            "aggregate_startup_cpu_seconds": 17.289851696,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 7.483559,
+              "inference": 17.882752,
+              "preparation": 11.45706304
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.103198,
+              "inference": 8.249750912,
+              "preparation": 7.936902784
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "d837d0e2c851b34ed807fbace4afc23c272d0db438f82d1b0bcdc981d73cf0ea",
+          "name": "client-attention-zlib",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 261373875,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 261373875,
+            "median_full_seconds": 13.46802575,
+            "median_online_all_link_serialized_body_bytes": 60868088,
+            "median_online_seconds": 5.689766375,
+            "median_tokens_per_second": 6.496331312896958,
+            "median_ttft_seconds": 4.608524083,
+            "total_accounted_benchmark_body_bytes": 261373875,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 261373875,
+            "total_run_full_seconds": 13.46802575,
+            "total_run_online_all_link_serialized_body_bytes": 60868088
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        }
+      ],
+      "comparison_key": {
+        "input_tokens": 39,
+        "max_output_tokens": 8,
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "output_tokens": 8,
+        "prompt_digest": "f8331fadca6a647a3dfe95bacc6d2aa8c84b8a25add3642a920eb1dba2af7671",
+        "warm": false,
+        "warmup_prompt_digest": "f8331fadca6a647a3dfe95bacc6d2aa8c84b8a25add3642a920eb1dba2af7671"
+      },
+      "file": "qwen-incremental-8-cold.json"
+    },
+    {
+      "candidates": [
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 24.707829584000002,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.93749,
+              "inference": 9.022535424,
+              "preparation": 13.747804160000001
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "1cb210be7936a1e3b836db8e2003d0acef6eabcb74e11be87ae3f15523aa3a2f",
+          "name": "prepared-prewarm",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 279630956,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 133653950,
+            "median_full_seconds": 9.372533416,
+            "median_online_all_link_serialized_body_bytes": 73831744,
+            "median_online_seconds": 6.252355041,
+            "median_tokens_per_second": 4.646375557409496,
+            "median_ttft_seconds": 4.741183458,
+            "total_accounted_benchmark_body_bytes": 413284906,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 133653950,
+            "total_run_full_seconds": 9.372533416,
+            "total_run_online_all_link_serialized_body_bytes": 73831744
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.648635608,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.132535,
+              "inference": 8.346000896,
+              "preparation": 8.170099711999999
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "c1f6e187d26671eda3452c4f991909ab66ca13fef23aa4af0ac8801c93255881",
+          "name": "prepared-request-sized",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 262820972,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 116843966,
+            "median_full_seconds": 9.179195416,
+            "median_online_all_link_serialized_body_bytes": 73831744,
+            "median_online_seconds": 6.162775416,
+            "median_tokens_per_second": 4.73070224064643,
+            "median_ttft_seconds": 4.678681333,
+            "total_accounted_benchmark_body_bytes": 379664938,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 116843966,
+            "total_run_full_seconds": 9.179195416,
+            "total_run_online_all_link_serialized_body_bytes": 73831744
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 14909440,
+            "client_body_scale_bytes": 50688,
+            "declared_body_linear_macs_per_row_client": 14909440,
+            "declared_body_linear_macs_per_row_remote": 342917120,
+            "local_stage_count": 4,
+            "native_body_i8_snapshot_bytes": 14909440,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 92,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.755170224,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.162638,
+              "inference": 8.431709439999999,
+              "preparation": 8.160822784
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "df455669cd1512f3cd20d0c890a1daff0e9c784fe6eff86ea459c71d8d5f54c0",
+          "name": "client-prefix-one",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 272913010,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 111975519,
+            "median_full_seconds": 8.4805225,
+            "median_online_all_link_serialized_body_bytes": 70755454,
+            "median_online_seconds": 5.889266917,
+            "median_tokens_per_second": 4.995839029904209,
+            "median_ttft_seconds": 4.48371525,
+            "total_accounted_benchmark_body_bytes": 384888529,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 111975519,
+            "total_run_full_seconds": 8.4805225,
+            "total_run_online_all_link_serialized_body_bytes": 70755454
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 29818880,
+            "client_body_scale_bytes": 101376,
+            "declared_body_linear_macs_per_row_client": 29818880,
+            "declared_body_linear_macs_per_row_remote": 328007680,
+            "local_stage_count": 8,
+            "native_body_i8_snapshot_bytes": 29818880,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 88,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.645733592,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.127319,
+              "inference": 8.47560832,
+              "preparation": 8.042806272
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "93edec5197ea4a4330bc3fe5f540397e9347dc9506509898eedf768a259644e2",
+          "name": "client-prefix-two",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 283005004,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 107107072,
+            "median_full_seconds": 8.323024125,
+            "median_online_all_link_serialized_body_bytes": 67679164,
+            "median_online_seconds": 5.973940916,
+            "median_tokens_per_second": 5.177849258216915,
+            "median_ttft_seconds": 4.617798791,
+            "total_accounted_benchmark_body_bytes": 390112076,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 107107072,
+            "total_run_full_seconds": 8.323024125,
+            "total_run_online_all_link_serialized_body_bytes": 67679164
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.603878416,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.133754,
+              "inference": 8.394912512,
+              "preparation": 8.075211904
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "ae1fe1a7b67592b8ab3c37f9d9f121046ac9e26eda30ec10a9ba9fcfe0de71a7",
+          "name": "client-attention",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 287288642,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 97070658,
+            "median_full_seconds": 7.64066175,
+            "median_online_all_link_serialized_body_bytes": 60868088,
+            "median_online_seconds": 5.463300625,
+            "median_tokens_per_second": 6.505418010438977,
+            "median_ttft_seconds": 4.384215542,
+            "total_accounted_benchmark_body_bytes": 384359300,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 97070658,
+            "total_run_full_seconds": 7.64066175,
+            "total_run_online_all_link_serialized_body_bytes": 60868088
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.647896592000002,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.13969,
+              "inference": 8.379763072,
+              "preparation": 8.128443520000001
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "d837d0e2c851b34ed807fbace4afc23c272d0db438f82d1b0bcdc981d73cf0ea",
+          "name": "client-attention-zlib",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 261373876,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 97070658,
+            "median_full_seconds": 7.712205292,
+            "median_online_all_link_serialized_body_bytes": 60868088,
+            "median_online_seconds": 5.536349375,
+            "median_tokens_per_second": 6.382332728516435,
+            "median_ttft_seconds": 4.436571166,
+            "total_accounted_benchmark_body_bytes": 358444534,
+            "total_output_tokens": 8,
+            "total_run_covered_all_link_serialized_body_bytes": 97070658,
+            "total_run_full_seconds": 7.712205292,
+            "total_run_online_all_link_serialized_body_bytes": 60868088
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        }
+      ],
+      "comparison_key": {
+        "input_tokens": 39,
+        "max_output_tokens": 8,
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "output_tokens": 8,
+        "prompt_digest": "a2346f2cb45a2f72d72d8b854d1aaa7c172bf2912f5aee11dad5746c425786b6",
+        "warm": true,
+        "warmup_prompt_digest": "a2346f2cb45a2f72d72d8b854d1aaa7c172bf2912f5aee11dad5746c425786b6"
+      },
+      "file": "qwen-incremental-8-warm.json"
+    },
+    {
+      "candidates": [
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 48.088298863999995,
+            "aggregate_startup_cpu_seconds": 24.752604504,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 9.052902,
+              "inference": 19.566865919999998,
+              "preparation": 19.468530944
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.917287,
+              "inference": 9.01729536,
+              "preparation": 13.818022144
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "1cb210be7936a1e3b836db8e2003d0acef6eabcb74e11be87ae3f15523aa3a2f",
+          "name": "prepared-prewarm",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 384769770,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 178970558,
+            "median_full_seconds": 14.971404833,
+            "median_online_all_link_serialized_body_bytes": 113545024,
+            "median_online_seconds": 11.474178,
+            "median_tokens_per_second": 4.644015866280207,
+            "median_ttft_seconds": 4.792377917,
+            "total_accounted_benchmark_body_bytes": 384769770,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 178970558,
+            "total_run_full_seconds": 14.971404833,
+            "total_run_online_all_link_serialized_body_bytes": 113545024
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 41.604709848,
+            "aggregate_startup_cpu_seconds": 17.313268896,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 8.514695,
+              "inference": 18.641000192,
+              "preparation": 14.449014656000001
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.109828,
+              "inference": 8.214198784,
+              "preparation": 7.989242112
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "c1f6e187d26671eda3452c4f991909ab66ca13fef23aa4af0ac8801c93255881",
+          "name": "prepared-request-sized",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 324947564,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 324947564,
+            "median_full_seconds": 15.438055291,
+            "median_online_all_link_serialized_body_bytes": 113545024,
+            "median_online_seconds": 11.379789083,
+            "median_tokens_per_second": 4.612319883786631,
+            "median_ttft_seconds": 4.651553667,
+            "total_accounted_benchmark_body_bytes": 324947564,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 324947564,
+            "total_run_full_seconds": 15.438055291,
+            "total_run_online_all_link_serialized_body_bytes": 113545024
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 14909440,
+            "client_body_scale_bytes": 50688,
+            "declared_body_linear_macs_per_row_client": 14909440,
+            "declared_body_linear_macs_per_row_remote": 342917120,
+            "local_stage_count": 4,
+            "native_body_i8_snapshot_bytes": 14909440,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 92,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 41.496028728,
+            "aggregate_startup_cpu_seconds": 17.36863244,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 8.875427,
+              "inference": 18.437122304,
+              "preparation": 14.183479424000002
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.093307,
+              "inference": 8.262515072,
+              "preparation": 8.012810368
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "df455669cd1512f3cd20d0c890a1daff0e9c784fe6eff86ea459c71d8d5f54c0",
+          "name": "client-prefix-one",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 332451106,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 332451106,
+            "median_full_seconds": 15.34523725,
+            "median_online_all_link_serialized_body_bytes": 108814126,
+            "median_online_seconds": 11.42421775,
+            "median_tokens_per_second": 4.575843114766158,
+            "median_ttft_seconds": 4.643004,
+            "total_accounted_benchmark_body_bytes": 332451106,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 332451106,
+            "total_run_full_seconds": 15.34523725,
+            "total_run_online_all_link_serialized_body_bytes": 108814126
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 29818880,
+            "client_body_scale_bytes": 101376,
+            "declared_body_linear_macs_per_row_client": 29818880,
+            "declared_body_linear_macs_per_row_remote": 328007680,
+            "local_stage_count": 8,
+            "native_body_i8_snapshot_bytes": 29818880,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 88,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 40.979835624,
+            "aggregate_startup_cpu_seconds": 17.3724014,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 9.110001,
+              "inference": 18.00195584,
+              "preparation": 13.867878784
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.107467,
+              "inference": 8.2791296,
+              "preparation": 7.9858048
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "93edec5197ea4a4330bc3fe5f540397e9347dc9506509898eedf768a259644e2",
+          "name": "client-prefix-two",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 339954604,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 339954604,
+            "median_full_seconds": 14.772975166,
+            "median_online_all_link_serialized_body_bytes": 104083228,
+            "median_online_seconds": 10.921169875,
+            "median_tokens_per_second": 5.019086221652364,
+            "median_ttft_seconds": 4.73831075,
+            "total_accounted_benchmark_body_bytes": 339954604,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 339954604,
+            "total_run_full_seconds": 14.772975166,
+            "total_run_online_all_link_serialized_body_bytes": 104083228
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 40.768367848000004,
+            "aggregate_startup_cpu_seconds": 17.493909896,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 10.246721,
+              "inference": 16.635623936000002,
+              "preparation": 13.886022912
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.126373,
+              "inference": 8.29510784,
+              "preparation": 8.072429056
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "ae1fe1a7b67592b8ab3c37f9d9f121046ac9e26eda30ec10a9ba9fcfe0de71a7",
+          "name": "client-attention",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 338515970,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 338515970,
+            "median_full_seconds": 13.192599208,
+            "median_online_all_link_serialized_body_bytes": 93221048,
+            "median_online_seconds": 9.515186833,
+            "median_tokens_per_second": 6.356916945087052,
+            "median_ttft_seconds": 4.634608375,
+            "total_accounted_benchmark_body_bytes": 338515970,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 338515970,
+            "total_run_full_seconds": 13.192599208,
+            "total_run_online_all_link_serialized_body_bytes": 93221048
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 46.143831552,
+            "aggregate_startup_cpu_seconds": 17.624441032,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 10.828464,
+              "inference": 21.485177344,
+              "preparation": 13.830190208000001
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.132461,
+              "inference": 8.423772672,
+              "preparation": 8.06820736
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "d837d0e2c851b34ed807fbace4afc23c272d0db438f82d1b0bcdc981d73cf0ea",
+          "name": "client-attention-zlib",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 312601205,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 312601205,
+            "median_full_seconds": 17.954107167,
+            "median_online_all_link_serialized_body_bytes": 93221048,
+            "median_online_seconds": 9.205849875,
+            "median_tokens_per_second": 6.481707145755429,
+            "median_ttft_seconds": 4.419280958,
+            "total_accounted_benchmark_body_bytes": 312601205,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 312601205,
+            "total_run_full_seconds": 17.954107167,
+            "total_run_online_all_link_serialized_body_bytes": 93221048
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        }
+      ],
+      "comparison_key": {
+        "input_tokens": 39,
+        "max_output_tokens": 32,
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "output_tokens": 32,
+        "prompt_digest": "80f8e4ec58669b73af23235a8aa0c7ec2d4f7bbb9e6d8f8efe3c22629aebaaa4",
+        "warm": false,
+        "warmup_prompt_digest": "80f8e4ec58669b73af23235a8aa0c7ec2d4f7bbb9e6d8f8efe3c22629aebaaa4"
+      },
+      "file": "qwen-incremental-32-cold.json"
+    },
+    {
+      "candidates": [
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 23.99439276,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.871283,
+              "inference": 8.655947392,
+              "preparation": 13.467162368
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "1cb210be7936a1e3b836db8e2003d0acef6eabcb74e11be87ae3f15523aa3a2f",
+          "name": "prepared-prewarm",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 384769770,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 178970558,
+            "median_full_seconds": 15.013039458,
+            "median_online_all_link_serialized_body_bytes": 113545024,
+            "median_online_seconds": 11.416041166,
+            "median_tokens_per_second": 4.660359951277458,
+            "median_ttft_seconds": 4.756856125,
+            "total_accounted_benchmark_body_bytes": 563740328,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 178970558,
+            "total_run_full_seconds": 15.013039458,
+            "total_run_online_all_link_serialized_body_bytes": 113545024
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.195197696,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.109536,
+              "inference": 8.234880256,
+              "preparation": 7.8507814399999996
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "c1f6e187d26671eda3452c4f991909ab66ca13fef23aa4af0ac8801c93255881",
+          "name": "prepared-request-sized",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 324947564,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 178970558,
+            "median_full_seconds": 15.054438958,
+            "median_online_all_link_serialized_body_bytes": 113545024,
+            "median_online_seconds": 11.317812125,
+            "median_tokens_per_second": 4.635871284061761,
+            "median_ttft_seconds": 4.623734334,
+            "total_accounted_benchmark_body_bytes": 503918122,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 178970558,
+            "total_run_full_seconds": 15.054438958,
+            "total_run_online_all_link_serialized_body_bytes": 113545024
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 14909440,
+            "client_body_scale_bytes": 50688,
+            "declared_body_linear_macs_per_row_client": 14909440,
+            "declared_body_linear_macs_per_row_remote": 342917120,
+            "local_stage_count": 4,
+            "native_body_i8_snapshot_bytes": 14909440,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 92,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.539313416,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.123285,
+              "inference": 8.37183872,
+              "preparation": 8.044189696
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "df455669cd1512f3cd20d0c890a1daff0e9c784fe6eff86ea459c71d8d5f54c0",
+          "name": "client-prefix-one",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 332451106,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 171513615,
+            "median_full_seconds": 14.738143541,
+            "median_online_all_link_serialized_body_bytes": 108814126,
+            "median_online_seconds": 11.230931333,
+            "median_tokens_per_second": 4.805292362997288,
+            "median_ttft_seconds": 4.772718708,
+            "total_accounted_benchmark_body_bytes": 503964721,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 171513615,
+            "total_run_full_seconds": 14.738143541,
+            "total_run_online_all_link_serialized_body_bytes": 108814126
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 29818880,
+            "client_body_scale_bytes": 101376,
+            "declared_body_linear_macs_per_row_client": 29818880,
+            "declared_body_linear_macs_per_row_remote": 328007680,
+            "local_stage_count": 8,
+            "native_body_i8_snapshot_bytes": 29818880,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 88,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 16.934873872,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.087002,
+              "inference": 8.087826944,
+              "preparation": 7.760044928
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "93edec5197ea4a4330bc3fe5f540397e9347dc9506509898eedf768a259644e2",
+          "name": "client-prefix-two",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 339954604,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 164056672,
+            "median_full_seconds": 13.896254792,
+            "median_online_all_link_serialized_body_bytes": 104083228,
+            "median_online_seconds": 10.707722959,
+            "median_tokens_per_second": 5.037886565411651,
+            "median_ttft_seconds": 4.5485375,
+            "total_accounted_benchmark_body_bytes": 504011276,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 164056672,
+            "total_run_full_seconds": 13.896254792,
+            "total_run_online_all_link_serialized_body_bytes": 104083228
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.08215052,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.095067,
+              "inference": 8.133581184,
+              "preparation": 7.853502336
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "ae1fe1a7b67592b8ab3c37f9d9f121046ac9e26eda30ec10a9ba9fcfe0de71a7",
+          "name": "client-attention",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 338515970,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 148297986,
+            "median_full_seconds": 12.310736584,
+            "median_online_all_link_serialized_body_bytes": 93221048,
+            "median_online_seconds": 9.173065125,
+            "median_tokens_per_second": 6.506389856846489,
+            "median_ttft_seconds": 4.404786708,
+            "total_accounted_benchmark_body_bytes": 486813956,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 148297986,
+            "total_run_full_seconds": 12.310736584,
+            "total_run_online_all_link_serialized_body_bytes": 93221048
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": null,
+            "aggregate_startup_cpu_seconds": 17.070707744,
+            "cold_first_response_cpu_seconds_by_role": null,
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.0821,
+              "inference": 8.169498240000001,
+              "preparation": 7.819109504
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "d837d0e2c851b34ed807fbace4afc23c272d0db438f82d1b0bcdc981d73cf0ea",
+          "name": "client-attention-zlib",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 312601202,
+            "completed_runs": 1,
+            "median_covered_all_link_serialized_body_bytes": 148297986,
+            "median_full_seconds": 12.269571708,
+            "median_online_all_link_serialized_body_bytes": 93221048,
+            "median_online_seconds": 9.204022375,
+            "median_tokens_per_second": 6.529797604028022,
+            "median_ttft_seconds": 4.452620542,
+            "total_accounted_benchmark_body_bytes": 460899188,
+            "total_output_tokens": 32,
+            "total_run_covered_all_link_serialized_body_bytes": 148297986,
+            "total_run_full_seconds": 12.269571708,
+            "total_run_online_all_link_serialized_body_bytes": 93221048
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 39,
+              "output_tokens": 32,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        }
+      ],
+      "comparison_key": {
+        "input_tokens": 39,
+        "max_output_tokens": 32,
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "output_tokens": 32,
+        "prompt_digest": "c32aa8d3d5c293a2a3f3b01c6de6984ea2a6525855ef1578b63efcb95aa040d3",
+        "warm": true,
+        "warmup_prompt_digest": "c32aa8d3d5c293a2a3f3b01c6de6984ea2a6525855ef1578b63efcb95aa040d3"
+      },
+      "file": "qwen-incremental-32-warm.json"
+    },
+    {
+      "candidates": [
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 46.712064072000004,
+            "aggregate_startup_cpu_seconds": 17.08761356,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 7.942221,
+              "inference": 20.344700160000002,
+              "preparation": 18.425142912000002
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.101195,
+              "inference": 8.191917952,
+              "preparation": 7.794500608
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "c1f6e187d26671eda3452c4f991909ab66ca13fef23aa4af0ac8801c93255881",
+          "name": "prepared-request-sized",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 450025580,
+            "completed_runs": 3,
+            "median_covered_all_link_serialized_body_bytes": 374882943,
+            "median_full_seconds": 16.637933292,
+            "median_online_all_link_serialized_body_bytes": 219059008,
+            "median_online_seconds": 10.274592792,
+            "median_tokens_per_second": 4.731755112745895,
+            "median_ttft_seconds": 8.777439417,
+            "total_accounted_benchmark_body_bytes": 1171963754,
+            "total_output_tokens": 24,
+            "total_run_covered_all_link_serialized_body_bytes": 1171963754,
+            "total_run_full_seconds": 50.072870458,
+            "total_run_online_all_link_serialized_body_bytes": 647601600
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 113,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 130,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 141,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 43.023363192,
+            "aggregate_startup_cpu_seconds": 16.502548952,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 8.116859,
+              "inference": 17.750316032,
+              "preparation": 17.15618816
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.057239,
+              "inference": 7.892731008,
+              "preparation": 7.552578944
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "ae1fe1a7b67592b8ab3c37f9d9f121046ac9e26eda30ec10a9ba9fcfe0de71a7",
+          "name": "client-attention",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 443065154,
+            "completed_runs": 3,
+            "median_covered_all_link_serialized_body_bytes": 311789731,
+            "median_full_seconds": 14.184888959,
+            "median_online_all_link_serialized_body_bytes": 180865784,
+            "median_online_seconds": 9.1989965,
+            "median_tokens_per_second": 6.531512059513743,
+            "median_ttft_seconds": 8.104710208,
+            "total_accounted_benchmark_body_bytes": 1043488648,
+            "total_output_tokens": 24,
+            "total_run_covered_all_link_serialized_body_bytes": 1043488648,
+            "total_run_full_seconds": 43.055133001,
+            "total_run_online_all_link_serialized_body_bytes": 534685416
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 113,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 130,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 141,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 0,
+            "client_body_scale_bytes": 0,
+            "declared_body_linear_macs_per_row_client": 0,
+            "declared_body_linear_macs_per_row_remote": 357826560,
+            "local_stage_count": 0,
+            "native_body_i8_snapshot_bytes": 0,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 96,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 46.965281152,
+            "aggregate_startup_cpu_seconds": 16.531252768,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 9.251376,
+              "inference": 19.870180096000002,
+              "preparation": 17.843725056
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.084612,
+              "inference": 7.870651007999999,
+              "preparation": 7.575989760000001
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "81434a9c7d9cb2c16abc99d8ace617f82d93c8396ce61bc5a24b54ae419cb725",
+          "name": "prepared-shared-prefix",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 450025580,
+            "completed_runs": 3,
+            "median_covered_all_link_serialized_body_bytes": 85477438,
+            "median_full_seconds": 13.660191291,
+            "median_online_all_link_serialized_body_bytes": 54605760,
+            "median_online_seconds": 9.520598583,
+            "median_tokens_per_second": 4.729623472986164,
+            "median_ttft_seconds": 8.030646833,
+            "total_accounted_benchmark_body_bytes": 608037416,
+            "total_output_tokens": 24,
+            "total_run_covered_all_link_serialized_body_bytes": 608037416,
+            "total_run_full_seconds": 43.124319666,
+            "total_run_online_all_link_serialized_body_bytes": 292866560
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 113,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 130,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 104
+            },
+            {
+              "input_tokens": 141,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 120
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 45.15564012,
+            "aggregate_startup_cpu_seconds": 16.35836028,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 9.923971,
+              "inference": 18.141482112,
+              "preparation": 17.090187008
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.082391,
+              "inference": 7.773479296,
+              "preparation": 7.5024899839999994
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "bd60508695ebe7053659debcd5e646661bfdaa6ea0dac302e88ab9bcb54974ed",
+          "name": "client-attention-shared-prefix",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 443065154,
+            "completed_runs": 3,
+            "median_covered_all_link_serialized_body_bytes": 70464274,
+            "median_full_seconds": 11.4804995,
+            "median_online_all_link_serialized_body_bytes": 44485320,
+            "median_online_seconds": 8.042111167,
+            "median_tokens_per_second": 6.545425898590548,
+            "median_ttft_seconds": 6.969817417,
+            "total_accounted_benchmark_body_bytes": 573321342,
+            "total_output_tokens": 24,
+            "total_run_covered_all_link_serialized_body_bytes": 573321342,
+            "total_run_full_seconds": 37.722720542,
+            "total_run_online_all_link_serialized_body_bytes": 240679072
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 113,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 130,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 104
+            },
+            {
+              "input_tokens": 141,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 120
+            }
+          ]
+        },
+        {
+          "checks": {
+            "all_runs_completed": true,
+            "authoritative_token_usage": true,
+            "model_fingerprint_present": true,
+            "no_online_preparation_requests": true,
+            "no_plaintext_prompt_bytes_sent": true,
+            "no_plaintext_token_ids_sent": true,
+            "passed": true
+          },
+          "client_body_placement": {
+            "client_body_i8_weight_bytes": 44040192,
+            "client_body_scale_bytes": 196608,
+            "declared_body_linear_macs_per_row_client": 44040192,
+            "declared_body_linear_macs_per_row_remote": 313786368,
+            "local_stage_count": 48,
+            "native_body_i8_snapshot_bytes": 44040192,
+            "peak_client_memory_bytes": null,
+            "remote_stage_count": 48,
+            "sample_boundary": "after-final-measured-response",
+            "schema": "pllm.client_body_placement.v1"
+          },
+          "cold_cpu": {
+            "aggregate_cold_first_response_cpu_seconds": 51.437824856000006,
+            "aggregate_startup_cpu_seconds": 16.315121248,
+            "cold_first_response_cpu_seconds_by_role": {
+              "client": 10.859143,
+              "inference": 23.498449408000003,
+              "preparation": 17.080232448
+            },
+            "full_response_compute_cap_checked": false,
+            "schema": "pllm.topology_process_cpu.v1",
+            "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+            "startup_cpu_seconds_by_role": {
+              "client": 1.074364,
+              "inference": 7.7121505280000004,
+              "preparation": 7.52860672
+            },
+            "unmeasured": [
+              "source resolution before dashboard startup, if any",
+              "accelerator compute, energy, and CPU after the first response",
+              "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+            ]
+          },
+          "configuration_digest": "98fa1cb4ef9ddb6031ad6d206593faeb18ffa546d3625c551b2099bfc8f84af0",
+          "name": "client-attention-shared-prefix-zlib",
+          "pipeline_digest": null,
+          "summary": {
+            "accounted_setup_through_first_response_body_bytes": 417150387,
+            "completed_runs": 3,
+            "median_covered_all_link_serialized_body_bytes": 70464274,
+            "median_full_seconds": 11.5848615,
+            "median_online_all_link_serialized_body_bytes": 44485320,
+            "median_online_seconds": 8.022891042,
+            "median_tokens_per_second": 6.454518923957929,
+            "median_ttft_seconds": 6.950159334,
+            "total_accounted_benchmark_body_bytes": 547406575,
+            "total_output_tokens": 24,
+            "total_run_covered_all_link_serialized_body_bytes": 547406575,
+            "total_run_full_seconds": 43.043774417,
+            "total_run_online_all_link_serialized_body_bytes": 240679072
+          },
+          "usage_sequence": [
+            {
+              "input_tokens": 113,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 0
+            },
+            {
+              "input_tokens": 130,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 104
+            },
+            {
+              "input_tokens": 141,
+              "output_tokens": 8,
+              "prefix_tokens_reused": 120
+            }
+          ]
+        }
+      ],
+      "comparison_key": {
+        "input_tokens": [
+          113,
+          130,
+          141
+        ],
+        "max_output_tokens": [
+          8,
+          8,
+          8
+        ],
+        "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "output_tokens": [
+          8,
+          8,
+          8
+        ],
+        "prompt_digest": "37c4d361d1a07a94783ba6fac6f7124e78ac43b0f3a958ee225574e9b04d6913",
+        "warm": [
+          false,
+          true,
+          true
+        ],
+        "warmup_prompt_digest": "5d8d87c760d7784747675e4d97b681bf558704a39935a27489e6f5a7bd747220"
+      },
+      "file": "qwen-incremental-contexts.json"
+    }
+  ],
+  "date": "2026-10-01",
+  "environment": {
+    "packages": {
+      "numpy": "2.5.3",
+      "pllm.run": "0.1.0a2",
+      "torch": "2.14.0",
+      "transformers": "5.16.1"
+    },
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "limitations": [
+    "Checkpoint download and TLS/headers are unmeasured",
+    "Storage counts exclude peak RAM and persistent disk",
+    "Matching body/cohort does not establish output equality or float32 quality",
+    "Timing and CPU are not representative medians; operator independence and compute-cap admission are unset"
+  ],
+  "schema": "pllm.incremental_network_evidence.v1",
+  "scope": "One co-located loopback sample per candidate/cohort; serialized protocol bodies, not full wire",
+  "source": {
+    "activation_bits": 8,
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "weight_bits": 8
+  }
+}

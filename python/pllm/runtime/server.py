@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse, Response as FastAPIResponse, Streami
 from pllm.model_loader import model_from_runtime_spec, resolve_model
 
 from .backends import BackendRegistry
+from .bundle_compression import ENCODING as BUNDLE_ENCODING, encode_bundle_frames
 from .config import GatewayConfig
 from .correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -448,6 +449,7 @@ def create_app(
                         "stage_count": len(manifest.stages),
                         "fingerprint": manifest.fingerprint,
                         "body_fingerprint": manifest.metadata.get("body_fingerprint"),
+                        "source_lock_digest": manifest.metadata.get("source_lock_digest"),
                         "stage_commitment": manifest.metadata.get("seeded_stage_commitment"),
                         "kernel_backend": manifest.metadata.get("kernel_backend"),
                         "kernel_min_rows": manifest.metadata.get("kernel_min_rows"),
@@ -642,6 +644,9 @@ def create_app(
         model_id: str,
         authorization: str | None = Header(default=None),
         if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+        accept_bundle_encoding: str | None = Header(
+            default=None, alias="X-PLLM-Accept-Bundle-Encoding"
+        ),
     ) -> FastAPIResponse:
         auth_token(authorization)
         engine_name = model_engine_routes.get(model_id)
@@ -658,6 +663,13 @@ def create_app(
         }
         if if_none_match == descriptor["etag"]:
             return FastAPIResponse(status_code=304, headers=headers)
+        if accept_bundle_encoding == BUNDLE_ENCODING:
+            headers["X-PLLM-Bundle-Encoding"] = BUNDLE_ENCODING
+            return StreamingResponse(
+                encode_bundle_frames(payload),
+                media_type="application/vnd.pllm.bundle-frames",
+                headers=headers,
+            )
         headers["Content-Length"] = str(len(payload))
 
         def chunks():

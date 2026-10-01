@@ -1,0 +1,30 @@
+{
+  "schema": "pllm.output_head_placement_cost.v1",
+  "scope": "one cold request per placement and generation length; generated untied checkpoint, not official Phi quality evidence",
+  "model": "one-layer generated dense checkpoint, 512 hidden, 1024 intermediate, 65536 vocabulary, untied output head",
+  "model_body_fingerprint": "d221c16b33600888ad3d9adbde0507ebf6402056987623ee9b4c60479fcc4349",
+  "precision": "W8A8, same checkpoint and prompt for both placements",
+  "input_tokens": 36,
+  "reproduction": "PLLM_RUN_OUTPUT_HEAD_COST_GATE=1 PLLM_OUTPUT_HEAD_COST_GATE_REPORT=1 uv run --no-sync pytest -q tests/test_output_head_placement.py::test_untied_output_head_cold_and_online_cost_by_generation_length -s",
+  "cohorts": [
+    {
+      "output_tokens": 1,
+      "client_head": {"bundle_bytes": 67671187, "correction_push_bytes": 416011, "online_body_bytes": 693846, "remote_stage_calls": 4},
+      "inference_head": {"bundle_bytes": 33854621, "correction_push_bytes": 7494207, "online_body_bytes": 892577, "remote_stage_calls": 5},
+      "covered_bundle_plus_correction_plus_online_saving_bytes": 26539639
+    },
+    {
+      "output_tokens": 8,
+      "client_head": {"bundle_bytes": 67671187, "correction_push_bytes": 496655, "online_body_bytes": 845506, "remote_stage_calls": 32},
+      "inference_head": {"bundle_bytes": 33854621, "correction_push_bytes": 8951107, "online_body_bytes": 2435356, "remote_stage_calls": 40},
+      "covered_bundle_plus_correction_plus_online_saving_bytes": 23772264
+    },
+    {
+      "output_tokens": 32,
+      "client_head": {"bundle_bytes": 67671187, "correction_push_bytes": 773135, "online_body_bytes": 1365490, "remote_stage_calls": 128},
+      "inference_head": {"bundle_bytes": 33854621, "correction_push_bytes": 13946179, "online_body_bytes": 7724884, "remote_stage_calls": 160},
+      "covered_bundle_plus_correction_plus_online_saving_bytes": 14284128
+    }
+  ],
+  "qualification": "Online-only traffic rises with remote head placement. The comparison omits full wire framing, checkpoint distribution, peak memory, and representative model quality. Provider preparation currently reserves the same input-token row count for every stage, including the one-row-at-prefill output head."
+}

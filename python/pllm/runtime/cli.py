@@ -80,6 +80,9 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "verification_component": _env("PLLM_VERIFICATION_COMPONENT", "none"),
         "verification_target_failure_bits": int(_env("PLLM_VERIFICATION_TARGET_FAILURE_BITS", "0")),
         "public_equalization_digest": None,
+        "remote_output_head": False,
+        "client_prefix_layers": 0,
+        "client_linear_roles": "",
         "weight_bits": 8,
         "activation_bits": 8,
         "model": [],
@@ -285,6 +288,18 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("public equalization requires a public masked-linear engine")
         engine_kwargs["public_equalization_digest"] = args.public_equalization_digest
+    if args.remote_output_head:
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("remote output head requires public prepared roles")
+        engine_kwargs["remote_output_head"] = True
+    if args.client_prefix_layers:
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("client prefix layers require public prepared roles")
+        engine_kwargs["client_prefix_layers"] = args.client_prefix_layers
+    if args.client_linear_roles:
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("client linear roles require public prepared roles")
+        engine_kwargs["client_linear_roles"] = tuple(args.client_linear_roles.split(","))
     if engine_type is GuardedBlindedTransformerEngine:
         engine_kwargs["guard_policy"] = GuardPolicy(
             max_rows_per_request=args.guard_max_rows_per_request,

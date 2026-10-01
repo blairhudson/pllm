@@ -10,6 +10,18 @@ from pllm.modeling import ModelPlan
 from .models import StageSpec
 
 
+def client_owns_linear(
+    stage: Any, *, client_prefix_layers: int = 0, client_linear_roles: tuple[str, ...] = ()
+) -> bool:
+    """Shared ownership rule for compiled body stages and validated bundle specs."""
+    get = stage.get if isinstance(stage, dict) else lambda key: getattr(stage, key, None)
+    layer = get("layer_index")
+    return get("op") == "linear" and (
+        (type(layer) is int and 0 <= layer < client_prefix_layers)
+        or get("role") in client_linear_roles
+    )
+
+
 def _graph_reaches(
     start: str,
     target: str,
@@ -36,9 +48,11 @@ def _graph_reaches(
                 continue
             if operation.get("operator") == target:
                 return True
-            if reverse and operation_id != start and operation.get("operator") in {
-                "linear", "token_lookup", "output_head"
-            }:
+            if (
+                reverse
+                and operation_id != start
+                and operation.get("operator") in {"linear", "token_lookup", "output_head"}
+            ):
                 continue
             if reverse:
                 next_frontier.extend(
@@ -88,7 +102,10 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
         if not isinstance(input_ids, list) or len(input_ids) != 1:
             raise ValueError("grouped remote linear stage must have one semantic input")
         if len(operation_ids) > 1:
-            if any(tuple(operations[operation_id].get("inputs") or ()) != tuple(input_ids) for operation_id in operation_ids):
+            if any(
+                tuple(operations[operation_id].get("inputs") or ()) != tuple(input_ids)
+                for operation_id in operation_ids
+            ):
                 raise ValueError("grouped linear projections must share one semantic input")
             return "semantic_linear"
         source = input_ids[0]
@@ -102,11 +119,13 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
             and sum(
                 operations.get(input_id, {}).get("operator") in {"silu", "gelu_tanh"}
                 for input_id in producer["inputs"]
-            ) == 1
+            )
+            == 1
             and sum(
                 operations.get(input_id, {}).get("operator") == "linear"
                 for input_id in producer["inputs"]
-            ) == 1
+            )
+            == 1
         ):
             return "mlp_down"
         return "semantic_linear"
@@ -196,9 +215,7 @@ def _linear_stage(
         stage_id = f"layers.{layer}.{_STAGE_NAMES[role]}"
     else:
         raise ValueError("decoder schedule declares an unsupported stage layout")
-    declared_biases = tuple(
-        operations[op_id]["attributes"].get("bias") or "" for op_id in op_ids
-    )
+    declared_biases = tuple(operations[op_id]["attributes"].get("bias") or "" for op_id in op_ids)
     return StageSpec(
         id=stage_id,
         op="linear",
@@ -213,7 +230,7 @@ def _linear_stage(
 
 
 def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageSpec]:
-    """Issue the exact stage table required by a complete baseline schedule."""
+    """Issue all compiled linear stages, including client-owned prefix stages."""
     schedule = plan.runtime_schedule(composition)
     if not schedule.complete or schedule.protected_execution:
         raise ValueError("decoder schedule is not complete public baseline execution")
@@ -231,7 +248,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
     stages: list[StageSpec] = []
     seen: set[tuple[str, int | None]] = set()
     for step in prefill["steps"]:
-        if step["executor"] not in {"remote_stage", "verified_remote_stage"}:
+        if step["executor"] not in {"remote_stage", "verified_remote_stage", "client_linear"}:
             continue
         role = semantic_stage_role(step, operations)
         layer = step["layer"]

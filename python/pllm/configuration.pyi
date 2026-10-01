@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Self
 
 from pllm.providers import ProviderDescriptor
+from pllm.roles import RoleGraph
 
 class ConfigurationError(ValueError): ...
 
@@ -179,6 +180,16 @@ class ExperimentProfile:
     privacy_protocol: str | None
     verification_component: str | None
     verification_target_failure_bits: int
+    public_equalization_digest: str | None
+    prefix_cache_bytes: int
+    prefix_cache_bound_tokens: int | None
+    remote_output_head: bool
+    client_prefix_layers: int
+    client_linear_roles: tuple[str, ...]
+    inventory_policy: str
+    prepared_inventory_rows: int
+    bundle_compression: str
+    role_graph: RoleGraph | None
     def __init__(self, experiment: Experiment) -> None: ...
 
 def loads_configuration(

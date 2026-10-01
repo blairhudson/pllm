@@ -6,6 +6,7 @@ import argparse
 import ipaddress
 import json
 import os
+import secrets
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -153,6 +154,9 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--verification-target-failure-bits", type=int)
     parser.add_argument("--public-equalization-digest")
+    parser.add_argument("--remote-output-head", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--client-prefix-layers", type=int, default=0, help=argparse.SUPPRESS)
+    parser.add_argument("--client-linear-roles", default="", help=argparse.SUPPRESS)
     parser.add_argument("--guard-max-rows-per-request", type=int)
     parser.add_argument("--guard-max-rows-per-stage", type=int)
     parser.add_argument("--guard-max-requests-per-minute", type=int)
@@ -221,11 +225,14 @@ def build_parser() -> _Parser:
     )
     _target_options(topology_inspect)
     topology_inspect.add_argument(
-        "--reference", choices=("client-only", "two-online-offset"),
+        "--reference",
+        choices=("client-only", "two-online-offset"),
         help="inspect a non-executable research comparator rather than the installed graph",
     )
     topology_inspect.add_argument(
-        "--role-deployment", type=Path, metavar="PATH",
+        "--role-deployment",
+        type=Path,
+        metavar="PATH",
         help="inspect a versioned role-placement JSON declaration (never authorizes serving)",
     )
 
@@ -333,6 +340,11 @@ def build_parser() -> _Parser:
     )
     prompt_source.add_argument("--prompt-file", type=Path, help="read prompt text from this file")
     benchmark_run.add_argument(
+        "--warmup-prompt-file",
+        type=Path,
+        help="use a different private warmup prompt (for shared-prefix comparisons)",
+    )
+    benchmark_run.add_argument(
         "--max-output-tokens",
         type=int,
         default=24,
@@ -340,6 +352,11 @@ def build_parser() -> _Parser:
     )
     benchmark_run.add_argument(
         "--warmups", type=int, default=0, help="warmup runs retained in the report (default: 0)"
+    )
+    benchmark_run.add_argument(
+        "--prompt-sequence-file",
+        type=Path,
+        help="JSON array of 1-32 full conversation contexts, in order; repetitions repeat the sequence",
     )
     benchmark_run.add_argument(
         "--repetitions", type=int, default=1, help="measured runs (default: 1)"
@@ -354,6 +371,35 @@ def build_parser() -> _Parser:
         "--show-dashboard",
         action="store_true",
         help="open the local dashboard in a browser (default: hidden)",
+    )
+    benchmark_run.add_argument(
+        "--inventory-policy",
+        choices=("prewarm", "request-sized"),
+        default=None,
+        help="override inventory policy (default: Experiment selection or prewarm)",
+    )
+    benchmark_run.add_argument(
+        "--bundle-compression",
+        choices=("none", "zlib"),
+        default=None,
+        help="override bundle encoding (default: Experiment selection or none)",
+    )
+    benchmark_run.add_argument(
+        "--prefill-cache-mib",
+        type=int,
+        default=0,
+        help="bound client-only exact-prompt prefill reuse in MiB (0-256; default: off)",
+    )
+    benchmark_run.add_argument(
+        "--prefill-cache-mode",
+        choices=("exact", "prefix"),
+        default="exact",
+        help="reuse exact prompts or cost-gated shared causal prefixes",
+    )
+    benchmark_run.add_argument(
+        "--prefill-cache-bound-tokens",
+        type=int,
+        help="fixed compiler input bound required for shared-prefix reuse (2-4096)",
     )
     benchmark_run.add_argument("--output", type=Path, help="write the sanitized JSON report")
     benchmark_run.add_argument(
@@ -546,8 +592,10 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
             "TOPOLOGY_NOT_EXECUTABLE", "research baselines require a public-weight composition"
         )
     graph = (
-        client_only_reference_graph() if args.reference == "client-only"
-        else two_online_reference_graph() if args.reference == "two-online-offset"
+        client_only_reference_graph()
+        if args.reference == "client-only"
+        else two_online_reference_graph()
+        if args.reference == "two-online-offset"
         else resolved.role_graph
     )
     if graph is None:
@@ -565,12 +613,14 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
         "placement": {
             "kind": experiment.deployment.kind,
             "operators": operators,
-            "separation_violations": [list(pair) for pair in graph.separation_violations(operators)],
+            "separation_violations": [
+                list(pair) for pair in graph.separation_violations(operators)
+            ],
         },
         "scope": (
             "research comparator graph; not bound to an executable plan or independently operated roles"
-            if args.reference is not None else
-            "installed runtime composition; deployment ownership is a declaration, not a privacy proof"
+            if args.reference is not None
+            else "installed runtime composition; deployment ownership is a declaration, not a privacy proof"
         ),
         "python_executed": target.python_executed,
         "target_kind": target.kind,
@@ -671,16 +721,81 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         prompt = args.prompt.strip()
     if not prompt or len(prompt.encode()) > 16_384:
         raise ResolutionError("BENCHMARK_PROMPT", "prompt must contain 1 to 16384 bytes")
+    prompt_sequence = None
+    if args.prompt_sequence_file is not None:
+        if args.prompt_file is not None:
+            raise ResolutionError(
+                "BENCHMARK_PROMPT_SEQUENCE", "choose a prompt file or a context sequence"
+            )
+        try:
+            sequence_path = args.prompt_sequence_file.expanduser()
+            if sequence_path.stat().st_size > 524_288:
+                raise ResolutionError(
+                    "BENCHMARK_PROMPT_SEQUENCE", "context sequence exceeds 512 KiB"
+                )
+            prompt_sequence = json.loads(sequence_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ResolutionError(
+                "BENCHMARK_PROMPT_SEQUENCE", "context sequence must be readable JSON"
+            ) from exc
+        if (
+            not isinstance(prompt_sequence, list)
+            or not 1 <= len(prompt_sequence) <= 32
+            or any(
+                not isinstance(value, str) or not value.strip() or len(value.encode()) > 16_384
+                for value in prompt_sequence
+            )
+        ):
+            raise ResolutionError(
+                "BENCHMARK_PROMPT_SEQUENCE",
+                "context sequence requires 1-32 bounded nonempty strings",
+            )
+        prompt = prompt_sequence[0]
+    warmup_prompt = prompt
+    if args.warmup_prompt_file is not None:
+        if not args.warmups:
+            raise ResolutionError("BENCHMARK_WARMUP_PROMPT", "warmup prompt requires --warmups")
+        try:
+            warmup_prompt = args.warmup_prompt_file.expanduser().read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise LocalIOError("PROMPT_READ", "warmup prompt file is unavailable") from exc
+        if not warmup_prompt or len(warmup_prompt.encode()) > 16_384:
+            raise ResolutionError(
+                "BENCHMARK_WARMUP_PROMPT", "warmup prompt must contain 1 to 16384 bytes"
+            )
+    if args.prefill_cache_mode == "prefix":
+        if not (1 <= args.prefill_cache_mib <= 256) or (
+            type(args.prefill_cache_bound_tokens) is not int
+            or not 2 <= args.prefill_cache_bound_tokens <= 4096
+        ):
+            raise ResolutionError(
+                "BENCHMARK_PREFIX_CACHE",
+                "prefix reuse requires 1-256 MiB and a fixed bound of 2-4096 tokens",
+            )
+    elif args.prefill_cache_bound_tokens is not None:
+        raise ResolutionError(
+            "BENCHMARK_PREFIX_CACHE", "prefix bound requires --prefill-cache-mode prefix"
+        )
 
     configuration = {
-        "model": args.model,
+        "model": (
+            experiments[0].pipeline.model.source
+            if experiments and len({item.pipeline.model.source for item in experiments}) == 1
+            else args.model
+        ),
         "model_id": args.model_id,
         "tiny": args.tiny,
         "max_output_tokens": args.max_output_tokens,
         "warmups": args.warmups,
         "repetitions": args.repetitions,
+        "sequence_length": len(prompt_sequence) if prompt_sequence is not None else None,
         "timeout_seconds": args.timeout,
         "show_dashboard": args.show_dashboard,
+        "inventory_policy": args.inventory_policy or "prewarm",
+        "bundle_compression": args.bundle_compression or "none",
+        "prefill_cache_mib": args.prefill_cache_mib,
+        "prefill_cache_mode": args.prefill_cache_mode,
+        "prefill_cache_bound_tokens": args.prefill_cache_bound_tokens,
         "output": str(output) if output is not None else None,
         "experiments": [
             {
@@ -708,6 +823,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
 
     try:
         candidate_reports = []
+        cohort_salt = secrets.token_bytes(32)
         report: dict[str, Any] | None = None
         selected_experiments = experiments or [None]
         for index, experiment in enumerate(selected_experiments, start=1):
@@ -717,11 +833,23 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 model_id=args.model_id,
                 tiny=args.tiny,
                 prompt=prompt,
+                warmup_prompt=warmup_prompt if args.warmup_prompt_file is not None else None,
+                prompt_sequence=prompt_sequence,
                 max_output_tokens=args.max_output_tokens,
                 warmups=args.warmups,
                 repetitions=args.repetitions,
                 timeout_seconds=args.timeout,
                 show_dashboard=args.show_dashboard,
+                inventory_policy=args.inventory_policy
+                if experiment is not None
+                else args.inventory_policy or "prewarm",
+                bundle_compression=args.bundle_compression
+                if experiment is not None
+                else args.bundle_compression or "none",
+                prefill_cache_mib=args.prefill_cache_mib,
+                prefill_cache_mode=args.prefill_cache_mode,
+                prefill_cache_bound_tokens=args.prefill_cache_bound_tokens,
+                _cohort_salt=cohort_salt,
                 experiment=experiment,
                 progress=(
                     lambda message, prefix=prefix: (
@@ -1025,7 +1153,9 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         graph = resolved_experiment.role_graph
         separated_roles = graph is not None and bool(graph.separate_operators)
     if (
-        output_format == "human" and args.local and separated_roles
+        output_format == "human"
+        and args.local
+        and separated_roles
         and not getattr(args, "quiet", False)
     ):
         print(
@@ -1152,13 +1282,36 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
                     f"--{name.replace('_', '-')} conflicts with the experiment quantization",
                 )
             setattr(args, name, selected)
-        if (args.public_equalization_digest is not None
-                and args.public_equalization_digest != runtime_options.public_equalization_digest):
+        if (
+            args.public_equalization_digest is not None
+            and args.public_equalization_digest != runtime_options.public_equalization_digest
+        ):
             raise ResolutionError(
                 "SERVE_EXPERIMENT_CONFLICT",
                 "--public-equalization-digest conflicts with experiment quantization",
             )
         args.public_equalization_digest = runtime_options.public_equalization_digest
+        if args.remote_output_head and not runtime_options.remote_output_head:
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_CONFLICT",
+                "remote output head conflicts with Experiment placement",
+            )
+        args.remote_output_head = runtime_options.remote_output_head
+        if (
+            args.client_prefix_layers
+            and args.client_prefix_layers != runtime_options.client_prefix_layers
+        ):
+            raise ResolutionError(
+                "SERVE_EXPERIMENT_CONFLICT",
+                "client prefix layers conflict with Experiment placement",
+            )
+        args.client_prefix_layers = runtime_options.client_prefix_layers
+        if (
+            args.client_linear_roles
+            and tuple(args.client_linear_roles.split(",")) != runtime_options.client_linear_roles
+        ):
+            raise ValueError("client linear roles conflict with Experiment")
+        args.client_linear_roles = ",".join(runtime_options.client_linear_roles)
         if role == "preparation" and not runtime_options.requires_preparation:
             raise ResolutionError(
                 "SERVE_CONFIGURATION",

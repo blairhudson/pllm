@@ -7,10 +7,11 @@ from typing import Any
 
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
-from pllm.preparation import ModelAwareCorrections, PreparationProvider
+from pllm.preparation import ModelAwareCorrections, PreparationProvider, PreparedInventory
 from pllm.quantization import PublicPerChannelEqualized, QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
+    ClientBundleTransport,
     CleartextLinear,
     DirectFHE as DirectFHEMethod,
     GuardedLinear,
@@ -19,10 +20,19 @@ from pllm.protocols import (
     TwoOnlineOffsetLinear,
 )
 from pllm.roles import (
-    ClientOnlyRoles, Inference, InferenceRole, PreparedProviderRoles, RoleTopology,
+    ClientOnlyRoles,
+    ClientPlacement,
+    ClientLinearRoles,
+    ClientPrefixLayers,
+    Inference,
+    InferenceRole,
+    OutputHeadAtInference,
+    PreparedProviderRoles,
+    RoleTopology,
     TwoOnlineOffsetRoles,
 )
 from pllm.sources import ModelSource
+from pllm.state import ClientPrefixReuse
 from pllm.verification import FreivaldsVerify, VerificationScheme
 
 _DEFAULT_MASKED = MaskedLinear()
@@ -96,7 +106,18 @@ class _TypedPipeline(Pipeline):
 
 class MaskedLinearCpu(_TypedPipeline):
     PROFILE = "baseline.masked_linear_cpu"
-    SLOT_NAMES = ("linear", "preparation", "inference", "kernels", "quantization")
+    SLOT_NAMES = (
+        "linear",
+        "preparation",
+        "inference",
+        "kernels",
+        "quantization",
+        "cache",
+        "boundary",
+        "placement",
+        "inventory",
+        "delivery",
+    )
     __slots__ = ()
 
     def __init__(
@@ -108,6 +129,11 @@ class MaskedLinearCpu(_TypedPipeline):
         inference: InferenceRole = _DEFAULT_INFERENCE,
         kernels: KernelBackend = _DEFAULT_KERNELS,
         quantization: QuantizationScheme | None = None,
+        cache: ClientPrefixReuse | None = None,
+        boundary: OutputHeadAtInference | None = None,
+        placement: ClientPlacement | None = None,
+        inventory: PreparedInventory | None = None,
+        delivery: ClientBundleTransport | None = None,
     ) -> None:
         if quantization is not None:
             _slot("quantization", quantization, QuantizationScheme)
@@ -115,7 +141,9 @@ class MaskedLinearCpu(_TypedPipeline):
                 SymmetricPerRow.descriptor.component,
                 PublicPerChannelEqualized.descriptor.component,
             }:
-                raise ConfigurationError("masked linear requires a supported quantization component")
+                raise ConfigurationError(
+                    "masked linear requires a supported quantization component"
+                )
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -125,6 +153,29 @@ class MaskedLinearCpu(_TypedPipeline):
                 "inference": _slot("inference", inference, InferenceRole),
                 "kernels": _slot("kernels", kernels, KernelBackend),
                 **({"quantization": quantization} if quantization is not None else {}),
+                **(
+                    {"cache": _slot("cache", cache, ClientPrefixReuse)} if cache is not None else {}
+                ),
+                **(
+                    {"boundary": _slot("boundary", boundary, OutputHeadAtInference)}
+                    if boundary is not None
+                    else {}
+                ),
+                **(
+                    {"placement": _slot("placement", placement, ClientPlacement)}
+                    if placement is not None
+                    else {}
+                ),
+                **(
+                    {"inventory": _slot("inventory", inventory, PreparedInventory)}
+                    if inventory is not None
+                    else {}
+                ),
+                **(
+                    {"delivery": _slot("delivery", delivery, ClientBundleTransport)}
+                    if delivery is not None
+                    else {}
+                ),
             },
         )
 
@@ -147,6 +198,26 @@ class MaskedLinearCpu(_TypedPipeline):
     @property
     def quantization(self) -> QuantizationScheme | None:
         return self.components.get("quantization")
+
+    @property
+    def cache(self) -> ClientPrefixReuse | None:
+        return self.components.get("cache")
+
+    @property
+    def boundary(self) -> OutputHeadAtInference | None:
+        return self.components.get("boundary")
+
+    @property
+    def placement(self) -> ClientPlacement | None:
+        return self.components.get("placement")
+
+    @property
+    def inventory(self) -> PreparedInventory | None:
+        return self.components.get("inventory")
+
+    @property
+    def delivery(self) -> ClientBundleTransport | None:
+        return self.components.get("delivery")
 
 
 class ClientOnlyCpu(_TypedPipeline):
@@ -177,11 +248,17 @@ class ClientOnlyCpu(_TypedPipeline):
             model=_model(model),
             components={
                 "linear": _slot(
-                    "linear", linear, ProtocolMethod, CleartextLinear.descriptor.component,
+                    "linear",
+                    linear,
+                    ProtocolMethod,
+                    CleartextLinear.descriptor.component,
                 ),
                 "kernels": _slot("kernels", kernels, KernelBackend),
                 "topology": _slot(
-                    "topology", topology, RoleTopology, ClientOnlyRoles.descriptor.component,
+                    "topology",
+                    topology,
+                    RoleTopology,
+                    ClientOnlyRoles.descriptor.component,
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
             },
@@ -221,8 +298,11 @@ class ClientOnlyMetal(ClientOnlyCpu):
     ) -> None:
         _slot("kernels", kernels, KernelBackend, AppleMetal.descriptor.component)
         super().__init__(
-            model, linear=linear, kernels=kernels,
-            quantization=quantization, topology=topology,
+            model,
+            linear=linear,
+            kernels=kernels,
+            quantization=quantization,
+            topology=topology,
         )
 
 
@@ -244,7 +324,9 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     ) -> None:
         if quantization is not None:
             _slot(
-                "quantization", quantization, QuantizationScheme,
+                "quantization",
+                quantization,
+                QuantizationScheme,
                 SymmetricPerRow.descriptor.component,
             )
         super().__init__(
@@ -252,11 +334,17 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
             model=_model(model),
             components={
                 "linear": _slot(
-                    "linear", linear, ProtocolMethod, TwoOnlineOffsetLinear.descriptor.component,
+                    "linear",
+                    linear,
+                    ProtocolMethod,
+                    TwoOnlineOffsetLinear.descriptor.component,
                 ),
                 "kernels": _slot("kernels", kernels, KernelBackend),
                 "topology": _slot(
-                    "topology", topology, RoleTopology, TwoOnlineOffsetRoles.descriptor.component,
+                    "topology",
+                    topology,
+                    RoleTopology,
+                    TwoOnlineOffsetRoles.descriptor.component,
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
             },
@@ -282,7 +370,12 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
 class VerifiedMaskedLinearCpu(_TypedPipeline):
     PROFILE = "research.verified_masked_linear_cpu"
     SLOT_NAMES = (
-        "linear", "preparation", "inference", "kernels", "verification", "quantization",
+        "linear",
+        "preparation",
+        "inference",
+        "kernels",
+        "verification",
+        "quantization",
         "topology",
     )
     __slots__ = ()
@@ -320,9 +413,18 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
                     "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
-                **({"topology": _slot(
-                    "topology", topology, RoleTopology, PreparedProviderRoles.descriptor.component,
-                )} if topology is not None else {}),
+                **(
+                    {
+                        "topology": _slot(
+                            "topology",
+                            topology,
+                            RoleTopology,
+                            PreparedProviderRoles.descriptor.component,
+                        )
+                    }
+                    if topology is not None
+                    else {}
+                ),
             },
         )
 
@@ -480,10 +582,116 @@ class RuntimeComposition:
     weight_bits: int = 8
     activation_bits: int = 8
     public_equalization_digest: str | None = None
+    prefix_cache_bytes: int = 0
+    prefix_cache_bound_tokens: int | None = None
+    remote_output_head: bool = False
+    client_prefix_layers: int = 0
+    client_linear_roles: tuple[str, ...] = ()
+    inventory_policy: str = "prewarm"
+    prepared_inventory_rows: int = 64
+    bundle_compression: str = "none"
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    transport_options: dict[str, Any] = {}
+    inventory = pipeline.components.get("inventory")
+    delivery = pipeline.components.get("delivery")
+    if inventory is not None:
+        if (
+            inventory.component != PreparedInventory.descriptor.component
+            or set(inventory.params) != {"policy", "rows"}
+            or inventory.params["policy"] not in {"prewarm", "request-sized"}
+            or type(inventory.params["rows"]) is not int
+            or not 1 <= inventory.params["rows"] <= 4096
+            or identities.get("linear") != "pllm/masked-linear"
+            or "verification" in identities
+        ):
+            return None
+        transport_options.update(
+            inventory_policy=inventory.params["policy"],
+            prepared_inventory_rows=inventory.params["rows"],
+        )
+        del identities["inventory"]
+    if delivery is not None:
+        if (
+            delivery.component != ClientBundleTransport.descriptor.component
+            or set(delivery.params) != {"encoding"}
+            or delivery.params["encoding"] not in {"none", "zlib"}
+            or identities.get("linear") != "pllm/masked-linear"
+            or "verification" in identities
+        ):
+            return None
+        transport_options["bundle_compression"] = delivery.params["encoding"]
+        del identities["delivery"]
+    cache = pipeline.components.get("cache")
+    cache_options: dict[str, int | None] = {}
+    if cache is not None:
+        if (
+            cache.component != ClientPrefixReuse.descriptor.component
+            or set(cache.params) != {"max_bytes", "fixed_input_tokens"}
+            or type(cache.params["max_bytes"]) is not int
+            or not 1 <= cache.params["max_bytes"] >> 20 <= 256
+            or cache.params["max_bytes"] % (1 << 20)
+            or type(cache.params["fixed_input_tokens"]) is not int
+            or not 2 <= cache.params["fixed_input_tokens"] <= 4096
+            or identities.get("linear") != "pllm/masked-linear"
+            or "verification" in identities
+        ):
+            return None
+        cache_options = {
+            "prefix_cache_bytes": cache.params["max_bytes"],
+            "prefix_cache_bound_tokens": cache.params["fixed_input_tokens"],
+        }
+        del identities["cache"]
+    boundary = pipeline.components.get("boundary")
+    if boundary is not None:
+        if (
+            boundary.component != OutputHeadAtInference.descriptor.component
+            or boundary.params
+            or identities.get("linear") != "pllm/masked-linear"
+            or "verification" in identities
+        ):
+            return None
+        del identities["boundary"]
+    placement = pipeline.components.get("placement")
+    placement_options: dict[str, Any] = {}
+    if placement is not None:
+        prefix_valid = (
+            placement.component == ClientPrefixLayers.descriptor.component
+            and set(placement.params) == {"layers"}
+            and type(placement.params["layers"]) is int
+            and 1 <= placement.params["layers"] <= 8
+        )
+        roles = placement.params.get("roles")
+        roles_valid = (
+            placement.component == ClientLinearRoles.descriptor.component
+            and set(placement.params) == {"roles"}
+            and isinstance(roles, (list, tuple))
+            and 1 <= len(roles) <= 4
+            and all(
+                type(role) is str
+                and role
+                in ClientLinearRoles.descriptor.parameter_schema["properties"]["roles"]["items"][
+                    "enum"
+                ]
+                for role in roles
+            )
+            and tuple(roles) == tuple(sorted(set(roles)))
+        )
+        if (
+            not (prefix_valid or roles_valid)
+            or identities.get("linear") != "pllm/masked-linear"
+            or identities.get("kernels") != Cpu.descriptor.component
+            or "verification" in identities
+        ):
+            return None
+        placement_options = (
+            {"client_prefix_layers": placement.params["layers"]}
+            if prefix_valid
+            else {"client_linear_roles": tuple(roles)}
+        )
+        del identities["placement"]
     quantization = pipeline.components.get("quantization")
     equalization_digest = None
     if quantization is not None:
@@ -492,7 +700,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
                 set(quantization.params) != {"profile_digest"}
                 or type(quantization.params["profile_digest"]) is not str
                 or len(quantization.params["profile_digest"]) != 64
-                or any(character not in "0123456789abcdef" for character in quantization.params["profile_digest"])
+                or any(
+                    character not in "0123456789abcdef"
+                    for character in quantization.params["profile_digest"]
+                )
                 or identities.get("linear") not in {"pllm/masked-linear", "pllm/cleartext-linear"}
                 or "verification" in identities
             ):
@@ -501,9 +712,15 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         elif (
             quantization.component != SymmetricPerRow.descriptor.component
             or set(quantization.params) != {"weight_bits", "activation_bits"}
-            or any(type(value) is not int or value not in {4, 8} for value in quantization.params.values())
-            or identities.get("linear") not in {
-                "pllm/masked-linear", "pllm/cleartext-linear", "pllm/two-online-offset-linear/v1",
+            or any(
+                type(value) is not int or value not in {4, 8}
+                for value in quantization.params.values()
+            )
+            or identities.get("linear")
+            not in {
+                "pllm/masked-linear",
+                "pllm/cleartext-linear",
+                "pllm/two-online-offset-linear/v1",
             }
         ):
             return None
@@ -528,28 +745,42 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     kernel_id = identities.get("kernels")
     public_kernel_valid = (kernel_id == "pllm/cpu" and kernels_valid) or metal_valid
     topology = pipeline.components.get("topology")
-    if identities == {
-        "linear": "pllm/cleartext-linear",
-        "kernels": identities.get("kernels"),
-        "topology": "pllm/client-only/v1",
-    } and public_kernel_valid and all(
-        not pipeline.components[slot].params for slot in ("linear", "topology")
+    if (
+        identities
+        == {
+            "linear": "pllm/cleartext-linear",
+            "kernels": identities.get("kernels"),
+            "topology": "pllm/client-only/v1",
+        }
+        and public_kernel_valid
+        and all(not pipeline.components[slot].params for slot in ("linear", "topology"))
     ):
         return RuntimeComposition(
-            "client_only", "none", False, "none", "compiled_client_local_v1",
+            "client_only",
+            "none",
+            False,
+            "none",
+            "compiled_client_local_v1",
             f"local_clear_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
             public_equalization_digest=equalization_digest,
             **bits,
         )
-    if identities == {
-        "linear": "pllm/two-online-offset-linear/v1",
-        "kernels": kernel_id,
-        "topology": "pllm/two-online-offset-workers/v1",
-    } and public_kernel_valid and all(
-        not pipeline.components[slot].params for slot in ("linear", "topology")
+    if (
+        identities
+        == {
+            "linear": "pllm/two-online-offset-linear/v1",
+            "kernels": kernel_id,
+            "topology": "pllm/two-online-offset-workers/v1",
+        }
+        and public_kernel_valid
+        and all(not pipeline.components[slot].params for slot in ("linear", "topology"))
     ):
         return RuntimeComposition(
-            "offset_public", "none", False, "none", "compiled_offset_v1",
+            "offset_public",
+            "none",
+            False,
+            "none",
+            "compiled_offset_v1",
             f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
             public_equalization_digest=equalization_digest,
             **bits,
@@ -563,13 +794,17 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         ):
             return None
         del identities["topology"]
-    if identities == {
-        "linear": "pllm/masked-linear",
-        "preparation": "pllm/model-aware-corrections",
-        "inference": "pllm/inference",
-        "kernels": kernel_id,
-        "verification": "pllm/freivalds-verify/v1",
-    } and public_kernel_valid:
+    if (
+        identities
+        == {
+            "linear": "pllm/masked-linear",
+            "preparation": "pllm/model-aware-corrections",
+            "inference": "pllm/inference",
+            "kernels": kernel_id,
+            "verification": "pllm/freivalds-verify/v1",
+        }
+        and public_kernel_valid
+    ):
         expected = {
             "linear": "pllm/masked-linear",
             "preparation": "pllm/model-aware-corrections",
@@ -609,8 +844,18 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         and not pipeline.components["inference"].params
     ):
         return RuntimeComposition(
-            "public", "guarded", True, "bfv", "masked_transformer_v1", None,
-            public_equalization_digest=equalization_digest, **bits,
+            "public",
+            "guarded",
+            True,
+            "bfv",
+            "masked_transformer_v1",
+            None,
+            public_equalization_digest=equalization_digest,
+            **bits,
+            **cache_options,
+            remote_output_head=boundary is not None,
+            **placement_options,
+            **transport_options,
         )
     if (
         identities

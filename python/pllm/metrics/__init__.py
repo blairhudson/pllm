@@ -415,16 +415,31 @@ def measure_reference_agreement(
     }
 
 
+from .network_probes import (
+    EncryptedLinearCostProbe,
+    EncryptedQuadraticShareCostProbe,
+    LatentResponseCostProbe,
+    ResidentFusedGateCostProbe,
+    ResidentMlpCostProbe,
+    ResidentQuadraticGateCostProbe,
+)
+
 __all__ = [
     "Accuracy",
     "Communication",
     "Cost",
     "Energy",
+    "EncryptedLinearCostProbe",
+    "EncryptedQuadraticShareCostProbe",
+    "LatentResponseCostProbe",
     "Latency",
     "Memory",
     "Metric",
     "Perplexity",
     "ReferenceAgreement",
+    "ResidentMlpCostProbe",
+    "ResidentFusedGateCostProbe",
+    "ResidentQuadraticGateCostProbe",
     "Throughput",
     "measure_reference_agreement",
 ]

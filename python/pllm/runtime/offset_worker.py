@@ -31,6 +31,7 @@ _MAX_BODY_BYTES = 16 * 1024 * 1024 + 8_192
 _MAX_SESSIONS = 8
 _SESSION_IDLE_SECONDS = 90.0
 _MAX_TOTAL_CALLS = 8_192
+_MAX_OUTPUT_TOKENS = 32
 _MAX_TENSOR_ELEMENTS = 4_000_000
 
 
@@ -252,7 +253,7 @@ def create_offset_worker_app(
             or body["role"] != role_id
             or body["topology_digest"] != graph_digest
             or type(bound) is not int or not 1 <= bound <= 64
-            or type(output_bound) is not int or not 1 <= output_bound <= 8
+            or type(output_bound) is not int or not 1 <= output_bound <= _MAX_OUTPUT_TOKENS
             or type(body["decoder_plan"]) is not str
             or len(body["decoder_plan"]) != 64
             or any(char not in "0123456789abcdef" for char in body["decoder_plan"])

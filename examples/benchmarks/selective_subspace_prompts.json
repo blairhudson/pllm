@@ -1,0 +1,46 @@
+{
+  "calibration": [
+    "The city library opens early on Mondays and closes after sunset.",
+    "Describe how rainwater moves from a roof into a storage tank.",
+    "When the train reached the station, the conductor checked every ticket.",
+    "Explain the difference between a list and a tuple in Python.",
+    "A gardener planted beans beside the fence before the spring rain.",
+    "Write two sentences about the phases of the moon for a child.",
+    "In a small bakery, three loaves cooled while the oven heated again.",
+    "Translate the phrase good morning into Spanish and French.",
+    "If seven apples are shared among three friends, what remains?",
+    "The scientist measured the temperature of the lake each morning.",
+    "Summarize why recycling aluminum requires less energy than making new metal.",
+    "A short story begins with a lost key under a wooden bridge.",
+    "Name an animal that lives in the ocean and has eight arms.",
+    "The software test failed because an array had an unexpected shape.",
+    "How can a bicycle rider stay visible during a rainy evening?",
+    "A chef combines rice, vegetables, and herbs in a warm bowl.",
+    "A trustee prepares fresh blinded linear corrections before a request. Two operators keep separate credentials while the client retains the original message and its cache state.",
+    "In a causal decoder, every accepted token changes the next prediction. Batching speculative verification may reduce calls, but need not reduce the number of masked matrix rows.",
+    "The client selects a token from local scores, generates independent shares of a small code, and sends exactly one share to each remote worker for the next step.",
+    "A public matrix can multiply each server's activation share locally, while a product of two secret values requires interaction or an independent one-use correlation."
+  ],
+  "tuning": [
+    "Why do stars appear to move across the sky at night?",
+    "The capital of France is",
+    "Write a Python function that adds two numbers together.",
+    "A dog ran across the quiet park as the sun rose.",
+    "Compare a river delta with a mountain stream in one sentence.",
+    "How many minutes are there in two and a half hours?"
+  ],
+  "heldout": [
+    "The telescope showed a bright comet above the western hills.",
+    "Explain why a metal spoon feels colder than a wooden spoon.",
+    "After the ferry arrived, the passengers waited beside the harbor.",
+    "What is fourteen multiplied by nine?",
+    "Write a short Python expression to reverse a list.",
+    "How do bees help flowering plants reproduce?",
+    "The ancient map marked a river that no longer exists.",
+    "Describe one difference between lightning and thunder.",
+    "A visitor to the aquarium asked how octopuses change color.",
+    "At the end of the meeting, the engineer proposed a simpler design.",
+    "In a distributed decoder, two independent services each retain one masked state share. Which messages must cross a trust boundary before selecting another token?",
+    "A small model was quantized once and copied to remote workers. Explain why fewer prefill messages might still use more total bandwidth after offline setup."
+  ]
+}

@@ -23,7 +23,11 @@ from pllm.runtime.quantization import (
     signed_dot_bound,
 )
 from pllm.runtime.public_equalization import equalize_activation
-from pllm.runtime.semantic_stages import semantic_fused_roles, semantic_stage_role
+from pllm.runtime.semantic_stages import (
+    client_owns_linear,
+    semantic_fused_roles,
+    semantic_stage_role,
+)
 from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
 from pllm.runtime.transformer_client import ClientBundle
@@ -87,7 +91,9 @@ class ClientLinearExecutor:
 
     @classmethod
     def _create(
-        cls, binding: CompiledRuntimeModel, engine: MaskedTransformerEngine,
+        cls,
+        binding: CompiledRuntimeModel,
+        engine: MaskedTransformerEngine,
     ) -> ClientLinearExecutor:
         binding.validate()
         composition = Pipeline.from_spec(json.loads(binding._canonical_composition))
@@ -112,7 +118,9 @@ class ClientLinearExecutor:
             or engine.activation_bits != privacy.get("activation_bits")
         ):
             raise RuntimeBindingError("client-owned kernel differs from the bound model body")
-        stages: dict[str, tuple[Any, int, int, int, np.ndarray, np.ndarray | None, np.ndarray | None]] = {}
+        stages: dict[
+            str, tuple[Any, int, int, int, np.ndarray, np.ndarray | None, np.ndarray | None]
+        ] = {}
         for row in binding._stages:
             if row.stage_id in BOUNDARY_STAGE_IDS:
                 continue
@@ -133,12 +141,18 @@ class ClientLinearExecutor:
                 or (runtime.bias is not None and not np.array_equal(runtime.bias, bound.bias))
                 or runtime.equalization_profile_digest != bound.equalization_profile_digest
                 or (runtime.input_equalization is None) != (bound.input_equalization is None)
-                or (runtime.input_equalization is not None and not np.array_equal(runtime.input_equalization, bound.input_equalization))
+                or (
+                    runtime.input_equalization is not None
+                    and not np.array_equal(runtime.input_equalization, bound.input_equalization)
+                )
             ):
                 raise RuntimeBindingError(f"client-owned stage {row.stage_id!r} differs from plan")
             stages[row.stage_id] = (
-                runtime.compiled_weight, row.in_features, row.out_features,
-                row.activation_bits, bound.weight_scales.copy(),
+                runtime.compiled_weight,
+                row.in_features,
+                row.out_features,
+                row.activation_bits,
+                bound.weight_scales.copy(),
                 None if bound.bias is None else bound.bias.copy(),
                 None if bound.input_equalization is None else bound.input_equalization.copy(),
             )
@@ -150,9 +164,9 @@ class ClientLinearExecutor:
             from pllm.runtime.native import NativeKernelError
 
             try:
-                metal_stages = MetalGEMM().bind_stages({
-                    stage_id: model.stages[stage_id].weight.values for stage_id in stages
-                })
+                metal_stages = MetalGEMM().bind_stages(
+                    {stage_id: model.stages[stage_id].weight.values for stage_id in stages}
+                )
             except NativeKernelError as exc:
                 raise RuntimeBindingError(f"client Metal stage admission failed: {exc}") from exc
         self = object.__new__(cls)
@@ -169,7 +183,9 @@ class ClientLinearExecutor:
 
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         try:
-            matrix, in_features, out_features, bits, scales, bias, equalization = self._stages[stage_id]
+            matrix, in_features, out_features, bits, scales, bias, equalization = self._stages[
+                stage_id
+            ]
         except KeyError as exc:
             raise RuntimeBindingError("stage is not in the client-owned plan") from exc
         values = np.asarray(activation)
@@ -190,7 +206,9 @@ class ClientLinearExecutor:
             else matrix.clear(quantized.values)
         )
         output = dequantize_matmul(
-            integer, quantized.scales, scales,
+            integer,
+            quantized.scales,
+            scales,
             output_shape=quantized.original_shape[:-1] + (out_features,),
         )
         if bias is not None:
@@ -346,8 +364,10 @@ class CompiledRuntimeModel:
         from pllm.profiles import resolve_runtime_composition
 
         options = resolve_runtime_composition(composition)
-        if options is not None and options.client_runtime == "compiled_client_local_v1" and (
-            type(remote) is not ClientLinearExecutor or remote._binding_digest != self._digest
+        if (
+            options is not None
+            and options.client_runtime == "compiled_client_local_v1"
+            and (type(remote) is not ClientLinearExecutor or remote._binding_digest != self._digest)
         ):
             raise RuntimeBindingError("client-owned plan requires its bound local kernel")
         if options is not None and options.client_runtime == "compiled_offset_v1":
@@ -358,7 +378,9 @@ class CompiledRuntimeModel:
                 or remote._compiled is not self
                 or remote._closed
             ):
-                raise RuntimeBindingError("offset plan requires its authenticated two-worker session")
+                raise RuntimeBindingError(
+                    "offset plan requires its authenticated two-worker session"
+                )
         if options is not None and options.verification_component is not None:
             from .transformer_client import PreparedInventoryLease, PreparedRemoteLinear
 
@@ -386,9 +408,7 @@ class CompiledRuntimeModel:
             for stage in self._stages
             for operation in stage.semantic_operations
         }
-        local_tensors = {
-            row["weight_id"]: row["key"] for row in self.to_spec()["local_tensors"]
-        }
+        local_tensors = {row["weight_id"]: row["key"] for row in self.to_spec()["local_tensors"]}
         return SemanticDecoderRuntime(
             self._bundle,
             remote,
@@ -497,41 +517,58 @@ def _resolve_array(arrays: dict[str, np.ndarray], weight_id: str) -> tuple[str, 
     return matches[0]
 
 
-def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
+def _canonical_stage_fingerprints(
+    stages: dict[str, Any],
+    *,
+    remote_output_head: bool = False,
+    client_prefix_layers: int = 0,
+    client_linear_roles: tuple[str, ...] = (),
+) -> tuple[str, str]:
     body = []
     commitment = []
     for stage_id, stage in sorted(stages.items()):
-        if stage_id in BOUNDARY_STAGE_IDS:
+        if stage_id == "token_lookup" or (stage_id == "lm_head" and not remote_output_head):
             continue
+        local_prefix = client_owns_linear(
+            stage,
+            client_prefix_layers=client_prefix_layers,
+            client_linear_roles=client_linear_roles,
+        )
         scales = stage.weight_scales.astype("<f4", copy=False).tobytes()
         bias = None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes()
         body_row = {
-                "id": stage_id,
-                "op": stage.op,
-                "in": stage.in_features,
-                "out": stage.out_features,
-                "weight_bits": stage.weight_bits,
-                "activation_bits": stage.activation_bits,
-                "weight_digest": stage.weight_digest,
-                "weight_scales": scales,
-                "bias": bias,
-            }
-        commitment_row = {
-                "id": stage_id,
-                "weight": stage.weight_digest,
-                "in": stage.in_features,
-                "out": stage.out_features,
-                "wb": stage.weight_bits,
-                "ab": stage.activation_bits,
-                "profile": stage.seeded_profile.to_dict(),
-            }
+            "id": stage_id,
+            "op": stage.op,
+            "in": stage.in_features,
+            "out": stage.out_features,
+            "weight_bits": stage.weight_bits,
+            "activation_bits": stage.activation_bits,
+            "weight_digest": stage.weight_digest,
+            "weight_scales": scales,
+            "bias": bias,
+        }
+        equalization = None
         if stage.input_equalization is not None:
             equalization = stage.input_equalization.astype("<f4", copy=False).tobytes()
             body_row["input_equalization"] = equalization
             body_row["equalization_profile_digest"] = stage.equalization_profile_digest
+        if stage_id != "lm_head":
+            body.append(body_row)
+        if local_prefix:
+            continue
+        commitment_row = {
+            "id": stage_id,
+            "weight": stage.weight_digest,
+            "in": stage.in_features,
+            "out": stage.out_features,
+            "wb": stage.weight_bits,
+            "ab": stage.activation_bits,
+            "profile": stage.seeded_profile.to_dict(),
+        }
+        if stage.input_equalization is not None:
+            assert equalization is not None
             commitment_row["input_equalization"] = equalization
             commitment_row["equalization_profile_digest"] = stage.equalization_profile_digest
-        body.append(body_row)
         commitment.append(commitment_row)
     return (
         _sha256(msgpack.packb(body, use_bin_type=True)),
@@ -540,7 +577,9 @@ def _canonical_stage_fingerprints(stages: dict[str, Any]) -> tuple[str, str]:
 
 
 def _runtime_config(
-    cfg: dict[str, Any], *, nested_source: bool = False,
+    cfg: dict[str, Any],
+    *,
+    nested_source: bool = False,
     tokenizer_descriptor: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     hidden = _require_int(cfg.get("hidden_size"), "config hidden_size")
@@ -606,14 +645,19 @@ def _runtime_config(
         isinstance(rope_scaling, dict)
         and (
             (
-                set(rope_scaling) == {
-                    "rope_type", "factor", "low_freq_factor", "high_freq_factor",
+                set(rope_scaling)
+                == {
+                    "rope_type",
+                    "factor",
+                    "low_freq_factor",
+                    "high_freq_factor",
                     "original_max_position_embeddings",
                 }
                 and rope_scaling.get("rope_type") == "llama3"
             )
             or (
-                set(rope_scaling) in (
+                set(rope_scaling)
+                in (
                     {"type", "short_factor", "long_factor"},
                     {"type", "rope_type", "short_factor", "long_factor"},
                 )
@@ -623,7 +667,11 @@ def _runtime_config(
         )
     ):
         raise RuntimeBindingError("compiled runtime profile does not support this rope scaling")
-    if not nested_source and isinstance(rope_scaling, dict) and rope_scaling.get("type") == "longrope":
+    if (
+        not nested_source
+        and isinstance(rope_scaling, dict)
+        and rope_scaling.get("type") == "longrope"
+    ):
         original = _require_int(cfg.get("original_max_position_embeddings"), "original context")
         maximum = _require_int(cfg.get("max_position_embeddings"), "maximum context")
         if original < 2 or maximum < original:
@@ -664,7 +712,9 @@ def _runtime_config(
                     or tokenizer_descriptor.get("add_bos_token") is not False
                     or source_bos != tokenizer_descriptor.get("bos_token_id")
                 ):
-                    raise RuntimeBindingError("absent source BOS requires a bound nonempty-input policy")
+                    raise RuntimeBindingError(
+                        "absent source BOS requires a bound nonempty-input policy"
+                    )
             elif source_bos != raw_bos or "bos_token_policy" in cfg:
                 raise RuntimeBindingError("runtime BOS policy differs from its source")
     if source_bos is None:
@@ -675,7 +725,9 @@ def _runtime_config(
             not isinstance(tokenizer_descriptor, dict)
             or tokenizer_descriptor.get("add_bos_token") is not False
         ):
-            raise RuntimeBindingError("source without BOS requires a tokenizer that does not add BOS")
+            raise RuntimeBindingError(
+                "source without BOS requires a tokenizer that does not add BOS"
+            )
         source_bos = tokenizer_descriptor.get("bos_token_id")
     bos_token_id = _require_int(source_bos, "config bos_token_id")
     if not 0 <= bos_token_id < _require_int(cfg.get("vocab_size"), "config vocab_size"):
@@ -774,11 +826,13 @@ def _validate_runtime_semantics(
                             else "wavelength_transition"
                         ),
                         **{
-                            key: value for key, value in source_scaling.items()
+                            key: value
+                            for key, value in source_scaling.items()
                             if key not in {"rope_type", "type"}
                         },
                     }
-                    if isinstance(source_scaling, dict) else None
+                    if isinstance(source_scaling, dict)
+                    else None
                 )
                 if attributes.get("frequency_scaling") != expected_scaling:
                     raise RuntimeBindingError("rotary frequency scaling diverges from the source")
@@ -790,11 +844,14 @@ def _validate_runtime_semantics(
                 if (
                     (head_dim is not None and head_dim != width)
                     or (head_dim is None and partial_dim is None)
-                    or (partial_dim is not None and (
-                        type(partial_dim) is not int or not 0 < partial_dim <= width
-                    ))
+                    or (
+                        partial_dim is not None
+                        and (type(partial_dim) is not int or not 0 < partial_dim <= width)
+                    )
                 ):
-                    raise RuntimeBindingError("runtime rotary width diverges from the semantic plan")
+                    raise RuntimeBindingError(
+                        "runtime rotary width diverges from the semantic plan"
+                    )
     if nested_source:
         # Native re-lowering and numeric-flow checks validate every operator;
         # flattened transport controls are constrained to the locked source.
@@ -880,14 +937,17 @@ def compile_runtime_model(
 
     runtime_options = resolve_runtime_composition(composition)
     if runtime_options is None or runtime_options.client_runtime not in {
-        "masked_transformer_v1", "compiled_client_local_v1", "compiled_offset_v1",
+        "masked_transformer_v1",
+        "compiled_client_local_v1",
+        "compiled_offset_v1",
     }:
         raise RuntimeBindingError("compiled runtime component composition is unsupported")
     client_owned = runtime_options.client_runtime == "compiled_client_local_v1"
     offset_public = runtime_options.client_runtime == "compiled_offset_v1"
     verified_public = runtime_options.verification_component is not None
     if verified_public and (
-        client_owned or offset_public
+        client_owned
+        or offset_public
         or runtime_options.verification_component != "pllm/freivalds-verify/v1"
         or not 1 <= runtime_options.verification_target_failure_bits <= 80
     ):
@@ -974,7 +1034,9 @@ def compile_runtime_model(
 
     nested_source = source_config is not cfg
     runtime_config = _runtime_config(
-        cfg, nested_source=nested_source, tokenizer_descriptor=bundle.tokenizer_descriptor,
+        cfg,
+        nested_source=nested_source,
+        tokenizer_descriptor=bundle.tokenizer_descriptor,
     )
     runtime_config_digest = _sha256(_canonical_json(cfg))
     tokenizer_digest = _tokenizer_digest(bundle.tokenizer_descriptor, runtime_config)
@@ -984,7 +1046,8 @@ def compile_runtime_model(
     prefill_ops, decode_ops = phases["prefill"][1], phases["decode"][1]
     prefill_only = set(prefill_ops) - set(decode_ops)
     prefill_initializers = {
-        op_id for op_id, op in prefill_ops.items()
+        op_id
+        for op_id, op in prefill_ops.items()
         if op.get("operator") in {"state_initialize", "kv_cache_initialize"}
         or (op.get("operator") == "last_token" and op_id not in decode_ops)
     }
@@ -993,7 +1056,8 @@ def compile_runtime_model(
         or prefill_only != prefill_initializers
         or any(
             prefill_ops[op_id].get("operator") == "state_initialize"
-            and prefill_ops[op_id].get("attributes") not in (
+            and prefill_ops[op_id].get("attributes")
+            not in (
                 {"initial_value": 0, "dtype": "float32", "state_kind": "convolution"},
                 {"initial_value": 0, "dtype": "float32", "state_kind": "recurrent"},
             )
@@ -1006,9 +1070,7 @@ def compile_runtime_model(
             f"unexpected-prefill={sorted(prefill_only - prefill_initializers)}, "
             f"missing-initializers={sorted(prefill_initializers - prefill_only)}"
         )
-    if any(
-        prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in decode_ops
-    ):
+    if any(prefill_ops[op_id]["operator"] != decode_ops[op_id]["operator"] for op_id in decode_ops):
         raise RuntimeBindingError("prefill and decode operators differ")
 
     dims = {
@@ -1080,9 +1142,11 @@ def compile_runtime_model(
         raise RuntimeBindingError("client bundle bit widths must be in [2, 8]")
     expected_protocol = (
         f"local_clear_w{weight_bits}a{activation_bits}"
-        if client_owned else (
+        if client_owned
+        else (
             f"two_online_offset_w{weight_bits}a{activation_bits}"
-            if offset_public else f"masked_w{weight_bits}a{activation_bits}"
+            if offset_public
+            else f"masked_w{weight_bits}a{activation_bits}"
         )
     )
     if privacy.get("protocol") != expected_protocol:
@@ -1097,11 +1161,21 @@ def compile_runtime_model(
     ):
         raise RuntimeBindingError("masked-linear verification differs from its composition")
     equalization_digest = runtime_options.public_equalization_digest
-    if (
-        privacy.get("public_equalization_digest") != equalization_digest
-        or (equalization_digest is not None and (weight_bits, activation_bits) != (8, 8))
+    if privacy.get("public_equalization_digest") != equalization_digest or (
+        equalization_digest is not None and (weight_bits, activation_bits) != (8, 8)
     ):
         raise RuntimeBindingError("client bundle equalization profile differs from its composition")
+    remote_output_head = runtime_options.remote_output_head
+    client_prefix_layers = runtime_options.client_prefix_layers
+    client_linear_roles = runtime_options.client_linear_roles
+    if (client_prefix_layers or client_linear_roles) and (
+        client_owned or offset_public or verified_public
+    ):
+        raise RuntimeBindingError("client-owned prefix requires baseline prepared execution")
+    if remote_output_head and (client_owned or offset_public or verified_public):
+        raise RuntimeBindingError("remote output head requires baseline prepared execution")
+    if bool(manifest.get("tied_embeddings")) and remote_output_head:
+        raise RuntimeBindingError("remote output head cannot share client token weights")
 
     canonical: dict[str, Any] = {}
     for key, stage in bundle.stages.items():
@@ -1119,10 +1193,9 @@ def compile_runtime_model(
         raise RuntimeBindingError("bundle named stage roles and layers must be unique")
     for stage_id, stage in canonical.items():
         expected_digest = None if stage_id in BOUNDARY_STAGE_IDS else equalization_digest
-        if (
-            stage.equalization_profile_digest != expected_digest
-            or (stage.input_equalization is None) != (expected_digest is None)
-        ):
+        if stage.equalization_profile_digest != expected_digest or (
+            stage.input_equalization is None
+        ) != (expected_digest is None):
             raise RuntimeBindingError("stage equalization differs from composed numeric profile")
 
     spec_rows: dict[str, dict[str, Any]] = {}
@@ -1174,6 +1247,18 @@ def compile_runtime_model(
         raise RuntimeBindingError("client runtime config does not match its manifest commitment")
     if manifest_metadata.get("public_equalization_digest") != equalization_digest:
         raise RuntimeBindingError("manifest equalization differs from the bound numeric profile")
+    if (
+        manifest_metadata.get("remote_output_head", False) is not remote_output_head
+        or privacy.get("remote_output_head", False) is not remote_output_head
+    ):
+        raise RuntimeBindingError("output-head ownership differs from the bound composition")
+    if (
+        manifest_metadata.get("client_prefix_layers", 0) != client_prefix_layers
+        or privacy.get("client_prefix_layers", 0) != client_prefix_layers
+        or manifest_metadata.get("client_linear_roles", []) != list(client_linear_roles)
+        or privacy.get("client_linear_roles", []) != list(client_linear_roles)
+    ):
+        raise RuntimeBindingError("client-owned prefix differs from the bound composition")
     if any(
         manifest_metadata.get(key) != privacy.get(key)
         for key in (
@@ -1217,11 +1302,24 @@ def compile_runtime_model(
             raise RuntimeBindingError(f"native {phase} runtime schedule is malformed")
         used_stages: set[str] = set()
         for step in phase_schedule.get("steps") or ():
-            if not isinstance(step, dict) or step.get("executor") != (
-                "client_linear" if client_owned else (
-                    "verified_remote_stage" if verified_public else "remote_stage"
-                )
-            ):
+            if not isinstance(step, dict):
+                continue
+            layer = step.get("layer")
+            role = (
+                semantic_stage_role(step, prefill_ops if phase == "prefill" else decode_ops)
+                if step.get("weight_ids")
+                else None
+            )
+            expected_executor = (
+                "client_linear"
+                if client_owned
+                or (type(layer) is int and layer < client_prefix_layers)
+                or role in client_linear_roles
+                else "verified_remote_stage"
+                if verified_public
+                else "remote_stage"
+            )
+            if step.get("executor") != expected_executor:
                 continue
             order = _require_int(step.get("order"), f"native {phase} runtime step order")
             operators = step.get("operators")
@@ -1381,7 +1479,15 @@ def compile_runtime_model(
                 raise RuntimeBindingError(f"bundle stage {stage.id!r} bias is malformed")
             if not np.all(np.isfinite(bias)):
                 raise RuntimeBindingError(f"bundle stage {stage.id!r} bias must be finite")
-        if stage.id in BOUNDARY_STAGE_IDS:
+        if (
+            stage.id == "token_lookup"
+            or (stage.id == "lm_head" and not remote_output_head)
+            or client_owns_linear(
+                stage,
+                client_prefix_layers=client_prefix_layers,
+                client_linear_roles=client_linear_roles,
+            )
+        ):
             continue
         if (
             stage.client_weight is not None
@@ -1403,6 +1509,23 @@ def compile_runtime_model(
     client_fields: dict[str, dict[str, Any]] = {}
     tied = bool(manifest.get("tied_embeddings"))
     for stage in (head_stage, token_stage):
+        if stage.id == "lm_head" and remote_output_head:
+            if (
+                any(
+                    value is not None
+                    for value in (
+                        stage.client_weight,
+                        stage.client_weight_scales,
+                        stage.client_aux_weight,
+                        stage.client_aux_scales,
+                    )
+                )
+                or stage.seeded_profile is None
+            ):
+                raise RuntimeBindingError(
+                    "remote output head must carry only a committed ring profile"
+                )
+            continue
         client_weight = stage.client_weight
         client_scales = stage.client_weight_scales
         if client_weight is None or client_scales is None:
@@ -1490,7 +1613,48 @@ def compile_runtime_model(
             "client_aux_scales_digest": aux_scales_digest,
         }
 
-    actual_body, actual_commitment = _canonical_stage_fingerprints(canonical)
+    local_bytes = 0
+    for stage in canonical.values():
+        if not client_owns_linear(
+            stage,
+            client_prefix_layers=client_prefix_layers,
+            client_linear_roles=client_linear_roles,
+        ):
+            continue
+        weight = np.asarray(stage.client_weight)
+        scales = np.asarray(stage.client_weight_scales)
+        if (
+            stage.client_weight_layout != "linear"
+            or stage.seeded_profile is not None
+            or stage.client_aux_weight is not None
+            or stage.client_aux_scales is not None
+            or weight.dtype != np.int8
+            or weight.shape != (stage.out_features, stage.in_features)
+            or scales.dtype != np.float32
+            or scales.shape != (stage.out_features,)
+            or not np.all(np.isfinite(scales))
+            or not np.all(scales > 0)
+            or _sha256(np.ascontiguousarray(weight).tobytes()) != stage.weight_digest
+            or not np.array_equal(scales, np.asarray(stage.weight_scales))
+        ):
+            raise RuntimeBindingError("client-owned prefix weight or stage commitment is invalid")
+        local_bytes += int(weight.nbytes + scales.nbytes)
+        client_fields[stage.id] = {
+            "client_weight_layout": "linear",
+            "client_weight_digest": stage.weight_digest,
+            "client_weight_scales_digest": _sha256(_f32_bytes(scales)),
+            "client_aux_weight_digest": None,
+            "client_aux_scales_digest": None,
+        }
+    if local_bytes > 512 << 20:
+        raise RuntimeBindingError("client-owned prefix exceeds its 512 MiB weight bound")
+
+    actual_body, actual_commitment = _canonical_stage_fingerprints(
+        canonical,
+        remote_output_head=remote_output_head,
+        client_prefix_layers=client_prefix_layers,
+        client_linear_roles=client_linear_roles,
+    )
     if actual_body != body_fingerprint:
         raise RuntimeBindingError("bundle body fingerprint does not match stage metadata")
     if actual_commitment != stage_commitment:
@@ -1613,8 +1777,10 @@ def compile_runtime_model(
             and bound[:3] == decoded[:3]
             and selector.get("operator") == "last_token"
             and selector.get("inputs") == [decode_source, "input.sequence_lengths"]
-            and selector.get("attributes") == {
-                "axis": 1, "selection": "last_valid",
+            and selector.get("attributes")
+            == {
+                "axis": 1,
+                "selection": "last_valid",
                 "valid_lengths_input": "input.sequence_lengths",
             }
         ):
@@ -1673,11 +1839,18 @@ def compile_runtime_model(
                 raise RuntimeBindingError(f"native {phase} runtime weights are malformed")
             stage_offset = 0
             remote_stage = None
-            if executor == (
-                "client_linear" if client_owned else (
-                    "verified_remote_stage" if verified_public else "remote_stage"
-                )
-            ):
+            layer = step.get("layer")
+            role = semantic_stage_role(step, phase_operations) if weight_ids else None
+            expected_executor = (
+                "client_linear"
+                if client_owned
+                or (type(layer) is int and layer < client_prefix_layers)
+                or role in client_linear_roles
+                else "verified_remote_stage"
+                if verified_public
+                else "remote_stage"
+            )
+            if executor == expected_executor:
                 expected_weights = [
                     operation["attributes"].get("weight") for operation in operations
                 ]
@@ -1740,7 +1913,9 @@ def compile_runtime_model(
         if value.dtype != np.float32:
             raise RuntimeBindingError(f"client tensor {key!r} must be float32")
         if tuple(value.shape) != client_weights[weight_id]:
-            raise RuntimeBindingError(f"client tensor {key!r} shape does not match its semantic use")
+            raise RuntimeBindingError(
+                f"client tensor {key!r} shape does not match its semantic use"
+            )
         if not np.all(np.isfinite(value)):
             raise RuntimeBindingError(f"client tensor {key!r} must be finite")
         local_tensors.append(

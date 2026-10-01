@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import secrets
 import signal
@@ -10,7 +12,7 @@ import statistics
 import threading
 import time
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -22,6 +24,34 @@ if TYPE_CHECKING:
 
 
 REPORT_SCHEMA = "pllm.loopback_benchmark.v1"
+
+
+def accounted_benchmark_body_totals(accounting: Mapping[str, Any]) -> dict[str, int | None]:
+    """Charge covered startup once plus ordered windows; missing phases stay unknown."""
+    startup = accounting.get("startup")
+    windows = [*accounting.get("warmups", []), *accounting.get("runs", [])]
+    rows = [startup, *windows]
+    complete = bool(windows) and all(
+        type(row) is dict
+        and row.get("tracked_body_counter_set_present") is True
+        and type(row.get("all_link_serialized_body_bytes")) is int
+        and row["all_link_serialized_body_bytes"] >= 0
+        for row in rows
+    )
+    return {
+        "total_accounted_benchmark_body_bytes": sum(
+            row["all_link_serialized_body_bytes"] for row in rows
+        )
+        if complete
+        else None,
+        "accounted_setup_through_first_response_body_bytes": sum(
+            row["all_link_serialized_body_bytes"] for row in rows[:2]
+        )
+        if complete
+        else None,
+    }
+
+
 COMPARISON_REPORT_SCHEMA = "pllm.loopback_benchmark_comparison.v1"
 ProgressCallback = Callable[[str], None]
 
@@ -122,13 +152,26 @@ def build_loopback_report(
     runs: list[dict[str, Any]],
     roles: tuple[str, ...] = ("client", "preparation", "inference"),
     initial_preparation_audit: dict[str, int] | None = None,
+    inventory_policy: str = "prewarm",
+    bundle_compression: str = "none",
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt_digest: str | None = None,
+    prompt_digest: str | None = None,
+    prompt_sequence_digest: str | None = None,
+    source_lock_digest: str | None = None,
     client_model_ownership: dict[str, int | None] | None = None,
     cold_process_cpu: dict[str, dict[str, float | None] | None] | None = None,
+    stage_snapshots: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import (
-        client_owned_body_accounting, cold_process_cpu_accounting,
-        prepared_body_accounting, two_worker_body_accounting,
+        client_owned_body_accounting,
+        cold_process_cpu_accounting,
+        prepared_body_accounting,
+        prepared_stage_body_attribution,
+        two_worker_body_accounting,
     )
 
     all_runs = [*warmup_runs, *runs]
@@ -166,7 +209,60 @@ def build_loopback_report(
         for record in runs
         if record.get("tokens", {}).get("output_tokens") is not None
     ]
-    return {
+    account = (
+        client_owned_body_accounting
+        if roles == ("client",)
+        else two_worker_body_accounting
+        if set(roles) == {"client", "worker_a", "worker_b"}
+        else prepared_body_accounting
+        if set(roles) == {"client", "preparation", "inference"}
+        else None
+    )
+    body_records = [account(record) for record in runs] if account is not None else []
+    online_bodies = [row["online_all_link_serialized_body_bytes"] for row in body_records]
+    covered_bodies = [row["all_link_serialized_body_bytes"] for row in body_records]
+    median_online_bodies = (
+        statistics.median(online_bodies)
+        if online_bodies and all(type(value) is int and value >= 0 for value in online_bodies)
+        else None
+    )
+    median_covered_bodies = (
+        statistics.median(covered_bodies)
+        if covered_bodies
+        and all(
+            row.get("tracked_body_counter_set_present") is True
+            and type(value) is int
+            and value >= 0
+            for row, value in zip(body_records, covered_bodies, strict=True)
+        )
+        else None
+    )
+    stage_attribution = None
+    if "preparation" in roles and stage_snapshots is not None:
+        before_ready = stage_snapshots.get("before_ready", {})
+        after_ready = stage_snapshots.get("after_ready", {})
+        warm_pairs = stage_snapshots.get("warmups", [])
+        run_pairs = stage_snapshots.get("runs", [])
+        if len(warm_pairs) != len(warmup_runs) or len(run_pairs) != len(runs):
+            raise ValueError("stage attribution does not cover the benchmark windows")
+        stage_attribution = {
+            "startup": (
+                prepared_stage_body_attribution(
+                    before_ready, after_ready, initial_preparation_audit
+                )
+                if initial_preparation_audit is not None
+                else None
+            ),
+            "warmups": [
+                prepared_stage_body_attribution(before, after, run["privacy"])
+                for (before, after), run in zip(warm_pairs, warmup_runs, strict=True)
+            ],
+            "runs": [
+                prepared_stage_body_attribution(before, after, run["privacy"])
+                for (before, after), run in zip(run_pairs, runs, strict=True)
+            ],
+        }
+    report = {
         "schema_version": REPORT_SCHEMA,
         "scope": "single-host-loopback-diagnostic",
         "configuration": {
@@ -176,12 +272,24 @@ def build_loopback_report(
             "warmups": len(warmup_runs),
             "repetitions": len(runs),
             "roles": list(roles),
+            "inventory_policy": inventory_policy,
+            "bundle_compression": bundle_compression,
+            "prefill_cache_mib": prefill_cache_mib,
+            "prefill_cache_mode": prefill_cache_mode,
+            "prefill_cache_bound_tokens": prefill_cache_bound_tokens,
+            "warmup_prompt_digest": warmup_prompt_digest,
+            "prompt_digest": prompt_digest,
+            "prompt_sequence_digest": prompt_sequence_digest,
+            "source_lock_digest": source_lock_digest,
         },
         "checks": {"passed": all(checks.values()), **checks},
         "privacy_admission": (
-            {"independent_operators_verified": False,
-             "reason": "loopback offset workers share one operator and host"}
-            if set(roles) == {"client", "worker_a", "worker_b"} else None
+            {
+                "independent_operators_verified": False,
+                "reason": "loopback offset workers share one operator and host",
+            }
+            if set(roles) == {"client", "worker_a", "worker_b"}
+            else None
         ),
         "summary": {
             "completed_runs": sum(record.get("status") == "completed" for record in runs),
@@ -189,6 +297,21 @@ def build_loopback_report(
             "median_online_seconds": _median(runs, "durations", "online_seconds"),
             "median_ttft_seconds": _median(runs, "durations", "ttft_seconds"),
             "median_tokens_per_second": _median(runs, "durations", "tokens_per_second"),
+            "median_online_all_link_serialized_body_bytes": median_online_bodies,
+            "median_covered_all_link_serialized_body_bytes": median_covered_bodies,
+            "total_run_online_all_link_serialized_body_bytes": (
+                sum(online_bodies) if median_online_bodies is not None else None
+            ),
+            "total_run_covered_all_link_serialized_body_bytes": (
+                sum(covered_bodies) if median_covered_bodies is not None else None
+            ),
+            "total_run_full_seconds": (
+                sum(record["durations"]["full_seconds"] for record in runs)
+                if all(
+                    record.get("durations", {}).get("full_seconds") is not None for record in runs
+                )
+                else None
+            ),
             "total_output_tokens": sum(output_tokens),
         },
         "warmup_runs": warmup_runs,
@@ -201,21 +324,28 @@ def build_loopback_report(
             ),
         ),
         "topology_accounting": (
-            {"startup": (
-                {"schema": "pllm.topology_model_ownership.v1", **client_model_ownership}
-                if client_model_ownership is not None else None
-             ),
-             "warmups": [client_owned_body_accounting(run) for run in warmup_runs],
-             "runs": [client_owned_body_accounting(run) for run in runs]}
-            if roles == ("client",) else {
+            {
+                "startup": (
+                    {"schema": "pllm.topology_model_ownership.v1", **client_model_ownership}
+                    if client_model_ownership is not None
+                    else None
+                ),
+                "warmups": [client_owned_body_accounting(run) for run in warmup_runs],
+                "runs": [client_owned_body_accounting(run) for run in runs],
+            }
+            if roles == ("client",)
+            else {
                 "startup": (
                     prepared_body_accounting(
-                        {"privacy": initial_preparation_audit}, initial_preparation=True,
+                        {"privacy": initial_preparation_audit},
+                        initial_preparation=True,
                     )
-                    if initial_preparation_audit is not None else None
+                    if initial_preparation_audit is not None
+                    else None
                 ),
                 "warmups": [prepared_body_accounting(run) for run in warmup_runs],
                 "runs": [prepared_body_accounting(run) for run in runs],
+                "stages": stage_attribution,
             }
             if "preparation" in roles
             else {
@@ -232,12 +362,27 @@ def build_loopback_report(
             "does not establish model quality, energy, price, adversarial security, or non-collusion",
         ],
     }
+    if report["topology_accounting"] is not None:
+        report["summary"].update(accounted_benchmark_body_totals(report["topology_accounting"]))
+    return report
 
 
 def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
     runs = report.get("runs")
     if not isinstance(runs, list) or not runs:
         return None
+    if report.get("configuration", {}).get("prompt_sequence_digest") is not None:
+        if len({run.get("model_fingerprint") for run in runs}) != 1:
+            return None
+        return (
+            runs[0].get("model_fingerprint"),
+            tuple(run.get("tokens", {}).get("input_tokens") for run in runs),
+            tuple(run.get("tokens", {}).get("output_tokens") for run in runs),
+            tuple(run.get("max_output_tokens") for run in runs),
+            tuple(run.get("warm") for run in runs),
+            report["configuration"].get("warmup_prompt_digest"),
+            report["configuration"]["prompt_sequence_digest"],
+        )
     keys = {
         (
             run.get("model_fingerprint"),
@@ -245,6 +390,8 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             run.get("tokens", {}).get("output_tokens"),
             run.get("max_output_tokens"),
             run.get("warm"),
+            report.get("configuration", {}).get("warmup_prompt_digest"),
+            report.get("configuration", {}).get("prompt_digest"),
         )
         for run in runs
     }
@@ -285,11 +432,40 @@ def build_comparison_report(
         "online_seconds": ("median_online_seconds", False),
         "ttft_seconds": ("median_ttft_seconds", False),
         "tokens_per_second": ("median_tokens_per_second", True),
+        "online_all_link_serialized_body_bytes": (
+            "median_online_all_link_serialized_body_bytes",
+            False,
+        ),
+        "covered_all_link_serialized_body_bytes": (
+            "median_covered_all_link_serialized_body_bytes",
+            False,
+        ),
+        "accounted_setup_through_first_response_body_bytes": (
+            "accounted_setup_through_first_response_body_bytes",
+            False,
+        ),
+        "total_accounted_benchmark_body_bytes": ("total_accounted_benchmark_body_bytes", False),
     }
+    if candidates[0][1].get("configuration", {}).get("prompt_sequence_digest") is not None:
+        metrics.update(
+            {
+                "sequence_full_seconds": ("total_run_full_seconds", False),
+                "sequence_online_all_link_serialized_body_bytes": (
+                    "total_run_online_all_link_serialized_body_bytes",
+                    False,
+                ),
+                "sequence_covered_all_link_serialized_body_bytes": (
+                    "total_run_covered_all_link_serialized_body_bytes",
+                    False,
+                ),
+            }
+        )
     rankings: dict[str, list[dict[str, Any]]] = {metric: [] for metric in metrics}
     winners: dict[str, str | None] = {metric: None for metric in metrics}
-    if comparable and matched_backend and all(
-        report.get("checks", {}).get("passed") is True for _, report in candidates
+    if (
+        comparable
+        and matched_backend
+        and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
         for metric, (summary_key, reverse) in metrics.items():
             values = [
@@ -330,9 +506,12 @@ def build_comparison_report(
             "output_tokens": comparison_key[2],
             "max_output_tokens": comparison_key[3],
             "warm": comparison_key[4],
+            "warmup_prompt_digest": comparison_key[5],
+            "prompt_digest": comparison_key[6],
         }
     offset_references = [
-        record for (experiment, _), record in zip(candidates, records, strict=True)
+        record
+        for (experiment, _), record in zip(candidates, records, strict=True)
         if (
             experiment.pipeline.components.get("topology") is not None
             and experiment.pipeline.components["topology"].component
@@ -340,26 +519,41 @@ def build_comparison_report(
         )
     ]
     cpu_comparison: dict[str, Any] | None = None
-    if comparable and matched_backend and checks["all_candidates_passed"] and len(offset_references) == 1:
+    if (
+        comparable
+        and matched_backend
+        and checks["all_candidates_passed"]
+        and len(offset_references) == 1
+    ):
         baseline = offset_references[0]
-        reference_cpu = baseline["report"].get("process_cpu_accounting", {}).get(
-            "aggregate_cold_first_response_cpu_seconds"
+        reference_cpu = (
+            baseline["report"]
+            .get("process_cpu_accounting", {})
+            .get("aggregate_cold_first_response_cpu_seconds")
         )
-        if type(reference_cpu) in (int, float) and math.isfinite(reference_cpu) and reference_cpu > 0:
+        if (
+            type(reference_cpu) in (int, float)
+            and math.isfinite(reference_cpu)
+            and reference_cpu > 0
+        ):
             observations: list[dict[str, Any]] = []
             for record in records:
-                value = record["report"].get("process_cpu_accounting", {}).get(
-                    "aggregate_cold_first_response_cpu_seconds"
+                value = (
+                    record["report"]
+                    .get("process_cpu_accounting", {})
+                    .get("aggregate_cold_first_response_cpu_seconds")
                 )
                 if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
                     observations = []
                     break
-                observations.append({
-                    "configuration_digest": record["configuration_digest"],
-                    "cpu_seconds": value,
-                    "ratio_to_offset": value / reference_cpu,
-                    "measured_cpu_not_above_offset": value <= reference_cpu,
-                })
+                observations.append(
+                    {
+                        "configuration_digest": record["configuration_digest"],
+                        "cpu_seconds": value,
+                        "ratio_to_offset": value / reference_cpu,
+                        "measured_cpu_not_above_offset": value <= reference_cpu,
+                    }
+                )
             if observations:
                 cpu_comparison = {
                     "schema": "pllm.offset_cold_cpu_diagnostic.v1",
@@ -507,7 +701,78 @@ def _run_loopback_benchmark(
     show_dashboard: bool = False,
     progress: ProgressCallback | None = None,
     experiment: Experiment | None = None,
+    inventory_policy: str | None = None,
+    bundle_compression: str | None = None,
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt: str | None = None,
+    prompt_sequence: tuple[str, ...] | list[str] | None = None,
+    _cohort_salt: bytes | None = None,
 ) -> dict[str, Any]:
+    if prompt_sequence is not None:
+        if (
+            not isinstance(prompt_sequence, (list, tuple))
+            or not 1 <= len(prompt_sequence) <= 32
+            or any(
+                not isinstance(value, str) or not value.strip() or len(value.encode()) > 16_384
+                for value in prompt_sequence
+            )
+        ):
+            raise ValueError(
+                "prompt sequence requires 1-32 nonempty contexts of at most 16384 bytes"
+            )
+        if (
+            experiment is not None
+            and warmups + repetitions * len(prompt_sequence) > experiment.budget.requests
+        ):
+            raise ValueError("prompt sequence exceeds the Experiment request budget")
+        prompt_sequence = tuple(prompt_sequence)
+        prompt = prompt_sequence[0]
+    selected_inventory_rows = None
+    if experiment is not None:
+        resolved = experiment.resolve()
+        if "inventory" in experiment.pipeline.components:
+            if inventory_policy is not None and inventory_policy != resolved.inventory_policy:
+                raise ValueError("benchmark inventory flag conflicts with immutable Experiment")
+            inventory_policy = resolved.inventory_policy
+            selected_inventory_rows = resolved.prepared_inventory_rows
+        if "delivery" in experiment.pipeline.components:
+            if bundle_compression is not None and bundle_compression != resolved.bundle_compression:
+                raise ValueError("benchmark bundle encoding conflicts with immutable Experiment")
+            bundle_compression = resolved.bundle_compression
+    inventory_policy = inventory_policy or "prewarm"
+    bundle_compression = bundle_compression or "none"
+    if inventory_policy not in {"prewarm", "request-sized"}:
+        raise ValueError("inventory policy must be prewarm or request-sized")
+    if bundle_compression not in {"none", "zlib"}:
+        raise ValueError("bundle compression must be none or zlib")
+    if type(prefill_cache_mib) is not int or not 0 <= prefill_cache_mib <= 256:
+        raise ValueError("prefill cache must be in [0, 256] MiB")
+    if experiment is not None:
+        resolved = experiment.resolve()
+        if resolved.prefix_cache_bytes:
+            if prefill_cache_mib not in {0, resolved.prefix_cache_bytes >> 20} or (
+                prefill_cache_bound_tokens is not None
+                and prefill_cache_bound_tokens != resolved.prefix_cache_bound_tokens
+            ):
+                raise ValueError("benchmark cache flags conflict with immutable Experiment")
+            prefill_cache_mib = max(1, resolved.prefix_cache_bytes >> 20)
+            prefill_cache_mode = "prefix"
+            prefill_cache_bound_tokens = resolved.prefix_cache_bound_tokens
+    if prefill_cache_mode == "prefix":
+        if (
+            prefill_cache_mib < 1
+            or type(prefill_cache_bound_tokens) is not int
+            or not 2 <= prefill_cache_bound_tokens <= 4096
+        ):
+            raise ValueError("prefix cache requires memory and a fixed 2-4096 token input bound")
+    elif prefill_cache_mode != "exact" or prefill_cache_bound_tokens is not None:
+        raise ValueError("prefix cache bound requires prefix mode")
+    if warmup_prompt is not None and (not warmups or not warmup_prompt.strip()):
+        raise ValueError("distinct warmup prompt requires at least one warmup")
+    if _cohort_salt is None:
+        _cohort_salt = secrets.token_bytes(32)
     global _DASHBOARD_PORT, _DASHBOARD_TOKEN
     if _DASHBOARD_PORT is None:
         _DASHBOARD_PORT = _free_port()
@@ -533,16 +798,15 @@ def _run_loopback_benchmark(
     else:
         resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
     startup_inventory_rows = (
-        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20)
-        if effective_tiny
-        else 64
+        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if effective_tiny else 64
     )
+    if selected_inventory_rows is not None:
+        startup_inventory_rows = selected_inventory_rows
     from pllm.runtime.dashboard import DashboardConfig, create_dashboard_app
+    from pllm.runtime.telemetry import local_stage_body_snapshot
 
     candidate = Path(model).expanduser()
-    model_path = (
-        None if effective_tiny else candidate.resolve() if candidate.exists() else model
-    )
+    model_path = None if effective_tiny else candidate.resolve() if candidate.exists() else model
     config = DashboardConfig(
         host="127.0.0.1",
         port=port,
@@ -551,11 +815,22 @@ def _run_loopback_benchmark(
         default_max_output_tokens=max_output_tokens,
         history_path=":memory:",
         startup_inventory_rows=startup_inventory_rows,
+        defer_inventory_until_request=inventory_policy == "request-sized",
+        bundle_compression=bundle_compression,
+        prefill_cache_mib=prefill_cache_mib,
+        prefill_cache_mode=prefill_cache_mode,
+        prefill_cache_bound_tokens=prefill_cache_bound_tokens,
         experiment=experiment,
         otel_token=_DASHBOARD_TOKEN,
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
+
+    def stage_snapshot() -> dict[tuple[str, str, str], int]:
+        return dashboard_app.state.dashboard_runtime.store.stage_body_snapshot(
+            client_local=local_stage_body_snapshot()
+        )
+
     handle = _DashboardHandle(dashboard_app, port)
     handle.start()
     try:
@@ -576,51 +851,74 @@ def _run_loopback_benchmark(
         if show_dashboard:
             webbrowser.open(origin)
         with httpx.Client(base_url=origin, timeout=5.0) as client:
+            stage_snapshots: dict[str, Any] | None = (
+                {"before_ready": stage_snapshot(), "warmups": [], "runs": []}
+                if "preparation" in roles
+                else None
+            )
             _wait_for_ready(
                 client,
                 handle,
                 time.monotonic() + timeout_seconds,
                 progress,
             )
+            if stage_snapshots is not None:
+                stage_snapshots["after_ready"] = stage_snapshot()
             initial_preparation_audit = (
                 dashboard_app.state.dashboard_runtime.initial_preparation_audit()
-                if "preparation" in roles else None
+                if "preparation" in roles
+                else None
             )
             client_model_ownership = (
                 dashboard_app.state.dashboard_runtime.client_model_ownership()
-                if roles == ("client",) else None
+                if roles == ("client",)
+                else None
             )
             warmup_runs = []
             for index in range(warmups):
                 if progress is not None:
                     progress(f"Running warmup {index + 1}/{warmups}")
-                warmup_runs.append(
-                    _run_once(
-                        client,
-                        handle,
-                        prompt=prompt,
-                        max_output_tokens=max_output_tokens,
-                        timeout_seconds=timeout_seconds,
-                        progress=progress,
-                        progress_label=f"Warmup {index + 1}/{warmups} running",
-                    )
+                before = stage_snapshot() if stage_snapshots is not None else None
+                run = _run_once(
+                    client,
+                    handle,
+                    prompt=warmup_prompt if warmup_prompt is not None else prompt,
+                    max_output_tokens=max_output_tokens,
+                    timeout_seconds=timeout_seconds,
+                    progress=progress,
+                    progress_label=f"Warmup {index + 1}/{warmups} running",
                 )
+                warmup_runs.append(run)
+                if stage_snapshots is not None and before is not None:
+                    after = stage_snapshot()
+                    stage_snapshots["warmups"].append((before, after))
             runs = []
-            for index in range(repetitions):
+            measured_prompts = (prompt,) if prompt_sequence is None else prompt_sequence
+            for index in range(repetitions * len(measured_prompts)):
+                current_prompt = measured_prompts[index % len(measured_prompts)]
                 if progress is not None:
-                    progress(f"Running measurement {index + 1}/{repetitions}")
-                runs.append(
-                    _run_once(
-                        client,
-                        handle,
-                        prompt=prompt,
-                        max_output_tokens=max_output_tokens,
-                        timeout_seconds=timeout_seconds,
-                        progress=progress,
-                        progress_label=f"Measurement {index + 1}/{repetitions} running",
+                    progress(
+                        f"Running measurement {index + 1}/{repetitions * len(measured_prompts)}"
                     )
+                before = stage_snapshot() if stage_snapshots is not None else None
+                run = _run_once(
+                    client,
+                    handle,
+                    prompt=current_prompt,
+                    max_output_tokens=max_output_tokens,
+                    timeout_seconds=timeout_seconds,
+                    progress=progress,
+                    progress_label=f"Measurement {index + 1}/{repetitions * len(measured_prompts)} running",
                 )
+                if prompt_sequence is not None:
+                    run["context_index"] = index % len(measured_prompts)
+                    run["sequence_repetition"] = index // len(measured_prompts)
+                runs.append(run)
+                if stage_snapshots is not None and before is not None:
+                    after = stage_snapshot()
+                    stage_snapshots["runs"].append((before, after))
             cold_process_cpu = dashboard_app.state.dashboard_runtime.cold_process_cpu()
+            client_body_placement = dashboard_app.state.dashboard_runtime.client_body_placement()
     except KeyboardInterrupt as exc:
         raise LoopbackBenchmarkError("benchmark interrupted") from exc
     except LoopbackBenchmarkError as exc:
@@ -642,9 +940,42 @@ def _run_loopback_benchmark(
         runs=runs,
         roles=roles,
         initial_preparation_audit=initial_preparation_audit,
+        inventory_policy=inventory_policy,
+        bundle_compression=bundle_compression,
+        prefill_cache_mib=prefill_cache_mib,
+        prefill_cache_mode=prefill_cache_mode,
+        prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+        warmup_prompt_digest=hashlib.sha256(
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + (warmup_prompt or prompt).encode()
+        ).hexdigest(),
+        prompt_digest=hashlib.sha256(
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + prompt.encode()
+        ).hexdigest(),
+        prompt_sequence_digest=(
+            hashlib.sha256(
+                b"pllm.benchmark.context-sequence.v1\0"
+                + _cohort_salt
+                + json.dumps(prompt_sequence, ensure_ascii=False, separators=(",", ":")).encode()
+            ).hexdigest()
+            if prompt_sequence is not None
+            else None
+        ),
+        source_lock_digest=dashboard_app.state.dashboard_runtime.source_lock_digest,
         client_model_ownership=client_model_ownership,
         cold_process_cpu=cold_process_cpu,
+        stage_snapshots=stage_snapshots,
     )
+    if prompt_sequence is not None:
+        report["configuration"].update(
+            sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
+        )
+    report["client_body_placement"] = client_body_placement
+    if experiment is not None:
+        report["experiment"] = {
+            "name": experiment.name,
+            "configuration_digest": experiment.configuration_digest(),
+            "pipeline_digest": experiment.pipeline.digest(),
+        }
     if not report["checks"]["passed"]:
         raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
     return report
@@ -663,6 +994,14 @@ def run_loopback_benchmark(
     show_dashboard: bool = False,
     progress: ProgressCallback | None = None,
     experiment: Experiment | None = None,
+    inventory_policy: str | None = None,
+    bundle_compression: str | None = None,
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt: str | None = None,
+    prompt_sequence: tuple[str, ...] | list[str] | None = None,
+    _cohort_salt: bytes | None = None,
 ) -> dict[str, Any]:
     """Run the profile's real client and service roles on loopback."""
     with _DASHBOARD_LOCK:
@@ -678,4 +1017,12 @@ def run_loopback_benchmark(
             show_dashboard=show_dashboard,
             progress=progress,
             experiment=experiment,
+            inventory_policy=inventory_policy,
+            bundle_compression=bundle_compression,
+            prefill_cache_mib=prefill_cache_mib,
+            prefill_cache_mode=prefill_cache_mode,
+            prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+            warmup_prompt=warmup_prompt,
+            prompt_sequence=prompt_sequence,
+            _cohort_salt=_cohort_salt,
         )

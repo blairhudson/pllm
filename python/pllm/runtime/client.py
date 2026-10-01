@@ -26,6 +26,12 @@ from filelock import FileLock
 from pllm import _native
 
 from .secure_random import FieldRandom
+from .bundle_compression import (
+    ENCODING as BUNDLE_ENCODING,
+    BundleFrameError,
+    decode_bundle_frames,
+)
+from .prefill_cache import ExactPrefillCache, prefill_key
 
 from .bfv_correlations import BFVCorrelationClient, he_worker_threads
 from .masked_runtime import (
@@ -227,6 +233,9 @@ class PrivacyAudit:
     token_lookup_cache_misses: int = 0
     kv_continuation_hits: int = 0
     kv_continuation_misses: int = 0
+    prefill_cache_hits: int = 0
+    prefill_cache_misses: int = 0
+    prefill_prefix_tokens_reused: int = 0
     direct_fhe_upload_bytes: int = 0
     direct_fhe_download_bytes: int = 0
     direct_fhe_steps: int = 0
@@ -253,7 +262,8 @@ class PrivacyAudit:
     def to_dict(self) -> dict[str, int]:
         values = {
             name: int(getattr(self, name))
-            for name in self.__dataclass_fields__ if name != "role_link_bodies"
+            for name in self.__dataclass_fields__
+            if name != "role_link_bodies"
         }
         for role, phases in self.role_link_bodies.items():
             for metric, count in phases.items():
@@ -439,6 +449,7 @@ class _TransformerCryptoState:
     blinded_owner_id: str = field(default_factory=lambda: new_id("owner"))
     token_cache: OrderedDict[int, np.ndarray] = field(default_factory=OrderedDict)
     token_cache_lock: threading.Lock = field(default_factory=threading.Lock)
+    prefill_cache: ExactPrefillCache | None = None
     prepared_inventory: PreparedInventory | None = None
     prepared_inventory_spare: PreparedInventory | None = None
     retired_inventories: list[PreparedInventory] = field(default_factory=list)
@@ -852,11 +863,15 @@ class RuntimeClient:
         preparation_base_url: str | None = None,
         preparation_api_key: str | None = None,
         correlation_prefetch: int = 4,
-        prepared_inventory_rows: int = 64,
+        prepared_inventory_rows: int | None = None,
         background_inventory_refill: bool = True,
         token_cache_size: int = 512,
+        prefill_cache_bytes: int = 0,
+        prefill_cache_mode: str = "exact",
+        prefill_cache_bound_tokens: int | None = None,
         bundle_cache_mode: str = "read-write",
         bundle_cache_dir: str | Path | None = None,
+        bundle_compression: str | None = None,
         tenseal_path: str | None = None,
         timeout: float = 300.0,
         http_client: httpx.Client | None = None,
@@ -877,7 +892,9 @@ class RuntimeClient:
             raise TypeError("experiment must be an Experiment or ExperimentProfile")
         self._experiment_budget = experiment.budget if isinstance(experiment, Experiment) else None
         self._local_engine = local_engine
-        offset_execution = self.experiment is not None and self.experiment.client_runtime == "compiled_offset_v1"
+        offset_execution = (
+            self.experiment is not None and self.experiment.client_runtime == "compiled_offset_v1"
+        )
         if offset_execution:
             if (
                 role_connections is None
@@ -888,7 +905,8 @@ class RuntimeClient:
                 or http_client is not None
                 or preparation_http_client is not None
                 or any(
-                    not isinstance(connection, tuple) or len(connection) != 2
+                    not isinstance(connection, tuple)
+                    or len(connection) != 2
                     or not all(type(item) is str and item for item in connection)
                     for connection in role_connections.values()
                 )
@@ -919,8 +937,10 @@ class RuntimeClient:
             or bool(api_key)
         ):
             raise ValueError("client-owned engine requires an endpoint-free client-only Experiment")
-        if local_engine is None and self.experiment is not None and (
-            self.experiment.client_runtime == "compiled_client_local_v1"
+        if (
+            local_engine is None
+            and self.experiment is not None
+            and (self.experiment.client_runtime == "compiled_client_local_v1")
         ):
             raise ValueError("client-only Experiment requires a client-owned model engine")
         if (
@@ -935,15 +955,75 @@ class RuntimeClient:
         self.session_transport = session_transport
         self.correlation_mode = correlation_mode
         self.correlation_prefetch = correlation_prefetch
+        if self.experiment is not None and "inventory" in json.loads(
+            self.experiment.canonical_composition
+        ).get("components", {}):
+            expected_rows = self.experiment.prepared_inventory_rows
+            if prepared_inventory_rows is not None and prepared_inventory_rows != expected_rows:
+                raise ValueError("inventory rows conflict with immutable Experiment")
+            prepared_inventory_rows = expected_rows
+        if prepared_inventory_rows is None:
+            prepared_inventory_rows = 64
         if prepared_inventory_rows < 1:
             raise ValueError("prepared_inventory_rows must be positive")
         self.prepared_inventory_rows = prepared_inventory_rows
         self.background_inventory_refill = background_inventory_refill
         self._closing = False
         self.token_cache_size = max(0, int(token_cache_size))
+        if self.experiment is not None and self.experiment.prefix_cache_bytes:
+            bound = self.experiment.prefix_cache_bound_tokens
+            if (
+                (prefill_cache_bytes and prefill_cache_bytes != self.experiment.prefix_cache_bytes)
+                or prefill_cache_mode not in {"exact", "prefix"}
+                or (prefill_cache_bound_tokens is not None and prefill_cache_bound_tokens != bound)
+            ):
+                raise ValueError("prefill cache settings conflict with immutable Experiment")
+            prefill_cache_bytes = self.experiment.prefix_cache_bytes
+            prefill_cache_mode = "prefix"
+            prefill_cache_bound_tokens = bound
+        elif self.experiment is not None and prefill_cache_mode == "prefix":
+            raise ValueError(
+                "Experiment prefix reuse requires the client-prefix-reuse cache component"
+            )
+        if type(prefill_cache_bytes) is not int or not 0 <= prefill_cache_bytes <= 256 << 20:
+            raise ValueError("prefill_cache_bytes must be in [0, 256 MiB]")
+        if prefill_cache_mode not in {"exact", "prefix"}:
+            raise ValueError("prefill_cache_mode must be exact or prefix")
+        if prefill_cache_mode == "prefix":
+            if (
+                not prefill_cache_bytes
+                or type(prefill_cache_bound_tokens) is not int
+                or not 2 <= prefill_cache_bound_tokens <= 4096
+            ):
+                raise ValueError(
+                    "prefix reuse requires cache bytes and a fixed input bound in [2, 4096]"
+                )
+        elif prefill_cache_bound_tokens is not None:
+            raise ValueError("prefill_cache_bound_tokens requires prefix reuse")
+        if (
+            self._experiment_budget is not None
+            and prefill_cache_bound_tokens is not None
+            and prefill_cache_bound_tokens > self._experiment_budget.max_input_tokens
+        ):
+            raise ValueError("prefix-cache bound exceeds immutable Experiment workload")
+        self.prefill_cache_bytes = prefill_cache_bytes
+        self.prefill_cache_mode = prefill_cache_mode
+        self.prefill_cache_bound_tokens = prefill_cache_bound_tokens
         if bundle_cache_mode not in _BUNDLE_CACHE_MODES:
             raise ValueError("bundle_cache_mode must be read-write, read-only, refresh, or off")
+        if self.experiment is not None and "delivery" in json.loads(
+            self.experiment.canonical_composition
+        ).get("components", {}):
+            expected_encoding = self.experiment.bundle_compression
+            if bundle_compression is not None and bundle_compression != expected_encoding:
+                raise ValueError("bundle encoding conflicts with immutable Experiment")
+            bundle_compression = expected_encoding
+        if bundle_compression is None:
+            bundle_compression = "none"
+        if bundle_compression not in {"none", "zlib"}:
+            raise ValueError("bundle_compression must be none or zlib")
         self.bundle_cache_mode = bundle_cache_mode
+        self.bundle_compression = bundle_compression
         self._bundle_cache_explicit = bundle_cache_dir is not None
         self.bundle_cache_dir = (
             Path(bundle_cache_dir).expanduser()
@@ -968,8 +1048,9 @@ class RuntimeClient:
             raise ValueError("base_url must use HTTPS outside loopback")
         self._owns_http = http_client is None and local_engine is None
         self.http = (
-            _NoProviderHTTP() if local_engine is not None else
-            (http_client or httpx.Client(base_url=self.base_url, timeout=timeout))
+            _NoProviderHTTP()
+            if local_engine is not None
+            else (http_client or httpx.Client(base_url=self.base_url, timeout=timeout))
         )
         self.headers = {"Authorization": f"Bearer {api_key}"}
         self._offset_workers: dict[str, tuple[httpx.Client, str]] = {}
@@ -1232,14 +1313,45 @@ class RuntimeClient:
         fingerprint: str,
         schema: int,
         size: int,
-    ) -> tuple[ClientBundle, bytes]:
-        response = self.http.get(
-            f"/v1/runtime/models/{model_id}/client-bundle",
-            headers=self.headers,
-        )
-        _raise(response)
-        payload = response.content
-        self.audit.bundle_network_bytes += len(payload)
+    ) -> tuple[ClientBundle, bytes | bytearray]:
+        headers = dict(self.headers)
+        if self.bundle_compression == "zlib":
+            headers["X-PLLM-Accept-Bundle-Encoding"] = BUNDLE_ENCODING
+
+        def count_wire_bytes(count: int) -> None:
+            self.audit.bundle_network_bytes += count
+
+        with self.http.stream(
+            "GET", f"/v1/runtime/models/{model_id}/client-bundle", headers=headers
+        ) as response:
+            if not response.is_success:
+                response.read()
+            _raise(response)
+            if response.headers.get("Content-Encoding", "identity") != "identity":
+                raise _BundleIntegrityError(
+                    "provider bundle transport encoding is unsupported", 409
+                )
+            encoding = response.headers.get("X-PLLM-Bundle-Encoding")
+            if encoding is None:
+                payload: bytes | bytearray = response.read()
+                count_wire_bytes(len(payload))
+            elif self.bundle_compression == "zlib" and encoding == BUNDLE_ENCODING:
+                try:
+                    payload = decode_bundle_frames(
+                        (
+                            (response.content,)
+                            if response.is_stream_consumed
+                            else response.iter_raw(chunk_size=64 * 1024)
+                        ),
+                        expected_size=size,
+                        on_wire_bytes=count_wire_bytes,
+                    )
+                except BundleFrameError as exc:
+                    raise _BundleIntegrityError(
+                        "provider client bundle framing is invalid", 409
+                    ) from exc
+            else:
+                raise _BundleIntegrityError("provider client bundle encoding is unsupported", 409)
         if (
             len(payload) != size
             or hashlib.sha256(payload).hexdigest() != fingerprint
@@ -1255,7 +1367,7 @@ class RuntimeClient:
         return bundle, payload
 
     @staticmethod
-    def _write_cached_bundle(path: Path, payload: bytes) -> None:
+    def _write_cached_bundle(path: Path, payload: bytes | bytearray) -> None:
         temporary: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -1300,7 +1412,7 @@ class RuntimeClient:
             )[0]
 
         path: Path | None = None
-        downloaded: tuple[ClientBundle, bytes] | None = None
+        downloaded: tuple[ClientBundle, bytes | bytearray] | None = None
         try:
             path = self._bundle_cache_path(
                 model_id,
@@ -1452,10 +1564,13 @@ class RuntimeClient:
                     != (self.experiment.verification_component or "none")
                     or int(metadata.get("verification_target_failure_bits", 0))
                     != self.experiment.verification_target_failure_bits
-                    or (selected_metal_rows is not None and (
-                        metadata.get("kernel_backend") != "mlx-metal+cpu"
-                        or metadata.get("kernel_min_rows") != selected_metal_rows
-                    ))
+                    or (
+                        selected_metal_rows is not None
+                        and (
+                            metadata.get("kernel_backend") != "mlx-metal+cpu"
+                            or metadata.get("kernel_min_rows") != selected_metal_rows
+                        )
+                    )
                 ):
                     raise ProtocolError(
                         "Experiment runtime contract does not match inference metadata", 409
@@ -1463,6 +1578,8 @@ class RuntimeClient:
             bundle_fingerprint = str(descriptor["sha256"])
             state = self._transformer_states.get(model_id)
             if state is None or state.bundle_fingerprint != bundle_fingerprint:
+                if state is not None and state.prefill_cache is not None:
+                    state.prefill_cache.clear()
                 bundle, bundle_fingerprint = self._load_client_bundle_record(model_id, descriptor)
                 state = _TransformerCryptoState(
                     bundle=bundle,
@@ -1496,9 +1613,13 @@ class RuntimeClient:
                 if len(inference_models) != 1:
                     raise ProtocolError("inference service does not serve the requested model", 404)
                 inference = inference_models[0].get("runtime") or {}
-                if self.experiment is not None and selected_metal_rows is not None and (
-                    inference.get("kernel_backend") != "mlx-metal+cpu"
-                    or inference.get("kernel_min_rows") != selected_metal_rows
+                if (
+                    self.experiment is not None
+                    and selected_metal_rows is not None
+                    and (
+                        inference.get("kernel_backend") != "mlx-metal+cpu"
+                        or inference.get("kernel_min_rows") != selected_metal_rows
+                    )
                 ):
                     raise ProtocolError("Metal inference kernel differs from Experiment", 409)
                 if (
@@ -1525,9 +1646,13 @@ class RuntimeClient:
                         "preparation service does not serve the requested model", 404
                     )
                 preparation = preparation_models[0].get("preparation") or {}
-                if self.experiment is not None and selected_metal_rows is not None and (
-                    preparation.get("kernel_backend") != "mlx-metal+cpu"
-                    or preparation.get("kernel_min_rows") != selected_metal_rows
+                if (
+                    self.experiment is not None
+                    and selected_metal_rows is not None
+                    and (
+                        preparation.get("kernel_backend") != "mlx-metal+cpu"
+                        or preparation.get("kernel_min_rows") != selected_metal_rows
+                    )
                 ):
                     raise ProtocolError("Metal preparation kernel differs from Experiment", 409)
                 remote_stages = self._remote_stages(state)
@@ -1618,6 +1743,11 @@ class RuntimeClient:
             or max_new_tokens > self._experiment_budget.max_new_tokens
         ):
             raise ModelError("response exceeds its immutable Experiment workload bounds")
+        if self.prefill_cache_mode == "prefix" and state.privacy_mode == "public":
+            assert self.prefill_cache_bound_tokens is not None
+            if max_input_tokens > self.prefill_cache_bound_tokens:
+                raise ModelError("response exceeds its fixed prefix-cache input bound")
+            max_input_tokens = self.prefill_cache_bound_tokens
         if self.experiment is not None:
             composition = Pipeline.from_spec(json.loads(self.experiment.canonical_composition))
         else:
@@ -1625,11 +1755,17 @@ class RuntimeClient:
                 weight_bits=int(state.bundle.privacy["weight_bits"]),
                 activation_bits=int(state.bundle.privacy["activation_bits"]),
             )
-            if state.bundle.privacy.get("verification_component", "none") == "pllm/freivalds-verify/v1":
+            if (
+                state.bundle.privacy.get("verification_component", "none")
+                == "pllm/freivalds-verify/v1"
+            ):
                 composition = VerifiedMaskedLinearCpu(
-                    Model(state.bundle.model_id), quantization=numeric,
+                    Model(state.bundle.model_id),
+                    quantization=numeric,
                     verification=FreivaldsVerify(
-                        target_failure_bits=int(state.bundle.privacy["verification_target_failure_bits"])
+                        target_failure_bits=int(
+                            state.bundle.privacy["verification_target_failure_bits"]
+                        )
                     ),
                 )
             else:
@@ -1650,12 +1786,11 @@ class RuntimeClient:
                 raise ModelError("client-owned model has no semantic decoder adapter") from exc
             return None
         coverage = plan.coverage(composition)
-        verified = (
-            state.bundle.privacy.get("verification_component") == "pllm/freivalds-verify/v1"
-            and (
-                self.experiment is None
-                or self.experiment.verification_component == "pllm/freivalds-verify/v1"
-            )
+        verified = state.bundle.privacy.get(
+            "verification_component"
+        ) == "pllm/freivalds-verify/v1" and (
+            self.experiment is None
+            or self.experiment.verification_component == "pllm/freivalds-verify/v1"
         )
         if not coverage.complete and not verified:
             # Existing runtime-only operators remain on their separately admitted
@@ -1664,6 +1799,66 @@ class RuntimeClient:
                 raise ModelError("client-owned decoder has incomplete compiler coverage")
             return None
         return compile_runtime_model(plan, state.bundle, composition=composition)
+
+    def _prefill_cache_candidate(
+        self,
+        state: _TransformerCryptoState,
+        compiled: CompiledRuntimeModel | None,
+        ids: list[int],
+        *,
+        store: bool,
+        previous_id: str | None = None,
+    ) -> tuple[ExactPrefillCache, str] | None:
+        if (
+            self.prefill_cache_bytes == 0
+            or not store
+            or previous_id is not None
+            or state.privacy_mode != "public"
+            or state.bundle.privacy.get("verification_component", "none") != "none"
+            or compiled is None
+        ):
+            return None
+        graphs = compiled._plan.to_dict()
+        for phase in ("prefill", "decode"):
+            graph = graphs[phase]
+            if any(
+                row["kind"] not in {"key", "value"}
+                for row in (*graph["state_inputs"], *graph["state_outputs"])
+            ) or any(
+                operation["attributes"].get("attention_domain", {}).get("layout")
+                == "batch_kv_heads_query_window_feature"
+                for operation in graph["operations"]
+            ):
+                return None
+        with self._transformer_state_lock:
+            if state.prefill_cache is None:
+                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes)
+            cache = state.prefill_cache
+        return cache, prefill_key(compiled.digest, state.bundle_fingerprint, ids)
+
+    @staticmethod
+    def _profitable_cached_prefix(
+        position: int,
+        total: int,
+        state: _TransformerCryptoState,
+    ) -> bool:
+        # Suffix is currently executed by single-token decode, whereas an
+        # ordinary prefill packs all rows per stage. Keep large suffixes on the
+        # batched path until a compiler-bound chunked-continuation phase exists.
+        if not 0 < position < total:
+            return False
+        stages = tuple(
+            stage for stage in state.bundle.stages.values() if stage.client_weight is None
+        )
+        if not stages:
+            return False
+        per_row = sum(
+            (stage.in_features + stage.out_features) * stage.wire_bits // 8 for stage in stages
+        )
+        # Include one envelope/HTTP-body allowance per stage and decode row.
+        # Require a 2x body margin; this is an admission estimate, not a wire
+        # or latency guarantee. Matched benchmark counters remain authoritative.
+        return 2 * (total - position) * (per_row + 1024 * len(stages)) < total * per_row
 
     def _prepare_inventory_locked(
         self,
@@ -2034,7 +2229,9 @@ class RuntimeClient:
         compiled: CompiledRuntimeModel | None = None,
         semantic_input_tokens: int | None = None,
     ) -> tuple[dict[str, Any], _TransformerCryptoState, Any | None]:
-        if compiled is not None and (type(semantic_input_tokens) is not int or semantic_input_tokens < 1):
+        if compiled is not None and (
+            type(semantic_input_tokens) is not int or semantic_input_tokens < 1
+        ):
             raise ModelError("compiled session is missing its input bound")
         state = self._transformer_state(model_id)
         prepared_public = state.privacy_mode == "public"
@@ -2284,8 +2481,13 @@ class RuntimeClient:
 
     def prepared_inventory_status(self, model: str) -> dict[str, Any]:
         if self._local_engine is not None:
-            return {"status": "not-applicable", "capacity": 0, "available": 0,
-                    "reserved": 0, "burned": 0}
+            return {
+                "status": "not-applicable",
+                "capacity": 0,
+                "available": 0,
+                "reserved": 0,
+                "burned": 0,
+            }
         with self._transformer_state_lock:
             state = self._transformer_states.get(model)
             if state is None or state.prepared_inventory is None:
@@ -2305,6 +2507,7 @@ class RuntimeClient:
         max_output_tokens: int,
         *,
         instructions: str | None = None,
+        store: bool = True,
     ) -> int:
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
@@ -2317,9 +2520,38 @@ class RuntimeClient:
         tokenizer = state.bundle.tokenizer()
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         ids = tokenizer.encode(rendered, add_bos=add_bos)
-        return len(ids or [int(state.bundle.config["bos_token_id"])]) + max(
-            0, max_output_tokens - 1
+        full_ids = ids or [int(state.bundle.config["bos_token_id"])]
+        cached = None
+        if self.prefill_cache_bytes and store:
+            compiled = self._compiled_public_decoder(
+                state,
+                max_input_tokens=len(full_ids),
+                max_new_tokens=max_output_tokens,
+            )
+            candidate = self._prefill_cache_candidate(state, compiled, full_ids, store=store)
+            if candidate is not None:
+                cache, key = candidate
+                cached = cache.get(
+                    key,
+                    position=len(full_ids),
+                    layers=int(state.bundle.cfg["num_hidden_layers"]),
+                )
+                if cached is None and self.prefill_cache_mode == "prefix":
+                    assert compiled is not None
+                    prefix = cache.longest_prefix(
+                        compiled.digest,
+                        state.bundle_fingerprint,
+                        full_ids,
+                        layers=int(state.bundle.cfg["num_hidden_layers"]),
+                    )
+                    if prefix is not None and self._profitable_cached_prefix(
+                        prefix[0], len(full_ids), state
+                    ):
+                        cached = prefix
+        prefix_rows = (
+            0 if cached is None else (cached[0] if type(cached[0]) is int else len(full_ids))
         )
+        return max(1, len(full_ids) - prefix_rows + max(0, max_output_tokens - 1))
 
     def _ensure_prepared_inventory(
         self,
@@ -2349,6 +2581,8 @@ class RuntimeClient:
         with self._transformer_state_lock:
             inventories: list[PreparedInventory] = []
             for state in self._transformer_states.values():
+                if state.prefill_cache is not None:
+                    state.prefill_cache.clear()
                 if state.prepared_inventory is not None:
                     inventories.append(state.prepared_inventory)
                 if state.prepared_inventory_spare is not None:
@@ -2377,11 +2611,17 @@ class RuntimeClient:
             descriptor = self._model_manifest(model_id)
             return {
                 "object": "list",
-                "data": [{"id": model_id, "object": "model", "owned_by": (
-                    "client" if self._local_engine is not None else "offset-workers"
-                ),
-                          "runtime": descriptor["runtime"],
-                          "context_length": descriptor["context_length"]}],
+                "data": [
+                    {
+                        "id": model_id,
+                        "object": "model",
+                        "owned_by": (
+                            "client" if self._local_engine is not None else "offset-workers"
+                        ),
+                        "runtime": descriptor["runtime"],
+                        "context_length": descriptor["context_length"],
+                    }
+                ],
             }
         response = self.http.get("/v1/models", headers=self.headers)
         _raise(response)
@@ -2798,16 +3038,49 @@ class RuntimeClient:
                 required_input_rows = len(
                     tokenizer.encode(rendered[len(candidate.rendered_context) :], add_bos=False)
                 ) + len(candidate.pending_token_ids)
-        required_rows = required_input_rows + max(0, max_tokens - 1)
         compiled = self._compiled_public_decoder(
             state,
             max_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
             max_new_tokens=max_tokens,
         )
+        full_prefill_ids = input_ids or [int(state.bundle.config["bos_token_id"])]
+        prefill_candidate = self._prefill_cache_candidate(
+            state,
+            compiled,
+            full_prefill_ids,
+            store=bool(body.get("store", True)),
+            previous_id=str(previous_id) if previous_id else None,
+        )
+        cached_prefill = None
+        if prefill_candidate is not None:
+            cache, cache_key = prefill_candidate
+            cached_prefill = cache.get(
+                cache_key,
+                position=len(full_prefill_ids),
+                layers=int(state.bundle.cfg["num_hidden_layers"]),
+            )
+            if cached_prefill is not None:
+                required_input_rows = 0
+            elif self.prefill_cache_mode == "prefix":
+                assert compiled is not None
+                cached_prefix = cache.longest_prefix(
+                    compiled.digest,
+                    state.bundle_fingerprint,
+                    full_prefill_ids,
+                    layers=int(state.bundle.cfg["num_hidden_layers"]),
+                )
+                if cached_prefix is not None and self._profitable_cached_prefix(
+                    cached_prefix[0],
+                    len(full_prefill_ids),
+                    state,
+                ):
+                    required_input_rows -= cached_prefix[0]
+                    cached_prefill = (cached_prefix[1], None)
         client_owned = self._local_engine is not None
         offset_execution = bool(self._offset_workers)
         if (client_owned or offset_execution) and compiled is None:
             raise ModelError("selected topology requires complete compiled execution")
+        required_rows = max(1, required_input_rows + max(0, max_tokens - 1))
         if state.privacy_mode == "public":
             self._ensure_prepared_inventory(model_id, state, required_rows)
         offset_transport = None
@@ -2818,9 +3091,12 @@ class RuntimeClient:
             worker_a, key_a = self._offset_workers["worker_a"]
             worker_b, key_b = self._offset_workers["worker_b"]
             offset_transport = TwoOnlineOffsetTransport(
-                compiled, model_id=model_id,
-                worker_a=worker_a, worker_b=worker_b,
-                api_key_a=key_a, api_key_b=key_b,
+                compiled,
+                model_id=model_id,
+                worker_a=worker_a,
+                worker_b=worker_b,
+                api_key_a=key_a,
+                api_key_b=key_b,
             )
             session_value = {"id": new_id("offset_session"), "response_id": new_id("resp")}
             provider = None
@@ -2840,7 +3116,11 @@ class RuntimeClient:
                 max_output_tokens=max_tokens,
                 required_rows=required_rows,
                 compiled=compiled,
-                semantic_input_tokens=len(input_ids or [int(state.bundle.config["bos_token_id"])]),
+                semantic_input_tokens=(
+                    self.prefill_cache_bound_tokens
+                    if compiled is not None and self.prefill_cache_mode == "prefix"
+                    else len(input_ids or [int(state.bundle.config["bos_token_id"])])
+                ),
             )
         session_id = str(session_value["id"])
         response_id = str(session_value["response_id"])
@@ -2872,7 +3152,11 @@ class RuntimeClient:
             except BaseException:
                 abandon_transformer_session()
                 raise
-        key = derive_session_key(self.api_key, session_id) if not (client_owned or offset_execution) else b""
+        key = (
+            derive_session_key(self.api_key, session_id)
+            if not (client_owned or offset_execution)
+            else b""
+        )
         sequence = 0
 
         def exchange(stage_id: str, payloads: list[bytes]) -> list[bytes]:
@@ -3084,8 +3368,62 @@ class RuntimeClient:
                 )
                 input_ids = full_input_ids
                 caches = runtime.caches
+            elif cached_prefill is not None:
+                if full_input_ids != full_prefill_ids:
+                    raise ModelError("cached prefill differs from the bound token cohort")
+                snapshot, saved_logits = cached_prefill
+                runtime.restore(snapshot)
+                if (
+                    runtime.position < 1
+                    or runtime.position > len(full_input_ids)
+                    or len(runtime.caches) != runtime.layers
+                ):
+                    raise ModelError("cached prefill state differs from the bound decoder")
+                input_ids = full_input_ids
+                if saved_logits is None:
+                    # The cached state is a proper prefix: consume only the
+                    # suffix on freshly reserved one-use rows. Never reuse
+                    # another response's masked correction or token selection.
+                    assert runtime.position < len(full_input_ids)
+                    reused = runtime.position
+                    logits = np.empty(0, dtype=np.float32)
+                    for token in full_input_ids[reused:]:
+                        logits = runtime.decode_step(token, runtime.caches, runtime.position)[0]
+                    self.audit.prefill_prefix_tokens_reused += reused
+                else:
+                    if runtime.position != len(full_input_ids):
+                        raise ModelError("cached logits do not match prefill state")
+                    logits = saved_logits
+                caches = runtime.caches
+                self.audit.prefill_cache_hits += 1
             else:
                 input_ids, logits, caches = runtime.prepare_ids(full_input_ids)
+                if prefill_candidate is not None:
+                    self.audit.prefill_cache_misses += 1
+                    cache, cache_key = prefill_candidate
+                    if self.prefill_cache_mode == "prefix":
+                        assert compiled is not None
+                        cache.put_prefixes(
+                            compiled.digest,
+                            state.bundle_fingerprint,
+                            full_prefill_ids,
+                            runtime.snapshot(),
+                        )
+                    cache.put(cache_key, runtime.snapshot(), np.asarray(logits))
+            if (
+                cached_prefill is not None
+                and cached_prefill[1] is None
+                and prefill_candidate is not None
+            ):
+                assert compiled is not None
+                cache, cache_key = prefill_candidate
+                cache.put_prefixes(
+                    compiled.digest,
+                    state.bundle_fingerprint,
+                    full_prefill_ids,
+                    runtime.snapshot(),
+                )
+                cache.put(cache_key, runtime.snapshot(), np.asarray(logits))
             pending_token_ids: list[int] = []
             hit_token_limit = True
             for step in range(max_tokens):
@@ -3501,8 +3839,12 @@ class OpenAI:
         prepared_inventory_rows: int | None = None,
         background_inventory_refill: bool = True,
         token_cache_size: int | None = None,
+        prefill_cache_bytes: int = 0,
+        prefill_cache_mode: str = "exact",
+        prefill_cache_bound_tokens: int | None = None,
         bundle_cache_mode: str | None = None,
         bundle_cache_dir: str | Path | None = None,
+        bundle_compression: str | None = None,
         tenseal_path: str | None = None,
         timeout: float | None = None,
         http_client: httpx.Client | None = None,
@@ -3515,15 +3857,29 @@ class OpenAI:
         from pllm.settings import ClientSettings
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
+        if profile is not None and "inventory" in json.loads(profile.canonical_composition).get(
+            "components", {}
+        ):
+            if (
+                prepared_inventory_rows is not None
+                and prepared_inventory_rows != profile.prepared_inventory_rows
+            ):
+                raise ValueError("inventory rows conflict with immutable Experiment")
+            prepared_inventory_rows = profile.prepared_inventory_rows
         client_owned = profile is not None and profile.client_runtime == "compiled_client_local_v1"
         offset_execution = profile is not None and profile.client_runtime == "compiled_offset_v1"
         self._owned_topology: Any | None = None
         if client_owned and (
-            base_url is not None or api_key is not None or http_client is not None
-            or preparation_base_url is not None or preparation_api_key is not None
+            base_url is not None
+            or api_key is not None
+            or http_client is not None
+            or preparation_base_url is not None
+            or preparation_api_key is not None
             or preparation_http_client is not None
-            or session_transport is not None or correlation_mode is not None
-            or prepared_inventory_rows is not None or background_inventory_refill is not True
+            or session_transport is not None
+            or correlation_mode is not None
+            or prepared_inventory_rows is not None
+            or background_inventory_refill is not True
             or tenseal_path is not None
         ):
             raise ValueError("client-only Experiment requires only client-owned model weights")
@@ -3532,11 +3888,17 @@ class OpenAI:
         if client_owned and local_engine is None and not isinstance(experiment, Experiment):
             raise ValueError("client-only model loading requires an Experiment source")
         if offset_execution and (
-            base_url is not None or api_key is not None or http_client is not None
-            or preparation_base_url is not None or preparation_api_key is not None
-            or preparation_http_client is not None or local_engine is not None
-            or session_transport is not None or correlation_mode is not None
-            or prepared_inventory_rows is not None or background_inventory_refill is not True
+            base_url is not None
+            or api_key is not None
+            or http_client is not None
+            or preparation_base_url is not None
+            or preparation_api_key is not None
+            or preparation_http_client is not None
+            or local_engine is not None
+            or session_transport is not None
+            or correlation_mode is not None
+            or prepared_inventory_rows is not None
+            or background_inventory_refill is not True
             or tenseal_path is not None
         ):
             raise ValueError("offset Experiment requires only role-specific worker connections")
@@ -3607,8 +3969,12 @@ class OpenAI:
                 prepared_inventory_rows=settings.prepared_inventory_rows,
                 background_inventory_refill=background_inventory_refill,
                 token_cache_size=settings.token_cache_size,
+                prefill_cache_bytes=prefill_cache_bytes,
+                prefill_cache_mode=prefill_cache_mode,
+                prefill_cache_bound_tokens=prefill_cache_bound_tokens,
                 bundle_cache_mode=settings.bundle_cache_mode,
                 bundle_cache_dir=settings.bundle_cache_dir,
+                bundle_compression=bundle_compression,
                 tenseal_path=tenseal_path,
                 timeout=settings.timeout,
                 http_client=http_client,
@@ -3655,6 +4021,7 @@ class OpenAI:
         *,
         model: str | None = None,
         instructions: str | None = None,
+        store: bool = True,
     ) -> int:
         model_id = model or self._core.default_model
         if model_id is None:
@@ -3664,6 +4031,7 @@ class OpenAI:
             input,
             max_output_tokens,
             instructions=instructions,
+            store=store,
         )
 
     def close(self) -> None:
@@ -3819,6 +4187,7 @@ class AsyncOpenAI:
         *,
         model: str | None = None,
         instructions: str | None = None,
+        store: bool = True,
     ) -> int:
         return await asyncio.to_thread(
             self.sync.prepared_rows_for_response,
@@ -3826,6 +4195,7 @@ class AsyncOpenAI:
             max_output_tokens,
             model=model,
             instructions=instructions,
+            store=store,
         )
 
     async def close(self) -> None:

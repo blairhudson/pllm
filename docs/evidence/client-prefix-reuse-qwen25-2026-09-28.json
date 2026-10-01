@@ -1,0 +1,40 @@
+{
+  "schema": "pllm.client_prefix_reuse_network_cohort.v1",
+  "scope": "one matched W8A8 pinned Qwen2.5 prepared-loopback comparison; one cold warmup then one warm 175-input/1-output-token response per option",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "model_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "public_workload_recipe": {
+    "prefix_repeated": 12,
+    "sentence": "The same setup describes masked linear inference and immutable client state. ",
+    "warmup_suffix": "Alpha.",
+    "measured_suffix": "Beta.",
+    "input_tokens": 175,
+    "output_tokens": 1
+  },
+  "comparison": [
+    {
+      "mode": "no prefill reuse",
+      "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "warm_online_all_link_serialized_body_bytes": 279291648,
+      "warm_offline_correction_push_bytes": 163462592,
+      "reserved_rows": 175,
+      "prefix_tokens_reused": 0
+    },
+    {
+      "mode": "client prefix reuse, 128 MiB, fixed input bound 256",
+      "pipeline_digest": "7c4222104106e0a0ab084a788beed2a1d160bda7128dabf52484fe6703627817",
+      "warm_online_all_link_serialized_body_bytes": 11583040,
+      "warm_offline_correction_push_bytes": 6569168,
+      "reserved_rows": 7,
+      "prefix_tokens_reused": 168
+    }
+  ],
+  "checks": {
+    "matched_source_and_body_fingerprint": true,
+    "matched_input_output_tokens": true,
+    "no_plaintext_prompt_or_token_ids_sent": true,
+    "no_preparation_during_online": true
+  },
+  "limitations": "One local matched pair with a public synthetic repeated prefix; not a general new-prompt reduction. Reuse reveals prefix equality and length in stage traffic. Cold first response still transfers the bundle; full wire, quality, independent operators, disk and cross-host behavior remain unmeasured."
+}

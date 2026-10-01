@@ -41,7 +41,9 @@ def test_reference_benchmark_rejects_malformed_cohorts_before_import() -> None:
 def test_quality_preflights_checkpoint_and_aggregate_logit_memory(monkeypatch) -> None:
     experiment = _experiment("bounded-w8", 8)
     manifest = SimpleNamespace(
-        metadata={"source_lock": {"files": [{"path": "model.safetensors", "size": 12 * 1024**3 + 1}]}},
+        metadata={
+            "source_lock": {"files": [{"path": "model.safetensors", "size": 12 * 1024**3 + 1}]}
+        },
         vocab_size=200064,
     )
     resolved = SimpleNamespace(path=Path("/unused"), manifest=manifest, source_lock_digest="0" * 64)
@@ -115,7 +117,8 @@ def test_quality_benchmark_uses_selected_metal_stage_kernel(
     metal = pllm.Experiment(
         name="quality-metal",
         pipeline=MaskedLinearCpu(
-            cpu.pipeline.model, kernels=AppleMetal(min_rows=2),
+            cpu.pipeline.model,
+            kernels=AppleMetal(min_rows=2),
             quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
         ),
         deployment=cpu.deployment,
@@ -124,10 +127,38 @@ def test_quality_benchmark_uses_selected_metal_stage_kernel(
     report = run_reference_benchmark([cpu, metal], ["Hello"], top_k=5)
     assert calls and all(rows >= 2 for rows in calls)
     assert [row["kernel_backend"] for row in report["candidates"]] == [
-        "pllm/cpu", "pllm/apple-metal-int8/v1",
+        "pllm/cpu",
+        "pllm/apple-metal-int8/v1",
     ]
     assert report["candidates"][0]["top1_agreement"] == report["candidates"][1]["top1_agreement"]
-    assert report["candidates"][0]["max_abs_logit_error"] == report["candidates"][1]["max_abs_logit_error"]
+    assert (
+        report["candidates"][0]["max_abs_logit_error"]
+        == report["candidates"][1]["max_abs_logit_error"]
+    )
+
+
+@pytest.mark.rust
+def test_quality_benchmark_preserves_selected_client_attention_numeric_path() -> None:
+    from pllm.preparation import PreparedInventory
+    from pllm.protocols import ClientBundleTransport
+    from pllm.roles import ClientLinearRoles
+
+    plain = _experiment("quality-plain", 8)
+    placed = pllm.Experiment(
+        "quality-attention",
+        MaskedLinearCpu(
+            plain.pipeline.model,
+            quantization=plain.pipeline.quantization,
+            placement=ClientLinearRoles(["qkv_projection", "attention_output"]),
+            inventory=PreparedInventory(),
+            delivery=ClientBundleTransport(),
+        ),
+        plain.deployment,
+        plain.budget,
+    )
+    report = run_reference_benchmark([plain, placed], ["Hello"], top_k=5)
+    for metric in ("top1_agreement", "top_k_recall", "max_abs_logit_error"):
+        assert report["candidates"][0][metric] == report["candidates"][1][metric]
 
 
 @pytest.mark.rust
@@ -164,7 +195,15 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
 @pytest.mark.rust
 @pytest.mark.slow
 @pytest.mark.parametrize(
-    ("env_name", "model_id", "model_key", "evidence_file", "max_input", "max_new", "deployment_root"),
+    (
+        "env_name",
+        "model_id",
+        "model_key",
+        "evidence_file",
+        "max_input",
+        "max_new",
+        "deployment_root",
+    ),
     [
         (
             "PLLM_REAL_QWEN_PATH",
@@ -196,8 +235,13 @@ def test_quality_cli_compares_typed_experiments_without_emitting_prompts(tmp_pat
     ],
 )
 def test_pinned_reference_cohort_matches_retained_report(
-    env_name: str, model_id: str, model_key: str, evidence_file: str,
-    max_input: int, max_new: int, deployment_root: str,
+    env_name: str,
+    model_id: str,
+    model_key: str,
+    evidence_file: str,
+    max_input: int,
+    max_new: int,
+    deployment_root: str,
 ) -> None:
     if not os.getenv(env_name):
         pytest.skip(f"pinned checkpoint path is not configured: {env_name}")
@@ -215,7 +259,9 @@ def test_pinned_reference_cohort_matches_retained_report(
             ),
             deployment=pllm.Deployment.local(root=deployment_root),
             budget=pllm.ExecutionBudget(
-                requests=2, max_input_tokens=max_input, max_new_tokens=max_new,
+                requests=2,
+                max_input_tokens=max_input,
+                max_new_tokens=max_new,
             ),
         )
         for bits in (4, 8)
@@ -247,7 +293,9 @@ def test_pinned_reference_cohort_matches_retained_report(
     ],
 )
 def test_pinned_phi_public_equalization_reproduces_both_reference_cohorts(
-    cohort_path: str, evidence_file: str, request_count: int,
+    cohort_path: str,
+    evidence_file: str,
+    request_count: int,
 ) -> None:
     if not os.getenv("PLLM_REAL_PHI_PATH"):
         pytest.skip("pinned Phi checkpoint path is not configured")
@@ -276,6 +324,9 @@ def test_pinned_phi_public_equalization_reproduces_both_reference_cohorts(
         assert actual["top_k_recall"] == expected["top_k_recall"]
         assert abs(actual["max_abs_logit_error"] - expected["max_abs_logit_error"]) < 0.1
         if "public_equalization_profile_digest" in expected:
-            assert actual["public_equalization_profile_digest"] == expected["public_equalization_profile_digest"]
+            assert (
+                actual["public_equalization_profile_digest"]
+                == expected["public_equalization_profile_digest"]
+            )
             assert actual["public_calibration_digest"] == expected["public_calibration_digest"]
             assert actual["public_profile_bytes"] == expected["public_profile_bytes"]

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 if TYPE_CHECKING:
     from pllm._native import CompactQ7Reference, ScaledSiluQ7Reference
@@ -147,6 +147,8 @@ __all__ += [
     "ShaftFixedPointTransformerOps", "CompactPiecewiseActivation", "CurlWaveletEncodedTable",
     "LlamaSecureMath", "SirnnSecureMath", "WaveletHomomorphicLookup",
 ]
+
+install_planned_components(globals())
 
 
 def fit_compact_silu_q7_reference(

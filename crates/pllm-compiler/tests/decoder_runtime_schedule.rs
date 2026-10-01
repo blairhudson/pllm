@@ -71,7 +71,8 @@ fn public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_polic
     let cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
     let expected = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&cpu)).unwrap();
     for verified in [false, true] {
-        let mut selected: serde_json::Value = serde_json::from_slice(&composition(verified)).unwrap();
+        let mut selected: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
         selected["components"]["kernels"] = json!({
             "component": "pllm/apple-metal-int8/v1", "params": {"min_rows": 8}
         });
@@ -415,9 +416,10 @@ fn verified_composition_declares_a_distinct_remote_executor() {
             step.operators.contains(&ModelOperator::Linear)
                 && step.executor == DecoderRuntimeExecutor::VerifiedRemoteStage
         }));
-        assert!(phase.steps.iter().all(|step| {
-            step.executor != DecoderRuntimeExecutor::RemoteStage
-        }));
+        assert!(phase
+            .steps
+            .iter()
+            .all(|step| { step.executor != DecoderRuntimeExecutor::RemoteStage }));
     }
 }
 

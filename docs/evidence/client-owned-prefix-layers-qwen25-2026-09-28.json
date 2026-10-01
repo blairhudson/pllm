@@ -1,0 +1,50 @@
+{
+  "schema": "pllm.client_prefix_layers_network_cohort.v1",
+  "scope": "one matched single-host loopback run per option, 40 input tokens and one generated token, request-sized cold prepared inventory, W8A8 CPU",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "command": "uv run --no-sync pllm benchmark run --experiment examples/benchmarks/client_prefix_layers.py:baseline --experiment examples/benchmarks/client_prefix_layers.py:prefix_one --experiment examples/benchmarks/client_prefix_layers.py:prefix_two --max-output-tokens 1 --warmups 0 --repetitions 1 --trust-python --prompt 'Explain why a short private prompt should remain private.' --inventory-policy request-sized --format json --output /tmp/client-prefix-cohort.json",
+  "cohort": [
+    {
+      "local_layers": 0,
+      "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "remote_stages": 96,
+      "client_bundle_bytes": 145977006,
+      "offline_correction_push_bytes": 37387616,
+      "online_all_link_serialized_body_bytes": 63844608,
+      "covered_all_link_serialized_body_bytes": 247230508,
+      "aggregate_cold_cpu_seconds": 29.691334704
+    },
+    {
+      "local_layers": 1,
+      "pipeline_digest": "bb06febf9dcce07a328c15fdd419ebe6822ff8e82034e00f6907430d4c663686",
+      "remote_stages": 92,
+      "client_bundle_bytes": 160937491,
+      "offline_correction_push_bytes": 35829801,
+      "online_all_link_serialized_body_bytes": 61184416,
+      "covered_all_link_serialized_body_bytes": 257972116,
+      "aggregate_cold_cpu_seconds": 28.650220248
+    },
+    {
+      "local_layers": 2,
+      "pipeline_digest": "8c237773d9a195c04e58d0ffdf73c9221d1da8334b8d5be8bd6be0370a1c9f80",
+      "remote_stages": 88,
+      "client_bundle_bytes": 175897932,
+      "offline_correction_push_bytes": 34271986,
+      "online_all_link_serialized_body_bytes": 58524224,
+      "covered_all_link_serialized_body_bytes": 268713680,
+      "aggregate_cold_cpu_seconds": 28.406623104
+    }
+  ],
+  "checks": {
+    "matched_body_and_source": true,
+    "matched_input_and_output_tokens": true,
+    "no_plaintext_prompt_or_token_ids_sent": true,
+    "no_preparation_during_online": true,
+    "online_bodies_fell": true,
+    "cold_covered_bodies_rose": true
+  },
+  "limitations": "Covered application bodies only, not HTTP/TLS or checkpoint distribution. One sample per candidate cannot establish latency/CPU trends or model quality. Provider checkpoint storage is unchanged, and client weight download/storage increases with local layers."
+}

@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
 
 
@@ -99,3 +99,5 @@ class YarnRotaryScaling(PendingModelCapability):
 
 
 __all__ = ["AppleMetal", "Cpu", "KernelBackend", "SecureGpuBackend", "PartialMultimodalRotary", "YarnRotaryScaling"]
+
+install_planned_components(globals())

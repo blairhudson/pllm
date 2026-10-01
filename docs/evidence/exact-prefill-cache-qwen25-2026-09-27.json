@@ -1,0 +1,49 @@
+{
+  "schema": "pllm.exact_prefill_cache_resource_gate.v1",
+  "source": "Separate local benchmark run processes with one warmup and one measured response each; raw reports retained outside the repository",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "cohort": {
+    "input_tokens": 39,
+    "output_tokens": 1,
+    "same_prompt_repeated": true,
+    "inventory_policy": "request-sized",
+    "bundle_compression": "none",
+    "preparation_and_inference": "two co-located child roles",
+    "preparation_requests_during_online": 0,
+    "plaintext_prompt_bytes_sent": 0,
+    "plaintext_token_ids_sent": 0
+  },
+  "first_cold_response": {
+    "without_cache_all_link_covered_body_bytes": 244700716,
+    "with_cache_all_link_covered_body_bytes": 244700716
+  },
+  "second_warm_response": {
+    "without_cache": {
+      "prefill_cache_hits": 0,
+      "inventory_required_rows_per_stage": 39,
+      "all_link_covered_body_bytes": 98723710,
+      "online_all_link_body_bytes": 62248704,
+      "run_window_cpu_seconds": 10.95686992,
+      "full_seconds": 5.98878525
+    },
+    "with_64_mib_cache": {
+      "prefill_cache_hits": 1,
+      "inventory_required_rows_per_stage": 1,
+      "inventory_burned_rows_per_stage": 1,
+      "all_link_covered_body_bytes": 986876,
+      "online_all_link_body_bytes": 0,
+      "run_window_cpu_seconds": 4.789170328,
+      "full_seconds": 5.082400083
+    },
+    "covered_body_bytes_saved": 97736834
+  },
+  "limitations": [
+    "Exact complete prompt tokens only; no arbitrary shared-prefix reuse or cross-process reuse",
+    "A different prompt or disabled storage must execute all remote prefill stages",
+    "Repeats are visible in the provider traffic pattern; cached state and logits are held in trusted-client memory",
+    "The one-output-token response selects from prefill logits and does not execute decode stages",
+    "One matched pair does not establish representative latency or CPU savings",
+    "Full wire, peak client memory, energy, production operator separation and whole-generation quality are unmeasured"
+  ]
+}

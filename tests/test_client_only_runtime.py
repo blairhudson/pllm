@@ -270,6 +270,7 @@ def test_prepared_verified_and_client_owned_match_in_existing_experiment_compari
         budget=local.budget,
     )
     candidates = []
+    cohort_salt = b"client-only-comparison-cohort-v1"
     for experiment in (local, prepared, verified):
         report = run_loopback_benchmark(
             model=experiment.pipeline.model.source,
@@ -281,6 +282,7 @@ def test_prepared_verified_and_client_owned_match_in_existing_experiment_compari
             repetitions=1,
             timeout_seconds=120.0,
             experiment=experiment,
+            _cohort_salt=cohort_salt,
         )
         assert report["checks"]["passed"]
         candidates.append((experiment, report))

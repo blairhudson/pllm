@@ -1817,6 +1817,118 @@ fn validate_masked_linear_composition(
         }
     }
     let verification = pipeline.components.get("verification");
+    let boundary = pipeline.components.get("boundary");
+    let inventory = pipeline.components.get("inventory");
+    if let Some(inventory) = inventory {
+        if inventory.component != "pllm/prepared-inventory-policy/v1"
+            || inventory.params.len() != 2
+            || !matches!(
+                inventory
+                    .params
+                    .get("policy")
+                    .and_then(serde_json::Value::as_str),
+                Some("prewarm" | "request-sized")
+            )
+            || !matches!(
+                inventory
+                    .params
+                    .get("rows")
+                    .and_then(serde_json::Value::as_u64),
+                Some(1..=4096)
+            )
+            || verification.is_some()
+        {
+            return Err("inventory policy requires bounded baseline prepared execution".into());
+        }
+    }
+    let delivery = pipeline.components.get("delivery");
+    if let Some(delivery) = delivery {
+        if delivery.component != "pllm/client-bundle-transport/v1"
+            || delivery.params.len() != 1
+            || !matches!(
+                delivery
+                    .params
+                    .get("encoding")
+                    .and_then(serde_json::Value::as_str),
+                Some("none" | "zlib")
+            )
+            || verification.is_some()
+        {
+            return Err("bundle transport requires baseline prepared execution".into());
+        }
+    }
+    if let Some(boundary) = boundary {
+        if boundary.component != "pllm/output-head-at-inference/v1"
+            || !boundary.params.is_empty()
+            || verification.is_some()
+        {
+            return Err("remote output head requires baseline masked-linear placement".into());
+        }
+    }
+    let cache = pipeline.components.get("cache");
+    if let Some(cache) = cache {
+        let bytes = cache
+            .params
+            .get("max_bytes")
+            .and_then(serde_json::Value::as_u64);
+        let bound = cache
+            .params
+            .get("fixed_input_tokens")
+            .and_then(serde_json::Value::as_u64);
+        if cache.component != "pllm/client-prefix-reuse/v1"
+            || cache.params.len() != 2
+            || !matches!(bytes, Some(value) if (1_048_576..=268_435_456).contains(&value) && value % 1_048_576 == 0)
+            || !matches!(bound, Some(2..=4096))
+            || verification.is_some()
+        {
+            return Err("prefix cache requires bounded client-only state and baseline masked-linear placement".into());
+        }
+    }
+    let placement = pipeline.components.get("placement");
+    if let Some(placement) = placement {
+        let prefix = placement.component == "pllm/client-owned-prefix-layers/v1"
+            && placement.params.len() == 1
+            && matches!(
+                placement
+                    .params
+                    .get("layers")
+                    .and_then(serde_json::Value::as_u64),
+                Some(1..=8)
+            );
+        let roles = placement
+            .params
+            .get("roles")
+            .and_then(serde_json::Value::as_array);
+        let role_placement = placement.component == "pllm/client-owned-linear-roles/v1"
+            && placement.params.len() == 1
+            && roles.is_some_and(|roles| {
+                !roles.is_empty()
+                    && roles.len() <= 4
+                    && roles.iter().all(|role| {
+                        matches!(
+                            role.as_str(),
+                            Some(
+                                "attention_output" | "mlp_down" | "mlp_gate_up" | "qkv_projection"
+                            )
+                        )
+                    })
+                    && roles
+                        .windows(2)
+                        .all(|pair| pair[0].as_str() < pair[1].as_str())
+            });
+        if !(prefix || role_placement)
+            || pipeline
+                .components
+                .get("kernels")
+                .is_none_or(|kernels| kernels.component != "pllm/cpu")
+            || verification.is_some()
+        {
+            return Err(
+                "client-owned prefix layers require bounded baseline masked-linear placement"
+                    .into(),
+            );
+        }
+    }
     if verification.is_some() && quantization.is_some_and(valid_public_equalization) {
         return Err("public equalization has no verified-stage contract".into());
     }
@@ -1832,8 +1944,13 @@ fn validate_masked_linear_composition(
         != 4 + usize::from(quantization.is_some())
             + usize::from(verification.is_some())
             + usize::from(topology.is_some())
+            + usize::from(cache.is_some())
+            + usize::from(boundary.is_some())
+            + usize::from(placement.is_some())
+            + usize::from(inventory.is_some())
+            + usize::from(delivery.is_some())
     {
-        return Err("unsupported masked-linear component composition; expected exact core and optional quantization, verification, and prepared topology slots".into());
+        return Err("unsupported masked-linear component composition; expected exact core and optional quantization, verification, cache, boundary, placement, and prepared topology slots".into());
     }
     let Some(verification) = verification else {
         return Ok(MaskedLinearComposition::Baseline);
@@ -1900,9 +2017,10 @@ fn validate_masked_linear_core(
             ));
         }
     }
-    let kernels = pipeline.components.get("kernels").ok_or_else(|| {
-        "masked-linear composition requires a kernels component".to_string()
-    })?;
+    let kernels = pipeline
+        .components
+        .get("kernels")
+        .ok_or_else(|| "masked-linear composition requires a kernels component".to_string())?;
     let cpu = kernels.component == "pllm/cpu"
         && kernels.params.len() == 1
         && kernels

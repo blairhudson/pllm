@@ -5,6 +5,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
+from pllm.components._planned import install_planned_components
 
 if TYPE_CHECKING:
     from pllm.runtime.preparation_server import create_preparation_app as create_preparation_app
@@ -38,6 +39,48 @@ class ModelAwareCorrections(PreparationProvider):
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
         return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class PreparedInventory(ComponentRef):
+    """Client inventory floor and startup policy; rows remain strictly one-use."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/prepared-inventory-policy/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/inventory-policy",
+        category_version="1",
+        lifecycle_phase="offline",
+        parameter_schema={
+            "type": "object",
+            "required": ["policy", "rows"],
+            "additionalProperties": False,
+            "properties": {
+                "policy": {"type": "string", "enum": ["prewarm", "request-sized"]},
+                "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
+            },
+        },
+        capabilities=("bounded-prepared-inventory", "request-sized-preparation"),
+        role_eligibility=("client", "preparation", "inference"),
+    )
+
+    def __init__(self, policy: str = "request-sized", *, rows: int | None = None) -> None:
+        if policy not in {"prewarm", "request-sized"}:
+            raise ConfigurationError("inventory policy must be prewarm or request-sized")
+        if rows is None:
+            rows = 1 if policy == "request-sized" else 64
+        if type(rows) is not int or not 1 <= rows <= 4096:
+            raise ConfigurationError("inventory row floor must be in [1, 4096]")
+        super().__init__(self.descriptor.component, {"policy": policy, "rows": rows})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return dict(self.params)
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:
@@ -143,8 +186,11 @@ __all__ = [
     "HEAuthenticatedPreprocessing",
     "ModelAwareCorrections",
     "PreparationProvider",
+    "PreparedInventory",
     "create_preparation_app",
 ]
+
+install_planned_components(globals())
 
 
 def __getattr__(name: str) -> Any:

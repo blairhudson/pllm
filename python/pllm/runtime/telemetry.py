@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import threading
+from collections import defaultdict
 from typing import Any
 
 _lock = threading.Lock()
@@ -10,6 +11,11 @@ _protocol_bytes: Any = None
 _protocol_operations: Any = None
 _meter_provider: Any = None
 _trace_provider: Any = None
+_stage_body_lock = threading.Lock()
+_stage_body_totals: dict[tuple[str, str, str], int] = defaultdict(int)
+_MAX_STAGE_BODY_KEYS = 1024
+_stage_body_overflow = False
+_STAGE_BODY_OVERFLOW = ("telemetry", "overflow", "stage")
 
 
 def configure_telemetry(service_name: str | None = None, *, shutdown_on_exit: bool = True) -> bool:
@@ -106,10 +112,28 @@ def instrument_fastapi(app: Any) -> None:
 
 
 def record_protocol_bytes(source: str, destination: str, amount: int, stage: str) -> None:
-    if _protocol_bytes is None or amount <= 0:
+    global _stage_body_overflow
+    if amount <= 0:
+        return
+    key = (source, destination, stage)
+    with _stage_body_lock:
+        if key in _stage_body_totals or len(_stage_body_totals) < _MAX_STAGE_BODY_KEYS:
+            _stage_body_totals[key] += amount
+        else:
+            _stage_body_overflow = True
+    if _protocol_bytes is None:
         return
     attributes = {"source": source, "destination": destination, "stage": stage}
     _protocol_bytes.add(amount, attributes)
+
+
+def local_stage_body_snapshot() -> dict[tuple[str, str, str], int]:
+    """In-process stage-only bodies for the trusted dashboard client."""
+    with _stage_body_lock:
+        snapshot = dict(_stage_body_totals)
+        if _stage_body_overflow:
+            snapshot[_STAGE_BODY_OVERFLOW] = 1
+        return snapshot
 
 
 def record_protocol_operation(stage: str) -> None:

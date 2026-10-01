@@ -12,13 +12,27 @@ import pytest
 from pllm._cli.app import build_parser
 from pllm.configuration import Experiment
 from pllm.runtime.benchmark_cli import (
+    accounted_benchmark_body_totals,
     _run_once,
     _wait_for_ready,
     build_comparison_report,
     build_loopback_report,
     run_loopback_benchmark,
 )
-from pllm.runtime.topology_accounting import prepared_body_accounting
+
+
+def test_accounted_totals_include_prewarm_once_and_preserve_run_window_scope() -> None:
+    def ledger(count):
+        return {"all_link_serialized_body_bytes": count, "tracked_body_counter_set_present": True}
+    assert accounted_benchmark_body_totals({"startup": ledger(100), "warmups": [ledger(20)], "runs": [ledger(30), ledger(40)]}) == {
+        "accounted_setup_through_first_response_body_bytes": 120,
+        "total_accounted_benchmark_body_bytes": 190,
+    }
+    assert all(value is None for value in accounted_benchmark_body_totals({"startup": None, "runs": [ledger(30)]}).values())
+from pllm.runtime.topology_accounting import (
+    prepared_body_accounting,
+    prepared_stage_body_attribution,
+)
 
 
 def _record(
@@ -90,6 +104,130 @@ def test_benchmark_parser_defaults_to_real_qwen() -> None:
     assert args.warmups == 0
     assert args.repetitions == 1
     assert args.show_dashboard is False
+    assert args.inventory_policy is None
+    assert args.bundle_compression is None
+    assert args.prefill_cache_mib == 0
+
+
+def test_stage_attribution_reconciles_only_exact_protocol_bodies() -> None:
+    before = {("client", "inference", "layers.0.qkv"): 100}
+    after = {
+        ("client", "inference", "layers.0.qkv"): 230,
+        ("inference", "client", "layers.0.qkv"): 270,
+        ("client", "preparation", "layers.0.qkv"): 30,
+    }
+    privacy = {
+        "preparation_upload_bytes": 30,
+        "preparation_download_bytes": 0,
+        "correction_push_bytes": 0,
+        "inference_upload_bytes": 130,
+        "inference_download_bytes": 270,
+        "bundle_network_bytes": 20_000,
+        "session_authorization_upload_bytes": 400,
+    }
+    result = prepared_stage_body_attribution(before, after, privacy)
+    assert result["reconciled_with_protocol_bodies"]
+    assert result["body_bytes_by_stage_and_edge"] == {
+        "layers.0.qkv": {
+            "client->inference": 130,
+            "inference->client": 270,
+            "client->preparation": 30,
+        }
+    }
+    assert sum(result["measured_body_bytes_by_edge"].values()) == 430
+    incomplete = prepared_stage_body_attribution(
+        before, after, {**privacy, "inference_download_bytes": 271}
+    )
+    assert incomplete["reconciled_with_protocol_bodies"] is False
+    assert incomplete["body_bytes_by_stage_and_edge"] is None
+    with pytest.raises(ValueError, match="invalid or decreasing stage telemetry"):
+        prepared_stage_body_attribution({("client", "inference", 42): 0}, {}, privacy)
+
+
+def test_benchmark_parser_accepts_request_sized_inventory() -> None:
+    args = build_parser().parse_args([
+        "benchmark", "run", "--inventory-policy", "request-sized",
+        "--bundle-compression", "zlib",
+        "--prefill-cache-mib", "64",
+    ])
+    assert args.inventory_policy == "request-sized"
+    assert args.bundle_compression == "zlib"
+    assert args.prefill_cache_mib == 64
+
+
+def test_locked_bundle_compression_evidence_preserves_exact_matched_costs() -> None:
+    evidence = json.loads(
+        (Path(__file__).resolve().parents[1] / "docs/evidence"
+         / "client-bundle-compression-qwen25-2026-09-27.json").read_text()
+    )
+    assert evidence["model_fingerprint"] == (
+        "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+    )
+    cold = evidence["cold_one_response"]
+    warm = evidence["after_one_warmup"]
+    assert cold["body_bytes_saved"] == (
+        cold["uncompressed"]["client_bundle_body_bytes"]
+        - cold["compressed"]["client_bundle_body_bytes"]
+    )
+    assert cold["body_bytes_saved"] == (
+        cold["uncompressed"]["all_link_covered_body_bytes"]
+        - cold["compressed"]["all_link_covered_body_bytes"]
+    )
+    assert {
+        cold["uncompressed"]["online_all_link_body_bytes"],
+        cold["compressed"]["online_all_link_body_bytes"],
+        warm["uncompressed"]["online_all_link_body_bytes"],
+        warm["compressed"]["online_all_link_body_bytes"],
+    } == {62248704}
+    assert cold["compressed"]["aggregate_cold_cpu_seconds"] > (
+        cold["uncompressed"]["aggregate_cold_cpu_seconds"]
+    )
+    assert warm["uncompressed"]["client_bundle_body_bytes"] == 0
+    assert warm["compressed"]["client_bundle_body_bytes"] == 0
+    assert warm["uncompressed"]["all_link_covered_body_bytes"] == (
+        warm["compressed"]["all_link_covered_body_bytes"]
+    )
+
+
+def test_locked_exact_prefill_cache_evidence_preserves_cohort_and_savings() -> None:
+    evidence = json.loads(
+        (Path(__file__).resolve().parents[1] / "docs/evidence"
+         / "exact-prefill-cache-qwen25-2026-09-27.json").read_text()
+    )
+    assert evidence["model_fingerprint"] == (
+        "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+    )
+    assert evidence["cohort"]["input_tokens"] == 39
+    assert evidence["cohort"]["output_tokens"] == 1
+    assert len(set(evidence["first_cold_response"].values())) == 1
+    warm = evidence["second_warm_response"]
+    assert warm["covered_body_bytes_saved"] == (
+        warm["without_cache"]["all_link_covered_body_bytes"]
+        - warm["with_64_mib_cache"]["all_link_covered_body_bytes"]
+    )
+    assert warm["without_cache"]["online_all_link_body_bytes"] == 62248704
+    assert warm["with_64_mib_cache"]["online_all_link_body_bytes"] == 0
+    assert warm["with_64_mib_cache"]["inventory_required_rows_per_stage"] == 1
+
+
+def test_locked_semantic_stage_attribution_excludes_mlp_only_tenfold_claim() -> None:
+    evidence = json.loads(
+        (Path(__file__).resolve().parents[1] / "docs/evidence"
+         / "prepared-stage-attribution-qwen25-2026-09-29.json").read_text()
+    )
+    assert evidence["source"]["body_fingerprint"] == (
+        "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+    )
+    for output in ("8", "32"):
+        cohort = evidence["cohorts"][output]
+        roles = cohort["stage_body_bytes_by_semantic_role"]
+        total = cohort["covered_all_link_body_bytes"]
+        mlp = roles["mlp_gate_up"] + roles["mlp_down"]
+        assert cohort["stage_protocol_edges_reconciled"]
+        assert sum(roles.values()) == cohort["attributed_stage_body_bytes"]
+        assert sum(roles.values()) + cohort["other_setup_control_and_bundle_body_bytes"] == total
+        assert total - mlp == cohort["optimistic_remaining_if_all_mlp_stages_free_bytes"]
+        assert total - mlp > cohort["tenfold_all_link_budget_bytes"]
 
 
 def test_benchmark_dashboard_display_is_explicit() -> None:
@@ -138,6 +276,77 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     assert sum(edge["serialized_body_bytes"] for edge in topology["body_bytes_by_edge"]) == (
         topology["all_link_serialized_body_bytes"]
     )
+    stage = report["topology_accounting"]["stages"]
+    assert stage["startup"]["reconciled_with_protocol_bodies"]
+    assert stage["runs"][0]["reconciled_with_protocol_bodies"]
+    assert len(stage["runs"][0]["body_bytes_by_stage_and_edge"]) == 4
+    for edge, total in stage["runs"][0]["expected_stage_body_bytes_by_edge"].items():
+        assert sum(
+            stage_links.get(edge, 0)
+            for stage_links in stage["runs"][0]["body_bytes_by_stage_and_edge"].values()
+        ) == total
+
+
+@pytest.mark.integration
+def test_request_sized_benchmark_prepares_only_offline_rows_needed_by_response() -> None:
+    report = run_loopback_benchmark(
+        model="unused", model_id=None, tiny=True, prompt="private",
+        max_output_tokens=1, warmups=0, repetitions=2, timeout_seconds=120,
+        inventory_policy="request-sized",
+    )
+    assert report["checks"]["passed"]
+    assert report["configuration"]["inventory_policy"] == "request-sized"
+    startup = report["topology_accounting"]["startup"]
+    assert startup is not None and startup["all_link_serialized_body_bytes"] == 0
+    for run, accounting in zip(
+        report["runs"], report["topology_accounting"]["runs"], strict=True,
+    ):
+        assert run["inventory"]["generated"] == run["inventory"]["required"]
+        assert run["inventory"]["required"] == run["tokens"]["input_tokens"]
+        assert run["inventory"]["reused"] == 0
+        assert run["privacy"]["preparation_requests_during_online"] == 0
+        assert accounting["all_link_serialized_body_bytes"] > 0
+    assert all(
+        item["reconciled_with_protocol_bodies"]
+        for item in report["topology_accounting"]["stages"]["runs"]
+    )
+
+
+@pytest.mark.integration
+def test_opt_in_compressed_bundle_runs_with_prepared_roles() -> None:
+    report = run_loopback_benchmark(
+        model="unused", model_id=None, tiny=True, prompt="private",
+        max_output_tokens=1, warmups=0, repetitions=1, timeout_seconds=120,
+        inventory_policy="request-sized", bundle_compression="zlib",
+    )
+    assert report["checks"]["passed"]
+    assert report["configuration"]["bundle_compression"] == "zlib"
+    run = report["runs"][0]
+    assert run["privacy"]["bundle_network_bytes"] > 0
+    assert run["privacy"]["plaintext_prompt_bytes_sent"] == 0
+    assert run["privacy"]["plaintext_token_ids_sent"] == 0
+    assert run["privacy"]["preparation_requests_during_online"] == 0
+
+
+@pytest.mark.integration
+def test_repeated_prefill_benchmark_burns_only_decode_reservation() -> None:
+    report = run_loopback_benchmark(
+        model="unused", model_id=None, tiny=True, prompt="private",
+        max_output_tokens=1, warmups=1, repetitions=1, timeout_seconds=120,
+        inventory_policy="request-sized", prefill_cache_mib=64,
+    )
+    assert report["checks"]["passed"]
+    assert report["configuration"]["prefill_cache_mib"] == 64
+    cold, warm = report["warmup_runs"][0], report["runs"][0]
+    assert cold["privacy"]["prefill_cache_misses"] == 1
+    assert cold["privacy"]["masked_online_upload_bytes"] > 0
+    assert warm["privacy"]["prefill_cache_hits"] == 1
+    assert warm["privacy"]["masked_online_upload_bytes"] == 0
+    assert warm["privacy"]["masked_online_download_bytes"] == 0
+    assert warm["privacy"]["preparation_requests_during_online"] == 0
+    assert warm["inventory"]["required"] == 1
+    assert warm["tokens"]["input_tokens"] == cold["tokens"]["input_tokens"]
+    assert warm["tokens"]["output_tokens"] == cold["tokens"]["output_tokens"]
 
 
 @pytest.mark.integration
@@ -241,6 +450,7 @@ def test_client_offset_prepared_topologies_share_one_w8a8_benchmark_cohort(
                 model=str(checkpoint), model_id=model_id, tiny=False,
                 prompt="A", max_output_tokens=2, warmups=0,
                 repetitions=1, timeout_seconds=120, experiment=experiment,
+                _cohort_salt=b"matched-ephemeral-cohort".ljust(32, b"\0"),
             ),
         )
         for experiment in experiments
@@ -510,6 +720,17 @@ def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
     assert report["rankings"]["full_seconds"] == []
     assert report["winners"]["full_seconds"] is None
 
+    cached: Any = _report(full=2.0)
+    cached["runs"][0]["privacy"]["prefill_cache_hits"] = 1
+    report = build_comparison_report([(slow, _report()), (fast, cached)])
+    assert report["checks"]["matched_workload"] is True
+    assert report["winners"]["full_seconds"] == fast.configuration_digest()
+
+    cached["configuration"]["prompt_digest"] = "different prompt"
+    report = build_comparison_report([(slow, _report()), (fast, cached)])
+    assert report["checks"]["matched_workload"] is False
+    assert report["winners"]["full_seconds"] is None
+
 
 def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path: Path) -> None:
     from pllm.cli import main
@@ -540,6 +761,7 @@ def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path
     report = json.loads(output.read_text(encoding="utf-8"))
     assert captured["prompt"] == "private prompt"
     assert captured["show_dashboard"] is False
+    assert captured["inventory_policy"] == "prewarm"
     assert callable(captured["progress"])
     assert result["command"] == "benchmark.run"
     assert report["checks"]["passed"] is True

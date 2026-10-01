@@ -43,7 +43,7 @@ def test_worker_rejects_unbound_launch_before_checkpoint_load(tmp_path: Path) ->
     assert "missing-checkpoint" not in result.stderr
 
 
-def _fixture(tmp_path: Path):
+def _fixture(tmp_path: Path, *, max_new_tokens: int = 2):
     root = create_tiny_llama_checkpoint(
         tmp_path / "model", num_hidden_layers=1, model_type="qwen2", with_qkv_bias=True,
     )
@@ -54,19 +54,23 @@ def _fixture(tmp_path: Path):
     bundle = ClientBundle.unpack(workers[0].client_bundle("offset-model"))
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     compiled = compile_runtime_model(
-        pllm.lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=2), bundle,
+        pllm.lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=max_new_tokens),
+        bundle,
     )
     return compiled, workers
 
 
 def _session_body(compiled, role: str) -> dict[str, str | int]:
     metadata = compiled._bundle.manifest["metadata"]
+    plan = compiled._plan.to_dict()
+    max_input = plan["prefill"]["query_sequence"]
+    max_new = plan["decode"]["maximum_key_sequence"] - max_input + 1
     return {
         "schema": "pllm.offset_worker_session.v1",
         "model": "offset-model", "role": role,
         "topology_digest": two_online_reference_graph().digest(),
         "decoder_plan": compiled._plan.digest,
-        "max_input_tokens": 4, "max_new_tokens": 2,
+        "max_input_tokens": max_input, "max_new_tokens": max_new,
         "body_fingerprint": metadata["body_fingerprint"],
         "stage_commitment": metadata["seeded_stage_commitment"],
         "runtime_config_digest": metadata["runtime_config_digest"],
@@ -140,6 +144,34 @@ def test_offset_workers_admit_same_compiled_plan_and_burn_replayed_stage(
         finally:
             for client in clients:
                 await client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_offset_worker_admits_32_tokens_only_with_bound_plan_and_call_budget(
+    tmp_path: Path,
+) -> None:
+    compiled, (worker, _) = _fixture(tmp_path, max_new_tokens=32)
+    token = "a" * 32
+
+    async def scenario() -> None:
+        app = create_offset_worker_app(
+            worker, model_id="offset-model", role_id="worker_a", api_key=token,
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://worker.test",
+        ) as client:
+            headers = {"authorization": f"Bearer {token}"}
+            body = _session_body(compiled, "worker_a")
+            assert body["max_new_tokens"] == 32
+            assert (await client.post(
+                "/v1/offset-reference/sessions", json=body, headers=headers,
+            )).status_code == 200
+            for field, forged in (("max_new_tokens", 33), ("max_input_tokens", 65)):
+                changed = {**body, field: forged}
+                assert (await client.post(
+                    "/v1/offset-reference/sessions", json=changed, headers=headers,
+                )).status_code == 409
 
     asyncio.run(scenario())
 

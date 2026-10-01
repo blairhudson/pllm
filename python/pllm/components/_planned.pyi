@@ -9,6 +9,9 @@ class PlannedComponent:
     kind: str
     slug: str
     status: str
+    method_id: str
+    title: str
+    summary: str
     @property
     def identity(self) -> str: ...
     @property
@@ -20,6 +23,7 @@ class PlannedComponent:
 
 class NotYetImplementedError(ConfigurationError, NotImplementedError):
     paper_id: str
+    method_id: str
     paper_url: str
     sdk_route: str
     identity: str
@@ -29,6 +33,7 @@ class NotYetImplementedError(ConfigurationError, NotImplementedError):
 
 class PendingComponent:
     paper_id: str
+    method_id: str
     paper_url: str
     paper_route: str
     planned_identity: str
@@ -37,7 +42,8 @@ class PendingComponent:
     def __init__(self, *args: object, **kwargs: object) -> None: ...
 
 def planned_components() -> tuple[PlannedComponent, ...]: ...
-def planned_component(paper_id: str) -> PlannedComponent: ...
+def planned_component(paper_id: str, method_id: str = ...) -> PlannedComponent: ...
 def planned_identity(identity: str) -> PlannedComponent | None: ...
 def require_implemented_identity(identity: str) -> None: ...
-def planned(paper_id: str) -> Callable[[type[PendingComponent]], type[PendingComponent]]: ...
+def planned(paper_id: str, method_id: str = ...) -> Callable[[type[PendingComponent]], type[PendingComponent]]: ...
+def install_planned_components(namespace: dict[str, object]) -> None: ...

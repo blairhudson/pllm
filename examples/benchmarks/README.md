@@ -57,3 +57,26 @@ The checked-in Qwen winner is the four-thread prepared pipeline. In its matched
 single-host loopback run it reached median full latency of 5.229 seconds versus
 7.886 seconds for one thread. This is local diagnostic evidence, not a portable
 performance or security claim; rerun the candidates on each target system.
+
+## Incremental network choices
+
+`incremental_network.py` exports prepared prewarming, request-sized inventory,
+one/two client layers, client attention, zlib and shared-prefix combinations as
+ordinary immutable SDK `Experiment` objects. `conversation_contexts.json` is a
+public fixed sequence of complete growing contexts. Preview:
+
+```bash
+uv run --no-sync pllm benchmark run --experiment examples/benchmarks/incremental_network.py:request_sized --experiment examples/benchmarks/incremental_network.py:attention_shared_prefix --trust-python --prompt-sequence-file examples/benchmarks/conversation_contexts.json --max-output-tokens 8 --warmups 0 --repetitions 1 --dry-run
+```
+
+Remove `--dry-run` to measure. Add other exported candidates with `--experiment`.
+For single fresh prompts, omit the sequence file; measure eight and 32 output
+tokens in separate cold/warm cohorts. Policies live in Pipeline `inventory` and
+`delivery` slots; CLI flags remain available when a Pipeline does not bind them.
+
+Use summed sequence bytes and setup-inclusive totals alongside per-run latency.
+Client attention retains 87.69% of Qwen body linear MACs remotely but adds client
+weights and a native snapshot; compression only affects cold delivery. Cache
+reuse changes access patterns and benefits shared histories, not arbitrary new
+prompts. Full wire, peak RAM, persistent disk and representative task quality
+remain separate measurements.

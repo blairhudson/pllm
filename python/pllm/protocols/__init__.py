@@ -6,8 +6,13 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import (
+    PendingComponent as PendingMethod,
+    install_planned_components,
+    planned as pending,
+)
 from pllm.protocols.base import ProtocolMethod
+from pllm.protocols.bundle_transport import ClientBundleTransport
 from pllm.protocols.masked_linear import MaskedLinear
 from pllm.protocols.runtime_arms import (
     BlindedLinear,
@@ -34,6 +39,7 @@ __all__ = [
     "GuardedLinear",
     "MaskedLinear",
     "ProtocolMethod",
+    "ClientBundleTransport",
     "SecureLinear",
     "TwoOnlineOffsetLinear",
     "LogRowQ7SessionEstimate",
@@ -370,19 +376,49 @@ class ProtectedDecisionProgram(PendingMethod):
 
 
 __all__ += [
-    "ProjectiveLabelConversion", "MosaicMaskedGpuOutsourcing", "MaverickDelegatedLinear",
-    "EncryptedSparseVectorCompression", "OpenWeightVerifiableOutsourcing", "BatchedIntervalLookup",
-    "BumblebeeTwoPartyTransformer", "DashPreparedArithmeticGarbling", "SecretDualCodeMatVec",
-    "MoaiNoninteractiveTransformer", "NexusNoninteractiveTransformer", "TrapdooredMatrixDelegation",
-    "ActiveFssProtocol", "ThorHomomorphicTransformer", "BoltHybridTransformer",
-    "PrivateEmbeddingLookup", "LogRowGarbledLookup", "NimbusTwoPartyTransformer",
-    "OrcaFssGpuExecution", "SigmaFssDecoder", "CipherGptPrivateTokenSelection",
-    "FlutePrivateLookup", "GrottoRingDpfProtocol", "PumaThreePartyDecoder",
-    "PrimerHomomorphicTransformer", "CheetahTwoPartyNeural", "IronTwoPartyTransformer",
-    "PikaRingFssProtocol", "TheXHomomorphicTransformer", "Aby2ArithmeticBooleanConversion",
-    "FssMixedFixedPointConversion", "CryptFlowTwoPartyNeural", "MixedArithmeticEdabitConversion",
-    "SilentNiscCircuitSetup", "GarbledNeuralProtocol", "FssOfflinePreprocessing",
-    "GazelleHybridHeGarbling", "CryptoNetsHomomorphicNeural", "ExtendedFssKeys",
-    "CrtGarblingGadgetProtocol", "FunctionSecretSharingKeys", "HalfGatesCircuit",
+    "ProjectiveLabelConversion",
+    "MosaicMaskedGpuOutsourcing",
+    "MaverickDelegatedLinear",
+    "EncryptedSparseVectorCompression",
+    "OpenWeightVerifiableOutsourcing",
+    "BatchedIntervalLookup",
+    "BumblebeeTwoPartyTransformer",
+    "DashPreparedArithmeticGarbling",
+    "SecretDualCodeMatVec",
+    "MoaiNoninteractiveTransformer",
+    "NexusNoninteractiveTransformer",
+    "TrapdooredMatrixDelegation",
+    "ActiveFssProtocol",
+    "ThorHomomorphicTransformer",
+    "BoltHybridTransformer",
+    "PrivateEmbeddingLookup",
+    "LogRowGarbledLookup",
+    "NimbusTwoPartyTransformer",
+    "OrcaFssGpuExecution",
+    "SigmaFssDecoder",
+    "CipherGptPrivateTokenSelection",
+    "FlutePrivateLookup",
+    "GrottoRingDpfProtocol",
+    "PumaThreePartyDecoder",
+    "PrimerHomomorphicTransformer",
+    "CheetahTwoPartyNeural",
+    "IronTwoPartyTransformer",
+    "PikaRingFssProtocol",
+    "TheXHomomorphicTransformer",
+    "Aby2ArithmeticBooleanConversion",
+    "FssMixedFixedPointConversion",
+    "CryptFlowTwoPartyNeural",
+    "MixedArithmeticEdabitConversion",
+    "SilentNiscCircuitSetup",
+    "GarbledNeuralProtocol",
+    "FssOfflinePreprocessing",
+    "GazelleHybridHeGarbling",
+    "CryptoNetsHomomorphicNeural",
+    "ExtendedFssKeys",
+    "CrtGarblingGadgetProtocol",
+    "FunctionSecretSharingKeys",
+    "HalfGatesCircuit",
     "ProtectedDecisionProgram",
 ]
+
+install_planned_components(globals())

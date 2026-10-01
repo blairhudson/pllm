@@ -1,0 +1,45 @@
+{
+  "schema": "pllm.prepared_inventory_cold_sizing.v1",
+  "scope": "two single-host cold Qwen2.5-0.5B responses; same model fingerprint and 39-input/1-output-token workload; client, inference and preparation use distinct local processes",
+  "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "input_tokens": 39,
+  "output_tokens": 1,
+  "remote_stages": 96,
+  "prewarm": {
+    "inventory_rows_issued": 64,
+    "inventory_rows_consumed": 39,
+    "inventory_rows_spare": 25,
+    "preparation_to_inference_correction_body_bytes": 59800928,
+    "cold_bundle_body_bytes": 145977006,
+    "startup_all_link_body_bytes": 205799212,
+    "run_all_link_body_bytes": 62248704,
+    "cold_covered_total_body_bytes": 268047916,
+    "online_all_link_body_bytes": 62248704
+  },
+  "request_sized": {
+    "inventory_rows_issued": 39,
+    "inventory_rows_consumed": 39,
+    "inventory_rows_spare": 0,
+    "preparation_to_inference_correction_body_bytes": 36453728,
+    "cold_bundle_body_bytes": 145977006,
+    "startup_all_link_body_bytes": 0,
+    "run_all_link_body_bytes": 244700716,
+    "cold_covered_total_body_bytes": 244700716,
+    "online_all_link_body_bytes": 62248704
+  },
+  "covered_body_bytes_saved": 23347200,
+  "checks": {
+    "same_model_fingerprint_and_token_cohort": true,
+    "both_responses_completed": true,
+    "no_plaintext_prompt_or_token_ids_sent": true,
+    "no_preparation_during_online_inference": true,
+    "full_wire_measured": false,
+    "disk_storage_measured": false,
+    "operator_independence_verified": false
+  },
+  "limitations": [
+    "Cold bundle bytes are identical; the saved counted bodies are unused offline correction rows, not an improvement to online bytes.",
+    "One response per policy; warm multi-response throughput, variable prompts, full wire bytes, and persistent storage need separate measurements.",
+    "The policies shift preparation between startup and run windows; their run-window latencies cannot be ranked alone, and this cohort is too small for a latency claim."
+  ]
+}

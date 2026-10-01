@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from pllm.runtime import GatewayConfig, create_app
 from pllm.runtime.client import RuntimeClient
 from pllm.runtime.client import ProtocolError
+from pllm.runtime.bundle_compression import ENCODING, decode_bundle_frames, encode_bundle_frames
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.tiny_gemma import create_tiny_gemma4_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -33,16 +34,23 @@ def _mock_client(
     *,
     base_url: str,
     calls: dict[str, int],
+    compression: bool = False,
+    damaged_bundle: bytes | None = None,
 ) -> httpx.Client:
     fingerprint = hashlib.sha256(payload).hexdigest()
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/client-bundle"):
             calls["bundle"] = calls.get("bundle", 0) + 1
+            framed = compression and request.headers.get("X-PLLM-Accept-Bundle-Encoding") == ENCODING
+            body = b"".join(encode_bundle_frames(payload)) if framed else payload
             return httpx.Response(
                 200,
-                content=payload,
-                headers={"X-PLLM-Bundle-SHA256": fingerprint},
+                content=damaged_bundle if damaged_bundle is not None else body,
+                headers={
+                    "X-PLLM-Bundle-SHA256": fingerprint,
+                    **({"X-PLLM-Bundle-Encoding": ENCODING} if framed else {}),
+                },
             )
         calls["descriptor"] = calls.get("descriptor", 0) + 1
         return httpx.Response(
@@ -88,15 +96,69 @@ def _core(
     base_url: str = "https://EXAMPLE.test:443/api/",
     api_key: str = "credential-a",
     mode: str = "read-write",
+    compression: bool = False,
+    server_compression: bool | None = None,
+    damaged_bundle: bytes | None = None,
 ) -> RuntimeClient:
-    http = _mock_client(payload, base_url=base_url, calls=calls)
+    http = _mock_client(
+        payload, base_url=base_url, calls=calls,
+        compression=compression if server_compression is None else server_compression,
+        damaged_bundle=damaged_bundle,
+    )
     return RuntimeClient(
         base_url=base_url,
         api_key=api_key,
         http_client=http,
         bundle_cache_mode=mode,
         bundle_cache_dir=cache_dir,
+        bundle_compression="zlib" if compression else "none",
     )
+
+
+def test_compressed_bundle_cold_wire_and_warm_raw_cache(tmp_path: Path):
+    payload = _bundle_payload(tmp_path)
+    cache = tmp_path / "compressed-cache"
+    calls: dict[str, int] = {}
+    framed_size = sum(len(frame) for frame in encode_bundle_frames(payload))
+
+    cold = _core(payload, cache, calls, compression=True)
+    assert cold._load_client_bundle("cache-model").model_id == "cache-model"
+    assert cold.audit.bundle_network_bytes == framed_size
+    cold.close()
+    cached = next(cache.rglob("*.msgpack"))
+    assert cached.read_bytes() == payload
+    assert len(list(cache.rglob("*.msgpack"))) == 1
+
+    warm = _core(payload, cache, calls, compression=True)
+    assert warm._load_client_bundle("cache-model").model_id == "cache-model"
+    assert warm.audit.bundle_network_bytes == 0
+    assert warm.audit.bundle_cache_hits == 1
+    assert calls["bundle"] == 1
+    warm.close()
+
+
+def test_compression_negotiation_falls_back_to_legacy_uncompressed_provider(tmp_path: Path):
+    payload = _bundle_payload(tmp_path)
+    core = _core(
+        payload, tmp_path / "legacy-cache", {}, compression=True, server_compression=False,
+    )
+    assert core._load_client_bundle("cache-model").model_id == "cache-model"
+    assert core.audit.bundle_network_bytes == len(payload)
+    core.close()
+
+
+@pytest.mark.parametrize("damage", [lambda frames: frames[:-1], lambda frames: frames + b"x"])
+def test_compressed_bundle_rejects_bad_frames_without_caching(tmp_path: Path, damage):
+    payload = _bundle_payload(tmp_path)
+    cache = tmp_path / "damaged-cache"
+    core = _core(
+        payload, cache, {}, compression=True,
+        damaged_bundle=damage(b"".join(encode_bundle_frames(payload))),
+    )
+    with pytest.raises(ProtocolError, match="framing"):
+        core._load_client_bundle("cache-model")
+    assert not list(cache.rglob("*.msgpack"))
+    core.close()
 
 
 def test_bundle_cache_cold_warm_corruption_and_audit(tmp_path: Path):
@@ -526,6 +588,19 @@ def test_server_exposes_fingerprint_etag_and_memoizes_bundle(tmp_path: Path):
         assert response.headers["x-pllm-bundle-sha256"] == descriptor["sha256"]
         assert int(response.headers["content-length"]) == descriptor["size"]
         assert hashlib.sha256(response.content).hexdigest() == descriptor["sha256"]
+        compressed = client.get(
+            "/v1/runtime/models/server-model/client-bundle",
+            headers={**headers, "X-PLLM-Accept-Bundle-Encoding": ENCODING},
+        )
+        assert compressed.status_code == 200
+        assert compressed.headers["x-pllm-bundle-encoding"] == ENCODING
+        assert compressed.headers["etag"] == descriptor["etag"]
+        decoded = decode_bundle_frames(
+            [compressed.content],
+            expected_size=descriptor["size"],
+            on_wire_bytes=lambda _: None,
+        )
+        assert hashlib.sha256(decoded).hexdigest() == descriptor["sha256"]
         unchanged = client.get(
             "/v1/runtime/models/server-model/client-bundle",
             headers={**headers, "If-None-Match": descriptor["etag"]},

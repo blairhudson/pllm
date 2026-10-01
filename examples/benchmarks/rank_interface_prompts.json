@@ -1,0 +1,38 @@
+{
+  "calibration": [
+    "The city library opens early on Mondays and closes after sunset.",
+    "Describe how rainwater moves from a roof into a storage tank.",
+    "When the train reached the station, the conductor checked every ticket.",
+    "Explain the difference between a list and a tuple in Python.",
+    "A gardener planted beans beside the fence before the spring rain.",
+    "Write two sentences about the phases of the moon for a child.",
+    "In a small bakery, three loaves cooled while the oven heated again.",
+    "Translate the phrase good morning into Spanish and French.",
+    "If seven apples are shared among three friends, what remains?",
+    "The scientist measured the temperature of the lake each morning.",
+    "Summarize why recycling aluminum requires less energy than making new metal.",
+    "A short story begins with a lost key under a wooden bridge.",
+    "Name an animal that lives in the ocean and has eight arms.",
+    "The software test failed because an array had an unexpected shape.",
+    "How can a bicycle rider stay visible during a rainy evening?",
+    "A chef combines rice, vegetables, and herbs in a warm bowl.",
+    "A trustee prepares fresh blinded linear corrections before a request. Two operators keep separate credentials while the client retains the original message and its cache state.",
+    "In a causal decoder, every accepted token changes the next prediction. Batching speculative verification may reduce calls, but need not reduce the number of masked matrix rows.",
+    "The client selects a token from local scores, generates independent shares of a small code, and sends exactly one share to each remote worker for the next step.",
+    "A public matrix can multiply each server's activation share locally, while a product of two secret values requires interaction or an independent one-use correlation."
+  ],
+  "evaluation": [
+    "Why do stars appear to move across the sky at night?",
+    "The capital of France is",
+    "Write a Python function that adds two numbers together.",
+    "A dog ran across the quiet park as the sun rose.",
+    "Compare a river delta with a mountain stream in one sentence.",
+    "How many minutes are there in two and a half hours?",
+    "A museum visitor asked which painting had been restored recently.",
+    "Explain why plants need sunlight and water to grow.",
+    "Describe the communication difference between moving transformer normalization into a protected remote block and keeping it inside a trusted client, including offline material and online messages.",
+    "A speculative decoder proposed four future tokens. If verification rejects the second token, explain how much masked work may have been spent on the remaining candidates.",
+    "Explain why independent workers can apply public linear maps to separate state shares but cannot freely compute a nonlinear function of the joint hidden state.",
+    "A storage budget limits the size of every one-use key. Discuss how reducing network messages might still increase cold distribution, memory and aggregate provider computation."
+  ]
+}

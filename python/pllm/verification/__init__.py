@@ -5,7 +5,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
-from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
+from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 if TYPE_CHECKING:
     from pllm.runtime.linear_integrity import (
@@ -149,3 +149,5 @@ __all__ += [
     "EndToEndInferenceProof", "ProximityMatrixVerify", "VerifiableFheProof",
     "CodingMatrixProductVerify",
 ]
+
+install_planned_components(globals())

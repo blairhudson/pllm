@@ -1,0 +1,60 @@
+{
+  "schema": "pllm.client_bundle_compression_cohort.v1",
+  "scope": "single-host Qwen2.5-0.5B prepared roles; matched model fingerprint and 39-input/1-output-token workload; opt-in request-sized inventory",
+  "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "input_tokens": 39,
+  "output_tokens": 1,
+  "remote_stages": 96,
+  "encoding": "zlib-chunks-v1",
+  "chunk_uncompressed_limit_bytes": 1048576,
+  "cold_one_response": {
+    "uncompressed": {
+      "client_bundle_body_bytes": 145977006,
+      "all_link_covered_body_bytes": 244700716,
+      "online_all_link_body_bytes": 62248704,
+      "aggregate_cold_cpu_seconds": 29.316625368,
+      "response_seconds": 6.324848
+    },
+    "compressed": {
+      "client_bundle_body_bytes": 124900309,
+      "all_link_covered_body_bytes": 223624019,
+      "online_all_link_body_bytes": 62248704,
+      "aggregate_cold_cpu_seconds": 34.993479344,
+      "response_seconds": 10.563251167
+    },
+    "body_bytes_saved": 21076697
+  },
+  "after_one_warmup": {
+    "uncompressed": {
+      "client_bundle_body_bytes": 0,
+      "all_link_covered_body_bytes": 98723710,
+      "online_all_link_body_bytes": 62248704,
+      "run_window_cpu_seconds": 10.713202432,
+      "response_seconds": 5.885121584
+    },
+    "compressed": {
+      "client_bundle_body_bytes": 0,
+      "all_link_covered_body_bytes": 98723710,
+      "online_all_link_body_bytes": 62248704,
+      "run_window_cpu_seconds": 10.99536236,
+      "response_seconds": 6.019477208
+    }
+  },
+  "checks": {
+    "same_body_fingerprint_and_token_cohort": true,
+    "all_responses_completed": true,
+    "no_plaintext_prompt_or_token_ids_sent": true,
+    "no_preparation_during_online_inference": true,
+    "compressed_payload_verified_against_uncompressed_sha256": true,
+    "full_wire_measured": false,
+    "persistent_disk_savings_measured": false,
+    "peak_memory_measured": false,
+    "operator_independence_verified": false
+  },
+  "limitations": [
+    "Each mode has one independent cold response and one cold warmup followed by one warm response; the samples do not establish a latency ranking.",
+    "Compression changes only the optional cold bundle transfer; warm in-process responses transfer no bundle and store only the uncompressed bundle in the disposable client cache.",
+    "CPU rises in the cold one-response pair; this option does not pass a matched aggregate-compute cap and remains off by default.",
+    "Application-body counters exclude HTTP/TLS framing, control traffic, cold checkpoint distribution and duplicate attempts; disk and client peak memory were not measured."
+  ]
+}

@@ -1258,11 +1258,115 @@ fn classify_remote_groups(
     Ok((leaders, members))
 }
 
+fn graph_reaches(graph: &DecoderGraph, start: &str, target: ModelOperator, reverse: bool) -> bool {
+    let mut frontier = vec![start];
+    let mut visited = BTreeSet::new();
+    for _ in 0..5 {
+        let mut next = Vec::new();
+        for id in frontier {
+            if !visited.insert(id) {
+                continue;
+            }
+            let Some(operation) = graph.operations.iter().find(|op| op.id == id) else {
+                continue;
+            };
+            if operation.operator == target {
+                return true;
+            }
+            if reverse
+                && id != start
+                && matches!(
+                    operation.operator,
+                    ModelOperator::Linear | ModelOperator::TokenLookup | ModelOperator::OutputHead
+                )
+            {
+                continue;
+            }
+            if reverse {
+                next.extend(operation.inputs.iter().map(String::as_str));
+            } else {
+                next.extend(
+                    graph
+                        .operations
+                        .iter()
+                        .filter(|op| op.inputs.iter().any(|input| input == id))
+                        .map(|op| op.id.as_str()),
+                );
+            }
+        }
+        frontier = next;
+    }
+    false
+}
+
+fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_>) -> Option<&'static str> {
+    let ops = &group.operations;
+    if !ops.iter().all(|op| op.operator == ModelOperator::Linear) {
+        return None;
+    }
+    if ops.len() == 3
+        && ops
+            .iter()
+            .filter(|op| graph_reaches(graph, &op.id, ModelOperator::RotaryEmbedding, false))
+            .count()
+            == 2
+    {
+        return Some("qkv_projection");
+    }
+    if ops.len() == 2
+        && ops
+            .iter()
+            .all(|op| graph_reaches(graph, &op.id, ModelOperator::Multiply, false))
+        && ops
+            .iter()
+            .filter(|op| {
+                graph_reaches(graph, &op.id, ModelOperator::Silu, false)
+                    || graph_reaches(graph, &op.id, ModelOperator::GeluTanh, false)
+            })
+            .count()
+            == 1
+    {
+        return Some("mlp_gate_up");
+    }
+    if ops.len() != 1 {
+        return None;
+    }
+    let source = ops[0].inputs.first()?;
+    if graph_reaches(graph, source, ModelOperator::AttentionValues, true) {
+        return Some("attention_output");
+    }
+    let producer = graph.operations.iter().find(|op| op.id == *source)?;
+    if producer.operator == ModelOperator::Multiply && producer.inputs.len() == 2 {
+        let inputs: Vec<_> = producer
+            .inputs
+            .iter()
+            .filter_map(|id| graph.operations.iter().find(|op| op.id == *id))
+            .collect();
+        if inputs
+            .iter()
+            .filter(|op| matches!(op.operator, ModelOperator::Silu | ModelOperator::GeluTanh))
+            .count()
+            == 1
+            && inputs
+                .iter()
+                .filter(|op| op.operator == ModelOperator::Linear)
+                .count()
+                == 1
+        {
+            return Some("mlp_down");
+        }
+    }
+    None
+}
+
 fn lower_phase(
     graph: &DecoderGraph,
     linear_executor: DecoderRuntimeExecutor,
+    client_prefix_layers: u64,
+    client_linear_roles: &BTreeSet<&str>,
 ) -> Result<DecoderRuntimePhaseSchedule, String> {
     let (leaders, remote_members) = classify_remote_groups(graph)?;
+    let mut selected_roles = BTreeSet::new();
     let mut scheduled = BTreeSet::new();
     let mut steps = Vec::new();
     for operation in &graph.operations {
@@ -1272,6 +1376,11 @@ fn lower_phase(
             };
             let input_ids = group.operations[0].inputs.clone();
             let layer = group.operations[0].layer;
+            let selected =
+                linear_role(graph, group).filter(|role| client_linear_roles.contains(role));
+            if let Some(role) = selected {
+                selected_roles.insert(role);
+            }
             if group
                 .operations
                 .iter()
@@ -1312,7 +1421,13 @@ fn lower_phase(
                     .collect(),
                 layer,
                 input_ids,
-                executor: linear_executor,
+                executor: if layer.is_some_and(|index| index < client_prefix_layers)
+                    || selected.is_some()
+                {
+                    DecoderRuntimeExecutor::ClientLinear
+                } else {
+                    linear_executor
+                },
                 weight_ids,
                 outputs,
             });
@@ -1367,6 +1482,16 @@ fn lower_phase(
     if scheduled != expected {
         return Err("decoder runtime schedule does not cover every operation".into());
     }
+    if selected_roles != *client_linear_roles {
+        return Err("client linear role is absent or has no executable semantic stage".into());
+    }
+    if !client_linear_roles.is_empty()
+        && !steps.iter().any(|step| {
+            step.layer.is_some() && step.executor == DecoderRuntimeExecutor::RemoteStage
+        })
+    {
+        return Err("client linear placement must retain a remote body stage".into());
+    }
     Ok(DecoderRuntimePhaseSchedule {
         mode: graph.mode,
         batch: graph.batch,
@@ -1381,14 +1506,11 @@ fn lower_phase(
 
 type LinearStageSignature = (Option<u64>, Vec<String>, Vec<String>, Vec<u64>);
 
-fn linear_stage_signature(
-    phase: &DecoderRuntimePhaseSchedule,
-    linear_executor: DecoderRuntimeExecutor,
-) -> Vec<LinearStageSignature> {
+fn linear_stage_signature(phase: &DecoderRuntimePhaseSchedule) -> Vec<LinearStageSignature> {
     phase
         .steps
         .iter()
-        .filter(|step| step.executor == linear_executor)
+        .filter(|step| step.executor != DecoderRuntimeExecutor::ClientLocal)
         .map(|step| {
             (
                 step.layer,
@@ -1448,6 +1570,8 @@ pub fn lower_decoder_runtime_schedule(
     plan: &DecoderPlan,
     canonical_composition: &[u8],
 ) -> Result<DecoderRuntimeSchedule, String> {
+    let composition: super::ExperimentPipeline = serde_json::from_slice(canonical_composition)
+        .map_err(|error| format!("invalid pipeline composition: {error}"))?;
     let linear_executor = match super::classify_decoder_composition(canonical_composition)? {
         super::DecoderCompositionKind::MaskedLinear => DecoderRuntimeExecutor::RemoteStage,
         super::DecoderCompositionKind::TwoOnlineOffsetLinear => DecoderRuntimeExecutor::RemoteStage,
@@ -1463,7 +1587,34 @@ pub fn lower_decoder_runtime_schedule(
             );
         }
     };
+    let client_prefix_layers = composition
+        .components
+        .get("placement")
+        .and_then(|component| component.params.get("layers"))
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let client_linear_roles: BTreeSet<_> = composition
+        .components
+        .get("placement")
+        .and_then(|component| component.params.get("roles"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .collect();
     plan.validate().map_err(|error| error.to_string())?;
+    if client_prefix_layers > 0
+        && !plan
+            .prefill
+            .operations
+            .iter()
+            .filter_map(|operation| operation.layer)
+            .any(|index| index == client_prefix_layers)
+    {
+        return Err(
+            "client-owned prefix requires at least one complete remote suffix layer".into(),
+        );
+    }
     if !plan.prefill.state_inputs.is_empty() {
         return Err("prefill declares persistent state without an initialization step".into());
     }
@@ -1482,11 +1633,19 @@ pub fn lower_decoder_runtime_schedule(
     validate_gated_delta_contract(&plan.prefill)?;
     validate_gated_delta_contract(&plan.decode)?;
     validate_causal_convolution_handoff(plan)?;
-    let prefill = lower_phase(&plan.prefill, linear_executor)?;
-    let decode = lower_phase(&plan.decode, linear_executor)?;
-    if linear_stage_signature(&prefill, linear_executor)
-        != linear_stage_signature(&decode, linear_executor)
-    {
+    let prefill = lower_phase(
+        &plan.prefill,
+        linear_executor,
+        client_prefix_layers,
+        &client_linear_roles,
+    )?;
+    let decode = lower_phase(
+        &plan.decode,
+        linear_executor,
+        client_prefix_layers,
+        &client_linear_roles,
+    )?;
+    if linear_stage_signature(&prefill) != linear_stage_signature(&decode) {
         return Err("prefill/decode linear stage contracts differ".into());
     }
     Ok(DecoderRuntimeSchedule {

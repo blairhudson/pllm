@@ -31,6 +31,13 @@ _REQUIRED_COUNTERS = frozenset(
     key for _, _, _, fields in _PREPARED_BODY_COUNTERS for key in fields
 )
 _ROLES = ("client", "preparation", "inference")
+_STAGE_COUNTERS = {
+    ("client", "preparation"): "preparation_upload_bytes",
+    ("preparation", "client"): "preparation_download_bytes",
+    ("preparation", "inference"): "correction_push_bytes",
+    ("client", "inference"): "inference_upload_bytes",
+    ("inference", "client"): "inference_download_bytes",
+}
 _CLIENT_ONLY_ZERO_COUNTERS = (
     "inference_upload_bytes", "inference_download_bytes",
     "preparation_upload_bytes", "preparation_download_bytes",
@@ -151,6 +158,66 @@ def prepared_body_accounting(
                 "process/model startup, client bundle transfer, and offline inventory prepared before the run window"
             ),
             "GPU work, uninstrumented client work, and cold checkpoint distribution",
+        ],
+    }
+
+
+def prepared_stage_body_attribution(
+    before: Mapping[tuple[str, str, str], int],
+    after: Mapping[tuple[str, str, str], int],
+    privacy: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Reconcile ephemeral OTLP stage counters with recorded protocol bodies.
+
+    The other covered setup/control/bundle bodies have no stage and remain in
+    ``prepared_body_accounting``. Reject missing or delayed OTLP samples rather
+    than treating a partial stage list as a complete byte attribution.
+    """
+    if len(before) > 1024 or len(after) > 1024:
+        raise ValueError("stage telemetry exceeds bounded cardinality")
+    by_stage: dict[str, dict[str, int]] = {}
+    for key in set(before) | set(after):
+        if (
+            type(key) is not tuple or len(key) != 3
+            or any(type(item) is not str or not item or len(item) > 128 for item in key)
+            or type(before.get(key, 0)) is not int or type(after.get(key, 0)) is not int
+            or before.get(key, 0) < 0 or after.get(key, 0) < before.get(key, 0)
+        ):
+            raise ValueError("invalid or decreasing stage telemetry")
+        source, destination, stage = key
+        if (source, destination) not in _STAGE_COUNTERS:
+            continue
+        delta = after.get(key, 0) - before.get(key, 0)
+        if delta:
+            edge = f"{source}->{destination}"
+            by_stage.setdefault(stage, {})[edge] = delta
+    measured = {
+        f"{source}->{destination}": sum(
+            row.get(f"{source}->{destination}", 0) for row in by_stage.values()
+        )
+        for source, destination in _STAGE_COUNTERS
+    }
+    expected = {
+        f"{source}->{destination}": privacy.get(field)
+        for (source, destination), field in _STAGE_COUNTERS.items()
+    }
+    complete = ("telemetry", "overflow", "stage") not in after and all(
+        type(expected[edge]) is int and expected[edge] == amount
+        for edge, amount in measured.items()
+    )
+    return {
+        "schema": "pllm.prepared_stage_body_attribution.v1",
+        "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+        "reconciled_with_protocol_bodies": complete,
+        "body_bytes_by_stage_and_edge": (
+            {stage: dict(sorted(edges.items())) for stage, edges in sorted(by_stage.items())}
+            if complete else None
+        ),
+        "measured_body_bytes_by_edge": measured,
+        "expected_stage_body_bytes_by_edge": expected,
+        "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution",
         ],
     }
 
@@ -292,5 +359,6 @@ def cold_process_cpu_accounting(
 __all__ = [
     "ACCOUNTING_SCHEMA", "client_owned_body_accounting", "cold_process_cpu_accounting",
     "prepared_body_accounting",
+    "prepared_stage_body_attribution",
     "two_worker_body_accounting",
 ]

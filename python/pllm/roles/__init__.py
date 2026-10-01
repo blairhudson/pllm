@@ -4,7 +4,11 @@ from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.roles.topology import (
-    Channel, Role, RoleGraph, client_only_reference_graph, two_online_reference_graph,
+    Channel,
+    Role,
+    RoleGraph,
+    client_only_reference_graph,
+    two_online_reference_graph,
 )
 
 
@@ -136,7 +140,144 @@ class TwoOnlineOffsetRoles(RoleTopology):
         return cls.descriptor
 
 
+class OutputHeadAtInference(ComponentRef):
+    """Move an untied public output head to the prepared Inference role."""
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/output-head-at-inference/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/boundary-placement",
+        category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("remote-untied-output-head", "prepared-output-head"),
+        role_eligibility=("client", "preparation", "inference"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class ClientPlacement(ComponentRef, ABC):
+    """Compiler-bound ownership of public decoder linear stages."""
+
+    __slots__ = ()
+
+    @classmethod
+    @abstractmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+
+CLIENT_LINEAR_ROLES = ("attention_output", "mlp_down", "mlp_gate_up", "qkv_projection")
+
+
+class ClientLinearRoles(ClientPlacement):
+    """Own selected semantic linear roles, leaving other body stages remote."""
+
+    __slots__ = ("roles",)
+    descriptor = ComponentDescriptor(
+        component="pllm/client-owned-linear-roles/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/layer-placement",
+        category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={
+            "type": "object",
+            "required": ["roles"],
+            "additionalProperties": False,
+            "properties": {
+                "roles": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "uniqueItems": True,
+                    "items": {"type": "string", "enum": list(CLIENT_LINEAR_ROLES)},
+                }
+            },
+        },
+        capabilities=("client-owned-semantic-weights", "prepared-remote-body"),
+        role_eligibility=("client", "preparation", "inference"),
+    )
+
+    def __init__(self, roles: tuple[str, ...] | list[str]) -> None:
+        if (
+            not isinstance(roles, (tuple, list))
+            or not 1 <= len(roles) <= 4
+            or any(type(role) is not str or role not in CLIENT_LINEAR_ROLES for role in roles)
+            or len(set(roles)) != len(roles)
+        ):
+            raise ValueError("client linear roles require distinct supported semantic roles")
+        canonical = tuple(sorted(roles))
+        super().__init__(self.descriptor.component, {"roles": list(canonical)})
+        object.__setattr__(self, "roles", canonical)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"roles": self.roles}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class ClientPrefixLayers(ClientPlacement):
+    """Own the first bounded semantic decoder layers at the trusted client."""
+
+    __slots__ = ("layers",)
+    descriptor = ComponentDescriptor(
+        component="pllm/client-owned-prefix-layers/v1",
+        provider="pllm",
+        distribution="pllm.run",
+        version="1",
+        category="pllm/layer-placement",
+        category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={
+            "type": "object",
+            "required": ["layers"],
+            "additionalProperties": False,
+            "properties": {"layers": {"type": "integer", "minimum": 1, "maximum": 8}},
+        },
+        capabilities=("client-owned-prefix-weights", "prepared-remote-suffix"),
+        role_eligibility=("client", "preparation", "inference"),
+    )
+
+    def __init__(self, layers: int) -> None:
+        if type(layers) is not int or not 1 <= layers <= 8:
+            raise ValueError("client-owned prefix requires one to eight layers")
+        super().__init__(self.descriptor.component, {"layers": layers})
+        object.__setattr__(self, "layers", layers)
+
+    def get_params(self, deep: bool = True) -> dict[str, int]:
+        return {"layers": self.layers}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 __all__ = [
-    "Channel", "ClientOnlyRoles", "Inference", "InferenceRole", "PreparedProviderRoles", "Role", "RoleGraph",
-    "RoleTopology", "TwoOnlineOffsetRoles", "client_only_reference_graph", "two_online_reference_graph",
+    "Channel",
+    "ClientOnlyRoles",
+    "Inference",
+    "InferenceRole",
+    "PreparedProviderRoles",
+    "Role",
+    "RoleGraph",
+    "RoleTopology",
+    "TwoOnlineOffsetRoles",
+    "OutputHeadAtInference",
+    "ClientPlacement",
+    "ClientLinearRoles",
+    "ClientPrefixLayers",
+    "client_only_reference_graph",
+    "two_online_reference_graph",
 ]

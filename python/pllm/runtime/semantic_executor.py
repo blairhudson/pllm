@@ -862,7 +862,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     )
                 else:
                     input_value = values[step["input_ids"][0]]
-                    output = self.remote(stage_id, input_value)
+                    if step["executor"] == "client_linear" and self.bundle.stages[stage_id].client_weight is not None:
+                        output = self.bundle.local_linear(stage_id, input_value)
+                    else:
+                        output = self.remote(stage_id, input_value)
                     for op_id, row in zip(op_ids, step["outputs"], strict=True):
                         offset = int(row["stage_offset"])
                         width = int(row["stage_width"])

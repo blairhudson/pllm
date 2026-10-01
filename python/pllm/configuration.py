@@ -692,6 +692,14 @@ class ExperimentProfile:
     verification_component: str | None
     verification_target_failure_bits: int
     public_equalization_digest: str | None
+    prefix_cache_bytes: int
+    prefix_cache_bound_tokens: int | None
+    remote_output_head: bool
+    client_prefix_layers: int
+    client_linear_roles: tuple[str, ...]
+    inventory_policy: str
+    prepared_inventory_rows: int
+    bundle_compression: str
     role_graph: RoleGraph | None
 
     def __init__(self, experiment: Experiment) -> None:
@@ -730,6 +738,14 @@ class ExperimentProfile:
                 runtime_options.verification_target_failure_bits,
             )
             object.__setattr__(self, "public_equalization_digest", runtime_options.public_equalization_digest)
+            object.__setattr__(self, "prefix_cache_bytes", runtime_options.prefix_cache_bytes)
+            object.__setattr__(self, "prefix_cache_bound_tokens", runtime_options.prefix_cache_bound_tokens)
+            object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
+            object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
+            object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
+            object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
+            object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
+            object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
             return
         from pllm import _native
 
@@ -760,6 +776,14 @@ class ExperimentProfile:
             runtime_options.verification_target_failure_bits,
         )
         object.__setattr__(self, "public_equalization_digest", runtime_options.public_equalization_digest)
+        object.__setattr__(self, "prefix_cache_bytes", runtime_options.prefix_cache_bytes)
+        object.__setattr__(self, "prefix_cache_bound_tokens", runtime_options.prefix_cache_bound_tokens)
+        object.__setattr__(self, "remote_output_head", runtime_options.remote_output_head)
+        object.__setattr__(self, "client_prefix_layers", runtime_options.client_prefix_layers)
+        object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
+        object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
+        object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
+        object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
 
 
 def _replace_path(target: Any, path: list[str], value: object) -> Any:

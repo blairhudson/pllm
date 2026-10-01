@@ -1,0 +1,24 @@
+{
+  "tuning": [
+    "Explain why a paper airplane needs balanced wings.",
+    "What number follows nineteen in ordinary counting?",
+    "Give one reason to wash vegetables before cooking.",
+    "Name the punctuation mark that ends a question."
+  ],
+  "heldout": [
+    "Why does wet pavement reflect street lights?",
+    "A carpenter measures twice before cutting. Explain why.",
+    "What does a Python set remove from a list?",
+    "Give a simple example of evaporation at home.",
+    "Which direction does the sun appear to rise from?",
+    "How many sides does a regular hexagon have?"
+  ],
+  "confirmation": [
+    "Explain why wool clothing helps in cold weather.",
+    "What is the plural form of the word child?",
+    "A bus travels sixty kilometers in one hour. State its speed.",
+    "Give one difference between a seed and a leaf.",
+    "How does a password manager help avoid repeated passwords?",
+    "Which instrument measures atmospheric pressure?"
+  ]
+}

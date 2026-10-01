@@ -28,16 +28,25 @@ class TopologyError(RuntimeError):
 
 
 def _spawn_role_process(
-    command: list[str], *, environment: dict[str, str],
-    stdout: Any = None, stderr: Any = None, discard_output: bool = False,
+    command: list[str],
+    *,
+    environment: dict[str, str],
+    stdout: Any = None,
+    stderr: Any = None,
+    discard_output: bool = False,
 ) -> subprocess.Popen[Any]:
     """All local role children share one process-group and credential boundary."""
     if discard_output:
         stdout = subprocess.DEVNULL
         stderr = subprocess.DEVNULL
     return subprocess.Popen(
-        command, cwd=Path.cwd(), env=environment, stdin=subprocess.DEVNULL,
-        stdout=stdout, stderr=stderr, start_new_session=True,
+        command,
+        cwd=Path.cwd(),
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=stdout,
+        stderr=stderr,
+        start_new_session=True,
     )
 
 
@@ -120,6 +129,9 @@ class LocalTopology:
         "_verification_component",
         "_verification_target_failure_bits",
         "_public_equalization_digest",
+        "_remote_output_head",
+        "_client_prefix_layers",
+        "_client_linear_roles",
         "_weight_bits",
     )
 
@@ -144,6 +156,9 @@ class LocalTopology:
         verification_component: str | None,
         verification_target_failure_bits: int,
         public_equalization_digest: str | None,
+        remote_output_head: bool,
+        client_prefix_layers: int,
+        client_linear_roles: tuple[str, ...],
         tenseal_path: str | None,
         hf_cache_dir: str | None,
         reserved_ports: tuple[int, ...],
@@ -177,6 +192,9 @@ class LocalTopology:
         self._verification_component = verification_component or "none"
         self._verification_target_failure_bits = verification_target_failure_bits
         self._public_equalization_digest = public_equalization_digest
+        self._remote_output_head = remote_output_head
+        self._client_prefix_layers = client_prefix_layers
+        self._client_linear_roles = client_linear_roles
         self._tenseal_path = tenseal_path
         self._hf_cache_dir = hf_cache_dir
         self._reserved_ports = reserved_ports
@@ -225,8 +243,7 @@ class LocalTopology:
         if set(self._role_ids) != {"worker_a", "worker_b"} or not self.is_healthy():
             raise TopologyError("two-worker topology is not running")
         return {
-            role: (self._role_urls[role], self._role_credentials[role])
-            for role in self._role_ids
+            role: (self._role_urls[role], self._role_credentials[role]) for role in self._role_ids
         }
 
     def worker_process_metrics(self) -> dict[str, dict[str, int | None]]:
@@ -236,21 +253,25 @@ class LocalTopology:
         for role, (url, key) in connections.items():
             response = httpx.get(
                 f"{url}/v1/offset-reference/metrics",
-                headers={"authorization": f"Bearer {key}"}, timeout=2.0,
+                headers={"authorization": f"Bearer {key}"},
+                timeout=2.0,
             )
             response.raise_for_status()
             value = response.json()
             if (
                 type(value) is not dict
                 or value.get("schema") != "pllm.offset_worker_process_metrics.v1"
-                or type(value.get("cpu_ns")) is not int or value["cpu_ns"] < 0
-                or (value.get("peak_rss_bytes") is not None and (
-                    type(value["peak_rss_bytes"]) is not int or value["peak_rss_bytes"] < 0
-                ))
+                or type(value.get("cpu_ns")) is not int
+                or value["cpu_ns"] < 0
+                or (
+                    value.get("peak_rss_bytes") is not None
+                    and (type(value["peak_rss_bytes"]) is not int or value["peak_rss_bytes"] < 0)
+                )
             ):
                 raise TopologyError("offset worker process metrics are malformed")
             result[role] = {
-                "cpu_ns": value["cpu_ns"], "peak_rss_bytes": value["peak_rss_bytes"],
+                "cpu_ns": value["cpu_ns"],
+                "peak_rss_bytes": value["peak_rss_bytes"],
             }
         return result
 
@@ -261,8 +282,7 @@ class LocalTopology:
         loaded = self._local_engine._model(self._model_id)
         try:
             artifact_bytes = sum(
-                item.stat().st_size for item in loaded.store.root.iterdir()
-                if item.is_file()
+                item.stat().st_size for item in loaded.store.root.iterdir() if item.is_file()
             )
         except OSError:
             artifact_bytes = None
@@ -303,8 +323,9 @@ class LocalTopology:
     def statuses(self) -> tuple[RoleStatus, ...]:
         with self._process_lock:
             processes = dict(self._processes)
-        roles = tuple(role for role in ("inference", "preparation", *self._role_ids)
-                      if role in self._role_ids)
+        roles = tuple(
+            role for role in ("inference", "preparation", *self._role_ids) if role in self._role_ids
+        )
         roles = tuple(dict.fromkeys(roles))
         return tuple(
             RoleStatus(
@@ -363,6 +384,12 @@ class LocalTopology:
             options.extend(("--hf-cache-dir", self._hf_cache_dir))
         if self._public_equalization_digest is not None:
             options.extend(("--public-equalization-digest", self._public_equalization_digest))
+        if self._remote_output_head:
+            options.append("--remote-output-head")
+        if self._client_prefix_layers:
+            options.extend(("--client-prefix-layers", str(self._client_prefix_layers)))
+        if self._client_linear_roles:
+            options.extend(("--client-linear-roles", ",".join(self._client_linear_roles)))
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
@@ -371,11 +398,20 @@ class LocalTopology:
                 raise TopologyError("offset workers require a locally resolved checkpoint")
             return {
                 role: [
-                    sys.executable, "-m", "pllm.runtime.offset_worker",
-                    self._model.source, "--model-id", self._model_id,
-                    "--role", role, "--port", str(ports[role]),
-                    "--weight-bits", str(self._weight_bits),
-                    "--activation-bits", str(self._activation_bits),
+                    sys.executable,
+                    "-m",
+                    "pllm.runtime.offset_worker",
+                    self._model.source,
+                    "--model-id",
+                    self._model_id,
+                    "--role",
+                    role,
+                    "--port",
+                    str(ports[role]),
+                    "--weight-bits",
+                    str(self._weight_bits),
+                    "--activation-bits",
+                    str(self._activation_bits),
                 ]
                 for role in self._role_ids
             }
@@ -443,9 +479,20 @@ class LocalTopology:
     def _environment(self, role: str) -> dict[str, str]:
         if role in {"worker_a", "worker_b"}:
             environment = {
-                name: value for name, value in os.environ.items()
-                if name in {"HOME", "PATH", "VIRTUAL_ENV", "PYTHONPATH", "TMPDIR", "LANG",
-                            "SSL_CERT_FILE", "SSL_CERT_DIR", "DYLD_LIBRARY_PATH"}
+                name: value
+                for name, value in os.environ.items()
+                if name
+                in {
+                    "HOME",
+                    "PATH",
+                    "VIRTUAL_ENV",
+                    "PYTHONPATH",
+                    "TMPDIR",
+                    "LANG",
+                    "SSL_CERT_FILE",
+                    "SSL_CERT_DIR",
+                    "DYLD_LIBRARY_PATH",
+                }
             }
             environment["PLLM_OFFSET_WORKER_API_KEY"] = self._role_credentials[role]
             assert self._experiment is not None
@@ -495,8 +542,10 @@ class LocalTopology:
                 stdout = log
                 stderr = subprocess.STDOUT
             process = _spawn_role_process(
-                command, environment=self._environment(role),
-                stdout=stdout, stderr=stderr,
+                command,
+                environment=self._environment(role),
+                stdout=stdout,
+                stderr=stderr,
             )
             self._processes[role] = process
             return process
@@ -509,8 +558,12 @@ class LocalTopology:
             text = path.read_text(errors="replace")[-4000:]
         except OSError:
             return ""
-        for secret in (self._inference_key, self._preparation_key, self._push_key,
-                       *self._role_credentials.values()):
+        for secret in (
+            self._inference_key,
+            self._preparation_key,
+            self._push_key,
+            *self._role_credentials.values(),
+        ):
             if secret:
                 text = text.replace(secret, "<redacted>")
         return re.sub(
@@ -564,9 +617,12 @@ class LocalTopology:
                 from .transformer_engine import MaskedTransformerEngine
 
                 engine = MaskedTransformerEngine(
-                    threads=self._engine_threads, weight_bits=self._weight_bits,
+                    threads=self._engine_threads,
+                    weight_bits=self._weight_bits,
                     activation_bits=self._activation_bits,
                     public_equalization_digest=self._public_equalization_digest,
+                    remote_output_head=self._remote_output_head,
+                    client_prefix_layers=self._client_prefix_layers,
                 )
 
                 def load() -> None:
@@ -593,7 +649,9 @@ class LocalTopology:
 
                 source = resolve_model(self._model, cache_dir=self._hf_cache_dir)
                 if source.path is None:
-                    raise TopologyError("offset worker source did not resolve to a local checkpoint")
+                    raise TopologyError(
+                        "offset worker source did not resolve to a local checkpoint"
+                    )
                 self._model = Model.path(str(source.path), model_id=self._model_id)
             excluded = set(self._reserved_ports)
             ports: dict[str, int] = {}
@@ -601,15 +659,11 @@ class LocalTopology:
                 port = self._free_port(excluded)
                 excluded.add(port)
                 ports[role] = port
-            self._role_urls = {
-                role: f"http://127.0.0.1:{port}" for role, port in ports.items()
-            }
+            self._role_urls = {role: f"http://127.0.0.1:{port}" for role, port in ports.items()}
             self._inference_url = self._role_urls.get("inference", "")
             self._preparation_url = self._role_urls.get("preparation", "")
             used: set[str] = set()
-            self._role_credentials = {
-                role: self._credential(used) for role in self._role_ids
-            }
+            self._role_credentials = {role: self._credential(used) for role in self._role_ids}
             self._inference_key = self._role_credentials.get("inference", "")
             self._preparation_key = self._role_credentials.get("preparation", "")
             self._push_key = self._credential(used) if self._requires_preparation else ""
@@ -618,8 +672,10 @@ class LocalTopology:
                 if self._progress is not None:
                     self._progress(role)
                 self._spawn(role, commands[role])
-                expected = "trusted-preparation" if role == "preparation" else (
-                    "offset-worker" if role in {"worker_a", "worker_b"} else "inference"
+                expected = (
+                    "trusted-preparation"
+                    if role == "preparation"
+                    else ("offset-worker" if role in {"worker_a", "worker_b"} else "inference")
                 )
                 self._wait(role, expected, self._role_urls[role])
             with self._process_lock:
@@ -648,14 +704,21 @@ class LocalTopology:
             return False
         if not self._role_ids:
             return self._local_engine is not None and self._model_id in self._local_engine.models
-        expected_roles = {"inference": "inference", "preparation": "trusted-preparation",
-                          "worker_a": "offset-worker", "worker_b": "offset-worker"}
+        expected_roles = {
+            "inference": "inference",
+            "preparation": "trusted-preparation",
+            "worker_a": "offset-worker",
+            "worker_b": "offset-worker",
+        }
         for status in self.statuses:
             if not status.running:
                 return False
             try:
                 response = httpx.get(f"{status.url}/healthz", timeout=0.5)
-                if response.status_code != 200 or response.json().get("role") != expected_roles[status.role]:
+                if (
+                    response.status_code != 200
+                    or response.json().get("role") != expected_roles[status.role]
+                ):
                     return False
             except (httpx.HTTPError, ValueError):
                 return False
@@ -873,7 +936,10 @@ def build_roles(
         role.id for role in graph_for_runtime(runtime_options).roles if role.id != "client"
     )
     if set(role_ids) not in (
-        set(), {"inference"}, {"inference", "preparation"}, {"worker_a", "worker_b"},
+        set(),
+        {"inference"},
+        {"inference", "preparation"},
+        {"worker_a", "worker_b"},
     ):
         raise ValueError("role graph requires an unavailable local role implementation")
     if type(model) is str:
@@ -968,6 +1034,9 @@ def build_roles(
         verification_component=runtime_options.verification_component,
         verification_target_failure_bits=runtime_options.verification_target_failure_bits,
         public_equalization_digest=runtime_options.public_equalization_digest,
+        remote_output_head=runtime_options.remote_output_head,
+        client_prefix_layers=runtime_options.client_prefix_layers,
+        client_linear_roles=runtime_options.client_linear_roles,
         tenseal_path=tenseal_path,
         hf_cache_dir=hf_cache_dir,
         reserved_ports=reserved,

@@ -36,10 +36,12 @@ from pllm.preparation import (
     HEAuthenticatedPreprocessing,
     ModelAwareCorrections,
     PreparationProvider,
+    PreparedInventory,
 )
 from pllm.quantization import PublicPerChannelEqualized, SymmetricPerRow
 from pllm.protocols import (
     BlindedLinear,
+    ClientBundleTransport,
     CleartextLinear,
     DirectFHE,
     GuardedLinear,
@@ -49,7 +51,14 @@ from pllm.protocols import (
     TwoOnlineOffsetLinear,
 )
 from pllm.roles import (
-    ClientOnlyRoles, Inference, InferenceRole, PreparedProviderRoles, TwoOnlineOffsetRoles,
+    ClientOnlyRoles,
+    ClientLinearRoles,
+    ClientPrefixLayers,
+    Inference,
+    InferenceRole,
+    OutputHeadAtInference,
+    PreparedProviderRoles,
+    TwoOnlineOffsetRoles,
 )
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
@@ -59,7 +68,7 @@ from pllm.schedulers import (
     ScalarProtectedTensorSchedule,
 )
 from pllm.sources import BundleModel, ModelSource, TinyModel
-from pllm.state import ClientLocalKv, StateProtocol
+from pllm.state import ClientLocalKv, ClientPrefixReuse, StateProtocol
 from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationScheme
 
 
@@ -74,6 +83,10 @@ def _instances():
         ChunkedIndependentLanesProtectedTensorSchedule(max_elements=4096),
         CleartextLinear(),
         ClientLocalKv(),
+        ClientBundleTransport(),
+        ClientLinearRoles(["qkv_projection", "attention_output"]),
+        ClientPrefixLayers(1),
+        ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=128),
         Communication(),
         Cost(),
         Cpu(threads=2),
@@ -90,8 +103,10 @@ def _instances():
         MaskedLinear(),
         Memory(),
         ModelAwareCorrections(),
+        OutputHeadAtInference(),
         ClientOnlyRoles(),
         PreparedProviderRoles(),
+        PreparedInventory(),
         Perplexity(dataset="fixture"),
         PublicPerChannelEqualized(profile_digest="a" * 64),
         R03CrtGatedMultiplyQ7(),
@@ -133,19 +148,20 @@ def test_builtin_registry_is_derived_from_family_classes() -> None:
 
 def test_all_registered_classes_round_trip_through_experiment_configuration() -> None:
     instances = _instances()
-    experiment = pllm.Experiment.from_spec({
-        "schema": "pllm.experiment.v2",
-        "name": "all-components",
-        "pipeline": {
-            "model": {"source": "org/model"},
-            "components": {
-                f"slot-{index}": instance.to_spec()
-                for index, instance in enumerate(instances)
+    experiment = pllm.Experiment.from_spec(
+        {
+            "schema": "pllm.experiment.v2",
+            "name": "all-components",
+            "pipeline": {
+                "model": {"source": "org/model"},
+                "components": {
+                    f"slot-{index}": instance.to_spec() for index, instance in enumerate(instances)
+                },
             },
-        },
-        "deployment": {"kind": "local", "root": "local://registry"},
-        "budget": {"requests": 1, "max_input_tokens": 1, "max_new_tokens": 1},
-    })
+            "deployment": {"kind": "local", "root": "local://registry"},
+            "budget": {"requests": 1, "max_input_tokens": 1, "max_new_tokens": 1},
+        }
+    )
     restored = tuple(experiment.pipeline.components.values())
     assert tuple(type(item) for item in restored) == tuple(type(item) for item in instances)
     assert restored == instances
@@ -213,7 +229,9 @@ def test_family_modules_own_classes_and_legacy_exports_are_aliases() -> None:
     assert LinearIntegrity.__module__ == "pllm.verification"
     assert pllm.Cpu is configuration.Cpu is Cpu
     assert pllm.MaskedLinear is configuration.MaskedLinear is MaskedLinear
-    assert pllm.ModelAwareCorrections is configuration.ModelAwareCorrections is ModelAwareCorrections
+    assert (
+        pllm.ModelAwareCorrections is configuration.ModelAwareCorrections is ModelAwareCorrections
+    )
     assert pllm.KvCacheEviction is configuration.KvCacheEviction is KvCacheEviction
     for name in (
         "Cpu",

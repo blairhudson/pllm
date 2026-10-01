@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._model_capabilities import PendingModelCapability, model_capability_stub
+from pllm.components._planned import install_planned_components
 
 
 class QuantizationScheme(ComponentRef, ABC):
@@ -120,3 +121,5 @@ __all__ = [
     "QuantizationScheme", "SymmetricPerRow", "PublicPerChannelEqualized",
     "fit_public_equalization_profile", "Mxfp4CheckpointImport", "Fp8BlockScaleImport",
 ]
+
+install_planned_components(globals())

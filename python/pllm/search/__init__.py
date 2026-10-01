@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import random
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -397,10 +398,191 @@ class ParetoFrontier:
         return self._excluded
 
 
+@dataclass(frozen=True, slots=True)
+class QualityLockedNetworkSearch:
+    """Compare network costs across numeric variants only after a locked quality gate.
+
+    The quality report covers same-token prefill, not generation quality. This
+    opt-in comparison deliberately permits different W4/W8 body fingerprints
+    while requiring the same immutable checkpoint and transport workload.
+    """
+
+    minimum_top1_agreement: float
+    minimum_top_k_recall: float
+    maximum_abs_logit_error: float
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("minimum_top1_agreement", self.minimum_top1_agreement),
+            ("minimum_top_k_recall", self.minimum_top_k_recall),
+        ):
+            if type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 1:
+                raise SearchError(f"{name} must be a finite fraction in [0, 1]")
+        if (
+            type(self.maximum_abs_logit_error) not in {int, float}
+            or not math.isfinite(self.maximum_abs_logit_error)
+            or self.maximum_abs_logit_error < 0
+        ):
+            raise SearchError("maximum_abs_logit_error must be finite and non-negative")
+
+    def select(
+        self,
+        quality_report: Mapping[str, Any],
+        candidates: Sequence[tuple[Experiment, Mapping[str, Any]]],
+    ) -> dict[str, Any]:
+        from pllm.model_loader import expected_model_id
+
+        if quality_report.get("schema_version") != "pllm.reference_quality_benchmark.v1":
+            raise SearchError("quality report must be a versioned executed reference cohort")
+        if quality_report.get("scope") != "local-compiled-clear-kernel-prefill-reference":
+            raise SearchError("quality report has unsupported execution scope")
+        source = quality_report.get("model")
+        cohort = quality_report.get("cohort")
+        if not isinstance(source, Mapping) or not isinstance(cohort, Mapping):
+            raise SearchError("quality report is missing source and cohort locks")
+        source_lock = source.get("source_lock_digest")
+        if type(source_lock) is not str or re.fullmatch(r"[0-9a-f]{64}", source_lock) is None:
+            raise SearchError("quality checkpoint requires a source lock digest")
+        if (
+            type(cohort.get("dataset_digest")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", cohort["dataset_digest"]) is None
+            or type(cohort.get("token_cohort_digest")) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", cohort["token_cohort_digest"]) is None
+            or type(cohort.get("prompt_count")) is not int or cohort["prompt_count"] < 1
+        ):
+            raise SearchError("quality dataset and token cohort must be locked and nonempty")
+        metric = cohort.get("metric")
+        checkpoint = source.get("checkpoint_digest")
+        if (
+            type(checkpoint) is not str or re.fullmatch(r"[0-9a-f]{64}", checkpoint) is None
+            or not isinstance(metric, Mapping)
+            or metric.get("component") != "pllm/reference-agreement/v1"
+            or not isinstance(metric.get("params"), Mapping)
+            or metric["params"].get("dataset_digest") != cohort["dataset_digest"]
+            or metric["params"].get("reference_checkpoint_digest") != checkpoint
+        ):
+            raise SearchError("quality metric does not bind the same dataset and checkpoint")
+        quality_rows = quality_report.get("candidates")
+        if not isinstance(quality_rows, list) or not quality_rows:
+            raise SearchError("quality report has no evaluated numeric candidates")
+        by_digest: dict[str, Mapping[str, Any]] = {}
+        for row in quality_rows:
+            if not isinstance(row, Mapping):
+                raise SearchError("quality candidate is malformed")
+            identity = row.get("configuration_digest")
+            if type(identity) is not str or re.fullmatch(r"[0-9a-f]{64}", identity) is None:
+                raise SearchError("quality candidate configuration digest is invalid")
+            if identity in by_digest:
+                raise SearchError("quality candidate configuration is repeated")
+            for name in ("top1_agreement", "top_k_recall", "max_abs_logit_error"):
+                value = row.get(name)
+                if type(value) not in {int, float} or not math.isfinite(value) or value < 0:
+                    raise SearchError(f"quality candidate {name} is not finite and non-negative")
+            if (
+                row["top1_agreement"] > 1 or row["top_k_recall"] > 1
+                or type(row.get("sample_count")) is not int
+                or row["sample_count"] != cohort["prompt_count"]
+            ):
+                raise SearchError("quality candidate has incomplete or invalid sample coverage")
+            by_digest[identity] = row
+        if not isinstance(candidates, Sequence) or not candidates or len(candidates) > 8:
+            raise SearchError("network search requires one to eight measured Experiments")
+
+        cohort_key = None
+        identities: set[str] = set()
+        selected: list[dict[str, Any]] = []
+        rejected: list[dict[str, str]] = []
+        for experiment, report in candidates:
+            if not isinstance(experiment, Experiment) or not isinstance(report, Mapping):
+                raise SearchError("network candidates must be Experiment/report pairs")
+            digest = experiment.configuration_digest()
+            if digest in identities:
+                raise SearchError("network candidate configuration is repeated")
+            identities.add(digest)
+            pipeline_digest = experiment.pipeline.digest()
+            match = by_digest.get(digest)
+            if match is None or match.get("pipeline_digest") != pipeline_digest:
+                raise SearchError("network candidate has no exact matching quality evaluation")
+            if expected_model_id(experiment.pipeline.model) != source.get("id"):
+                raise SearchError("quality report targets another model source")
+            configuration = report.get("configuration")
+            measured = report.get("experiment")
+            runs = report.get("runs")
+            if (
+                not isinstance(configuration, Mapping)
+                or report.get("schema_version") != "pllm.loopback_benchmark.v1"
+                or configuration.get("source_lock_digest") != source_lock
+                or type(configuration.get("prompt_digest")) is not str
+                or type(configuration.get("warmup_prompt_digest")) is not str
+                or not isinstance(measured, Mapping)
+                or measured.get("configuration_digest") != digest
+                or measured.get("pipeline_digest") != pipeline_digest
+                or report.get("checks", {}).get("passed") is not True
+                or not isinstance(runs, list) or not runs
+            ):
+                raise SearchError("network candidate lacks a matching completed checkpoint-bound run")
+            run_keys = {
+                (
+                    run.get("tokens", {}).get("input_tokens"),
+                    run.get("tokens", {}).get("output_tokens"),
+                    run.get("max_output_tokens"), run.get("warm"))
+                for run in runs
+            }
+            if len(run_keys) != 1 or None in next(iter(run_keys)):
+                raise SearchError("network candidate run token cohort is inconsistent")
+            current = (
+                source_lock, tuple(configuration.get("roles", ())),
+                experiment.pipeline.components["linear"].component,
+                experiment.pipeline.components["kernels"].component,
+                configuration.get("warmup_prompt_digest"), configuration.get("prompt_digest"),
+                configuration.get("warmups"), configuration.get("repetitions"),
+                configuration.get("inventory_policy"), configuration.get("bundle_compression"),
+                configuration.get("prefill_cache_mib"), configuration.get("prefill_cache_mode"),
+                configuration.get("prefill_cache_bound_tokens"), next(iter(run_keys)),
+            )
+            if cohort_key is None:
+                cohort_key = current
+            elif current != cohort_key:
+                raise SearchError("network candidates are not a matched transport workload")
+            if (
+                match["top1_agreement"] < self.minimum_top1_agreement
+                or match["top_k_recall"] < self.minimum_top_k_recall
+                or match["max_abs_logit_error"] > self.maximum_abs_logit_error
+            ):
+                rejected.append({"configuration_digest": digest, "reason": "quality threshold"})
+                continue
+            body = report.get("summary", {}).get("median_online_all_link_serialized_body_bytes")
+            if type(body) not in {int, float} or not math.isfinite(body) or body < 0:
+                rejected.append({"configuration_digest": digest, "reason": "online bodies unmeasured"})
+                continue
+            selected.append({
+                "name": experiment.name,
+                "configuration_digest": digest,
+                "online_all_link_serialized_body_bytes": body,
+                "quality_top1_agreement": match["top1_agreement"],
+            })
+        selected.sort(key=lambda item: (
+            item["online_all_link_serialized_body_bytes"], item["configuration_digest"],
+        ))
+        return {
+            "schema": "pllm.quality_locked_network_search.v1",
+            "scope": "same-checkpoint quality-qualified prefill cohort; covered online bodies only",
+            "source_lock_digest": source_lock,
+            "dataset_digest": cohort["dataset_digest"],
+            "token_cohort_digest": cohort["token_cohort_digest"],
+            "qualified": selected,
+            "rejected": rejected,
+            "winner_configuration_digest": selected[0]["configuration_digest"] if selected else None,
+            "full_wire_measured": False,
+            "generation_quality_established": False,
+        }
+
+
 __all__ = [
     "Constraint",
     "GridSearch",
     "ParetoFrontier",
+    "QualityLockedNetworkSearch",
     "RandomSearch",
     "SearchCandidate",
     "SearchError",

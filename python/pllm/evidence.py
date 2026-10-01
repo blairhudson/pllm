@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import re
+import secrets
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -534,12 +535,84 @@ def assure() -> EvidenceReport:
     return EvidenceReport(_native.assurance_report())
 
 
+def benchmark_reference_quality(
+    experiments: Iterable[Any], prompts: Iterable[str], *, top_k: int = 5,
+) -> dict[str, Any]:
+    """Score bounded immutable candidates against one same-token local reference.
+
+    This is a clear-kernel prefill quality diagnostic, not provider execution.
+    Prompt text and logits are never included in the returned report.
+    """
+    from pllm.runtime.reference_benchmark import run_reference_benchmark
+
+    return run_reference_benchmark(list(experiments), list(prompts), top_k=top_k)
+
+
+def benchmark_network_candidates(
+    experiments: Iterable[Any], prompt: str, *, max_output_tokens: int,
+    warmups: int = 0, repetitions: int = 1, timeout_seconds: float = 900,
+    inventory_policy: str = "prewarm", warmup_prompt: str | None = None,
+    bundle_compression: str = "none",
+) -> tuple[tuple[Any, dict[str, Any]], ...]:
+    """Execute a matched benchmark cohort through each Experiment's role graph.
+
+    The ephemeral shared prompt cohort salt enables within-call comparison but
+    is not retained. Benchmarks expose only covered bodies, not full wire.
+    """
+    from pllm.configuration import Experiment
+    from pllm.model_loader import expected_model_id
+    from pllm.runtime.benchmark_cli import run_loopback_benchmark
+
+    choices = tuple(experiments)
+    if not choices or len(choices) > 8 or any(not isinstance(x, Experiment) for x in choices):
+        raise ValueError("network benchmark requires one to eight immutable Experiments")
+    if type(prompt) is not str or not prompt.strip():
+        raise ValueError("benchmark prompt must be nonempty text")
+    if type(max_output_tokens) is not int or max_output_tokens < 1:
+        raise ValueError("output token cap must be positive")
+    if type(warmups) is not int or type(repetitions) is not int or warmups < 0 or repetitions < 1:
+        raise ValueError("warmups and repetitions must be bounded nonnegative/positive integers")
+    if len({choice.configuration_digest() for choice in choices}) != len(choices):
+        raise ValueError("network candidate configurations must be unique")
+    for choice in choices:
+        if (
+            choice.budget is None
+            or warmups + repetitions > choice.budget.requests
+            or max_output_tokens > choice.budget.max_new_tokens
+        ):
+            raise ValueError("network benchmark exceeds the Experiment request/output budget")
+    salt = secrets.token_bytes(32)
+    return tuple(
+        (
+            choice,
+            run_loopback_benchmark(
+                model=choice.pipeline.model.source,
+                model_id=expected_model_id(choice.pipeline.model),
+                tiny=choice.pipeline.model.kind == "tiny",
+                prompt=prompt,
+                max_output_tokens=max_output_tokens,
+                warmups=warmups,
+                repetitions=repetitions,
+                timeout_seconds=timeout_seconds,
+                experiment=choice,
+                inventory_policy=inventory_policy,
+                warmup_prompt=warmup_prompt,
+                bundle_compression=bundle_compression,
+                _cohort_salt=salt,
+            ),
+        )
+        for choice in choices
+    )
+
+
 __all__ = [
     "BenchmarkResult",
     "EvidenceRegistry",
     "EvidenceReport",
     "assure",
     "benchmark",
+    "benchmark_network_candidates",
+    "benchmark_reference_quality",
     "deployment_benchmark",
     "environment_digest",
 ]

@@ -24,41 +24,114 @@ from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationE
 if TYPE_CHECKING:
     from pllm.providers import ProviderDescriptor
 
+
 @lru_cache(maxsize=1)
 def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     """Delay family imports so each family can expose planned component symbols."""
     from pllm.correlation import SeededExpansion
     from pllm.kernels import Cpu
-    from pllm.metrics import Accuracy, Communication, Cost, Energy, Latency, Memory, Perplexity, ReferenceAgreement, Throughput
-    from pllm.nonlinear import ArithmeticGarblingSiluQ7, BinaryTableGatedMultiplyQ7, R03CrtGatedMultiplyQ7
+    from pllm.metrics import (
+        Accuracy,
+        Communication,
+        Cost,
+        Energy,
+        Latency,
+        Memory,
+        Perplexity,
+        ReferenceAgreement,
+        Throughput,
+    )
+    from pllm.nonlinear import (
+        ArithmeticGarblingSiluQ7,
+        BinaryTableGatedMultiplyQ7,
+        R03CrtGatedMultiplyQ7,
+    )
     from pllm.passes import KvCacheEviction
-    from pllm.preparation import BFVCorrelations, HEAuthenticatedPreprocessing, ModelAwareCorrections
+    from pllm.preparation import (
+        BFVCorrelations,
+        HEAuthenticatedPreprocessing,
+        ModelAwareCorrections,
+        PreparedInventory,
+    )
     from pllm.quantization import PublicPerChannelEqualized, SymmetricPerRow
-    from pllm.protocols import BlindedLinear, CleartextLinear, DirectFHE, GuardedLinear, MaskedLinear, SecureLinear, TwoOnlineOffsetLinear
-    from pllm.roles import ClientOnlyRoles, Inference, PreparedProviderRoles, TwoOnlineOffsetRoles
+    from pllm.protocols import (
+        BlindedLinear,
+        ClientBundleTransport,
+        CleartextLinear,
+        DirectFHE,
+        GuardedLinear,
+        MaskedLinear,
+        SecureLinear,
+        TwoOnlineOffsetLinear,
+    )
+    from pllm.roles import (
+        ClientOnlyRoles,
+        ClientLinearRoles,
+        ClientPrefixLayers,
+        Inference,
+        OutputHeadAtInference,
+        PreparedProviderRoles,
+        TwoOnlineOffsetRoles,
+    )
     from pllm.schedulers import (
         BoundedIndependentElementsProtectedTensorSchedule,
         ChunkedIndependentLanesProtectedTensorSchedule,
         IndependentLanesProtectedTensorSchedule,
         ScalarProtectedTensorSchedule,
     )
-    from pllm.state import ClientLocalKv
+    from pllm.state import ClientLocalKv, ClientPrefixReuse
     from pllm.verification import FreivaldsVerify, LinearIntegrity
 
     classes = (
-        Accuracy, ArithmeticGarblingSiluQ7, BFVCorrelations, BinaryTableGatedMultiplyQ7,
-        BlindedLinear, BoundedIndependentElementsProtectedTensorSchedule,
-        ChunkedIndependentLanesProtectedTensorSchedule, CleartextLinear, ClientLocalKv, ClientOnlyRoles,
-        Communication, Cost, Cpu, DirectFHE, Energy, FreivaldsVerify, GuardedLinear,
-        HEAuthenticatedPreprocessing, IndependentLanesProtectedTensorSchedule, Inference,
-        KvCacheEviction, Latency, LinearIntegrity, MaskedLinear, Memory, ModelAwareCorrections,
-        Perplexity, PreparedProviderRoles, PublicPerChannelEqualized, R03CrtGatedMultiplyQ7,
-        ReferenceAgreement, ScalarProtectedTensorSchedule, SeededExpansion, SecureLinear,
-        SymmetricPerRow, Throughput, TwoOnlineOffsetLinear, TwoOnlineOffsetRoles,
+        Accuracy,
+        ArithmeticGarblingSiluQ7,
+        BFVCorrelations,
+        BinaryTableGatedMultiplyQ7,
+        BlindedLinear,
+        BoundedIndependentElementsProtectedTensorSchedule,
+        ChunkedIndependentLanesProtectedTensorSchedule,
+        CleartextLinear,
+        ClientLocalKv,
+        ClientOnlyRoles,
+        ClientPrefixReuse,
+        Communication,
+        Cost,
+        Cpu,
+        DirectFHE,
+        Energy,
+        FreivaldsVerify,
+        GuardedLinear,
+        HEAuthenticatedPreprocessing,
+        IndependentLanesProtectedTensorSchedule,
+        Inference,
+        KvCacheEviction,
+        Latency,
+        LinearIntegrity,
+        MaskedLinear,
+        Memory,
+        ModelAwareCorrections,
+        OutputHeadAtInference,
+        ClientPrefixLayers,
+        ClientLinearRoles,
+        PreparedInventory,
+        ClientBundleTransport,
+        Perplexity,
+        PreparedProviderRoles,
+        PublicPerChannelEqualized,
+        R03CrtGatedMultiplyQ7,
+        ReferenceAgreement,
+        ScalarProtectedTensorSchedule,
+        SeededExpansion,
+        SecureLinear,
+        SymmetricPerRow,
+        Throughput,
+        TwoOnlineOffsetLinear,
+        TwoOnlineOffsetRoles,
     )
     if len({component.describe().component for component in classes}) != len(classes):
         raise RuntimeError("built-in component identities must be unique")
     return classes
+
 
 __all__ = [
     "ComponentDescriptor",
