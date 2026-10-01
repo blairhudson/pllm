@@ -1,0 +1,287 @@
+{
+  "schema": "pllm.complete_mlp_contract_cost_gate.v1",
+  "date": "2026-10-01",
+  "decision": "specified conventional two-worker construction vetoed by known conversions; executable coverage incomplete",
+  "complete_function_specified": true,
+  "complete_executable_coverage": false,
+  "complete_protocol_cost_bytes": null,
+  "feasible": false,
+  "environment": {"python": "3.13.15", "numpy": "2.5.3", "native_quantizer_available": true, "machine": "arm64", "offline": true, "threads": 1},
+  "archived_controls_sha256": "ccfbb820e00be5c9e0ba95cee675bda82c9625321d6cd9a90659586a858f8242",
+  "archived_controls": {
+    "8": {
+      "archive_sha256": "23dcad2ca1f2d172ee5dc1655bcd442f10469e834c8e34c2703a70e23ea0ff03",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "covered_all_link_body_bytes": 97070658,
+      "covered_online_body_bytes": 60868088,
+      "prompt_digest": "a2346f2cb45a2f72d72d8b854d1aaa7c172bf2912f5aee11dad5746c425786b6",
+      "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+      "directed_stage_body_bytes": {
+        "mlp_gate_up": {"client->inference": 3062786, "client->preparation": 2472, "inference->client": 32246354, "preparation->client": 2150, "preparation->inference": 32227142},
+        "mlp_down": {"client->inference": 21574826, "client->preparation": 2472, "inference->client": 3984122, "preparation->client": 2078, "preparation->inference": 3964766}
+      },
+      "stage_edges": {"client->inference": 24637612, "client->preparation": 4944, "inference->client": 36230476, "preparation->client": 4228, "preparation->inference": 36191908}
+    },
+    "32": {
+      "archive_sha256": "871d6d7c2aa3d5cc0f337e2aa73e73ebff10e7b82510816b59e99d2ae82665d8",
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "covered_all_link_body_bytes": 148297986,
+      "covered_online_body_bytes": 93221048,
+      "prompt_digest": "c32aa8d3d5c293a2a3f3b01c6de6984ea2a6525855ef1578b63efcb95aa040d3",
+      "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+      "directed_stage_body_bytes": {
+        "mlp_gate_up": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 49145954, "preparation->client": 2150, "preparation->inference": 49037126},
+        "mlp_down": {"client->inference": 33053690, "client->preparation": 2472, "inference->client": 6138698, "preparation->client": 2078, "preparation->inference": 6029150}
+      },
+      "stage_edges": {"client->inference": 37936396, "client->preparation": 4944, "inference->client": 55284652, "preparation->client": 4228, "preparation->inference": 55066276}
+    }
+  },
+  "arithmetic_controls": {
+    "32bit_add_and_sub_ANDs_each": 61,
+    "exhaustive_modular_add_sub_cases": 10912,
+    "full_float_or_exp_circuit_checked": false,
+    "independent_integer_to_float32_cases": 121,
+    "signed_i8_target_ring_b2a_cases": 65536,
+    "wrong_local_lift_witness": {"R8_shares": [5, 124], "correct_signed_sum": -127, "sum_of_separate_signed_lifts": 129}
+  },
+  "cohorts": {
+    "8": {
+      "complete_truth_table_log2_assignments_GC1": 311328,
+      "full_GC1_semantic_input_bits_before_masks": 311328,
+      "full_truth_table_feasible": false,
+      "gate_up_output_plus_correction_only_scope": {"fixed_other_body_bytes": 32597162, "removed_body_bytes": 64473496, "replacement_budget_25pct_bytes": 40205831, "replacement_budget_50pct_bytes": 15938167},
+      "specified_full_MLP_region_retirement_scope": {"fixed_other_body_bytes": 1490, "removed_body_bytes": 97069168, "replacement_budget_25pct_bytes": 72801503, "replacement_budget_50pct_bytes": 48533839},
+      "inventory": {
+        "MLP_stage_count": 48,
+        "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+        "executed_rows": 46,
+        "native_semantic_silu_shapes": {"decode": [1, 1, 4864], "decode_executed_silu_elements": 817152, "prefill": [1, 39, 4864], "prefill_executed_silu_elements": 4552704},
+        "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+        "public_W8A8_accumulator_bounds": {"down": 78451456, "gate_up": 14451584},
+        "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327"
+      },
+      "costs": {
+        "chosen_R32_label32": {
+          "A2B_ANDs": 715462656, "B2A_ANDs": 327561216, "conversion_ANDs": 1043023872,
+          "MLP_row_instances": 1104, "accumulator_ring_bits": 32, "label_bytes": 32,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 2086047744, "garbler_hashes_for_conversion": 4172095488,
+          "evaluator_input_OTs": 407049216, "garbler_input_bits": 610573824,
+          "fresh_garbler_labels_online_bytes": 19538362368,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 45789609984, "A->B:B2A_half_gate_tables": 20963917824,
+            "A->B:garbler_selected_input_labels": 19538362368, "A->B:masked_output_translation_bits": 25440576,
+            "A->client:final_residual_output_XOR_share": 3956736, "B->client:final_residual_output_XOR_share": 3956736,
+            "client->A:input_code_scale_residual_shares": 7917888, "client->B:input_code_scale_residual_shares": 7917888
+          },
+          "known_payload_subtotal_bytes": 86341080000, "remote_integer_MACs_per_worker": 14434172928,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        },
+        "optimistic_R32_label16": {
+          "A2B_ANDs": 715462656, "B2A_ANDs": 327561216, "conversion_ANDs": 1043023872,
+          "MLP_row_instances": 1104, "accumulator_ring_bits": 32, "label_bytes": 16,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 2086047744, "garbler_hashes_for_conversion": 4172095488,
+          "evaluator_input_OTs": 407049216, "garbler_input_bits": 610573824,
+          "fresh_garbler_labels_online_bytes": 9769181184,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 22894804992, "A->B:B2A_half_gate_tables": 10481958912,
+            "A->B:garbler_selected_input_labels": 9769181184, "A->B:masked_output_translation_bits": 25440576,
+            "A->client:final_residual_output_XOR_share": 3956736, "B->client:final_residual_output_XOR_share": 3956736,
+            "client->A:input_code_scale_residual_shares": 7917888, "client->B:input_code_scale_residual_shares": 7917888
+          },
+          "known_payload_subtotal_bytes": 43195134912, "remote_integer_MACs_per_worker": 14434172928,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        },
+        "unadmitted_uniform_R24_label16": {
+          "A2B_ANDs": 527800320, "B2A_ANDs": 241643520, "conversion_ANDs": 769443840,
+          "MLP_row_instances": 1104, "accumulator_ring_bits": 24, "label_bytes": 16,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 1538887680, "garbler_hashes_for_conversion": 3077775360,
+          "evaluator_input_OTs": 313218048, "garbler_input_bits": 473783808,
+          "fresh_garbler_labels_online_bytes": 7580540928,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 16889610240, "A->B:B2A_half_gate_tables": 7732592640,
+            "A->B:garbler_selected_input_labels": 7580540928, "A->B:masked_output_translation_bits": 20070720,
+            "A->client:final_residual_output_XOR_share": 3956736, "B->client:final_residual_output_XOR_share": 3956736,
+            "client->A:input_code_scale_residual_shares": 6928704, "client->B:input_code_scale_residual_shares": 6928704
+          },
+          "known_payload_subtotal_bytes": 32244585408, "remote_integer_MACs_per_worker": 14434172928,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        }
+      }
+    },
+    "32": {
+      "complete_truth_table_log2_assignments_GC1": 311328,
+      "full_GC1_semantic_input_bits_before_masks": 311328,
+      "full_truth_table_feasible": false,
+      "gate_up_output_plus_correction_only_scope": {"fixed_other_body_bytes": 50114906, "removed_body_bytes": 98183080, "replacement_budget_25pct_bytes": 61108583, "replacement_budget_50pct_bytes": 24034087},
+      "specified_full_MLP_region_retirement_scope": {"fixed_other_body_bytes": 1490, "removed_body_bytes": 148296496, "replacement_budget_25pct_bytes": 111221999, "replacement_budget_50pct_bytes": 74147503},
+      "inventory": {
+        "MLP_stage_count": 48,
+        "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+        "executed_rows": 70,
+        "native_semantic_silu_shapes": {"decode": [1, 1, 4864], "decode_executed_silu_elements": 3618816, "prefill": [1, 39, 4864], "prefill_executed_silu_elements": 4552704},
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "public_W8A8_accumulator_bounds": {"down": 78451456, "gate_up": 14451584},
+        "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c"
+      },
+      "costs": {
+        "chosen_R32_label32": {
+          "A2B_ANDs": 1088747520, "B2A_ANDs": 498462720, "conversion_ANDs": 1587210240,
+          "MLP_row_instances": 1680, "accumulator_ring_bits": 32, "label_bytes": 32,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 3174420480, "garbler_hashes_for_conversion": 6348840960,
+          "evaluator_input_OTs": 619422720, "garbler_input_bits": 929134080,
+          "fresh_garbler_labels_online_bytes": 29732290560,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 69679841280, "A->B:B2A_half_gate_tables": 31901614080,
+            "A->B:garbler_selected_input_labels": 29732290560, "A->B:masked_output_translation_bits": 38713920,
+            "A->client:final_residual_output_XOR_share": 6021120, "B->client:final_residual_output_XOR_share": 6021120,
+            "client->A:input_code_scale_residual_shares": 12048960, "client->B:input_code_scale_residual_shares": 12048960
+          },
+          "known_payload_subtotal_bytes": 131388600000, "remote_integer_MACs_per_worker": 21965045760,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        },
+        "optimistic_R32_label16": {
+          "A2B_ANDs": 1088747520, "B2A_ANDs": 498462720, "conversion_ANDs": 1587210240,
+          "MLP_row_instances": 1680, "accumulator_ring_bits": 32, "label_bytes": 16,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 3174420480, "garbler_hashes_for_conversion": 6348840960,
+          "evaluator_input_OTs": 619422720, "garbler_input_bits": 929134080,
+          "fresh_garbler_labels_online_bytes": 14866145280,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 34839920640, "A->B:B2A_half_gate_tables": 15950807040,
+            "A->B:garbler_selected_input_labels": 14866145280, "A->B:masked_output_translation_bits": 38713920,
+            "A->client:final_residual_output_XOR_share": 6021120, "B->client:final_residual_output_XOR_share": 6021120,
+            "client->A:input_code_scale_residual_shares": 12048960, "client->B:input_code_scale_residual_shares": 12048960
+          },
+          "known_payload_subtotal_bytes": 65731727040, "remote_integer_MACs_per_worker": 21965045760,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        },
+        "unadmitted_uniform_R24_label16": {
+          "A2B_ANDs": 803174400, "B2A_ANDs": 367718400, "conversion_ANDs": 1170892800,
+          "MLP_row_instances": 1680, "accumulator_ring_bits": 24, "label_bytes": 16,
+          "admitted": false, "OT_transcript_bytes": null, "complete_recurring_body_bytes": null, "complete_wire_bytes": null, "numeric_function_tables_bytes": null,
+          "conversion_tables_can_be_offline": true,
+          "evaluator_hashes_for_conversion": 2341785600, "garbler_hashes_for_conversion": 4683571200,
+          "evaluator_input_OTs": 476636160, "garbler_input_bits": 720975360,
+          "fresh_garbler_labels_online_bytes": 11535605760,
+          "full_region_25pct_gate": "veto_known_payload_alone", "full_region_50pct_gate": "veto_known_payload_alone",
+          "known_payload_bytes_by_link_and_kind": {
+            "A->B:A2B_half_gate_tables": 25701580800, "A->B:B2A_half_gate_tables": 11766988800,
+            "A->B:garbler_selected_input_labels": 11535605760, "A->B:masked_output_translation_bits": 30542400,
+            "A->client:final_residual_output_XOR_share": 6021120, "B->client:final_residual_output_XOR_share": 6021120,
+            "client->A:input_code_scale_residual_shares": 10543680, "client->B:input_code_scale_residual_shares": 10543680
+          },
+          "known_payload_subtotal_bytes": 49067847360, "remote_integer_MACs_per_worker": 21965045760,
+          "unknown_required_coverage": [
+            "compiled exact float32 int cast/multiply/add/divide and exceptional paths",
+            "compiled installed NumPy float32 exp implementation, not ideal real exp",
+            "compiled whole-4864-row abs/max, zero/underflow checks and private scale",
+            "compiled float32 division, ties-even rounding, clipping and signed i8 encode",
+            "secure A2B/B2A, output masks, OT and 256-bit half-gates backend",
+            "transport/framing/authentication, durable burn ledger and cancellation",
+            "checkpoint-bit parity, next-layer/client continuation and two decode steps",
+            "CPU/peak-memory/cold-distribution admission"
+          ]
+        }
+      }
+    }
+  },
+  "protocol": {
+    "workers": "non-colluding semi-honest A garbler / B evaluator; public fixed W8 weights",
+    "region": "client-owned post-attention residual -> existing client RMSNorm/input quantization -> shared gate/up -> exact Boolean SiLU/product/whole-row quantization -> shared down -> Boolean rescale/residual -> client",
+    "linear_ring": "Z/(2^32), signed i8 extended before sharing; each worker evaluates public W locally",
+    "private_scale": "XOR-shared exact float32 word, never public numeric scale",
+    "GC1": "A2B gate/up accumulators; XOR-reconstruct input scale; rounded dequant -> stable float32 SiLU -> multiply -> 4864-way dynamic quantize; B2A signextended q minus fresh A pad in R32; XOR-mask scale",
+    "GC2": "A2B down accumulator; XOR-reconstruct scale/residual; rounded dequant then residual add; XOR-mask output word",
+    "freshness": "fresh per invocation labels/delta/tables/OTs/q pads/scale and output pads; reserve before send, consume or burn on cancel; no replay/rollback",
+    "client_boundary": "two word shares in, two XOR output shares back per layer-row; existing client attention/KV, norms, final head/selection and fresh next-token feedback retained",
+    "half_gates_source": "https://eprint.iacr.org/2014/756; 2 ciphertexts/AND, free XOR, 4/2 hashes per garbler/evaluator",
+    "label_parameter": "256-bit labels, exposed selection bit leaves 255; parameterized correlation-robust-hash construction, no reviewed backend here",
+    "optimistic_label_comparator": "16 bytes; 128 serialized bits is only 127 hidden bits with exposed selection; not a claimed 128-hidden-bit instantiation"
+  },
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "width_scope": "actual prepared widths sampled at layers 0/12/23; R32 proposal certified for all layers by public geometry, no silent per-share lift",
+    "weight_samples": [
+      {"layer": 0, "role": "mlp_gate_up", "shape": [9728, 896], "sources": ["model.layers.0.mlp.gate_proj.weight", "model.layers.0.mlp.up_proj.weight"], "actual_prepared_ring_bits": 24, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 24, "certified_abs_accumulator_bound": 4453890, "weight_i8_sha256": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa", "scale_f32_sha256": "1ca1f1712473008e59617b63a136228436ef1f39de4daa08037f8cc6c17b2a2e"},
+      {"layer": 0, "role": "mlp_down", "shape": [896, 4864], "sources": ["model.layers.0.mlp.down_proj.weight"], "actual_prepared_ring_bits": 32, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 26, "certified_abs_accumulator_bound": 18993866, "weight_i8_sha256": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f", "scale_f32_sha256": "87ad0c5852fc08c212c2a0ea7fb430eae0852be53b45939cf637bf5580342f82"},
+      {"layer": 12, "role": "mlp_gate_up", "shape": [9728, 896], "sources": ["model.layers.12.mlp.gate_proj.weight", "model.layers.12.mlp.up_proj.weight"], "actual_prepared_ring_bits": 24, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 24, "certified_abs_accumulator_bound": 4339590, "weight_i8_sha256": "f369b91cc47e9e7e33b49e25ac2c0734f7047ffe93a2bc60b70c426f0f12ce18", "scale_f32_sha256": "be47c45b0f0542b7a8d9a09f8a309fb9fe9acaf1961bc5d04af55f3c5b4c6440"},
+      {"layer": 12, "role": "mlp_down", "shape": [896, 4864], "sources": ["model.layers.12.mlp.down_proj.weight"], "actual_prepared_ring_bits": 32, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 26, "certified_abs_accumulator_bound": 17455007, "weight_i8_sha256": "4599769c6722654bbfdc7cfc83cbf116342c9d97b5277704dc90227bed36259d", "scale_f32_sha256": "4dc713d92369243978c4571650f50a4d2f23cf714d124d84ff95b7587e90b4bb"},
+      {"layer": 23, "role": "mlp_gate_up", "shape": [9728, 896], "sources": ["model.layers.23.mlp.gate_proj.weight", "model.layers.23.mlp.up_proj.weight"], "actual_prepared_ring_bits": 24, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 24, "certified_abs_accumulator_bound": 4507357, "weight_i8_sha256": "2d36426542a56bb27b508c85bba17d1c63e3efb784af878327ed5168d9d67f72", "scale_f32_sha256": "e6171b1b24f4840a4bf7fe267cf63ccaff96e7bda8da44717522fde99441fde7"},
+      {"layer": 23, "role": "mlp_down", "shape": [896, 4864], "sources": ["model.layers.23.mlp.down_proj.weight"], "actual_prepared_ring_bits": 32, "chosen_resident_ring_bits": 32, "minimum_signed_bits": 26, "certified_abs_accumulator_bound": 18888456, "weight_i8_sha256": "a2eafb084e2f7904a548c673367427532f5777e775226ac3ebd883d6c3aa2474", "scale_f32_sha256": "29a8b98d879fdc4e69a9c7b0a276d28b430d76765f522a593391df8f61f9948f"}
+    ]
+  },
+  "source_sha256": {
+    "docs/data/research/papers.json": "8e1dc05baf882e86d20b0efe96c0273a5d2946ee5205ebd92ffbf0261bc9f0ef",
+    "docs/evidence/incremental-network-qwen25-2026-10-01.json": "fad309506f2cc6d537b0778ca7d29c3ef4fb7a9a70ab8df66b99d114da586082",
+    "docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json": "037e969be7c240a6ee61828d39c6627226cfece0efa23db6ae7623a8c92acf26",
+    "python/pllm/runtime/preparation_protocol.py": "b6892e3ecd9c68ae504ab43ab7a614db9a69a51b6093bf1b7cb3f9f291278909",
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "python/pllm/runtime/semantic_executor.py": "dbcb97e28d4dd44920922797433de27455e1796c211ce652c80d9af5b856a2fa",
+    "python/pllm/runtime/semantic_stages.py": "2fc7c10594cc4c6aaed0b59338c7158623ee5cde7962abc0da2277ec4da8a2fc",
+    "python/pllm/runtime/transformer_client.py": "a8840ecc138a7222c4e5d2978096a06f90c02189ff470153aec98c5b858c61a7",
+    "python/pllm/runtime/transformer_engine.py": "df0ae105e6d80c4675cc226d9c64ec7d4a75c42e3746a012379dba1b1ac6fb38"
+  },
+  "claims_exclude": ["universal protocol/FSS lower bound", "exact exp circuit implementation", "secure execution or model parity", "full-wire/latency/CPU measurement"]
+}

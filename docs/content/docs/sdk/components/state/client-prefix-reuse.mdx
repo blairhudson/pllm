@@ -12,6 +12,17 @@ new one-use provider rows. An upper-bound estimate rejects suffixes whose
 per-token stage messages would cost more than batched prefill. Reused lengths
 can reveal prefix equality, so the component is off by default.
 
+Retained checkpoints share immutable eight-token KV blocks instead of copying
+the entire prefix for every checkpoint. Cache hits materialize independent
+mutable runtime state; eviction erases a block after its last reference. The
+byte limit counts retained NumPy payloads, not Python metadata, runtime copies
+or peak memory. A separate entry ceiling bounds metadata growth.
+
+Suffixes still execute one token at a time through the compiled decode phase.
+There is no admitted batched-continuation phase or general generated-prefix
+promotion. Explicit response continuations retain their existing pending-token
+handling; this storage improvement does not change those execution contracts.
+
 ## Python SDK example
 
 ```python

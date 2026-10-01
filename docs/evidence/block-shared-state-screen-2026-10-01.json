@@ -1,0 +1,62 @@
+{
+  "code_sha256": {
+    "python/pllm/runtime/prefill_cache.py": "523711f3aebe5c9cdb3bb3fe6f9370412706e8996463eae36b5ad6a88f68e2cd",
+    "python/pllm/runtime/tiny_llama.py": "f368a412dd95ff6892a196106a23e74a0f4714ce889b37853e309cbf9b997862",
+    "scripts/probe_state_reuse.py": "9f15f16d51fa0f2f67b3d082729f9b827b69f00eb2509b603999a6a53edb3bf5"
+  },
+  "coverage": {
+    "batched_suffix_phase": false,
+    "compiler_gate": "decode query sequence is one; no admitted chunked-continuation phase",
+    "completed_prefill_checkpoints": true,
+    "generated_prefix_promotion": false
+  },
+  "date": "2026-10-01",
+  "limitations": [
+    "No real-checkpoint quality/traffic cohort",
+    "No full wire/peak RAM measurement",
+    "Generated tokens remain in existing explicit response continuations",
+    "Suffix execution remains one-token decode; byte admission unchanged"
+  ],
+  "payload_control": {
+    "bytes_per_kv_row": 24576,
+    "cache_payload_budget_bytes": 67108864,
+    "checkpoint_payload_before_eviction_bytes": 422282752,
+    "metadata_and_transient_copies_included": false,
+    "new_common_384_prefix_hit": true,
+    "new_physical_blocks": 64,
+    "new_retained_checkpoints": 68,
+    "new_retained_payload_bytes": 13190656,
+    "old_common_384_prefix_hit": false,
+    "old_retained_checkpoints": 5,
+    "old_retained_payload_bytes": 62318080,
+    "saved_prefix_checkpoints": 67,
+    "scope": "synthetic dimensions; old LRU payload model, not a sampled old-process RAM peak",
+    "source": {
+      "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+    }
+  },
+  "schema": "pllm.block_shared_state_reuse.v1",
+  "tiny_branch": {
+    "branch_input_tokens": 151,
+    "cached_online_upload_download_bytes": [
+      933674,
+      898346
+    ],
+    "cached_stage_calls": 736,
+    "experiment_digest": "b2253cb999824df8fdee623d3d654e01a0b5e38ee91ec8de2d14ac4c2158149e",
+    "first_input_tokens": 212,
+    "fresh_online_upload_download_bytes": [
+      2398104,
+      3712496
+    ],
+    "fresh_stage_calls": 32,
+    "no_online_preparation": true,
+    "no_plaintext_prompt_or_token_ids": true,
+    "prompt_cohort_digest": "12b519b88e3e06a444842a6603e441a340483a35020592b34a0694a7ac8ca409",
+    "reused_prefix_tokens": 128,
+    "same_selected_output_and_usage": true,
+    "scope": "one generated-checkpoint two-child loopback sample; online masked bodies only"
+  }
+}

@@ -60,6 +60,23 @@ class LoopbackBenchmarkError(RuntimeError):
     """Raised when the local benchmark roles cannot produce a complete run."""
 
 
+def _generation_metadata(value: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
+    """Terminal status by default; fingerprints only for opted-in public diagnostics."""
+    result = {"response_status": value.get("response_status")}
+    if capture_output_digest and "output_text_digest" in value:
+        result["output_text_digest"] = value["output_text_digest"]
+    return result
+
+
+def _report_record(record: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
+    result = dict(record)
+    if isinstance(result.get("generation"), dict):
+        result["generation"] = _generation_metadata(
+            result["generation"], capture_output_digest=capture_output_digest
+        )
+    return result
+
+
 def _run_state(snapshot: dict[str, Any]) -> dict[str, Any]:
     run = snapshot.get("run")
     if not isinstance(run, dict):
@@ -164,6 +181,8 @@ def build_loopback_report(
     client_model_ownership: dict[str, int | None] | None = None,
     cold_process_cpu: dict[str, dict[str, float | None] | None] | None = None,
     stage_snapshots: dict[str, Any] | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import (
@@ -174,9 +193,20 @@ def build_loopback_report(
         two_worker_body_accounting,
     )
 
+    from .dashboard import _sampling_choice, _validate_output_digest_capture
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    sampling = _sampling_choice(temperature)
+    warmup_runs = [
+        _report_record(run, capture_output_digest=capture_output_digest) for run in warmup_runs
+    ]
+    runs = [_report_record(run, capture_output_digest=capture_output_digest) for run in runs]
     all_runs = [*warmup_runs, *runs]
     checks = {
         "all_runs_completed": all(record.get("status") == "completed" for record in all_runs),
+        "sampling_matches_request": all(
+            record.get("sampling", sampling) == sampling for record in all_runs
+        ),
         "authoritative_token_usage": all(
             record.get("tokens", {}).get("authoritative") is True for record in all_runs
         ),
@@ -281,6 +311,8 @@ def build_loopback_report(
             "prompt_digest": prompt_digest,
             "prompt_sequence_digest": prompt_sequence_digest,
             "source_lock_digest": source_lock_digest,
+            "sampling": sampling,
+            "capture_output_digest": capture_output_digest,
         },
         "checks": {"passed": all(checks.values()), **checks},
         "privacy_admission": (
@@ -371,6 +403,20 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
     runs = report.get("runs")
     if not isinstance(runs, list) or not runs:
         return None
+    sampling = report.get("configuration", {}).get("sampling")
+    if not isinstance(sampling, dict):
+        return None  # Historical unreported sampling cannot be silently ranked.
+    effective: Any = sampling.get("effective_temperature")
+    if (
+        type(effective) not in (int, float)
+        or not 0 <= effective <= 2
+        or not math.isfinite(effective)
+        or sampling.get("mode") != ("greedy" if effective == 0 else "temperature")
+        or sampling.get("top_p") is not None
+        or any(run.get("sampling", sampling) != sampling for run in runs)
+    ):
+        return None
+    sampling_key = (float(effective), sampling["mode"], None)
     if report.get("configuration", {}).get("prompt_sequence_digest") is not None:
         if len({run.get("model_fingerprint") for run in runs}) != 1:
             return None
@@ -382,6 +428,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             tuple(run.get("warm") for run in runs),
             report["configuration"].get("warmup_prompt_digest"),
             report["configuration"]["prompt_sequence_digest"],
+            sampling_key,
         )
     keys = {
         (
@@ -392,6 +439,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             run.get("warm"),
             report.get("configuration", {}).get("warmup_prompt_digest"),
             report.get("configuration", {}).get("prompt_digest"),
+            sampling_key,
         )
         for run in runs
     }
@@ -500,6 +548,7 @@ def build_comparison_report(
     }
     comparison = None
     if comparison_key is not None:
+        effective_sampling = cast(tuple[float, str, None], comparison_key[7])
         comparison = {
             "model_fingerprint": comparison_key[0],
             "input_tokens": comparison_key[1],
@@ -508,6 +557,11 @@ def build_comparison_report(
             "warm": comparison_key[4],
             "warmup_prompt_digest": comparison_key[5],
             "prompt_digest": comparison_key[6],
+            "effective_sampling": {
+                "temperature": effective_sampling[0],
+                "mode": effective_sampling[1],
+                "top_p": effective_sampling[2],
+            },
         }
     offset_references = [
         record
@@ -636,15 +690,24 @@ def _run_once(
     timeout_seconds: float,
     progress: ProgressCallback | None = None,
     progress_label: str = "Benchmark run",
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
 ) -> dict[str, Any]:
+    from .dashboard import _validate_output_digest_capture, _validate_request_temperature
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    temperature = _validate_request_temperature(temperature)
     run_id = f"bench-{secrets.token_hex(16)}"
+    payload: dict[str, Any] = {
+        "prompt": prompt,
+        "max_output_tokens": max_output_tokens,
+        "request_id": run_id,
+    }
+    if temperature is not None:
+        payload["temperature"] = temperature
     response = client.post(
         "/api/run",
-        json={
-            "prompt": prompt,
-            "max_output_tokens": max_output_tokens,
-            "request_id": run_id,
-        },
+        json=payload,
     )
     try:
         response.raise_for_status()
@@ -684,7 +747,12 @@ def _run_once(
         if record.get("status") != "completed":
             failure = record.get("failure", {}).get("type") or "unknown failure"
             raise LoopbackBenchmarkError(f"benchmark run failed: {failure}")
-        return record
+        # Ephemeral metadata stays outside the immutable history schema. Text-free.
+        if isinstance(run.get("sampling"), dict):
+            record["sampling"] = run["sampling"]
+        if isinstance(run.get("generation"), dict):
+            record["generation"] = run["generation"]
+        return _report_record(record, capture_output_digest=capture_output_digest)
     raise LoopbackBenchmarkError("benchmark run did not complete before timeout")
 
 
@@ -709,7 +777,13 @@ def _run_loopback_benchmark(
     warmup_prompt: str | None = None,
     prompt_sequence: tuple[str, ...] | list[str] | None = None,
     _cohort_salt: bytes | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
 ) -> dict[str, Any]:
+    from .dashboard import _validate_output_digest_capture, _validate_request_temperature
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    temperature = _validate_request_temperature(temperature)
     if prompt_sequence is not None:
         if (
             not isinstance(prompt_sequence, (list, tuple))
@@ -821,6 +895,8 @@ def _run_loopback_benchmark(
         prefill_cache_mode=prefill_cache_mode,
         prefill_cache_bound_tokens=prefill_cache_bound_tokens,
         experiment=experiment,
+        temperature=temperature,
+        capture_output_digest=capture_output_digest,
         otel_token=_DASHBOARD_TOKEN,
     )
     origin = f"http://127.0.0.1:{port}"
@@ -887,6 +963,8 @@ def _run_loopback_benchmark(
                     timeout_seconds=timeout_seconds,
                     progress=progress,
                     progress_label=f"Warmup {index + 1}/{warmups} running",
+                    temperature=temperature,
+                    capture_output_digest=capture_output_digest,
                 )
                 warmup_runs.append(run)
                 if stage_snapshots is not None and before is not None:
@@ -909,6 +987,8 @@ def _run_loopback_benchmark(
                     timeout_seconds=timeout_seconds,
                     progress=progress,
                     progress_label=f"Measurement {index + 1}/{repetitions * len(measured_prompts)} running",
+                    temperature=temperature,
+                    capture_output_digest=capture_output_digest,
                 )
                 if prompt_sequence is not None:
                     run["context_index"] = index % len(measured_prompts)
@@ -964,6 +1044,8 @@ def _run_loopback_benchmark(
         client_model_ownership=client_model_ownership,
         cold_process_cpu=cold_process_cpu,
         stage_snapshots=stage_snapshots,
+        temperature=temperature,
+        capture_output_digest=capture_output_digest,
     )
     if prompt_sequence is not None:
         report["configuration"].update(
@@ -1002,8 +1084,10 @@ def run_loopback_benchmark(
     warmup_prompt: str | None = None,
     prompt_sequence: tuple[str, ...] | list[str] | None = None,
     _cohort_salt: bytes | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
 ) -> dict[str, Any]:
-    """Run the profile's real client and service roles on loopback."""
+    """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
         return _run_loopback_benchmark(
             model=model,
@@ -1025,4 +1109,6 @@ def run_loopback_benchmark(
             warmup_prompt=warmup_prompt,
             prompt_sequence=prompt_sequence,
             _cohort_salt=_cohort_salt,
+            temperature=temperature,
+            capture_output_digest=capture_output_digest,
         )

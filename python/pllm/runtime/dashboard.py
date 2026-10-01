@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -32,7 +34,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from pllm.configuration import Model
 from pllm.sources import TinyModel
-from pllm.runtime.client import OpenAI
+from pllm.runtime.client import OpenAI, _sampling_temperature
 from pllm.runtime.servers import LocalTopology, build_roles
 from pllm.runtime.benchmark_history import (
     MAX_LIMIT,
@@ -43,6 +45,31 @@ from pllm.runtime.benchmark_history import (
 
 
 _RUN_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+
+
+def _validate_request_temperature(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if type(value) not in (int, float) or not 0 <= value <= 2 or not math.isfinite(value):
+        raise ValueError("temperature must be a finite number in [0, 2], not Boolean")
+    return float(value)
+
+
+def _sampling_choice(temperature: float | None) -> dict[str, Any]:
+    requested = _validate_request_temperature(temperature)
+    effective = _sampling_temperature({"temperature": requested})
+    return {
+        "requested_temperature": requested,
+        "effective_temperature": effective,
+        "mode": "greedy" if effective == 0 else "temperature",
+        "top_p": None,
+    }
+
+
+def _validate_output_digest_capture(value: bool) -> bool:
+    if type(value) is not bool:
+        raise ValueError("capture_output_digest must be Boolean")
+    return value
 
 
 def _http_origin(host: str, port: int) -> str:
@@ -328,6 +355,12 @@ class DashboardConfig:
     prefill_cache_bound_tokens: int | None = None
     experiment: Any | None = None
     otel_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    temperature: float | None = None
+    capture_output_digest: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_request_temperature(self.temperature)
+        _validate_output_digest_capture(self.capture_output_digest)
 
 
 @dataclass(slots=True)
@@ -339,6 +372,7 @@ class _RunCapture:
     audit_before: dict[str, int]
     started_monotonic_ns: int
     protocol_start_cursor: int
+    temperature: float | None = None
     preparation_started_at_ns: int | None = None
     preparation_finished_at_ns: int | None = None
     online_started_at_ns: int | None = None
@@ -379,6 +413,8 @@ class DashboardRuntime:
         history: BenchmarkHistory | None = None,
     ) -> None:
         self.config = config
+        _validate_request_temperature(getattr(config, "temperature", None))
+        _validate_output_digest_capture(getattr(config, "capture_output_digest", False))
         self._bundle_compression = getattr(config, "bundle_compression", None)
         experiment = getattr(config, "experiment", None)
         profile = experiment.resolve() if experiment is not None else None
@@ -785,7 +821,17 @@ class DashboardRuntime:
         except Exception as exc:
             self._set(phase="error", error=f"startup failed: {type(exc).__name__}: {exc}")
 
-    def begin(self, prompt: str, max_output_tokens: int, request_id: str | None = None) -> str:
+    def begin(
+        self,
+        prompt: str,
+        max_output_tokens: int,
+        request_id: str | None = None,
+        *,
+        temperature: float | None = None,
+    ) -> str:
+        temperature = _validate_request_temperature(temperature)
+        if temperature is None:
+            temperature = _validate_request_temperature(getattr(self.config, "temperature", None))
         started_at_ns = time.time_ns()
         started_monotonic_ns = time.monotonic_ns()
         run_id = request_id or "run_" + secrets.token_hex(16)
@@ -806,6 +852,7 @@ class DashboardRuntime:
                 audit_before=self._audit_snapshot(),
                 started_monotonic_ns=started_monotonic_ns,
                 protocol_start_cursor=self.store.protocol_cursor(),
+                temperature=temperature,
             )
             if self._topology is not None and {
                 status.role for status in self._topology.statuses
@@ -838,6 +885,8 @@ class DashboardRuntime:
                 protocol_start_cursor=capture.protocol_start_cursor,
                 preparation_started_at=None,
                 preparation_finished_at=None,
+                sampling=_sampling_choice(temperature),
+                generation=None,
             )
             self._online_traffic_baseline = {}
             self._online_traffic_final = None
@@ -965,17 +1014,30 @@ class DashboardRuntime:
         completed_at_ns: int | None = None
         completed_monotonic_ns: int | None = None
         saw_completed = False
+        temperature = _validate_request_temperature(
+            capture.temperature
+            if capture is not None
+            else getattr(self.config, "temperature", None)
+        )
+        capture_output_digest = _validate_output_digest_capture(
+            getattr(self.config, "capture_output_digest", False)
+        )
+        self._set(
+            sampling=_sampling_choice(temperature), capture_output_digest=capture_output_digest
+        )
         try:
             from opentelemetry import trace
 
             with trace.get_tracer("pllm.dashboard").start_as_current_span("pllm.chat") as span:
                 span.set_attribute("gen_ai.request.model", self.config.model_id)
                 span.set_attribute("gen_ai.request.max_tokens", max_output_tokens)
+                sampling_options = {"temperature": temperature} if temperature is not None else {}
                 stream = self._client.responses.create(
                     model=self.config.model_id,
                     input=prompt,
                     max_output_tokens=max_output_tokens,
                     stream=True,
+                    **sampling_options,
                 )
                 for event in cast(Iterable[Any], stream):
                     event_type = event.get("type") if isinstance(event, dict) else event.type
@@ -985,6 +1047,40 @@ class DashboardRuntime:
                         authoritative_usage = self._completed_usage(event)
                         completed_at_ns = now_ns
                         completed_monotonic_ns = time.monotonic_ns()
+                        response = (
+                            event.get("response") if isinstance(event, dict) else event.response
+                        )
+                        if isinstance(response, dict):
+                            terminal_status = response.get(
+                                "status",
+                                "incomplete"
+                                if event_type == "response.incomplete"
+                                else "completed",
+                            )
+                        else:
+                            terminal_status = getattr(response, "status", None)
+                        generation = {"response_status": terminal_status}
+                        if capture_output_digest:
+                            # Public-task verification only; ordinary runs never fingerprint output.
+                            text = (
+                                "".join(
+                                    str(content.get("text", ""))
+                                    for item in response.get("output", [])
+                                    if item.get("type") == "message"
+                                    for content in item.get("content", [])
+                                    if content.get("type") == "output_text"
+                                )
+                                if isinstance(response, dict)
+                                else getattr(response, "output_text", None)
+                            )
+                            generation["output_text_digest"] = (
+                                hashlib.sha256(
+                                    json.dumps(text, sort_keys=True).encode()
+                                ).hexdigest()
+                                if isinstance(text, str)
+                                else None
+                            )
+                        self._set(generation=generation)
                         continue
                     if event_type != "response.output_text.delta":
                         continue
@@ -1523,7 +1619,7 @@ def create_dashboard_app(config: DashboardConfig) -> FastAPI:
             raise HTTPException(status_code=400, detail="invalid JSON body") from exc
         if not isinstance(body, dict):
             raise HTTPException(status_code=400, detail="JSON body must be an object")
-        if set(body).difference({"prompt", "max_output_tokens", "request_id"}):
+        if set(body).difference({"prompt", "max_output_tokens", "request_id", "temperature"}):
             raise HTTPException(status_code=400, detail="JSON body contains unsupported fields")
         prompt_value = body.get("prompt", "")
         if not isinstance(prompt_value, str):
@@ -1545,7 +1641,12 @@ def create_dashboard_app(config: DashboardConfig) -> FastAPI:
         ):
             raise HTTPException(status_code=400, detail="request_id is invalid")
         try:
-            run_id = runtime.begin(prompt, maximum, request_id)
+            temperature = _validate_request_temperature(body.get("temperature"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        try:
+            options = {"temperature": temperature} if temperature is not None else {}
+            run_id = runtime.begin(prompt, maximum, request_id, **options)
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {

@@ -1,0 +1,33 @@
+{
+  "schema": "pllm.task_qualified_tasks.v1",
+  "policy": {
+    "max_input_tokens": 512,
+    "max_output_tokens": 32,
+    "sampling": "greedy",
+    "require_eos": true,
+    "normalization": "strip outer whitespace only; exact case and internal formatting",
+    "smol_retries": 0,
+    "fallback": "one Qwen attempt iff Smol fails objective grader or EOS requirement; offline oracle",
+    "minimum_success_fraction": 0.75,
+    "maximum_cost_ratio": 0.8,
+    "canonical_task_ids": ["screen-extract-1", "review-arithmetic-1"]
+  },
+  "tasks": [
+    {"id":"screen-extract-1","cohort":"screen","category":"extraction","prompt":"Record: name=Iris; code=K47; city=Oslo. Extract the code. Reply with only the code, no explanation.","grader":{"kind":"exact","expected":"K47"}},
+    {"id":"screen-extract-2","cohort":"screen","category":"extraction","prompt":"Orders: AX8 status=pending; BM3 status=shipped; CZ6 status=cancelled. Which order is shipped? Reply with only its order ID.","grader":{"kind":"exact","expected":"BM3"}},
+    {"id":"screen-arithmetic-1","cohort":"screen","category":"arithmetic","prompt":"Calculate 17 + 26. Reply with only the integer result, no explanation.","grader":{"kind":"arithmetic","operation":"add","operands":[17,26]}},
+    {"id":"screen-arithmetic-2","cohort":"screen","category":"arithmetic","prompt":"Calculate 8 * 7. Reply with only the integer result, no explanation.","grader":{"kind":"arithmetic","operation":"multiply","operands":[8,7]}},
+    {"id":"screen-classify-1","cohort":"screen","category":"classification","prompt":"Classify 38 as EVEN or ODD. Reply with exactly one of those uppercase labels and nothing else.","grader":{"kind":"parity","number":38}},
+    {"id":"screen-classify-2","cohort":"screen","category":"classification","prompt":"Classify -9 as NEGATIVE, ZERO, or POSITIVE. Reply with only the uppercase label.","grader":{"kind":"sign","number":-9}},
+    {"id":"screen-format-1","cohort":"screen","category":"formatting","prompt":"Convert the word maple to uppercase. Reply with only the converted word.","grader":{"kind":"case","value":"maple","operation":"upper"}},
+    {"id":"screen-format-2","cohort":"screen","category":"formatting","prompt":"Sort these integers in ascending order: 9, 2, 5. Reply as comma-separated integers with no spaces, brackets, or explanation.","grader":{"kind":"sorted_csv","values":[9,2,5]}},
+    {"id":"review-extract-1","cohort":"review","category":"extraction","prompt":"Record: name=Noel; code=R82; city=Lima. Extract the city. Reply with only the city, no explanation.","grader":{"kind":"exact","expected":"Lima"}},
+    {"id":"review-extract-2","cohort":"review","category":"extraction","prompt":"Orders: DT4 status=cancelled; EU7 status=pending; FV2 status=shipped. Which order is pending? Reply with only its order ID.","grader":{"kind":"exact","expected":"EU7"}},
+    {"id":"review-arithmetic-1","cohort":"review","category":"arithmetic","prompt":"Calculate 63 - 28. Reply with only the integer result, no explanation.","grader":{"kind":"arithmetic","operation":"subtract","operands":[63,28]}},
+    {"id":"review-arithmetic-2","cohort":"review","category":"arithmetic","prompt":"Calculate 6 * 9. Reply with only the integer result, no explanation.","grader":{"kind":"arithmetic","operation":"multiply","operands":[6,9]}},
+    {"id":"review-classify-1","cohort":"review","category":"classification","prompt":"Classify 51 as EVEN or ODD. Reply with exactly one of those uppercase labels and nothing else.","grader":{"kind":"parity","number":51}},
+    {"id":"review-classify-2","cohort":"review","category":"classification","prompt":"Classify 0 as NEGATIVE, ZERO, or POSITIVE. Reply with only the uppercase label.","grader":{"kind":"sign","number":0}},
+    {"id":"review-format-1","cohort":"review","category":"formatting","prompt":"Convert the word CEDAR to lowercase. Reply with only the converted word.","grader":{"kind":"case","value":"CEDAR","operation":"lower"}},
+    {"id":"review-format-2","cohort":"review","category":"formatting","prompt":"Sort these integers in ascending order: 8, 1, 4. Reply as comma-separated integers with no spaces, brackets, or explanation.","grader":{"kind":"sorted_csv","values":[8,1,4]}}
+  ]
+}

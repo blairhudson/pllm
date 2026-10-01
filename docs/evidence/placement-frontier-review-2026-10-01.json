@@ -1,0 +1,816 @@
+{
+  "archive_calibrations": {
+    "client-attention": {
+      "cold_measured_body_bytes": 338515970,
+      "cold_payload_forecast_minus_archive_bytes": -4178,
+      "native_snapshot_measured_bytes": 44040192,
+      "online_forecast_minus_archive_bytes": 0,
+      "online_measured_body_bytes": 93221048,
+      "warm_forecast_minus_archive_bytes": 0,
+      "warm_measured_body_bytes": 148297986,
+      "whole_cpu_remote_fraction": null
+    },
+    "client-prefix-1": {
+      "cold_measured_body_bytes": 332451106,
+      "cold_payload_forecast_minus_archive_bytes": -357,
+      "native_snapshot_measured_bytes": 14909440,
+      "online_forecast_minus_archive_bytes": 0,
+      "online_measured_body_bytes": 108814126,
+      "warm_forecast_minus_archive_bytes": 0,
+      "warm_measured_body_bytes": 171513615,
+      "whole_cpu_remote_fraction": null
+    },
+    "client-prefix-2": {
+      "cold_measured_body_bytes": 339954604,
+      "cold_payload_forecast_minus_archive_bytes": -670,
+      "native_snapshot_measured_bytes": 29818880,
+      "online_forecast_minus_archive_bytes": 0,
+      "online_measured_body_bytes": 104083228,
+      "warm_forecast_minus_archive_bytes": 0,
+      "warm_measured_body_bytes": 164056672,
+      "whole_cpu_remote_fraction": null
+    },
+    "prepared-request-sized": {
+      "cold_measured_body_bytes": 324947564,
+      "cold_payload_forecast_minus_archive_bytes": 0,
+      "native_snapshot_measured_bytes": 0,
+      "online_forecast_minus_archive_bytes": 0,
+      "online_measured_body_bytes": 113545024,
+      "warm_forecast_minus_archive_bytes": 0,
+      "warm_measured_body_bytes": 178970558,
+      "whole_cpu_remote_fraction": null
+    }
+  },
+  "budget_winners_and_baseline": [
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 324947564,
+        "2": 503918122,
+        "32": 5873034862,
+        "8": 1577741470
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.8518472291562657,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.7244021360575806,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": null,
+      "archive_calibration": {
+        "cold_measured_body_bytes": 324947564,
+        "cold_payload_forecast_minus_archive_bytes": 0,
+        "native_snapshot_measured_bytes": 0,
+        "online_forecast_minus_archive_bytes": 0,
+        "online_measured_body_bytes": 113545024,
+        "warm_forecast_minus_archive_bytes": 0,
+        "warm_measured_body_bytes": 178970558,
+        "whole_cpu_remote_fraction": null
+      },
+      "body_client_macs_70_rows": 0,
+      "body_client_macs_per_row": 0,
+      "body_remote_mac_fraction": 1.0,
+      "body_remote_macs_per_row": 357826560,
+      "client_body_i8_weight_bytes": 0,
+      "client_body_plus_masks_array_bytes_floor": 135905280,
+      "client_body_resident_array_bytes_floor": 0,
+      "client_body_scale_bytes": 0,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 135905280,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 324947564,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 145977006,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 46233600,
+        "client->preparation": 3072,
+        "inference->client": 65372160,
+        "preparation->client": 0,
+        "preparation->inference": 65372160
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 47703296,
+        "client->preparation": 12658,
+        "inference->client": 65841728,
+        "preparation->client": 8620,
+        "preparation->inference": 65404256
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 0,
+      "name": "prepared-request-sized",
+      "native_body_i8_snapshot_bytes_forecast": 0,
+      "online_all_link_body_bytes_forecast": 113545024,
+      "prefix_layers": 0,
+      "remote_preparation_macs_70_rows": 25047859200,
+      "remote_stage_count": 96,
+      "roles": [],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "remote_stage": 96
+          },
+          "prefill": {
+            "remote_stage": 96
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "0fd26371668f6a317c9965797aefbcb9d88f0488e79bc78a6fc99464afc16ce8"
+      },
+      "setup_allowance_bytes": 2814,
+      "setup_allowance_source": "archived same placement",
+      "warm_all_link_body_bytes_forecast": 178970558,
+      "warm_body_saving_fraction": 0.0,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 330257316,
+        "2": 495184026,
+        "32": 5442985326,
+        "8": 1484744286
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.8059785322016975,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.6853958671929418,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 2,
+      "body_client_macs_70_rows": 1348730880,
+      "body_client_macs_per_row": 19267584,
+      "body_remote_mac_fraction": 0.9461538461538461,
+      "body_remote_macs_per_row": 338558976,
+      "client_body_i8_weight_bytes": 19267584,
+      "client_body_plus_masks_array_bytes_floor": 162484224,
+      "client_body_resident_array_bytes_floor": 38621184,
+      "client_body_scale_bytes": 86016,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 123863040,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 330257316,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 165330606,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 41717760,
+        "client->preparation": 2304,
+        "inference->client": 60856320,
+        "preparation->client": 0,
+        "preparation->inference": 60856320
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 42820590,
+        "client->preparation": 10186,
+        "inference->client": 61209054,
+        "preparation->client": 6470,
+        "preparation->inference": 60880410
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 24,
+      "name": "roles-attention_output",
+      "native_body_i8_snapshot_bytes_forecast": 19267584,
+      "online_all_link_body_bytes_forecast": 104029644,
+      "prefix_layers": 0,
+      "remote_preparation_macs_70_rows": 23699128320,
+      "remote_stage_count": 72,
+      "roles": [
+        "attention_output"
+      ],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 24,
+            "remote_stage": 72
+          },
+          "prefill": {
+            "client_linear": 24,
+            "remote_stage": 72
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "7aa88ab6826bdc1fdb86c7fea7b16302bf981da2ebcef0cdb3c1a798482b296c"
+      },
+      "setup_allowance_bytes": 2814,
+      "setup_allowance_source": "baseline allowance; not proven bound",
+      "warm_all_link_body_bytes_forecast": 164926710,
+      "warm_body_saving_fraction": 0.07847015820333979,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 333203364,
+        "2": 495546522,
+        "32": 5365841262,
+        "8": 1469605470
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.792873190214678,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.674251218945902,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 2,
+      "body_client_macs_70_rows": 1734082560,
+      "body_client_macs_per_row": 24772608,
+      "body_remote_mac_fraction": 0.9307692307692308,
+      "body_remote_macs_per_row": 333053952,
+      "client_body_i8_weight_bytes": 24772608,
+      "client_body_plus_masks_array_bytes_floor": 171798528,
+      "client_body_resident_array_bytes_floor": 49655808,
+      "client_body_scale_bytes": 110592,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 122142720,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 333203364,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 170860206,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 41717760,
+        "client->preparation": 2304,
+        "inference->client": 59566080,
+        "preparation->client": 0,
+        "preparation->inference": 59566080
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 42819102,
+        "client->preparation": 10186,
+        "inference->client": 59917326,
+        "preparation->client": 6422,
+        "preparation->inference": 59590122
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 24,
+      "name": "roles-qkv_projection",
+      "native_body_i8_snapshot_bytes_forecast": 24772608,
+      "online_all_link_body_bytes_forecast": 102736428,
+      "prefix_layers": 0,
+      "remote_preparation_macs_70_rows": 23313776640,
+      "remote_stage_count": 72,
+      "roles": [
+        "qkv_projection"
+      ],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 24,
+            "remote_stage": 72
+          },
+          "prefill": {
+            "client_linear": 24,
+            "remote_stage": 72
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "5fe21f1b2de497e5ebbeec83eb14c62c048107b2ae793b6f3fab182fc95d4baa"
+      },
+      "setup_allowance_bytes": 2814,
+      "setup_allowance_source": "baseline allowance; not proven bound",
+      "warm_all_link_body_bytes_forecast": 162343158,
+      "warm_body_saving_fraction": 0.09290578397816696,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 338511792,
+        "2": 486809778,
+        "32": 4935749358,
+        "8": 1376597694
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.7470044932601099,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.635244950081263,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 2,
+      "archive_calibration": {
+        "cold_measured_body_bytes": 338515970,
+        "cold_payload_forecast_minus_archive_bytes": -4178,
+        "native_snapshot_measured_bytes": 44040192,
+        "online_forecast_minus_archive_bytes": 0,
+        "online_measured_body_bytes": 93221048,
+        "warm_forecast_minus_archive_bytes": 0,
+        "warm_measured_body_bytes": 148297986,
+        "whole_cpu_remote_fraction": null
+      },
+      "body_client_macs_70_rows": 3082813440,
+      "body_client_macs_per_row": 44040192,
+      "body_remote_mac_fraction": 0.8769230769230769,
+      "body_remote_macs_per_row": 313786368,
+      "client_body_i8_weight_bytes": 44040192,
+      "client_body_plus_masks_array_bytes_floor": 198377472,
+      "client_body_resident_array_bytes_floor": 88276992,
+      "client_body_scale_bytes": 196608,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 110100480,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 338511792,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 190213806,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 37201920,
+        "client->preparation": 1536,
+        "inference->client": 55050240,
+        "preparation->client": 0,
+        "preparation->inference": 55050240
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 37936396,
+        "client->preparation": 6390,
+        "inference->client": 55284652,
+        "preparation->client": 4272,
+        "preparation->inference": 55066276
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 48,
+      "name": "client-attention",
+      "native_body_i8_snapshot_bytes_forecast": 44040192,
+      "online_all_link_body_bytes_forecast": 93221048,
+      "prefix_layers": 0,
+      "remote_preparation_macs_70_rows": 21965045760,
+      "remote_stage_count": 48,
+      "roles": [
+        "attention_output",
+        "qkv_projection"
+      ],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 48,
+            "remote_stage": 48
+          },
+          "prefill": {
+            "client_linear": 48,
+            "remote_stage": 48
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "aef05b30ab99bcd57aec3b2015acdc877a2bb9ce4ffce1e91f992cd9ba5ab85d"
+      },
+      "setup_allowance_bytes": 1490,
+      "setup_allowance_source": "archived same placement",
+      "warm_all_link_body_bytes_forecast": 148297986,
+      "warm_body_saving_fraction": 0.17138334004635555,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 392658748,
+        "2": 509775818,
+        "32": 4023287918,
+        "8": 1212478238
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.5438716924613081,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.4625029022521477,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 3,
+      "body_client_macs_70_rows": 9055764480,
+      "body_client_macs_per_row": 129368064,
+      "body_remote_mac_fraction": 0.6384615384615384,
+      "body_remote_macs_per_row": 228458496,
+      "client_body_i8_weight_bytes": 129368064,
+      "client_body_plus_masks_array_bytes_floor": 342368256,
+      "client_body_resident_array_bytes_floor": 258932736,
+      "client_body_scale_bytes": 196608,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 83435520,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 392658748,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 275541678,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 9031680,
+        "client->preparation": 1536,
+        "inference->client": 53544960,
+        "preparation->client": 0,
+        "preparation->inference": 53544960
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 9765412,
+        "client->preparation": 7714,
+        "inference->client": 53778628,
+        "preparation->client": 4344,
+        "preparation->inference": 53560972
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 48,
+      "name": "roles-mlp_down+qkv_projection",
+      "native_body_i8_snapshot_bytes_forecast": 129368064,
+      "online_all_link_body_bytes_forecast": 63544040,
+      "prefix_layers": 0,
+      "remote_preparation_macs_70_rows": 15992094720,
+      "remote_stage_count": 48,
+      "roles": [
+        "mlp_down",
+        "qkv_projection"
+      ],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 48,
+            "remote_stage": 48
+          },
+          "prefill": {
+            "client_linear": 48,
+            "remote_stage": 48
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "36df6da7407adb565da720a7e7a7704518fe33b00f4da64ed5defe0cec9a2e84"
+      },
+      "setup_allowance_bytes": 2814,
+      "setup_allowance_source": "baseline allowance; not proven bound",
+      "warm_all_link_body_bytes_forecast": 117117070,
+      "warm_body_saving_fraction": 0.34560705789384644,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 332450749,
+        "2": 503964364,
+        "32": 5649372814,
+        "8": 1533046054
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.8163535946080879,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.6942187137218482,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 3,
+      "archive_calibration": {
+        "cold_measured_body_bytes": 332451106,
+        "cold_payload_forecast_minus_archive_bytes": -357,
+        "native_snapshot_measured_bytes": 14909440,
+        "online_forecast_minus_archive_bytes": 0,
+        "online_measured_body_bytes": 108814126,
+        "warm_forecast_minus_archive_bytes": 0,
+        "warm_measured_body_bytes": 171513615,
+        "whole_cpu_remote_fraction": null
+      },
+      "body_client_macs_70_rows": 1043660800,
+      "body_client_macs_per_row": 14909440,
+      "body_remote_mac_fraction": 0.9583333333333334,
+      "body_remote_macs_per_row": 342917120,
+      "client_body_i8_weight_bytes": 14909440,
+      "client_body_plus_masks_array_bytes_floor": 160112128,
+      "client_body_resident_array_bytes_floor": 29869568,
+      "client_body_scale_bytes": 50688,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 130242560,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 332450749,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 160937134,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 44307200,
+        "client->preparation": 2944,
+        "inference->client": 62648320,
+        "preparation->client": 0,
+        "preparation->inference": 62648320
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 45715731,
+        "client->preparation": 12143,
+        "inference->client": 63098395,
+        "preparation->client": 8265,
+        "preparation->inference": 62679081
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 4,
+      "name": "client-prefix-1",
+      "native_body_i8_snapshot_bytes_forecast": 14909440,
+      "online_all_link_body_bytes_forecast": 108814126,
+      "prefix_layers": 1,
+      "remote_preparation_macs_70_rows": 24004198400,
+      "remote_stage_count": 92,
+      "roles": [],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 4,
+            "remote_stage": 92
+          },
+          "prefill": {
+            "client_linear": 4,
+            "remote_stage": 92
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "fb38a2d743be440cb050ebaaf0c13a13c389bb7cb79baede0175b3bf70f10328"
+      },
+      "setup_allowance_bytes": 2711,
+      "setup_allowance_source": "archived same placement",
+      "warm_all_link_body_bytes_forecast": 171513615,
+      "warm_body_saving_fraction": 0.04166575264295706,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    },
+    {
+      "accounted_body_forecast_for_cached_model_response_counts": {
+        "1": 377470580,
+        "2": 504243258,
+        "32": 4307423598,
+        "8": 1264879326
+      },
+      "all_linear_remote_fraction_70_body_32_head_rows": 0.6033917873190214,
+      "all_linear_remote_fraction_one_head_row_per_body_row": 0.513118179707453,
+      "all_linear_workload_scope": "native schedule verifies one head row per prefill/decode: 1+31=32 client head rows, 39+31=70 body rows; token lookup is not a dense MAC",
+      "amortization_first_response_count_beating_baseline_payload_forecast": 3,
+      "body_client_macs_70_rows": 7305625600,
+      "body_client_macs_per_row": 104366080,
+      "body_remote_mac_fraction": 0.7083333333333334,
+      "body_remote_macs_per_row": 253460480,
+      "client_body_i8_weight_bytes": 104366080,
+      "client_body_plus_masks_array_bytes_floor": 305353216,
+      "client_body_resident_array_bytes_floor": 209086976,
+      "client_body_scale_bytes": 354816,
+      "client_checkpoint_disk_bytes": null,
+      "client_head_macs_per_logit_row": 136134656,
+      "client_mask_uint32_array_bytes": 96266240,
+      "client_total_peak_ram_bytes": null,
+      "cold_all_link_body_bytes_payload_forecast": 377470580,
+      "cold_bundle_metadata_delta_bytes": null,
+      "cold_inference_to_client_bundle_body_bytes_payload_forecast": 250697902,
+      "directed_tensor_and_root_payload_bytes_70_rows": {
+        "client->inference": 32748800,
+        "client->preparation": 2176,
+        "inference->client": 46305280,
+        "preparation->client": 0,
+        "preparation->inference": 46305280
+      },
+      "directed_warm_body_bytes_forecast": {
+        "client->inference": 33790341,
+        "client->preparation": 9774,
+        "inference->client": 46638397,
+        "preparation->client": 6135,
+        "preparation->inference": 46328031
+      },
+      "forecast_status": "archived stage subtraction + setup allowance + cold payload; not measured candidate traffic",
+      "local_stage_count": 28,
+      "name": "client-prefix-7",
+      "native_body_i8_snapshot_bytes_forecast": 104366080,
+      "online_all_link_body_bytes_forecast": 80428738,
+      "prefix_layers": 7,
+      "remote_preparation_macs_70_rows": 17742233600,
+      "remote_stage_count": 68,
+      "roles": [],
+      "schedule_verification": {
+        "phase_body_stage_counts": {
+          "decode": {
+            "client_linear": 28,
+            "remote_stage": 68
+          },
+          "prefill": {
+            "client_linear": 28,
+            "remote_stage": 68
+          }
+        },
+        "phase_output_head_rows": {
+          "decode": 1,
+          "prefill": 1
+        },
+        "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+        "resolved": true,
+        "schedule_digest": "ddd46c0232f97eaead6740665c18903858c0cf2dd3b2e3b7c356d084f38f25dc"
+      },
+      "setup_allowance_bytes": 2814,
+      "setup_allowance_source": "baseline allowance; not proven bound",
+      "warm_all_link_body_bytes_forecast": 126772678,
+      "warm_body_saving_fraction": 0.29165623990511336,
+      "whole_cpu_cap_admitted": false,
+      "whole_cpu_remote_fraction": null
+    }
+  ],
+  "budgets": [
+    {
+      "admission": "body MAC + body array floors only; whole CPU, peak RAM and full storage unadmitted",
+      "cold_pareto": [
+        "prepared-request-sized"
+      ],
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "client-prefix-1"
+      ],
+      "lowest_warm_body_forecast_candidate": "client-prefix-1",
+      "maximum_client_body_resident_array_bytes_floor": 67108864,
+      "minimum_body_remote_mac_fraction": 0.95,
+      "name": "small",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "client-prefix-1"
+      ]
+    },
+    {
+      "admission": "body MAC + body array floors only; whole CPU, peak RAM and full storage unadmitted",
+      "cold_pareto": [
+        "prepared-request-sized"
+      ],
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-prefix-1",
+        "client-prefix-2"
+      ],
+      "lowest_warm_body_forecast_candidate": "roles-qkv_projection",
+      "maximum_client_body_resident_array_bytes_floor": 134217728,
+      "minimum_body_remote_mac_fraction": 0.9,
+      "name": "moderate",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-prefix-1"
+      ]
+    },
+    {
+      "admission": "body MAC + body array floors only; whole CPU, peak RAM and full storage unadmitted",
+      "cold_pareto": [
+        "prepared-request-sized"
+      ],
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-attention",
+        "client-prefix-1",
+        "client-prefix-2",
+        "client-prefix-3",
+        "client-prefix-4"
+      ],
+      "lowest_warm_body_forecast_candidate": "client-attention",
+      "maximum_client_body_resident_array_bytes_floor": 167772160,
+      "minimum_body_remote_mac_fraction": 0.8,
+      "name": "remote80",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-attention",
+        "client-prefix-1"
+      ]
+    },
+    {
+      "admission": "body MAC + body array floors only; whole CPU, peak RAM and full storage unadmitted",
+      "cold_pareto": [
+        "prepared-request-sized"
+      ],
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-mlp_down",
+        "roles-qkv_projection",
+        "client-attention",
+        "client-prefix-1",
+        "client-prefix-2",
+        "client-prefix-3",
+        "client-prefix-4",
+        "client-prefix-5",
+        "client-prefix-6",
+        "client-prefix-7"
+      ],
+      "lowest_warm_body_forecast_candidate": "client-prefix-7",
+      "maximum_client_body_resident_array_bytes_floor": 268435456,
+      "minimum_body_remote_mac_fraction": 0.7,
+      "name": "remote70",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-attention",
+        "client-prefix-1",
+        "client-prefix-5",
+        "client-prefix-6",
+        "client-prefix-7"
+      ]
+    },
+    {
+      "admission": "body MAC + body array floors only; whole CPU, peak RAM and full storage unadmitted",
+      "cold_pareto": [
+        "prepared-request-sized"
+      ],
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-mlp_down",
+        "roles-attention_output+mlp_down",
+        "roles-qkv_projection",
+        "client-attention",
+        "roles-mlp_down+qkv_projection",
+        "client-prefix-1",
+        "client-prefix-2",
+        "client-prefix-3",
+        "client-prefix-4",
+        "client-prefix-5",
+        "client-prefix-6",
+        "client-prefix-7",
+        "client-prefix-8"
+      ],
+      "lowest_warm_body_forecast_candidate": "roles-mlp_down+qkv_projection",
+      "maximum_client_body_resident_array_bytes_floor": 335544320,
+      "minimum_body_remote_mac_fraction": 0.6,
+      "name": "remote60",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "roles-qkv_projection",
+        "client-attention",
+        "roles-mlp_down+qkv_projection",
+        "client-prefix-1",
+        "client-prefix-5",
+        "client-prefix-6",
+        "client-prefix-7",
+        "client-prefix-8"
+      ]
+    },
+    {
+      "admission": "body+head MAC cap; whole CPU and complete storage remain unadmitted",
+      "eligible_candidates": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "client-prefix-1"
+      ],
+      "lowest_warm_body_forecast_candidate": "roles-attention_output",
+      "maximum_client_body_resident_array_bytes_floor": 167772160,
+      "minimum_all_linear_remote_mac_fraction": 0.8,
+      "name": "all-linear-remote80",
+      "warm_pareto": [
+        "prepared-request-sized",
+        "roles-attention_output",
+        "client-prefix-1"
+      ]
+    }
+  ],
+  "date": "2026-10-01",
+  "next_gate": "matched pinned no-download W8A8 baseline, QKV-only, output-only and attention 39+32 cold/warm loopback; reconcile every directed stage body, logit parity, head MACs, full process CPU and complete client peak RAM/storage before admission",
+  "omissions": [
+    "Forecasts are not measured candidate protocol traffic; baseline setup allowance is not an upper bound.",
+    "Cold payload forecast omits placement-dependent metadata and layout changes; native snapshots are resident copies, not a second weight transfer.",
+    "Checkpoint distribution, full persistent storage, peak RAM, embedding/head/nonlinear arrays, import temporaries and allocator overhead are unmeasured.",
+    "Covered five stage directions plus cold inference->client bundle exclude some forwarding/ack/status/control bodies and HTTP/TLS/framing/retries; missing bytes are unknown, not zero.",
+    "Body MAC cap excludes client head, attention/nonlinear work, masks, serialization, preparation CPU and startup; all-linear ratios do not establish whole CPU admission.",
+    "Tiny clear native callback checks arithmetic/placement parity, not cryptographic traffic, public-model quality or operator independence.",
+    "No combined prefix+role placement, arbitrary layer subset, q/k/v split or compiler-contract change is introduced."
+  ],
+  "rejected_candidates": [
+    {
+      "name": "roles-attention_output+mlp_down+mlp_gate_up+qkv_projection",
+      "prefix_layers": 0,
+      "reason": "client linear placement must retain a remote body stage",
+      "roles": [
+        "attention_output",
+        "mlp_down",
+        "mlp_gate_up",
+        "qkv_projection"
+      ]
+    }
+  ],
+  "retained_inputs_sha256": "d44f3111edce0d462bbffbd4860a64f42c8823045dc675d111a5b7a250e473bd",
+  "schema": "pllm.placement_frontier_review.v1",
+  "source": {
+    "archived_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "archived_execution_source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "source_ring_counts": {
+    "24": 72,
+    "32": 24
+  },
+  "status": "bounded placement improvement, not a 10x network method",
+  "tiny_parity_all_exact": true,
+  "tiny_parity_valid_placements": 23,
+  "valid_placements": 23,
+  "workload": {
+    "fresh_rows_per_stage": 70,
+    "input_tokens": 39,
+    "output_tokens": 32
+  }
+}
