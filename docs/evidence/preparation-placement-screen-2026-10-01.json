@@ -1,0 +1,231 @@
+{
+  "schema": "pllm.trusted_local_preparation_placement_screen.v1",
+  "date": "2026-10-01",
+  "status": "archived-body exact reclassification; placement itself unmeasured",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "weight_bits": 8,
+    "activation_bits": 8
+  },
+  "workload": {"input_tokens": 39, "output_tokens": 32, "fresh_rows_per_stage": 70},
+  "source_sha256": {
+    "prepared-stage-attribution-qwen25-2026-09-29.json": "037e969be7c240a6ee61828d39c6627226cfece0efa23db6ae7623a8c92acf26",
+    "incremental-network-qwen25-2026-10-01.json": "fad309506f2cc6d537b0778ca7d29c3ef4fb7a9a70ab8df66b99d114da586082"
+  },
+  "raw_archive_sha256": {
+    "qwen-incremental-32-warm.json": "871d6d7c2aa3d5cc0f337e2aa73e73ebff10e7b82510816b59e99d2ae82665d8",
+    "qwen-incremental-32-cold.json": "aa1c05efa40628c3b458ff39a36d35a641639dcd4e54b04d8edfb006960b8011"
+  },
+  "retained_directed_ledger_sha256": "fdfd268636005b210ea8718a6d6e88837e03a71e0d0b721520bc24725d573a2e",
+  "archived_ledgers": {
+    "warm": {
+      "prepared-request-sized": {
+        "all_link_body_bytes": 178970558,
+        "online_body_bytes": 113545024,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "prompt_digest": "c32aa8d3d5c293a2a3f3b01c6de6984ea2a6525855ef1578b63efcb95aa040d3",
+        "inventory": {"burned": 0, "consumed": 70, "generated": 70, "required": 70, "reused": 0},
+        "run_cpu_seconds_by_role": {"client": 7.192128, "inference": 10.235867392, "preparation": 6.414704384},
+        "edges": [
+          {"source": "client", "destination": "preparation", "phase": "offline", "serialized_body_bytes": 12658},
+          {"source": "preparation", "destination": "client", "phase": "offline", "serialized_body_bytes": 8620},
+          {"source": "preparation", "destination": "inference", "phase": "offline", "serialized_body_bytes": 65404256},
+          {"source": "inference", "destination": "client", "phase": "cold", "serialized_body_bytes": 0},
+          {"source": "client", "destination": "inference", "phase": "online", "serialized_body_bytes": 47703296},
+          {"source": "inference", "destination": "client", "phase": "online", "serialized_body_bytes": 65841728}
+        ],
+        "stage_counts_by_role": {"attention_output": 24, "qkv_projection": 24, "mlp_gate_up": 24, "mlp_down": 24},
+        "stage_body_bytes_by_role_and_edge": {
+          "attention_output": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 4632674, "preparation->client": 2150, "preparation->inference": 4523846},
+          "qkv_projection": {"client->inference": 4884194, "client->preparation": 2472, "inference->client": 5924402, "preparation->client": 2198, "preparation->inference": 5814134},
+          "mlp_gate_up": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 49145954, "preparation->client": 2150, "preparation->inference": 49037126},
+          "mlp_down": {"client->inference": 33053690, "client->preparation": 2472, "inference->client": 6138698, "preparation->client": 2078, "preparation->inference": 6029150}
+        },
+        "stage_expected_edges": {"client->inference": 47703296, "client->preparation": 9888, "inference->client": 65841728, "preparation->client": 8576, "preparation->inference": 65404256},
+        "stage_measured_edges": {"client->inference": 47703296, "client->preparation": 9888, "inference->client": 65841728, "preparation->client": 8576, "preparation->inference": 65404256}
+      },
+      "client-attention": {
+        "all_link_body_bytes": 148297986,
+        "online_body_bytes": 93221048,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "prompt_digest": "c32aa8d3d5c293a2a3f3b01c6de6984ea2a6525855ef1578b63efcb95aa040d3",
+        "inventory": {"burned": 0, "consumed": 70, "generated": 70, "required": 70, "reused": 0},
+        "run_cpu_seconds_by_role": {"client": 8.501883000000007, "inference": 7.672685568000002, "preparation": 5.551877632000002},
+        "edges": [
+          {"source": "client", "destination": "preparation", "phase": "offline", "serialized_body_bytes": 6390},
+          {"source": "preparation", "destination": "client", "phase": "offline", "serialized_body_bytes": 4272},
+          {"source": "preparation", "destination": "inference", "phase": "offline", "serialized_body_bytes": 55066276},
+          {"source": "inference", "destination": "client", "phase": "cold", "serialized_body_bytes": 0},
+          {"source": "client", "destination": "inference", "phase": "online", "serialized_body_bytes": 37936396},
+          {"source": "inference", "destination": "client", "phase": "online", "serialized_body_bytes": 55284652}
+        ],
+        "stage_counts_by_role": {"mlp_gate_up": 24, "mlp_down": 24},
+        "stage_body_bytes_by_role_and_edge": {
+          "mlp_gate_up": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 49145954, "preparation->client": 2150, "preparation->inference": 49037126},
+          "mlp_down": {"client->inference": 33053690, "client->preparation": 2472, "inference->client": 6138698, "preparation->client": 2078, "preparation->inference": 6029150}
+        },
+        "stage_expected_edges": {"client->inference": 37936396, "client->preparation": 4944, "inference->client": 55284652, "preparation->client": 4228, "preparation->inference": 55066276},
+        "stage_measured_edges": {"client->inference": 37936396, "client->preparation": 4944, "inference->client": 55284652, "preparation->client": 4228, "preparation->inference": 55066276}
+      }
+    },
+    "cold": {
+      "prepared-request-sized": {
+        "all_link_body_bytes": 324947564,
+        "online_body_bytes": 113545024,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "prompt_digest": "80f8e4ec58669b73af23235a8aa0c7ec2d4f7bbb9e6d8f8efe3c22629aebaaa4",
+        "inventory": {"burned": 0, "consumed": 70, "generated": 70, "required": 70, "reused": 0},
+        "run_cpu_seconds_by_role": {"client": 7.4003890000000006, "inference": 10.425886720000001, "preparation": 6.458508672000001},
+        "edges": [
+          {"source": "client", "destination": "preparation", "phase": "offline", "serialized_body_bytes": 12658},
+          {"source": "preparation", "destination": "client", "phase": "offline", "serialized_body_bytes": 8620},
+          {"source": "preparation", "destination": "inference", "phase": "offline", "serialized_body_bytes": 65404256},
+          {"source": "inference", "destination": "client", "phase": "cold", "serialized_body_bytes": 145977006},
+          {"source": "client", "destination": "inference", "phase": "online", "serialized_body_bytes": 47703296},
+          {"source": "inference", "destination": "client", "phase": "online", "serialized_body_bytes": 65841728}
+        ],
+        "stage_counts_by_role": {"attention_output": 24, "qkv_projection": 24, "mlp_gate_up": 24, "mlp_down": 24},
+        "stage_body_bytes_by_role_and_edge": {
+          "attention_output": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 4632674, "preparation->client": 2150, "preparation->inference": 4523846},
+          "qkv_projection": {"client->inference": 4884194, "client->preparation": 2472, "inference->client": 5924402, "preparation->client": 2198, "preparation->inference": 5814134},
+          "mlp_gate_up": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 49145954, "preparation->client": 2150, "preparation->inference": 49037126},
+          "mlp_down": {"client->inference": 33053690, "client->preparation": 2472, "inference->client": 6138698, "preparation->client": 2078, "preparation->inference": 6029150}
+        },
+        "stage_expected_edges": {"client->inference": 47703296, "client->preparation": 9888, "inference->client": 65841728, "preparation->client": 8576, "preparation->inference": 65404256},
+        "stage_measured_edges": {"client->inference": 47703296, "client->preparation": 9888, "inference->client": 65841728, "preparation->client": 8576, "preparation->inference": 65404256}
+      },
+      "client-attention": {
+        "all_link_body_bytes": 338515970,
+        "online_body_bytes": 93221048,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "prompt_digest": "80f8e4ec58669b73af23235a8aa0c7ec2d4f7bbb9e6d8f8efe3c22629aebaaa4",
+        "inventory": {"burned": 0, "consumed": 70, "generated": 70, "required": 70, "reused": 0},
+        "run_cpu_seconds_by_role": {"client": 9.115834, "inference": 8.339909248000001, "preparation": 5.813017215999999},
+        "edges": [
+          {"source": "client", "destination": "preparation", "phase": "offline", "serialized_body_bytes": 6390},
+          {"source": "preparation", "destination": "client", "phase": "offline", "serialized_body_bytes": 4272},
+          {"source": "preparation", "destination": "inference", "phase": "offline", "serialized_body_bytes": 55066276},
+          {"source": "inference", "destination": "client", "phase": "cold", "serialized_body_bytes": 190217984},
+          {"source": "client", "destination": "inference", "phase": "online", "serialized_body_bytes": 37936396},
+          {"source": "inference", "destination": "client", "phase": "online", "serialized_body_bytes": 55284652}
+        ],
+        "stage_counts_by_role": {"mlp_gate_up": 24, "mlp_down": 24},
+        "stage_body_bytes_by_role_and_edge": {
+          "mlp_gate_up": {"client->inference": 4882706, "client->preparation": 2472, "inference->client": 49145954, "preparation->client": 2150, "preparation->inference": 49037126},
+          "mlp_down": {"client->inference": 33053690, "client->preparation": 2472, "inference->client": 6138698, "preparation->client": 2078, "preparation->inference": 6029150}
+        },
+        "stage_expected_edges": {"client->inference": 37936396, "client->preparation": 4944, "inference->client": 55284652, "preparation->client": 4228, "preparation->inference": 55066276},
+        "stage_measured_edges": {"client->inference": 37936396, "client->preparation": 4944, "inference->client": 55284652, "preparation->client": 4228, "preparation->inference": 55066276}
+      }
+    }
+  },
+  "placement_table": [
+    {"window": "warm", "candidate": "prepared-request-sized", "placement": "remote-preparation", "lan_body_bytes": 0, "wan_body_bytes": 178970558, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 178970558, "all_logical_link_body_bytes": 178970558, "online_wan_body_bytes": 113545024},
+    {"window": "warm", "candidate": "prepared-request-sized", "placement": "trusted-lan-appliance", "lan_body_bytes": 21278, "wan_body_bytes": 178949280, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 178970558, "all_logical_link_body_bytes": 178970558, "online_wan_body_bytes": 113545024},
+    {"window": "warm", "candidate": "prepared-request-sized", "placement": "client-host-loopback", "lan_body_bytes": 0, "wan_body_bytes": 178949280, "loopback_body_bytes": 21278, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 178970558, "all_logical_link_body_bytes": 178970558, "online_wan_body_bytes": 113545024},
+    {"window": "warm", "candidate": "prepared-request-sized", "placement": "client-host-ipc-counterfactual", "lan_body_bytes": 0, "wan_body_bytes": 178949280, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 21278, "all_network_link_body_bytes": 178949280, "all_logical_link_body_bytes": 178970558, "online_wan_body_bytes": 113545024},
+    {"window": "warm", "candidate": "client-attention", "placement": "remote-preparation", "lan_body_bytes": 0, "wan_body_bytes": 148297986, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 148297986, "all_logical_link_body_bytes": 148297986, "online_wan_body_bytes": 93221048},
+    {"window": "warm", "candidate": "client-attention", "placement": "trusted-lan-appliance", "lan_body_bytes": 10662, "wan_body_bytes": 148287324, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 148297986, "all_logical_link_body_bytes": 148297986, "online_wan_body_bytes": 93221048},
+    {"window": "warm", "candidate": "client-attention", "placement": "client-host-loopback", "lan_body_bytes": 0, "wan_body_bytes": 148287324, "loopback_body_bytes": 10662, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 148297986, "all_logical_link_body_bytes": 148297986, "online_wan_body_bytes": 93221048},
+    {"window": "warm", "candidate": "client-attention", "placement": "client-host-ipc-counterfactual", "lan_body_bytes": 0, "wan_body_bytes": 148287324, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 10662, "all_network_link_body_bytes": 148287324, "all_logical_link_body_bytes": 148297986, "online_wan_body_bytes": 93221048},
+    {"window": "cold", "candidate": "prepared-request-sized", "placement": "remote-preparation", "lan_body_bytes": 0, "wan_body_bytes": 324947564, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 324947564, "all_logical_link_body_bytes": 324947564, "online_wan_body_bytes": 113545024},
+    {"window": "cold", "candidate": "prepared-request-sized", "placement": "trusted-lan-appliance", "lan_body_bytes": 21278, "wan_body_bytes": 324926286, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 324947564, "all_logical_link_body_bytes": 324947564, "online_wan_body_bytes": 113545024},
+    {"window": "cold", "candidate": "prepared-request-sized", "placement": "client-host-loopback", "lan_body_bytes": 0, "wan_body_bytes": 324926286, "loopback_body_bytes": 21278, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 324947564, "all_logical_link_body_bytes": 324947564, "online_wan_body_bytes": 113545024},
+    {"window": "cold", "candidate": "prepared-request-sized", "placement": "client-host-ipc-counterfactual", "lan_body_bytes": 0, "wan_body_bytes": 324926286, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 21278, "all_network_link_body_bytes": 324926286, "all_logical_link_body_bytes": 324947564, "online_wan_body_bytes": 113545024},
+    {"window": "cold", "candidate": "client-attention", "placement": "remote-preparation", "lan_body_bytes": 0, "wan_body_bytes": 338515970, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 338515970, "all_logical_link_body_bytes": 338515970, "online_wan_body_bytes": 93221048},
+    {"window": "cold", "candidate": "client-attention", "placement": "trusted-lan-appliance", "lan_body_bytes": 10662, "wan_body_bytes": 338505308, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 338515970, "all_logical_link_body_bytes": 338515970, "online_wan_body_bytes": 93221048},
+    {"window": "cold", "candidate": "client-attention", "placement": "client-host-loopback", "lan_body_bytes": 0, "wan_body_bytes": 338505308, "loopback_body_bytes": 10662, "absent_network_ipc_logical_body_bytes": 0, "all_network_link_body_bytes": 338515970, "all_logical_link_body_bytes": 338515970, "online_wan_body_bytes": 93221048},
+    {"window": "cold", "candidate": "client-attention", "placement": "client-host-ipc-counterfactual", "lan_body_bytes": 0, "wan_body_bytes": 338505308, "loopback_body_bytes": 0, "absent_network_ipc_logical_body_bytes": 10662, "all_network_link_body_bytes": 338505308, "all_logical_link_body_bytes": 338515970, "online_wan_body_bytes": 93221048}
+  ],
+  "resource_floors": {
+    "prepared-request-sized": {
+      "fresh_rows_per_stage": 70, "stage_row_instances": 6720, "reused_rows": 0,
+      "active_preparation_int8_matrix_bytes_lower_bound": 357826560,
+      "active_matrix_fp32_scale_bytes": 1216512,
+      "preparation_linear_macs_per_inventory": 25047859200,
+      "client_expanded_uint32_r_and_s_bytes": 135905280,
+      "remote_uint32_correction_array_bytes": 85155840,
+      "correction_tensor_minimum_u16_body_bytes": 42577920,
+      "minimum_seed_bytes_with_client_and_preparation": 3072,
+      "seed_bytes_to_inference": 0,
+      "full_public_body_int8_snapshot_bytes_lower_bound": 357826560,
+      "full_public_body_fp32_scale_bytes": 1216512,
+      "checkpoint_distribution_bytes": null, "checkpoint_disk_bytes": null,
+      "actual_preparation_snapshot_disk_bytes": null, "peak_preparation_ram_bytes": null,
+      "peak_client_ram_bytes": null, "appliance_cpu_seconds": null,
+      "resource_admission": "unknown; matrix/mask floors only, peak RAM/CPU/disk unmeasured"
+    },
+    "client-attention": {
+      "fresh_rows_per_stage": 70, "stage_row_instances": 3360, "reused_rows": 0,
+      "active_preparation_int8_matrix_bytes_lower_bound": 313786368,
+      "active_matrix_fp32_scale_bytes": 1019904,
+      "preparation_linear_macs_per_inventory": 21965045760,
+      "client_expanded_uint32_r_and_s_bytes": 110100480,
+      "remote_uint32_correction_array_bytes": 71393280,
+      "correction_tensor_minimum_u16_body_bytes": 35696640,
+      "minimum_seed_bytes_with_client_and_preparation": 1536,
+      "seed_bytes_to_inference": 0,
+      "full_public_body_int8_snapshot_bytes_lower_bound": 357826560,
+      "full_public_body_fp32_scale_bytes": 1216512,
+      "checkpoint_distribution_bytes": null, "checkpoint_disk_bytes": null,
+      "actual_preparation_snapshot_disk_bytes": null, "peak_preparation_ram_bytes": null,
+      "peak_client_ram_bytes": null, "appliance_cpu_seconds": null,
+      "resource_admission": "unknown; matrix/mask floors only, peak RAM/CPU/disk unmeasured"
+    }
+  },
+  "archived_cold_cpu": {
+    "prepared-request-sized": {
+      "aggregate_cold_first_response_cpu_seconds": 41.604709848,
+      "aggregate_startup_cpu_seconds": 17.313268896,
+      "cold_first_response_cpu_seconds_by_role": {"client": 8.514695, "inference": 18.641000192, "preparation": 14.449014656000001},
+      "full_response_compute_cap_checked": false,
+      "schema": "pllm.topology_process_cpu.v1",
+      "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+      "startup_cpu_seconds_by_role": {"client": 1.109828, "inference": 8.214198784, "preparation": 7.989242112},
+      "unmeasured": ["source resolution before dashboard startup, if any", "accelerator compute, energy, and CPU after the first response", "HTTP/TLS payload and control bytes outside the serialized-body ledger"]
+    },
+    "client-attention": {
+      "aggregate_cold_first_response_cpu_seconds": 40.768367848000004,
+      "aggregate_startup_cpu_seconds": 17.493909896,
+      "cold_first_response_cpu_seconds_by_role": {"client": 10.246721, "inference": 16.635623936000002, "preparation": 13.886022912},
+      "full_response_compute_cap_checked": false,
+      "schema": "pllm.topology_process_cpu.v1",
+      "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+      "startup_cpu_seconds_by_role": {"client": 1.126373, "inference": 8.29510784, "preparation": 8.072429056},
+      "unmeasured": ["source resolution before dashboard startup, if any", "accelerator compute, energy, and CPU after the first response", "HTTP/TLS payload and control bytes outside the serialized-body ledger"]
+    }
+  },
+  "algebra": {
+    "input": "u = x - r (mod 2^k)", "correction": "c = W r - s (mod 2^k)",
+    "response": "v = W u + c = W x - s (mod 2^k)",
+    "recovery": "v + s = W x (mod 2^k); signed decode then existing scales/bias",
+    "freshness": "independent per-stage roots; purpose/context-bound r,s; rows one-use",
+    "proof_claim": false
+  },
+  "availability": {
+    "refill_during_active_response": "prohibited by existing client activity guards",
+    "ready_before_online": "matching correction acks plus sealed inference inventory required",
+    "prep_can_disconnect_after_seal": "conditional: enough reserved rows, surviving remote inventory",
+    "inference_offline": "no remote online response or correction acknowledgement",
+    "exhausted_or_expired_inventory": "wait for fresh preparation before online; no reuse"
+  },
+  "trust": {
+    "remote_preparation": "privacy depends on preparation/inference not colluding",
+    "local_preparation": "user trusts local OS/appliance; remote inference never gets roots/r/s",
+    "external_noncollusion_dependency": "removed only if preparation is genuinely user-controlled",
+    "appliance_compromise": "mask roots plus intercepted online bodies can reveal activations",
+    "seed_path": "client to Prep only: WAN remotely, LAN/loopback locally, no inference seed transfer",
+    "local_plaintext_execution": "unchanged client nonlinear work; no gateway decrypt shortcut"
+  },
+  "unmeasured": [
+    "Actual LAN/WAN deployment, endpoint ownership and operator independence",
+    "Cold model/checkpoint distribution, full wire, control/auth forwarding and correction acks",
+    "Peak RAM, complete model/snapshot/cache disk, energy, appliance CPU/latency and concurrency",
+    "Representative availability, complete adversarial security proof and generation quality",
+    "Exact archived per-stage ring profiles; u16 resource floor is deliberately conservative"
+  ],
+  "recommendation": "conditional WAN-locality candidate; not a 10x all-link method; admission unknown"
+}

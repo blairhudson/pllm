@@ -778,3 +778,97 @@ becomes a separate objective. Reopen certification only with demonstrably tighte
 sound bounds, mixed precision only with new held-out parity, and three-party work
 only with a different interaction/work schedule. Prepared inference remains the
 working control.
+
+## Unlikely-technique screens — 2026-10-01
+
+Four independently scoped probes ran in parallel: temporal incremental updates,
+encoded-function circuit synthesis, exact integer/modular structure and trusted
+local preparation. No training, runtime activation or backend substitution follows
+from these results. They test specified constructions, not impossibility of their
+broader mathematical families.
+
+### Temporal deltas: exact identity, dense changes
+
+Six public prompts in disjoint screening/confirmation cohorts each execute
+prefill plus four same-token decode steps through the pinned W8A8 checkpoint.
+Exact integer delta updates preserve all 30 checked logit vectors bit-for-bit;
+the native clear diagnostic uses two signed-i8 limbs for differences up to 254.
+This is not a private sparse transport implementation.
+
+On MLP inputs, roughly **88.4–96.5% of coordinates change**, and activation scales
+change on every sampled transition. Under the SDK attention placement, both QKV
+and attention-output projections are client-owned; the derived remote subset is
+**48 MLP stages**, not 72. Even granting private support/count information for
+free, sparse ring-slot encoding saves only **2.20–2.33%** of the sampled all-link
+transition arithmetic, or **3.52–3.73%** online. Dense first rows, state handling,
+oblivious indexing, control and other operators are additional obligations. Full
+baseline execution supplies this role-filtered screen; no distributed sparse SDK
+candidate was run. Park this coordinate-delta construction.
+
+Evidence: [temporal screen](docs/evidence/temporal-delta-screen-2026-10-01.json)
+and [review](docs/evidence/temporal-delta-review-2026-10-01.md).
+
+### Quantizer-aware circuits: useful synthesis, failed material budget
+
+Exhaustive encoded-function checks cover a bounded public-scale signed-i8
+SiLU-times-up pair and a separate two-element signed-i4 input vector with dynamic
+quantization, including its exact float32 scale output. Shared Boolean subexpressions
+reduce same-order AND counts **7.63× / 21.38×** versus independent output-bit trees.
+These are exact bounded numeric contracts, not Qwen's full accumulator domain.
+
+The best sampled fixed-scale circuit still has **7,657 AND gates** and requires
+**260,338 bytes** of fresh half-gate ciphertexts per pair at the specified label
+width. Repeating that construction over the compiler's 39+8 / 39+32 MLP element
+counts projects **1.398 / 2.127 TB**, before missing full-domain, dynamic-scale
+and conversion work. No actual prepared stage crossing is eliminated. Retain
+synthesis as a research tool; park fresh per-element garbling at this cost.
+
+Evidence: [circuit screen](docs/evidence/quantizer-circuit-screen-2026-10-01.json)
+and [review](docs/evidence/quantizer-circuit-review-2026-10-01.md).
+
+### Integer lattices: certified rank, little screened cheap structure
+
+Nine real W8 matrices from layers 0, 12 and 23 each have an independently checked
+odd **896-by-896 minor**. Consequently a linear factorization over any power-of-two
+ring needs inner width at least 896. Tall QKV/gate-up matrices cannot reduce their
+896-wide ingress through such a factorization. Down's minimum-width dense factor
+costs the full original down projection at the client; this is a dense-factor
+price, not a lower bound on every possible addition circuit.
+
+The best screened cheap-structure residuals remain **96.5–97.2% nonzero**. Bounded
+adjacent-pair common subexpressions save only **0.8–1.2% of remote products**, with
+zero network reduction. No tested exact factor or residual meets the interface
+and client-compute objectives. Park these constructions, preserving their modular
+certificates and the explicit distinction between tall and wide matrix rank.
+
+Evidence: [integer screen](docs/evidence/integer-structure-screen-2026-10-01.json)
+and [review](docs/evidence/integer-structure-review-2026-10-01.md).
+
+### Trusted-local preparation: trust placement, not a body reduction
+
+Reclassification of archived reconciled 39+32 ledgers moves only **21,278 baseline
+or 10,662 attention-placement bytes** from WAN to LAN/loopback. Fresh correction
+uploads still cross WAN: **65.40 / 55.07 MB** respectively. All-link logical bytes
+are unchanged; removing the local channel through an unimplemented IPC replacement
+does not erase correction generation or transfer. No appliance or multi-host run
+was performed. Local Prep remains a user-trust/placement option, not a large
+network-saving method.
+
+Evidence: [placement screen](docs/evidence/preparation-placement-screen-2026-10-01.json)
+and [review](docs/evidence/preparation-placement-review-2026-10-01.md).
+
+### Direction after the four screens
+
+No new executable reduction is admitted. Existing attention placement and exact
+prefix reuse remain the working improvements. For fresh prompts, the large
+remaining target is the **wide MLP output plus correction boundary**: the archived
+attention cohort sends about **98.18 MB** on gate/up output and correction links
+alone, roughly two thirds of its **148.30 MB** warm covered bodies. A new protocol
+must remove that boundary while pricing nonlinear evaluation, private scales,
+conversion, preparation and remote work; input-only packing is insufficient.
+Neither a smaller toy circuit nor full modular rank establishes that protocol.
+
+The combined new focused suite passes **65 cases**, with one ordinary-run opt-in
+checkpoint replay skip; the cache-only real temporal probe was separately run
+and locked. New Python files pass scoped lint and format checks. Concurrent
+resource samples are diagnostics, not a matched compute/latency ranking.

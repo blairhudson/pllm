@@ -1,0 +1,155 @@
+{
+  "schema": "pllm.temporal_delta_screen.v1",
+  "source": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "plan_digest": "5a7c2793c14e02678ece40e53fc5404aa99e6b1a94fc980aee61a687ff1402ec",
+    "schedule_digest": "605e7b00afa78de7875365da98de42eefcdb29d49d4ae0801dee8912563113e0",
+    "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "binding_digest": "8524a077a8a7b2f6bde6473bf81425062d808a805e5408d72347293de7420739"
+  },
+  "model_threads": 1,
+  "native_backend": "rust",
+  "prompts_sha256": "53d23cbbd3c08729e40fff8ab1c69b7600abef311dab1e1d1832ea979c7c638c",
+  "protocol_admission": false,
+  "decision": "Temporal coordinate sparsity is only a first kill gate; no oblivious sparse protocol or runtime selection is admitted.",
+  "workload": [
+    {"cohort": "screen", "prompt_index": 0, "prefill_tokens": 39, "same_token_decode_steps": 4},
+    {"cohort": "screen", "prompt_index": 1, "prefill_tokens": 40, "same_token_decode_steps": 4},
+    {"cohort": "screen", "prompt_index": 2, "prefill_tokens": 38, "same_token_decode_steps": 4},
+    {"cohort": "confirmation", "prompt_index": 0, "prefill_tokens": 36, "same_token_decode_steps": 4},
+    {"cohort": "confirmation", "prompt_index": 1, "prefill_tokens": 37, "same_token_decode_steps": 4},
+    {"cohort": "confirmation", "prompt_index": 2, "prefill_tokens": 37, "same_token_decode_steps": 4}
+  ],
+  "cohorts": {
+    "screen": {"token_trajectory_sha256": "57e03d311513fca9f2309c9057e4acfc40989e3c66b757b63dba1dfb49966ec8", "executed_stage_rows": 12384, "replay_dense_baseline_macs": 46159626240, "dense_initialization_all_link_bytes": 7584768, "dense_initialization_online_bytes": 4783104, "dense_initialization_remote_macs": 1073479680},
+    "confirmation": {"token_trajectory_sha256": "5b6bdd98e8318c8ab5209b9cd6c234ff2fa03f2cd4766a7620d355449a292709", "executed_stage_rows": 11712, "replay_dense_baseline_macs": 43654840320, "dense_initialization_all_link_bytes": 7584768, "dense_initialization_online_bytes": 4783104, "dense_initialization_remote_macs": 1073479680}
+  },
+  "verification": {"dense_initialization_rows": 576, "exact_native_signed_integer_decode_checks": 2304, "exact_ring_decode_checks": 2304, "independent_sparse_integer_checks": 192, "exact_float32_logit_rows": 30, "native_delta_limb_macs": 17175674880},
+  "controls_39_plus_32_context_only": {"sdk_attention_placement_warm_all_link_bytes": 148297986, "sdk_attention_placement_online_bytes": 93221048, "original_prepared_all_link_bytes": 178970558, "original_prepared_online_bytes": 113545024, "matched_to_this_short_cohort": false},
+  "by_role_phase": {
+    "screen/qkv_projection/prefill_adjacent_positions": {
+      "transitions": 2736, "coordinates": 2451456, "changed_coordinates": 2295505, "unchanged_coordinate_fraction": 0.06361566350772763, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2736, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1097, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2736, "min": 0.8191964285714286, "p10": 0.90625, "median": 0.9386160714285714, "p90": 0.9642857142857143, "max": 0.9854910714285714, "mean": 0.9363843364922723},
+      "dense_all_link_bytes": 26265600, "dense_online_bytes": 16809984, "masked_ring_oracle_all_link_bytes": 25900448, "masked_ring_oracle_online_bytes": 16444832, "dense_remote_macs": 2824077312, "plaintext_support_oracle_remote_macs": 2644421760
+    },
+    "screen/qkv_projection/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 243639, "unchanged_coordinate_fraction": 0.0558384486607143, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 149, "max_abs_delta": 211,
+      "changed_fraction_distribution": {"count": 288, "min": 0.8738839285714286, "p10": 0.9207589285714286, "median": 0.9464285714285714, "p90": 0.9635044642857143, "max": 0.984375, "mean": 0.9441615513392857},
+      "dense_all_link_bytes": 2764800, "dense_online_bytes": 1769472, "masked_ring_oracle_all_link_bytes": 2731473, "masked_ring_oracle_online_bytes": 1736145, "dense_remote_macs": 297271296, "plaintext_support_oracle_remote_macs": 280672128
+    },
+    "screen/mlp_gate_up/prefill_adjacent_positions": {
+      "transitions": 2736, "coordinates": 2451456, "changed_coordinates": 2365610, "unchanged_coordinate_fraction": 0.035018372754803684, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2736, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 436, "max_abs_delta": 245,
+      "changed_fraction_distribution": {"count": 2736, "min": 0.8883928571428571, "p10": 0.9486607142857143, "median": 0.9676339285714286, "p90": 0.9787946428571429, "max": 0.9910714285714286, "mean": 0.9649816272451964},
+      "dense_all_link_bytes": 167049216, "dense_online_bytes": 87201792, "masked_ring_oracle_all_link_bytes": 166857884, "masked_ring_oracle_online_bytes": 87010460, "dense_remote_macs": 23847763968, "plaintext_support_oracle_remote_macs": 23012654080
+    },
+    "screen/mlp_gate_up/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 248360, "unchanged_coordinate_fraction": 0.03754340277777779, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 25, "max_abs_delta": 170,
+      "changed_fraction_distribution": {"count": 288, "min": 0.9029017857142857, "p10": 0.9464285714285714, "median": 0.9642857142857143, "p90": 0.9765625, "max": 0.9877232142857143, "mean": 0.9624565972222222},
+      "dense_all_link_bytes": 17584128, "dense_online_bytes": 9179136, "masked_ring_oracle_all_link_bytes": 17562425, "masked_ring_oracle_online_bytes": 9157433, "dense_remote_macs": 2510290944, "plaintext_support_oracle_remote_macs": 2416046080
+    },
+    "screen/mlp_down/prefill_adjacent_positions": {
+      "transitions": 2736, "coordinates": 13307904, "changed_coordinates": 11840475, "unchanged_coordinate_fraction": 0.11026747713238694, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2736, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1819, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2736, "min": 0.3314144736842105, "p10": 0.8018092105263158, "median": 0.9132401315789473, "p90": 0.9455180921052632, "max": 0.9679276315789473, "mean": 0.8897325228676132},
+      "dense_all_link_bytes": 72843264, "dense_online_bytes": 63037440, "masked_ring_oracle_all_link_bytes": 67751195, "masked_ring_oracle_online_bytes": 57945371, "dense_remote_macs": 11923881984, "plaintext_support_oracle_remote_macs": 10609065600
+    },
+    "screen/mlp_down/same_token_decode": {
+      "transitions": 288, "coordinates": 1400832, "changed_coordinates": 1239634, "unchanged_coordinate_fraction": 0.11507304230628657, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 178, "max_abs_delta": 219,
+      "changed_fraction_distribution": {"count": 288, "min": 0.4810855263157895, "p10": 0.8048930921052632, "median": 0.9052220394736842, "p90": 0.9452302631578947, "max": 0.9607319078947368, "mean": 0.8849269576937134},
+      "dense_all_link_bytes": 7667712, "dense_online_bytes": 6635520, "masked_ring_oracle_all_link_bytes": 7107430, "masked_ring_oracle_online_bytes": 6075238, "dense_remote_macs": 1255145472, "plaintext_support_oracle_remote_macs": 1110712064
+    },
+    "confirmation/qkv_projection/prefill_adjacent_positions": {
+      "transitions": 2568, "coordinates": 2300928, "changed_coordinates": 2154274, "unchanged_coordinate_fraction": 0.06373689224521584, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2568, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1033, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2568, "min": 0.8370535714285714, "p10": 0.9051339285714286, "median": 0.9386160714285714, "p90": 0.9642857142857143, "max": 0.9933035714285714, "mean": 0.9362631077547842},
+      "dense_all_link_bytes": 24652800, "dense_online_bytes": 15777792, "masked_ring_oracle_all_link_bytes": 24309275, "masked_ring_oracle_online_bytes": 15434267, "dense_remote_macs": 2650669056, "plaintext_support_oracle_remote_macs": 2481723648
+    },
+    "confirmation/qkv_projection/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 244783, "unchanged_coordinate_fraction": 0.05140516493055558, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 156, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 288, "min": 0.8984375, "p10": 0.9274553571428571, "median": 0.9486607142857143, "p90": 0.96875, "max": 0.9866071428571429, "mean": 0.9485948350694444},
+      "dense_all_link_bytes": 2764800, "dense_online_bytes": 1769472, "masked_ring_oracle_all_link_bytes": 2734323, "masked_ring_oracle_online_bytes": 1738995, "dense_remote_macs": 297271296, "plaintext_support_oracle_remote_macs": 281990016
+    },
+    "confirmation/mlp_gate_up/prefill_adjacent_positions": {
+      "transitions": 2568, "coordinates": 2300928, "changed_coordinates": 2220761, "unchanged_coordinate_fraction": 0.034841159740765515, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2568, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 397, "max_abs_delta": 203,
+      "changed_fraction_distribution": {"count": 2568, "min": 0.8683035714285714, "p10": 0.9486607142857143, "median": 0.9676339285714286, "p90": 0.9787946428571429, "max": 0.9910714285714286, "mean": 0.9651588402592347},
+      "dense_all_link_bytes": 156791808, "dense_online_bytes": 81847296, "masked_ring_oracle_all_link_bytes": 156613079, "masked_ring_oracle_online_bytes": 81668567, "dense_remote_macs": 22383427584, "plaintext_support_oracle_remote_macs": 21603563008
+    },
+    "confirmation/mlp_gate_up/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 247230, "unchanged_coordinate_fraction": 0.0419224330357143, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 17, "max_abs_delta": 183,
+      "changed_fraction_distribution": {"count": 288, "min": 0.8984375, "p10": 0.9352678571428571, "median": 0.9609375, "p90": 0.9765625, "max": 0.9888392857142857, "mean": 0.9580775669642857},
+      "dense_all_link_bytes": 17584128, "dense_online_bytes": 9179136, "masked_ring_oracle_all_link_bytes": 17559654, "masked_ring_oracle_online_bytes": 9154662, "dense_remote_macs": 2510290944, "plaintext_support_oracle_remote_macs": 2405053440
+    },
+    "confirmation/mlp_down/prefill_adjacent_positions": {
+      "transitions": 2568, "coordinates": 12490752, "changed_coordinates": 11110443, "unchanged_coordinate_fraction": 0.11050647711202655, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2568, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1718, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2568, "min": 0.4074835526315789, "p10": 0.7989309210526315, "median": 0.9140625, "p90": 0.9455180921052632, "max": 0.9679276315789473, "mean": 0.8894935228879735},
+      "dense_all_link_bytes": 68370432, "dense_online_bytes": 59166720, "masked_ring_oracle_all_link_bytes": 63579378, "masked_ring_oracle_online_bytes": 54375666, "dense_remote_macs": 11191713792, "plaintext_support_oracle_remote_macs": 9954956928
+    },
+    "confirmation/mlp_down/same_token_decode": {
+      "transitions": 288, "coordinates": 1400832, "changed_coordinates": 1238602, "unchanged_coordinate_fraction": 0.11580974735014615, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 171, "max_abs_delta": 215,
+      "changed_fraction_distribution": {"count": 288, "min": 0.3990542763157895, "p10": 0.7956620065789474, "median": 0.9095394736842105, "p90": 0.9406249999999999, "max": 0.9592927631578947, "mean": 0.8841902526498538},
+      "dense_all_link_bytes": 7667712, "dense_online_bytes": 6635520, "masked_ring_oracle_all_link_bytes": 7102739, "masked_ring_oracle_online_bytes": 6070547, "dense_remote_macs": 1255145472, "plaintext_support_oracle_remote_macs": 1109787392
+    },
+    "screen/attention_output/prefill_adjacent_positions": {
+      "transitions": 2736, "coordinates": 2451456, "changed_coordinates": 2150282, "unchanged_coordinate_fraction": 0.12285515220342524, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2736, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1589, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2736, "min": 0.2611607142857143, "p10": 0.6986607142857143, "median": 0.9252232142857143, "p90": 0.9720982142857143, "max": 0.9944196428571429, "mean": 0.8771448477965748},
+      "dense_all_link_bytes": 22063104, "dense_online_bytes": 14708736, "masked_ring_oracle_all_link_bytes": 21296558, "masked_ring_oracle_online_bytes": 13942190, "dense_remote_macs": 2196504576, "plaintext_support_oracle_remote_macs": 1926652672
+    },
+    "screen/attention_output/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 228731, "unchanged_coordinate_fraction": 0.11361064608134919, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 163, "max_abs_delta": 208,
+      "changed_fraction_distribution": {"count": 288, "min": 0.4966517857142857, "p10": 0.7453125, "median": 0.9190848214285714, "p90": 0.9676339285714286, "max": 0.9933035714285714, "mean": 0.8863893539186507},
+      "dense_all_link_bytes": 2322432, "dense_online_bytes": 1548288, "masked_ring_oracle_all_link_bytes": 2249199, "masked_ring_oracle_online_bytes": 1475055, "dense_remote_macs": 231211008, "plaintext_support_oracle_remote_macs": 204942976
+    },
+    "confirmation/attention_output/prefill_adjacent_positions": {
+      "transitions": 2568, "coordinates": 2300928, "changed_coordinates": 2026862, "unchanged_coordinate_fraction": 0.11911107170672008, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 2568, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 1553, "max_abs_delta": 254,
+      "changed_fraction_distribution": {"count": 2568, "min": 0.2611607142857143, "p10": 0.71875, "median": 0.9274553571428571, "p90": 0.9720982142857143, "max": 0.9921875, "mean": 0.88088892829328},
+      "dense_all_link_bytes": 20708352, "dense_online_bytes": 13805568, "masked_ring_oracle_all_link_bytes": 20013008, "masked_ring_oracle_online_bytes": 13110224, "dense_remote_macs": 2061631488, "plaintext_support_oracle_remote_macs": 1816068352
+    },
+    "confirmation/attention_output/same_token_decode": {
+      "transitions": 288, "coordinates": 258048, "changed_coordinates": 231275, "unchanged_coordinate_fraction": 0.10375201512896826, "scale_change_fraction": 1.0, "activation_scale_bit_changes": 288, "identical_quantized_rows": 0, "delta_coordinates_outside_signed_i8": 147, "max_abs_delta": 240,
+      "changed_fraction_distribution": {"count": 288, "min": 0.4732142857142857, "p10": 0.7839285714285714, "median": 0.9308035714285714, "p90": 0.9668526785714285, "max": 0.9854910714285714, "mean": 0.8962479848710316},
+      "dense_all_link_bytes": 2322432, "dense_online_bytes": 1548288, "masked_ring_oracle_all_link_bytes": 2256034, "masked_ring_oracle_online_bytes": 1481890, "dense_remote_macs": 231211008, "plaintext_support_oracle_remote_macs": 207222400
+    }
+  },
+  "sdk_remote_transition_arithmetic_only": {
+    "screen/prefill_adjacent_positions": {"dense_all_link_bytes": 239892480, "dense_online_bytes": 150239232, "dense_exact_ring_input_bytes": 60585984, "masked_ring_oracle_all_link_bytes": 234609079, "masked_ring_oracle_online_bytes": 144955831, "enumerative_support_masked_ring_oracle_input_bytes": 55302583, "known_support_9bit_plaintext_bytes": 15984248, "enumerative_support_9bit_plaintext_bytes": 16825562, "explicit_index_9bit_plaintext_bytes": 38181837, "public_full_width_padded_index_ring_input_bytes": 85275648, "dense_remote_macs": 35771645952, "plaintext_support_oracle_remote_macs": 33621719680},
+    "screen/same_token_decode": {"dense_all_link_bytes": 25251840, "dense_online_bytes": 15814656, "dense_exact_ring_input_bytes": 6377472, "masked_ring_oracle_all_link_bytes": 24669855, "masked_ring_oracle_online_bytes": 15232671, "enumerative_support_masked_ring_oracle_input_bytes": 5795487, "known_support_9bit_plaintext_bytes": 1674240, "enumerative_support_9bit_plaintext_bytes": 1765856, "explicit_index_9bit_plaintext_bytes": 3999086, "public_full_width_padded_index_ring_input_bytes": 8976384, "dense_remote_macs": 3765436416, "plaintext_support_oracle_remote_macs": 3526758144},
+    "confirmation/prefill_adjacent_positions": {"dense_all_link_bytes": 225162240, "dense_online_bytes": 141014016, "dense_exact_ring_input_bytes": 56865792, "masked_ring_oracle_all_link_bytes": 220192457, "masked_ring_oracle_online_bytes": 136044233, "enumerative_support_masked_ring_oracle_input_bytes": 51896009, "known_support_9bit_plaintext_bytes": 14999878, "enumerative_support_9bit_plaintext_bytes": 15789417, "explicit_index_9bit_plaintext_bytes": 35830105, "public_full_width_padded_index_ring_input_bytes": 80039424, "dense_remote_macs": 33575141376, "plaintext_support_oracle_remote_macs": 31558519936},
+    "confirmation/same_token_decode": {"dense_all_link_bytes": 25251840, "dense_online_bytes": 15814656, "dense_exact_ring_input_bytes": 6377472, "masked_ring_oracle_all_link_bytes": 24662393, "masked_ring_oracle_online_bytes": 15225209, "enumerative_support_masked_ring_oracle_input_bytes": 5788025, "known_support_9bit_plaintext_bytes": 1671811, "enumerative_support_9bit_plaintext_bytes": 1763465, "explicit_index_9bit_plaintext_bytes": 3993571, "public_full_width_padded_index_ring_input_bytes": 8976384, "dense_remote_macs": 3765436416, "plaintext_support_oracle_remote_macs": 3514840832}
+  },
+  "sdk_derived_scope": {
+    "execution_composition": "baseline MaskedLinearCpu",
+    "derivation": "semantic-role subset of baseline checkpoint diagnostics",
+    "distributed_candidate_placement_executed": false,
+    "client_attention_roles": ["attention_output", "qkv_projection"],
+    "remote_roles": ["mlp_down", "mlp_gate_up"],
+    "remote_stage_count": 48,
+    "remote_stage_count_by_role": {"mlp_down": 24, "mlp_gate_up": 24},
+    "resources_per_live_sequence": {"retained_client_previous_q_i8_bytes": 138240, "retained_client_exact_product_i32_bytes": 1019904, "retained_client_activation_scale_f32_bytes": 192, "retained_client_temporal_state_bytes": 1158336, "dense_all_link_bytes_per_initialization_sequence": 2104320, "dense_online_bytes_per_initialization_sequence": 1317888, "dense_exact_ring_input_bytes_per_initialization_sequence": 531456, "dense_initialization_remote_macs_per_sequence": 313786368}
+  },
+  "retained_state_by_role": {
+    "qkv_projection": {
+      "input_width": 896, "output_width": 1152, "previous_q_i8_bytes_per_stage": 896, "exact_product_i32_bytes_per_stage": 4608, "activation_scale_f32_bytes_per_stage": 4, "sdk_remote_under_attention_candidate_client_placement": false,
+      "stage_ids": ["layers.0.self_attn.qkv_proj", "layers.1.self_attn.qkv_proj", "layers.10.self_attn.qkv_proj", "layers.11.self_attn.qkv_proj", "layers.12.self_attn.qkv_proj", "layers.13.self_attn.qkv_proj", "layers.14.self_attn.qkv_proj", "layers.15.self_attn.qkv_proj", "layers.16.self_attn.qkv_proj", "layers.17.self_attn.qkv_proj", "layers.18.self_attn.qkv_proj", "layers.19.self_attn.qkv_proj", "layers.2.self_attn.qkv_proj", "layers.20.self_attn.qkv_proj", "layers.21.self_attn.qkv_proj", "layers.22.self_attn.qkv_proj", "layers.23.self_attn.qkv_proj", "layers.3.self_attn.qkv_proj", "layers.4.self_attn.qkv_proj", "layers.5.self_attn.qkv_proj", "layers.6.self_attn.qkv_proj", "layers.7.self_attn.qkv_proj", "layers.8.self_attn.qkv_proj", "layers.9.self_attn.qkv_proj"],
+      "independently_lifted_delta_ring_bits_by_stage": {"layers.0.self_attn.qkv_proj": 32, "layers.1.self_attn.qkv_proj": 32, "layers.2.self_attn.qkv_proj": 24, "layers.3.self_attn.qkv_proj": 32, "layers.4.self_attn.qkv_proj": 24, "layers.5.self_attn.qkv_proj": 32, "layers.6.self_attn.qkv_proj": 32, "layers.7.self_attn.qkv_proj": 24, "layers.8.self_attn.qkv_proj": 24, "layers.9.self_attn.qkv_proj": 24, "layers.10.self_attn.qkv_proj": 32, "layers.11.self_attn.qkv_proj": 24, "layers.12.self_attn.qkv_proj": 32, "layers.13.self_attn.qkv_proj": 24, "layers.14.self_attn.qkv_proj": 24, "layers.15.self_attn.qkv_proj": 32, "layers.16.self_attn.qkv_proj": 24, "layers.17.self_attn.qkv_proj": 24, "layers.18.self_attn.qkv_proj": 24, "layers.19.self_attn.qkv_proj": 24, "layers.20.self_attn.qkv_proj": 24, "layers.21.self_attn.qkv_proj": 24, "layers.22.self_attn.qkv_proj": 24, "layers.23.self_attn.qkv_proj": 24}
+    },
+    "mlp_gate_up": {
+      "input_width": 896, "output_width": 9728, "previous_q_i8_bytes_per_stage": 896, "exact_product_i32_bytes_per_stage": 38912, "activation_scale_f32_bytes_per_stage": 4, "sdk_remote_under_attention_candidate_client_placement": true,
+      "stage_ids": ["layers.0.mlp.gate_up_proj", "layers.1.mlp.gate_up_proj", "layers.10.mlp.gate_up_proj", "layers.11.mlp.gate_up_proj", "layers.12.mlp.gate_up_proj", "layers.13.mlp.gate_up_proj", "layers.14.mlp.gate_up_proj", "layers.15.mlp.gate_up_proj", "layers.16.mlp.gate_up_proj", "layers.17.mlp.gate_up_proj", "layers.18.mlp.gate_up_proj", "layers.19.mlp.gate_up_proj", "layers.2.mlp.gate_up_proj", "layers.20.mlp.gate_up_proj", "layers.21.mlp.gate_up_proj", "layers.22.mlp.gate_up_proj", "layers.23.mlp.gate_up_proj", "layers.3.mlp.gate_up_proj", "layers.4.mlp.gate_up_proj", "layers.5.mlp.gate_up_proj", "layers.6.mlp.gate_up_proj", "layers.7.mlp.gate_up_proj", "layers.8.mlp.gate_up_proj", "layers.9.mlp.gate_up_proj"]
+    },
+    "mlp_down": {
+      "input_width": 4864, "output_width": 896, "previous_q_i8_bytes_per_stage": 4864, "exact_product_i32_bytes_per_stage": 3584, "activation_scale_f32_bytes_per_stage": 4, "sdk_remote_under_attention_candidate_client_placement": true,
+      "stage_ids": ["layers.0.mlp.down_proj", "layers.1.mlp.down_proj", "layers.10.mlp.down_proj", "layers.11.mlp.down_proj", "layers.12.mlp.down_proj", "layers.13.mlp.down_proj", "layers.14.mlp.down_proj", "layers.15.mlp.down_proj", "layers.16.mlp.down_proj", "layers.17.mlp.down_proj", "layers.18.mlp.down_proj", "layers.19.mlp.down_proj", "layers.2.mlp.down_proj", "layers.20.mlp.down_proj", "layers.21.mlp.down_proj", "layers.22.mlp.down_proj", "layers.23.mlp.down_proj", "layers.3.mlp.down_proj", "layers.4.mlp.down_proj", "layers.5.mlp.down_proj", "layers.6.mlp.down_proj", "layers.7.mlp.down_proj", "layers.8.mlp.down_proj", "layers.9.mlp.down_proj"]
+    },
+    "attention_output": {
+      "input_width": 896, "output_width": 896, "previous_q_i8_bytes_per_stage": 896, "exact_product_i32_bytes_per_stage": 3584, "activation_scale_f32_bytes_per_stage": 4, "sdk_remote_under_attention_candidate_client_placement": false,
+      "stage_ids": ["layers.0.self_attn.o_proj", "layers.1.self_attn.o_proj", "layers.10.self_attn.o_proj", "layers.11.self_attn.o_proj", "layers.12.self_attn.o_proj", "layers.13.self_attn.o_proj", "layers.14.self_attn.o_proj", "layers.15.self_attn.o_proj", "layers.16.self_attn.o_proj", "layers.17.self_attn.o_proj", "layers.18.self_attn.o_proj", "layers.19.self_attn.o_proj", "layers.2.self_attn.o_proj", "layers.20.self_attn.o_proj", "layers.21.self_attn.o_proj", "layers.22.self_attn.o_proj", "layers.23.self_attn.o_proj", "layers.3.self_attn.o_proj", "layers.4.self_attn.o_proj", "layers.5.self_attn.o_proj", "layers.6.self_attn.o_proj", "layers.7.self_attn.o_proj", "layers.8.self_attn.o_proj", "layers.9.self_attn.o_proj"]
+    }
+  },
+  "encoding_scope": "Known-count support, plaintext nine-bit alphabet, and ring-slot sparse estimates are non-oblivious optimistic bounds. Count/framing/index-hiding, dense first rows, state distribution, masks, correlation generation, output refresh, HTTP, and other model operators are excluded from transition estimates. Fully dense outputs/corrections retained. No per-stage estimate authorizes a whole-model saving.",
+  "exactness_scope": "Every decode stage verifies full signed integer equality and original-ring residues. Independent sparse NumPy reference checks first decode of first prompt in each cohort. Current activation scale and unchanged weight scale are reapplied; raw float proximity is never equality. Prefill delta sparsity measured, not incrementally executed.",
+  "privacy_scope": "No raw prompts, tokens, activations, scales, supports, logits, or weights serialized. Aggregate diagnostics are offline research output, not allowed private telemetry. Fresh dense masking destroys visible zero support; count, support, fallback and packet length cannot depend on private activity. Reused masks forbidden.",
+  "state_scope": "One previous row per stage per live sequence; reset between prompts. Client: previous i8 input, exact i32 product, f32 scale. Diagnostic also retains floats and i64 products; not charged as a production layout. Private remote prior inputs/products require secret-shared or masked state and fresh correlations; none admitted.",
+  "work_scope": "Single-process diagnostic emulates provider W products. Actual diagnostic repeats dense baseline, then dense replay plus two native delta limbs on decode and sampled NumPy sparse references. Total dense native MACs are twice the summed replay_dense_baseline_macs. Sparse oracle MACs assume plaintext support known remotely, not a private implementation. A hypothetical client does subtraction, accumulator addition, current-scale dequantization; no client dense W product proposed. No distributed performance measurement."
+}

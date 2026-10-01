@@ -1,0 +1,400 @@
+{
+  "schema": "pllm.quantizer_circuit_screen.v1",
+  "status": "clear finite-domain exact synthesis; no security implementation or runtime admission",
+  "recording": "Selected fields from probe stdout, with identical shared protocol obligations factored below. Timings include tracemalloc synthesis overhead. Cohort semantic MAC counts added from the config-only inventory call.",
+  "environment": {
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "limits": {"max_and_gates": 1000000, "max_input_bits": 16, "max_wires": 2000000},
+  "primary_source": {
+    "pdf_sha256": "789ecaf8651b6dc8341d6033f951d76c0e6f4b04427cdde26cf91ecfb0af3083",
+    "sections": "Table 1, Figure 2, sections 3.2 and 4; select-bit caveat page 19",
+    "url": "https://eprint.iacr.org/2014/756.pdf"
+  },
+  "local_oracle_source_sha256": {
+    "python/pllm/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "python/pllm/runtime/semantic_executor.py": "dbcb97e28d4dd44920922797433de27455e1796c211ce652c80d9af5b856a2fa"
+  },
+  "fixed_public_scale": {
+    "contract": {
+      "distinct_outputs": 186,
+      "distinct_scale_words": 1,
+      "elements": 1,
+      "exact_qwen_numeric_domain": false,
+      "includes_minimum_twos_complement_input_extra_to_symmetric_quantizer": true,
+      "independent_code_and_scale_mismatches": 0,
+      "independent_product_bit_mismatches": 0,
+      "input_scale": 0.0078125,
+      "output_bits": 8,
+      "output_scale": 0.0078125,
+      "scalar_float32_product_comparisons": 65536,
+      "signed_input_bits_each": 8,
+      "truth_assignments": 65536,
+      "truth_table_sha256": "07a10247ff5c4aa8425630b2e7d9721cb75e8ce12732335c2aee06c0698cbaeb",
+      "truth_table_storage_bytes": 524288
+    },
+    "runtime_table_and_scalar_oracle_seconds": 0.3134944997727871,
+    "same_order_shared_and_ratio": 7.628466894842441,
+    "circuits": [
+      {
+        "variant": "generic_unshared_grouped",
+        "variable_order_root_first": [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+        "input_bits": 16, "output_bits": 8,
+        "and_non_xor_gates": 64636, "xor_gates": 71772,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 136425,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 3.0574483340606093,
+        "synthesis_tracemalloc_peak_bytes": 19918296,
+        "clear_exhaustive_evaluation_seconds": 1.0848022499121726,
+        "public_circuit_json_bytes": 2441444,
+        "public_circuit_sha256": "9c3f3036ea1e2d9998d17f2042d03892e8df130d7a53d76060ef44ff1d64e066",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 2197624,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 2068352,
+          "256_total_bit_label_body_comparator_bytes": 4136704,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 136,
+          "output_decode_packed_bytes": 1,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 258544, "fresh_evaluator_hash_calls": 129272
+        }
+      },
+      {
+        "variant": "shared_grouped",
+        "variable_order_root_first": [15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+        "input_bits": 16, "output_bits": 8,
+        "and_non_xor_gates": 8473, "xor_gates": 16729,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 25219,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 1.9742326247505844,
+        "synthesis_tracemalloc_peak_bytes": 8281656,
+        "clear_exhaustive_evaluation_seconds": 0.2028546673245728,
+        "public_circuit_json_bytes": 458050,
+        "public_circuit_sha256": "8e9fe1df56b850738c220a9c060a41264473b14ecd41693b1dbde08b28c259b6",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 288082,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 271136,
+          "256_total_bit_label_body_comparator_bytes": 542272,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 136,
+          "output_decode_packed_bytes": 1,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 33892, "fresh_evaluator_hash_calls": 16946
+        }
+      },
+      {
+        "variant": "shared_interleaved",
+        "variable_order_root_first": [15,7,14,6,13,5,12,4,11,3,10,2,9,1,8,0],
+        "input_bits": 16, "output_bits": 8,
+        "and_non_xor_gates": 7657, "xor_gates": 14022,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 21696,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 1.8181797498837113,
+        "synthesis_tracemalloc_peak_bytes": 6824408,
+        "clear_exhaustive_evaluation_seconds": 0.1782109998166561,
+        "public_circuit_json_bytes": 388492,
+        "public_circuit_sha256": "19a7dd3cac7cc1acb4d1e9f269998eb1917214b5f16e06a620285798686789f3",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 260338,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 245024,
+          "256_total_bit_label_body_comparator_bytes": 490048,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 136,
+          "output_decode_packed_bytes": 1,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 30628, "fresh_evaluator_hash_calls": 15314
+        }
+      }
+    ]
+  },
+  "dynamic_scale_two_element_vector": {
+    "contract": {
+      "distinct_outputs": 41444,
+      "distinct_scale_words": 121,
+      "elements": 2,
+      "exact_qwen_numeric_domain": false,
+      "includes_minimum_twos_complement_input_extra_to_symmetric_quantizer": true,
+      "independent_code_and_scale_mismatches": 0,
+      "independent_product_bit_mismatches": 0,
+      "input_scale": 0.125,
+      "output_bits": 48,
+      "output_scale": "float32(max(abs(products))/127), zero row => 1",
+      "scalar_float32_product_comparisons": 131072,
+      "signed_input_bits_each": 4,
+      "truth_assignments": 65536,
+      "truth_table_sha256": "9a4f3e57d1d7c553161597608ea35a6c3ea57cebf940bf4f945516e6dc6f3ce0",
+      "truth_table_storage_bytes": 524288
+    },
+    "runtime_table_and_scalar_oracle_seconds": 0.599049209151417,
+    "same_order_shared_and_ratio": 21.3783842010772,
+    "circuits": [
+      {
+        "variant": "generic_unshared_grouped",
+        "variable_order_root_first": [7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8],
+        "input_bits": 16, "output_bits": 48,
+        "and_non_xor_gates": 595388, "xor_gates": 762797,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 1358202,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 25.389246999751776,
+        "synthesis_tracemalloc_peak_bytes": 179126256,
+        "clear_exhaustive_evaluation_seconds": 10.595414374954998,
+        "public_circuit_json_bytes": 26691985,
+        "public_circuit_sha256": "f1bb8d1051d88cda7b8eef6b3c5be8269b5dce89f972de68e47740ecf6926da3",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 20243192,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 19052416,
+          "256_total_bit_label_body_comparator_bytes": 38104832,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 816,
+          "output_decode_packed_bytes": 6,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 2381552, "fresh_evaluator_hash_calls": 1190776
+        }
+      },
+      {
+        "variant": "shared_grouped",
+        "variable_order_root_first": [7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8],
+        "input_bits": 16, "output_bits": 48,
+        "and_non_xor_gates": 27850, "xor_gates": 53897,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 81764,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 13.409434749744833,
+        "synthesis_tracemalloc_peak_bytes": 19511824,
+        "clear_exhaustive_evaluation_seconds": 0.6626608329825103,
+        "public_circuit_json_bytes": 1558904,
+        "public_circuit_sha256": "d73d438142dcae960ee54ff635a0e0f75da3b7d9ae6423efdb3d224ebe029c9c",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 946900,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 891200,
+          "256_total_bit_label_body_comparator_bytes": 1782400,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 816,
+          "output_decode_packed_bytes": 6,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 111400, "fresh_evaluator_hash_calls": 55700
+        }
+      },
+      {
+        "variant": "shared_interleaved",
+        "variable_order_root_first": [7,3,6,2,5,1,4,0,15,11,14,10,13,9,12,8],
+        "input_bits": 16, "output_bits": 48,
+        "and_non_xor_gates": 42396, "xor_gates": 78453,
+        "and_depth": 15, "logic_depth": 44,
+        "wire_count_including_constant": 120866,
+        "exhaustive_bit_evaluator_mismatches": 0,
+        "synthesis_seconds": 14.068842625245452,
+        "synthesis_tracemalloc_peak_bytes": 28399960,
+        "clear_exhaustive_evaluation_seconds": 1.0313869579695165,
+        "public_circuit_json_bytes": 2327275,
+        "public_circuit_sha256": "ce18145ddd39fe8a0907cf5163f6c3e5d143c13176d1b488c99f7c2649b1e34f",
+        "material_projection": {
+          "half_gate_fresh_ciphertext_body_bytes": 1441464,
+          "standard_128_total_bit_label_127_hidden_bit_body_comparator_bytes": 1356672,
+          "256_total_bit_label_body_comparator_bytes": 2713344,
+          "selected_input_label_payload_bytes": 272,
+          "output_labels_to_authorized_recipient_payload_bytes": 816,
+          "output_decode_packed_bytes": 6,
+          "input_wire_encoding_and_global_delta_storage_bytes": 289,
+          "fresh_garbler_hash_calls": 169584, "fresh_evaluator_hash_calls": 84792
+        }
+      }
+    ]
+  },
+  "shared_protocol_obligations_all_six_circuits": {
+    "security_implementation": false,
+    "required_hidden_label_entropy_bits": 128,
+    "minimum_byte_packed_label_bytes_with_select_bit": 17,
+    "ot_transfers_if_all_function_inputs_evaluator_owned": 16,
+    "ot_transfers_if_half_function_inputs_evaluator_owned": 8,
+    "ot_extension_and_base_ot_body_bytes": null,
+    "resident_share_reconstruction_and_masked_output_conversion_bytes": null,
+    "constant_label_setup_bytes": null,
+    "backend_execution_seconds": null,
+    "fresh_circuit_required_each_invocation": true,
+    "public_structure_reusable_but_ciphertexts_labels_delta_not_reused": true,
+    "output_decode_bits": "output_bits, only to authorized recipient; not providers"
+  },
+  "independent_rounding_edges": {
+    "dynamic_rounding_counterexample": {
+      "after": [127,5], "before": [127,4], "divisor": 3,
+      "row": [1.0,0.035433072596788406]
+    },
+    "dynamic_zero_row_scale": 1.0,
+    "fixed_scale_tie_neighbor_saturation_cases": 780
+  },
+  "missing_required_operations_both_cohorts": [
+    "actual float32 gate/up projection outputs are not fixed-public-scale i8 inputs",
+    "full width-4864 private maximum and float32 max/127 scale",
+    "SiLU float32 exponential portability/certificates beyond measured public domain",
+    "rounded rescaling, linear accumulators, learned weight scales and bias",
+    "arithmetic-share to Boolean-label conversions and output resharing for down projection",
+    "OT extension/base OT, reviewed >=128 hidden-bit label/hash backend and one-use issuance",
+    "RMSNorm, residual, attention, rotary and protected KV outside this fused function",
+    "client final selection/head and token feedback; private selection only if placement changes",
+    "dealer-to-each-worker/setup/cold checkpoint distribution and complete directed-link framing",
+    "local garbler/evaluator compute, worker linear compute and full wire"
+  ],
+  "pinned_semantic_qwen_cohorts": [
+    {
+      "output_tokens": 8, "input_tokens": 39,
+      "executed_rows": 46, "semantic_layers": 24, "hidden": 896, "intermediate": 4864,
+      "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+      "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+      "body_fingerprint_from_control": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "whole_mlp_semantics": ["rms_norm","gate/up linear","silu","multiply","dynamic per-row quantization","down linear","residual_add"],
+      "mlp_silu_and_product_elements_each": 5369856,
+      "mlp_rows_requiring_dynamic_scale": 1104,
+      "mlp_projection_integer_macs_per_worker": 14434172928,
+      "one_fresh_and_per_element_ciphertext_only_comparator_bytes": 182575104,
+      "all_link_tenfold_budget_bytes_per_gate_product_element": 2.1759235256960334,
+      "prepared_control": {
+        "all_runs_completed": true, "actual_output_tokens": 8,
+        "no_plaintext_prompt_or_token_id_bytes_sent": true,
+        "online_all_link_body_bytes": 73831744,
+        "offline_correction_and_control_body_bytes": 43012222,
+        "covered_all_link_body_bytes": 116843966,
+        "tenfold_online_budget_bytes": 7383174,
+        "tenfold_covered_budget_bytes": 11684396
+      },
+      "quantizer_circuit_prices": [
+        {
+          "variant": "generic_unshared_grouped",
+          "hypothetical_fixed_domain_element_invocations": 5369856,
+          "non_xor_gates": 347086012416,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 11800924422144,
+          "selected_input_label_payload_bytes_if_all_reencoded": 1460600832,
+          "output_label_payload_bytes_if_all_returned": 730300416,
+          "ot_count_if_all_function_inputs_evaluator_owned": 85917696,
+          "garbler_hash_calls": 1388344049664, "evaluator_hash_calls": 694172024832,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 100997.29430738426,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 159835.37409253124,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        },
+        {
+          "variant": "shared_grouped",
+          "hypothetical_fixed_domain_element_invocations": 5369856,
+          "non_xor_gates": 45498789888,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 1546958856192,
+          "selected_input_label_payload_bytes_if_all_reencoded": 1460600832,
+          "output_label_payload_bytes_if_all_returned": 730300416,
+          "ot_count_if_all_function_inputs_evaluator_owned": 85917696,
+          "garbler_hash_calls": 181995159552, "evaluator_hash_calls": 90997579776,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 13239.527115948804,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 20952.48970675811,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        },
+        {
+          "variant": "shared_interleaved",
+          "hypothetical_fixed_domain_element_invocations": 5369856,
+          "non_xor_gates": 41116987392,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 1397977571328,
+          "selected_input_label_payload_bytes_if_all_reencoded": 1460600832,
+          "output_label_payload_bytes_if_all_returned": 730300416,
+          "ot_count_if_all_function_inputs_evaluator_owned": 85917696,
+          "garbler_hash_calls": 164467949568, "evaluator_hash_calls": 82233974784,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 11964.482370685706,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 18934.64105802512,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        }
+      ],
+      "current_prepared_nonlinear_and_quantizer_location": "client-local; no garbled gates to eliminate",
+      "demonstrated_stage_crossings_removed": 0,
+      "complete_encoded_qwen_region_available": false,
+      "whole_response_saving_demonstrated": false
+    },
+    {
+      "output_tokens": 32, "input_tokens": 39,
+      "executed_rows": 70, "semantic_layers": 24, "hidden": 896, "intermediate": 4864,
+      "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+      "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+      "body_fingerprint_from_control": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "whole_mlp_semantics": ["rms_norm","gate/up linear","silu","multiply","dynamic per-row quantization","down linear","residual_add"],
+      "mlp_silu_and_product_elements_each": 8171520,
+      "mlp_rows_requiring_dynamic_scale": 1680,
+      "mlp_projection_integer_macs_per_worker": 21965045760,
+      "one_fresh_and_per_element_ciphertext_only_comparator_bytes": 277831680,
+      "all_link_tenfold_budget_bytes_per_gate_product_element": 2.190174533012218,
+      "prepared_control": {
+        "all_runs_completed": true, "actual_output_tokens": 32,
+        "no_plaintext_prompt_or_token_id_bytes_sent": true,
+        "online_all_link_body_bytes": 113545024,
+        "offline_correction_and_control_body_bytes": 65425534,
+        "covered_all_link_body_bytes": 178970558,
+        "tenfold_online_budget_bytes": 11354502,
+        "tenfold_covered_budget_bytes": 17897055
+      },
+      "quantizer_circuit_prices": [
+        {
+          "variant": "generic_unshared_grouped",
+          "hypothetical_fixed_domain_element_invocations": 8171520,
+          "non_xor_gates": 528174366720,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 17957928468480,
+          "selected_input_label_payload_bytes_if_all_reencoded": 2222653440,
+          "output_label_payload_bytes_if_all_returned": 1111326720,
+          "ot_count_if_all_function_inputs_evaluator_owned": 130744320,
+          "garbler_hash_calls": 2112697466880, "evaluator_hash_calls": 1056348733440,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 100340.12671782584,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 158156.89526367973,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        },
+        {
+          "variant": "shared_grouped",
+          "hypothetical_fixed_domain_element_invocations": 8171520,
+          "non_xor_gates": 69237288960,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 2354067824640,
+          "selected_input_label_payload_bytes_if_all_reencoded": 2222653440,
+          "output_label_payload_bytes_if_all_returned": 1111326720,
+          "ot_count_if_all_function_inputs_evaluator_owned": 130744320,
+          "garbler_hash_calls": 276949155840, "evaluator_hash_calls": 138474577920,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 13153.380371312247,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 20732.46137708333,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        },
+        {
+          "variant": "shared_interleaved",
+          "hypothetical_fixed_domain_element_invocations": 8171520,
+          "non_xor_gates": 62569328640,
+          "fresh_garbler_to_evaluator_ciphertext_body_bytes": 2127357173760,
+          "selected_input_label_payload_bytes_if_all_reencoded": 2222653440,
+          "output_label_payload_bytes_if_all_returned": 1111326720,
+          "ot_count_if_all_function_inputs_evaluator_owned": 130744320,
+          "garbler_hash_calls": 250277314560, "evaluator_hash_calls": 125138657280,
+          "ciphertext_only_over_full_prepared_covered_body_ratio": 11886.632066934719,
+          "ciphertext_only_over_full_prepared_online_body_ratio": 18735.80275750349,
+          "ot_body_bytes": null, "complete_protected_region_cost_bytes": null,
+          "actual_qwen_equivalent": false
+        }
+      ],
+      "current_prepared_nonlinear_and_quantizer_location": "client-local; no garbled gates to eliminate",
+      "demonstrated_stage_crossings_removed": 0,
+      "complete_encoded_qwen_region_available": false,
+      "whole_response_saving_demonstrated": false
+    }
+  ],
+  "runtime_activated": false,
+  "security_implementation": false,
+  "reproduction": [
+    "uv run --no-sync python scripts/probe_quantizer_circuits.py --with-pinned-config --source-pdf /var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/opencode/quantizer-half-gates-2014-756.pdf",
+    "uv run --no-sync pytest -q tests/test_quantizer_circuits.py",
+    "uv run --no-sync ruff check scripts/probe_quantizer_circuits.py tests/test_quantizer_circuits.py",
+    "uv run --no-sync ruff format --check scripts/probe_quantizer_circuits.py tests/test_quantizer_circuits.py"
+  ]
+}
