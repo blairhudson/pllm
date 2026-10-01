@@ -1,0 +1,42 @@
+---
+title: "Output head at Inference"
+description: "Place an untied public output head remotely and measure cold transfer against generated-token traffic."
+---
+
+[`OutputHeadAtInference`](/sdk/reference/python/pllm/roles/#outputheadatinference)
+(`pllm/output-head-at-inference/v1`) is a `boundary` option in prepared
+`MaskedLinearCpu`. It keeps token lookup at the client, verifies the
+checkpoint's **untied** output head, then quantizes it as a prepared remote
+stage with one-use rows. Tied heads fail before import: the shared token
+matrix must still be shipped for local lookup, so remote execution cannot
+save that cold weight delivery. The remote head sends vocabulary-sized
+outputs for every generated token; this option can raise online bytes.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import OutputHeadAtInference
+
+placement = OutputHeadAtInference()
+experiment = Experiment(
+    name="untied-output-head-example",
+    pipeline=MaskedLinearCpu(
+        Model.hf("microsoft/Phi-4-mini-instruct", revision="cfbefacb99257ffa30c83adab238a50856ac3083"),
+        boundary=placement,
+    ),
+    deployment=Deployment.local(root="local://untied-output-head-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.components["boundary"] == placement
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+```
+
+Resolution validates the option; serving additionally validates the actual
+source checkpoint. The [matched 1/8/32-token synthetic untied cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/output-head-placement-synthetic-2026-09-28.json)
+saved covered cold transfer while raising online traffic. A real-checkpoint
+numeric and quality comparison remains necessary. Use the
+[benchmark guide](/sdk/evaluate/benchmark/) to compare workloads.
+
+API: [`OutputHeadAtInference`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

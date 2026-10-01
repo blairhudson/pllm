@@ -1,0 +1,45 @@
+---
+title: "Prepared inventory policy"
+description: "Bind request-sized or prewarmed inventory floors to an immutable Experiment."
+---
+
+API: [`PreparedInventory`](/sdk/reference/python/pllm/preparation/#objects-and-signatures).
+
+`PreparedInventory`
+is configuration, not a live mask or ticket handle. Select it in
+`MaskedLinearCpu(inventory=...)`:
+
+- `request-sized` defaults to a one-row floor. The client sizes the initial
+  inventory for uncached input rows and the output cap before online execution.
+- `prewarm` defaults to a 64-row floor. The benchmark may prepare this inventory
+  before the first request; a larger request still needs enough rows.
+- `rows=` sets an explicit floor from 1 through 4,096, not a response limit.
+
+Reservations remain one-use. Rejected, cancelled and unused reserved rows burn;
+refill remains idle-only. The policy does not reduce the bodies of ordinary
+uncached online stages. It is admitted for the ordinary prepared public graph.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+
+experiment = Experiment(
+    "request-sized",
+    MaskedLinearCpu(Model.tiny(), inventory=PreparedInventory("request-sized")),
+    Deployment.local(root="local://request-sized"),
+    ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().inventory_policy == "request-sized"
+assert experiment.resolve().prepared_inventory_rows == 1
+assert experiment.pipeline.inventory.component == "pllm/prepared-inventory-policy/v1"
+assert PreparedInventory("prewarm").get_params()["rows"] == 64
+```
+
+Without an `inventory` component, existing SDK/environment defaults remain.
+Conflicting explicit SDK or benchmark overrides are rejected when the Pipeline
+binds a policy. The benchmark records startup separately and also ranks
+setup-through-first-response and whole-sequence accounted bodies, so prewarming
+does not disappear from cost comparisons.

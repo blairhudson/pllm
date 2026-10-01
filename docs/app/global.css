@@ -211,6 +211,19 @@
 #nd-page .paper-timeline-title { margin: 0 0 .6rem; font-size: 1.06rem; font-weight: 600; line-height: 1.4; }
 #nd-page .paper-timeline-entry > p { margin: .55rem 0 0; line-height: 1.65; }
 #nd-page .paper-timeline-entry > p:nth-of-type(1) { color: var(--muted); font-size: .83rem; }
+#nd-page .paper-timeline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .6rem;
+  align-items: baseline;
+  margin-top: .8rem;
+  padding-top: .65rem;
+  border-top: 1px solid var(--line);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+#nd-page .paper-timeline-links > span { color: var(--muted); font-weight: 600; }
+#nd-page .paper-timeline-links a { text-decoration: underline; text-underline-offset: 2px; }
 
 @media (max-width: 767px) {
   .content-site-header { display: none; }

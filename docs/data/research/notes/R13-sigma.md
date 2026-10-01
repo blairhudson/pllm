@@ -4,11 +4,11 @@
 
 Authors: Kanav Gupta, Neha Jawalkar, Ananta Mukherjee, Nishanth Chandran, Divya Gupta, Ashish Panwar, Rahul Sharma.  
 Primary source: https://petsymposium.org/popets/2024/popets-2024-0107.php  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Full 19-page primary paper is cached as `papers/r13-sigma.pdf` and verified against the SHA-256 in `paper-library.json` (`f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf`). This is specification material; upstream code is not a PLLM dependency or a locked runtime artifact.
 
 ## What the source contributes
 
-SIGMA provides FSS-based secure transformer operations and GPU-backed inference with preprocessing.
+SIGMA evaluates shared transformer state with two online parties and one input-independent trusted dealer. Section 4.2 replaces insecure local truncation with faithful arithmetic right shifts: the known-gap variant requires a proven input range, whereas general signed inputs need a truncate-reduce and secure sign-extension. Section 5 uses fresh DPF-backed FSS keys for SiLU, GeLU, exponentiation, reciprocal, and rsqrt, including private attention and normalization. Appendix L shows dealer key transfer is part of full cost; the reported Llama2-7B key size exceeds 255 GB.
 
 This short source summary is separate from the proposed PLLM design below. The source has not been reproduced merely by adding this card.
 
@@ -49,6 +49,29 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 ## What PLLM already has
 
 Resident-share and spectral archives are different constructions, not SIGMA reproductions.
+
+The bounded, test-local path now uses one-use two-party point-function keys for
+comparisons up to 10 bits and independent exact carry correction for signed
+ring-2⁶⁴ truncation. Its hybrid uses an 8-bit FSS comparison for the low
+part **of a wider shift**, then one-use Beaver carries for the remaining bits;
+checked 16- and 24-bit shifts reconstruct exactly. Its two
+authenticated party channels pass a Q8 causal-attention prefill-to-decode
+check with KV shares retained separately. For a 10-bit comparison one key is
+187 bytes **per party per element**, with another 128 bytes of optional local
+expansion; key issuance and expansion are offline costs. Missing keys abort,
+and consumed keys cannot be reused. This is not a protected compiled decoder,
+SIGMA's 12-bit/GPU optimized DPF, a model-quality result, or proof of
+independent operators. A separate semantic-schedule cost gate for the pinned
+30+1-token Qwen2.5 plan counts only one gated product and exact 8-bit rescale
+per intermediate MLP element. Even that optimistic subset needs at least
+735,436,800 correlated-body bytes **per party** and 168,975,360 online
+all-link opening-body bytes, versus 95,805,056 recorded online body bytes for
+the matched two-worker offset comparator. This reference therefore fails its
+256 MiB-per-party material budget and the network comparator before protected
+attention, norms, setup framing or checkpoint distribution. See
+`docs/evidence/shared-resident-mlp-cost-gate-2026-09-27.json`; these are
+projected lower bounds for this construction, not measured wire bytes or a
+universal bound on two-party inference. Compiler admission remains closed.
 
 The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
 

@@ -23,3 +23,14 @@ assert method.role_eligibility == ("client", "preparation", "inference")
 API: [`pllm.components.get` and `get_component`](/sdk/reference/python/pllm/#objects-and-signatures)
 
 Role metadata does not establish operator identity, authentication, or non-collusion.
+
+For untied public checkpoints, `pllm.roles.OutputHeadAtInference` is a
+digest-bound `boundary` placement option in the prepared-role Experiment.
+It moves the output-head matrix from the trusted-client bundle to Inference,
+without moving token lookup or changing the plaintext trust boundary.
+See [network I/O experiments](/sdk/evaluate/benchmark/) for its cold/online
+cost tradeoff and the SDK example.
+`pllm.roles.ClientPrefixLayers` separately assigns a bounded complete prefix
+of decoder layers to the trusted client. It keeps the remote suffix prepared
+and masked, but adds prefix matrices to the client bundle; inspect its matched
+[cold versus online results](/sdk/evaluate/benchmark/) before selection.

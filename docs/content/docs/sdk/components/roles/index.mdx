@@ -8,6 +8,13 @@ for remote linear stages. For prepared public inference, trusted Preparation
 fills corrections before requests; for provider-owned paths, the chosen protocol
 uses a single inference role. Applications talk to the trusted
 [gateway](/learn/integrations/local-gateway/), not to the provider's stage API.
+Prepared public experiments may independently select
+[remote output-head placement](/sdk/components/roles/output-head-at-inference/)
+for untied checkpoints or a [client-owned layer prefix](/sdk/components/roles/client-prefix-layers/).
+These and [semantic-role client placement](/sdk/components/roles/client-linear-roles/)
+are explicit model-neutral capabilities whose bundle and online costs must be
+compared together. Semantic-role placement can keep attention projections local
+while leaving MLP projections remote, across every matching layer.
 
 ## Python SDK example
 

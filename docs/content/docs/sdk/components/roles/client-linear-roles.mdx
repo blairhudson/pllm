@@ -1,0 +1,56 @@
+---
+title: "Client-owned linear roles"
+description: "Place semantic projection groups at the trusted client while keeping prepared MLP work remote."
+---
+
+API: [`ClientLinearRoles`](/sdk/reference/python/pllm/roles/#objects-and-signatures).
+
+`ClientLinearRoles` selects
+projection groups by semantic role, across layers, rather than by checkpoint paths.
+Supported selectors are `qkv_projection`, `attention_output`, `mlp_gate_up` and
+`mlp_down`. The native compiler places matching groups locally; the bundle binds
+their exact i8 weights, scales and declared biases before inventory reservation.
+The selected roles must exist and some body work must remain remote.
+
+This is a CPU-backed public prepared placement in `MaskedLinearCpu`, sharing its
+client-local nonlinear operations. It does not implement provider-protected
+nonlinear execution. Verified, proprietary and other unsupported compositions
+fail closed. Added client weights/scales have a 512 MiB bound; native kernels own
+another weight snapshot. Providers retain the public checkpoint.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport
+from pllm.roles import ClientLinearRoles
+
+experiment = Experiment(
+    "client-attention",
+    MaskedLinearCpu(
+        Model.tiny(),
+        placement=ClientLinearRoles(["qkv_projection", "attention_output"]),
+        inventory=PreparedInventory("request-sized"),
+        delivery=ClientBundleTransport("zlib"),
+    ),
+    Deployment.local(root="local://client-attention"),
+    ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().client_linear_roles == ("attention_output", "qkv_projection")
+assert experiment.resolve().prepared_inventory_rows == 1
+assert experiment.pipeline.placement.component == "pllm/client-owned-linear-roles/v1"
+assert tuple(experiment.pipeline.placement.get_params()["roles"]) == ("attention_output", "qkv_projection")
+```
+
+Pinned Qwen2.5-0.5B passes bit-identical W8A8 prefill/decode logits on three
+checked prompts. A separate 39+32 warm response reduces covered bodies from
+178.97 to 148.30 MB and online bodies from 113.55 to 93.22 MB. Attention ownership
+adds 44.04 MB of i8 weights, 0.20 MB of scales and a 44.04 MB native snapshot;
+87.69% of declared **body linear MACs** remain remote. Peak RAM and total wire
+bytes are unmeasured. See the [matched evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/incremental-network-qwen25-2026-10-01.json).
+
+Compare against [prefix-layer placement](/sdk/components/roles/client-prefix-layers/)
+using the [ordinary benchmark](/sdk/evaluate/benchmark/). Cold raw delivery is
+larger; compression and reuse are separately measured choices, not assumed gains.

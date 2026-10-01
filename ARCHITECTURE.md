@@ -172,9 +172,21 @@ logit error under 0.05), and client-only/prepared SDK and gateway requests.
 The pinned public Llama 3.1 8B configuration mirror additionally lowers and
 compiles for a bounded 8+2-token workload without loading weights.
 Other scaling modes and real Llama checkpoint import, quality and deployment
-remain unvalidated. Pinned Phi-4-mini-instruct additionally compiles for an
-original-context workload. Generated tiny Phi fused-QKV/gate-up weights import
-into that schedule and pass typed-session W8A8 prefill/decode against a PyTorch
+remain unvalidated. A separate pinned SmolLM2-135M-Instruct checkpoint uses
+the same generic bias-free dense adapter: it imports 120 compiled stages and
+completes a 39+32-token prepared request through two local role children with
+masked traffic and no plaintext prompt/token-ID bytes sent. A distinct
+12-prompt local W8A8 prefill cohort matches its own float32 top token 11/12
+times, with 3.8734 worst absolute logit error. Covered warm all-link bodies
+are 88.40 MB and online bodies 55.68 MB; two isolated-client-bundle-cache
+cold samples have 23.48 s median aggregate CPU. The smaller model has no
+cross-model task-quality ranking, independent-provider privacy proof,
+same-token W8A8 decode parity or full-wire measurement. All-layer rank-128
+MLP output cuts fail held-out prefill/decode parity; they remain offline
+float32 oracles, not a protected decoder. Pinned Phi-4-mini-instruct
+additionally compiles for an original-context workload. Generated tiny Phi
+fused-QKV/gate-up weights import into that schedule and pass typed-session
+W8A8 prefill/decode against a PyTorch
 float32 reference (matching selections; worst logit error below 0.05), plus
 client-only/prepared SDK and gateway requests. Phi's original-context factor
 vector stays fixed for the response; crossing into extended LongRoPE context
@@ -329,6 +341,20 @@ typed metric semantics; `BenchmarkResult` and `EvidenceRegistry` preserve exact
 evidence cohorts without implicit ranking. `pllm.search` generates validated
 immutable candidates and applies explicit cohort-safe Pareto directions.
 
+The bounded local shared-gate research references issue one-use party-local
+material for a two-input table, a correlated-hidden table, or a quadratic
+Q7 SiLU×up **numerator** in a 24-bit ring. The quadratic dealer shares five
+shifted coefficients per gated output and two independent shares of one
+hidden mask; each party exchanges only its own masked hidden share and retains
+an opaque output share. A semantic Qwen2.5-shaped 39+1-token resource gate
+projects 5.03 MB of online bodies for MLP gated products alone and 70.81 MB
+of one-use material per party. Charging one independent attention-query
+hidden-source opening raises the optimistic projection to 10.06 MB, above
+the 6 MB tenfold target before attention arithmetic or protected rescaling.
+The 24-bit source range, Qwen numeric parity, protected output truncation,
+whole-layer schedule, distributed dealer and independent role transport are
+unimplemented. These test-local references do not activate an Experiment.
+
 The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
 native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client
 makes fresh exact-ring additive shares for each linear stage, validates both
@@ -376,6 +402,83 @@ Run-window application bodies and authenticated CPU samples appear in the
 ordinary topology ledger. Co-located workers remain ineligible for an
 independent-provider privacy claim; full-response compute-cap validation
 remains open.
+`pllm.metrics.LatentResponseCostProbe` additionally binds non-streaming research
+costs to the semantic decoder plan and checks that its live token-selection and
+feedback steps remain client-local. Matched 39+8 and 39+32 pinned Qwen2.5 W8A8
+prepared controls use 73.83/113.55 MB covered online bodies and 116.84/178.97 MB
+covered warm all-link bodies. A hypothetical one-round protected MLP cut has
+6.92/10.54 MB of narrow online input/output bodies but 167.03/254.18 MB of
+one-use keys for both parties. A resident two-source opening already needs
+11.87/18.06 MB online before attention. The existing small-field selection
+reference would require far more peer openings at full vocabulary and reveals
+the selected index to the client; it cannot implement private token feedback.
+These are explicitly non-executable, partial-body cost gates, not deployed
+privacy, quality, or complete-wire evidence.
+`pllm.metrics.EncryptedQuadraticShareCostProbe` additionally executes a
+bounded, in-process one-use BFV quadratic over a 32-value additive-share
+bottleneck: one party encrypts its own share; the other adds its share,
+evaluates the exact `x²+3x+7` field polynomial, subtracts a fresh uniform
+mask, and returns ciphertext for the first party's opaque output share.
+Its public evaluation context excludes the secret key. One 39-row island
+uses about 177 kB of two-way serialized bodies and a 411 kB context; eight
+and 32 sequential one-row islands use about 1.42 and 5.68 MB before decoder
+work, exceeding the matched Qwen 100-fold covered-body targets. Neither
+Qwen nonlinear fidelity, compressed correlation issuance, independent roles,
+malicious behavior, nor a whole-response execution path is established.
+An independent rank-interface gate hooks the pinned Qwen2.5 float32 MLP outputs
+after full nonlinear evaluation, fits bounded rank-16/32 bases on public
+calibration text, and compares twelve held-out prefill/decode trajectories. All
+24 rank-32 projections match 3/12 prefill and 1/12 same-token decode selections;
+even six projections match only 6/12 and 8/12. No retrospective margin witness
+passes; observed errors are not an a priori certificate. This optimistic
+oracle rules out claiming that Qwen can simply be retrofitted with such cuts;
+it does not test a jointly trained architecture.
+A second optimistic gate fits a public per-layer affine map and projects only
+its nonlinear residual. With six rank-32 cuts it matches 8/12 prefill and
+7/12 same-token decode selections, versus 6/12 and 8/12 for projecting the
+complete MLP output. All 24 affine-residual cuts match 3/12 and 0/12. The
+full original MLP is still evaluated first, and duplicating just its public
+float32 bypass maps across two workers would distribute another 154.14 MB.
+This narrow mixed result does not enable a share-executable Qwen decoder.
+An additional source-preserving extraction calibrates a public affine
+linearization for the original bias-free gated MLP and keeps selected original
+SiLU×up channels exact. This local float32 implementation needs no gradient
+training; selecting all 4,864 channels reconstructs checked original MLP
+outputs within 0.000142. With only layers 0, 12 and 23 extracted, selecting
+128 per layer matches 5/12 pinned Qwen prefill and 9/12 same-token decode
+selections. Selecting 2,048 matches 11/12 each, but projecting that width
+over all 24 layers costs 165.49 MB of two-worker cut bodies. For the pinned
+39+32-token workload, the 10× covered-body target is 17.90 MB and the 10×
+online target 11.35 MB; 128 channels per layer project 10.66 MB online before
+input, head, attention, offline distribution or complete wire. The optimistic
+byte interface and the incomplete numeric fidelity cannot authorize a live
+source-preserving topology. Public calibration does not use private prompts.
+An optional closed-form per-channel public affine calibration keeps the
+pretrained weights and online cut width fixed. For one final-layer replacement,
+omitting all channels improves checked prefill agreement from 9/12 with the
+mean Taylor expansion to 12/12, but decode remains 9/12. For layers 0, 12 and
+23 at 128 exact channels, public least-squares calibration still matches only
+5/12 prefill and 9/12 decode, whether or not one public decode row per prompt
+is included. Fitting only 40 decision/decode rows overfits: 1/12 prefill and
+0/12 decode. These exploratory calibrations do not establish whole-decoder
+quality or a 10× all-link improvement. One full-width layer alone projects
+16.36 MB of client/worker cut bodies against the 17.90 MB 10× covered-body
+target, leaving almost no room for the other layers. A new method needs fresh
+held-out data.
+The separate `pllm.runtime.share_linear_feedback_reference` is a bounded
+in-process two-share field-state toy. Each worker holds only its additive state
+share and applies public affine maps; the trusted client reconstructs a
+rank-width cut, calculates a quadratic, freshly shares its result and selects
+the next code. Tiny prefill/decode matches an independent clear recurrence,
+and typed frames bind one session, worker, row and layer and burn malformed or
+replayed sessions. Its 39+32-token **hypothetical** 24-layer/896-wide/64-code
+projection uses 0.80/1.24 MB of header-inclusive bodies at rank 16/32 with
+four-byte words, but that numeric backend, trained model and output code do
+not exist. The executable toy uses a different 16-bit field and 8-code head;
+it has no Qwen fixed-point or generation-quality parity, independent operator
+transport, full-wire/cold distribution, or compute-cap claim. Sequential
+client cuts remain a latency gate: 1,680 cuts in the direct schedule, versus
+an unimplemented 806-round lower bound if causal prefill were wavefront-batched.
 The ordinary four-topology benchmark now separately samples each local role's
 cumulative CPU from process birth and client/dashboard CPU from benchmark startup
 through the first cold response. A pinned Qwen2.5-0.5B W8A8 30+1-token cohort
@@ -514,12 +617,87 @@ the online public-weight path. Transformer-body matrices remain provider-owned;
 proprietary bundles never include either boundary matrix.
 
 Bundle schema 2 stores quantized matrices once and lets stages reference them.
+An opt-in bundle transport sends independent bounded zlib frames, then checks
+the original uncompressed bundle digest before client import; only the raw
+bundle is cached. The pinned Qwen2.5 cold-pair diagnostic saves 21.08 MB of
+covered bodies at the cost of higher CPU and latency, with no warm transfer
+savings or measured disk reduction.
 For tied embeddings, one vocabulary-by-hidden matrix uses per-token row scales;
 token lookup gathers its rows and `lm_head` multiplies by the same array. This is
 not numerically identical to schema 1 token lookup, which independently quantized
 the transposed matrix with per-hidden-feature scales. Output-head quantization is
 unchanged. Any per-layer token table remains a separate auxiliary object using
 its existing orientation.
+
+An opt-in, byte-bounded in-memory trusted-client cache can retain exact-token
+prefill state and logits under a compiled decoder and bundle fingerprint. Only
+complete identical prefills in ordinary prepared public execution are reused;
+verified placement, recurrent/windowed/shared state, `store=False`, continuations
+and changed token sequences do not activate reuse. Decode still executes normally
+and all reserved rows remain one-use. A 39+1-token Qwen2.5 repeated-prompt
+diagnostic reduced covered second-response bodies from 98,723,710 to 986,876
+and online masked bodies from 62,248,704 to zero. This is a repeat-workload
+optimization with visible access-pattern differences, not a general per-prompt
+network reduction or an independently operated privacy proof.
+`pllm.state.ClientPrefixReuse` additionally binds a fixed public compiler input
+bound and a byte-bounded in-memory KV cache to a prepared baseline Experiment.
+It replays only the uncached suffix, and rejects cache hits whose per-stage
+row/body estimate would lose to batched prefill. Cache identity includes the
+compiled plan, source bundle and complete token prefix; changed prompts cannot
+reuse the wrong state. A pinned Qwen2.5 two-candidate loopback cohort reduced
+covered online bodies from 279.29 MB to 11.58 MB for a 175-token prompt with a
+168-token shared prefix and seven fresh suffix rows. This is an opt-in
+repeat-workload result, not a saving for unrelated new prompts or full wire.
+
+`pllm.roles.OutputHeadAtInference` separately moves an untied public output
+head into the prepared Inference stage schedule. It binds provider stage,
+bundle, source and composition commitments before material reservation, leaves
+the token table at the client, and rejects tied heads before checkpoint import.
+One remote head application per generated token increases online and offline
+traffic even as it removes the head matrix from cold client delivery. A
+generated untied 512-wide/65,536-vocabulary 1/8/32-token cohort measured a
+33.82 MB smaller client bundle and positive covered cold-byte savings across
+all three lengths, but online-only bytes increased; no official-checkpoint
+quality or long-output crossover has been established.
+`pllm.roles.ClientPrefixLayers` is another optional prepared placement:
+complete first semantic decoder layers execute on the trusted-client CPU, with
+remaining layers admitted as masked remote stages. Their W4/W8 i8 weights and
+scales are added to the client bundle under a 512 MiB extra-weight bound; the
+provider still holds the public full checkpoint. One pinned Qwen2.5 40+1-token
+loopback cohort with two client layers reduced covered online stage bodies from
+63.84 to 58.52 MB but raised covered cold all-link bodies from 247.23 to
+268.71 MB. The short-prompt cohort therefore does not make this a cold-transfer
+or disk optimization; full-wire, independent operators and matched generation
+quality remain separate gates.
+
+`pllm.roles.ClientLinearRoles` selects grouped semantic projection roles rather
+than complete prefixes. Native scheduling binds matching groups to trusted-client
+CPU kernels; checkpoint import, live bundle admission and provider stage tables
+share that ownership declaration. Added matrices/scales retain the 512 MiB bound
+and both provider roles retain their public full checkpoint. Pinned Qwen2.5
+attention ownership passes bit-identical W8A8 prefill/decode logits on three
+prompts. A separate 39+32 warm response uses 148.30 MB covered bodies versus
+178.97 MB baseline and 93.22 MB online versus 113.55 MB. It retains 87.69% of body
+linear MACs remotely, adds 44.04 MB i8 weights, 0.20 MB scales and a 44.04 MB native
+weight snapshot at the client; these storage counts are not peak-memory samples.
+The raw cold bundle grows; representative quality, full wire and independent
+deployment remain separate claims.
+
+`pllm.preparation.PreparedInventory` and `pllm.protocols.ClientBundleTransport`
+bind startup/row-floor and bundle-encoding choices to ordinary prepared Pipelines.
+Omitting them preserves previous digests and defaults. Explicit conflicting SDK
+or benchmark overrides fail closed. Request sizing changes offline inventory
+work, not one-use reservations or ordinary online stage bodies; zlib negotiates
+bounded frames but retains raw cache bytes. The ordinary benchmark accepts a
+bounded ordered JSON context sequence on one live client, records only salted
+cohort digests, and matches ordered counts/caps/warm states before summing costs.
+Setup-through-first-response and whole-benchmark accounted-body totals include
+recorded startup/warmups once, alongside historical per-run medians. On one fixed
+113/130/141-input-token, eight-output-token-per-request Qwen cohort, attention plus
+prefix reuse and zlib reduces online bodies from 647.60 to 240.68 MB and covered
+setup-inclusive bodies from 1,171.96 to 547.41 MB. These co-located protocol-body
+counts exclude wire framing and checkpoint distribution; compression increases
+cold CPU in this cohort.
 
 ## Application boundary
 
@@ -556,16 +734,24 @@ remain in TeX. Historical measurements are kept
 under `docs/evidence` and are not rewritten as native Rust results.
 
 The loopback benchmark dashboard runs the real client, preparation, and inference
-roles and receives their OTLP metrics and traces directly. Protocol byte counts
+roles and receives child-role OTLP metrics and traces directly. Protocol byte counts
 are custom OTEL metrics; prompts and activation payloads are never telemetry
 attributes. The generated tiny checkpoint validates transport behavior only.
 The benchmark report additionally groups existing client audit counters into a
 directed, phase-labeled **serialized protocol-body** ledger for the prepared
 graph, without adding overlapping upload/server counters twice. It reports
-client and all-link accounted bodies plus available run-window CPU per role,
-but leaves total wire bytes and full-response compute-cap admission unset:
-HTTP/TLS/control traffic, correction acknowledgements, pre-run bundle and
-checkpoint distribution, and upstream setup are not completely metered.
+client and all-link accounted bodies plus available run-window CPU per role.
+Bounded client-local and child-role OTLP stage counters now reconcile five
+directed links against the audit before the compiler's semantic roles receive
+attribution. A pinned Qwen2.5 W8A8 39+32-token response accounts for 178.97 MB
+all-link: 148.30 MB in MLP stages and 30.67 MB elsewhere. Removing all MLP
+stage bodies for free still cannot meet the 17.90 MB tenfold target. Two
+same-body Qwen cold samples measure 41.03 s median aggregate CPU in the
+prepared graph against 38.01 s for two offset workers. One co-located cohort
+does not establish a compute-cap admission. Total wire bytes, independent
+operators, upstream checkpoint distribution and setup remain unmeasured;
+macOS per-process `nettop` snapshots undercount even reconciled online bodies
+and cannot close that gap.
 
 Interactive dashboard runs default to Qwen2.5-0.5B-Instruct; random tiny weights
 require the explicit `--tiny` transport-smoke option.

@@ -1,0 +1,60 @@
+---
+title: "Small HE-to-shares island"
+description: "Measure a one-use BFV quadratic evaluated between two additive-share holders."
+---
+
+[`EncryptedQuadraticShareCostProbe`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)
+tests a small HE island **inside** a two-party computation. Party A encrypts its
+32-value input share under a BFV key it keeps. Party B receives only the public
+context, adds its own share, computes `x² + 3x + 7` over `F₆₅₅₃₇`, subtracts a
+fresh private output mask, and returns the ciphertext. A decrypts one output
+share; B keeps the other. Both shares reconstruct the exact field result.
+One-use session IDs reject replay and mismatched responses burn the client
+request. This is an **in-process, honest-execution reference**, not an
+independent-party or malicious-evaluator privacy proof.
+
+| Measured local cohort | Online serialized ciphertext bodies | Public context, once | Evaluation CPU |
+| --- | ---: | ---: | ---: |
+| One 32-value island | 177,492 B | 411,124 B | 0.006 s |
+| One 39-row × 32-value island | 177,419 B | 411,085 B | 0.010 s |
+| Eight sequential one-row islands, shared context | 1,419,848 B | 410,982 B | 0.048 s |
+| 32 sequential one-row islands, shared context | 5,678,650 B | 410,988 B | 0.132 s |
+
+These are measured **both-direction application bodies**, not full wire. One
+prefill-sized island packs efficiently; later decode tokens depend on earlier
+selection and cannot be batched merely by withholding user-visible streaming.
+The [matched Qwen2.5 prepared controls](/sdk/evaluate/latent-response/) permit
+only **1,168,439 / 1,789,705 bytes** to beat their 39+8 / 39+32 covered-body
+costs by 100×. Even one encrypted island per output token exceeds either
+budget *before* transformer work. One island per layer and token would
+project roughly **34 / 136 MB** of ciphertext bodies. Encryption remains a
+candidate only when **one island replaces many dependent exchanges**, or if
+a distinct compact correlation generator is built and measured; this probe
+does not implement such a generator. See [exact measurements and exclusions](https://github.com/blairhudson/pllm/blob/main/docs/evidence/he-quadratic-share-network-2026-09-28.json).
+
+Existing BFV-assisted authenticated-triple preparation offers a useful check:
+one packed 4,096-triple batch passes exact product parity but sends **531,239 B**
+before its public context. Even one multiply per 32-wide bottleneck element,
+across 24 layers and 70 rows, projects **14 such batches / 7.44 MB**, before
+online arithmetic. That is not an equivalent Qwen SiLU protocol; it shows why
+ordinary HE triple production is not the compact correlation generator needed
+by this hypothesis.
+
+## Python SDK example
+
+```python
+from importlib import util
+
+from pllm.metrics import EncryptedQuadraticShareCostProbe
+
+probe = EncryptedQuadraticShareCostProbe(width=32, rows=1, islands=1)
+if util.find_spec("tenseal") is not None:  # optional pllm.run[he] extra
+    result = probe.run()
+    assert result["exact_modular_parity"] is True
+    assert result["public_evaluator_has_secret_key"] is False
+    assert result["online_all_link_body_bytes"] > 0
+else:
+    assert probe.width == 32  # installation without optional HE dependency
+```
+
+API: [`EncryptedQuadraticShareCostProbe`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).

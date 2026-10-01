@@ -21,6 +21,16 @@ minimize/maximize directions; failed or unavailable records remain visible but
 never enter the frontier. There is no universal scalar score, Bayesian search,
 or CLI `benchmark search` command.
 
+For precision alternatives whose body fingerprints differ by design,
+`QualityLockedNetworkSearch` instead requires each candidate's exact compiled
+reference-quality report, immutable source lock, matching `Experiment` digest,
+and the same role, prompt, warm state, input/output tokens and numeric-quality
+thresholds. It ranks *covered online serialized bodies* only after admission.
+`benchmark_reference_quality` and `benchmark_network_candidates` in
+[`pllm.evidence`](/sdk/evaluate/benchmark/) form a public SDK workflow;
+this is a same-token prefill diagnostic, not generation-quality proof or full
+wire metering.
+
 ## Python SDK example
 
 ```python

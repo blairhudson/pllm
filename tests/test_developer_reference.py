@@ -95,31 +95,48 @@ def test_status_keeps_family_matrix_and_sdk_completeness_table_with_capability_l
     status = outputs[DOCS_ROOT / "reference/status.mdx"]
     inventory = reference.model_compatibility()
     assert status.count("<table ") == status.count("</table>") == 1
-    assert status.count("| Python module | Implemented API symbols | Paper stubs | Model capability stubs |") == 1
+    assert (
+        status.count(
+            "| Python module | Implemented API symbols | Paper stubs | Model capability stubs |"
+        )
+        == 1
+    )
     assert "overflow-x-auto" in status and "sticky left-0" in status
-    assert status.count('<th scope="row"') == len(inventory["adapters"]) + len(inventory["candidates"])
+    assert status.count('<th scope="row"') == len(inventory["adapters"]) + len(
+        inventory["candidates"]
+    )
     assert status.count('<th scope="col"') == 6 + len(inventory["capabilities"])
     assert "No row has full model support" in status
     assert "2/2 opt-in; 3/5 other" in status
-    qwen2_row = next(line for line in status.splitlines() if ">Dense Qwen2 (Qwen2.5-0.5B-Instruct)</a></th>" in line)
+    qwen2_row = next(
+        line
+        for line in status.splitlines()
+        if ">Dense Qwen2 (Qwen2.5-0.5B-Instruct)</a></th>" in line
+    )
     assert ">1/2 W8</td>" in qwen2_row
     assert 'aria-label="Model family and reusable capability matrix"' in status
     for identity in inventory["capabilities"]:
         route = f"/sdk/models/capabilities/{identity}/"
         assert f'href="{route}"' in status
         page = outputs[DOCS_ROOT / f"sdk/models/capabilities/{identity}.mdx"]
-        assert "## Checked source adapters" in page
+        assert "## Checked decoder configurations" in page
         assert "## Candidate families" in page
         assert "## Selection and next gate" in page
     for row in inventory["adapters"]:
-        assert f'{row["name"]}</a>' in status
+        assert f"{row['name']}</a>" in status
         for identity in row["baseline_blockers"]:
-            assert f'{row["name"]}: {inventory["capabilities"][identity]["name"]}: missing required executable variant' in status
+            assert (
+                f"{row['name']}: {inventory['capabilities'][identity]['name']}: missing required executable variant"
+                in status
+            )
     assert "## Python SDK completeness" in status
     assert "9 reusable model-capability stubs" in status
     assert "## Python SDK example" in status
     assert DOCS_ROOT / "reference/python-status.mdx" not in outputs
-    assert "ModelCapabilityUnavailable" in outputs[DOCS_ROOT / "sdk/models/capabilities/gated-delta.mdx"]
+    assert (
+        "ModelCapabilityUnavailable"
+        in outputs[DOCS_ROOT / "sdk/models/capabilities/gated-delta.mdx"]
+    )
 
 
 def test_cli_parser_help_is_split_exactly_across_generated_pages() -> None:
@@ -235,7 +252,14 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
         "title": "Command reference",
         "root": True,
         "pages": [
-            "index", "gateway", "serve", "config", "components", "topology", "benchmark", "dev"
+            "index",
+            "gateway",
+            "serve",
+            "config",
+            "components",
+            "topology",
+            "benchmark",
+            "dev",
         ],
     }
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "config/meta.json"])["pages"] == [
@@ -244,7 +268,8 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
         "export",
     ]
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "topology/meta.json"])["pages"] == [
-        "index", "inspect"
+        "index",
+        "inspect",
     ]
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "gateway/meta.json"])["pages"] == [
         "index",
@@ -289,9 +314,7 @@ def test_sdk_pages_have_executable_examples_or_explicit_api_boundaries() -> None
             invalid_contract.append(f"{relative}: example has no exact Python API link")
         for index, example in enumerate(examples, start=1):
             if not re.search(r"(?:from|import)\s+pllm\b", example):
-                invalid_contract.append(
-                    f"{relative} example {index}: does not use public PLLM SDK"
-                )
+                invalid_contract.append(f"{relative} example {index}: does not use public PLLM SDK")
             if not re.search(r"^\s*assert\s", example, re.MULTILINE):
                 invalid_contract.append(f"{relative} example {index}: has no checked result")
             try:
@@ -346,9 +369,7 @@ def test_api_inventory_uses_public_objects_once_and_keeps_alias_identity() -> No
             assert all(by_name[name] is first for name in item["exports"])
             assert inspect.isclass(first) or callable(first)
     provider_constants = {
-        item["canonical"]
-        for item in inventory
-        if item["canonical"].startswith("pllm.providers.")
+        item["canonical"] for item in inventory if item["canonical"].startswith("pllm.providers.")
     }
     assert "pllm.providers.PROVIDER_ENTRY_POINT_GROUP" in provider_constants
     assert "pllm.providers.PROVIDER_MANIFEST_SCHEMA" in provider_constants
@@ -416,8 +437,16 @@ def test_reference_backlinks_point_to_the_relevant_user_guides() -> None:
         ("pllm.client", "OpenAI", "/sdk/run/clients/"),
         ("pllm.verification", "FreivaldsVerify", "/sdk/components/verification/freivalds/"),
         ("pllm.assurance", "SubspaceLeakageRegression", "/sdk/components/research-method-roadmap/"),
-        ("pllm.nonlinear", "fit_compact_silu_q7_reference", "/sdk/components/nonlinear/compact-q7-reference/"),
-        ("pllm.nonlinear", "CompactPiecewiseActivation", "/sdk/components/nonlinear/compact-q7-reference/"),
+        (
+            "pllm.nonlinear",
+            "fit_compact_silu_q7_reference",
+            "/sdk/components/nonlinear/compact-q7-reference/",
+        ),
+        (
+            "pllm.nonlinear",
+            "CompactPiecewiseActivation",
+            "/sdk/components/nonlinear/compact-q7-reference/",
+        ),
     )
     for module, symbol, guide in cases:
         page = outputs[reference.PYTHON_REFERENCE_ROOT / f"{reference._module_slug(module)}.mdx"]

@@ -19,7 +19,50 @@ bytes by directed edge and phase, plus available run-window process CPU seconds
 per role. These counters do not measure HTTP/TLS framing, control traffic,
 correction acknowledgements, checkpoint distribution before startup, or full aggregate
 compute. Missing counters stay `null`; they cannot justify a total-wire-byte
-winner or the two-online-server compute cap. A checked one-token transport
+winner or the two-online-server compute cap.
+
+For a cold single-response comparison, `--inventory-policy request-sized`
+defers preparation until the token budget is known and issues exactly the
+required rows; default `prewarm` issues 64 rows at startup to amortize later
+responses. Reports label the policy. Compare startup **plus** run bodies and
+cold lifetime CPU, not run-only latency: deferring preparation changes which
+window records it. A matched 39+1-token Qwen2.5 cohort saved 23,347,200
+covered cold body bytes while online bodies stayed equal. Neither mode measures
+full wire bytes or persistent disk use. See the
+[prepared protocol guide](/sdk/inference/prepared-protocol/) for exact counters.
+
+The same policies can be bound in an immutable SDK Pipeline using
+[`PreparedInventory`](/sdk/components/preparation/inventory-policy/) and
+[`ClientBundleTransport`](/sdk/components/protocols/client-bundle-transport/).
+Conflicting explicit CLI overrides fail. The report keeps per-run medians separate
+from `accounted_setup_through_first_response_body_bytes` and
+`total_accounted_benchmark_body_bytes`, which include recorded startup exactly once.
+
+`--bundle-compression zlib` additionally opts into bounded frames for cold
+client-bundle transfer. In one matched Qwen2.5 pair it saved 21,076,697 covered
+body bytes but increased cold aggregate CPU; warm requests transferred no
+bundle. The default is `none`. Reports record the choice, and the
+[prepared protocol guide](/sdk/inference/prepared-protocol/) explains the
+negotiation, digest verification, and measured tradeoff.
+
+`--prefill-cache-mib` opts into bounded, client-only **exact-prompt** prefill
+reuse (0–256 MiB). A warm response with the identical tokens can skip prefill
+provider traffic; changed prompts cannot. Use the same token cohort, body
+fingerprint and cache warm state when comparing results. With
+`--inventory-policy request-sized`, the dashboard sizes preparation before
+online execution based on a confirmed cache hit. Its measured Qwen2.5 repeat
+saved 97.74 MB in covered bodies; full wire and client peak RAM were not
+measured. See `docs/evidence/exact-prefill-cache-qwen25-2026-09-27.json`.
+
+For ordered growing contexts, use `--prompt-sequence-file` with a bounded JSON
+array of complete context strings. The same live client executes every context
+and `--repetitions` repeats the whole sequence. The comparator matches ordered
+per-request token caps, usage and warm states, source locks and sequence digests;
+it additionally ranks summed run and setup-inclusive bodies. Reports/archive do
+not store context strings. See the [checked SDK sequence example](/sdk/evaluate/benchmark/)
+and [client-owned attention placement](/sdk/components/roles/client-linear-roles/).
+
+A checked one-token transport
 smoke run uses an explicitly generated tiny checkpoint:
 
 ```bash

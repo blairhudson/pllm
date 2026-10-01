@@ -45,6 +45,12 @@ const actual = [...sidebar.matchAll(/href="\/research\/papers\/([a-z0-9-]+)\/"/g
   .map((match) => match[1]);
 assert.deepEqual(actual, expected, 'Research paper sidebar must list all cited papers newest first');
 assert.equal((page.match(/class="paper-timeline-entry"/g) ?? []).length, expected.length);
+const sdkRows = [...page.matchAll(/<div class="paper-timeline-links">([\s\S]*?)<\/div>/g)];
+assert.equal(sdkRows.length, expected.length, 'Every timeline card needs SDK quick links');
+for (const row of sdkRows) {
+  assert.match(row[1], /href="\/sdk\/reference\/python\/pllm\//,
+    'Every paper needs a linked Python API status');
+}
 const titles = [...page.matchAll(/<div class="paper-timeline-title">([\s\S]*?)<\/div>/g)];
 assert.equal(titles.length, expected.length, 'Each timeline entry needs one linked title');
 for (const title of titles) {
@@ -84,11 +90,15 @@ assert.ok(matrixEnd > matrixStart, 'Model family matrix did not render as a tabl
 const matrix = status.slice(matrixStart, matrixEnd);
 assert.match(status.slice(matrixStart - 200, matrixStart), /overflow-x-auto/,
   'Wide capability matrix must scroll inside its own region on mobile');
-assert.equal((matrix.match(/<th scope="row"/g) ?? []).length, 12,
+const modelInventory = JSON.parse(fs.readFileSync(
+  path.join(siteRoot, 'data', 'model-compatibility.json'), 'utf8'));
+assert.equal((matrix.match(/<th scope="row"/g) ?? []).length,
+  modelInventory.adapters.length + modelInventory.candidates.length,
   'Checked and candidate families must share one rendered matrix');
 assert.equal((matrix.match(/<th scope="col"/g) ?? []).length, 34);
 assert.match(matrix, /sticky left-0/, 'Family names must remain visible while scrolling');
 assert.match(matrix, /Phi-4-mini-instruct/);
+assert.match(matrix, /SmolLM2-135M-Instruct/);
 assert.match(matrix, /aria-label="Qwen3.5-4B text decoder: Gated-delta recurrence: checked in the scoped baseline schedule"/);
 const moduleStart = status.indexOf('Python SDK completeness', matrixEnd);
 assert.ok(moduleStart > matrixEnd, 'SDK completeness must follow the family matrix on one page');

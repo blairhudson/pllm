@@ -7,6 +7,67 @@ The prepared protocol separates client, trusted preparation, and untrusted infer
 
 Inventory identity binds model, body, stage, weight, shape, quantization, ring, modulus, wire width, and attempt budget. Rows are one-use and burned on reservation failure, cancellation, replay, or early completion. Preparation is idle during online chat.
 
+## Cold bundle transfer
+
+`pllm benchmark run --bundle-compression zlib` opts into 1 MiB independently
+compressed bundle frames. The client bounds each decoded frame and checks the
+original uncompressed size and SHA-256 before unpacking or caching; providers
+that do not support the negotiation deliver the original bundle. Only the
+uncompressed bundle is cached, with no second persistent compressed copy.
+
+In one matched Qwen2.5 diagnostic, the 39+1-token cold
+bundle transfer fell from 145,977,006 to 124,900,309 covered body bytes;
+total cold covered bodies fell from 244,700,716 to 223,624,019. The online
+body count did not change. Cold aggregate CPU rose from 29.32 to 34.99 seconds
+in the single matched pair, so compression remains opt-in. Warm in-process
+responses transferred no bundle in either mode. The retained cohort is
+`docs/evidence/client-bundle-compression-qwen25-2026-09-27.json`; full wire,
+disk savings, and peak memory are not measured.
+
+## Cold inventory sizing
+
+`pllm benchmark run --inventory-policy request-sized` delays initial inventory
+preparation until the response's token budget is known, then issues only those rows.
+For real checkpoints, the default `prewarm` policy prepares 64 rows per stage
+before the first response to leave reusable inventory for later chats.
+Request-sized issuance preserves the same one-use reservation and offline/online
+boundary; a second response may need another offline refill. The benchmark report records the policy so cohorts remain
+distinguishable. This is a measurement/runtime policy, not a protected-method
+component change.
+
+In the matched cold Qwen2.5 cohort (`docs/evidence/prepared-inventory-cold-sizing-2026-09-27.json`),
+39 input tokens and one output token consumed 39 rows from 96 remote stages. Request-sized
+preparation avoided 25 unused rows per stage: covered cold protocol bodies fell
+from 268,047,916 to 244,700,716 bytes. Covered online bodies stayed at
+62,248,704 bytes; bundle transfer stayed at 145,977,006 bytes. This pair of
+single-host responses does not measure full wire traffic, disk use, or warm
+multi-response cost.
+
+## Reusing an identical prefill
+
+An opt-in `prefill_cache_bytes` limit on the trusted Python client retains the
+completed prefill state and logits for **identical token IDs** under the same
+compiled decoder and client bundle. The default is off, and the cache holds at
+most 256 MiB, entirely in process. An exact repeat restores that state and
+performs only any required decode stages; unrelated prompts, `store=False`,
+incomplete semantic bindings and unsupported state layouts follow the ordinary
+execution path. Entries are evicted within the byte budget, erased on removal
+and discarded on client shutdown or a bundle identity change. No provider
+receives the cached activations, tokens, or KV state. Providers can distinguish
+an exact repeat from an uncached prefill by its traffic pattern; this is an
+access-pattern tradeoff and not a way to reuse arbitrary shared prefixes.
+
+`pllm benchmark run` offers `--prefill-cache-mib` (0–256) for matched cohorts.
+It sizes offline rows for the cached response before the online phase, with
+one reserved row per stage as the current minimum even if no decode occurs. In
+one 39+1-token matched real Qwen2.5 repeat, covered second-response bodies
+fell from 98,723,710 to 986,876 bytes and online masked bodies from 62,248,704
+to zero. The second response had the same body fingerprint and token counts;
+the first cold response carried the same 244,700,716 covered bytes in each
+mode. The exact scope and CPU samples are in
+`docs/evidence/exact-prefill-cache-qwen25-2026-09-27.json`. This single pair
+does not establish an across-prompts network or performance improvement.
+
 This contract assumes protocol-following non-colluding roles and public body weights. Confidential-weight and shared-state protocols are separate.
 
 <Callout type="info" title="Research citation">

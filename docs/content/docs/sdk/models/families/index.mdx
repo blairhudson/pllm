@@ -40,6 +40,11 @@ tests, including full prefill/decode against a float32 reference and client-only
 and prepared gateway runs. A [pinned public Llama 3.1 8B configuration mirror](https://huggingface.co/unsloth/Meta-Llama-3.1-8B-Instruct/blob/a2856192dd7c25b842431f39c179a6c2c2f627d1/config.json)
 also lowers and compiles for a bounded 8+2-token workload without loading weights.
 Other scaling modes and real Llama checkpoint quality remain unvalidated.
+A separate pinned SmolLM2-135M-Instruct checkpoint uses the same generic
+bias-free dense adapter and completes a 120-stage prepared 39+32-token
+response through two local role children. A narrow W8A8 prefill reference
+check matches its own float32 top token 11/12 times; this does not compare
+language quality against Qwen or validate same-token decode fidelity.
 Qwen3.5 imports its official text checkpoint and runs its 130-stage compiled
 decoder, including two-child prepared SDK/gateway requests; a four-selection
 W8A8 cohort agrees with BF16 twice. Phi-4-mini likewise imports its official

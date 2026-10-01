@@ -1,246 +1,246 @@
 {
   "pcf-secret-replication": {
-    "overview": "Studies pseudorandom correlation functions built from symmetric cryptography and secret replication to shrink the material exchanged during preprocessing.",
+    "overview": "Studies pseudorandom correlation functions built from symmetric cryptography and secret replication to shrink preprocessing communication. The key-distribution step and the expanded correlation that a secure operator consumes are separate costs and security contracts.",
     "reading": "A PLLM candidate must name the correlation distribution, sharing domain, fresh-use rule, and expansion costs before it can replace any existing preparation source."
   },
   "finite-field-pcg": {
-    "overview": "Constructs pseudorandom correlated material over general finite fields instead of assuming one fixed arithmetic domain.",
+    "overview": "Constructs pseudorandom correlated material over general finite fields rather than assuming a single arithmetic domain. Setup generates compact keys; expansion must reproduce the precise correlated outputs required by the field-arithmetic consumer.",
     "reading": "Field-specific material cannot silently substitute for the integer-ring corrections in PLLM's prepared runtime; bind its consumer and modulus first."
   },
   "sparse-unit-correlations": {
-    "overview": "Uses sparse pseudorandom generators to compress unit-vector correlations used in secure computation.",
+    "overview": "Uses sparse pseudorandom generators to compress unit-vector correlations used in secure computation. The selected vector is represented by distributed correlated shares, so key expansion and private downstream lookup matter as much as seed length.",
     "reading": "Measure seed expansion, density, recipient shares, and downstream consumption together; smaller seeds alone do not establish cheaper inference."
   },
   "mozzarella": {
-    "overview": "Presents vector-Oblivious Linear Evaluation and zero-knowledge techniques over powers-of-two rings.",
+    "overview": "The available description presents vector-oblivious linear evaluation and zero-knowledge techniques over powers-of-two rings. The publisher PDF remains unavailable, so its concrete setup, correlation distribution and proof statement have not been verified from the primary text.",
     "reading": "The publisher PDF is not in PLLM's verified library. An implementation needs the original protocol and ring/security checks, not a citation-based substitute."
   },
   "ring-lpn-pcg": {
-    "overview": "Derives pseudorandom correlations from ring-LPN assumptions as an alternative to directly communicating all preprocessing material.",
+    "overview": "Derives pseudorandom correlations from ring-LPN assumptions as an alternative to sending expanded preprocessing material. Ring choice, hardness parameters and local expansion work are essential to the claimed communication tradeoff.",
     "reading": "A candidate must specify the assumption, attack parameters, ring, consumers, and expansion cost; this is not a general-purpose mask seed."
   },
   "silent-ot": {
-    "overview": "Extends oblivious transfer with compact correlated seeds that can be expanded into a larger supply of transfer material.",
+    "overview": "Extends oblivious transfer with compact correlated seeds that expand into a larger supply of transfer material. Setup and expansion must retain the sender/receiver distinction and provide fresh correlations for each later OT use.",
     "reading": "Count setup, local expansion, memory, failure handling, and the online protocol that consumes each transfer before comparing with PLLM preparation."
   },
   "compressing-vole": {
-    "overview": "Compresses vector oblivious linear-evaluation correlations for later use in secure arithmetic protocols.",
+    "overview": "Compresses vector oblivious linear-evaluation correlations for later secure arithmetic. Compression concerns how setup is distributed; it does not change the field, share identity or online arithmetic consuming the expanded vectors.",
     "reading": "Treat the arithmetic field, share holders, distribution, and one-use policy as part of the component contract, not an interchangeable byte format."
   },
   "bifrost": {
-    "overview": "Combines trusted execution and homomorphic encryption for transformer and LLM serving, placing work across different trust mechanisms.",
+    "overview": "Combines trusted execution and homomorphic encryption for transformer and LLM serving. Its placement decides which operations rely on enclave isolation versus encrypted evaluation, and transfers between the two require explicit key and data-visibility policy.",
     "reading": "Its TEE and encryption boundary is a different deployment choice from PLLM's non-colluding prepared roles; compare full roles and costs before claiming equivalence."
   },
   "shaft": {
-    "overview": "Targets transformer inference with secure computation while jointly considering accuracy and execution cost.",
+    "overview": "Targets transformer inference with secure fixed-point computation while considering accuracy and execution cost together. Operator arithmetic and the schedule of scale changes are distinct sources of both numeric error and protected-work overhead.",
     "reading": "Separate its numerical choices from protocol and deployment choices, then test quality, traffic, and latency under a matched transformer workload."
   },
   "llama-math": {
-    "overview": "Develops lower-latency secure arithmetic for nonlinear mathematical operations used in neural inference; LLAMA here is a math library, not Meta's model family.",
+    "overview": "Develops lower-latency secure arithmetic for nonlinear mathematical operations used in neural inference. Its methods target bounded math functions within a sharing protocol; LLAMA here names a math library, not Meta's model family.",
     "reading": "Adapt one bounded operation with exact rounding and sharing contracts before interpreting a scalar improvement as a decoder speedup."
   },
   "sirnn": {
-    "overview": "Provides secure mathematical building blocks for recurrent-network inference, where fixed-point nonlinear functions need protected evaluation.",
+    "overview": "Provides secure mathematical building blocks for recurrent-network inference, where fixed-point nonlinear functions need protected evaluation. Sequence state and repeated conversions turn an isolated math primitive into a different full-model cost problem.",
     "reading": "PLLM must validate its own operator domain and model-quality effects; an RNN library does not supply a complete private LLM decoder."
   },
   "atlas": {
-    "overview": "Automates approximation choices for encrypted transformer operations to reduce homomorphic-evaluation cost.",
+    "overview": "Automates approximation choices for encrypted transformer operations rather than fixing every nonlinear representation by hand. Search weighs operator-level encrypted cost against approximation error and must preserve the resulting checkpoint's quality.",
     "reading": "Represent approximation error, workload, and ciphertext costs as typed constraints; no ATLAS search result is a measured PLLM inference result."
   },
   "encformer": {
-    "overview": "Designs transformer inference over encrypted data with attention to the cost of evaluating model operators securely.",
+    "overview": "Designs transformer inference over encrypted data, assigning protected representations to different model operators. The execution graph must also account for representation changes and the keys needed across operator boundaries.",
     "reading": "A ciphertext-oriented execution path needs its own numeric and key lifecycle, not a drop-in replacement for prepared masked-linear stages."
   },
   "rosetta": {
-    "overview": "Combines CKKS and TFHE to evaluate parts of private language-model decoding across two homomorphic-encryption styles.",
+    "overview": "Combines approximate CKKS and Boolean-oriented TFHE evaluation for different parts of private language-model decoding. Operator assignment and conversions across schemes are separate mechanisms with different precision, key and communication costs.",
     "reading": "Before comparison, model conversions, keys, precision, recurrent token feedback, and the complete decoding workload must be included."
   },
   "breaking-layer-barrier": {
-    "overview": "Reorganizes protected transformer execution across CKKS and MPC so that expensive layer-by-layer interactions can be reconsidered.",
+    "overview": "Reorganizes protected transformer execution across CKKS and MPC to reduce expensive layer-by-layer interactions. Its scheduling gain depends on where encrypted values become shares, how they return, and how much online work crosses the boundary.",
     "reading": "A PLLM compiler candidate needs explicit conversion and residency contracts; changing a schedule alone does not remove online communication."
   },
   "cipherprune": {
-    "overview": "Prunes transformer work to reduce encrypted or private inference cost, making model behavior part of the optimization decision.",
+    "overview": "Prunes transformer work to reduce encrypted or private inference cost. Selecting work to remove and bounding the resulting loss in task quality are separate requirements; a cheaper protected graph need not preserve the original model's outputs.",
     "reading": "Keep quality and compatibility gates beside protocol metrics; fewer operations cannot be ranked without a matched checkpoint and output task."
   },
   "ditto": {
-    "overview": "Studies quantization choices for MPC transformer inference, where arithmetic width and approximation affect both correctness and private-computation cost.",
+    "overview": "Studies quantization choices for MPC transformer inference, where arithmetic width affects private-computation cost and numeric approximation affects correctness. A trained quantization transform and the secure arithmetic that evaluates it need distinct checkpoints and evidence.",
     "reading": "PLLM would bind quantization to a plan and compare private bytes, latency, and model quality, not reuse clear-model quantization evidence."
   },
   "mpc-minimized": {
-    "overview": "Reduces the portion of LLM inference that requires MPC by choosing which operations need protected interaction.",
+    "overview": "Reduces the portion of LLM inference that requires MPC by choosing which operations must involve secure interaction. The placement decision is only valid if moving other regions preserves the input and activation privacy promised by the original topology.",
     "reading": "The moved operations must still meet PLLM's prompt and activation privacy contract; include remaining client work in any comparison."
   },
   "mpcformer": {
-    "overview": "Reworks transformer operations for private MPC execution, trading numerical approximation and interaction cost.",
+    "overview": "Reworks transformer operations for private MPC execution, trading numerical approximation and interaction cost. Model adaptation or distillation and the protected evaluation of the modified operators are different steps with different quality gates.",
     "reading": "Evaluate one bounded operator before full-decoder claims, then measure end-to-end quality and all online rounds."
   },
   "mosaic": {
-    "overview": "Uses masked outsourcing to allocate secure AI computation across parties with distinct access to model and inputs.",
+    "overview": "Uses masked outsourcing to allocate secure AI computation across parties with distinct access to model and inputs. Its benefit depends on exactly which role creates and erases masks and which role owns an accelerator; neither can be inferred from a single-server timing figure.",
     "reading": "Its role and mask-release assumptions must be specified independently before it can be compared with PLLM's prepared public-weight path."
   },
   "maverick": {
-    "overview": "Studies private, verifiable LLM inference through delegated matrix-vector multiplication and associated checks.",
+    "overview": "Studies private, verifiable LLM inference through delegated matrix-vector multiplication. The construction couples private mask issuance, prime-field encoded-matrix preprocessing and coded batch verification; reporting only the online multiply hides substantial setup storage and compute.",
     "reading": "This is a candidate protocol, not a measured PLLM reproduction; identify its parties, verification soundness, and entire decode cost first."
   },
   "emvp": {
-    "overview": "Delegates encrypted matrix-vector products using secret dual codes, aiming to make linear work cheaper under its encoding assumptions.",
+    "overview": "Delegates encrypted matrix-vector products using secret dual codes under their own encoding assumptions. Secret code generation and distribution are prerequisites for the outsourced multiply and determine the actual leakage and offline cost.",
     "reading": "A prototype needs exact matrix orientation, code-parameter security, client cost, and output fidelity on a bounded stage."
   },
   "sort-sweep-mirror": {
-    "overview": "Batches private interval lookups by organizing range comparisons so repeated queries share work rather than each building an independent scan.",
+    "overview": "Batches private interval lookups by arranging comparisons so repeated queries share work rather than each building an independent scan. Comparison planning and hiding the selected interval are distinct responsibilities; the batch shape affects both leakage and savings.",
     "reading": "A PLLM lookup candidate needs the same interval domain, private selection and leakage contract; measure the full batch, setup, and decoder handoff."
   },
   "moai": {
-    "overview": "Proposes an architecture for non-interactive secure transformer inference that reorganizes model modules to fit its protocol.",
+    "overview": "The available description proposes reorganizing transformer modules for non-interactive secure inference. The OpenReview PDF remains inaccessible, so precise protected operators, trust roles and supported generation workloads cannot yet be attributed to its primary text.",
     "reading": "The OpenReview PDF is inaccessible to PLLM's source acquisition; do not infer implementation details or runnable support from the title."
   },
   "shark": {
-    "overview": "Targets actively secure inference with function secret sharing, adding malicious-adversary requirements to protected evaluation.",
+    "overview": "Targets actively secure inference with function secret sharing rather than only honest-but-curious execution. The online function evaluation and checks on malicious behavior must share the same key lifecycle, soundness target and abort policy.",
     "reading": "Active-security material, online role count, and abort semantics cannot be inherited from PLLM's honest-but-curious baseline."
   },
   "thor": {
-    "overview": "Studies homomorphic-encryption-based transformer inference and the associated protected operator costs.",
+    "overview": "Studies transformer inference through homomorphic encryption and its operator costs. The ciphertext representation, key material, nonlinear approximations and supported token-generation loop jointly determine the cost of this deployment choice.",
     "reading": "Treat keys, ciphertext depth, precision, and generation feedback as a separate deployment contract before ranking against prepared inference."
   },
   "bolt": {
-    "overview": "Optimizes secure transformer inference while measuring both accuracy and execution efficiency.",
+    "overview": "Optimizes protected transformer inference with attention to execution efficiency and output accuracy. Secure operator choices cannot be compared in isolation from their numerical approximations, representation changes and complete workload.",
     "reading": "A PLLM comparison must preserve the same numeric and task-quality envelope as well as party topology and full response latency."
   },
   "fastquery": {
-    "overview": "Reduces the communication cost of private embedding-table queries for language-model inference.",
+    "overview": "Reduces communication for hidden embedding-table queries in language-model inference. Private table distribution and per-token protected lookup cost have different owners and phases; the result applies when local public-weight token lookup is unavailable.",
     "reading": "PLLM's public model path already performs token lookup locally; a protected lookup candidate needs a different deployment requirement and comparable privacy target."
   },
   "nimbus": {
-    "overview": "Builds a two-party transformer inference system, choosing secure operators with attention to overall computation and communication.",
+    "overview": "Builds a two-party transformer inference system by choosing secure operators for a shared-activation execution. Both online parties must retain their shares across attention and nonlinear work, so whole-response traffic and state differ from a client-reconstructing offset baseline.",
     "reading": "Two online share holders are a different trust topology from PLLM's one online inference provider; keep both roles in the benchmark."
   },
   "orca": {
-    "overview": "Explores GPU kernels for function-secret-sharing-based secure training and inference.",
+    "overview": "Explores GPU execution for function-secret-sharing-based secure training and inference. Accelerated function-share kernels and their multi-party protocol are distinct: key distribution, device transfers and inter-party messages remain necessary.",
     "reading": "Accelerating a kernel does not eliminate per-party communication or preparation; assess a complete supported operator sequence."
   },
   "ciphergpt": {
-    "overview": "Designs a secure two-party GPT inference protocol with protected transformer and generation operations.",
+    "overview": "Designs secure two-party GPT inference that includes generation rather than stopping at one transformer forward pass. Protected token selection and state carried across generated tokens are separate from the secure layer arithmetic.",
     "reading": "An evaluation must account for both parties, exact token loop, cache state, and model quality before comparing with PLLM serving."
   },
   "flute": {
-    "overview": "Speeds private lookup-table evaluation, a useful primitive when nonlinear functions are represented as tables.",
+    "overview": "Speeds private evaluation of lookup tables, which can represent costly nonlinear functions. Fresh key material and online selection are separate costs; a small table circuit alone does not price the whole decoder.",
     "reading": "Measure the full table, key material, private selection, conversion, and repetition costs for one decoder operator."
   },
   "grotto": {
-    "overview": "Uses distributed point functions in a two-plus-one-party arrangement for protected arithmetic over powers-of-two rings.",
+    "overview": "Uses distributed point functions for protected arithmetic over power-of-two rings in a two-plus-one-party arrangement. The helper supplies fresh keys while online parties evaluate function shares; dropping the helper changes the protocol and its privacy assumptions.",
     "reading": "The helper and fresh-key supply are part of the protocol; it cannot be presented as a one-party lookup optimization."
   },
   "puma": {
-    "overview": "Reports secure inference for a LLaMA-sized model, making full-model communication and runtime central to its result.",
+    "overview": "Reports protected inference at LLaMA model scale using a three-party computation. Its model-wide result depends on both secure decoder operators and share-resident generation state; speed comparisons must retain all three parties and the measured token workload.",
     "reading": "Compare its protected workload, hardware, parties, and token-generation semantics rather than reusing its headline latency in a different cohort."
   },
   "primer": {
-    "overview": "Investigates faster transformer inference over encrypted data with operator-specific encrypted-evaluation choices.",
+    "overview": "Investigates faster encrypted transformer inference by tailoring homomorphic evaluation to different operators. Ciphertext layouts and numeric precision affect both the attainable depth and complete-model execution cost.",
     "reading": "Capture encryption keys, numeric precision, conversion work, and supported decoder state before treating it as a serving alternative."
   },
   "cheetah": {
-    "overview": "Accelerates secure two-party neural-network inference with communication- and computation-aware protocols.",
+    "overview": "Accelerates secure two-party neural-network inference with communication- and computation-aware linear and nonlinear protocols. Those primitives must be composed with a specific model graph and matched party/workload cost before they establish decoder support.",
     "reading": "Its DNN techniques are reference inputs, not automatically whole-transformer operators; compare the exact topology and model task."
   },
   "iron": {
-    "overview": "Studies private transformer inference, including the protected operators and exchanges needed by the architecture.",
+    "overview": "Studies private transformer inference with operators and interactions designed for its two-party architecture. A transformer forward result and full token-by-token generation have different state, round and latency requirements.",
     "reading": "A paper-reported transformer result needs matching architecture, sequence length, two-party trust, and quality to serve as a PLLM baseline."
   },
   "pika": {
-    "overview": "Extends function-secret-sharing secure computation to integer rings as a building block for protected operators.",
+    "overview": "Extends function-secret-sharing secure computation to integer rings. Ring selection changes key format and output arithmetic, so a bounded operator cannot borrow an unrelated field-FSS construction without a conversion and correctness argument.",
     "reading": "Bind its ring, shares, keys, role holders, and error behavior before offering any decoder operator as a PLLM component."
   },
   "the-x": {
-    "overview": "Uses homomorphic encryption for privacy-preserving transformer inference.",
+    "overview": "Uses homomorphic encryption to evaluate transformer inference on protected activations. Key distribution, ciphertext layouts and nonlinear evaluation are part of the workload, alongside model fidelity and any generation feedback.",
     "reading": "Checkpoint, precision, ciphertext cost, and online autoregressive behavior must match before comparing with PLLM's public-weight baseline."
   },
   "aby2": {
-    "overview": "Improves mixed-protocol two-party secure computation, where Boolean and arithmetic work can use different representations.",
+    "overview": "Improves two-party computation that mixes Boolean and arithmetic sharing. Changing the representation lets an operator use a better backend, but each crossing needs correlated material and both parties must retain their shares.",
     "reading": "Represent every cross-domain conversion and both online roles explicitly when using it as an operator-level reference."
   },
   "fss-mixed": {
-    "overview": "Develops function secret sharing for fixed-point and mixed-mode secure operations.",
+    "overview": "Develops function secret sharing for fixed-point and mixed-mode secure operations. Numeric scale conversion and fresh function-key evaluation are separate costs with signed rounding and session-level error requirements.",
     "reading": "Integer scales, truncation, FSS keys, and party placement are first-class requirements, not merely implementation parameters."
   },
   "cryptflow2": {
-    "overview": "Implements practical two-party inference with explicit secure arithmetic and interaction tradeoffs.",
+    "overview": "Implements practical two-party neural inference with secure arithmetic and interactive protocols. Correct fixed-point truncation is a necessary primitive, while whole-network communication and numeric agreement measure a different completion gate.",
     "reading": "A PLLM comparison requires identical numerical and privacy goals and must include its complete interactive schedule."
   },
   "mixed-arithmetic-primitives": {
-    "overview": "Supplies MPC primitives for computation that switches between arithmetic and binary representations.",
+    "overview": "Supplies MPC primitives for computation that switches between arithmetic and binary representations. Correlated arithmetic/bit material is consumed when crossing domains; a cheaper local gate does not remove conversion traffic.",
     "reading": "Quantify each conversion and its security assumption before placing one primitive into a protected decoder plan."
   },
   "silent-nisc": {
-    "overview": "Combines efficient oblivious-transfer extension with preprocessing for non-interactive secure computation.",
+    "overview": "Combines efficient oblivious-transfer extension with preprocessing for non-interactive secure computation. Offline key generation and online circuit evaluation have distinct roles and costs, even when the later evaluator exchanges no interactive rounds.",
     "reading": "Determine what counts as offline setup, which parties remain online, and how often its material must be renewed."
   },
   "garbled-nn": {
-    "overview": "Studies the feasibility of garbled neural-network evaluation and the costs of carrying protected values through layers.",
+    "overview": "Studies garbled neural-network evaluation and the cost of carrying encoded values through layers. One-use circuit preparation, label distribution and whole-graph evaluation all belong to the protocol, not just its nonlinear gate count.",
     "reading": "PLLM's isolated garbled kernels have not been composed into a comparable private model; account for the entire circuit and key supply."
   },
   "fss-preprocessing": {
-    "overview": "Uses function secret sharing with preprocessing to enable later secure computations from prepared keys.",
+    "overview": "Uses function secret sharing with preprocessing to enable later secure computations from prepared keys. Key generation and distribution precede the online distributed evaluator; repeated private operations need a bounded supply of fresh material.",
     "reading": "Bind key generation, distribution, one-use consumption, and the online sharing topology before comparing setup or latency."
   },
   "gazelle": {
-    "overview": "Combines homomorphic linear work with garbled nonlinear work for low-latency secure neural-network inference.",
+    "overview": "Combines homomorphic linear operations with garbled nonlinear operations for secure neural inference. Moving protected values between encryption and one-use labels is a distinct step that can dominate an apparently cheap operator.",
     "reading": "Count conversion and preprocessing between these protected representations; a DNN stage is not a measured PLLM decoder."
   },
   "cryptonets": {
-    "overview": "Demonstrates encrypted neural-network inference with homomorphic computation on model-friendly operators.",
+    "overview": "Demonstrates encrypted feed-forward neural-network inference by choosing model operators suitable for homomorphic computation. This establishes an encrypted evaluation pattern, not recurrent token feedback or a measured private LLM decoder.",
     "reading": "Its feed-forward encrypted workload cannot establish private autoregressive generation or matched latency on PLLM's checkpoint."
   },
   "fss-extensions": {
-    "overview": "Extends function secret sharing to a wider family of distributed functions and efficiency choices.",
+    "overview": "Extends function secret sharing to a wider family of distributed functions and efficiency choices. Each additional function class still needs compatible key generation, independent evaluators and a declared leakage boundary.",
     "reading": "Evaluate one bounded function, key size, and party arrangement; title-level discovery is not evidence of protocol compatibility."
   },
   "fss-original": {
-    "overview": "Introduces function secret sharing, distributing compact function keys among parties that evaluate shares of a function.",
+    "overview": "Introduces function secret sharing: compact keys encode shares of a function for independent parties. Generating and distributing keys and evaluating each party's function share are separate steps; neither party receives the full function-output view alone.",
     "reading": "The original key-sharing contract belongs in a two- or multi-party protocol, not the single inference role of PLLM's prepared baseline."
   },
   "breaking-euston": {
-    "overview": "Analyzes subspace leakage in secure inference and shows how private inputs can be recovered under a vulnerable masking construction.",
+    "overview": "Analyzes a vulnerable secure-inference masking construction and derives private-input recovery from its exposed subspace. The paper is a security counterexample: a cheaper public mask can disclose input information even if functional inference succeeds.",
     "reading": "Treat its attack as a required adversarial control for any proposed replacement mask; current masking semantics are not automatically vulnerable."
   },
   "euston": {
-    "overview": "Pursues non-interactive secure transformer inference with a masking and outsourcing design.",
+    "overview": "Pursues non-interactive secure transformer inference with masking and outsourced evaluation. A published key-establishment break and subspace-leakage analysis require that the affected variant be treated as unsafe until redesigned and independently checked.",
     "reading": "An adaptation must pass subspace-leakage tests before it can be considered for either preparation or online masked work."
   },
   "sok-transformers": {
-    "overview": "Surveys private transformer inference across systems, model designs, and cryptographic approaches rather than proposing one runtime component.",
+    "overview": "Surveys private transformer inference across systems, architectures and cryptographic approaches rather than proposing a deployable operator. Its taxonomy is useful for separating workload, adversary and deployment assumptions before comparing paper-reported measurements.",
     "reading": "Use it to design fair workloads and threat-model comparisons; it does not authorize a new executable PLLM method."
   },
   "game-of-arrows": {
-    "overview": "Studies attacks on weight obfuscation for on-device, TEE-shielded LLM partitioning.",
+    "overview": "Studies attacks on weight obfuscation for on-device LLM partitioning protected by a TEE. A partition with hidden weights can still reveal them through its exposed boundary; the paper informs adversarial testing, not a serving accelerator.",
     "reading": "Apply it as an attack-aware review lens when hiding weights or partitioning trust, not as a faster inference protocol."
   },
   "ripple": {
-    "overview": "A wavelet-based homomorphic lookup proposal appears as a research lead in Curl's references; PLLM has not verified an independent primary publication.",
+    "overview": "A wavelet-based homomorphic lookup proposal appears in Curl's references, but PLLM has not verified an independent Ripple publication. Its exact method and distinct contributions cannot yet be responsibly summarized from the cited title alone.",
     "reading": "Do not cite Curl's PDF as Ripple's original paper or create an executable lookup component until a standalone source is identified."
   },
   "private-gpt-no-autoregression": {
-    "overview": "Examines private GPT workloads that avoid token-by-token autoregressive decoding.",
+    "overview": "Examines private GPT generation workloads that avoid a strictly token-by-token autoregressive loop. Any lower-interaction result must be compared with its own generation objective and output quality, not treated as faster execution of the same cached decode task.",
     "reading": "Its generation objective differs from interactive decode; separate workload-level quality and functionality before comparing latency."
   },
   "cachemir": {
-    "overview": "Studies fully homomorphic generative LLM inference with attention to persistent KV-cache state.",
+    "overview": "Studies fully homomorphic generative LLM inference, including persistent KV-cache state rather than treating each token as an isolated forward pass. Encrypted cache updates and attention reads must preserve state privacy over the full response.",
     "reading": "A cache candidate must preserve private state and exact token feedback; encrypted-cache performance requires a distinct full-model cohort."
   },
   "deepprove": {
-    "overview": "Targets verifiable end-to-end LLM inference rather than checking only one linear stage.",
+    "overview": "Targets verifiable end-to-end LLM inference instead of a check on one delegated matrix product. The proof statement must bind model, input and generated output to the exact covered execution, while verifier time and setup remain part of the cost.",
     "reading": "Identify the precise proof statement, trusted setup, verifier work, and covered decode state before claiming whole-response integrity."
   },
   "lamp": {
-    "overview": "Uses proximity testing to verify linear matrix multiplication claims.",
+    "overview": "Uses proximity testing to verify a claimed linear matrix computation. Challenge soundness, field bounds and repeated-attempt budget distinguish this from checking a single honest-but-curious response by default.",
     "reading": "Compare detection probability, verifier cost, field bounds, and session attempt budgets with the existing bounded Freivalds check."
   },
   "laminate": {
-    "overview": "Investigates succinct verifiability for SIMD-friendly fully homomorphic evaluation.",
+    "overview": "Investigates succinct proofs for SIMD-friendly homomorphic computation. It separates expensive ciphertext evaluation from a verifier's committed proof statement; applying it to a different inference protocol requires a new statement and cost model.",
     "reading": "Proof generation and verification attach to a different encrypted-execution contract; they do not automatically verify PLLM's prepared stages."
   },
   "matrix-coding-verification": {
-    "overview": "Uses coding theory to verify an asserted full matrix product, including cases where the product error is sparse.",
+    "overview": "Uses coding theory to verify a claimed full matrix product AB = C, including sparse-error cases. This is not the same assertion as outsourcing one W·x stage, so a matvec adaptation needs its own correctness and soundness argument.",
     "reading": "Its AB = C claim is not PLLM's delegated W·x stage claim. First identify a compatible bounded subproblem before comparing challenge or verifier costs."
   }
 }

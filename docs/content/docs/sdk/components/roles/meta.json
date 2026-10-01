@@ -1,4 +1,4 @@
 {
   "title": "Roles",
-  "pages": ["index", "inference", "prepared-provider", "client-only", "two-online-offset"]
+  "pages": ["index", "inference", "prepared-provider", "client-only", "two-online-offset", "output-head-at-inference", "client-prefix-layers", "client-linear-roles"]
 }

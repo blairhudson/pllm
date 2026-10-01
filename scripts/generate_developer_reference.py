@@ -1541,9 +1541,10 @@ def _object_summary(item: dict[str, Any], public_module: str) -> str:
             f"See [the capability contract]({value.sdk_route})."
         )
     if inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+        plan = _PAPER_METHODS[(value.__module__, value.__name__)]
         return (
-            f"`{name}` reserves a paper-linked Python API but cannot be constructed or used "
-            f"in an experiment. Research source: [paper]({value.paper_route})."
+            f"**{plan.title}.** {plan.summary} This planned component cannot be constructed "
+            f"or selected in an experiment. [Research source]({value.paper_route})."
         )
     if not callable(value) and is_dataclass(value):
         public_values = ", ".join(
@@ -1756,8 +1757,11 @@ def render_python_module_reference(module: str) -> str:
                 "- Search: excluded until compiler, checkpoint and runtime gates pass.\n",
             ))
         elif inspect.isclass(value) and issubclass(value, PendingComponent) and value is not PendingComponent:
+            if paper_method is None:
+                raise ValueError(f"Missing component plan for {module}.{display_name}")
             body.extend((
                 f"- Status: **Not yet implemented** (`NotYetImplementedError` on construction).\n",
+                f"- Method: {paper_method.title}. {paper_method.summary}\n",
                 f"- Research source: [paper and provenance]({value.paper_route}).\n",
                 f"- Next gate: {value.next_gate}.\n",
                 "- Search: excluded until implementation, compatible runtime coverage, and evidence.\n",
@@ -1765,6 +1769,7 @@ def render_python_module_reference(module: str) -> str:
         elif paper_method is not None:
             body.extend((
                 "- Status: **Implemented Python API**; exact runtime and evidence scope depends on the registered component.\n",
+                f"- Method: {paper_method.title}. {paper_method.summary}\n",
                 f"- Research source: [paper and provenance]({paper_method.paper_route}).\n",
                 f"- Reviewed scope: {paper_method.gate}.\n",
             ))
@@ -1821,8 +1826,18 @@ def model_compatibility() -> dict[str, Any]:
             or ("current_scope" in capability and (type(capability["current_scope"]) is not str or not capability["current_scope"]))
         ):
             raise ValueError("invalid model-neutral capability contract")
-    if len({item.get("adapter") for item in adapters}) != len(adapters):
-        raise ValueError("model compatibility adapters must be unique")
+    if len({item.get("name") for item in adapters}) != len(adapters):
+        raise ValueError("model compatibility configurations must have unique names")
+    source_keys = {
+        (
+            item.get("adapter"), item.get("fixture"),
+            json.dumps(item.get("config"), sort_keys=True),
+        )
+        for item in adapters
+    }
+    if len(source_keys) != len(adapters):
+        raise ValueError("model compatibility adapter and source must be unique")
+    adapter_families: dict[str, str] = {}
     required = {"name", "adapter", "model_family", "baseline_schedule", "runtime_evidence", "remaining", "guide", "requires", "baseline_blockers", "evidence"}
     for item in adapters:
         if (
@@ -1845,12 +1860,15 @@ def model_compatibility() -> dict[str, Any]:
             or set(item["evidence"]) != {"checkpoint", "provider", "quality"}
             or item["evidence"]["checkpoint"] not in {"real-local", "tiny-local", "none"}
             or item["evidence"]["provider"] not in {"real-prepared-local", "real-inprocess", "tiny-prepared", "none"}
-            or item["evidence"]["quality"] not in {"unmeasured", "narrow-gap", "narrow-partial-four", "tiny-parity", "narrow-improvement", "narrow-parity", "none"}
+            or item["evidence"]["quality"] not in {"unmeasured", "narrow-gap", "narrow-partial-four", "tiny-parity", "narrow-improvement", "narrow-parity", "narrow-smol-prefill", "none"}
             or (item["evidence"]["checkpoint"] == "real-local") != bool(item.get("pinned_real_checkpoint_functionality"))
             or (item["evidence"]["provider"].startswith("real-") and item["evidence"]["checkpoint"] != "real-local")
             or (not item["baseline_schedule"] and item["evidence"] != {"checkpoint": "none", "provider": "none", "quality": "none"})
         ):
             raise ValueError("invalid model compatibility adapter")
+        previous_family = adapter_families.setdefault(item["adapter"], item["model_family"])
+        if previous_family != item["model_family"]:
+            raise ValueError("one semantic adapter cannot represent different model families")
         if "fixture" in item and (
             type(item["fixture"]) is not str
             or not item["fixture"].startswith("crates/pllm-models/tests/fixtures/")
@@ -1940,7 +1958,7 @@ def render_python_status() -> str:
         "an importable API symbol is not necessarily executable. Each row and capability heading "
         "links to its detailed contract or reference.\n\n",
         "## Model families × reusable capabilities\n\n",
-        f"**{len(adapters)} checked semantic adapters**, "
+        f"**{len(adapters)} checked decoder configurations**, "
         f"**{sum(item['baseline_schedule'] for item in adapters)} complete baseline schedule paths**, "
         f"and **{len(real_checkpoint_paths)} pinned local real-checkpoint functionality paths** "
         f"({', '.join(real_checkpoint_paths)}). "
@@ -1973,7 +1991,7 @@ def render_python_status() -> str:
     evidence = {
         "checkpoint": {"real-local": "Real local", "tiny-local": "Tiny only", "none": "None"},
         "provider": {"real-prepared-local": "Real: 2 local children", "real-inprocess": "Real: in process", "tiny-prepared": "Tiny prepared", "none": "None"},
-        "quality": {"unmeasured": "Not scored", "narrow-gap": "1/2 W8", "narrow-partial-four": "2/4 W8", "tiny-parity": "Tiny parity", "narrow-improvement": "2/2 opt-in; 3/5 other", "narrow-parity": "2/2 narrow", "none": "None"},
+        "quality": {"unmeasured": "Not scored", "narrow-gap": "1/2 W8", "narrow-partial-four": "2/4 W8", "tiny-parity": "Tiny parity", "narrow-improvement": "2/2 opt-in; 3/5 other", "narrow-parity": "2/2 narrow", "narrow-smol-prefill": "11/12 W8 prefill", "none": "None"},
     }
     columns = 6 + len(capability_ids)
     body.extend((
@@ -2021,7 +2039,7 @@ def render_python_status() -> str:
         cells.append('</tr>\n')
         return "".join(cells)
 
-    body.append(f'<tr><th colSpan={{{columns}}} className="bg-fd-muted px-3 py-2 text-left">Checked source adapters</th></tr>\n')
+    body.append(f'<tr><th colSpan={{{columns}}} className="bg-fd-muted px-3 py-2 text-left">Checked decoder configurations</th></tr>\n')
     body.extend(matrix_row(item, candidate=False) for item in adapters)
     body.append(f'<tr><th colSpan={{{columns}}} className="bg-fd-muted px-3 py-2 text-left">Candidates requiring exact adapter and runtime checks</th></tr>\n')
     body.extend(matrix_row(item, candidate=True) for item in compatibility["candidates"])
@@ -2116,7 +2134,7 @@ def render_model_capability_outputs() -> dict[Path, str]:
             f"{capability['contract']}.\n\n",
             f"Semantic operator/representation: `{capability['operator']}`.\n\n"
             if capability["operator"] else "This variant needs a complete model-neutral IR/numeric contract.\n\n",
-            "## Checked source adapters\n\n",
+            "## Checked decoder configurations\n\n",
         ]
         if capability.get("current_scope"):
             page.insert(-1, f"**Current implementation scope:** {capability['current_scope']}\n\n")

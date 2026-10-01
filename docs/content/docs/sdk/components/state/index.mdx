@@ -9,6 +9,9 @@ from the [KV-cache eviction pass](/sdk/components/passes/kv-cache-eviction/):
 the latter changes a semantic plan and does not yet run as a protected
 whole-decoder composition. There is no user-selectable `state` slot in the
 shipped typed inference constructors.
+An optional [`ClientPrefixReuse`](/sdk/components/state/client-prefix-reuse/)
+cache slot is available for bounded client-owned prefill snapshots; its
+digest-bound selection is separate from the live KV state contract.
 
 ## Python SDK example
 

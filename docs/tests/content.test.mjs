@@ -111,7 +111,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   const registry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'papers.json'), 'utf8'));
   const library = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library.json'), 'utf8'));
   const planned = JSON.parse(fs.readFileSync(path.join(siteRoot, '..', 'python/pllm/components/planned_methods.json'), 'utf8')).entries;
-  const plannedByPaper = new Map(planned.map((method) => [method.paper, method]));
+  const plannedByPaper = Map.groupBy(planned, (method) => method.paper);
   const citationRegistry = JSON.parse(fs.readFileSync(path.join(dataRoot, 'component-citations.json'), 'utf8'));
   const summaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'public-summaries.json'), 'utf8'));
   const newSummaries = JSON.parse(fs.readFileSync(path.join(dataRoot, 'paper-library-notes.json'), 'utf8'));
@@ -155,18 +155,40 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     assert.ok(index.includes(summary.overview), paper.id);
     const pagePath = path.join(siteRoot, `content/docs/research/papers/${slug(paper)}.mdx`);
     const page = fs.readFileSync(pagePath, 'utf8');
-    const method = plannedByPaper.get(paper.id);
-    assert.ok(method, paper.id);
+    const methods = plannedByPaper.get(paper.id);
+    assert.ok(methods?.length > 0, paper.id);
+    const method = methods[0];
     const referenceRoute = `/sdk/reference/python/pllm/${method.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/`;
     const classLink = `${referenceRoute}#${method.name.toLowerCase()}`;
+    const cardStart = index.lastIndexOf('<div className="paper-timeline-entry">', position);
+    const cardEnd = index.indexOf('\n\n</div>', position);
+    assert.ok(cardStart >= 0 && cardEnd > position, `${paper.id}: timeline card missing`);
+    const card = index.slice(cardStart, cardEnd);
+    const sdkRow = card.match(/<div className="paper-timeline-links">([\s\S]*?)<\/div>/)?.[1];
+    assert.ok(sdkRow, `${paper.id}: SDK quick links missing`);
+    const citation = citations.get(paper.registry_id);
+    const guides = citation?.components ?? [];
+    assert.deepEqual([...sdkRow.matchAll(/<a href="([^"]+)">/g)].map((link) => link[1]),
+      [...guides.map((guide) => guide.href), classLink,
+        ...(methods.length > 1 ? [`${route}#method-contracts`] : [])], `${paper.id}: SDK links`);
+    assert.ok(sdkRow.includes(`${method.status === 'implemented' ? 'Python API' : 'Planned API'}: ${method.name}`),
+      `${paper.id}: SDK status must be explicit`);
+    for (const guide of guides) assert.ok(byRoute.has(guide.href), `${paper.id}: ${guide.href}`);
     assert.equal(method.slug || paper.id, slug(paper));
-    const implemented = method.status === 'implemented';
-    assert.ok(page.includes(implemented ? 'title="Related Python API"' : 'title="Planned Python API"'), paper.id);
-    assert.ok(page.includes(`[${method.module}.${method.name}](${classLink})`), paper.id);
-    const reference = byRoute.get(referenceRoute)?.content;
-    assert.ok(reference?.includes(`[paper and provenance](${route})`), `${classLink} must cite ${route}`);
-    assert.ok(reference?.includes(implemented ? 'Status: **Implemented Python API**' : 'Status: **Not yet implemented**'),
-      `${classLink} must report its current API status`);
+    assert.ok(page.includes('## Method contracts'), paper.id);
+    for (const candidate of methods) {
+      const candidateRoute = `/sdk/reference/python/pllm/${candidate.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/`;
+      const candidateLink = `${candidateRoute}#${candidate.name.toLowerCase()}`;
+      const implemented = candidate.status === 'implemented';
+      assert.ok(page.includes(`### ${candidate.title}`), candidate.name);
+      assert.ok(page.includes(candidate.summary), candidate.name);
+      assert.ok(page.includes(`[\`${candidate.module}.${candidate.name}\`](${candidateLink})`), candidate.name);
+      assert.ok(page.includes(candidate.gate), candidate.name);
+      const reference = byRoute.get(candidateRoute)?.content;
+      assert.ok(reference?.includes(`[paper and provenance](${route})`), `${candidateLink} must cite ${route}`);
+      assert.ok(reference?.includes(implemented ? 'Status: **Implemented Python API**' : 'Status: **Not yet implemented**'),
+        `${candidateLink} must report its current API status`);
+    }
     assert.doesNotMatch(page, /verified research PDF|ignored local papers\/|PDF fingerprint/i, paper.id);
     assert.ok(page.includes(summary.overview), paper.id);
     assert.ok(page.includes(summary.reading), paper.id);
@@ -194,7 +216,6 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
     }
     assert.ok(byRoute.has(route), route);
 
-    const citation = citations.get(paper.registry_id);
     if (citation) {
       const assurance = citation.components.every((component) =>
         component.href.startsWith('/sdk/components/assurance/'));
@@ -219,7 +240,7 @@ test('private inference papers are newest-first sidebar pages with reciprocal co
   assert.ok(roadmap);
   for (const method of planned) {
     assert.ok(roadmap.includes(`[\`${method.name}\`](/sdk/reference/python/pllm/${method.module.replace('pllm.', '').replaceAll('.', '-').replaceAll('_', '-')}/#${method.name.toLowerCase()})`), method.paper);
-    assert.ok(roadmap.includes(`| ${method.status === 'implemented' ? 'Implemented' : 'Pending'} | ${method.gate} |`), method.paper);
+    assert.ok(roadmap.includes(`| ${method.status === 'implemented' ? 'Implemented (scoped)' : 'Pending'} | ${method.gate} |`), method.paper);
   }
   for (const file of walk(path.join(siteRoot, 'content/docs/research')).filter((item) => item.endsWith('.mdx'))) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\bR\d{2}\b/, file);
@@ -329,7 +350,9 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/secure-linear/', 'pllm/secure-linear/v1', null],
     ['/sdk/components/protocols/cleartext-linear/', 'pllm/cleartext-linear', null],
     ['/sdk/components/protocols/two-online-offset-linear/', 'pllm/two-online-offset-linear/v1', null],
+    ['/sdk/components/protocols/client-bundle-transport/', 'pllm/client-bundle-transport/v1', null],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
+    ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
     ['/sdk/components/preparation/bfv-correlations/', 'pllm/bfv-correlations/v1', null],
     ['/sdk/components/preparation/he-authenticated-preprocessing/', 'pllm/he-authenticated-preprocessing', null],
     ['/sdk/components/correlation/seeded-expansion/', 'pllm/seeded-expansion', null],
@@ -347,7 +370,11 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/roles/prepared-provider/', 'pllm/one-online-provider-offline-preparation/v1', null],
     ['/sdk/components/roles/client-only/', 'pllm/client-only/v1', null],
     ['/sdk/components/roles/two-online-offset/', 'pllm/two-online-offset-workers/v1', null],
+    ['/sdk/components/roles/output-head-at-inference/', 'pllm/output-head-at-inference/v1', null],
+    ['/sdk/components/roles/client-prefix-layers/', 'pllm/client-owned-prefix-layers/v1', null],
+    ['/sdk/components/roles/client-linear-roles/', 'pllm/client-owned-linear-roles/v1', null],
     ['/sdk/components/state/client-local-kv/', 'pllm/client-local-kv', null],
+    ['/sdk/components/state/client-prefix-reuse/', 'pllm/client-prefix-reuse/v1', null],
     ['/sdk/components/verification/freivalds/', 'pllm/freivalds-verify/v1', '/research/papers/slalom/'],
     ['/sdk/components/verification/linear-integrity/', 'pllm/linear-integrity', null],
     ['/sdk/components/passes/kv-cache-eviction/', 'pllm/kv-cache-eviction', '/research/papers/mpcache/'],

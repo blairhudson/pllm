@@ -12,10 +12,20 @@ implementation. A similar data flow is not a reproduction.
 1. **Complete one protected Qwen composition.** Close every semantic, numeric,
    protected, placement, state, and token-feedback gap using explicit component
    contracts. The compiler must continue to reject partial coverage.
-2. **Re-measure the current prepared runtime.** Record current-revision Qwen
-   prefill and decode runs with exact model, prompt length, output length,
-   machine, topology, cold/warm state, protocol bytes, and failure behavior.
-   Keep loopback, WAN, CPU, and accelerator claims separate.
+2. **Complete response-wide accounting.** The [pinned 39+8 and 39+32 Qwen
+   attribution](https://github.com/blairhudson/pllm/blob/main/docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json)
+   now reconciles all 96 native stages and five covered role links with the
+   existing audit. A [first 39+32 cold-CPU cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/prepared-cold-compare-qwen-smol-2026-09-29.json)
+   uses the same Qwen body for prepared and two-worker offset roles, with fresh
+   client bundle caches and cached source snapshots. Two samples per graph
+   measure median 41.03 s versus 38.01 s aggregate CPU, respectively; covered
+    online bodies are 113.55 MB versus 227.08 MB. Neither co-located cohort
+    establishes a compute cap; prepared CPU exceeds offset in both samples, and
+    HTTP/TLS/full wire, source checkpoint distribution and independent operators
+    remain unmeasured. A [nettop socket-counter diagnostic](https://github.com/blairhudson/pllm/blob/main/docs/evidence/nettop-loopback-counter-veto-2026-09-29.json)
+    counted only 70.43 MB where audited online bodies alone were 113.55 MB;
+    snapshotting active sockets cannot substitute for full-response packet capture.
+    Keep CPU and accelerator cohorts separate.
 3. **Scale and review the experimental gated-MLP components.** The dense-table
    baseline and compact mixed-modulus method now share one capability contract;
    scalar and independent four-lane schedules are separate selections. Extend
@@ -48,16 +58,62 @@ throughput, traffic, memory, preparation cost, quality, energy, and monetary cos
 remain separate measurements. PLLM records a Pareto frontier for one matched
 cohort rather than declaring one method universally best.
 
+## Fresh-prompt network gate
+
+For the pinned 39+32 W8A8 Qwen cohort, measured covered all-link bodies are
+178.97 MB; a 10× improvement needs less than 17.90 MB and 100× less than
+1.79 MB **including** new offline material and peer links. Compiler-bound
+[stage attribution](https://github.com/blairhudson/pllm/blob/main/docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json)
+finds 148.30 MB in MLP stages, but removing *all* of those bodies for free
+would still leave 30.67 MB. An MLP-only method cannot meet even the 10× target.
+The 39+8 cohort has the same result: 19.77 MB remain against an 11.68 MB
+target. A protected region must address both attention and MLP costs, with
+numeric fidelity and most body compute still remote.
+
+First screen real **existing pretrained** decoders with immutable source,
+complete model-neutral semantic schedules and disjoint public calibration and
+held-out/confirmation prompts; no training or model-family execution branches.
+The [six-source screen](https://github.com/blairhudson/pllm/blob/main/docs/evidence/pretrained-bottleneck-screen-2026-09-29.json)
+found the narrowest sampled hidden state in SmolLM2-135M. A separate real
+39+32 W8A8 prepared response completed all 120 remote stages with **88.40 MB**
+covered all-link and **55.68 MB** online bodies, compared with Qwen's 178.97 MB
+and 113.55 MB in a separate matched-token-count workload. A 12-prompt local
+clear-kernel prefill check matched SmolLM's *own* float32 top token 11/12
+times; this is not a cross-model task-quality comparison, W8A8 decode parity,
+ or a full-wire result. A separate fresh-client-bundle-cache cold cohort records
+ 120.08 MB covered bodies and 23.48 s median aggregate CPU over two samples,
+ excluding upstream source distribution. In an *offline float32 oracle that
+ still computes the original MLP*, rank-128 cuts at all 30 layers matched
+ 4/12 and 6/12 held-out/confirmation prefill selections and 3/12 same-token
+ decode on each
+cohort. Three cut layers do better but cannot eliminate the other remote
+stages. The public prepared transport works for this checkpoint, but no
+representative generation-quality or protected share-resident claim follows;
+different model/token cohorts require their own matched controls.
+
+**Admission rule:** build one bounded two-share, share-resident complete layer
+only when a frozen checkpoint passes both disjoint held-out prefill/decode
+decisions and a plausible whole-decoder all-link/material budget. That layer
+must execute exact protected scale conversion, private attention/KV and MLP,
+one share per independent worker, one-use issuance and abort burns, with no
+intermediate client reconstruction. Then measure it before decoder-scale
+issuance. Current candidates have not passed this gate; research references
+cannot activate an `Experiment`. Repeated-prefix reuse has measured online
+benefits for repeated public workloads, not for new prompts.
+
 ## Paper-driven work
 
-| Priority | Source | PLLM work | Current status |
-| --- | --- | --- | --- |
-| Maverick | Specify delegated matrix-vector execution, LPN masking, and batch verification against the prepared public-weight stage contract; independently implement bounded native primitives and run the paper's Qwen3-4B comparison. | Planned; no PLLM implementation or reproduction |
-| MPCache | Validate the existing model-neutral `DecoderPlan` transformation, then implement and measure protected cache selection under an explicitly compatible topology. | Structural plan adaptation only |
-| Dash, ReDash, and Garbling Gadgets | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | The Garbling Gadgets source is locked and adapted into the compact Q7 implementation with bounded four-lane scheduling; not reproduced |
-| Garbling and decision-program foundations | Implement only the primitives required by an accepted complete-model plan, with paper-scoped tests and view definitions. | Tracked |
-| GPU/MPC preprocessing and nonlinear primitives | Reproduce comparable operators before considering integration; preserve each paper's party count and trust model in reports. | Tracked |
-| Private-transformer systems | Use as full-system comparison targets. Do not transfer their performance or security claims across different models, numeric graphs, or party topologies. | Tracked |
+| Source | PLLM work and next gate | Current status |
+| --- | --- | --- |
+| Maverick | Revisit only if a full-width private code, dual-LPN issuance and batch verifier avoid the Qwen2.5-shaped **22.90 GB minimum** preprocessing estimate and meet the same all-link/CPU cohort. | Bounded coded-matvec verifier and RAA numeric reference implemented; no delegated serving or source-scope reproduction. Preprocessing cost vetoes the current method. |
+| MPCache | Complete a protected attention/KV topology and test long-context quality, private gathering, stage traffic and full cache ownership. | Model-neutral plan transform implemented but non-executable. A pinned 16-position static-KV oracle matched 24/24 first-cohort selections but only 17/24 same-token and 18/24 free-generation on disjoint confirmation; current prepared provider-stage bodies remain unchanged. [Evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/kv-selection-qwen25-2026-09-29.json). |
+| Slalom | Compare the trusted-client Freivalds adaptation against the offset compute comparator; require quote-bound keys and state for the distinct original TEE method. | Verified prepared Experiment executes, but one pinned cold response cost **142.83 s** aggregate CPU versus **28.65 s** for two offset workers. No TEE implementation or full-wire result. |
+| BLB and encrypted operator fusion | Count encrypted-to-protected conversions, packed nonlinear regions, ciphertext storage and full-response material under the Qwen compiler plan. | No BLB reproduction. A **naive** measured TenSEAL gate boundary projected 344/615 MB of one-way ciphertext bodies at 39+8/39+32, above matched prepared covered all-link totals of 117/179 MB; this does not veto an independently optimized BLB composition. [Evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/ckks-boundary-cost-qwen25-2026-09-29.json). |
+| FuseFSS and Ring PCG | Build a complete compatible nonlinear/back-end correlation protocol before benchmarking fusion or compressed keys; account for peer online openings and expansion CPU. | Bounded reference algebra exists, but no whole-layer online executor. Correlation compression alone cannot fix the measured online-opening gate. |
+| Dash, ReDash, and Garbling Gadgets | Finish fidelity, security review, and full decoder-region composition around the existing reference primitives. | The Garbling Gadgets source is locked and adapted into the compact Q7 implementation with bounded four-lane scheduling; not reproduced. |
+| Garbling and decision-program foundations | Implement only the primitives required by an accepted complete-model plan, with paper-scoped tests and view definitions. | Tracked. |
+| GPU/MPC preprocessing and nonlinear primitives | Reproduce comparable operators before considering integration; preserve each paper's party count and trust model in reports. | Tracked. |
+| Private-transformer systems | Use as full-system comparison targets. Do not transfer performance or security claims across different models, numeric graphs, or party topologies. | Tracked. |
 
 ## Required gates
 

@@ -9,7 +9,7 @@ Projection width independent of hidden width.
 
 Semantic operator/representation: `reshape`.
 
-## Checked source adapters
+## Checked decoder configurations
 
 - [Dense Qwen3 (Qwen3-0.6B)](/sdk/models/families/qwen3/): part of its bounded complete baseline schedule. Pinned Qwen3-0.6B checkpoint imported and executed through 114 compiled baseline stages, prefill and decode; tiny compiled two-role protocol test and scoped clear-reference probes, no real-checkpoint provider benchmark **Next:** W4A4 fails top-token parity on two checked prompts; the local-role default W8A8 also fails one short prompt. Quantization-quality, real-checkpoint serving and matched benchmark evidence, and protected whole-decoder execution remain open.
 

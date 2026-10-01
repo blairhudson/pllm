@@ -1,0 +1,40 @@
+---
+title: "Client-owned prefix layers"
+description: "Execute a bounded prefix of semantic decoder layers on the trusted client and benchmark the masked suffix."
+---
+
+[`ClientPrefixLayers`](/sdk/reference/python/pllm/roles/#clientprefixlayers)
+(`pllm/client-owned-prefix-layers/v1`) selects one to eight **complete**
+semantic layers for trusted-client CPU execution in prepared
+`MaskedLinearCpu(placement=...)`. The compiler keeps at least one full remote
+layer, binds each local weight in the bundle and rejects other unimplemented
+protected or verified compositions. Client-added i8 matrices and scales
+are capped at 512 MiB. The providers still hold the public checkpoint;
+moving computation does not reduce their checkpoint storage.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.roles import ClientPrefixLayers
+
+placement = ClientPrefixLayers(layers=1)
+experiment = Experiment(
+    name="client-owned-prefix-example",
+    pipeline=MaskedLinearCpu(Model.tiny(), placement=placement),
+    deployment=Deployment.local(root="local://client-owned-prefix-example"),
+    budget=ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=1),
+)
+assert experiment.pipeline.components["placement"] == placement
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+```
+
+A [matched Qwen2.5 40+1-token cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-owned-prefix-layers-qwen25-2026-09-28.json)
+reduced covered online bodies by 5.32 MB for two local layers, while raising
+covered cold bodies by 21.48 MB. This is a placement adaptation inspired by
+client-owned prefix research, not a reproduction of a training method or a
+demonstrated cold-transfer win. See the [benchmark guide](/sdk/evaluate/benchmark/)
+and the [Experiment candidates](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/client_prefix_layers.py).
+
+API: [`ClientPrefixLayers`](/sdk/reference/python/pllm/roles/#objects-and-signatures)

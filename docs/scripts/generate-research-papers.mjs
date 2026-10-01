@@ -63,11 +63,13 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
     .some((paper) => paper.id !== 'ripple')) {
     throw new Error('New unverified leads require explicit review before publication');
   }
-  if (stubs.schema !== 'pllm.component_plans.v1' || stubs.entries?.length !== 84 ||
-    new Set(stubs.entries.map((stub) => stub.paper)).size !== 84 ||
-    new Set(stubs.entries.map((stub) => `${stub.module}.${stub.name}`)).size !== 84 ||
-    new Set(stubs.entries.map((stub) => `pllm/planned/${stub.paper}/v1`)).size !== 84) {
-    throw new Error('The planned Python API must identify all 84 sources uniquely');
+  const base = stubs.entries?.filter((stub) => !stub.method_id) ?? [];
+  if (stubs.schema !== 'pllm.component_plans.v2' || base.length !== 84 ||
+    new Set(base.map((stub) => stub.paper)).size !== 84 ||
+    new Set(stubs.entries.map((stub) => `${stub.module}.${stub.name}`)).size !== stubs.entries.length ||
+    new Set(stubs.entries.map((stub) => `${stub.paper}/${stub.method_id ?? ''}`)).size !== stubs.entries.length ||
+    new Set(stubs.entries.map((stub) => stub.paper)).size !== 84) {
+    throw new Error('The component plan must identify all 84 sources and each method uniquely');
   }
   const papersById = new Map(library.papers.map((paper) => [paper.id, paper]));
   for (const stub of stubs.entries) {
@@ -78,7 +80,10 @@ function validate(registry, library, citationRegistry, summaries, libraryNotes, 
     if (!paper || !stub.module.startsWith('pllm.') ||
       !/^[A-Z][A-Za-z0-9]*$/.test(stub.name) ||
       !['pending', 'implemented'].includes(stub.status ?? 'pending') ||
-      !stub.gate?.trim() || stub.slug !== (slug === stub.paper ? undefined : slug) ||
+      !stub.gate?.trim() || !stub.title?.trim() || !stub.summary?.trim() ||
+      (stub.method_id && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(stub.method_id)) ||
+      stub.slug !== (slug === stub.paper ? undefined : slug) ||
+      (paper.status !== 'available' && !!stub.method_id) ||
       (paper.status === 'unverified_primary' && stub.kind !== 'unverified') ||
       (stub.kind === 'unverified' && paper.status !== 'unverified_primary')) {
       throw new Error(`Invalid planned Python API mapping: ${stub.paper}`);
@@ -126,6 +131,10 @@ function escapeHtmlText(value) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
+function escapeHtmlAttribute(value) {
+  return escapeHtmlText(value).replaceAll('"', '&quot;');
+}
+
 function renderRelatedComponents(citation) {
   if (citation === undefined) return '';
   const assurance = citation.components.every((component) =>
@@ -151,34 +160,38 @@ function plannedApiLink(stub) {
   return `/sdk/reference/python/pllm/${moduleSlug}/#${stub.name.toLowerCase()}`;
 }
 
-function renderPlannedApi(stub) {
-  const implemented = stub.status === 'implemented';
-  const researchOnly = stub.kind !== undefined && stub.kind !== 'candidate'
-    ? 'This is a research/assurance boundary, not a candidate for execution or optimisation. '
-    : '';
-  if (implemented) return `<Callout type="info" title="Related Python API">
-
-[${stub.module}.${stub.name}](${plannedApiLink(stub)}) records the reviewed
-implementation scope. ${stub.kind === 'candidate'
-    ? 'Its public API and evidence define which experiments may select it.'
-    : 'This assurance API is independent of inference and is not an executable experiment slot.'}
-The paper remains provenance, not an executable dependency.
-
-</Callout>
-
-`;
-  return `<Callout type="warning" title="Planned Python API">
-
-[${stub.module}.${stub.name}](${plannedApiLink(stub)}) documents this planned API. Construction
-raises **NotYetImplementedError**; it is excluded from executable component discovery and search.
-${researchOnly}Next gate: ${stub.gate}.
-
-</Callout>
-
-`;
+function renderTimelineLinks(citation, methods, slug) {
+  const links = (citation?.components ?? []).map((component) => ({
+    href: component.href,
+    title: component.title,
+  }));
+  const first = methods[0];
+  links.push({ href: plannedApiLink(first), title: `${first.status === 'implemented' ? 'Python API' : 'Planned API'}: ${first.name}` });
+  if (methods.length > 1) {
+    links.push({ href: `/research/papers/${slug}/#method-contracts`, title: `+${methods.length - 1} method contracts` });
+  }
+  return `<div className="paper-timeline-links"><span>SDK:</span> ${links.map((link) =>
+    `<a href="${escapeHtmlAttribute(link.href)}">${escapeHtmlText(link.title)}</a>`).join(' · ')}</div>`;
 }
 
-function renderPaperPage(paper, citation, summary, stub) {
+function renderMethods(methods) {
+  return `## Method contracts
+
+The Python symbols below track separable methods and their own admission gates.
+**Pending** means importable but not executable; implemented adaptations retain
+only their stated scope. A source is not itself an execution dependency.
+
+${methods.map((method) => `### ${method.title}
+
+${method.summary}
+
+**Python API:** [\`${method.module}.${method.name}\`](${plannedApiLink(method)})<br />
+**Status:** ${method.status === 'implemented' ? 'Implemented (scoped)' : method.kind && method.kind !== 'candidate' ? `Pending (${method.kind.replaceAll('_', ' ')})` : 'Pending'}<br />
+**Next gate or scope:** ${method.gate}.
+`).join('\n')}`;
+}
+
+function renderPaperPage(paper, citation, summary, methods) {
   const description = summary.overview;
   return `---
 title: "${escapeFrontmatter(paper.title)}"
@@ -202,7 +215,7 @@ ${summary.overview}
 ${summary.reading}
 
 ${renderRelatedComponents(citation)}
-${renderPlannedApi(stub)}
+${renderMethods(methods)}
 `;
 }
 
@@ -213,12 +226,12 @@ function renderRoadmap(papers, stubs) {
   const groups = [...byModule].sort(([left], [right]) => left.localeCompare(right));
   const sections = groups.map(([module, items]) => `## \`${module}\`
 
-| Python class | Research paper | API status | Next gate or scope |
+| Method / Python class | Research source | API status | Next gate or scope |
 | --- | --- | --- | --- |
 ${items.map((stub) => {
     const paper = paperById.get(stub.paper);
     const slug = stub.slug ?? stub.paper;
-    return `| [\`${stub.name}\`](${plannedApiLink(stub)}) | [${paper.title}](/research/papers/${slug}/) | ${stub.status === 'implemented' ? 'Implemented' : 'Pending'} | ${stub.gate} |`;
+    return `| ${stub.title}: [\`${stub.name}\`](${plannedApiLink(stub)}) | [${paper.title}](/research/papers/${slug}/) | ${stub.status === 'implemented' ? 'Implemented (scoped)' : 'Pending'} | ${stub.gate} |`;
   }).join('\n')}`).join('\n\n');
   return `---
 title: "Research method roadmap"
@@ -227,8 +240,8 @@ description: "Paper-linked Python API symbols and their next implementation gate
 
 ${generatedMarker}
 
-All ${stubs.length} mapped sources have an importable Python symbol; ${pendingCount}
-are still pending. Pending symbols
+All ${papers.length} mapped sources have at least one named method contract;
+${stubs.length} Python API symbols are tracked and ${pendingCount} remain pending. Pending symbols
 raise \`NotYetImplementedError\` on construction and are absent from executable
 component discovery, Pipelines, and experiment search. Some sources describe
 attacks, surveys, or unverified leads; those research-only symbols are not
@@ -251,7 +264,8 @@ API: [pllm.components](/sdk/reference/python/pllm/components/#objects-and-signat
 from pllm.components import planned_components
 
 plans = planned_components()
-assert len(plans) == 84
+assert len({plan.paper_id for plan in plans}) == 84
+assert len({plan.identity for plan in plans}) == len(plans)
 assert all(plan.paper_route.startswith("/research/papers/") for plan in plans)
 \`\`\`
 
@@ -259,7 +273,7 @@ ${sections}
 `;
 }
 
-function renderIndex(papers, summaries) {
+function renderIndex(papers, summaries, citations, stubs) {
   const years = [...new Set(papers.map((paper) => paper.year))];
   const sections = years.map((year) => `<section className="paper-timeline-year">
 
@@ -275,6 +289,8 @@ ${provenance(paper)}
 
 ${summaries[paper.publicId].overview}
 
+${renderTimelineLinks(citations.get(paper.registry_id), stubs.get(paper.id), paper.slug)}
+
 </div>`).join('\n\n')}
 
 </section>`).join('\n\n');
@@ -289,8 +305,8 @@ This timeline covers ${papers.length} mapped research sources and leads, newest
 first. Publication years preserve the curated paper records where dates differ
 between preprints and conference proceedings. The unverified lead is labelled
 explicitly rather than presented as a separate published paper.
-Where PLLM has a related implementation, the paper page names the exact component
-and the component guide links back to its research source.
+Each card links directly to related SDK implementation guides when available,
+plus its paper-linked Python API status. Planned APIs are not executable methods.
 
 A related-component citation does not claim a complete reproduction. Read the
 linked component status and evidence boundary before comparing results.
@@ -324,11 +340,11 @@ const publicPapers = library.papers.map((paper) => ({
 }))
   .sort((left, right) => right.year - left.year || left.title.localeCompare(right.title));
 const authoredSummary = (paper) => summaries[paper.registry_id] ?? libraryNotes[paper.id];
-const stubByPaper = new Map(stubs.entries.map((stub) => [stub.paper, stub]));
+const stubByPaper = Map.groupBy(stubs.entries, (stub) => stub.paper);
 const years = [...new Set(publicPapers.map((paper) => paper.year))];
 const generated = new Map([
   ['index.mdx', renderIndex(publicPapers, Object.fromEntries(publicPapers.map((paper) =>
-    [paper.publicId, authoredSummary(paper)])))],
+    [paper.publicId, authoredSummary(paper)])), citationByPaperId, stubByPaper)],
   ...publicPapers.map((paper) => [
     `${paper.slug}.mdx`,
     renderPaperPage(paper, citationByPaperId.get(paper.registry_id), authoredSummary(paper), stubByPaper.get(paper.id)),

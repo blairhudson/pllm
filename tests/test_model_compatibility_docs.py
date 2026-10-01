@@ -13,8 +13,12 @@ from pllm.profiles import MaskedLinearCpu
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = json.loads((ROOT / "docs/data/model-compatibility.json").read_text(encoding="utf-8"))
 EXPECTED_ADAPTERS = {
-    "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.qwen3_5_text.v1",
-    "pllm.phi4_mini.v1", "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
+    "pllm.qwen2.v1",
+    "pllm.qwen3.v1",
+    "pllm.qwen3_5_text.v1",
+    "pllm.phi4_mini.v1",
+    "pllm.gemma4_e2b_text.v1",
+    "pllm.gemma4_e4b_text.v1",
     "pllm.dense_gated_decoder.v1",
 }
 
@@ -23,14 +27,26 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
     adapters = INVENTORY["adapters"]
     assert {row["adapter"] for row in adapters} == EXPECTED_ADAPTERS
     assert {row["adapter"] for row in adapters if row["baseline_schedule"]} == {
-        "pllm.qwen2.v1", "pllm.qwen3.v1", "pllm.dense_gated_decoder.v1",
-        "pllm.qwen3_5_text.v1", "pllm.phi4_mini.v1",
-        "pllm.gemma4_e2b_text.v1", "pllm.gemma4_e4b_text.v1",
+        "pllm.qwen2.v1",
+        "pllm.qwen3.v1",
+        "pllm.dense_gated_decoder.v1",
+        "pllm.qwen3_5_text.v1",
+        "pllm.phi4_mini.v1",
+        "pllm.gemma4_e2b_text.v1",
+        "pllm.gemma4_e4b_text.v1",
     }
     assert {
         row["pinned_real_checkpoint_functionality"]
-        for row in adapters if row.get("pinned_real_checkpoint_functionality")
-    } == {"Qwen2.5-0.5B", "Qwen3-0.6B", "Qwen3.5-4B text", "Phi-4-mini", "Gemma 4 E2B"}
+        for row in adapters
+        if row.get("pinned_real_checkpoint_functionality")
+    } == {
+        "Qwen2.5-0.5B",
+        "Qwen3-0.6B",
+        "Qwen3.5-4B text",
+        "Phi-4-mini",
+        "Gemma 4 E2B",
+        "SmolLM2-135M",
+    }
     for row in adapters:
         if row["adapter"] == "pllm.gemma4_e2b_text.v1":
             assert "prefill-to-decode" in row["runtime_evidence"]
@@ -40,7 +56,9 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
             assert "E4B has no checkpoint execution" in row["runtime_evidence"]
         elif row["adapter"] == "pllm.qwen3_5_text.v1":
             assert row["evidence"] == {
-                "checkpoint": "real-local", "provider": "real-prepared-local", "quality": "narrow-partial-four",
+                "checkpoint": "real-local",
+                "provider": "real-prepared-local",
+                "quality": "narrow-partial-four",
             }
             assert "float32 Torch reference" in row["runtime_evidence"]
             assert "426 required BF16/F32 artifacts" in row["runtime_evidence"]
@@ -49,14 +67,20 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
             assert "tiny generated" in row["runtime_evidence"].lower()
             assert "130 compiled stages" in row["runtime_evidence"]
             assert row["evidence"] == {
-                "checkpoint": "real-local", "provider": "real-prepared-local",
+                "checkpoint": "real-local",
+                "provider": "real-prepared-local",
                 "quality": "narrow-improvement",
             }
             assert "real-checkpoint gateway" in row["remaining"]
+        elif row.get("pinned_real_checkpoint_functionality") == "SmolLM2-135M":
+            assert "120 compiled stages" in row["runtime_evidence"]
+            assert row["evidence"]["provider"] == "real-prepared-local"
         elif row["adapter"] == "pllm.dense_gated_decoder.v1":
             scaled = pllm.lower_model(
                 (ROOT / row["scaled_fixture"]).read_bytes(),
-                batch=1, max_input_tokens=4, max_new_tokens=2,
+                batch=1,
+                max_input_tokens=4,
+                max_new_tokens=2,
             )
             assert scaled.runtime_schedule(MaskedLinearCpu(pllm.Model("org/model"))).complete
             assert any(
@@ -64,19 +88,24 @@ def test_model_inventory_has_all_checked_source_readers_without_invented_runtime
                 == "wavelength_transition"
                 for operation in scaled.prefill["operations"]
             )
-    assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(INVENTORY["candidates"])
+    assert len({row["model_type"] for row in INVENTORY["candidates"]}) == len(
+        INVENTORY["candidates"]
+    )
 
 
 def test_pinned_public_llama3_config_lowers_without_model_named_schedule() -> None:
     # Source: unsloth/Meta-Llama-3.1-8B-Instruct at HF revision a2856192...
-    config = ROOT / "crates/pllm-models/tests/fixtures/unsloth-Llama-3.1-8B-Instruct-a2856192-config.json"
+    config = (
+        ROOT
+        / "crates/pllm-models/tests/fixtures/unsloth-Llama-3.1-8B-Instruct-a2856192-config.json"
+    )
     plan = pllm.lower_model(config.read_bytes(), batch=1, max_input_tokens=8, max_new_tokens=2)
     assert plan.to_dict()["adapter"] == "pllm.dense_gated_decoder.v1"
     assert plan.runtime_schedule(MaskedLinearCpu(pllm.Model("org/model"))).complete
-    assert sum(
-        operation["operator"] == "rotary_embedding"
-        for operation in plan.prefill["operations"]
-    ) == 64
+    assert (
+        sum(operation["operator"] == "rotary_embedding" for operation in plan.prefill["operations"])
+        == 64
+    )
 
 
 @pytest.mark.parametrize("row", INVENTORY["adapters"], ids=lambda row: row["adapter"])
@@ -92,7 +121,9 @@ def test_documented_adapters_and_compiled_baseline_scope(row: dict) -> None:
         assert identity in INVENTORY["capabilities"]
         operator = INVENTORY["capabilities"][identity]["operator"]
         if operator is not None:
-            assert operator in operators, f"{row['name']} lacks declared {identity} operator {operator}"
+            assert operator in operators, (
+                f"{row['name']} lacks declared {identity} operator {operator}"
+            )
     baseline = MaskedLinearCpu(pllm.Model("org/model"))
     if row["baseline_schedule"]:
         schedule = plan.runtime_schedule(baseline)
@@ -115,5 +146,7 @@ def test_candidate_architectures_cannot_impersonate_qwen2(row: dict) -> None:
     with pytest.raises(ValueError, match="wavelength-transition|no decoder adapter|unscaled"):
         pllm.lower_model(
             source,
-            batch=1, max_input_tokens=4, max_new_tokens=2,
+            batch=1,
+            max_input_tokens=4,
+            max_new_tokens=2,
         )

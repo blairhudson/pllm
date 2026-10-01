@@ -1,0 +1,36 @@
+---
+title: "Client bundle transport"
+description: "Select bounded zlib frames without changing the raw bundle or its numeric execution."
+---
+
+API: [`ClientBundleTransport`](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
+
+`ClientBundleTransport`
+selects `none` or `zlib` in `MaskedLinearCpu(delivery=...)`. The client negotiates
+bounded independent frames, checks lengths and the original uncompressed digest,
+then imports and caches only raw bytes. Older providers may return raw transport.
+This choice applies to ordinary public prepared execution, not proprietary bundles.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport
+
+experiment = Experiment(
+    "zlib-bundle",
+    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("zlib")),
+    Deployment.local(root="local://zlib-bundle"),
+    ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
+)
+assert experiment.resolve().bundle_compression == "zlib"
+assert experiment.pipeline.delivery.component == "pllm/client-bundle-transport/v1"
+assert experiment.pipeline.delivery.get_params() == {"encoding": "zlib"}
+```
+
+Compression reduces cold delivery, not warm stage traffic or persistent raw-cache
+size. In the checked client-attention Qwen cohort it saves about 25.91 MB of cold
+bodies, with higher cold CPU. It remains an explicit option. The
+[benchmark guide](/sdk/evaluate/benchmark/) compares bytes and measured CPU
+rather than treating encoding as a universal improvement.

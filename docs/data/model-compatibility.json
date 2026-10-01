@@ -80,6 +80,20 @@
       "guide": "/sdk/models/families/"
     },
     {
+      "name": "SmolLM2-135M-Instruct (bounded dense bias-free decoder)",
+      "adapter": "pllm.dense_gated_decoder.v1",
+      "model_family": "llama",
+      "fixture": "crates/pllm-models/tests/fixtures/SmolLM2-135M-Instruct-12fd25f-config.json",
+      "baseline_schedule": true,
+      "pinned_real_checkpoint_functionality": "SmolLM2-135M",
+      "evidence": {"checkpoint": "real-local", "provider": "real-prepared-local", "quality": "narrow-smol-prefill"},
+      "requires": ["gqa", "rotary", "rmsnorm", "gated-silu", "kv-cache"],
+      "baseline_blockers": [],
+      "runtime_evidence": "Pinned @12fd25f source imports through the generic dense bias-free decoder and 120 compiled stages. One 39+32 prepared SDK response completes with two local role children, masked stage traffic and zero plaintext prompt/token-ID bytes sent. An independent twelve-prompt local W8A8 prefill cohort matches its own float32 top token 11/12 times with 3.8734 worst absolute logit error; a separate three-layer/all-layer rank-output oracle fails held-out decode quality. The two-sample cold prepared cohort records 120.08 MB covered bodies and 23.48 s median aggregate CPU with cached source snapshots",
+      "remaining": "No W8A8 same-token decode reference-parity cohort or representative task quality; SmolLM-versus-Qwen quality is not ranked. No independent providers, full-wire accounting, protected whole-decoder execution or full compute-cap admission",
+      "guide": "/sdk/models/families/"
+    },
+    {
       "name": "Qwen3.5-4B text decoder",
       "adapter": "pllm.qwen3_5_text.v1",
       "model_family": "qwen3_5_text",

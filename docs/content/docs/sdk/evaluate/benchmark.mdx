@@ -40,6 +40,114 @@ scores cannot be substituted for online role latency, memory, disk or network
 measurements; match configuration and source-lock digests before interpreting
 the two reports together.
 
+### Network I/O experiments
+
+The [incremental network candidates](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/incremental_network.py)
+combine ordinary prepared W8A8 execution with
+[semantic-role ownership](/sdk/components/roles/client-linear-roles/),
+[inventory policy](/sdk/components/preparation/inventory-policy/),
+[bundle encoding](/sdk/components/protocols/client-bundle-transport/) and
+shared-prefix reuse. These are selectable Pipeline components in the same SDK,
+role supervisor and benchmark runner.
+
+`--prompt-sequence-file` accepts a JSON array of 1–32 complete, nonempty contexts
+of at most 16,384 UTF-8 bytes each. Each candidate keeps one live client while
+running the sequence in order; `--repetitions` repeats the whole sequence. Supply
+complete growing histories rather than deltas. The public example contains fixed
+conversation-shaped histories, not generated answers fed into later prompts.
+Its three input counts are 113, 130 and 141; every request generates eight tokens.
+Only salted sequence/cohort digests enter reports, not the context strings.
+
+Preview the checked sequence command from the repository root:
+
+```bash
+uv run --no-sync pllm benchmark run --experiment examples/benchmarks/incremental_network.py:request_sized --experiment examples/benchmarks/incremental_network.py:attention_shared_prefix --trust-python --prompt-sequence-file examples/benchmarks/conversation_contexts.json --max-output-tokens 8 --warmups 0 --repetitions 1 --dry-run
+```
+
+Remove `--dry-run` to measure. Ordered comparisons require the same source lock,
+body fingerprint, salted sequence digest and per-request input/output counts,
+token caps and warm states. Sequence rankings sum the measured run windows;
+`total_accounted_benchmark_body_bytes` additionally charges covered startup and
+warmups exactly once. `accounted_setup_through_first_response_body_bytes` exposes
+the cold-delivery/prewarming tradeoff. Missing phases remain `null`. Existing
+per-run medians retain their run-window meaning; `--save-best` still exports the
+lowest-median-full-latency Experiment, not a network or privacy winner.
+
+The [matched incremental cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/incremental-network-qwen25-2026-10-01.json)
+measures 17.14% lower covered warm bodies for client attention at 39+32. On the
+separate three-context cohort, attention plus prefix reuse and zlib lowers online
+bodies from 647.60 to 240.68 MB and setup-inclusive accounted bodies from
+1,171.96 to 547.41 MB. The raw attention bundle is larger on a cold request;
+compression saves bytes but raises cold CPU. These are single co-located samples,
+not representative latency, full-wire, disk or independent-provider evidence.
+
+The `pllm.state.ClientPrefixReuse` component enables bounded trusted-client
+shared-prefix reuse in a `MaskedLinearCpu(cache=...)` Experiment. It binds a
+fixed compiler input bound, retains only in-memory KV snapshots, and reuses a
+prefix only when the stage-size estimate predicts lower online bodies than a
+fresh batched prefill. Warm up with one prompt and benchmark a different prompt
+sharing a long token prefix. The measured prompt and warmup prompts must match
+**across candidates**; the report stores only ephemeral-salted cohort digests,
+not the prompts. `store=False`, changed source locks, windowed/recurrent state,
+and other protected placements cannot activate the cache. This option reveals
+repeat-prefix behavior through traffic shape. See the [matched Qwen2.5
+sample](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-prefix-reuse-qwen25-2026-09-28.json)
+and [`examples/benchmarks/prefix_reuse.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/prefix_reuse.py).
+
+`pllm.roles.OutputHeadAtInference` moves an **untied** public output head to
+Inference in an otherwise prepared `MaskedLinearCpu(boundary=...)` Experiment.
+The token lookup remains client-owned and tied heads fail before importing a
+checkpoint. This reduces the cold bundle but adds a remote output stage and
+one-use corrections and sends an output-sized masked response per token. The
+[1/8/32-token synthetic cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/output-head-placement-synthetic-2026-09-28.json)
+retains its body fingerprint across placements and reports cold bundle, offline,
+and online bytes separately; this is not official Phi-quality evidence. See
+[`examples/benchmarks/output_head_placement.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/output_head_placement.py).
+
+`pllm.roles.ClientPrefixLayers(layers=1..8)` is a distinct prepared
+`MaskedLinearCpu(placement=...)` Experiment for **new** prompts. The compiler
+schedules complete early semantic layers on the trusted client and leaves at
+least one remote layer. The option admits CPU execution and up to 512 MiB of
+extra client prefix weights; the source and stage commitments are checked
+before issuing one-use remote rows. It keeps the public checkpoint resident
+at providers as well, so cold client transfer and storage grow. On one pinned
+Qwen2.5 40+1-token cohort, two client-owned layers saved 5.32 MB of covered
+online bodies but **added** 21.48 MB of total covered cold bodies. Use the
+[recorded three-candidate comparison](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-owned-prefix-layers-qwen25-2026-09-28.json)
+and [`examples/benchmarks/client_prefix_layers.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/client_prefix_layers.py)
+to evaluate a different prompt length or response horizon. The ordinary
+benchmark ranks both covered online and covered cold all-link bodies; neither
+count measures full wire bytes or persistent disk use.
+
+For a local-checkpoint W4A4/W8A8 comparison, the public
+`pllm.evidence.benchmark_reference_quality(...)` and
+`benchmark_network_candidates(...)` APIs execute the reference and role-backed
+cohorts. `pllm.search.QualityLockedNetworkSearch` only ranks covered online
+body bytes after verifying exact source locks, Experiment digests, prompt
+cohorts and user-chosen prefill-quality thresholds. See the runnable
+[`examples/benchmarks/quality_locked_network.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/quality_locked_network.py)
+(`--checkpoint` requires a local pinned checkpoint); generated tiny checkpoints
+exercise the workflow without demonstrating real-model quality. Per-precision
+body fingerprints intentionally differ; this explicit quality gate is the only
+network search that permits them to be compared against the same source.
+
+`pllm.metrics.ResidentMlpCostProbe` projects compiler-bound one-use exact
+two-party MLP material and online openings, then rejects budgets before a
+decoder-scale issuance. The tested Qwen2.5 lower bound already exceeds the
+two-worker online comparator. `pllm.metrics.EncryptedLinearCostProbe` executes
+an exact encrypted public-weight BFV stage at bounded dimensions and counts
+context, encrypted input, encrypted output and CPU separately; the [32×64
+cost probe](https://github.com/blairhudson/pllm/blob/main/docs/evidence/encrypted-linear-stage-cost-2026-09-28.json)
+does not establish a whole-layer network saving. These are runnable SDK
+*research probes*, not selectable serving topologies. No whole-decoder
+share-resident or ciphertext-resident inference component has cleared its
+resource and operator coverage gates.
+
+For the next [resident-share nonlinear candidate](/sdk/evaluate/resident-share-gate/),
+`ResidentQuadraticGateCostProbe` separates gate-only optimism from a
+semantic two-source layer bound; the latter fails the 10× fresh-prompt
+target before protected attention or scale conversion is counted.
+
 This SDK example requires a PLLM source checkout because it reads the checked-in
 `schemas/fixtures/compile-request.valid.json` compile request.
 

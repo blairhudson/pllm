@@ -1,0 +1,41 @@
+---
+title: "Client prefix reuse"
+description: "Reuse a bounded client-owned causal prefill for another prompt sharing its exact token prefix."
+---
+
+[`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#clientprefixreuse)
+(`pllm/client-prefix-reuse/v1`) is an optional `cache` slot in
+`MaskedLinearCpu`. The fixed input-token bound, byte limit, composition,
+client bundle and token prefix bind every cached KV snapshot. Only complete
+prior prepared prefills can be reused; restored suffix tokens execute with
+new one-use provider rows. An upper-bound estimate rejects suffixes whose
+per-token stage messages would cost more than batched prefill. Reused lengths
+can reveal prefix equality, so the component is off by default.
+
+## Python SDK example
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.state import ClientPrefixReuse
+
+cache = ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=128)
+experiment = Experiment(
+    name="client-prefix-reuse-example",
+    pipeline=MaskedLinearCpu(Model.tiny(), cache=cache),
+    deployment=Deployment.local(root="local://client-prefix-reuse-example"),
+    budget=ExecutionBudget(requests=2, max_input_tokens=128, max_new_tokens=1),
+)
+assert experiment.pipeline.components["cache"] == cache
+assert experiment.resolve().composition_digest == experiment.pipeline.digest()
+```
+
+For matched on/off execution use the
+[benchmark guide](/sdk/evaluate/benchmark/) and the
+[Qwen2.5 cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-prefix-reuse-qwen25-2026-09-28.json).
+One checked 175-token prompt sharing 168 cached tokens reduced covered online
+bodies from 279.29 MB to 11.58 MB; it did not eliminate cold bundle delivery,
+generalize to unrelated prompts, or measure full wire bytes. Compare complete
+replies under one stable source lock and fixed generation budget.
+
+API: [`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#objects-and-signatures)

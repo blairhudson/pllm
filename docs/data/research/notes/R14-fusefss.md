@@ -4,17 +4,17 @@
 
 Authors: Yuhan Ma, Yong Li, Stefan Schmid.  
 Primary source: https://arxiv.org/abs/2606.09551  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Full 27-page primary paper is cached as `papers/r14-fusefss.pdf` and verified against the SHA-256 in `paper-library.json` (`6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0`). This is specification material; upstream code is not a PLLM dependency or a locked runtime artifact.
 
 ## What the source contributes
 
-FuseFSS targets fusion and efficiency of secure nonlinear/helper operations in FSS-based LLM inference.
+FuseFSS compiles typed scalar operators into a packed private comparison and a vector interval lookup on one public one-time-masked wire, followed by ordinary share-based multiplications and conversions. Its mask-independent public query and interval shapes are part of the leakage contract (Sections 3–5, Appendix F). It does not compile vector reductions or eliminate the dealer, keys, second online party, or remaining interactive rounds. The original paper compares against SIGMA's matching FSS topology and functions, not PLLM's clear baseline.
 
 This short source summary is separate from the proposed PLLM design below. The source has not been reproduced merely by adding this card.
 
 ## Native implementation scope
 
-Acquire and pin the full source and artifact; port complete fused helpers with their offline key generation, remaining secure multiplication and rescaling.
+Pin the full source (completed for the paper PDF); implement and compare against complete matching SIGMA helpers, including offline key generation, mask-independent shape padding, secure multiplication and rescaling.
 
 Data flow: **Published fused FSS helpers with explicit remaining polynomial products and rescaling.**
 
@@ -47,9 +47,21 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Prior reference fused-polynomial experiments are alternative methods, not a FuseFSS implementation.
+The bounded `pllm.runtime.scalar_fss_reference` compiles a public two-interval,
+8-bit affine scalar description into a fixed-shape private predicate call and
+one vector-coefficient table lookup on the same masked input. One share per
+worker executes an independently authenticated opening and Beaver product;
+signed ReLU values and sign predicates pass full-domain source-side checks.
+The dense table is an information-theoretic function sharing reference:
+**4,096 table bytes per worker per scalar**, plus 306 point-key bytes for
+one predicate, before transport and Beaver material. It cannot demonstrate
+FuseFSS's compact lookup, fused production performance, polynomial/
+fixed-point helpers, or whole-model coverage. The work remains an isolated
+test-local reference, not a selectable `gate.fss_fused` component.
 
-The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
+The original experiments and limitations are under `legacy/`. This reference
+does **not** reproduce the paper's native two-call implementation or its
+reported cost advantage.
 
 ## Reproduction gates
 

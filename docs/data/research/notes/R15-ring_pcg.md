@@ -4,11 +4,11 @@
 
 Authors: Zhe Li, Chaoping Xing, Yizhou Yao, Chen Yuan.  
 Primary source: https://link.springer.com/chapter/10.1007/978-3-032-01884-7_7  
-Access in this handoff: `primary_abstract`. Full source/artifact content hashes are not yet locked. A full-text acquisition gate is required.
+Full 56-page primary paper is cached as `papers/r15-ring-pcg.pdf` and verified against the SHA-256 in `paper-library.json` (`130178519ec48cbbe64b201e42bb581b513f77503f671e1a56e4b0909b4aa375`). This is specification material; upstream code is not a PLLM dependency or a locked runtime artifact.
 
 ## What the source contributes
 
-Galois-ring constructions extend pseudorandom correlation generation to integer rings, including multiplication-related correlations.
+The paper's Z/2^kZ OLE and authenticated-triple PCGs require a Galois-ring extension, a Hensel-lifted primitive polynomial, its generalized trace and Frobenius maps, QA-SD/Ring-LPN assumptions, and per-party sparse-point FSS seeds (Sections 4–6). A plain ring PRG cannot replace that correlated construction. Section 7 and Appendix B warn that older QA-SD parameters `(c=3, t=27, m=2)` succumb to a newer attack; any selectable parameters must pass a current independent security review.
 
 This short source summary is separate from the proposed PLLM design below. The source has not been reproduced merely by adding this card.
 
@@ -48,7 +48,20 @@ Provide the corrupted party's permitted view, known plaintext/public inputs, ran
 
 ## What PLLM already has
 
-Earlier Galois-ring checks were algebra only, not a PCG implementation.
+`pllm.runtime.ring_pcg_reference` now checks the paper's *four distinct sparse
+cross-term distributions* using one independently issued additive point key per
+term. Each test-only worker holds its own sparse terms and point keys and
+expands them once; tests reconstruct all Galois-ring OLE identities in a tiny
+`GR(2^k,2)[X_1,...]/(X_i^3−1)` example for 8- and 64-bit rings. A separate
+bounded trace/Frobenius path issues the *additional four* cross-term families
+and checks both base-ring `Z/2^k` OLE lanes per CRT point against the paper's
+extraction identity. The
+session-bound issuer rejects excessive key material before generating keys.
+This validates the algebra and share distribution, **not a secure or silent
+PCG**: the small QA-SD instances have no hardness, the dealer sees both
+inputs, expansion uses a bounded quadratic reference instead of the paper's
+quasilinear algorithm, and setup/transport/modern attack parameters remain
+unimplemented. No runtime component is admitted.
 
 The original experiments and limitations are under `legacy/`. This handoff adds contracts and research tasks, **not a completed native reproduction of this paper**.
 

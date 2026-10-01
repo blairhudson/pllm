@@ -11,7 +11,7 @@ Semantic operator/representation: `rotary_embedding`.
 
 **Current implementation scope:** Only the Qwen3.5 text-only replicated-position, interleaved-section, partial-head float32 profile is scheduled and matches upstream Torch at checked positions. The official text checkpoint executes a narrow BF16-referenced prefill/decode cohort with imperfect W8A8 agreement. Independent image/video axes and multimodal requests fail closed; protected rotary remains unchecked.
 
-## Checked source adapters
+## Checked decoder configurations
 
 - [Qwen3.5-4B text decoder](/sdk/models/families/qwen3-5/): part of its bounded complete baseline schedule. Pinned official Qwen3.5-4B text checkpoint binds 426 required BF16/F32 artifacts to 130 compiled stages. Two real-checkpoint prefill/decode prefixes score 2/4 same-token W8A8 top-1 against upstream BF16 (3.66 worst absolute logit error); a float32-body diagnostic with W8 token/head boundary scores 3/4 (0.46 worst error). A real-checkpoint prepared SDK and gateway request each completes through two local role children with masked stage traffic and zero plaintext prompt/token-ID bytes sent. A generated tiny checkpoint independently matches the upstream float32 Torch reference below 0.05 W8A8 worst logit error. Text-only partial MRoPE matches checked Torch positions **Next:** Four same-token selections do not establish representative generation quality; W8A8 still misses two. Full-wire and full-response compute costs, protected recurrence, independent providers and independent image/video position axes remain unchecked.
 

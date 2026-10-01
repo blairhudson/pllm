@@ -9,7 +9,7 @@ Bounded public wavelength-transition frequencies with a compiled float32 rotary 
 
 Semantic operator/representation: `rotary_embedding`.
 
-## Checked source adapters
+## Checked decoder configurations
 
 - [Bounded dense bias-free decoder (tiny Llama-style fixtures)](/sdk/models/families/): part of its bounded complete baseline schedule. A pinned public Llama 3.1 8B configuration mirror lowers and compiles for a bounded 8+2 token workload without loading weights. Generated tiny bias-free checkpoints pass unscaled tied/untied parity and bounded wavelength-transition scaling: scaled W8A8 prefill/decode matches PyTorch selections with less than 0.05 worst logit error; prepared and client-only SDK/gateway requests complete **Next:** No real Llama checkpoint, tokenizer or representative quality evidence; other RoPE scaling types, sliding attention, projection bias and protected execution remain unsupported.
 

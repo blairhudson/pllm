@@ -21,14 +21,50 @@ review precedes a new native implementation.
 | One-provider encrypted or hybrid private state | [Cachemir](/research/papers/cachemir/), [Rosetta](/research/papers/rosetta/), [Gazelle](/research/papers/gazelle/) | Keep keys and private KV state with their rightful owners, bind ciphertext/circuit conversions, and score multi-token output plus cold/warm key/material costs. Existing clear local KV and a dormant BFV correlation backend do not supply encrypted whole-decoder execution. These options may be benchmarked, but the two-worker aggregate-compute cap still applies to any candidate claiming eligibility. |
 | Additional verification for a declared execution graph | [LAMP](/research/papers/lamp/), [DeepProve](/research/papers/deepprove/), [matrix coding verification](/research/papers/matrix-coding-verification/) | Define exactly what is proved: one `W·x` stage, an entire decode, or a full matrix product. Match soundness over the committed ring and whole-session attempt budget; time proof/preparation generation and verification, not just online response traffic. A full-product proof cannot silently stand in for a delegated matvec check. |
 
-**Priority from the new topology space:** first measure a complete client +
-two-worker privacy/compute baseline across the same pinned checkpoint and
-quality cohort, including startup CPU. Then implement one *resident* two-share
-nonlinear/state vertical slice under a reviewed truncation contract, or one
-dealer-assisted protected operator with explicit key recipient channels. The
-TEE branch requires real attestation before any input crosses that boundary.
+**Priority from the new topology space:** the two-worker and prepared baselines
+have matched token/body cohorts and a first pinned cold-CPU comparison; the
+[prepared stage ledger](https://github.com/blairhudson/pllm/blob/main/docs/evidence/prepared-stage-attribution-qwen25-2026-09-29.json)
+now attributes all five covered role links to native stages. Complete full-wire
+and cold source distribution, then require disjoint pretrained-model quality
+and whole-decoder all-link cost gates **before** issuing another resident
+two-share tensor schedule. The [held-out narrow-interface screen](https://github.com/blairhudson/pllm/blob/main/docs/evidence/pretrained-bottleneck-screen-2026-09-29.json)
+has not passed those gates. The TEE branch requires real attestation before any
+input crosses that boundary.
 New components remain pending until their actual protocol and benchmark gates
 pass; a declared placement alone never activates them.
+
+The bounded resident-share reference now has an early cost veto: projecting only
+one Beaver gated product and one exact FSS rescale per MLP intermediate on the
+pinned 30-input/1-output Qwen2.5 schedule already requires at least **1.47 GB
+of two-party material bodies and 169.0 MB of online peer bodies**. The matched
+two-worker offset response recorded 95.8 MB of online application bodies. This
+reference already exceeds that **covered-body comparator**, even before
+protected attention and norms. The locked gate at
+`docs/evidence/shared-resident-mlp-cost-gate-2026-09-27.json` does not measure
+full wire or rule out a different low-traffic protocol; it stops
+promotion of this specific tensor-scale construction. Client-only execution
+remains the zero-online-provider-traffic choice when local model ownership fits.
+`pllm.metrics.ResidentMlpCostProbe` exposes this compiler-bound estimate as an
+SDK resource gate. A separate `EncryptedLinearCostProbe` evaluates one exact
+bounded BFV stage and measures input/output ciphertext bodies and public
+context delivery; on the checked 32×64 fixture it has no byte-saving claim
+over packed residues. Neither probe activates a whole-decoder role graph.
+The separate [HE-to-shares quadratic island](/sdk/evaluate/he-quadratic-share/)
+executes a small encrypted nonlinear function with one-use output masking;
+its per-token BFV exchange still misses the matched 100× all-link byte gate.
+
+A further bounded, one-use two-party polynomial reference shares five shifted
+coefficients per Q7 gate and opens a common masked hidden source instead of
+opening each gate/up output. Its pinned Qwen2.5-shaped 39+1-token *gate-only*
+estimate is 5.03 MB online with 70.81 MB of material per party. Semantic
+attention uses a different normalized hidden source; counting **just one**
+additional source opening raises the 24-layer online projection to 10.06 MB,
+already above the 6 MB tenfold target. The
+[resource evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/resident-quadratic-layer-gate-2026-09-28.json)
+and [SDK gate](/sdk/evaluate/resident-share-gate/) keep this distinct from
+full-width protected truncation, actual Qwen numeric fidelity, independent
+roles and whole-layer execution. This veto applies to the two-source masked
+opening method, not to all possible resident-share protocols.
 
 [Breaking Euston](/research/papers/breaking-euston/),
 [Carnival](/research/papers/carnival/) and
