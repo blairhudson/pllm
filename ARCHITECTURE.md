@@ -582,6 +582,14 @@ fresh preparation and online arithmetic bodies per workload. Unknown required
 costs still reject candidates; residency declarations remain estimates and
 execution revalidates cache contents.
 
+Client-local `ClientStateCostEvidence` can separately price a completed-prefill
+reuse assumption under matching configuration, plan, source and client ownership.
+It contains no tokens, cache keys or transferable KV; canonical numeric cache
+admission remains required. Memory capacity still prices a miss and full fallback.
+Configuration switching can charge one transition body cost and a primary-objective
+improvement margin, but only a feasible incumbent can be retained. These are
+estimates, not live-state migration or measured whole-response compute.
+
 `SymmetricPerRow(causal_reduction="prefix_f32")` is a separately digested
 float32 full-causal numeric option. Scores, softmax and weighted values reduce
 only over each query's valid prefix. Pinned Qwen partition and teacher-forced

@@ -18,7 +18,7 @@ from huggingface_hub import hf_hub_download
 from pllm import Model, lower_model
 from pllm.profiles import MaskedLinearCpu
 from pllm.quantization import SymmetricPerRow
-from pllm.runtime.region_contract_cost import compiler_region_contract_cost
+from pllm.runtime.region_contract_cost import compiler_region_contract_cost, compiler_region_reduction_gates
 
 _ROOT = Path(__file__).resolve().parents[1]
 _MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
@@ -29,7 +29,7 @@ _SHARED_HUB_CACHE = os.environ.get("HF_HUB_CACHE") or str(
 )
 
 
-def run(output_tokens: int) -> dict:
+def run(output_tokens: int, *, reduction_gates: bool = False) -> dict:
     if type(output_tokens) is not int or output_tokens not in (8, 32):
         raise ValueError("the pinned cohorts have only 8 or 32 output tokens")
     source = Path(
@@ -52,13 +52,17 @@ def run(output_tokens: int) -> dict:
     if plan.digest != cohort["official_plan_digest"]:
         raise ValueError("pinned semantic plan differs from the matched control")
     control = cohort["prepared_control"]
-    report = compiler_region_contract_cost(
+    report = (compiler_region_reduction_gates(
+        plan, composition, response_new_tokens=output_tokens,
+        baseline_online_body_bytes=control["online_all_link_body_bytes"],
+        baseline_all_link_body_bytes=control["covered_all_link_body_bytes"],
+    ) if reduction_gates else compiler_region_contract_cost(
         plan,
         composition,
         response_new_tokens=output_tokens,
         maximum_online_all_link_body_bytes=control["tenfold_online_budget_bytes"],
         maximum_total_all_link_body_bytes=control["tenfold_covered_budget_bytes"],
-    )
+    ))
     if (
         report["schedule_digest"] != cohort["official_schedule_digest"]
         or report["composition_digest"] != evidence["source"]["pipeline_digest"]
@@ -75,8 +79,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--max-output-tokens", type=int, choices=(8, 32), default=32)
     parser.add_argument("--summary", action="store_true", help="omit per-layer records")
+    parser.add_argument("--reduction-gates", action="store_true", help="screen 25%/50%/10x budgets")
+    parser.add_argument("--output", type=Path, help="save public cost report as JSON")
     args = parser.parse_args()
-    result = run(args.max_output_tokens)
+    result = run(args.max_output_tokens, reduction_gates=args.reduction_gates)
     if args.summary:
         result["layer_provenance_sha256"] = hashlib.sha256(
             json.dumps(
@@ -97,7 +103,12 @@ def main() -> None:
             placement["unknown_required_link_labels"] = sorted(
                 {row["link"] for row in placement.pop("unknown_required_links_and_work")}
             )
-    print(json.dumps(result, sort_keys=True, indent=2))
+    encoded = json.dumps(result, sort_keys=True, indent=2) + "\n"
+    if args.output is not None:
+        args.output.write_text(encoded, encoding="utf-8")
+        print(f"Saved {args.output}; executable={result['whole_decoder_executable']}")
+    else:
+        print(encoded, end="")
 
 
 if __name__ == "__main__":

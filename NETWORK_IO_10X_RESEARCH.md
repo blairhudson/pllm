@@ -34,6 +34,16 @@ or fails its numeric-quality gate.
 
 ### Priorities from existing evidence
 
+**Fresh-response gate, 2026-10-02:** compiler-bound 39+8/39+32 screens now evaluate
+25%, 50% and tenfold targets with both parties' bodies and explicit missing
+numeric/material/control obligations. Current quadratic-reference key compositions
+fail all three targets; unknown-generator MLP/24-bit layouts remain inconclusive
+at 25%/50% and fail tenfold on known online floors. Hypothetical 12-bit layouts
+remain unvalidated and incomplete, not admitted. See
+[complete obligation/cost decisions](docs/evidence/protected-region-gates-2026-10-02.md).
+No new protected method is enabled. Fresh 25%/50% research needs a concrete
+complete MLP mechanism; repeat-workload improvements remain the executable track.
+
 **2026-10-02 measured update:** canonical `prefix_f32` now supports exact
 growing-prefix reuse, while default numeric mode keeps its matching-width gate.
 The exhaustive pinned partition cohort covers 88 splits and teacher replay.

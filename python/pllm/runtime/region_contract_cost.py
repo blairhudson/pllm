@@ -238,6 +238,9 @@ def compiler_region_contract_cost(
         for worker in ("worker_a", "worker_b")
     ]
     mlp_unknown = [
+        _unknown("online", "client↔workers", "secret per-row activation scales and numeric metadata"),
+        _unknown("online", "worker_a↔worker_b",
+                 "dynamic max-absolute quantization, reciprocal, ties-to-even and range rejection"),
         _unknown(
             "online", "worker_a↔worker_b", "protected SiLU×up, exact rescaling and share refresh"
         ),
@@ -251,6 +254,7 @@ def compiler_region_contract_cost(
         _unknown("cold", "source→workers", "two provider MLP checkpoint snapshots and disk"),
         _unknown("online", "client↔workers", "framing, authentication and complete wire"),
         _unknown("local", "client", "attention/norm/KV CPU, output head, peak memory and latency"),
+        _unknown("control", "all roles", "bounded admission, replay, cancellation and failure burns"),
     ]
     mlp = _placement(
         mlp_edges,
@@ -307,6 +311,8 @@ def compiler_region_contract_cost(
             ]
         )
         unknown = [
+            _unknown("online", "worker_a↔worker_b",
+                     "RMSNorm inverse square root with epsilon, dynamic quantization and private scales"),
             _unknown(
                 "online",
                 "worker_a↔worker_b",
@@ -322,6 +328,7 @@ def compiler_region_contract_cost(
             ),
             _unknown("online", "client↔workers", "framing, authentication and complete wire"),
             _unknown("local", "client", "output-head CPU and token feedback latency"),
+            _unknown("control", "all roles", "bounded admission, replay, cancellation and failure burns"),
         ]
         scenario = _placement(
             edges,
@@ -356,4 +363,58 @@ def compiler_region_contract_cost(
     }
 
 
-__all__ = ["compiler_region_contract_cost"]
+def compiler_region_reduction_gates(
+    plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int,
+    baseline_online_body_bytes: int, baseline_all_link_body_bytes: int,
+) -> dict[str, Any]:
+    """Screen complete obligations at 25%, 50% and tenfold covered-body targets.
+
+    Unknown steps prevent passage, even under a generous byte budget. The existing
+    quadratic key comparator is charged only to explicitly named reference-derived
+    candidates; it is not a floor on every possible future correlation generator.
+    Caller must bind a measured comparator's source, schedule and numeric cohort.
+    """
+    report = compiler_region_contract_cost(plan, composition,
+        response_new_tokens=response_new_tokens,
+        maximum_online_all_link_body_bytes=baseline_online_body_bytes,
+        maximum_total_all_link_body_bytes=baseline_all_link_body_bytes)
+    cases = [
+        ("client_attention_remote_mlp_unknown_correlations", report["client_attention_remote_mlp"], 0),
+        ("client_attention_remote_mlp_current_quadratic_keys", report["client_attention_remote_mlp"],
+         report["client_attention_remote_mlp"]["current_quadratic_numerator_dealer_bodies_both_parties_comparator_bytes"]),
+        ("resident_24_unknown_correlations", report["two_worker_resident"]["24"], 0),
+        ("resident_24_current_quadratic_keys", report["two_worker_resident"]["24"],
+         report["two_worker_resident"]["24"]["current_quadratic_numerator_dealer_bodies_both_parties_comparator_bytes"]),
+        ("resident_12_unvalidated_numeric_and_correlations", report["two_worker_resident"]["12"], 0),
+    ]
+    decisions = []
+    for name, placement, material in cases:
+        online = placement["known_online_body_floor_bytes"]
+        total = placement["known_all_link_body_floor_bytes"] + material
+        targets = {}
+        for label, numerator, denominator in (("25_percent", 3, 4), ("50_percent", 1, 2), ("10x", 1, 10)):
+            online_limit = baseline_online_body_bytes * numerator // denominator
+            all_limit = baseline_all_link_body_bytes * numerator // denominator
+            veto = online > online_limit or total > all_limit
+            targets[label] = {
+                "online_budget_bytes": online_limit, "all_link_budget_bytes": all_limit,
+                "known_online_floor_bytes": online, "known_all_link_floor_bytes": total,
+                "remaining_online_budget_bytes": online_limit - online,
+                "remaining_all_link_budget_bytes": all_limit - total,
+                "decision": "veto_known_body_floor" if veto else "inconclusive_unpriced_requirements",
+                "numeric_fidelity_established": False, "complete_cost_known": False,
+                "byte_admitted": False, "executable": False,
+            }
+        decisions.append({
+            "candidate": name, "known_quadratic_reference_key_body_bytes": material,
+            "required_unpriced_obligations": placement["unknown_required_links_and_work"],
+            "targets": targets,
+        })
+    report["reduction_gate_scope"] = "fresh response; covered bodies; all missing work remains unknown"
+    report["baseline_online_body_bytes"] = baseline_online_body_bytes
+    report["baseline_all_link_body_bytes"] = baseline_all_link_body_bytes
+    report["reduction_gates"] = decisions
+    return report
+
+
+__all__ = ["compiler_region_contract_cost", "compiler_region_reduction_gates"]

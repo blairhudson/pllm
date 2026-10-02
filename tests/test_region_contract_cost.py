@@ -13,7 +13,7 @@ from pllm import Model, lower_model
 from pllm.modeling import ModelPlan
 from pllm.profiles import MaskedLinearCpu
 from pllm.quantization import SymmetricPerRow
-from pllm.runtime.region_contract_cost import compiler_region_contract_cost
+from pllm.runtime.region_contract_cost import compiler_region_contract_cost, compiler_region_reduction_gates
 from pllm.runtime.shared_resources import SharedResourceError
 
 from test_shared_resources import CONFIG
@@ -129,6 +129,28 @@ def test_region_contract_rejects_forged_semantic_sources_and_invalid_budgets() -
     forged = ModelPlan(json.dumps(altered, sort_keys=True).encode())
     with pytest.raises((SharedResourceError, ValueError)):
         compiler_region_contract_cost(forged, _composition(), **good)
+
+
+def test_reduction_gates_charge_both_parties_and_unknowns_never_pass():
+    plan = lower_model(CONFIG, batch=1, max_input_tokens=39, max_new_tokens=32)
+    report = compiler_region_reduction_gates(plan, _composition(), response_new_tokens=32,
+        baseline_online_body_bytes=113_545_024, baseline_all_link_body_bytes=178_970_558)
+    cases = {row["candidate"]: row for row in report["reduction_gates"]}
+    assert cases["client_attention_remote_mlp_unknown_correlations"]["targets"]["10x"]["decision"] == "veto_known_body_floor"
+    for name, row in cases.items():
+        for label, gate in row["targets"].items():
+            assert not gate["byte_admitted"] and not gate["executable"]
+            assert not gate["complete_cost_known"] and not gate["numeric_fidelity_established"]
+            if "current_quadratic_keys" in name:
+                assert gate["decision"] == "veto_known_body_floor"
+                assert row["known_quadratic_reference_key_body_bytes"] > 178_970_558
+            if "resident_12" in name:
+                assert gate["decision"] == "inconclusive_unpriced_requirements"
+        assert all(item["body_bytes"] is None for item in row["required_unpriced_obligations"])
+    generous = compiler_region_reduction_gates(plan, _composition(), response_new_tokens=32,
+        baseline_online_body_bytes=1 << 39, baseline_all_link_body_bytes=1 << 40)
+    assert all(gate["decision"] == "inconclusive_unpriced_requirements"
+               for row in generous["reduction_gates"] for gate in row["targets"].values())
 
 
 def test_alternate_semantic_adapter_uses_same_role_and_source_contract() -> None:

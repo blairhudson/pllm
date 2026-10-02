@@ -1,0 +1,655 @@
+{
+  "baseline_all_link_body_bytes": 178970558,
+  "baseline_online_body_bytes": 113545024,
+  "body_fingerprint_from_control": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "client_attention_remote_mlp": {
+    "additional_client_attention_i8_weight_and_f32_scale_bytes_once_per_model": 44236800,
+    "all_link_cost_known": false,
+    "assumed_input_share_bits": 24,
+    "assumed_output_share_bits": 32,
+    "byte_admitted": false,
+    "client_attention_full_compute_measured": false,
+    "client_attention_projection_integer_macs": 3082813440,
+    "client_output_head_integer_macs": 4356308992,
+    "current_quadratic_numerator_dealer_bodies_both_parties_comparator_bytes": 263208960,
+    "executable": false,
+    "known_all_link_body_floor_bytes": 21073920,
+    "known_floor_exceeds_all_link_budget": false,
+    "known_floor_exceeds_online_budget": false,
+    "known_online_body_bytes_by_directed_link": {
+      "client\u2192worker_a:post_attention_mlp_input_share": 4515840,
+      "client\u2192worker_b:post_attention_mlp_input_share": 4515840,
+      "worker_a\u2192client:complete_mlp_output_share": 6021120,
+      "worker_b\u2192client:complete_mlp_output_share": 6021120
+    },
+    "known_online_body_floor_bytes": 21073920,
+    "numeric_contract_validated": false,
+    "placement": "client_attention_remote_two_worker_mlp",
+    "provider_mlp_i8_weight_and_f32_scale_bytes_per_worker_once_per_model": 314806272,
+    "remote_fraction_of_tracked_body_projection_macs": 0.8769230769230769,
+    "remote_mlp_projection_integer_macs_per_worker": 21965045760,
+    "unknown_required_link_labels": [
+      "all roles",
+      "client",
+      "client\u2194workers",
+      "dealer\u2192worker_a",
+      "dealer\u2192worker_b",
+      "source\u2192client",
+      "source\u2192workers",
+      "worker_a\u2194worker_b"
+    ]
+  },
+  "client_output_head_integer_macs": 4356308992,
+  "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+  "executed_rows": 70,
+  "input_tokens": 39,
+  "layer_count": 24,
+  "layer_provenance_sha256": "aefc3af6c4f61f270c0eabdd020f739780772f31b1335e1c95e064593b6919f1",
+  "matched_prepared_covered_all_link_body_bytes": 178970558,
+  "matched_prepared_covered_online_body_bytes": 113545024,
+  "maximum_online_all_link_body_bytes": 113545024,
+  "maximum_total_all_link_body_bytes": 178970558,
+  "numeric_scale_and_range_validated": false,
+  "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+  "protected_composition_selected": false,
+  "reduction_gate_scope": "fresh response; covered bodies; all missing work remains unknown",
+  "reduction_gates": [
+    {
+      "candidate": "client_attention_remote_mlp_unknown_correlations",
+      "known_quadratic_reference_key_body_bytes": 0,
+      "required_unpriced_obligations": [
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "secret per-row activation scales and numeric metadata"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "dynamic max-absolute quantization, reciprocal, ties-to-even and range rejection"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "protected SiLU\u00d7up, exact rescaling and share refresh"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_a",
+          "phase": "offline",
+          "requirement": "one-use joint nonlinear/scale material"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_b",
+          "phase": "offline",
+          "requirement": "independent one-use joint nonlinear/scale material"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192client",
+          "phase": "cold",
+          "requirement": "attention projection weight distribution beyond i8/scales"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192workers",
+          "phase": "cold",
+          "requirement": "two provider MLP checkpoint snapshots and disk"
+        },
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "framing, authentication and complete wire"
+        },
+        {
+          "body_bytes": null,
+          "link": "client",
+          "phase": "local",
+          "requirement": "attention/norm/KV CPU, output head, peak memory and latency"
+        },
+        {
+          "body_bytes": null,
+          "link": "all roles",
+          "phase": "control",
+          "requirement": "bounded admission, replay, cancellation and failure burns"
+        }
+      ],
+      "targets": {
+        "10x": {
+          "all_link_budget_bytes": 17897055,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 21073920,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 11354502,
+          "remaining_all_link_budget_bytes": -3176865,
+          "remaining_online_budget_bytes": -9719418
+        },
+        "25_percent": {
+          "all_link_budget_bytes": 134227918,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 21073920,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 85158768,
+          "remaining_all_link_budget_bytes": 113153998,
+          "remaining_online_budget_bytes": 64084848
+        },
+        "50_percent": {
+          "all_link_budget_bytes": 89485279,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 21073920,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 56772512,
+          "remaining_all_link_budget_bytes": 68411359,
+          "remaining_online_budget_bytes": 35698592
+        }
+      }
+    },
+    {
+      "candidate": "client_attention_remote_mlp_current_quadratic_keys",
+      "known_quadratic_reference_key_body_bytes": 263208960,
+      "required_unpriced_obligations": [
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "secret per-row activation scales and numeric metadata"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "dynamic max-absolute quantization, reciprocal, ties-to-even and range rejection"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "protected SiLU\u00d7up, exact rescaling and share refresh"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_a",
+          "phase": "offline",
+          "requirement": "one-use joint nonlinear/scale material"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_b",
+          "phase": "offline",
+          "requirement": "independent one-use joint nonlinear/scale material"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192client",
+          "phase": "cold",
+          "requirement": "attention projection weight distribution beyond i8/scales"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192workers",
+          "phase": "cold",
+          "requirement": "two provider MLP checkpoint snapshots and disk"
+        },
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "framing, authentication and complete wire"
+        },
+        {
+          "body_bytes": null,
+          "link": "client",
+          "phase": "local",
+          "requirement": "attention/norm/KV CPU, output head, peak memory and latency"
+        },
+        {
+          "body_bytes": null,
+          "link": "all roles",
+          "phase": "control",
+          "requirement": "bounded admission, replay, cancellation and failure burns"
+        }
+      ],
+      "targets": {
+        "10x": {
+          "all_link_budget_bytes": 17897055,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 284282880,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 11354502,
+          "remaining_all_link_budget_bytes": -266385825,
+          "remaining_online_budget_bytes": -9719418
+        },
+        "25_percent": {
+          "all_link_budget_bytes": 134227918,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 284282880,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 85158768,
+          "remaining_all_link_budget_bytes": -150054962,
+          "remaining_online_budget_bytes": 64084848
+        },
+        "50_percent": {
+          "all_link_budget_bytes": 89485279,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 284282880,
+          "known_online_floor_bytes": 21073920,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 56772512,
+          "remaining_all_link_budget_bytes": -194797601,
+          "remaining_online_budget_bytes": 35698592
+        }
+      }
+    },
+    {
+      "candidate": "resident_24_unknown_correlations",
+      "known_quadratic_reference_key_body_bytes": 0,
+      "required_unpriced_obligations": [
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "RMSNorm inverse square root with epsilon, dynamic quantization and private scales"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "protected attention scores/softmax, norms, MLP and exact truncation"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_a",
+          "phase": "offline",
+          "requirement": "full-layer one-use attention and MLP correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_b",
+          "phase": "offline",
+          "requirement": "independent full-layer one-use correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "workers",
+          "phase": "online",
+          "requirement": "private KV/cache share maintenance and scale changes"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192workers",
+          "phase": "cold",
+          "requirement": "full checkpoint distribution to both workers and disk"
+        },
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "framing, authentication and complete wire"
+        },
+        {
+          "body_bytes": null,
+          "link": "client",
+          "phase": "local",
+          "requirement": "output-head CPU and token feedback latency"
+        },
+        {
+          "body_bytes": null,
+          "link": "all roles",
+          "phase": "control",
+          "requirement": "bounded admission, replay, cancellation and failure burns"
+        }
+      ],
+      "targets": {
+        "10x": {
+          "all_link_budget_bytes": 17897055,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 18669056,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 11354502,
+          "remaining_all_link_budget_bytes": -772001,
+          "remaining_online_budget_bytes": -7314554
+        },
+        "25_percent": {
+          "all_link_budget_bytes": 134227918,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 18669056,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 85158768,
+          "remaining_all_link_budget_bytes": 115558862,
+          "remaining_online_budget_bytes": 66489712
+        },
+        "50_percent": {
+          "all_link_budget_bytes": 89485279,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 18669056,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 56772512,
+          "remaining_all_link_budget_bytes": 70816223,
+          "remaining_online_budget_bytes": 38103456
+        }
+      }
+    },
+    {
+      "candidate": "resident_24_current_quadratic_keys",
+      "known_quadratic_reference_key_body_bytes": 263208960,
+      "required_unpriced_obligations": [
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "RMSNorm inverse square root with epsilon, dynamic quantization and private scales"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "protected attention scores/softmax, norms, MLP and exact truncation"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_a",
+          "phase": "offline",
+          "requirement": "full-layer one-use attention and MLP correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_b",
+          "phase": "offline",
+          "requirement": "independent full-layer one-use correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "workers",
+          "phase": "online",
+          "requirement": "private KV/cache share maintenance and scale changes"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192workers",
+          "phase": "cold",
+          "requirement": "full checkpoint distribution to both workers and disk"
+        },
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "framing, authentication and complete wire"
+        },
+        {
+          "body_bytes": null,
+          "link": "client",
+          "phase": "local",
+          "requirement": "output-head CPU and token feedback latency"
+        },
+        {
+          "body_bytes": null,
+          "link": "all roles",
+          "phase": "control",
+          "requirement": "bounded admission, replay, cancellation and failure burns"
+        }
+      ],
+      "targets": {
+        "10x": {
+          "all_link_budget_bytes": 17897055,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 281878016,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 11354502,
+          "remaining_all_link_budget_bytes": -263980961,
+          "remaining_online_budget_bytes": -7314554
+        },
+        "25_percent": {
+          "all_link_budget_bytes": 134227918,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 281878016,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 85158768,
+          "remaining_all_link_budget_bytes": -147650098,
+          "remaining_online_budget_bytes": 66489712
+        },
+        "50_percent": {
+          "all_link_budget_bytes": 89485279,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "veto_known_body_floor",
+          "executable": false,
+          "known_all_link_floor_bytes": 281878016,
+          "known_online_floor_bytes": 18669056,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 56772512,
+          "remaining_all_link_budget_bytes": -192392737,
+          "remaining_online_budget_bytes": 38103456
+        }
+      }
+    },
+    {
+      "candidate": "resident_12_unvalidated_numeric_and_correlations",
+      "known_quadratic_reference_key_body_bytes": 0,
+      "required_unpriced_obligations": [
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "RMSNorm inverse square root with epsilon, dynamic quantization and private scales"
+        },
+        {
+          "body_bytes": null,
+          "link": "worker_a\u2194worker_b",
+          "phase": "online",
+          "requirement": "protected attention scores/softmax, norms, MLP and exact truncation"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_a",
+          "phase": "offline",
+          "requirement": "full-layer one-use attention and MLP correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "dealer\u2192worker_b",
+          "phase": "offline",
+          "requirement": "independent full-layer one-use correlations"
+        },
+        {
+          "body_bytes": null,
+          "link": "workers",
+          "phase": "online",
+          "requirement": "private KV/cache share maintenance and scale changes"
+        },
+        {
+          "body_bytes": null,
+          "link": "source\u2192workers",
+          "phase": "cold",
+          "requirement": "full checkpoint distribution to both workers and disk"
+        },
+        {
+          "body_bytes": null,
+          "link": "client\u2194workers",
+          "phase": "online",
+          "requirement": "framing, authentication and complete wire"
+        },
+        {
+          "body_bytes": null,
+          "link": "client",
+          "phase": "local",
+          "requirement": "output-head CPU and token feedback latency"
+        },
+        {
+          "body_bytes": null,
+          "link": "all roles",
+          "phase": "control",
+          "requirement": "bounded admission, replay, cancellation and failure burns"
+        }
+      ],
+      "targets": {
+        "10x": {
+          "all_link_budget_bytes": 17897055,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 9637376,
+          "known_online_floor_bytes": 9637376,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 11354502,
+          "remaining_all_link_budget_bytes": 8259679,
+          "remaining_online_budget_bytes": 1717126
+        },
+        "25_percent": {
+          "all_link_budget_bytes": 134227918,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 9637376,
+          "known_online_floor_bytes": 9637376,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 85158768,
+          "remaining_all_link_budget_bytes": 124590542,
+          "remaining_online_budget_bytes": 75521392
+        },
+        "50_percent": {
+          "all_link_budget_bytes": 89485279,
+          "byte_admitted": false,
+          "complete_cost_known": false,
+          "decision": "inconclusive_unpriced_requirements",
+          "executable": false,
+          "known_all_link_floor_bytes": 9637376,
+          "known_online_floor_bytes": 9637376,
+          "numeric_fidelity_established": false,
+          "online_budget_bytes": 56772512,
+          "remaining_all_link_budget_bytes": 79847903,
+          "remaining_online_budget_bytes": 47135136
+        }
+      }
+    }
+  ],
+  "response_new_tokens": 32,
+  "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+  "schema": "pllm.compiler_region_contract_cost.v1",
+  "scope": "non-executable optimistic body floors and explicit unpriced obligations",
+  "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "two_worker_resident": {
+    "12": {
+      "all_link_cost_known": false,
+      "assumed_client_final_hidden_share_bits": 32,
+      "assumed_client_token_input_share_bits": 24,
+      "assumed_source_opening_bits": 12,
+      "byte_admitted": false,
+      "client_output_head_integer_macs": 4356308992,
+      "current_quadratic_numerator_dealer_bodies_both_parties_comparator_bytes": 263208960,
+      "executable": false,
+      "independent_source_elements_per_worker": 3010560,
+      "known_all_link_body_floor_bytes": 9637376,
+      "known_floor_exceeds_all_link_budget": false,
+      "known_floor_exceeds_online_budget": false,
+      "known_online_body_bytes_by_directed_link": {
+        "client\u2192worker_a:token_embedding_share": 188160,
+        "client\u2192worker_b:token_embedding_share": 188160,
+        "worker_a\u2192client:final_hidden_share_for_client_token_choice": 114688,
+        "worker_a\u2192worker_b:attention_query_and_mlp_source_opening": 4515840,
+        "worker_b\u2192client:final_hidden_share_for_client_token_choice": 114688,
+        "worker_b\u2192worker_a:attention_query_and_mlp_source_opening": 4515840
+      },
+      "known_online_body_floor_bytes": 9637376,
+      "numeric_contract_validated": false,
+      "placement": "two_worker_resident_complete_layers",
+      "remote_body_projection_integer_macs_per_worker": 25047859200,
+      "unknown_required_link_labels": [
+        "all roles",
+        "client",
+        "client\u2194workers",
+        "dealer\u2192worker_a",
+        "dealer\u2192worker_b",
+        "source\u2192workers",
+        "worker_a\u2194worker_b",
+        "workers"
+      ]
+    },
+    "24": {
+      "all_link_cost_known": false,
+      "assumed_client_final_hidden_share_bits": 32,
+      "assumed_client_token_input_share_bits": 24,
+      "assumed_source_opening_bits": 24,
+      "byte_admitted": false,
+      "client_output_head_integer_macs": 4356308992,
+      "current_quadratic_numerator_dealer_bodies_both_parties_comparator_bytes": 263208960,
+      "executable": false,
+      "independent_source_elements_per_worker": 3010560,
+      "known_all_link_body_floor_bytes": 18669056,
+      "known_floor_exceeds_all_link_budget": false,
+      "known_floor_exceeds_online_budget": false,
+      "known_online_body_bytes_by_directed_link": {
+        "client\u2192worker_a:token_embedding_share": 188160,
+        "client\u2192worker_b:token_embedding_share": 188160,
+        "worker_a\u2192client:final_hidden_share_for_client_token_choice": 114688,
+        "worker_a\u2192worker_b:attention_query_and_mlp_source_opening": 9031680,
+        "worker_b\u2192client:final_hidden_share_for_client_token_choice": 114688,
+        "worker_b\u2192worker_a:attention_query_and_mlp_source_opening": 9031680
+      },
+      "known_online_body_floor_bytes": 18669056,
+      "numeric_contract_validated": false,
+      "placement": "two_worker_resident_complete_layers",
+      "remote_body_projection_integer_macs_per_worker": 25047859200,
+      "unknown_required_link_labels": [
+        "all roles",
+        "client",
+        "client\u2194workers",
+        "dealer\u2192worker_a",
+        "dealer\u2192worker_b",
+        "source\u2192workers",
+        "worker_a\u2194worker_b",
+        "workers"
+      ]
+    }
+  },
+  "whole_decoder_executable": false
+}
