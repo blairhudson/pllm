@@ -6,6 +6,7 @@ from pllm.evidence import BenchmarkResult
 from pllm.search.placement import (
     ArtifactCostEvidence as ArtifactCostEvidence,
     CandidateCostEvidence as CandidateCostEvidence,
+    ClientStateCostEvidence as ClientStateCostEvidence,
     PlanningPolicy as PlanningPolicy,
     PlanningRequest as PlanningRequest,
 )

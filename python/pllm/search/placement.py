@@ -104,6 +104,9 @@ class PlanningPolicy(PublicRecord):
     require_verified_privacy: bool = False
     allow_incomplete_execution: bool = False
     reuse_horizon: int = 1
+    incumbent_configuration_digest: str | None = None
+    switch_body_bytes: int = 0
+    minimum_switch_improvement_fraction: float = 0.0
 
     def __post_init__(self) -> None:
         identity(self.client_party_id, "client_party_id")
@@ -113,6 +116,16 @@ class PlanningPolicy(PublicRecord):
         integer(self.buffer_reserve_bytes, "buffer_reserve_bytes")
         integer(self.max_observation_age_ms, "max_observation_age_ms")
         integer(self.reuse_horizon, "reuse_horizon", minimum=1, maximum=1024)
+        integer(self.switch_body_bytes, "switch_body_bytes", maximum=1 << 40)
+        finite(self.minimum_switch_improvement_fraction, "minimum_switch_improvement_fraction")
+        if self.minimum_switch_improvement_fraction > 1:
+            raise NetworkError("switch improvement must be a fraction in [0,1]")
+        if self.incumbent_configuration_digest is not None:
+            digest_value(self.incumbent_configuration_digest, "incumbent configuration")
+        elif self.switch_body_bytes or self.minimum_switch_improvement_fraction:
+            raise NetworkError("switch costs and hysteresis require an incumbent")
+        if self.switch_body_bytes and (not self.objectives or self.objectives[0] != "horizon_accounted_body_bytes"):
+            raise NetworkError("body switching costs require a horizon-body primary objective")
         strings(self.objectives, "objectives", choices=OBJECTIVES)
         finite(self.minimum_remote_mac_fraction, "minimum_remote_mac_fraction")
         if self.minimum_remote_mac_fraction > 1 or self.remote_mac_denominator not in {
@@ -135,7 +148,8 @@ class PlanningPolicy(PublicRecord):
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningPolicy:
-        data = cls._fields({"reuse_horizon": 1, **value})
+        data = cls._fields({"reuse_horizon": 1, "incumbent_configuration_digest": None,
+                           "switch_body_bytes": 0, "minimum_switch_improvement_fraction": 0.0, **value})
         if type(data["objectives"]) is not list:
             raise NetworkError("objectives must be an array")
         data["objectives"] = tuple(data["objectives"])
@@ -145,6 +159,10 @@ class PlanningPolicy(PublicRecord):
         value = super(PlanningPolicy, self).to_spec()
         if self.reuse_horizon == 1:
             value.pop("reuse_horizon")
+        for name, default in (("incumbent_configuration_digest", None), ("switch_body_bytes", 0),
+                              ("minimum_switch_improvement_fraction", 0.0)):
+            if getattr(self, name) == default:
+                value.pop(name)
         return value
 
 
@@ -229,6 +247,40 @@ class ArtifactCostEvidence(PublicRecord):
 
 
 @dataclass(frozen=True, slots=True)
+class ClientStateCostEvidence(PublicRecord):
+    """Client-local reuse assumption, never a cache hit or state-transfer authority.
+
+    Keep this record in client-side planning, outside discovery offers. It contains
+    neither tokens nor cache keys. Runtime revalidates actual private cache state.
+    """
+
+    SCHEMA = "pllm.client_state_cost_evidence.v1"
+    configuration_digest: str
+    model_plan_digest: str
+    source_lock_digest: str
+    client_party_id: str
+    reusable_prefill_rows: int
+    resident_bytes: int
+    state_basis: str = "completed-prefill"
+    origin: str = "estimate"
+    scope: str = "client-local-prefill-reuse"
+
+    def __post_init__(self):
+        for name in ("configuration_digest", "model_plan_digest", "source_lock_digest"):
+            digest_value(getattr(self, name), name, nonzero=True)
+        identity(self.client_party_id, "client_party_id")
+        integer(self.reusable_prefill_rows, "reusable_prefill_rows", minimum=1, maximum=4096)
+        integer(self.resident_bytes, "resident_bytes", minimum=1, maximum=256 << 20)
+        if (self.state_basis != "completed-prefill" or self.origin != "estimate"
+                or self.scope != "client-local-prefill-reuse"):
+            raise NetworkError("client state costs cannot authorize incremental state or claim measured execution")
+
+    @classmethod
+    def from_spec(cls, value):
+        return cls(**cls._fields(value))
+
+
+@dataclass(frozen=True, slots=True)
 class PlanningRequest(PublicRecord):
     SCHEMA = "pllm.planning_request.v1"
     model_plan: ModelPlan
@@ -237,6 +289,7 @@ class PlanningRequest(PublicRecord):
     source_lock_digest: str | None = None
     cost_evidence: tuple[CandidateCostEvidence, ...] = ()
     artifact_evidence: tuple[ArtifactCostEvidence, ...] = ()
+    state_evidence: tuple[ClientStateCostEvidence, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_plan, ModelPlan) or not isinstance(
@@ -270,6 +323,9 @@ class PlanningRequest(PublicRecord):
             ):
                 raise NetworkError("ModelPlan work bounds must match candidate budget exactly")
         unique = {item.configuration_digest(): item for item in self.candidates}
+        if (self.policy.incumbent_configuration_digest is not None
+                and self.policy.incumbent_configuration_digest not in unique):
+            raise NetworkError("incumbent must be an explicit candidate")
         object.__setattr__(self, "candidates", tuple(unique[key] for key in sorted(unique)))
         if type(self.cost_evidence) is not tuple or len(self.cost_evidence) > len(unique):
             raise NetworkError(
@@ -308,6 +364,30 @@ class PlanningRequest(PublicRecord):
             seen.add(evidence.configuration_digest)
         object.__setattr__(self, "artifact_evidence", tuple(sorted(
             self.artifact_evidence, key=lambda row: row.configuration_digest)))
+        if type(self.state_evidence) is not tuple or len(self.state_evidence) > len(unique):
+            raise NetworkError("state evidence must be bounded to one per candidate")
+        seen = set()
+        for evidence in self.state_evidence:
+            if not isinstance(evidence, ClientStateCostEvidence):
+                raise TypeError("state_evidence requires ClientStateCostEvidence")
+            candidate = unique.get(evidence.configuration_digest)
+            if (candidate is None or evidence.configuration_digest in seen
+                    or evidence.model_plan_digest != self.model_plan.digest
+                    or evidence.source_lock_digest != self.source_lock_digest
+                    or evidence.client_party_id != self.policy.client_party_id):
+                raise NetworkError("state evidence owner/source/plan/configuration mismatch")
+            profile = candidate.resolve()
+            if (not profile.prefix_cache_bytes
+                    or evidence.resident_bytes > profile.prefix_cache_bytes
+                    or evidence.reusable_prefill_rows > candidate.budget.max_input_tokens
+                    or profile.verification_component is not None
+                    or profile.client_runtime != "masked_transformer_v1"
+                    or candidate.pipeline.components.get("quantization") is None
+                    or candidate.pipeline.components["quantization"].params.get("causal_reduction") != "prefix_f32"):
+                raise NetworkError("state evidence requires bounded canonical prepared prefill reuse")
+            seen.add(evidence.configuration_digest)
+        object.__setattr__(self, "state_evidence", tuple(sorted(
+            self.state_evidence, key=lambda row: row.configuration_digest)))
         self.canonical_bytes()
 
     @property
@@ -329,11 +409,13 @@ class PlanningRequest(PublicRecord):
         }
         if self.artifact_evidence:
             result["artifact_evidence"] = [item.to_spec() for item in self.artifact_evidence]
+        if self.state_evidence:
+            result["state_evidence"] = [item.to_spec() for item in self.state_evidence]
         return result
 
     @classmethod
     def from_spec(cls, value: Mapping[str, Any]) -> PlanningRequest:
-        data = cls._fields({"artifact_evidence": [], **value})
+        data = cls._fields({"artifact_evidence": [], "state_evidence": [], **value})
         data["model_plan"] = ModelPlan(canonical(data["model_plan"]))
         if type(data["candidates"]) is not list:
             raise NetworkError("candidates must be an array")
@@ -347,6 +429,9 @@ class PlanningRequest(PublicRecord):
         if type(data["artifact_evidence"]) is not list:
             raise NetworkError("artifact_evidence must be an array")
         data["artifact_evidence"] = tuple(ArtifactCostEvidence.from_spec(item) for item in data["artifact_evidence"])
+        if type(data["state_evidence"]) is not list:
+            raise NetworkError("state_evidence must be an array")
+        data["state_evidence"] = tuple(ClientStateCostEvidence.from_spec(item) for item in data["state_evidence"])
         return cls(**data)
 
 
@@ -374,19 +459,29 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     workers = ["worker_a", "worker_b"] if "worker_a" in role_ids else ["inference"]
     rows = experiment.budget.max_input_tokens + experiment.budget.max_new_tokens - 1
     requests = experiment.budget.requests
+    state = next((row for row in request.state_evidence
+                  if row.configuration_digest == experiment.configuration_digest()), None)
+    reused_rows = state.reusable_prefill_rows if state is not None else 0
     edges: Counter[tuple[str, str, str]] = Counter()
     macs: Counter[str] = Counter()
     body_total = all_total = body_remote = all_remote = 0
     workspace = 0
     for stage, step in zip(stages, steps, strict=True):
         count = experiment.budget.max_new_tokens if stage.role == "lm_head" else rows
+        # Capacity must accommodate a miss and ordinary fallback; reuse is only
+        # a cost assumption, never permission to shrink live memory admission.
+        workspace = max(workspace, 4 * count * (stage.in_features + stage.out_features))
+        if stage.role == "lm_head":
+            if reused_rows == experiment.budget.max_input_tokens:
+                count -= 1  # Exact completed-prefill hit includes its logits.
+        else:
+            count -= reused_rows
         local = (
             client_only
             or step["executor"] == "client_linear"
             or stage.role == "token_lookup"
             or (stage.role == "lm_head" and not profile.remote_output_head)
         )
-        workspace = max(workspace, 4 * count * (stage.in_features + stage.out_features))
         if stage.role == "token_lookup":
             continue  # Lookup is not a matrix multiplication in the installed runtime.
         work = requests * count * stage.in_features * stage.out_features
@@ -424,6 +519,8 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         + (payload if role == "client" else workspace)
         for role, value in weights.items()
     }
+    if state is not None:
+        memory["client"] += state.resident_bytes
     online = sum(value for (*_, phase), value in edges.items() if phase == "online")
     prep = sum(value for (*_, phase), value in edges.items() if phase == "preprocessing")
     denominator = request.policy.remote_mac_denominator
@@ -453,6 +550,10 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         "setup_ms": None,
         "artifact_miss_bytes": None,
         "horizon_accounted_body_bytes": None,
+        **({"client_state_cost_evidence_digest": state.digest,
+            "client_state_scope": "assumed completed-prefill reuse; revalidated by client; no state migration",
+            "reused_prefill_rows_per_request": reused_rows,
+            "resident_client_state_bytes": state.resident_bytes} if state is not None else {}),
         "role_links": [
             {"source_role": a, "target_role": b, "phase": phase, "bytes": value}
             for (a, b, phase), value in sorted(edges.items())
@@ -558,9 +659,11 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
     reasons: Counter[tuple[str, str]] = Counter()
     alternatives = {}
     winner = None
-    best_key = None
+    best_key: tuple[Any, ...] | None = None
     assignments = candidates = feasible = 0
     exhaustive = True
+    incumbent = None
+    incumbent_key: tuple[Any, ...] | None = None
     snapshot_stale = (
         snapshot.expires_at_ms <= policy.evaluated_at_ms
         or snapshot.observed_at_ms > policy.evaluated_at_ms
@@ -689,6 +792,11 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                 reasons[(digest, f"NATIVE_ADMISSION:{exc}")] += 1
                 continue
             costs = _costs(base, assignment, snapshot, policy)
+            if policy.incumbent_configuration_digest is not None:
+                switch = policy.switch_body_bytes if digest != policy.incumbent_configuration_digest else 0
+                costs["switch_body_bytes"] = switch
+                if costs["horizon_accounted_body_bytes"] is not None:
+                    costs["horizon_accounted_body_bytes"] += switch
             rejection = _policy_rejection(costs, policy)
             if rejection:
                 reasons[(digest, rejection)] += 1
@@ -708,8 +816,19 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
             if best_key is None or key < best_key:
                 best_key = key
                 winner = (experiment, validated, canonical(costs))
+            if (digest == policy.incumbent_configuration_digest
+                    and (incumbent_key is None or key < incumbent_key)):
+                incumbent_key = key
+                incumbent = (experiment, validated, canonical(costs))
         if not exhaustive:
             break
+    held_incumbent = False
+    if (incumbent is not None and winner is not None and incumbent_key is not None
+            and best_key is not None and incumbent_key != best_key):
+        gain = float(incumbent_key[0]) - float(best_key[0])
+        if gain <= float(incumbent_key[0]) * policy.minimum_switch_improvement_fraction:
+            winner, best_key = incumbent, incumbent_key
+            held_incumbent = True
     status = "feasible" if winner is not None else ("infeasible" if exhaustive else "inconclusive")
     comparisons = tuple(
         {
@@ -718,7 +837,7 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
             "best_roles": [{"role_id": role, "party_id": party} for role, party in item["key"][-1]],
             "feasible_assignments": item["feasible_assignments"],
             "selected": item["key"] == best_key,
-            "reason": "selected"
+            "reason": ("SWITCH_HYSTERESIS" if held_incumbent else "selected")
             if item["key"] == best_key
             else "LEXICOGRAPHIC_SCORE_OR_STABLE_IDENTITY",
         }

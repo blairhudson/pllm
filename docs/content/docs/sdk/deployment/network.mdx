@@ -97,3 +97,25 @@ peer transfer is counted at one endpoint. These counters include service control
 ACKs and retransmissions; exclude telemetry, DNS, IPv6, cold checkpoint downloads
 and the host application API. Kernel offload and post-hook drops also prevent
 calling them complete physical wire bytes. Interface totals remain a separate scope.
+
+## Client-local reuse and switching
+
+[`ClientStateCostEvidence`](/sdk/reference/python/pllm/search/#clientstatecostevidence)
+can price a completed-prefill reuse assumption in a `PlanningRequest`. It binds
+configuration, semantic plan, source lock, client owner, row count and resident
+bytes. Only canonical `prefix_f32` prepared cache compositions qualify; incremental
+generated state does not. Keep these records client-side, outside discovery
+offers. They contain no tokens, cache keys, KV payloads or migration instruction.
+
+The planner subtracts assumed reused rows from work and links, prices retained
+state at the client, and keeps privacy/capacity admission intact. This is a cost
+estimate: opening a new execution does not transfer a live client's cache, and
+runtime must revalidate a real hit. A miss executes and pays for ordinary work.
+
+`PlanningPolicy(incumbent_configuration_digest=..., switch_body_bytes=...,
+minimum_switch_improvement_fraction=...)` prices configuration changes and can
+retain a feasible incumbent when primary-objective improvement is below the
+margin. Body switching costs require the horizon-body objective. An expired or
+incompatible incumbent cannot override admission; host reassignment and private
+state migration are not implemented by this policy. Omitting fields preserves
+existing policy/request identities. Unknown CPU/wire costs stay unknown.

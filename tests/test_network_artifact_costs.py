@@ -93,3 +93,15 @@ def test_missing_artifact_evidence_unknown_and_wrong_context_rejected(inputs):
         replace(inputs.policy, reuse_horizon=True)
     with pytest.raises(NetworkError):
         replace(original, origin="measured")
+
+
+def test_switch_body_cost_can_veto_short_horizon_but_amortizes(inputs):
+    cold = plan(inputs, snapshot=snapshot())
+    warm_policy = replace(inputs.policy, reuse_horizon=128,
+        incumbent_configuration_digest=cold.experiment.configuration_digest(), switch_body_bytes=1 << 30)
+    sticky = plan(replace(inputs, policy=warm_policy), snapshot=snapshot())
+    assert sticky.experiment == cold.experiment
+    cheaper = plan(replace(inputs, policy=replace(warm_policy, switch_body_bytes=1)), snapshot=snapshot())
+    assert cheaper.experiment.name == "attention"
+    assert cheaper.costs["switch_body_bytes"] == 1
+    assert PlanningRequest.from_spec(sticky.request.to_spec()) == sticky.request

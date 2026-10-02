@@ -930,3 +930,55 @@ def test_cli_static_snapshot_create_inspect_explain_validate_and_overwrite(tmp_p
     capsys.readouterr()
     assert PlanningResult.from_file(plan_path).status == "feasible"
     assert discover(NetworkSpec.from_file(network_path)).digest == snap.digest
+
+
+def test_client_state_costs_stay_client_local_and_plan_replays():
+    from pllm.quantization import SymmetricPerRow
+    from pllm.state import ClientPrefixReuse
+    from pllm.search import ClientStateCostEvidence
+
+    req = request(objectives=("online_all_link_body_bytes",))
+    candidate = replace(req.candidates[0], pipeline=MaskedLinearCpu(Model.tiny(),
+        quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+        cache=ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=3)))
+    req = replace(req, candidates=(candidate,), source_lock_digest="a" * 64)
+    cold = plan(req, snapshot=snapshot())
+    evidence = ClientStateCostEvidence(candidate.configuration_digest(), req.model_plan.digest,
+        req.source_lock_digest, "client", 2, 1024)
+    warm_request = replace(req, state_evidence=(evidence,))
+    warm = plan(warm_request, snapshot=cold.snapshot)
+    assert warm.costs["online_all_link_body_bytes"] * 2 == cold.costs["online_all_link_body_bytes"]
+    assert warm.costs["role_memory_estimates"]["client"] == cold.costs["role_memory_estimates"]["client"] + evidence.resident_bytes
+    assert assigned(warm)["client"] == "client"
+    assert "tokens" not in json.dumps(warm_request.to_spec()["state_evidence"])
+    assert PlanningRequest.from_spec(warm_request.to_spec()).digest == warm_request.digest
+    assert PlanningResult.from_spec(warm.to_spec(), request=warm_request, snapshot=cold.snapshot).digest == warm.digest
+    for invalid in (replace(evidence, client_party_id="a"),
+                    replace(evidence, source_lock_digest="b" * 64),
+                    replace(evidence, reusable_prefill_rows=4)):
+        with pytest.raises(NetworkError):
+            replace(req, state_evidence=(invalid,))
+    with pytest.raises(NetworkError, match="incremental"):
+        replace(evidence, state_basis="incremental")
+    with pytest.raises(NetworkError, match="measured"):
+        replace(evidence, origin="measurement")
+    constrained = replace(cold.snapshot, offers=tuple(
+        replace(row, max_memory_bytes=cold.costs["role_memory_estimates"]["client"] - 1)
+        if row.party_id == "client" else row for row in cold.snapshot.offers))
+    assert plan(warm_request, snapshot=constrained).status == "infeasible"
+
+
+def test_switch_hysteresis_keeps_only_feasible_incumbent():
+    req = request((MaskedLinearCpu, TwoOnlineOffsetCpu), objectives=("online_all_link_body_bytes",))
+    best = plan(req, snapshot=snapshot())
+    incumbent = next(row for row in req.candidates if row.configuration_digest() != best.experiment.configuration_digest())
+    sticky = replace(req, policy=replace(req.policy,
+        incumbent_configuration_digest=incumbent.configuration_digest(), minimum_switch_improvement_fraction=1.0))
+    kept = plan(sticky, snapshot=snapshot())
+    assert kept.experiment == incumbent
+    assert any(row["reason"] == "SWITCH_HYSTERESIS" for row in kept.to_spec()["alternatives"])
+    assert plan(replace(sticky, policy=replace(sticky.policy, minimum_switch_improvement_fraction=0.01)), snapshot=snapshot()).experiment == best.experiment
+    impossible = replace(snapshot(), offers=tuple(
+        replace(row, allowed_compositions=(best.experiment.pipeline.digest(),)) for row in snapshot().offers))
+    assert plan(sticky, snapshot=impossible).experiment == best.experiment
+    assert PlanningPolicy.from_spec(sticky.policy.to_spec()).digest == sticky.policy.digest
