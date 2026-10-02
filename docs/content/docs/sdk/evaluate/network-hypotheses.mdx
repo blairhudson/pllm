@@ -1,0 +1,64 @@
+---
+title: "Per-token network hypotheses"
+description: "Compiler-bound 100× budgets and native falsification controls for new private-inference methods."
+---
+
+[`TokenNetworkBudgetProbe`](/sdk/reference/python/pllm/metrics/#tokennetworkbudgetprobe)
+prices necessary interaction and material budgets from an admitted semantic
+schedule. `project(plan, composition, response_new_tokens=...,
+baseline_online_body_bytes=..., baseline_total_body_bytes=...)` retains prefill,
+executed rows, output feedback and unmeasured costs. Baselines must come from
+source/workload-matched evidence. A budget is not an execution plan.
+
+[`PublicPolynomialShiftRegression`](/sdk/reference/python/pllm/assurance/#publicpolynomialshiftregression)
+is a native leakage control for an exposed shifted polynomial. Caller must
+establish that complete coefficients are exposed; the attack does not apply
+directly to a worker's opaque coefficient shares.
+
+## Python SDK example
+
+```python
+from pllm.assurance import PublicPolynomialShiftRegression
+from pllm.metrics import TokenNetworkBudgetProbe
+
+budget = TokenNetworkBudgetProbe(reduction_factor=100, ring_bits=24)
+assert budget.reduction_factor == 100
+
+# Public fixture: G=g+a=18, U=u+b=12, a=11, b=3, L=256.
+witness = PublicPolynomialShiftRegression().evaluate(
+    masked_gate=18, masked_up=12,
+    coefficient_gu=234, coefficient_g2=(-3) % (1 << 24),
+)
+assert witness.up_value == 9
+assert witness.gate_residue == 7
+assert witness.gate_residue_bits == 23
+```
+
+API: [Network budget probes](/sdk/reference/python/pllm/metrics/#objects-and-signatures) and [assurance controls](/sdk/reference/python/pllm/assurance/#objects-and-signatures).
+
+## Bounded benchmark
+
+```sh
+.venv/bin/python scripts/probe_token_network_budget.py --output docs/evidence/token-network-hypotheses-qwen25-2026-10-02.json
+```
+
+The command uses cached pinned configuration and retained public numeric evidence,
+without importing weights. It checks 39+8/39+32 compiler commitments, computes
+per-response and per-generated-token budgets, preserves the separately scoped
+finite-difference decode estimate, and executes native leakage fixtures.
+
+For 39+32, the prepared control's 100× target is 1.135 MB online and 1.790 MB
+all-link covered bodies. The sampled 24-bit resident layout admits at most three
+full-width openings per row if all other work is free, or one after full-width
+client feedback. Existing declared attention/MLP sources require 48. These are
+layout-specific necessities, not universal impossibility results.
+
+The sparse-correction screen has 2.39% mean residual activity but 14.39% in the
+worst checked row. Ideal two-party tuples project 1.082/6.468 MB at observed
+mean/worst rates, plus 151.75 MB of hypothetical quartic core material.
+Positions, scales and capacity remain unprotected. No method earns admission.
+
+Numeric/cryptographic evaluation, frames and one-use material live in Rust;
+Python handles cost policy, SDK records and independent Torch oracles. See
+[projected polynomial experiments](/sdk/evaluate/projected-polynomial/) for the
+measured primitive and checkpoint-fidelity gate.

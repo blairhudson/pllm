@@ -28,7 +28,7 @@
   ],
   "code_sha256": {
     "python/pllm/runtime/polynomial_numeric_reference.py": "7e45fa47ee26cddcb11d296ff19cab14b667db5b4638b1b1718fa18998a251f1",
-    "scripts/probe_projected_polynomial_quality.py": "46910e6f942efbd51758c3f76fae77653c1754183835e6e20c97564ba1d2917f"
+    "scripts/probe_projected_polynomial_quality.py": "a8e6385491df45b18fa607e298ac063c9ae9e22a5e2b09de4c185eeda733c7e9"
   },
   "environment": {
     "python": "3.13.15",
@@ -64,6 +64,7 @@
       },
       "optimistic_quantized_residual": {
         "elements": 13191168,
+        "maximum_active_count": 2995,
         "maximum_active_fraction": 0.6157483458518982,
         "mean_active_fraction": 0.24752425259082442,
         "nonzero_code_corrections": 3265134,
@@ -87,6 +88,7 @@
       },
       "optimistic_quantized_residual": {
         "elements": 13191168,
+        "maximum_active_count": 4393,
         "maximum_active_fraction": 0.9031661152839661,
         "mean_active_fraction": 0.5669440340688557,
         "nonzero_code_corrections": 7478654,
@@ -135,6 +137,7 @@
       },
       "optimistic_quantized_residual": {
         "elements": 13191168,
+        "maximum_active_count": 3481,
         "maximum_active_fraction": 0.7156661152839661,
         "mean_active_fraction": 0.1865590674002484,
         "nonzero_code_corrections": 2460932,
@@ -183,6 +186,7 @@
       },
       "optimistic_quantized_residual": {
         "elements": 13191168,
+        "maximum_active_count": 700,
         "maximum_active_fraction": 0.14391447603702545,
         "mean_active_fraction": 0.023924644125523985,
         "nonzero_code_corrections": 315594,

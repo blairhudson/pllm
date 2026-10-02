@@ -34,6 +34,11 @@ or fails its numeric-quality gate.
 
 ### Priorities from existing evidence
 
+The [100× per-token track](NETWORK_IO_100X_RESEARCH.md) now derives explicit
+opening/material budgets and tests sparse exact correction and public polynomial
+handoff hypotheses. It retains fresh dealer costs and private support/capacity
+requirements; neither new construction earns whole-decoder admission.
+
 **New correlation design, 2026-10-02:** native coefficient derivation, constant
 projection and seeded shares jointly reduce bounded polynomial-numerator material
 4.56× (3.90× with peer openings), with exact modular outputs. Compiler-bound

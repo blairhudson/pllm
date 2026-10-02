@@ -424,6 +424,7 @@ from .network_probes import (
     ResidentQuadraticGateCostProbe,
 )
 from .projected_polynomial import ProjectedPolynomialCostProbe
+from .token_budget import TokenNetworkBudgetProbe
 
 __all__ = [
     "Accuracy",
@@ -438,6 +439,7 @@ __all__ = [
     "Metric",
     "Perplexity",
     "ProjectedPolynomialCostProbe",
+    "TokenNetworkBudgetProbe",
     "ReferenceAgreement",
     "ResidentMlpCostProbe",
     "ResidentFusedGateCostProbe",

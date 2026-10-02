@@ -1,5 +1,10 @@
 from typing import Any, Never, final
 
+def public_polynomial_shift_witness(
+    ring_bits: int, linear: int, masked_gate: int, masked_up: int,
+    coefficient_gu: int, coefficient_g2: int,
+) -> str: ...
+
 def projected_polynomial_probe(
     layout: str, ring_bits: int, rows: int, hidden: int, channels: int, outputs: int,
     gate: bytes, up: bytes, down: bytes, input: bytes, binding: bytes,

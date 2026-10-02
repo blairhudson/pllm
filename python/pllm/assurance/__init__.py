@@ -1,6 +1,7 @@
-"""Paper-derived assurance controls, separate from inference components."""
+"""Scoped assurance controls, separate from inference components."""
 
 from dataclasses import dataclass
+import json
 from typing import ClassVar, Sequence
 
 from pllm.components._planned import PendingComponent as PendingMethod, planned as pending
@@ -113,8 +114,64 @@ class PublicSubspaceMaskRegression:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class PublicPolynomialShiftWitness:
+    """Values exposed by complete public coefficients of a masked polynomial."""
+
+    ring_bits: int
+    gate_residue_bits: int
+    gate_residue: int
+    up_value: int
+
+
+@dataclass(frozen=True, slots=True)
+class PublicPolynomialShiftRegression:
+    """Attack an exposed shifted quadratic×up polynomial, not opaque party shares.
+
+    Caller must establish full coefficients c_GU=L-2a and c_G²=-b are exposed.
+    An inconsistent coefficient tuple is rejected; this is not a privacy proof.
+    """
+
+    ring_bits: int = 24
+
+    def __post_init__(self) -> None:
+        if type(self.ring_bits) is not int or self.ring_bits not in (8, 16, 24, 32, 64):
+            raise ValueError("polynomial shift regression requires a bounded power-of-two ring")
+
+    def evaluate(
+        self,
+        *,
+        masked_gate: int,
+        masked_up: int,
+        coefficient_gu: int,
+        coefficient_g2: int,
+        linear_coefficient: int = 256,
+    ) -> PublicPolynomialShiftWitness:
+        from pllm import _native
+
+        if any(
+            type(v) is not int or not 0 <= v < 1 << self.ring_bits
+            for v in (masked_gate, masked_up, coefficient_gu, coefficient_g2, linear_coefficient)
+        ):
+            raise ValueError("polynomial shift regression contains an invalid residue")
+        record = _native.public_polynomial_shift_witness(
+            self.ring_bits,
+            linear_coefficient,
+            masked_gate,
+            masked_up,
+            coefficient_gu,
+            coefficient_g2,
+        )
+        return PublicPolynomialShiftWitness(**json.loads(record))
+
+
 __all__ = [
-    "SubspaceLeakageRegression", "EustonVariantReview", "PrivateTransformerTaxonomy",
-    "WeightObfuscationRegression", "PublicSubspaceMaskRegression",
+    "SubspaceLeakageRegression",
+    "EustonVariantReview",
+    "PrivateTransformerTaxonomy",
+    "WeightObfuscationRegression",
+    "PublicSubspaceMaskRegression",
     "PublicSubspaceLeakageWitness",
+    "PublicPolynomialShiftWitness",
+    "PublicPolynomialShiftRegression",
 ]

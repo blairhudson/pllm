@@ -1,0 +1,238 @@
+{
+  "budgets": {
+    "32": {
+      "all_link_budget_bytes_per_executed_row": 25567.214285714286,
+      "all_link_bytes_per_gated_element_if_everything_else_free": 0.21901739211309523,
+      "amortized_all_link_budget_bytes_per_generated_token": 55928.28125,
+      "amortized_online_budget_bytes_per_generated_token": 35482.8125,
+      "assumed_ring_bits": 24,
+      "baseline_online_body_bytes": 113545024,
+      "baseline_total_body_bytes": 178970558,
+      "cold_source_distribution_bytes": null,
+      "complete_aggregate_compute": null,
+      "complete_cost_admitted": false,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "declared_independent_sources_per_row": 48,
+      "declared_source_opening_body_floor_bytes": 18063360,
+      "executed_rows": 70,
+      "full_width_client_feedback_scenario": {
+        "maximum_openings_per_row_after_feedback": 1,
+        "optimistic_body_bytes": 548352,
+        "remaining_online_body_budget_bytes": 587098,
+        "scope": "full-width input embedding shares and final hidden output shares; head/selection client-local; no framing"
+      },
+      "gated_elements": 8171520,
+      "generated_tokens": 32,
+      "input_tokens": 39,
+      "limitations": [
+        "Per-generated-token averages include prefill; marginal decode needs a separately matched cohort pair",
+        "Opening budget omits framing, nonlinear protocols, correlations, state conversions and control",
+        "Removing declared openings requires a new enforcing contract, not subtracting them from the report",
+        "Baseline amounts are caller-supplied body evidence; source/workload matching remains mandatory"
+      ],
+      "material_budget_if_online_budget_spent_bytes": 654255,
+      "maximum_full_width_openings_per_row_if_everything_else_free": 3,
+      "minimum_full_width_opening_bytes_per_row": 5376,
+      "online_budget_bytes_per_executed_row": 16220.714285714286,
+      "opening_floor_divided_by_online_budget": 15.908547272006693,
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "reduction_factor": 100,
+      "response_all_link_budget_bytes": 1789705,
+      "response_online_budget_bytes": 1135450,
+      "schedule_digest": "bf3bc2e91b6e95a8d0b9ac7eebfb2866a3b3b8c2fe4c2ff401dc625f130a0d5c",
+      "schema": "pllm.token_network_budget.v1",
+      "scope": "necessary body budgets from compiler dimensions, not executable protocol or full wire",
+      "whole_decoder_executable": false
+    },
+    "8": {
+      "all_link_budget_bytes_per_executed_row": 25400.847826086956,
+      "all_link_bytes_per_gated_element_if_everything_else_free": 0.21759224083476353,
+      "amortized_all_link_budget_bytes_per_generated_token": 146054.875,
+      "amortized_online_budget_bytes_per_generated_token": 92289.625,
+      "assumed_ring_bits": 24,
+      "baseline_online_body_bytes": 73831744,
+      "baseline_total_body_bytes": 116843966,
+      "cold_source_distribution_bytes": null,
+      "complete_aggregate_compute": null,
+      "complete_cost_admitted": false,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "declared_independent_sources_per_row": 48,
+      "declared_source_opening_body_floor_bytes": 11870208,
+      "executed_rows": 46,
+      "full_width_client_feedback_scenario": {
+        "maximum_openings_per_row_after_feedback": 1,
+        "optimistic_body_bytes": 290304,
+        "remaining_online_body_budget_bytes": 448013,
+        "scope": "full-width input embedding shares and final hidden output shares; head/selection client-local; no framing"
+      },
+      "gated_elements": 5369856,
+      "generated_tokens": 8,
+      "input_tokens": 39,
+      "limitations": [
+        "Per-generated-token averages include prefill; marginal decode needs a separately matched cohort pair",
+        "Opening budget omits framing, nonlinear protocols, correlations, state conversions and control",
+        "Removing declared openings requires a new enforcing contract, not subtracting them from the report",
+        "Baseline amounts are caller-supplied body evidence; source/workload matching remains mandatory"
+      ],
+      "material_budget_if_online_budget_spent_bytes": 430122,
+      "maximum_full_width_openings_per_row_if_everything_else_free": 2,
+      "minimum_full_width_opening_bytes_per_row": 5376,
+      "online_budget_bytes_per_executed_row": 16050.369565217392,
+      "opening_floor_divided_by_online_budget": 16.077386813523187,
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "reduction_factor": 100,
+      "response_all_link_budget_bytes": 1168439,
+      "response_online_budget_bytes": 738317,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.token_network_budget.v1",
+      "scope": "necessary body budgets from compiler dimensions, not executable protocol or full wire",
+      "whole_decoder_executable": false
+    }
+  },
+  "code_sha256": {
+    "crates/pllm-assurance/src/polynomial_shift.rs": "a939773628bdf89be89b08498cfddfed7125686b3faae351cf94160b4e115389",
+    "python/pllm/metrics/token_budget.py": "b3d95d413f8983eeb1e94f2c55b75022a5f9b179daea29ac6fbeb630dc4a4d18",
+    "scripts/probe_token_network_budget.py": "15119166a50285b9ffa57f52bf103fd7f4a5e77a356faff692f3256fcd9fb8a1"
+  },
+  "finite_difference_between_39_plus_8_and_39_plus_32": {
+    "all_link": {
+      "extra_output_tokens": 24,
+      "extra_recorded_bytes": 62126592,
+      "hundredfold_target_bytes_per_extra_output_token": 25886.08,
+      "recorded_bytes_per_extra_output_token": 2588608.0
+    },
+    "online": {
+      "extra_output_tokens": 24,
+      "extra_recorded_bytes": 39713280,
+      "hundredfold_target_bytes_per_extra_output_token": 16547.2,
+      "recorded_bytes_per_extra_output_token": 1654720.0
+    },
+    "scope": "finite difference of matched source/body response cohorts; not an isolated marginal-decode measurement"
+  },
+  "hundredfold_whole_decoder_admitted": false,
+  "public_polynomial_mask_handoff_hypothesis": {
+    "decision": "privacy_veto",
+    "native_witnesses": [
+      {
+        "cases": 64,
+        "exact_leakage_witnesses": 64,
+        "gate_bits_exposed": 7,
+        "ring_bits": 8,
+        "up_bits_exposed": 8
+      },
+      {
+        "cases": 64,
+        "exact_leakage_witnesses": 64,
+        "gate_bits_exposed": 15,
+        "ring_bits": 16,
+        "up_bits_exposed": 16
+      },
+      {
+        "cases": 64,
+        "exact_leakage_witnesses": 64,
+        "gate_bits_exposed": 23,
+        "ring_bits": 24,
+        "up_bits_exposed": 24
+      },
+      {
+        "cases": 64,
+        "exact_leakage_witnesses": 64,
+        "gate_bits_exposed": 31,
+        "ring_bits": 32,
+        "up_bits_exposed": 32
+      },
+      {
+        "cases": 64,
+        "exact_leakage_witnesses": 64,
+        "gate_bits_exposed": 63,
+        "ring_bits": 64,
+        "up_bits_exposed": 64
+      }
+    ],
+    "scope": "exposed full shifted coefficients leak inputs; no attack on opaque party-local shares"
+  },
+  "quality_evidence_sha256": "2198d22039045c8d6cb04653961beb92e50c5c06f1c5d544fe55204ccc2ec4b2",
+  "schema": "pllm.hundredfold_hypothesis_screen.v1",
+  "source": {
+    "activation_bits": 8,
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "configuration_digest": "cff25efde2ea4c9d8691572151bab5bdc422670103a334725e7c3c5158ee3069",
+    "input_tokens": 39,
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "pipeline_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+    "public_default_prompt_token_cohort_digest": "19e0ccffc29480aa183584bd478a9e95af2257f3334357a1c1b9579e08256d9e",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "separate_benchmark_prompt_digests": "per-invocation salted; exact default CLI prompt and pinned tokenizer identify the common cohort",
+    "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "token_cohort_digest_domain": "pllm.latent.token_cohort.v1\\0; signed IDs encoded as 4-byte unsigned little-endian integers",
+    "weight_bits": 8
+  },
+  "sparse_exact_residual_hypothesis": {
+    "1": {
+      "all_link_100x_budget_bytes": 1789705,
+      "decision_with_this_correlation_core": "veto",
+      "hypothetical_padding_capacity": 4393,
+      "known_combined_body_floor_at_mean_rate": 30145008,
+      "mean_rate_ideal_two_party_tuple_body_bytes": 25483920,
+      "missing": [
+        "private residual discovery and oblivious scatter",
+        "certified fixed traffic capacity",
+        "true dynamic scale and range computation",
+        "complete attention/norm/KV work",
+        "opaque cross-layer state, token feedback, control and framing"
+      ],
+      "observed_maximum_active_count": 4393,
+      "observed_mean_active_fraction": 0.5669440340688557,
+      "observed_worst_row_rate_ideal_two_party_tuple_body_bytes": 40592160,
+      "optimistic_seeded_polynomial_core_material_bytes": 4661088,
+      "position_bits": 13,
+      "public_worst_case_capacity_certificate": false,
+      "signed_delta_bits": 9,
+      "source_scope": "public reference trajectories with free true scale; different prompt cohort from cost controls"
+    },
+    "2": {
+      "all_link_100x_budget_bytes": 1789705,
+      "decision_with_this_correlation_core": "veto",
+      "hypothetical_padding_capacity": 3481,
+      "known_combined_body_floor_at_mean_rate": 62080128,
+      "mean_rate_ideal_two_party_tuple_body_bytes": 8389920,
+      "missing": [
+        "private residual discovery and oblivious scatter",
+        "certified fixed traffic capacity",
+        "true dynamic scale and range computation",
+        "complete attention/norm/KV work",
+        "opaque cross-layer state, token feedback, control and framing"
+      ],
+      "observed_maximum_active_count": 3481,
+      "observed_mean_active_fraction": 0.1865590674002484,
+      "observed_worst_row_rate_ideal_two_party_tuple_body_bytes": 32165280,
+      "optimistic_seeded_polynomial_core_material_bytes": 53690208,
+      "position_bits": 13,
+      "public_worst_case_capacity_certificate": false,
+      "signed_delta_bits": 9,
+      "source_scope": "public reference trajectories with free true scale; different prompt cohort from cost controls"
+    },
+    "4": {
+      "all_link_100x_budget_bytes": 1789705,
+      "decision_with_this_correlation_core": "veto",
+      "hypothetical_padding_capacity": 700,
+      "known_combined_body_floor_at_mean_rate": 152830368,
+      "mean_rate_ideal_two_party_tuple_body_bytes": 1081920,
+      "missing": [
+        "private residual discovery and oblivious scatter",
+        "certified fixed traffic capacity",
+        "true dynamic scale and range computation",
+        "complete attention/norm/KV work",
+        "opaque cross-layer state, token feedback, control and framing"
+      ],
+      "observed_maximum_active_count": 700,
+      "observed_mean_active_fraction": 0.023924644125523985,
+      "observed_worst_row_rate_ideal_two_party_tuple_body_bytes": 6468000,
+      "optimistic_seeded_polynomial_core_material_bytes": 151748448,
+      "position_bits": 13,
+      "public_worst_case_capacity_certificate": false,
+      "signed_delta_bits": 9,
+      "source_scope": "public reference trajectories with free true scale; different prompt cohort from cost controls"
+    }
+  }
+}

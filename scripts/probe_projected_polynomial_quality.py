@@ -142,6 +142,7 @@ def probe() -> dict:
             "nonzero_code_corrections": 0,
             "rows": 0,
             "maximum_active_fraction": 0.0,
+            "maximum_active_count": 0,
             "rows_at_most_one_percent_active": 0,
         }
         for name in candidates
@@ -174,6 +175,9 @@ def probe() -> dict:
                     row["rows"] += fractions.numel()
                     row["maximum_active_fraction"] = max(
                         row["maximum_active_fraction"], float(fractions.max())
+                    )
+                    row["maximum_active_count"] = max(
+                        row["maximum_active_count"], int(active.sum(dim=-1).max())
                     )
                     row["rows_at_most_one_percent_active"] += int((fractions <= 0.01).sum())
 

@@ -78,7 +78,12 @@ pub fn estimate(d: Dimensions, layout: Layout) -> Result<Cost, String> {
         .and_then(|v| v.checked_add(coefficient_bytes))
         .ok_or("polynomial cost overflow")?;
     let material_bytes = if layout == Layout::Seeded {
-        [HEADER + 64, HEADER + 32 + coefficient_bytes]
+        [
+            HEADER + 64,
+            (HEADER + 32)
+                .checked_add(coefficient_bytes)
+                .ok_or("polynomial cost overflow")?,
+        ]
     } else {
         [expanded; 2]
     };

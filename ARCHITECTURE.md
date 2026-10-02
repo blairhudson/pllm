@@ -391,6 +391,14 @@ polynomial at 0/8 prefill and decode selections; more flexible public per-channe
 quadratic fits reach only 6/8 and 5/8. Quartic reference-path residuals are sparse
 on average but have no private correction or public capacity certificate. The
 polynomial-only decoder construction remains closed.
+`TokenNetworkBudgetProbe` separately derives per-generated-token, executed-row,
+source-opening and material budgets from compiler dimensions. Its 100-fold
+39+32 body target leaves 1.135 MB online and 1.790 MB all-link; the checked
+24-bit resident layout could afford at most three full-width openings per row
+if everything else were free. `PublicPolynomialShiftRegression` executes a
+native leakage witness against exposed complete shifted coefficients, showing
+why opaque coefficient shares cannot be replaced by a public masked program.
+These are hypothesis tests, not admitted privacy or decoder protocols.
 
 The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
 native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client

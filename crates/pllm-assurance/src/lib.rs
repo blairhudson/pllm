@@ -9,6 +9,8 @@ use pllm_types::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+pub mod polynomial_shift;
+
 pub const ASSURANCE_REPORT_SCHEMA_VERSION: &str = "pllm.assurance_report.v1";
 pub const REPORT_ORIGIN: &str = "public_reference_fixtures_executed";
 pub const WEAKENED_FIXTURE_TARGET: &str = "deliberately_weakened_public_fixture";

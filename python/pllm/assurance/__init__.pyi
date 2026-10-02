@@ -1,5 +1,17 @@
 from pllm.components._planned import PendingComponent as PendingMethod
 
+class PublicPolynomialShiftWitness:
+    ring_bits: int
+    gate_residue_bits: int
+    gate_residue: int
+    up_value: int
+
+class PublicPolynomialShiftRegression:
+    ring_bits: int
+    def __init__(self, ring_bits: int = 24) -> None: ...
+    def evaluate(self, *, masked_gate: int, masked_up: int, coefficient_gu: int,
+                 coefficient_g2: int, linear_coefficient: int = 256) -> PublicPolynomialShiftWitness: ...
+
 class SubspaceLeakageRegression(PendingMethod): ...
 class EustonVariantReview(PendingMethod): ...
 class PrivateTransformerTaxonomy(PendingMethod): ...
