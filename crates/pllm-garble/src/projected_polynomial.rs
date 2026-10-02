@@ -44,6 +44,75 @@ pub struct Dimensions {
     pub ring_bits: u8,
 }
 
+/// Shape-only cost record. Passing this bound does not authorize issuance.
+pub struct Cost {
+    pub material_bytes: [usize; 2],
+    pub opening_bytes: [usize; 2],
+    pub dealer_matrix_macs: usize,
+    pub online_matrix_macs: usize,
+    pub offset_matrix_macs: usize,
+}
+
+pub fn estimate(d: Dimensions, layout: Layout) -> Result<Cost, String> {
+    if !matches!(d.ring_bits, 24 | 32 | 64)
+        || [d.rows, d.hidden, d.channels, d.outputs]
+            .iter()
+            .any(|v| !(1..=1 << 20).contains(v))
+    {
+        return Err("projected polynomial cost dimensions or ring are invalid".into());
+    }
+    let multiply = |a: usize, b: usize| {
+        a.checked_mul(b)
+            .ok_or_else(|| "polynomial cost overflow".to_string())
+    };
+    let channel_words = match layout {
+        Layout::Dense => 5 * d.channels,
+        Layout::Derived => 3 * d.channels,
+        _ => 2 * d.channels + d.outputs,
+    };
+    let word = usize::from(d.ring_bits / 8);
+    let source_bytes = multiply(multiply(d.rows, d.hidden)?, word)?;
+    let coefficient_bytes = multiply(multiply(d.rows, channel_words)?, word)?;
+    let expanded = HEADER
+        .checked_add(source_bytes)
+        .and_then(|v| v.checked_add(coefficient_bytes))
+        .ok_or("polynomial cost overflow")?;
+    let material_bytes = if layout == Layout::Seeded {
+        [HEADER + 64, HEADER + 32 + coefficient_bytes]
+    } else {
+        [expanded; 2]
+    };
+    if material_bytes.iter().any(|&v| v as u64 > 1u64 << 40) {
+        return Err("polynomial cost exceeds bounded body domain".into());
+    }
+    let gate_macs = multiply(multiply(d.rows, d.hidden)?, d.channels)?;
+    let down_macs = multiply(multiply(d.rows, d.outputs)?, d.channels)?;
+    let offset_matrix_macs = multiply(gate_macs, 4)?
+        .checked_add(multiply(down_macs, 2)?)
+        .ok_or("polynomial cost overflow")?;
+    let online_matrix_macs = offset_matrix_macs
+        .checked_add(if layout == Layout::Dense {
+            0
+        } else {
+            multiply(gate_macs, 4)?
+        })
+        .ok_or("polynomial cost overflow")?;
+    let dealer_matrix_macs = multiply(gate_macs, 2)?
+        .checked_add(if matches!(layout, Layout::Contracted | Layout::Seeded) {
+            down_macs
+        } else {
+            0
+        })
+        .ok_or("polynomial cost overflow")?;
+    Ok(Cost {
+        material_bytes,
+        opening_bytes: [HEADER + source_bytes; 2],
+        dealer_matrix_macs,
+        online_matrix_macs,
+        offset_matrix_macs,
+    })
+}
+
 /// Public immutable contract. No secret state and no Python dependency.
 pub struct Contract {
     dims: Dimensions,
@@ -113,15 +182,9 @@ impl Contract {
         }
     }
     pub fn material_sizes(&self) -> [usize; 2] {
-        if self.layout == Layout::Seeded {
-            [
-                HEADER + 64,
-                HEADER + 32 + self.dims.rows * self.coefficient_width() * self.word(),
-            ]
-        } else {
-            [HEADER + self.dims.rows * (self.dims.hidden + self.coefficient_width()) * self.word();
-                2]
-        }
+        estimate(self.dims, self.layout)
+            .expect("validated bounded contract")
+            .material_bytes
     }
     fn project(&self, which: usize, values: &[u64]) -> Result<Zeroizing<Vec<u64>>, String> {
         let result = if self.dims.ring_bits == 64 {

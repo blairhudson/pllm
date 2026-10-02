@@ -34,6 +34,16 @@ or fails its numeric-quality gate.
 
 ### Priorities from existing evidence
 
+**New correlation design, 2026-10-02:** native coefficient derivation, constant
+projection and seeded shares jointly reduce bounded polynomial-numerator material
+4.56× (3.90× with peer openings), with exact modular outputs. Compiler-bound
+39+8/39+32 gates also price a client-masked-input hypothesis and its extra seed
+channel. The optimistic 24-bit 39+32 cut has 18.20 MB online and 71.97 MB known
+all-link bodies, plus unimplemented numerics/control; body-matrix MACs already
+reach 1.962× the offset comparator. Wider rings raise material costs. This
+does not establish tenfold inference or numeric/compute admission. See
+[design, ablations and full cost caveats](docs/evidence/projected-polynomial-gates-2026-10-02.md).
+
 **Fresh-response gate, 2026-10-02:** compiler-bound 39+8/39+32 screens now evaluate
 25%, 50% and tenfold targets with both parties' bodies and explicit missing
 numeric/material/control obligations. Current quadratic-reference key compositions

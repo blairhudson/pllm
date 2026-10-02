@@ -41,6 +41,9 @@ def test_native_modular_oracle_with_wrap(bits, mode):
     actual = np.frombuffer(output, dtype="<u8").reshape(4, 3)
     np.testing.assert_array_equal(actual, expected.astype(np.uint64))
     measured = json.loads(metadata)
+    estimate = json.loads(_native.projected_polynomial_estimate(mode, bits, 4, 4, 9, 3))
+    assert estimate["material_bytes"] == measured["material_bytes"]
+    assert estimate["opening_bytes"] == measured["opening_bytes"]
     assert measured["backend"] == "rust-pllm-garble/pllm-core"
     assert measured["opening_bytes"][0] == measured["opening_bytes"][1]
     if mode == "seeded":
@@ -76,3 +79,55 @@ def test_native_boundary_rejects_invalid_requests(bad):
         args[10] = b"bad"
     with pytest.raises(ValueError):
         _native.projected_polynomial_probe(*args)
+
+
+@pytest.mark.rust
+def test_compiler_projection_keeps_complete_cost_and_numeric_gates_closed():
+    from pllm import Model, lower_model
+    from pllm.metrics import ProjectedPolynomialCostProbe
+    from pllm.profiles import MaskedLinearCpu
+    from pllm.quantization import SymmetricPerRow
+    from test_shared_resources import CONFIG
+
+    plan = lower_model(CONFIG, batch=1, max_input_tokens=39, max_new_tokens=8)
+    composition = MaskedLinearCpu(
+        Model.hf("Qwen/Qwen2.5-0.5B-Instruct"),
+        quantization=SymmetricPerRow(weight_bits=8, activation_bits=8),
+    )
+    dense = ProjectedPolynomialCostProbe(mode="dense").project(
+        plan, composition, response_new_tokens=8
+    )
+    seeded = ProjectedPolynomialCostProbe().project(plan, composition, response_new_tokens=8)
+    assert seeded["plan_digest"] == dense["plan_digest"] == plan.digest
+    assert all(layer["executed_rows"] == 46 for layer in seeded["layers"])
+    assert (
+        seeded["totals"]["material_a"] + seeded["totals"]["material_b"]
+        < dense["totals"]["material_a"]
+    )
+    assert seeded["totals"]["peer_a"] == dense["totals"]["peer_a"]
+    assert seeded["known_matrix_mac_ratio_to_offset"] > 1
+    for placement in seeded["placements"].values():
+        assert (
+            sum(edge["body_bytes"] for edge in placement["body_bytes_by_edge"])
+            == placement["known_all_link_body_bytes"]
+        )
+        assert placement["unknown_required_work"]
+        assert placement["complete_total_body_bytes"] is None
+        assert not placement["byte_admitted"]
+    with pytest.raises(ValueError, match="response|decode|bound"):
+        ProjectedPolynomialCostProbe().project(plan, composition, response_new_tokens=9)
+
+
+@pytest.mark.rust
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("seeded", 24, 0, 32, 128, 32),
+        ("seeded", 24, 1 << 21, 32, 128, 32),
+        ("seeded", 12, 1, 32, 128, 32),
+        ("seeded", 64, 1 << 20, 1 << 20, 1 << 20, 1 << 20),
+    ],
+)
+def test_native_cost_rejects_invalid_or_excessive_shapes(args):
+    with pytest.raises(ValueError):
+        _native.projected_polynomial_estimate(*args)

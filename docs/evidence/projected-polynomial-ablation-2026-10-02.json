@@ -30,7 +30,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 33956,
-      "evaluation_wall_seconds": 0.0003205,
+      "evaluation_wall_seconds": 0.000290791,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         45056,
@@ -38,7 +38,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001909167,
+      "issuance_wall_seconds": 0.001669541,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -47,7 +47,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "dense",
-      "native_call_process_cpu_seconds": 0.002359,
+      "native_call_process_cpu_seconds": 0.002199,
       "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
       "offline_body_bytes": 32338,
       "online_body_bytes": 1618,
@@ -58,6 +58,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 196608,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -90,7 +95,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 21668,
-      "evaluation_wall_seconds": 0.000339625,
+      "evaluation_wall_seconds": 0.000287625,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         28672,
@@ -98,7 +103,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001291708,
+      "issuance_wall_seconds": 0.001092916,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -107,7 +112,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "derived",
-      "native_call_process_cpu_seconds": 0.001752,
+      "native_call_process_cpu_seconds": 0.001446,
       "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
       "offline_body_bytes": 20050,
       "online_body_bytes": 1618,
@@ -118,6 +123,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -150,7 +160,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 17060,
-      "evaluation_wall_seconds": 0.000315792,
+      "evaluation_wall_seconds": 0.000267625,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -158,7 +168,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001009291,
+      "issuance_wall_seconds": 0.00084975,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -167,7 +177,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "contracted",
-      "native_call_process_cpu_seconds": 0.001405,
+      "native_call_process_cpu_seconds": 0.00118,
       "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
       "offline_body_bytes": 15442,
       "online_body_bytes": 1618,
@@ -178,6 +188,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -210,7 +225,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 8708,
-      "evaluation_wall_seconds": 0.001351667,
+      "evaluation_wall_seconds": 0.0009975,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -218,7 +233,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001166291,
+      "issuance_wall_seconds": 0.000851709,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -227,7 +242,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "seeded",
-      "native_call_process_cpu_seconds": 0.002607,
+      "native_call_process_cpu_seconds": 0.001912,
       "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
       "offline_body_bytes": 7090,
       "online_body_bytes": 1618,
@@ -238,6 +253,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -270,7 +290,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 45220,
-      "evaluation_wall_seconds": 0.00034675,
+      "evaluation_wall_seconds": 0.000287708,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         45056,
@@ -278,7 +298,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.002176792,
+      "issuance_wall_seconds": 0.001682125,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -287,7 +307,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "dense",
-      "native_call_process_cpu_seconds": 0.00262,
+      "native_call_process_cpu_seconds": 0.002035,
       "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
       "offline_body_bytes": 43090,
       "online_body_bytes": 2130,
@@ -298,6 +318,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 196608,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -330,7 +355,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 28836,
-      "evaluation_wall_seconds": 0.000500083,
+      "evaluation_wall_seconds": 0.00029275,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         28672,
@@ -338,7 +363,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001789875,
+      "issuance_wall_seconds": 0.001094625,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -347,7 +372,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "derived",
-      "native_call_process_cpu_seconds": 0.002389,
+      "native_call_process_cpu_seconds": 0.001447,
       "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
       "offline_body_bytes": 26706,
       "online_body_bytes": 2130,
@@ -358,6 +383,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -390,7 +420,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 22692,
-      "evaluation_wall_seconds": 0.000336375,
+      "evaluation_wall_seconds": 0.000279959,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -398,7 +428,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001009791,
+      "issuance_wall_seconds": 0.000879792,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -407,7 +437,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "contracted",
-      "native_call_process_cpu_seconds": 0.001453,
+      "native_call_process_cpu_seconds": 0.00122,
       "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
       "offline_body_bytes": 20562,
       "online_body_bytes": 2130,
@@ -418,6 +448,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -450,7 +485,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 11524,
-      "evaluation_wall_seconds": 0.001537959,
+      "evaluation_wall_seconds": 0.0010815,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -458,7 +493,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001045709,
+      "issuance_wall_seconds": 0.000835083,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -467,7 +502,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "seeded",
-      "native_call_process_cpu_seconds": 0.002659,
+      "native_call_process_cpu_seconds": 0.001924,
       "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
       "offline_body_bytes": 9394,
       "online_body_bytes": 2130,
@@ -478,6 +513,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -510,7 +550,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 90276,
-      "evaluation_wall_seconds": 0.000394709,
+      "evaluation_wall_seconds": 0.000343625,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         45056,
@@ -518,7 +558,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.002151958,
+      "issuance_wall_seconds": 0.001811625,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -527,7 +567,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "dense",
-      "native_call_process_cpu_seconds": 0.002579,
+      "native_call_process_cpu_seconds": 0.002218,
       "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
       "offline_body_bytes": 86098,
       "online_body_bytes": 4178,
@@ -538,6 +578,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 196608,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -570,7 +615,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 57508,
-      "evaluation_wall_seconds": 0.000418083,
+      "evaluation_wall_seconds": 0.000351083,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         28672,
@@ -578,7 +623,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.0013245,
+      "issuance_wall_seconds": 0.001166417,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -587,7 +632,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "derived",
-      "native_call_process_cpu_seconds": 0.001831,
+      "native_call_process_cpu_seconds": 0.001576,
       "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
       "offline_body_bytes": 53330,
       "online_body_bytes": 4178,
@@ -598,6 +643,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 65536,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -630,7 +680,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 45220,
-      "evaluation_wall_seconds": 0.000417958,
+      "evaluation_wall_seconds": 0.000318958,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -638,7 +688,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.001454,
+      "issuance_wall_seconds": 0.000946375,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -647,7 +697,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "contracted",
-      "native_call_process_cpu_seconds": 0.00174,
+      "native_call_process_cpu_seconds": 0.001332,
       "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
       "offline_body_bytes": 41042,
       "online_body_bytes": 4178,
@@ -658,6 +708,11 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     },
     {
@@ -690,7 +745,7 @@
       ],
       "channels": 128,
       "covered_all_link_body_bytes": 22788,
-      "evaluation_wall_seconds": 0.001243958,
+      "evaluation_wall_seconds": 0.001079,
       "exact_modular_parity": true,
       "expanded_array_storage_bytes_per_party": [
         22528,
@@ -698,7 +753,7 @@
       ],
       "full_wire_bytes": null,
       "hidden": 32,
-      "issuance_wall_seconds": 0.00106425,
+      "issuance_wall_seconds": 0.000874709,
       "limitations": [
         "No source import, private input delivery or output-share transport measured",
         "No protected fixed-point rounding, SiLU quality or complete-layer execution",
@@ -707,7 +762,7 @@
       ],
       "mask_expansion": "aes256-counter-domain-sha256-v1",
       "mode": "seeded",
-      "native_call_process_cpu_seconds": 0.002409,
+      "native_call_process_cpu_seconds": 0.001988,
       "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
       "offline_body_bytes": 18610,
       "online_body_bytes": 4178,
@@ -718,14 +773,19 @@
       "rows": 8,
       "schema": "pllm.projected_polynomial_cost_probe.v1",
       "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "structural_matrix_macs": {
+        "dealer_matrix_macs": 98304,
+        "online_both_parties_matrix_macs": 327680,
+        "two_offset_mlp_matrix_macs": 196608
+      },
       "whole_decoder_executable": false
     }
   ],
   "code_sha256": {
-    "crates/pllm-garble/src/projected_polynomial.rs": "bfb0c65bac8130dda92c8e4fe36c4d8539aa995a5d03b3b38c05451772b25638",
-    "crates/pllm-python/src/projected_polynomial.rs": "156027b7ab12830c3b48f23bf7e10f77c2187da585faf48c403a0afa2e849df2",
+    "crates/pllm-garble/src/projected_polynomial.rs": "5bfd74e857af2342b36e6baa23daad1de7184cfe622cd30e109ec67278e422da",
+    "crates/pllm-python/src/projected_polynomial.rs": "0928ce28ba28452ade3dbf184c0ccc1f437572c14830df40ec3426e5866e63be",
     "examples/benchmarks/projected_polynomial.py": "1ee54f292932c4d1d2f838648da1c21a33e9079328ffcfd3da64130e1b0bdef7",
-    "python/pllm/metrics/projected_polynomial.py": "788727bb8bb70dbe3486437bafe7b2cda3ab571055297dbce45ab4f1f667d526"
+    "python/pllm/metrics/projected_polynomial.py": "04a9046764cccbd49ce731d803e37f19939df59f29d79e1ddd82e9d81b42c45e"
   },
   "complete": true,
   "environment": {

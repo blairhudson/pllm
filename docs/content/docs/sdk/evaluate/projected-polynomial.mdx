@@ -88,6 +88,33 @@ those openings, covered bodies improve 3.90×. These are local numerator bodies,
 not a decoder or tenfold network result. Evidence:
 `docs/evidence/projected-polynomial-ablation-2026-10-02.json`.
 
+## Compiler-bound projection
+
+`probe.project(plan, composition, response_new_tokens=...)` derives every MLP
+shape and executed row from admitted semantic operators. The native estimator
+uses the same codecs and layout sizes as issuance. Fixture sizes configured on
+the probe apply only to `run()`; `project()` derives sizes from the plan. It
+retains unimplemented numeric, communication and compute obligations as unknown.
+
+```sh
+.venv/bin/python scripts/probe_region_contract_cost.py --max-output-tokens 8 --projected-polynomial
+.venv/bin/python scripts/probe_region_contract_cost.py --max-output-tokens 32 --projected-polynomial
+```
+
+These commands use the pinned public config in the existing shared Hub cache.
+They price resident MLP, client-attention MLP cuts, and a **non-executable**
+client-masked-input hypothesis. In that hypothesis the trusted client receives
+both one-use mask seeds on a separately charged dealer channel, then sends
+`x+r` to each worker instead of input shares followed by a peer opening.
+The client-seed channel is never sent to either worker. Independent transport,
+numeric contracts and full-decoder execution have not been implemented.
+
+Both online and all-link floors are tested against the prepared control; the
+related two-offset control has only recorded online-body scope. A smaller online
+floor cannot make one-use dealer material disappear. Structural matrix MACs
+also include the extra private-mask projections and dealer work; they are not
+interchangeable with a measured CPU cap.
+
 ## Model-admission gate
 
 The function is a polynomial **numerator**, with no intermediate rounding.

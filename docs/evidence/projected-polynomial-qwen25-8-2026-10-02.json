@@ -1,0 +1,3009 @@
+{
+  "body_fingerprint_from_control": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "cases": [
+    {
+      "client_attention_candidate_known_body_matrix_macs": 40516976640,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.2307692307692308,
+      "layer_provenance_sha256": "4dc1a15de39952f12c6700d6e7c95fb84edd6f983fd7c8b25c6d9ef6605d0790",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "dense",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 184914816,
+          "known_offline_body_bytes": 167050464,
+          "known_online_body_bytes": 17864352,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 178985232,
+          "known_offline_body_bytes": 167075664,
+          "known_online_body_bytes": 11909568,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 83525232,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 173005248,
+          "known_offline_body_bytes": 167050464,
+          "known_online_body_bytes": 5954784,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 24,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 2977392,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 2977392,
+        "dealer_macs": 9622781952,
+        "material_a": 83525232,
+        "material_b": 83525232,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 28868345856,
+        "peer_a": 2977392,
+        "peer_b": 2977392
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 59762540544,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.8153846153846154,
+      "layer_provenance_sha256": "0d4d1f2162e38a99211ca4efc87e0954b6ced3dc72b1b781645098e4e59301f8",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "derived",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 120476544,
+          "known_offline_body_bytes": 102612192,
+          "known_online_body_bytes": 17864352,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 114546960,
+          "known_offline_body_bytes": 102637392,
+          "known_online_body_bytes": 11909568,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 51306096,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 108566976,
+          "known_offline_body_bytes": 102612192,
+          "known_online_body_bytes": 5954784,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 24,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 2977392,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 2977392,
+        "dealer_macs": 9622781952,
+        "material_a": 51306096,
+        "material_b": 51306096,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 2977392,
+        "peer_b": 2977392
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "0441a6a9d28bbf283b88d7385f30865fb9b2b6aacd314ea1c3c968b80b8922be",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "contracted",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 94192512,
+          "known_offline_body_bytes": 76328160,
+          "known_online_body_bytes": 17864352,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 88262928,
+          "known_offline_body_bytes": 76353360,
+          "known_online_body_bytes": 11909568,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 38164080,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 82282944,
+          "known_offline_body_bytes": 76328160,
+          "known_online_body_bytes": 5954784,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 24,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 2977392,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 2977392,
+        "dealer_macs": 14434172928,
+        "material_a": 38164080,
+        "material_b": 38164080,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 2977392,
+        "peer_b": 2977392
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "478d0a11060b453124b2560efde9deb3fa0eb7283b0c7dcdced0f22b70f06705",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "seeded",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 35204208,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 53093760,
+          "known_offline_body_bytes": 35229408,
+          "known_online_body_bytes": 17864352,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "inconclusive",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 35204208,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 47164176,
+          "known_offline_body_bytes": 35254608,
+          "known_online_body_bytes": 11909568,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "inconclusive",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 35204208,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 2977392,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 41184192,
+          "known_offline_body_bytes": 35229408,
+          "known_online_body_bytes": 5954784,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "inconclusive",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 24,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 2977392,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 2977392,
+        "dealer_macs": 14434172928,
+        "material_a": 25200,
+        "material_b": 35204208,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 2977392,
+        "peer_b": 2977392
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 40516976640,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.2307692307692308,
+      "layer_provenance_sha256": "9e29a54e2fe8ab16fbeb7c1ac3f77d0c06870f19f070f9684415c1cb2af4c1d8",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "dense",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 246526848,
+          "known_offline_body_bytes": 222727392,
+          "known_online_body_bytes": 23799456,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 238618896,
+          "known_offline_body_bytes": 222752592,
+          "known_online_body_bytes": 15866304,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 111363696,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 230660544,
+          "known_offline_body_bytes": 222727392,
+          "known_online_body_bytes": 7933152,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 32,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 3966576,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 3966576,
+        "dealer_macs": 9622781952,
+        "material_a": 111363696,
+        "material_b": 111363696,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 28868345856,
+        "peer_a": 3966576,
+        "peer_b": 3966576
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 59762540544,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.8153846153846154,
+      "layer_provenance_sha256": "e48407d55fe6f1add1950da0c1b09212d0ac183055eda4e9049bcc7ac7811af8",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "derived",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 160609152,
+          "known_offline_body_bytes": 136809696,
+          "known_online_body_bytes": 23799456,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 152701200,
+          "known_offline_body_bytes": 136834896,
+          "known_online_body_bytes": 15866304,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 68404848,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 144742848,
+          "known_offline_body_bytes": 136809696,
+          "known_online_body_bytes": 7933152,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 32,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 3966576,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 3966576,
+        "dealer_macs": 9622781952,
+        "material_a": 68404848,
+        "material_b": 68404848,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 3966576,
+        "peer_b": 3966576
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "d190e61ae65c111754a9fffe3803dc294c1101e87f1033c2e3124404eca5b3ff",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "contracted",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 125563776,
+          "known_offline_body_bytes": 101764320,
+          "known_online_body_bytes": 23799456,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 117655824,
+          "known_offline_body_bytes": 101789520,
+          "known_online_body_bytes": 15866304,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 50882160,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 109697472,
+          "known_offline_body_bytes": 101764320,
+          "known_online_body_bytes": 7933152,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 32,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 3966576,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 3966576,
+        "dealer_macs": 14434172928,
+        "material_a": 50882160,
+        "material_b": 50882160,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 3966576,
+        "peer_b": 3966576
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "aa680c6c3051329d35ffa53aaac8ad7b26d72dca08f437cd5628154d33cf6550",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "seeded",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 46933104,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 70757760,
+          "known_offline_body_bytes": 46958304,
+          "known_online_body_bytes": 23799456,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 46933104,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 62849808,
+          "known_offline_body_bytes": 46983504,
+          "known_online_body_bytes": 15866304,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 46933104,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 3966576,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 54891456,
+          "known_offline_body_bytes": 46958304,
+          "known_online_body_bytes": 7933152,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "inconclusive",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "inconclusive",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 32,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 3966576,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 3966576,
+        "dealer_macs": 14434172928,
+        "material_a": 25200,
+        "material_b": 46933104,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 3966576,
+        "peer_b": 3966576
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 40516976640,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.2307692307692308,
+      "layer_provenance_sha256": "28c60483d733ea8333cc6b6ae11efcedb5e98d9b663e13c07ba992518c7948d5",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "dense",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 492974976,
+          "known_offline_body_bytes": 445435104,
+          "known_online_body_bytes": 47539872,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 477153552,
+          "known_offline_body_bytes": 445460304,
+          "known_online_body_bytes": 31693248,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 222717552,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 461281728,
+          "known_offline_body_bytes": 445435104,
+          "known_online_body_bytes": 15846624,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 64,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 7923312,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 7923312,
+        "dealer_macs": 9622781952,
+        "material_a": 222717552,
+        "material_b": 222717552,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 28868345856,
+        "peer_a": 7923312,
+        "peer_b": 7923312
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 59762540544,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.8153846153846154,
+      "layer_provenance_sha256": "e5c5d95f22ad0564a47329b2a1b855fbb25ce8a84dace250e1a571dcfd1e7a37",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "derived",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 321139584,
+          "known_offline_body_bytes": 273599712,
+          "known_online_body_bytes": 47539872,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 305318160,
+          "known_offline_body_bytes": 273624912,
+          "known_online_body_bytes": 31693248,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 136799856,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 289446336,
+          "known_offline_body_bytes": 273599712,
+          "known_online_body_bytes": 15846624,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 64,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 7923312,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 7923312,
+        "dealer_macs": 9622781952,
+        "material_a": 136799856,
+        "material_b": 136799856,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 7923312,
+        "peer_b": 7923312
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "04d74e31468b71c534110331720f96b578911f52d6b187f15ec3e830d2d9033b",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "contracted",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 251048832,
+          "known_offline_body_bytes": 203508960,
+          "known_online_body_bytes": 47539872,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 235227408,
+          "known_offline_body_bytes": 203534160,
+          "known_online_body_bytes": 31693248,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 101754480,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 219355584,
+          "known_offline_body_bytes": 203508960,
+          "known_online_body_bytes": 15846624,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 64,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 7923312,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 7923312,
+        "dealer_macs": 14434172928,
+        "material_a": 101754480,
+        "material_b": 101754480,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 7923312,
+        "peer_b": 7923312
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    },
+    {
+      "client_attention_candidate_known_body_matrix_macs": 64573931520,
+      "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+      "input_tokens": 39,
+      "known_matrix_mac_ratio_to_offset": 1.9615384615384615,
+      "layer_provenance_sha256": "964194e383d2568d5a9097842a505c3eaf24554eecfa00094612545d4cce841e",
+      "matrix_mac_scope": "structural body projections, excludes head and nonlinear/crypto work; not CPU equivalence",
+      "mode": "seeded",
+      "numeric_scale_and_range_validated": false,
+      "placements": {
+        "client_attention_mlp_cut": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 93848688,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 141413760,
+          "known_offline_body_bytes": 93873888,
+          "known_online_body_bytes": 47539872,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "client_masked_mlp_cut_hypothesis": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 93848688,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 25200,
+              "destination": "client",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "client"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "client",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 125592336,
+          "known_offline_body_bytes": 93899088,
+          "known_online_body_bytes": 31693248,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "client mask-seed delivery and direct masked-input evaluator contract",
+            "client attention/norm/KV/head work"
+          ],
+          "whole_decoder_executable": false
+        },
+        "resident_mlp_only": {
+          "body_bytes_by_edge": [
+            {
+              "body_bytes": 25200,
+              "destination": "worker_a",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 93848688,
+              "destination": "worker_b",
+              "phase": "offline",
+              "source": "dealer"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_b",
+              "phase": "online",
+              "source": "worker_a"
+            },
+            {
+              "body_bytes": 7923312,
+              "destination": "worker_a",
+              "phase": "online",
+              "source": "worker_b"
+            }
+          ],
+          "byte_admitted": false,
+          "complete_total_body_bytes": null,
+          "known_all_link_body_bytes": 109720512,
+          "known_offline_body_bytes": 93873888,
+          "known_online_body_bytes": 15846624,
+          "prepared_reduction_gates": {
+            "25_percent": {
+              "all_link_budget_bytes": 87632974,
+              "decision": "veto",
+              "online_budget_bytes": 55373808
+            },
+            "50_percent": {
+              "all_link_budget_bytes": 58421983,
+              "decision": "veto",
+              "online_budget_bytes": 36915872
+            },
+            "tenfold": {
+              "all_link_budget_bytes": 11684396,
+              "decision": "veto",
+              "online_budget_bytes": 7383174
+            }
+          },
+          "unknown_required_work": [
+            "checkpoint scale/range certificate and Qwen SiLU fidelity",
+            "private dynamic quantization, ties-to-even rescaling and overflow rejection",
+            "independent trusted dealer transport, authenticated roles and failure handling",
+            "source distribution, cold storage, full wire, peak memory and aggregate CPU",
+            "attention, RMSNorm, KV state, token ingress and feedback"
+          ],
+          "whole_decoder_executable": false
+        }
+      },
+      "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+      "response_new_tokens": 8,
+      "ring_bits": 64,
+      "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+      "schema": "pllm.projected_polynomial_compiler_cost.v1",
+      "scope": "native structural costs projected onto compiler shapes; no decoder material issued",
+      "totals": {
+        "client_input_one_worker": 7923312,
+        "client_mask_seed_channel": 25200,
+        "client_output_one_worker": 7923312,
+        "dealer_macs": 14434172928,
+        "material_a": 25200,
+        "material_b": 93848688,
+        "offset_mlp_macs": 28868345856,
+        "online_macs": 48113909760,
+        "peer_a": 7923312,
+        "peer_b": 7923312
+      },
+      "two_offset_body_matrix_macs": 32920043520,
+      "whole_decoder_executable": false
+    }
+  ],
+  "code_sha256": {
+    "crates/pllm-garble/src/projected_polynomial.rs": "5bfd74e857af2342b36e6baa23daad1de7184cfe622cd30e109ec67278e422da",
+    "python/pllm/runtime/projected_polynomial_cost.py": "eb645feba75a0b162e612f5b3a1301ec5a105c59399f72c9d0a51e8a56028504",
+    "scripts/probe_region_contract_cost.py": "4e8b04dff524be5454aec3c792b3e5ea3c764b89c96e9886388590e0f5385e12"
+  },
+  "composition_digest": "bd91e1659773faabcbb998a350893cbbc6df313a830da7cb7bfb87463c8f0b36",
+  "input_tokens": 39,
+  "matched_prepared_covered_all_link_body_bytes": 116843966,
+  "matched_prepared_covered_online_body_bytes": 73831744,
+  "plan_digest": "d292d42933e35239655e2a2d09e7bb8ac3c0d29ceb3b96ddd5512836148c82b1",
+  "related_two_offset_control": null,
+  "response_new_tokens": 8,
+  "schedule_digest": "19d45c42975b80997c85b9c7bf4d594905e485588e7d8dce13b39de3bf478327",
+  "schema": "pllm.projected_polynomial_decoder_gate.v1",
+  "source": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "whole_decoder_executable": false
+}

@@ -8,6 +8,9 @@ import json
 import time
 from typing import Any
 
+from pllm.configuration import Pipeline
+from pllm.modeling import ModelPlan
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectedPolynomialCostProbe:
@@ -85,6 +88,16 @@ class ProjectedPolynomialCostProbe:
         )
         total_cpu = time.process_time_ns() - started
         measured = json.loads(metadata)
+        structural = json.loads(
+            _native.projected_polynomial_estimate(
+                self.mode,
+                self.ring_bits,
+                self.rows,
+                self.hidden,
+                self.channels,
+                self.outputs,
+            )
+        )
         g = x.astype(object) @ gate.astype(object).T
         u = x.astype(object) @ up.astype(object).T
         expected = (((g * g + 256 * g) * u) @ down.astype(object).T) % (1 << self.ring_bits)
@@ -135,6 +148,9 @@ class ProjectedPolynomialCostProbe:
             "online_body_bytes": opening_a + opening_b,
             "covered_all_link_body_bytes": sum(edge["body_bytes"] for edge in links),
             "native_call_process_cpu_seconds": total_cpu / 1e9,
+            "structural_matrix_macs": {
+                key: value for key, value in structural.items() if key.endswith("_macs")
+            },
             "exact_modular_parity": True,
             "whole_decoder_executable": False,
             "full_wire_bytes": None,
@@ -146,3 +162,17 @@ class ProjectedPolynomialCostProbe:
                 "Array storage is not peak memory; local timings are not distributed full-response compute",
             ],
         }
+
+    def project(
+        self, plan: ModelPlan, composition: Pipeline, *, response_new_tokens: int
+    ) -> dict[str, Any]:
+        """Price all MLP rows from a compiled plan, preserving unimplemented work."""
+        from pllm.runtime.projected_polynomial_cost import project_polynomial_cost
+
+        return project_polynomial_cost(
+            plan,
+            composition,
+            mode=self.mode,
+            ring_bits=self.ring_bits,
+            response_new_tokens=response_new_tokens,
+        )

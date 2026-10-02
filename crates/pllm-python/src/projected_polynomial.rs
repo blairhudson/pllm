@@ -8,6 +8,43 @@ use pyo3::{
 use serde_json::json;
 
 #[pyfunction]
+fn projected_polynomial_estimate(
+    mode: &str,
+    ring_bits: u8,
+    rows: usize,
+    hidden: usize,
+    channels: usize,
+    outputs: usize,
+) -> PyResult<String> {
+    let layout = match mode {
+        "dense" => Layout::Dense,
+        "derived" => Layout::Derived,
+        "contracted" => Layout::Contracted,
+        "seeded" => Layout::Seeded,
+        _ => return Err(invalid("unsupported projected polynomial layout".into())),
+    };
+    let cost = native::estimate(
+        Dimensions {
+            rows,
+            hidden,
+            channels,
+            outputs,
+            ring_bits,
+        },
+        layout,
+    )
+    .map_err(invalid)?;
+    Ok(json!({
+        "material_bytes": cost.material_bytes, "opening_bytes": cost.opening_bytes,
+        "dealer_matrix_macs": cost.dealer_matrix_macs,
+        "online_both_parties_matrix_macs": cost.online_matrix_macs,
+        "two_offset_mlp_matrix_macs": cost.offset_matrix_macs,
+        "scope": "structural modular numerator costs; no material issuance or tensor allocation",
+    })
+    .to_string())
+}
+
+#[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn projected_polynomial_probe<'py>(
     py: Python<'py>,
@@ -70,5 +107,6 @@ fn projected_polynomial_probe<'py>(
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(projected_polynomial_estimate, module)?)?;
     module.add_function(wrap_pyfunction!(projected_polynomial_probe, module)?)
 }
