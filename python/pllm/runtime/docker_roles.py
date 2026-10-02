@@ -12,6 +12,7 @@ from pathlib import Path
 import secrets
 import shutil
 import subprocess
+import time
 from urllib.parse import urlsplit
 
 from .servers import LocalTopology, TopologyError
@@ -91,9 +92,9 @@ class _Container:
 
 class DockerTopology(LocalTopology):
     __slots__ = ("_docker_image", "_docker_image_id", "_docker_network", "_docker_names", "_docker_mount",
-                 "_docker_hub", "_docker_blobs")
+                 "_docker_hub", "_docker_blobs", "_measurement_image", "_measurement_helpers", "_link_conditions")
 
-    def __init__(self, *args, docker_image=None, **kwargs):
+    def __init__(self, *args, docker_image=None, docker_network=None, **kwargs):
         super().__init__(*args, **kwargs)
         if self._privacy_mode not in {"public", "offset_public", "client_only"} or (
             self._correlation_mode != "bfv" or self._tenseal_path is not None
@@ -110,6 +111,12 @@ class DockerTopology(LocalTopology):
         self._docker_mount = None
         self._docker_hub = None
         self._docker_blobs = ()
+        from pllm.deployment import LinkConditions
+        if docker_network is not None and not isinstance(docker_network, LinkConditions):
+            raise TypeError("docker_network requires LinkConditions")
+        self._link_conditions = docker_network
+        self._measurement_helpers = {}
+        self._measurement_image = None
 
     def start(self):
         if self._started and not self._closed:
@@ -123,6 +130,16 @@ class DockerTopology(LocalTopology):
 
         try:
             self._docker_image, self._docker_image_id = ensure_image(self._docker_image)
+            definition = Path(__file__).with_name("Dockerfile.measurement")
+            if not definition.is_file():
+                raise TopologyError("Docker link measurement definition is missing from this installation")
+            digest = hashlib.sha256(self._docker_image_id.encode() + definition.read_bytes()).hexdigest()[:20]
+            self._measurement_image = "pllm-measurement:" + digest
+            try:
+                _docker(["image", "inspect", self._measurement_image])
+            except TopologyError:
+                _docker(["build", "--build-arg", "PLLM_RUNTIME_IMAGE=" + self._docker_image,
+                         "-f", str(definition), "-t", self._measurement_image, str(definition.parent)], timeout=600)
             source = resolve_model(self._model, cache_dir=self._hf_cache_dir)
             if source.path is None:
                 raise TopologyError("Docker roles require a resolved checkpoint")
@@ -212,7 +229,31 @@ class DockerTopology(LocalTopology):
                     environment={**os.environ, **allowed})
             process.created = True
             _docker(["start", name])
+        self._start_measurement(role, port)
         return process
+
+    def _start_measurement(self, role, port):
+        name = self._docker_names[role] + "-measurement"
+        helper = _Container(name, created=False)
+        self._measurement_helpers[role] = helper
+        data = {"port": port, "conditions": self._link_conditions.to_spec() if self._link_conditions else None}
+        _docker(["create", "--name", name, "--label", "pllm.benchmark=true",
+                 "--network", "container:" + self._docker_names[role], "--cap-drop=ALL",
+                 "--cap-add=NET_ADMIN", "--security-opt=no-new-privileges", "--pids-limit=32",
+                 "--env", "PLLM_LINK_MEASUREMENT", self._measurement_image],
+                environment={**os.environ, "PLLM_LINK_MEASUREMENT": json.dumps(data)})
+        helper.created = True
+        _docker(["start", name])
+        deadline = time.monotonic() + 15
+        while "READY" not in _docker(["logs", name]):
+            if helper.poll() is not None or time.monotonic() > deadline:
+                raise TopologyError("Linux link counters/shaping failed to initialize: " + _docker(["logs", name])[-800:])
+            time.sleep(0.1)
+        if role == "preparation":
+            address = _docker(["inspect", self._docker_names[role], "--format",
+                               "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"])
+            _docker(["exec", self._measurement_helpers["inference"].name,
+                     "/opt/pllm/.venv/bin/python", "-m", "pllm.runtime.docker_network", "--peer", address])
 
     @staticmethod
     def _stop(process):
@@ -230,17 +271,44 @@ class DockerTopology(LocalTopology):
 
     def resource_samples(self):
         samples = {}
+        links = {}
+        overhead = {}
         for role, process in self._processes.items():
             value = json.loads(_docker(["exec", process.name, "/opt/pllm/.venv/bin/python",
                                       "-m", "pllm.runtime.docker_role", "--sample"]))
             samples[role] = value
+            measure = json.loads(_docker(["exec", self._measurement_helpers[role].name,
+                                         "/opt/pllm/.venv/bin/python", "-m", "pllm.runtime.docker_network", "--sample"]))
+            overhead[role] = measure["measurement_resources"]
+            counters = measure["counters"]
+            links[f"client->{role}"] = counters["client_rx"]
+            links[f"{role}->client"] = counters["client_tx"]
+            if role == "inference" and "preparation" in self._role_ids:
+                links["preparation->inference"] = counters["peer_rx"]
+                links["inference->preparation"] = counters["peer_tx"]
         return {"schema": "pllm.docker_resources.v1", "image_id": self._docker_image_id,
-                "scope": "co-located-provider-containers", "roles": samples,
-                "full_wire_bytes": None}
+                 "scope": "co-located-provider-containers", "roles": samples,
+                 "directed_ip": {"scope": "IPv4-service-TCP-at-provider-eth0",
+                                 "links": links, "bytes": sum(row["bytes"] for row in links.values()),
+                                 "includes": "IP/TCP headers, ACKs, retransmissions, HTTP/control; no overlapping endpoint sum"},
+                 "measurement_helpers": overhead,
+                 "link_conditions": self._link_conditions.to_spec() if self._link_conditions else None,
+                 "shaping_scope": "provider-eth0-egress-only; includes telemetry egress",
+                 "full_wire_bytes": None}
 
     def close(self):
         try:
-            super().close()
+            failure = None
+            try:
+                for helper in self._measurement_helpers.values():
+                    try:
+                        helper.close()
+                    except Exception as error:
+                        failure = failure or error
+            finally:
+                super().close()
+            if failure is not None:
+                raise failure
         finally:
             if self._docker_network is not None:
                 if self._docker_network in _docker([

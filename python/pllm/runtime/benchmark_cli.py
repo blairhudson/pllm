@@ -417,6 +417,8 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
     ):
         return None
     sampling_key = (float(effective), sampling["mode"], None)
+    configuration = report.get("configuration", {})
+    transport_key = (configuration.get("provider_backend", "host"), configuration.get("link_conditions_digest"))
     if report.get("configuration", {}).get("prompt_sequence_digest") is not None:
         if len({run.get("model_fingerprint") for run in runs}) != 1:
             return None
@@ -429,6 +431,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             report["configuration"].get("warmup_prompt_digest"),
             report["configuration"]["prompt_sequence_digest"],
             sampling_key,
+            transport_key,
         )
     keys = {
         (
@@ -440,6 +443,7 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
             report.get("configuration", {}).get("warmup_prompt_digest"),
             report.get("configuration", {}).get("prompt_digest"),
             sampling_key,
+            transport_key,
         )
         for run in runs
     }
@@ -781,6 +785,7 @@ def _run_loopback_benchmark(
     capture_output_digest: bool = False,
     docker: bool = False,
     docker_image: str | None = None,
+    docker_network=None,
 ) -> dict[str, Any]:
     from .dashboard import _validate_output_digest_capture, _validate_request_temperature
 
@@ -902,6 +907,7 @@ def _run_loopback_benchmark(
         otel_token=_DASHBOARD_TOKEN,
         docker=docker,
         docker_image=docker_image,
+        docker_network=docker_network,
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
@@ -1070,11 +1076,12 @@ def _run_loopback_benchmark(
     report["client_body_placement"] = client_body_placement
     if docker:
         report["configuration"]["provider_backend"] = "docker"
+        report["configuration"]["link_conditions_digest"] = docker_network.digest if docker_network is not None else None
         report["docker_accounting"] = {
             "schema": "pllm.docker_benchmark_accounting.v1",
             "scope": "co-located Linux provider containers; host client",
             "cpu_scope": "cgroup lifetime CPU includes resource sampler",
-            "network_scope": "per-role kernel interface counters; health, OTLP, TCP/IP and peer traffic included",
+            "network_scope": "directed non-overlapping service IPv4/TCP counters plus separately scoped interface totals",
             "full_wire_bytes": None,
             "samples": docker_samples,
         }
@@ -1114,6 +1121,7 @@ def run_loopback_benchmark(
     capture_output_digest: bool = False,
     docker: bool = False,
     docker_image: str | None = None,
+    docker_network=None,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
@@ -1131,6 +1139,7 @@ def run_loopback_benchmark(
             experiment=experiment,
             docker=docker,
             docker_image=docker_image,
+            docker_network=docker_network,
             inventory_policy=inventory_policy,
             bundle_compression=bundle_compression,
             prefill_cache_mib=prefill_cache_mib,

@@ -6,8 +6,8 @@ description: "Separate static offers, authenticated observations, and explicit n
 [`NetworkSpec`](/sdk/reference/python/pllm/deployment/#networkspec) supports
 `backend="local"` static declarations and `backend="http"` authenticated discovery.
 Local declarations serialize as `pllm.network_spec.v1`; HTTP trust roots serialize
-as v2. The live role-host implementation currently admits CPU two-online-offset
-execution, not arbitrary remote graphs or GPU hosting.
+as v2. The live role-host implementation admits CPU two-online-offset and prepared
+Inference/Preparation execution. Other remote graphs and GPU hosting remain gated.
 
 `PartyOffer` is a static declaration with `authenticated=False`.
 `PartyTrust` approves a party/operator/origin and names a credential environment
@@ -23,7 +23,7 @@ service or credential is needed for this example.
 
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment, Model
-from pllm.deployment import NetworkSpec
+from pllm.deployment import LinkConditions, NetworkSpec
 from pllm.profiles import TwoOnlineOffsetCpu
 
 network = NetworkSpec.from_file("examples/networks/loopback.json")
@@ -41,6 +41,8 @@ assert tuple(party.credential_env for party in network.parties) == (
 assert experiment.to_spec()["schema"] == "pllm.experiment.v3"
 assert experiment.deployment.network_spec_digest == network.digest
 assert Experiment.from_spec(experiment.to_spec()) == experiment
+conditions = LinkConditions(latency_ms=10, bytes_per_second=12_500_000, loss_fraction=0.001)
+assert LinkConditions.from_spec(conditions.to_spec()).digest == conditions.digest
 ```
 
 API: [`pllm.deployment`](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
@@ -74,3 +76,24 @@ The [two-party fixture](https://github.com/blairhudson/pllm/blob/main/examples/n
 generates locked checkpoint and `PartySpec` files. Its
 [`two_party.py`](https://github.com/blairhudson/pllm/blob/main/examples/networks/two_party.py)
 run path discovers fresh offers before constructing a request.
+
+## Controlled local links
+
+[`LinkConditions`](/sdk/reference/python/pllm/deployment/#linkconditions) describes
+bounded provider-egress controls, not a measured offer: delay, bytes/second, seeded
+random loss. `build_roles(..., docker=True, docker_network=conditions)` applies
+Linux netem in each provider namespace through a separate measurement helper.
+The provider image remains minimal; only the helper holds network-administration
+capability and tools. Both images/containers are owned by the ordinary supervisor.
+
+Run `pllm benchmark run --docker --tiny --docker-network-profile examples/benchmarks/docker_link.json`
+from the repository root. Shaping is **provider-egress only**, also affecting
+provider telemetry; it is not a symmetric WAN model. Backend and profile digests
+must match before benchmark rankings are admitted.
+
+Reports separate helper CPU/memory from provider resource samples and conserve
+six directed prepared service links using IPv4/TCP kernel-hook counters. Each
+peer transfer is counted at one endpoint. These counters include service control,
+ACKs and retransmissions; exclude telemetry, DNS, IPv6, cold checkpoint downloads
+and the host application API. Kernel offload and post-hook drops also prevent
+calling them complete physical wire bytes. Interface totals remain a separate scope.

@@ -1,0 +1,8 @@
+ARG PLLM_RUNTIME_IMAGE
+FROM ${PLLM_RUNTIME_IMAGE}
+USER root
+RUN printf 'deb http://deb.debian.org/debian bookworm-backports main\n' > /etc/apt/sources.list.d/pllm-measurement.list \
+    && apt-get update && apt-get install -y --no-install-recommends nftables \
+    && apt-get install -y --no-install-recommends -t bookworm-backports iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/opt/pllm/.venv/bin/python", "-m", "pllm.runtime.docker_network"]

@@ -394,6 +394,7 @@ class DashboardConfig:
     capture_output_digest: bool = False
     docker: bool = False
     docker_image: str | None = None
+    docker_network: Any = None
 
     def __post_init__(self) -> None:
         _validate_request_temperature(self.temperature)
@@ -746,7 +747,8 @@ class DashboardRuntime:
                 telemetry_token=self.config.otel_token,
                 credential_prefix="dash",
                 progress=lambda role: self._set(startup_step=role),
-                **({"docker": True, "docker_image": self.config.docker_image} if self.config.docker else {}),
+                **({"docker": True, "docker_image": self.config.docker_image,
+                    "docker_network": self.config.docker_network} if self.config.docker else {}),
             )
             await asyncio.to_thread(self._topology.start)
             for status in self._topology.statuses:

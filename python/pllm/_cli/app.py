@@ -358,6 +358,7 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
     benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
+    benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
     benchmark_run.add_argument(
         "--factory",
         action="store_true",
@@ -889,12 +890,17 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     )
 
     try:
+        from pllm.deployment import LinkConditions
+        docker_network = (LinkConditions.from_file(args.docker_network_profile)
+                          if args.docker_network_profile else None)
+        if docker_network is not None and not args.docker:
+            raise ValueError("--docker-network-profile requires --docker")
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
         report: dict[str, Any] | None = None
         selected_experiments = [] if selection is not None else experiments or [None]
         if selection is not None:
-            if args.docker or args.docker_image:
+            if args.docker or args.docker_image or docker_network is not None:
                 raise ValueError("Docker starts local provider roles; selected network plans use their admitted hosts")
             from pllm.runtime.network_benchmark import run_network_benchmark
 
@@ -941,6 +947,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 ),
                 docker=args.docker,
                 docker_image=args.docker_image,
+                docker_network=docker_network,
             )
             if experiment is not None:
                 report["experiment"] = {

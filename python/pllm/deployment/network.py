@@ -344,6 +344,29 @@ class PartySpec(PublicRecord):
 
 
 @dataclass(frozen=True, slots=True)
+class LinkConditions(PublicRecord):
+    """Reproducible provider-egress controls, distinct from link observations."""
+    SCHEMA = "pllm.link_conditions.v1"
+    latency_ms: float = 0.0
+    bytes_per_second: int | None = None
+    loss_fraction: float = 0.0
+    seed: int = 42
+
+    def __post_init__(self):
+        finite(self.latency_ms, "latency_ms")
+        finite(self.loss_fraction, "loss_fraction")
+        if self.latency_ms > 5000 or self.loss_fraction > 0.25:
+            raise NetworkError("link conditions exceed delay/loss bounds")
+        integer(self.seed, "seed", minimum=1, maximum=(1 << 31) - 1)
+        if self.bytes_per_second is not None:
+            integer(self.bytes_per_second, "bytes_per_second", minimum=1024, maximum=1 << 40)
+
+    @classmethod
+    def from_spec(cls, value):
+        return cls(**cls._fields(value))
+
+
+@dataclass(frozen=True, slots=True)
 class LinkObservation(PublicRecord):
     SCHEMA = "pllm.directed_link_observation.v1"
     source_party_id: str

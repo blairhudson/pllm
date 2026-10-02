@@ -976,11 +976,14 @@ def build_roles(
     progress: Callable[[str], None] | None = None,
     docker: bool = False,
     docker_image: str | None = None,
+    docker_network=None,
 ) -> LocalTopology:
     if type(docker) is not bool:
         raise TypeError("docker must be a boolean")
     if docker_image is not None and not docker:
         raise ValueError("docker_image requires docker=True")
+    if docker_network is not None and not docker:
+        raise ValueError("docker_network requires docker=True")
     experiment = model if isinstance(model, Experiment) else None
     pipeline: Pipeline | None = None
     if experiment is not None:
@@ -1105,6 +1108,7 @@ def build_roles(
         from .docker_roles import DockerTopology
         topology_type = DockerTopology
         extra["docker_image"] = docker_image
+        extra["docker_network"] = docker_network
     return topology_type(
         model,
         model_id=resolved_id,

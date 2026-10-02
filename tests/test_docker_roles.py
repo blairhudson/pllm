@@ -69,10 +69,18 @@ def test_two_linux_roles_masked_request_samples_and_owned_cleanup(profile, tmp_p
         assert samples["full_wire_bytes"] is None
         assert set(samples["roles"]) == ({"worker_a", "worker_b"} if profile is TwoOnlineOffsetCpu
                                         else {"inference", "preparation"})
+        assert samples["directed_ip"]["bytes"] > 0
+        assert samples["directed_ip"]["bytes"] == sum(row["bytes"] for row in samples["directed_ip"]["links"].values())
+        for role in samples["roles"]:
+            assert samples["directed_ip"]["links"][f"client->{role}"]["bytes"] > 0
+            assert samples["directed_ip"]["links"][f"{role}->client"]["bytes"] > 0
+            assert samples["measurement_helpers"][role]["cpu_ns"] > 0
+        if profile is not TwoOnlineOffsetCpu:
+            assert samples["directed_ip"]["links"]["preparation->inference"]["bytes"] > 0
         for sample in samples["roles"].values():
             assert sample["cpu_ns"] > 0 and sample["memory_peak_bytes"] > 0
             assert sample["interfaces"]["eth0"]["rx_bytes"] > 0
-        names = tuple(topology._docker_names.values())
+        names = tuple(topology._docker_names.values()) + tuple(item.name for item in topology._measurement_helpers.values())
     for name in names:
         with pytest.raises(TopologyError):
             docker_roles._docker(["inspect", name, "--format", "{{.State.Status}}"])

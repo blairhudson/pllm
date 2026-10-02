@@ -1,0 +1,1155 @@
+{
+  "checks": {
+    "all_runs_completed": true,
+    "authoritative_token_usage": true,
+    "model_fingerprint_present": true,
+    "no_online_preparation_requests": true,
+    "no_plaintext_prompt_bytes_sent": true,
+    "no_plaintext_token_ids_sent": true,
+    "passed": true,
+    "sampling_matches_request": true
+  },
+  "client_body_placement": {
+    "client_body_i8_weight_bytes": 0,
+    "client_body_scale_bytes": 0,
+    "declared_body_linear_macs_per_row_client": 0,
+    "declared_body_linear_macs_per_row_remote": 9216,
+    "local_stage_count": 0,
+    "native_body_i8_snapshot_bytes": 0,
+    "peak_client_memory_bytes": null,
+    "remote_stage_count": 4,
+    "sample_boundary": "after-final-measured-response",
+    "schema": "pllm.client_body_placement.v1"
+  },
+  "configuration": {
+    "bundle_compression": "none",
+    "capture_output_digest": false,
+    "inventory_policy": "prewarm",
+    "link_conditions_digest": "a52205f232c43428edfe352845e402d07ebe4af02b335cadf06def8102e4d2b6",
+    "max_output_tokens": 2,
+    "model_id": "pllm-benchmark-tiny",
+    "prefill_cache_bound_tokens": null,
+    "prefill_cache_mib": 0,
+    "prefill_cache_mode": "exact",
+    "prompt_digest": "4e97f7a7d07077509dc4a8e7d45de85b3db2518538a515efa097aae3dec57498",
+    "prompt_sequence_digest": null,
+    "provider_backend": "docker",
+    "repetitions": 1,
+    "roles": [
+      "client",
+      "preparation",
+      "inference"
+    ],
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "source_lock_digest": "60aa151d984e2c51b4b3d23d4e89dff259591a44313fe1e6378ccfece936b54e",
+    "tiny": true,
+    "warmup_prompt_digest": "4e97f7a7d07077509dc4a8e7d45de85b3db2518538a515efa097aae3dec57498",
+    "warmups": 0
+  },
+  "docker_accounting": {
+    "cpu_scope": "cgroup lifetime CPU includes resource sampler",
+    "full_wire_bytes": null,
+    "network_scope": "directed non-overlapping service IPv4/TCP counters plus separately scoped interface totals",
+    "samples": {
+      "runs": [
+        {
+          "after": {
+            "directed_ip": {
+              "bytes": 311246,
+              "includes": "IP/TCP headers, ACKs, retransmissions, HTTP/control; no overlapping endpoint sum",
+              "links": {
+                "client->inference": {
+                  "bytes": 51673,
+                  "packets": 103
+                },
+                "client->preparation": {
+                  "bytes": 8531,
+                  "packets": 50
+                },
+                "inference->client": {
+                  "bytes": 134022,
+                  "packets": 113
+                },
+                "inference->preparation": {
+                  "bytes": 3295,
+                  "packets": 39
+                },
+                "preparation->client": {
+                  "bytes": 5836,
+                  "packets": 48
+                },
+                "preparation->inference": {
+                  "bytes": 107889,
+                  "packets": 54
+                }
+              },
+              "scope": "IPv4-service-TCP-at-provider-eth0"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:ba95c6f960b0d0677016a800302410d1e65ab3149c426b51c258c13e94cb37ec",
+            "link_conditions": {
+              "bytes_per_second": 12500000,
+              "latency_ms": 10,
+              "loss_fraction": 0.001,
+              "schema": "pllm.link_conditions.v1",
+              "seed": 42
+            },
+            "measurement_helpers": {
+              "inference": {
+                "cpu_ns": 738231000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 172916,
+                    "tx_bytes": 355419
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33746944,
+                "memory_peak_bytes": 35672064
+              },
+              "preparation": {
+                "cpu_ns": 673242000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 20494,
+                    "tx_bytes": 259550
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33648640,
+                "memory_peak_bytes": 34975744
+              }
+            },
+            "roles": {
+              "inference": {
+                "cpu_ns": 2376889000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 172916,
+                    "tx_bytes": 355419
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 101404672,
+                "memory_peak_bytes": 101404672
+              },
+              "preparation": {
+                "cpu_ns": 2304936000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 20166,
+                    "tx_bytes": 248822
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 97226752,
+                "memory_peak_bytes": 97476608
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "provider-eth0-egress-only; includes telemetry egress"
+          },
+          "before": {
+            "directed_ip": {
+              "bytes": 107302,
+              "includes": "IP/TCP headers, ACKs, retransmissions, HTTP/control; no overlapping endpoint sum",
+              "links": {
+                "client->inference": {
+                  "bytes": 4208,
+                  "packets": 40
+                },
+                "client->preparation": {
+                  "bytes": 4923,
+                  "packets": 35
+                },
+                "inference->client": {
+                  "bytes": 39454,
+                  "packets": 39
+                },
+                "inference->preparation": {
+                  "bytes": 1847,
+                  "packets": 21
+                },
+                "preparation->client": {
+                  "bytes": 3750,
+                  "packets": 33
+                },
+                "preparation->inference": {
+                  "bytes": 53120,
+                  "packets": 30
+                }
+              },
+              "scope": "IPv4-service-TCP-at-provider-eth0"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:ba95c6f960b0d0677016a800302410d1e65ab3149c426b51c258c13e94cb37ec",
+            "link_conditions": {
+              "bytes_per_second": 12500000,
+              "latency_ms": 10,
+              "loss_fraction": 0.001,
+              "schema": "pllm.link_conditions.v1",
+              "seed": 42
+            },
+            "measurement_helpers": {
+              "inference": {
+                "cpu_ns": 671576000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 64472,
+                    "tx_bytes": 117507
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34156544,
+                "memory_peak_bytes": 35672064
+              },
+              "preparation": {
+                "cpu_ns": 604478000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 11826,
+                    "tx_bytes": 118652
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33808384,
+                "memory_peak_bytes": 34975744
+              }
+            },
+            "roles": {
+              "inference": {
+                "cpu_ns": 1993131000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 64472,
+                    "tx_bytes": 117507
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 100917248,
+                "memory_peak_bytes": 101240832
+              },
+              "preparation": {
+                "cpu_ns": 2010796000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 11826,
+                    "tx_bytes": 118652
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 97320960,
+                "memory_peak_bytes": 97476608
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "provider-eth0-egress-only; includes telemetry egress"
+          }
+        }
+      ],
+      "startup": {
+        "directed_ip": {
+          "bytes": 107302,
+          "includes": "IP/TCP headers, ACKs, retransmissions, HTTP/control; no overlapping endpoint sum",
+          "links": {
+            "client->inference": {
+              "bytes": 4208,
+              "packets": 40
+            },
+            "client->preparation": {
+              "bytes": 4923,
+              "packets": 35
+            },
+            "inference->client": {
+              "bytes": 39454,
+              "packets": 39
+            },
+            "inference->preparation": {
+              "bytes": 1847,
+              "packets": 21
+            },
+            "preparation->client": {
+              "bytes": 3750,
+              "packets": 33
+            },
+            "preparation->inference": {
+              "bytes": 53120,
+              "packets": 30
+            }
+          },
+          "scope": "IPv4-service-TCP-at-provider-eth0"
+        },
+        "full_wire_bytes": null,
+        "image_id": "sha256:ba95c6f960b0d0677016a800302410d1e65ab3149c426b51c258c13e94cb37ec",
+        "link_conditions": {
+          "bytes_per_second": 12500000,
+          "latency_ms": 10,
+          "loss_fraction": 0.001,
+          "schema": "pllm.link_conditions.v1",
+          "seed": 42
+        },
+        "measurement_helpers": {
+          "inference": {
+            "cpu_ns": 604974000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 64012,
+                "tx_bytes": 105835
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 33542144,
+            "memory_peak_bytes": 35672064
+          },
+          "preparation": {
+            "cpu_ns": 538295000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 11300,
+                "tx_bytes": 109617
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 33525760,
+            "memory_peak_bytes": 34693120
+          }
+        },
+        "roles": {
+          "inference": {
+            "cpu_ns": 1758015000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 64012,
+                "tx_bytes": 105835
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 100585472,
+            "memory_peak_bytes": 101146624
+          },
+          "preparation": {
+            "cpu_ns": 1776558000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 11038,
+                "tx_bytes": 100582
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 96960512,
+            "memory_peak_bytes": 97116160
+          }
+        },
+        "schema": "pllm.docker_resources.v1",
+        "scope": "co-located-provider-containers",
+        "shaping_scope": "provider-eth0-egress-only; includes telemetry egress"
+      },
+      "warmups": []
+    },
+    "schema": "pllm.docker_benchmark_accounting.v1",
+    "scope": "co-located Linux provider containers; host client"
+  },
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic record, not a canonical EvidenceReport",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "privacy_admission": null,
+  "process_cpu_accounting": {
+    "aggregate_cold_first_response_cpu_seconds": null,
+    "aggregate_startup_cpu_seconds": null,
+    "cold_first_response_cpu_seconds_by_role": null,
+    "full_response_compute_cap_checked": false,
+    "schema": "pllm.topology_process_cpu.v1",
+    "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+    "startup_cpu_seconds_by_role": null,
+    "unmeasured": [
+      "source resolution before dashboard startup, if any",
+      "accelerator compute, energy, and CPU after the first response",
+      "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+    ]
+  },
+  "runs": [
+    {
+      "cold": true,
+      "context_tokens": 66,
+      "durations": {
+        "full_seconds": 1.631733417,
+        "generation_seconds": 0.116581167,
+        "online_seconds": 0.413701458,
+        "preparation_seconds": 0.375254792,
+        "tokens_per_second": 8.577714786471471,
+        "transition_seconds": 0.6002945,
+        "ttft_seconds": 0.281397166
+      },
+      "failure": null,
+      "generation": {
+        "response_status": "incomplete"
+      },
+      "inventory": {
+        "burned": 0,
+        "consumed": 67,
+        "generated": 67,
+        "required": 67,
+        "reused": 0
+      },
+      "max_output_tokens": 2,
+      "model_fingerprint": "9f17d7ed2ca650281fa09ecd818fac995de21b17603a4d5e712adb0eb0be3c76",
+      "model_id": "pllm-benchmark-tiny",
+      "privacy": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 0,
+        "bundle_network_bytes": 0,
+        "correction_push_bytes": 52736,
+        "correction_push_ns": 105527249,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "inference_download_bytes": 52230,
+        "inference_server_ns": 11068585,
+        "inference_stage_calls": 8,
+        "inference_upload_bytes": 38376,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 53424,
+        "masked_online_upload_bytes": 39683,
+        "online_steps": 268,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 0,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 4,
+        "preparation_download_bytes": 347,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 268,
+        "preparation_server_ns": 4382042,
+        "preparation_upload_bytes": 412,
+        "public_context_bytes": 0,
+        "session_authorization_download_bytes": 44,
+        "session_authorization_upload_bytes": 336,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "processes": {
+        "client": {
+          "cpu_seconds": 0.239452,
+          "rss_peak_bytes": null
+        },
+        "inference": {
+          "cpu_seconds": 0.1200000000000001,
+          "rss_peak_bytes": 107376640
+        },
+        "preparation": {
+          "cpu_seconds": 0.040000000000000036,
+          "rss_peak_bytes": 107425792
+        }
+      },
+      "run_id": "bench-cc194b950e245c490a58729e7078fec7",
+      "sampling": {
+        "effective_temperature": 0.0,
+        "mode": "greedy",
+        "requested_temperature": 0.0,
+        "top_p": null
+      },
+      "schema_version": 3,
+      "status": "completed",
+      "timestamps": {
+        "finished_at_ns": 1790914810435959000,
+        "first_token_at_ns": 1790914810303659000,
+        "last_token_at_ns": 1790914810420229000,
+        "online_started_at_ns": 1790914810022258000,
+        "preparation_finished_at_ns": 1790914809421966000,
+        "preparation_started_at_ns": 1790914809046707000,
+        "started_at_ns": 1790914808804226000
+      },
+      "tokens": {
+        "authoritative": true,
+        "input_tokens": 66,
+        "output_tokens": 2,
+        "total_tokens": 68
+      },
+      "warm": false
+    }
+  ],
+  "schema_version": "pllm.loopback_benchmark.v1",
+  "scope": "single-host-loopback-diagnostic",
+  "summary": {
+    "accounted_setup_through_first_response_body_bytes": 217091,
+    "completed_runs": 1,
+    "median_covered_all_link_serialized_body_bytes": 144481,
+    "median_full_seconds": 1.631733417,
+    "median_online_all_link_serialized_body_bytes": 90606,
+    "median_online_seconds": 0.413701458,
+    "median_tokens_per_second": 8.577714786471471,
+    "median_ttft_seconds": 0.281397166,
+    "total_accounted_benchmark_body_bytes": 217091,
+    "total_output_tokens": 2,
+    "total_run_covered_all_link_serialized_body_bytes": 144481,
+    "total_run_full_seconds": 1.631733417,
+    "total_run_online_all_link_serialized_body_bytes": 90606
+  },
+  "topology_accounting": {
+    "runs": [
+      {
+        "aggregate_run_window_cpu_seconds": 0.39945200000000014,
+        "all_link_serialized_body_bytes": 144481,
+        "body_bytes_by_edge": [
+          {
+            "destination": "preparation",
+            "phase": "offline",
+            "serialized_body_bytes": 748,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "offline",
+            "serialized_body_bytes": 391,
+            "source": "preparation"
+          },
+          {
+            "destination": "inference",
+            "phase": "offline",
+            "serialized_body_bytes": 52736,
+            "source": "preparation"
+          },
+          {
+            "destination": "client",
+            "phase": "cold",
+            "serialized_body_bytes": 0,
+            "source": "inference"
+          },
+          {
+            "destination": "inference",
+            "phase": "online",
+            "serialized_body_bytes": 38376,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 52230,
+            "source": "inference"
+          }
+        ],
+        "client_serialized_body_bytes": 91745,
+        "full_response_compute_cap_checked": false,
+        "online_all_link_serialized_body_bytes": 90606,
+        "online_client_serialized_body_bytes": 90606,
+        "run_window_cpu_seconds_by_role": {
+          "client": 0.239452,
+          "inference": 0.1200000000000001,
+          "preparation": 0.040000000000000036
+        },
+        "schema": "pllm.topology_body_accounting.v1",
+        "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+        "total_wire_bytes": null,
+        "tracked_body_counter_set_present": true,
+        "unmeasured": [
+          "HTTP/TLS/WebSocket framing and control traffic",
+          "inference-to-preparation correction acknowledgements",
+          "duplicate or failed transport attempts not represented by client audit counters",
+          "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+          "GPU work, uninstrumented client work, and cold checkpoint distribution"
+        ]
+      }
+    ],
+    "stages": {
+      "runs": [
+        {
+          "body_bytes_by_stage_and_edge": {
+            "layers.0.mlp.down_proj": {
+              "client->inference": 14415,
+              "client->preparation": 103,
+              "inference->client": 6622,
+              "preparation->client": 84,
+              "preparation->inference": 6749
+            },
+            "layers.0.mlp.gate_up_proj": {
+              "client->inference": 7987,
+              "client->preparation": 103,
+              "inference->client": 25924,
+              "preparation->client": 87,
+              "preparation->inference": 26049
+            },
+            "layers.0.self_attn.o_proj": {
+              "client->inference": 7986,
+              "client->preparation": 103,
+              "inference->client": 6625,
+              "preparation->client": 87,
+              "preparation->inference": 6752
+            },
+            "layers.0.self_attn.qkv_proj": {
+              "client->inference": 7988,
+              "client->preparation": 103,
+              "inference->client": 13059,
+              "preparation->client": 89,
+              "preparation->inference": 13186
+            }
+          },
+          "expected_stage_body_bytes_by_edge": {
+            "client->inference": 38376,
+            "client->preparation": 412,
+            "inference->client": 52230,
+            "preparation->client": 347,
+            "preparation->inference": 52736
+          },
+          "measured_body_bytes_by_edge": {
+            "client->inference": 38376,
+            "client->preparation": 412,
+            "inference->client": 52230,
+            "preparation->client": 347,
+            "preparation->inference": 52736
+          },
+          "reconciled_with_protocol_bodies": true,
+          "schema": "pllm.prepared_stage_body_attribution.v1",
+          "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+          "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+          ]
+        }
+      ],
+      "startup": {
+        "body_bytes_by_stage_and_edge": {
+          "layers.0.mlp.down_proj": {
+            "client->preparation": 103,
+            "preparation->client": 84,
+            "preparation->inference": 6461
+          },
+          "layers.0.mlp.gate_up_proj": {
+            "client->preparation": 103,
+            "preparation->client": 87,
+            "preparation->inference": 24897
+          },
+          "layers.0.self_attn.o_proj": {
+            "client->preparation": 103,
+            "preparation->client": 87,
+            "preparation->inference": 6464
+          },
+          "layers.0.self_attn.qkv_proj": {
+            "client->preparation": 103,
+            "preparation->client": 89,
+            "preparation->inference": 12610
+          }
+        },
+        "expected_stage_body_bytes_by_edge": {
+          "client->inference": 0,
+          "client->preparation": 412,
+          "inference->client": 0,
+          "preparation->client": 347,
+          "preparation->inference": 50432
+        },
+        "measured_body_bytes_by_edge": {
+          "client->inference": 0,
+          "client->preparation": 412,
+          "inference->client": 0,
+          "preparation->client": 347,
+          "preparation->inference": 50432
+        },
+        "reconciled_with_protocol_bodies": true,
+        "schema": "pllm.prepared_stage_body_attribution.v1",
+        "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+        "unmeasured": [
+          "session authorization, bundle delivery and other bodies with no semantic stage",
+          "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+        ]
+      },
+      "warmups": []
+    },
+    "startup": {
+      "aggregate_run_window_cpu_seconds": null,
+      "all_link_serialized_body_bytes": 72610,
+      "body_bytes_by_edge": [
+        {
+          "destination": "preparation",
+          "phase": "offline",
+          "serialized_body_bytes": 748,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "offline",
+          "serialized_body_bytes": 391,
+          "source": "preparation"
+        },
+        {
+          "destination": "inference",
+          "phase": "offline",
+          "serialized_body_bytes": 50432,
+          "source": "preparation"
+        },
+        {
+          "destination": "client",
+          "phase": "cold",
+          "serialized_body_bytes": 21039,
+          "source": "inference"
+        },
+        {
+          "destination": "inference",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "inference"
+        }
+      ],
+      "client_serialized_body_bytes": 22178,
+      "full_response_compute_cap_checked": false,
+      "online_all_link_serialized_body_bytes": 0,
+      "online_client_serialized_body_bytes": 0,
+      "run_window_cpu_seconds_by_role": null,
+      "schema": "pllm.topology_body_accounting.v1",
+      "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+      "total_wire_bytes": null,
+      "tracked_body_counter_set_present": true,
+      "unmeasured": [
+        "HTTP/TLS/WebSocket framing and control traffic",
+        "inference-to-preparation correction acknowledgements",
+        "duplicate or failed transport attempts not represented by client audit counters",
+        "model import and checkpoint distribution before initial inventory",
+        "GPU work, uninstrumented client work, and cold checkpoint distribution"
+      ]
+    },
+    "warmups": []
+  },
+  "warmup_runs": []
+}

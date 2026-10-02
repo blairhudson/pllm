@@ -1618,6 +1618,7 @@ OBJECT_USER_GUIDES = {
     ("pllm.deployment", "LivePartyOffer"): "/sdk/deployment/network/",
     ("pllm.deployment", "NetworkSnapshot"): "/sdk/deployment/network/",
     ("pllm.deployment", "LinkObservation"): "/sdk/deployment/network/",
+    ("pllm.deployment", "LinkConditions"): "/sdk/deployment/network/",
     ("pllm.deployment", "discover"): "/sdk/deployment/network/",
     ("pllm.deployment", "async_discover"): "/sdk/deployment/network/",
     ("pllm.deployment", "ExecutionBinding"): "/sdk/deployment/execution/",

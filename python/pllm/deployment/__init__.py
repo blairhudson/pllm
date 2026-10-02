@@ -13,6 +13,7 @@ from pllm.deployment.role_placement import (
     RolePlacement,
 )
 from pllm.deployment.network import (
+    LinkConditions,
     LinkObservation,
     NetworkError,
     NetworkSnapshot,
@@ -42,6 +43,7 @@ __all__ = [
     "RolePlacement",
     "TeeFheTopology",
     "LinkObservation",
+    "LinkConditions",
     "NetworkError",
     "NetworkSnapshot",
     "NetworkSpec",

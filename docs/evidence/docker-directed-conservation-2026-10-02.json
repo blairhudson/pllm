@@ -1,0 +1,262 @@
+[
+  {
+    "application_bodies": 217091,
+    "conservation_passed": true,
+    "directed_links": {
+      "client->inference": {
+        "bytes": 51673,
+        "packets": 103
+      },
+      "client->preparation": {
+        "bytes": 8531,
+        "packets": 50
+      },
+      "inference->client": {
+        "bytes": 134022,
+        "packets": 113
+      },
+      "inference->preparation": {
+        "bytes": 3295,
+        "packets": 39
+      },
+      "preparation->client": {
+        "bytes": 5836,
+        "packets": 48
+      },
+      "preparation->inference": {
+        "bytes": 107889,
+        "packets": 54
+      }
+    },
+    "ip_above_body_bytes": 94155,
+    "measurement_helpers": {
+      "inference": {
+        "cpu_ns": 738231000,
+        "interfaces": {
+          "erspan0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "eth0": {
+            "rx_bytes": 172916,
+            "tx_bytes": 355419
+          },
+          "gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "gretap0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6tnl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "sit0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "tunl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          }
+        },
+        "memory_current_bytes": 33746944,
+        "memory_peak_bytes": 35672064
+      },
+      "preparation": {
+        "cpu_ns": 673242000,
+        "interfaces": {
+          "erspan0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "eth0": {
+            "rx_bytes": 20494,
+            "tx_bytes": 259550
+          },
+          "gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "gretap0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6tnl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "sit0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "tunl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          }
+        },
+        "memory_current_bytes": 33648640,
+        "memory_peak_bytes": 34975744
+      }
+    },
+    "report": "docker-directed-shaped-tiny-2026-10-02.json",
+    "scope": "non-overlapping IPv4/TCP kernel hooks; not complete physical wire",
+    "service_ip_hook_bytes": 311246
+  },
+  {
+    "application_bodies": 269702636,
+    "conservation_passed": true,
+    "directed_links": {
+      "client->inference": {
+        "bytes": 26749438,
+        "packets": 3448
+      },
+      "client->preparation": {
+        "bytes": 67843,
+        "packets": 359
+      },
+      "inference->client": {
+        "bytes": 183979214,
+        "packets": 4254
+      },
+      "inference->preparation": {
+        "bytes": 46600,
+        "packets": 734
+      },
+      "preparation->client": {
+        "bytes": 43123,
+        "packets": 399
+      },
+      "preparation->inference": {
+        "bytes": 59905019,
+        "packets": 1908
+      }
+    },
+    "ip_above_body_bytes": 1088601,
+    "measurement_helpers": {
+      "inference": {
+        "cpu_ns": 775250000,
+        "interfaces": {
+          "erspan0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "eth0": {
+            "rx_bytes": 86777795,
+            "tx_bytes": 184987814
+          },
+          "gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "gretap0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6tnl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "sit0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "tunl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          }
+        },
+        "memory_current_bytes": 31670272,
+        "memory_peak_bytes": 37310464
+      },
+      "preparation": {
+        "cpu_ns": 728706000,
+        "interfaces": {
+          "erspan0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "eth0": {
+            "rx_bytes": 158773,
+            "tx_bytes": 60790363
+          },
+          "gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "gretap0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6gre0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip6tnl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "ip_vti0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "sit0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          },
+          "tunl0": {
+            "rx_bytes": 0,
+            "tx_bytes": 0
+          }
+        },
+        "memory_current_bytes": 32018432,
+        "memory_peak_bytes": 33185792
+      }
+    },
+    "report": "docker-directed-qwen25-2026-10-02.json",
+    "scope": "non-overlapping IPv4/TCP kernel hooks; not complete physical wire",
+    "service_ip_hook_bytes": 270791237
+  }
+]

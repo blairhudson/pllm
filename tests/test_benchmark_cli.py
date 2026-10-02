@@ -732,6 +732,18 @@ def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
     assert report["winners"]["full_seconds"] is None
 
 
+@pytest.mark.parametrize("field,value", [("provider_backend", "docker"), ("link_conditions_digest", "shaped")])
+def test_transport_conditions_cannot_enter_unmatched_ranking(field, value):
+    first, second = _experiment("first", 1), _experiment("second", 4)
+    control, changed = _report(), _report()
+    changed["configuration"][field] = value
+    report = build_comparison_report([(first, control), (second, changed)])
+    assert not report["checks"]["matched_workload"]
+    assert report["rankings"]["full_seconds"] == []
+    control["configuration"][field] = value
+    assert build_comparison_report([(first, control), (second, changed)])["checks"]["matched_workload"]
+
+
 def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path: Path) -> None:
     from pllm.cli import main
     from pllm.runtime import benchmark_cli
