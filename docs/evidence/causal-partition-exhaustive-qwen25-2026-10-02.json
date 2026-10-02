@@ -1,0 +1,1471 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "canonical_passed": true,
+  "cohort_digest": "d1427768b847136c6e9a28fed6367c2a6decf7e506b145aa1918e4a723b14e61",
+  "input_tokens": [
+    12,
+    29,
+    50
+  ],
+  "samples": [
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 0,
+      "max_abs_logit_difference": 1.449540138244629,
+      "mode": "legacy",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 0,
+      "max_abs_logit_difference": 1.4383156299591064,
+      "mode": "legacy",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 0,
+      "max_abs_logit_difference": 1.0098423957824707,
+      "mode": "legacy",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 0,
+      "max_abs_logit_difference": 1.0098423957824707,
+      "mode": "legacy",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.667898416519165,
+      "mode": "legacy",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.667898416519165,
+      "mode": "legacy",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.667898416519165,
+      "mode": "legacy",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.775343418121338,
+      "mode": "legacy",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.775343418121338,
+      "mode": "legacy",
+      "partition": 12
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.775343418121338,
+      "mode": "legacy",
+      "partition": 13
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.775343418121338,
+      "mode": "legacy",
+      "partition": 14
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.775343418121338,
+      "mode": "legacy",
+      "partition": 15
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 16
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 17
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 18
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 19
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 20
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 21
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.6077423095703125,
+      "mode": "legacy",
+      "partition": 22
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.6077423095703125,
+      "mode": "legacy",
+      "partition": 23
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 24
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 25
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 26
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 27
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 28
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 1,
+      "max_abs_logit_difference": 1.954115629196167,
+      "mode": "legacy",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 4.76837158203125e-06,
+      "mode": "legacy",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.8958301544189453,
+      "mode": "legacy",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.8958301544189453,
+      "mode": "legacy",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.8958301544189453,
+      "mode": "legacy",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 4.76837158203125e-06,
+      "mode": "legacy",
+      "partition": 12
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 4.76837158203125e-06,
+      "mode": "legacy",
+      "partition": 13
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.1842743158340454,
+      "mode": "legacy",
+      "partition": 14
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.1828041076660156,
+      "mode": "legacy",
+      "partition": 15
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 16
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 17
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.6267266273498535,
+      "mode": "legacy",
+      "partition": 18
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.1770846843719482,
+      "mode": "legacy",
+      "partition": 19
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 20
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.2024650573730469,
+      "mode": "legacy",
+      "partition": 21
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.8958306312561035,
+      "mode": "legacy",
+      "partition": 22
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.8837989568710327,
+      "mode": "legacy",
+      "partition": 23
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 24
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.7962841987609863,
+      "mode": "legacy",
+      "partition": 25
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.735954761505127,
+      "mode": "legacy",
+      "partition": 26
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.735954761505127,
+      "mode": "legacy",
+      "partition": 27
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.423371434211731,
+      "mode": "legacy",
+      "partition": 28
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.423371434211731,
+      "mode": "legacy",
+      "partition": 29
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.423371434211731,
+      "mode": "legacy",
+      "partition": 30
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.423371434211731,
+      "mode": "legacy",
+      "partition": 31
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 32
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 33
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.1770846843719482,
+      "mode": "legacy",
+      "partition": 34
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.5911762714385986,
+      "mode": "legacy",
+      "partition": 35
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.591177225112915,
+      "mode": "legacy",
+      "partition": 36
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.518333911895752,
+      "mode": "legacy",
+      "partition": 37
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.7807472944259644,
+      "mode": "legacy",
+      "partition": 38
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.5640451908111572,
+      "mode": "legacy",
+      "partition": 39
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 40
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 41
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 4.76837158203125e-06,
+      "mode": "legacy",
+      "partition": 42
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 43
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 44
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 45
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 46
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 47
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 48
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 49
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "context_index": 2,
+      "max_abs_logit_difference": 1.381410837173462,
+      "mode": "legacy",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 0,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 12
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 13
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 14
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 15
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 16
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 17
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 18
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 19
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 20
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 21
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 22
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 23
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 24
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 25
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 26
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 27
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 28
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 1,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 2
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 3
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 5
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 7
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 8
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 9
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 10
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 12
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 13
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 14
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 15
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 16
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 17
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 18
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 19
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 20
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 21
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 22
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 23
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 24
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 25
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 26
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 27
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 28
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 29
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 30
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 31
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 32
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 33
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 34
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 35
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 36
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 37
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 38
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 39
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 40
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 41
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 42
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 43
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 44
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 45
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 46
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 47
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 48
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": 49
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "context_index": 2,
+      "max_abs_logit_difference": 0.0,
+      "mode": "prefix_f32",
+      "partition": "teacher_fold"
+    }
+  ],
+  "schema": "pllm.causal_partition_gate.v2",
+  "scope": "local W8A8 numeric gate with explicit compiled prefix_f32 contract; no cache promotion",
+  "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7"
+}

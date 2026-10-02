@@ -13,9 +13,11 @@ and prepared Inference/Preparation roles, alongside local client-only execution.
 Compiler-bound batched continuation, shared KV blocks and exact public artifact
 delivery are now implemented. Legacy numeric mode retains the matching-prefill-extent
 gate. The explicit `SymmetricPerRow(causal_reduction="prefix_f32")` contract passes
-all split boundaries on generated checkpoints; the retained pinned report covers
-one 12-token context at four splits and teacher replay. Growing-width completed-prefill
-reuse is implemented, with broader real-checkpoint validation still required. Generated KV stays response-owned and cannot
+all split boundaries on generated checkpoints and 88 pinned boundaries plus three
+teacher replays over 12/29/50-token public contexts. The retained five-request
+SDK benchmark checks same-mode output/usage parity at eight and 32 output tokens;
+combined attention placement/reuse reduces covered setup-inclusive bodies by
+3.01x / 2.56x, not 10x. Generated KV stays response-owned and cannot
 enter ordinary fresh-cache keys. Explicit prior-response continuation remains available.
 Artifact placement switching reuses public objects, while one-use rows stay fresh.
 The real-shaped exact HE projection cost roughly 40 times prepared stage bodies

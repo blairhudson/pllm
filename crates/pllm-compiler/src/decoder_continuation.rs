@@ -30,7 +30,7 @@ impl DecoderContinuation {
     }
 
     /// Preflight includes independently restored prefix, geometrically allocated KV,
-    /// append views, and a conservative sum of every declared operator output.
+    /// append views, live scheduled outputs and bounded per-step scratch allowance.
     /// This is an owned-array admission bound, not measured RSS or a weight bound.
     pub fn admit(&self, prefix: u64, query: u64, memory_bytes: u64) -> Result<u64, String> {
         let total = prefix
@@ -207,19 +207,7 @@ pub fn lower_decoder_continuation(
         return Err("continuation state has no unique append producer".into());
     }
     schedule.state_inputs = graph.state_inputs.clone();
-    let working_bytes = graph.operations.iter().try_fold(0_u64, |sum, op| {
-        let elements = op
-            .output_shape
-            .iter()
-            .try_fold(1_u64, |n, dim| n.checked_mul(*dim))
-            .ok_or("continuation output geometry overflow")?;
-        sum.checked_add(
-            elements
-                .checked_mul(8)
-                .ok_or("continuation workspace overflow")?,
-        )
-        .ok_or("continuation workspace overflow")
-    })?;
+    let working_bytes = live_working_bytes(&schedule)?;
     let numeric: serde_json::Value = serde_json::from_slice(composition)
         .map_err(|e| format!("invalid continuation composition: {e}"))?;
     Ok(DecoderContinuation {
@@ -244,6 +232,66 @@ pub fn lower_decoder_continuation(
         graph,
         schedule,
     })
+}
+
+/// Mirrors the executor's step-input reference counting, including fused outputs.
+/// Views are charged as copies. Each live output is charged eight bytes per
+/// element; a step additionally receives eight four-byte output-sized scratch
+/// arrays. This bounds declared array ownership, not allocator/process RSS,
+/// immutable weights, tokenizers or cryptographic inventory storage.
+fn live_working_bytes(schedule: &DecoderRuntimePhaseSchedule) -> Result<u64, String> {
+    let mut remaining = std::collections::BTreeMap::<&str, u64>::new();
+    for input in schedule.steps.iter().flat_map(|step| &step.input_ids) {
+        *remaining.entry(input).or_default() += 1;
+    }
+    let mut live = std::collections::BTreeMap::<&str, u64>::new();
+    let mut resident = 0_u64;
+    let mut peak = 0_u64;
+    for step in &schedule.steps {
+        let mut scratch = 0_u64;
+        for output in &step.outputs {
+            let elements = output
+                .output_shape
+                .iter()
+                .try_fold(1_u64, |n, dim| n.checked_mul(*dim))
+                .ok_or("continuation output geometry overflow")?;
+            let bytes = elements
+                .checked_mul(8)
+                .ok_or("continuation resident output overflow")?;
+            if live.insert(&output.operation_id, bytes).is_some() {
+                return Err("continuation output is produced more than once".into());
+            }
+            resident = resident
+                .checked_add(bytes)
+                .ok_or("continuation live workspace overflow")?;
+            scratch = scratch
+                .checked_add(
+                    elements
+                        .checked_mul(32)
+                        .ok_or("continuation scratch overflow")?,
+                )
+                .ok_or("continuation step scratch overflow")?;
+        }
+        peak = peak.max(
+            resident
+                .checked_add(scratch)
+                .ok_or("continuation workspace overflow")?,
+        );
+        for input in &step.input_ids {
+            let count = remaining
+                .get_mut(input.as_str())
+                .ok_or("continuation input count missing")?;
+            *count -= 1;
+            if *count == 0 && input != &schedule.output {
+                if let Some(bytes) = live.remove(input.as_str()) {
+                    resident = resident
+                        .checked_sub(bytes)
+                        .ok_or("continuation liveness underflow")?;
+                }
+            }
+        }
+    }
+    Ok(peak)
 }
 
 pub fn decoder_continuation_bytes(
@@ -346,5 +394,33 @@ mod tests {
         let (mut plan, pipeline) = fixture();
         plan.decode.state_inputs[0].kind = StateKind::Recurrent;
         assert!(lower_decoder_continuation(&plan, &pipeline).is_err());
+    }
+
+    #[test]
+    fn workspace_keeps_branches_and_fused_outputs_until_last_consumer() {
+        let (plan, pipeline) = fixture();
+        let mut schedule = lower_decoder_continuation(&plan, &pipeline)
+            .unwrap()
+            .schedule;
+        schedule.steps.truncate(3);
+        for (step, id) in schedule.steps.iter_mut().zip(["a", "b", "c"]) {
+            step.outputs.truncate(1);
+            step.outputs[0].operation_id = id.into();
+            step.outputs[0].output_shape = vec![100];
+        }
+        schedule.output = "c".into();
+        schedule.steps[0].input_ids.clear();
+        schedule.steps[1].input_ids = vec!["a".into()];
+        schedule.steps[2].input_ids = vec!["b".into()];
+        assert_eq!(live_working_bytes(&schedule).unwrap(), 4800);
+        schedule.steps[2].input_ids.push("a".into());
+        assert_eq!(live_working_bytes(&schedule).unwrap(), 5600);
+        let mut fused = schedule.steps[1].outputs[0].clone();
+        fused.operation_id = "d".into();
+        schedule.steps[1].outputs.push(fused);
+        schedule.steps[2].input_ids.push("d".into());
+        assert_eq!(live_working_bytes(&schedule).unwrap(), 8800);
+        schedule.steps[0].outputs[0].output_shape = vec![u64::MAX];
+        assert!(live_working_bytes(&schedule).is_err());
     }
 }
