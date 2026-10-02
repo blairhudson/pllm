@@ -6,6 +6,14 @@ from pllm.modeling import ModelPlan
 
 class Metric(ComponentRef): ...
 
+class PrivatePageLookupProbe:
+    records: int
+    record_bytes: int
+    page_records: int
+    queries: int
+    def __init__(self, records: int = 64, record_bytes: int = 32, page_records: int = 1, queries: int = 3) -> None: ...
+    def run(self, table: bytes | None = None) -> dict[str, Any]: ...
+
 class Latency(Metric):
     descriptor: ComponentDescriptor
     def __init__(self, *, statistic: str = "median", phase: str = "online") -> None: ...

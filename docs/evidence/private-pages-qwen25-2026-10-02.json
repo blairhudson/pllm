@@ -1,0 +1,115 @@
+{
+  "cases": [
+    {
+      "body_bytes_per_query": 2706,
+      "client_cpu_seconds_per_query_median": 9.1e-05,
+      "client_online_table_bytes_required": 0,
+      "client_wire_and_returned_payload_bytes": 4506,
+      "exact_byte_parity": true,
+      "full_wire_bytes": null,
+      "layout_digest": "efa85e841ae3e07b7c76b67525d42e8db0ab8bbf2ec7dbf633f9486526d3a04f",
+      "limitations": [
+        "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+        "Process-local replay ledger; no authenticated transport or distributed restart contract",
+        "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+        "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+        "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+        "A tied local output head still needs the table until a separate head boundary is implemented",
+        "Source distribution, complete decoder compute and generation quality are unmeasured"
+      ],
+      "page_records": 1,
+      "peak_client_memory_bytes": null,
+      "public_table_scan_bytes_per_query_both_workers": 273484800,
+      "public_table_storage_bytes_per_worker": 136742400,
+      "queries": 3,
+      "record_bytes": 900,
+      "records": 151936,
+      "schema": "pllm.private_page_lookup_probe.v1",
+      "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+      "source_table_digest": "bbfdb0fa1cb17ace41f660fbe8c878f78c4e18e9f55dbc683172e4c609b15c7e",
+      "two_worker_table_admission_cpu_seconds": 0.935762,
+      "whole_decoder_executable": false,
+      "worker_cpu_seconds_per_query_median": [
+        0.389258,
+        0.389797
+      ]
+    },
+    {
+      "body_bytes_per_query": 15204,
+      "client_cpu_seconds_per_query_median": 8.7e-05,
+      "client_online_table_bytes_required": 0,
+      "client_wire_and_returned_payload_bytes": 23304,
+      "exact_byte_parity": true,
+      "full_wire_bytes": null,
+      "layout_digest": "283c46eae692d031a69583344544049e15be56bb969ecfd79e28966fd02b114b",
+      "limitations": [
+        "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+        "Process-local replay ledger; no authenticated transport or distributed restart contract",
+        "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+        "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+        "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+        "A tied local output head still needs the table until a separate head boundary is implemented",
+        "Source distribution, complete decoder compute and generation quality are unmeasured"
+      ],
+      "page_records": 8,
+      "peak_client_memory_bytes": null,
+      "public_table_scan_bytes_per_query_both_workers": 273484800,
+      "public_table_storage_bytes_per_worker": 136742400,
+      "queries": 3,
+      "record_bytes": 900,
+      "records": 151936,
+      "schema": "pllm.private_page_lookup_probe.v1",
+      "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+      "source_table_digest": "bbfdb0fa1cb17ace41f660fbe8c878f78c4e18e9f55dbc683172e4c609b15c7e",
+      "two_worker_table_admission_cpu_seconds": 0.921126,
+      "whole_decoder_executable": false,
+      "worker_cpu_seconds_per_query_median": [
+        0.052677,
+        0.052608
+      ]
+    },
+    {
+      "body_bytes_per_query": 58336,
+      "client_cpu_seconds_per_query_median": 8.5e-05,
+      "client_online_table_bytes_required": 0,
+      "client_wire_and_returned_payload_bytes": 88036,
+      "exact_byte_parity": true,
+      "full_wire_bytes": null,
+      "layout_digest": "a65c60b39294797ab65892232d2e4de9afe5900a6aeede7b26791da3e7e60e54",
+      "limitations": [
+        "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+        "Process-local replay ledger; no authenticated transport or distributed restart contract",
+        "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+        "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+        "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+        "A tied local output head still needs the table until a separate head boundary is implemented",
+        "Source distribution, complete decoder compute and generation quality are unmeasured"
+      ],
+      "page_records": 32,
+      "peak_client_memory_bytes": null,
+      "public_table_scan_bytes_per_query_both_workers": 273484800,
+      "public_table_storage_bytes_per_worker": 136742400,
+      "queries": 3,
+      "record_bytes": 900,
+      "records": 151936,
+      "schema": "pllm.private_page_lookup_probe.v1",
+      "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+      "source_table_digest": "bbfdb0fa1cb17ace41f660fbe8c878f78c4e18e9f55dbc683172e4c609b15c7e",
+      "two_worker_table_admission_cpu_seconds": 0.921081,
+      "whole_decoder_executable": false,
+      "worker_cpu_seconds_per_query_median": [
+        0.017417,
+        0.018309
+      ]
+    }
+  ],
+  "driver_sha256": "5eccb60eccb8605bcfe92dcfbe8c40c5934ba723c83c6f51a2d2c50623d3063e",
+  "schema": "pllm.private_page_boundary_benchmark.v1",
+  "source": {
+    "activation_bits": 8,
+    "head_weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "weight_bits": 8
+  }
+}

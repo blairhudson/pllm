@@ -424,6 +424,7 @@ from .network_probes import (
     ResidentQuadraticGateCostProbe,
 )
 from .projected_polynomial import ProjectedPolynomialCostProbe
+from .private_pages import PrivatePageLookupProbe
 from .token_budget import TokenNetworkBudgetProbe
 
 __all__ = [
@@ -439,6 +440,7 @@ __all__ = [
     "Metric",
     "Perplexity",
     "ProjectedPolynomialCostProbe",
+    "PrivatePageLookupProbe",
     "TokenNetworkBudgetProbe",
     "ReferenceAgreement",
     "ResidentMlpCostProbe",

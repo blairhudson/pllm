@@ -8,6 +8,7 @@ mod logrow;
 mod network;
 mod offset_transport;
 mod polynomial_shift;
+mod private_pages;
 mod projected_polynomial;
 
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
@@ -1647,6 +1648,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     logrow::register(module)?;
     projected_polynomial::register(module)?;
+    private_pages::register(module)?;
     offset_transport::register(module)?;
     polynomial_shift::register(module)?;
     network::register(module)?;

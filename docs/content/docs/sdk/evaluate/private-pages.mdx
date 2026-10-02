@@ -1,0 +1,73 @@
+---
+title: "Private vocabulary pages"
+description: "Measure exact two-server retrieval, client payloads and full provider scans."
+---
+
+`PrivatePageLookupProbe` tests a different token-boundary placement: two
+non-colluding workers retain an immutable public table, and the client retrieves
+one fixed-size page with fresh binary-tree distributed point-function keys.
+Each worker receives only its key share and returns an XOR share of the page.
+The client alone selects a record within it. Page size and query count are public;
+page and token indices are not serialized as clear fields.
+
+Rust owns issuance, AES expansion, depth-first table scans, codecs and one-use
+decoding. Each party owns its own table and bounded replay ledger. Source, shape,
+query and party bindings are checked before use; cancellation burns a query.
+PyO3 releases the interpreter lock. Python owns immutable probe configuration,
+phase CPU measurements and an independent exact-byte oracle.
+
+The generic page may contain quantized embedding/head rows plus their original
+float32 scale bytes. Returning exact source bytes introduces no new rounding.
+The online client algorithm needs no table copy; the in-process fixture owner
+retains one for validation, so payload sizes are not measured client peak RSS.
+
+## Python SDK example
+
+Run from repository root with PLLM installed:
+
+```python
+from pllm.metrics import PrivatePageLookupProbe
+
+result = PrivatePageLookupProbe(records=33, record_bytes=32, page_records=8).run()
+assert result["exact_byte_parity"]
+assert result["client_online_table_bytes_required"] == 0
+assert not result["whole_decoder_executable"]
+```
+
+API: [`PrivatePageLookupProbe`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+
+```sh
+.venv/bin/python scripts/probe_private_pages.py --output /tmp/private-pages.json
+```
+
+`--pinned` additionally uses the already-cached, locked Qwen2.5 W8A8 boundary
+rows. It measures page sizes 1, 8 and 32 with three fresh queries each and
+checkpoints the report after every case. Reports retain counts, commitments and
+timings, never queries, selected indices or returned records.
+
+Pinned measurements over 151,936 rows (136.74 MB per worker):
+
+| Records per page | Query/reply bodies | Client CPU median | Both workers CPU median sum |
+| --- | ---: | ---: | ---: |
+| 1 | 2,706 B | 0.091 ms | 0.7791 s |
+| 8 | 15,204 B | 0.087 ms | 0.1053 s |
+| 32 | 58,336 B | 0.085 ms | 0.0357 s |
+
+All checked records match exactly. Every query scans 273.48 MB across workers.
+The eight-record case projects 1.064 MB and 7.37 s worker CPU over 70 lookups;
+that multiplication is not a measured full decoder response.
+Evidence: `docs/evidence/private-pages-qwen25-2026-10-02.json`.
+
+## Admission boundary
+
+This bounded reference assumes semi-honest non-colluding servers and AES-based
+DPF privacy; independent cryptographic review, authenticated transport and a
+distributed restart contract are outstanding. It does not activate
+`PrivateEmbeddingLookup` or an inference Experiment.
+
+Local token lookup currently sends no online bytes. PIR adds small per-query
+bodies and scans the entire table at each worker; it can remove client table
+delivery only when the output-head boundary also stops needing that table.
+Full source distribution, whole-response compute, client peak memory and complete
+decoder quality require separate measurements. The lookup primitive alone is
+not a whole-decoder network reduction.
