@@ -18,6 +18,7 @@ extension-module = ["pyo3/extension-module"]
 
 [dependencies]
 pllm-core.workspace = true
+pllm-garble.workspace = true
 pllm-compiler.workspace = true
 pllm-types.workspace = true
 pllm-bench.workspace = true

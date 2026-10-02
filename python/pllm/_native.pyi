@@ -1,5 +1,10 @@
 from typing import Any, Never, final
 
+def projected_polynomial_probe(
+    layout: str, ring_bits: int, rows: int, hidden: int, channels: int, outputs: int,
+    gate: bytes, up: bytes, down: bytes, input: bytes, binding: bytes,
+) -> tuple[bytes, str]: ...
+
 @final
 class CompactQ7Reference:
     def __new__(cls) -> Never: ...

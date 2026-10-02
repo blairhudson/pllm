@@ -138,3 +138,14 @@ class EncryptedQuadraticShareCostProbe:
     islands: int
     def __init__(self, width: int = 32, rows: int = 1, islands: int = 1) -> None: ...
     def run(self) -> dict[str, Any]: ...
+
+class ProjectedPolynomialCostProbe:
+    mode: str
+    ring_bits: int
+    hidden: int
+    channels: int
+    outputs: int
+    rows: int
+    def __init__(self, mode: str = "seeded", ring_bits: int = 24, hidden: int = 8,
+                 channels: int = 32, outputs: int = 8, rows: int = 4) -> None: ...
+    def run(self) -> dict[str, Any]: ...

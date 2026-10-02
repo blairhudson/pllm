@@ -17,6 +17,7 @@ pllm._native (`pllm-python`)
             │          ├──▶ pllm-core ───┤
             │          └──▶ pllm-garble ─┘
             ├──▶ pllm-bench ─────▶ pllm-compiler
+            ├──▶ pllm-garble (bounded research probes only)
             └──▶ pllm-assurance ─▶ pllm-types
 
 native providers ──▶ pllm-plugin-api (independent C ABI)
@@ -372,6 +373,19 @@ the 6 MB tenfold target before attention arithmetic or protected rescaling.
 The 24-bit source range, Qwen numeric parity, protected output truncation,
 whole-layer schedule, distributed dealer and independent role transport are
 unimplemented. These test-local references do not activate an Experiment.
+
+The separate `pllm.metrics.ProjectedPolynomialCostProbe` combines mask-derived
+linear coefficients, offline projection of constant coefficients and seeded
+one-party correlation shares for a modular quadratic-gated MLP numerator.
+Rust `pllm-garble` owns issuance, AES counter expansion, codecs, coefficient
+arithmetic and non-cloneable one-use party state; public projections reuse
+`pllm-core` wrap32/wrap64 SIMD kernels. PyO3 releases the interpreter lock for
+execution. Python owns immutable probe configuration, reports and an independent
+integer oracle. Four native ablations preserve modular outputs at 24/32/64 bits;
+the checked 8-row 32→128→32 case reduces 24-bit material from 32,338 to 7,090
+bytes while peer openings remain 1,618 bytes. This is numerator-only local
+research, with no intermediate rounding, full-model numeric admission,
+independent cryptographic review or full-response performance claim.
 
 The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
 native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client

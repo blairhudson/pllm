@@ -1,0 +1,99 @@
+---
+title: "Projected polynomial correlations"
+description: "Measure algebraic coefficient elimination, early projection and seeded one-use shares."
+---
+
+`ProjectedPolynomialCostProbe` tests three combined protocol-design hypotheses:
+derive linear coefficients from party-local masks, project constant terms through
+public output weights offline, and seed one party's random coefficient shares.
+It measures real serialized bodies and local CPU for four ablations of the same
+bounded modular function. This is a new PLLM experiment, not a claim of literature
+novelty or a security-reviewed inference protocol.
+
+## Algebra and privacy boundary
+
+For public matrices `G`, `U`, `D`, the function is
+`D[((Gx)² + 256 Gx) Ux] mod 2ᵏ`. Workers hold additive shares of `x` and fresh mask
+`r`; only `z = x + r` is opened. Let `g = Gz`, `u = Uz`, `a = Gr`, `b = Ur`:
+
+```text
+(g-a)²(u-b) + 256(g-a)(u-b)
+  = g²u + (256-2a)gu + (a²-256a)u - bg²
+    + (2a-256)bg + (256a-a²)b
+```
+
+Each worker derives its shares of `256-2a` and `-b` from its own mask share.
+Only two nonlinear channel coefficients and one constant remain. Linearity permits
+applying `D` to the constant before distribution. Independent AES-256 counter streams
+encode each mask share and one party's random remaining coefficient shares; the
+other party receives the complementary correction. Neither worker receives the
+other mask seed. SHA256 binds expansion keys to domain, operation and stream.
+Fresh seeds, operation identities and key material remain one-use.
+
+| Layout | Coefficient words per row, excluding source masks |
+| --- | --- |
+| `dense` | Five per intermediate channel, each party |
+| `derived` | Three per intermediate channel, each party |
+| `contracted` | Two per intermediate channel plus output width, each party |
+| `seeded` | Two per intermediate channel plus output width, one correction recipient; three seeds total per issuance |
+
+The reference binds source weights, ring, shape, session and operation. Malformed
+openings, replay, cancellation and failed evaluation burn material. Its dealer
+holds both shares in-process for testing. Authentication, independent deployment
+and malicious security remain separate implementation and review gates.
+
+## Python and Rust ownership
+
+`pllm-garble` owns bounded issuance, coefficient algebra, AES expansion, byte
+codecs, opaque non-cloneable party state and consume/burn transitions. Its public
+matrix projections reuse `pllm-core::Matrix` and one persistent SIMD executor;
+24/32-bit rings use `wrap32`, 64-bit uses `wrap64`. The PyO3 boundary validates
+bounded bytes and releases the interpreter lock for native execution.
+Python owns the immutable SDK configuration, report orchestration and independent
+arbitrary-precision correctness oracle. Native phase timings are wall time;
+Python also records whole native-call process CPU. Python does not implement a
+second serving kernel. The in-process benchmark shares immutable public weights
+between logical parties and reports that storage separately.
+
+## Python SDK example
+
+Run from repository root with PLLM installed:
+
+```python
+from pllm.metrics import ProjectedPolynomialCostProbe
+
+dense = ProjectedPolynomialCostProbe(mode="dense").run()
+compact = ProjectedPolynomialCostProbe(mode="seeded").run()
+assert dense["numeric_contract_digest"] == compact["numeric_contract_digest"]
+assert compact["exact_modular_parity"]
+assert compact["offline_body_bytes"] < dense["offline_body_bytes"]
+assert compact["online_body_bytes"] == dense["online_body_bytes"]
+assert not compact["whole_decoder_executable"]
+```
+
+API: [`ProjectedPolynomialCostProbe`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+
+```sh
+.venv/bin/python examples/benchmarks/projected_polynomial.py
+```
+
+The benchmark compares 24/32/64-bit rings without model downloads. It archives
+only public configuration, code digests, counts and timings. Seeds, masks, inputs
+and output shares never enter reports. Expanded key arrays still consume memory;
+short seed bodies do not establish a peak-memory or compute reduction.
+
+The retained 8-row 32→128→32 native cohort measures 32,338 → 7,090 bytes of
+24-bit material (4.56×), with 1,618 peer-opening bytes in each layout. Including
+those openings, covered bodies improve 3.90×. These are local numerator bodies,
+not a decoder or tenfold network result. Evidence:
+`docs/evidence/projected-polynomial-ablation-2026-10-02.json`.
+
+## Model-admission gate
+
+The function is a polynomial **numerator**, with no intermediate rounding.
+Projection cannot commute through private rescaling, clipping or dynamic
+quantization. Exact modular parity therefore does not establish SiLU fidelity,
+integer no-wrap bounds or Qwen execution. Compare complete operator, material,
+client/peer traffic and numeric requirements before selecting a decoder design.
+Current SDK exposure is a scoped cost probe, following the other
+[resident-share probes](/sdk/evaluate/resident-share-gate/).

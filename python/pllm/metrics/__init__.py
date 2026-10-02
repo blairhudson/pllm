@@ -423,6 +423,7 @@ from .network_probes import (
     ResidentMlpCostProbe,
     ResidentQuadraticGateCostProbe,
 )
+from .projected_polynomial import ProjectedPolynomialCostProbe
 
 __all__ = [
     "Accuracy",
@@ -436,6 +437,7 @@ __all__ = [
     "Memory",
     "Metric",
     "Perplexity",
+    "ProjectedPolynomialCostProbe",
     "ReferenceAgreement",
     "ResidentMlpCostProbe",
     "ResidentFusedGateCostProbe",

@@ -60,3 +60,23 @@ def test_encrypted_probe_rejects_unbounded_or_unchecked_modulus() -> None:
         EncryptedLinearCostProbe(32, 1024)
     with pytest.raises(ValueError, match="modulus"):
         EncryptedLinearCostProbe(32, 64, modulus=257)
+
+
+def test_projected_polynomial_sdk_ablation_preserves_contract_and_counts_all_links():
+    from pllm.metrics import ProjectedPolynomialCostProbe
+
+    reports = [ProjectedPolynomialCostProbe(mode=mode).run()
+               for mode in ("dense", "derived", "contracted", "seeded")]
+    assert len({row["numeric_contract_digest"] for row in reports}) == 1
+    sizes = [row["offline_body_bytes"] for row in reports]
+    assert sizes == sorted(sizes, reverse=True) and sizes[-1] < sizes[0] / 3
+    assert len({row["online_body_bytes"] for row in reports}) == 1
+    for row in reports:
+        assert row["exact_modular_parity"] and not row["whole_decoder_executable"]
+        assert row["covered_all_link_body_bytes"] == sum(edge["body_bytes"] for edge in row["body_bytes_by_edge"])
+        assert row["full_wire_bytes"] is None and row["peak_memory_bytes"] is None
+        assert not {"seeds", "masks", "inputs", "output_shares"} & row.keys()
+    with pytest.raises(ValueError, match="ring"):
+        ProjectedPolynomialCostProbe(ring_bits=True)
+    with pytest.raises(ValueError, match="dimensions"):
+        ProjectedPolynomialCostProbe(rows=17)

@@ -10,6 +10,7 @@ pub mod compact_lookup;
 pub mod compact_polynomial;
 pub mod gated_multiply_q7;
 pub mod logrow;
+pub mod projected_polynomial;
 
 pub use gated_multiply_q7::{
     Method as GatedMultiplyQ7Method,

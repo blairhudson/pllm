@@ -6,6 +6,7 @@ use pllm_core::{codec, kernels};
 mod continuation;
 mod logrow;
 mod network;
+mod projected_polynomial;
 
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -1643,6 +1644,7 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     logrow::register(module)?;
+    projected_polynomial::register(module)?;
     network::register(module)?;
     continuation::register(module)?;
     module.add_class::<Matrix>()?;

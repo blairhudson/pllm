@@ -1,0 +1,736 @@
+{
+  "cases": [
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 16169,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 16169,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 33956,
+      "evaluation_wall_seconds": 0.0003205,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        45056,
+        45056
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001909167,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "dense",
+      "native_call_process_cpu_seconds": 0.002359,
+      "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
+      "offline_body_bytes": 32338,
+      "online_body_bytes": 1618,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 24,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 10025,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 10025,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 21668,
+      "evaluation_wall_seconds": 0.000339625,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        28672,
+        28672
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001291708,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "derived",
+      "native_call_process_cpu_seconds": 0.001752,
+      "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
+      "offline_body_bytes": 20050,
+      "online_body_bytes": 1618,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 24,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 7721,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 7721,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 17060,
+      "evaluation_wall_seconds": 0.000315792,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001009291,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "contracted",
+      "native_call_process_cpu_seconds": 0.001405,
+      "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
+      "offline_body_bytes": 15442,
+      "online_body_bytes": 1618,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 24,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 105,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 6985,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 809,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 8708,
+      "evaluation_wall_seconds": 0.001351667,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001166291,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "seeded",
+      "native_call_process_cpu_seconds": 0.002607,
+      "numeric_contract_digest": "961e7576cde186c0a14e80fccdc252e76ae09a49156434042b8bc3a7ba2b5042",
+      "offline_body_bytes": 7090,
+      "online_body_bytes": 1618,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 24,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 21545,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 21545,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 45220,
+      "evaluation_wall_seconds": 0.00034675,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        45056,
+        45056
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.002176792,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "dense",
+      "native_call_process_cpu_seconds": 0.00262,
+      "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
+      "offline_body_bytes": 43090,
+      "online_body_bytes": 2130,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 32,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 13353,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 13353,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 28836,
+      "evaluation_wall_seconds": 0.000500083,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        28672,
+        28672
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001789875,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "derived",
+      "native_call_process_cpu_seconds": 0.002389,
+      "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
+      "offline_body_bytes": 26706,
+      "online_body_bytes": 2130,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 32,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 10281,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 10281,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 22692,
+      "evaluation_wall_seconds": 0.000336375,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001009791,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "contracted",
+      "native_call_process_cpu_seconds": 0.001453,
+      "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
+      "offline_body_bytes": 20562,
+      "online_body_bytes": 2130,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 32,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 105,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 9289,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 1065,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 11524,
+      "evaluation_wall_seconds": 0.001537959,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001045709,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "seeded",
+      "native_call_process_cpu_seconds": 0.002659,
+      "numeric_contract_digest": "5b143108c42c859290bb9c73dc0da6c42216addc92fd4508d01d61b199a28624",
+      "offline_body_bytes": 9394,
+      "online_body_bytes": 2130,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 32,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 43049,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 43049,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 90276,
+      "evaluation_wall_seconds": 0.000394709,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        45056,
+        45056
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.002151958,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "dense",
+      "native_call_process_cpu_seconds": 0.002579,
+      "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
+      "offline_body_bytes": 86098,
+      "online_body_bytes": 4178,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 64,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 26665,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 26665,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 57508,
+      "evaluation_wall_seconds": 0.000418083,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        28672,
+        28672
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.0013245,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "derived",
+      "native_call_process_cpu_seconds": 0.001831,
+      "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
+      "offline_body_bytes": 53330,
+      "online_body_bytes": 4178,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 64,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 20521,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 20521,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 45220,
+      "evaluation_wall_seconds": 0.000417958,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.001454,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "contracted",
+      "native_call_process_cpu_seconds": 0.00174,
+      "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
+      "offline_body_bytes": 41042,
+      "online_body_bytes": 4178,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 64,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    },
+    {
+      "backend": "rust-pllm-garble/pllm-core",
+      "body_bytes_by_edge": [
+        {
+          "body_bytes": 105,
+          "destination": "worker_a",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 18505,
+          "destination": "worker_b",
+          "phase": "offline",
+          "source": "dealer"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_b",
+          "phase": "online",
+          "source": "worker_a"
+        },
+        {
+          "body_bytes": 2089,
+          "destination": "worker_a",
+          "phase": "online",
+          "source": "worker_b"
+        }
+      ],
+      "channels": 128,
+      "covered_all_link_body_bytes": 22788,
+      "evaluation_wall_seconds": 0.001243958,
+      "exact_modular_parity": true,
+      "expanded_array_storage_bytes_per_party": [
+        22528,
+        22528
+      ],
+      "full_wire_bytes": null,
+      "hidden": 32,
+      "issuance_wall_seconds": 0.00106425,
+      "limitations": [
+        "No source import, private input delivery or output-share transport measured",
+        "No protected fixed-point rounding, SiLU quality or complete-layer execution",
+        "AES256-counter seeded correlations, test-local dealer, no independent cryptographic review",
+        "Array storage is not peak memory; local timings are not distributed full-response compute"
+      ],
+      "mask_expansion": "aes256-counter-domain-sha256-v1",
+      "mode": "seeded",
+      "native_call_process_cpu_seconds": 0.002409,
+      "numeric_contract_digest": "1720ce5e1642c526d5fbc3b608e959697937d68c20ca42b8271e0e5653bdb979",
+      "offline_body_bytes": 18610,
+      "online_body_bytes": 4178,
+      "outputs": 32,
+      "peak_memory_bytes": null,
+      "public_weight_array_storage_bytes_shared": 12288,
+      "ring_bits": 64,
+      "rows": 8,
+      "schema": "pllm.projected_polynomial_cost_probe.v1",
+      "scope": "bounded in-process one-use modular numerator; serialized key/opening bodies",
+      "whole_decoder_executable": false
+    }
+  ],
+  "code_sha256": {
+    "crates/pllm-garble/src/projected_polynomial.rs": "bfb0c65bac8130dda92c8e4fe36c4d8539aa995a5d03b3b38c05451772b25638",
+    "crates/pllm-python/src/projected_polynomial.rs": "156027b7ab12830c3b48f23bf7e10f77c2187da585faf48c403a0afa2e849df2",
+    "examples/benchmarks/projected_polynomial.py": "1ee54f292932c4d1d2f838648da1c21a33e9079328ffcfd3da64130e1b0bdef7",
+    "python/pllm/metrics/projected_polynomial.py": "788727bb8bb70dbe3486437bafe7b2cda3ab571055297dbce45ab4f1f667d526"
+  },
+  "complete": true,
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "schema": "pllm.projected_polynomial_ablation.v1"
+}
