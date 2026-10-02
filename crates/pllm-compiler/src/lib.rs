@@ -1774,7 +1774,8 @@ fn validate_decoder_linear_composition(
 
 fn valid_offset_parameters(component: &ExperimentComponent) -> bool {
     component.params.iter().all(|(key, value)| {
-        key == "input_encoding" && matches!(value.as_str(), Some("raw" | "seeded"))
+        (key == "input_encoding" && matches!(value.as_str(), Some("raw" | "seeded")))
+            || (key == "output_encoding" && matches!(value.as_str(), Some("raw" | "row_residues")))
     })
 }
 

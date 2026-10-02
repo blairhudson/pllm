@@ -174,6 +174,7 @@ class StageRuntime:
     equalization_profile_digest: str | None = None
     _weight_digest: str = field(init=False)
     _signed_output_bound: int = field(init=False)
+    _offset_output_bits: bytes | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         values = self.weight.values.astype(np.int8, copy=False)
@@ -212,6 +213,20 @@ class StageRuntime:
     @property
     def seeded_profile(self) -> SeededRingProfile:
         return seeded_ring_profile(self.signed_output_bound)
+
+    @property
+    def output_residue_bits(self) -> bytes:
+        if self._offset_output_bits is None:
+            from pllm import _native
+
+            data = self.weight.values.astype(np.int8, copy=False).tobytes()
+            if hashlib.sha256(data).hexdigest() != self.weight_digest:
+                raise TransformerEngineError("offset row layout weight commitment changed")
+            widths = _native.offset_row_bits(data, self.spec.in_features, signed_qmax(self.spec.activation_bits))
+            if len(widths) != self.spec.out_features or max(widths) > self.seeded_profile.wire_bits:
+                raise TransformerEngineError("offset row layout exceeds the committed ring")
+            self._offset_output_bits = widths
+        return self._offset_output_bits
 
     def public_descriptor(
         self,
@@ -1857,7 +1872,10 @@ class MaskedTransformerEngine:
         *,
         include_local_weights: bool = True,
         placement: str = "prepared",
+        output_encoding: str = "raw",
     ) -> bytes:
+        if output_encoding not in {"raw", "row_residues"} or (output_encoding != "raw" and placement != "offset"):
+            raise TransformerEngineError("row-residue bundles require offset placement")
         if placement not in {"prepared", "client", "offset"}:
             raise TransformerEngineError("unknown compiled client-bundle placement")
         if placement == "client" and not include_local_weights:
@@ -1889,6 +1907,10 @@ class MaskedTransformerEngine:
             )
             for sid, runtime in model.stages.items()
         }
+        if output_encoding == "row_residues":
+            for sid, runtime in model.stages.items():
+                if sid not in local_stage_ids:
+                    stage_descriptors[sid]["output_residue_bits"] = runtime.output_residue_bits
         client_weights: dict[str, dict[str, Any]] = {}
 
         def add_client_weight(weight_id: str, weight: QuantizedWeight) -> None:
@@ -1960,6 +1982,14 @@ class MaskedTransformerEngine:
         }
         config = self._bundle_runtime_config(model)
         manifest = model.manifest.to_dict()
+        if output_encoding == "row_residues":
+            from .offset_codec import row_layout_digest
+
+            manifest["metadata"] = {**manifest["metadata"], "offset_residue_layout_digest": row_layout_digest([
+                (sid, row["weight_digest"], row["in_features"], row["out_features"],
+                 row["activation_bits"], row["output_residue_bits"].hex())
+                for sid, row in stage_descriptors.items() if "output_residue_bits" in row
+            ])}
         protocols = {
             "prepared": f"masked_w{self.weight_bits}a{self.activation_bits}",
             "client": f"local_clear_w{self.weight_bits}a{self.activation_bits}",

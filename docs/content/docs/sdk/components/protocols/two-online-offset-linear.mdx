@@ -29,6 +29,21 @@ non-colluding workers and does not authorize seed reuse. Wrong-role, raw/seeded
 downgrades, replay and malformed envelopes fail closed. Rust expands and
 subtracts masks with the Python interpreter lock released.
 
+`output_encoding="row_residues"` additionally packs each output column in its
+smallest exact signed reconstruction ring. Widths derive only from public
+quantized weights and the declared activation range. Both workers independently
+bind the complete layout before accepting a session. Native reconstruction reads
+both packed bodies directly, with strict length/padding checks; the client does
+not expand two intermediate share matrices. Shapes and encoded lengths remain
+public and input-independent. This encoding does not quantize the result again.
+
+One pinned 39+32-token Qwen2.5 W8A8 comparison, combining both encodings, used
+172.73 MB online application bodies versus 227.08 MB for raw offset (23.9% less),
+with the same output digest. Client startup-through-response CPU was 17.03 s
+versus 18.24 s; aggregate CPU was 56.17 s versus 55.88 s. These are single,
+co-located body/CPU samples, not full-wire or representative quality evidence.
+The client retains its existing token/head tables and attention/KV state.
+
 ## Python SDK example
 
 ```python
@@ -49,6 +64,9 @@ assert experiment.resolve().role_graph is not None
 seeded = experiment.with_params(pipeline__linear__input_encoding="seeded")
 assert seeded.pipeline.digest() != experiment.pipeline.digest()
 assert seeded.resolve().client_runtime == "compiled_offset_v1"
+
+packed = seeded.with_params(pipeline__linear__output_encoding="row_residues")
+assert packed.resolve().client_runtime == "compiled_offset_v1"
 ```
 
 Run from the repository root. Use the [topology guide](/sdk/topologies/options/)

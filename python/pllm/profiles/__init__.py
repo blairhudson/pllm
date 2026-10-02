@@ -784,9 +784,11 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         }
         and public_kernel_valid
         and not pipeline.components["topology"].params
-        and set(pipeline.components["linear"].params) <= {"input_encoding"}
+        and set(pipeline.components["linear"].params) <= {"input_encoding", "output_encoding"}
         and type(pipeline.components["linear"].params.get("input_encoding", "raw")) is str
         and pipeline.components["linear"].params.get("input_encoding", "raw") in {"raw", "seeded"}
+        and type(pipeline.components["linear"].params.get("output_encoding", "raw")) is str
+        and pipeline.components["linear"].params.get("output_encoding", "raw") in {"raw", "row_residues"}
     ):
         return RuntimeComposition(
             "offset_public",

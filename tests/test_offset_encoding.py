@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from dataclasses import replace
 
 import httpx
@@ -41,6 +42,27 @@ def test_seeded_encoding_is_opt_in_and_compiler_bound():
     assert raw.with_params(input_encoding="seeded").params["input_encoding"] == "seeded"
     with pytest.raises(ValueError):
         TwoOnlineOffsetLinear(input_encoding="public")
+
+
+@pytest.mark.parametrize("count", [1, 31, 32, 33, 257])
+def test_batched_aes_counter_encoding_matches_independent_cipher(count):
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+    seed, binding, bits = bytes(range(32)), b"j" * 32, 24
+    key = hashlib.sha256(
+        b"pllm/offset-input-share/aes256/v1\0"
+        + seed
+        + binding
+        + count.to_bytes(8, "little")
+        + bytes([bits])
+    ).digest()
+    encryptor = Cipher(algorithms.AES(key), modes.ECB()).encryptor()
+    counters = b"".join(
+        counter.to_bytes(8, "little") + bytes(8) for counter in range((count + 3) // 4)
+    )
+    encrypted = encryptor.update(counters) + encryptor.finalize()
+    expected = (np.frombuffer(encrypted, dtype="<u4")[:count] & 0xFFFFFF).tobytes()
+    assert _native.offset_seeded_share(seed, binding, count, bits) == expected
 
 
 @pytest.mark.parametrize(
@@ -141,3 +163,102 @@ def test_seed_codec_rejects_forged_size_duplicate_fields_and_unknown_keys():
         duplicate += packer.pack(key) + packer.pack(value)
     with pytest.raises(ProtocolError):
         unpack_seed(SEED_MAGIC + duplicate + packer.pack(b"z" * 32), max_rows=4)
+
+
+@pytest.mark.parametrize("rows,columns", [(1, 1), (3, 97), (11, 32)])
+def test_public_row_rings_preserve_exact_integer_projections(rows, columns):
+    rng = np.random.default_rng(13)
+    weights = rng.integers(-127, 128, (33, columns), dtype=np.int8)
+    weights[0] = 0
+    values = rng.integers(-127, 128, (rows, columns), dtype=np.int8)
+    mask = rng.integers(0, 1 << 32, values.shape, dtype=np.uint32)
+    other = ((values.astype(np.int64) - mask.astype(np.int64)) % (1 << 32)).astype("<u4")
+    a = ((other.astype(np.int64) @ weights.T.astype(np.int64)) % (1 << 32)).astype("<u4")
+    b = ((mask.astype(np.int64) @ weights.T.astype(np.int64)) % (1 << 32)).astype("<u4")
+    widths = _native.offset_row_bits(weights.tobytes(), columns, 127)
+    bounds = np.abs(weights.astype(np.int64)).sum(axis=1) * 127
+    assert list(widths) == [max(1, int(bound).bit_length() + 1) for bound in bounds]
+    pa = _native.offset_pack_rows(a.tobytes(), widths, rows)
+    pb = _native.offset_pack_rows(b.tobytes(), widths, rows)
+    decoded = np.frombuffer(
+        _native.offset_reconstruct_rows(pa, pb, widths, rows), dtype="<i8"
+    ).reshape(rows, -1)
+    np.testing.assert_array_equal(decoded, values.astype(np.int64) @ weights.T.astype(np.int64))
+    assert len(pa) == (rows * sum(widths) + 7) // 8
+    with pytest.raises(ValueError, match="length|padding"):
+        _native.offset_reconstruct_rows(pa + b"\0", pb, widths, rows)
+    with pytest.raises(ValueError, match="padding"):
+        _native.offset_reconstruct_rows(b"\x80", b"\0", b"\x01", 1)
+
+
+def test_residue_layout_is_source_bound_before_session_admission(tmp_path):
+    from pllm.runtime.offset_codec import compiled_row_layout
+
+    base, workers = _fixture(tmp_path)
+    worker = workers[0]
+    pipeline = TwoOnlineOffsetCpu(
+        pllm.Model("offset-model"),
+        quantization=SymmetricPerRow(weight_bits=4, activation_bits=4),
+        linear=TwoOnlineOffsetLinear(output_encoding="row_residues"),
+    )
+    packed = worker.client_bundle(
+        "offset-model", placement="offset", output_encoding="row_residues"
+    )
+    bundle = ClientBundle.unpack(packed)
+    compiled = compile_runtime_model(base._plan, bundle, composition=pipeline)
+    digest = compiled_row_layout(compiled)
+    key = "a" * 32
+
+    async def scenario():
+        app = create_offset_worker_app(
+            worker, model_id="offset-model", role_id="worker_a", api_key=key, composition=pipeline
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://worker"
+        ) as client:
+            body = _session_body(compiled, "worker_a")
+            auth = {"authorization": f"Bearer {key}"}
+            for value in (None, "0" * 64):
+                forged = {**body, **({"residue_layout_digest": value} if value else {})}
+                assert (
+                    await client.post("/v1/offset-reference/sessions", json=forged, headers=auth)
+                ).status_code == 409
+            response = await client.post(
+                "/v1/offset-reference/sessions",
+                json={**body, "residue_layout_digest": digest},
+                headers=auth,
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["residue_layout_digest"] == digest
+        assert all(stage.calls == 0 for stage in worker._model("offset-model").stages.values())
+
+    asyncio.run(scenario())
+    stage = next(s for s in bundle.stages.values() if s.output_residue_bits is not None)
+    compiled._bundle.stages[stage.id] = replace(
+        stage, output_residue_bits=bytes([1]) * stage.out_features
+    )
+    with pytest.raises(ProtocolError, match="differs"):
+        compiled_row_layout(compiled)
+
+
+def test_row_response_rejects_downgrade_ticket_and_layout_changes():
+    from pllm.runtime.offset_codec import pack_row_response, unpack_row_response
+
+    response = MaskedStageResponse(
+        correlation_id="a" * 32,
+        stage_id="test",
+        masked_output=np.array([[17, 31]], dtype=np.uint32),
+        modulus=1 << 16,
+        wire_bits=16,
+        ring="u16",
+        server_ns=0,
+    )
+    widths = bytes([5, 6])
+    packed = pack_row_response(response, widths)
+    kwargs = dict(ticket="a" * 32, stage="test", rows=1, widths=widths, bits=16)
+    assert unpack_row_response(packed, **kwargs)[1] == 0
+    for changes in ({"ticket": "b" * 32}, {"widths": bytes([4, 6])}, {"rows": 2}):
+        with pytest.raises(ProtocolError):
+            unpack_row_response(packed, **{**kwargs, **changes})
+    with pytest.raises(ProtocolError):
+        unpack_row_response(response.pack(), **kwargs)

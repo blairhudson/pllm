@@ -102,6 +102,10 @@ class _TwoOnlineShareEvaluator:
         composition = Pipeline.from_spec(json.loads(compiled._canonical_composition))
         self._composition_digest = composition.digest()
         self._input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
+        self._output_encoding = composition.components["linear"].params.get("output_encoding", "raw")
+        if self._output_encoding == "row_residues":
+            from .offset_codec import compiled_row_layout
+            compiled_row_layout(compiled)
 
     @property
     def costs(self) -> OffsetReferenceCosts:
@@ -139,6 +143,7 @@ class _TwoOnlineShareEvaluator:
             raise OffsetReferenceError("offset stages require an exact wrapping ring")
         modulus = profile.modulus
         mask = None
+        right_packet = None
         if self._input_encoding == "seeded":
             from pllm import _native
             from .offset_codec import context, pack_seed, seed_header
@@ -151,7 +156,7 @@ class _TwoOnlineShareEvaluator:
                 rows=rows, columns=stage.in_features, bits=profile.wire_bits)
             left = np.frombuffer(bytearray(_native.offset_seeded_share(seed, context(header),
                 rows * stage.in_features, profile.wire_bits, quantized.values.tobytes())), dtype="<u4").reshape(rows, stage.in_features)
-            right_request = pack_seed(header, seed)
+            right_packet = (right_ticket, pack_seed(header, seed))
         else:
             clear = quantized.values.reshape(rows, stage.in_features).astype(np.int64) % modulus
             raw_mask = bytearray(secrets.token_bytes(rows * stage.in_features * 4))
@@ -184,7 +189,10 @@ class _TwoOnlineShareEvaluator:
 
             left_ticket, left_request = request(left, self._session_a)
             if mask is not None:
-                right_ticket, right_request = request(mask, self._session_b)
+                right_packet = request(mask, self._session_b)
+            if right_packet is None:
+                raise OffsetReferenceError("offset share encoding did not produce a request")
+            right_ticket, right_request = right_packet
             left_result = self._exchange_a(stage_id, [left_request])
             right_result = self._exchange_b(stage_id, [right_request])
             if (
@@ -196,24 +204,36 @@ class _TwoOnlineShareEvaluator:
                 or type(right_result[0]) is not bytes
             ):
                 raise OffsetReferenceError("offset worker returned an invalid response batch")
-            first = MaskedStageResponse.unpack(left_result[0])
-            second = MaskedStageResponse.unpack(right_result[0])
-            for result, ticket in ((first, left_ticket), (second, right_ticket)):
-                if (
-                    result.correlation_id != ticket
-                    or result.stage_id != stage_id
-                    or result.modulus != modulus
-                    or result.wire_bits != profile.wire_bits
-                    or result.ring != profile.ring
-                    or result.masked_output.shape != (rows, stage.out_features)
-                    or result.server_ns < 0
-                ):
-                    raise OffsetReferenceError("offset worker result differs from its stage contract")
-            combined = (
-                first.masked_output.astype(np.int64)
-                + second.masked_output.astype(np.int64)
-            ) % modulus
-            centered = np.where(combined >= modulus // 2, combined - modulus, combined)
+            if self._output_encoding == "row_residues":
+                from pllm import _native
+                from .offset_codec import unpack_row_response
+
+                widths = stage.output_residue_bits
+                a, first_ns = unpack_row_response(left_result[0], ticket=left_ticket,
+                    stage=stage_id, widths=widths, rows=rows, bits=profile.wire_bits)
+                b, second_ns = unpack_row_response(right_result[0], ticket=right_ticket,
+                    stage=stage_id, widths=widths, rows=rows, bits=profile.wire_bits)
+                centered = np.frombuffer(_native.offset_reconstruct_rows(a, b, widths, rows), dtype="<i8").reshape(rows, stage.out_features)
+            else:
+                first = MaskedStageResponse.unpack(left_result[0])
+                second = MaskedStageResponse.unpack(right_result[0])
+                for result, ticket in ((first, left_ticket), (second, right_ticket)):
+                    if (
+                        result.correlation_id != ticket
+                        or result.stage_id != stage_id
+                        or result.modulus != modulus
+                        or result.wire_bits != profile.wire_bits
+                        or result.ring != profile.ring
+                        or result.masked_output.shape != (rows, stage.out_features)
+                        or result.server_ns < 0
+                    ):
+                        raise OffsetReferenceError("offset worker result differs from its stage contract")
+                combined = (
+                    first.masked_output.astype(np.int64)
+                    + second.masked_output.astype(np.int64)
+                ) % modulus
+                centered = np.where(combined >= modulus // 2, combined - modulus, combined)
+                first_ns, second_ns = first.server_ns, second.server_ns
             if np.any(np.abs(centered) > profile.signed_output_bound):
                 raise OffsetReferenceError("offset result exceeds the declared signed stage bound")
             output = dequantize_matmul(
@@ -230,8 +250,8 @@ class _TwoOnlineShareEvaluator:
                 previous.worker_a_to_client_bytes + len(left_result[0]),
                 previous.client_to_worker_b_bytes + len(right_request),
                 previous.worker_b_to_client_bytes + len(right_result[0]),
-                previous.worker_a_stage_ns + first.server_ns,
-                previous.worker_b_stage_ns + second.server_ns,
+                previous.worker_a_stage_ns + first_ns,
+                previous.worker_b_stage_ns + second_ns,
                 previous.worker_a_integer_macs + rows * stage.in_features * stage.out_features,
                 previous.worker_b_integer_macs + rows * stage.in_features * stage.out_features,
             )
@@ -252,6 +272,9 @@ class TwoOnlineOffsetReference(_TwoOnlineShareEvaluator):
         exchange_a: Callable[[str, list[bytes]], list[bytes]],
         exchange_b: Callable[[str, list[bytes]], list[bytes]],
     ) -> None:
+        params = Pipeline.from_spec(json.loads(compiled._canonical_composition)).components["linear"].params
+        if params.get("input_encoding", "raw") != "raw" or params.get("output_encoding", "raw") != "raw":
+            raise OffsetReferenceError("encoded offset execution requires authenticated worker transport")
         if (
             type(worker_a) is not MaskedTransformerEngine
             or type(worker_b) is not MaskedTransformerEngine
@@ -348,6 +371,11 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                 return response.status_code, b"".join(chunks)
 
         try:
+            composition = Pipeline.from_spec(json.loads(compiled._canonical_composition))
+            row_layout = None
+            if composition.components["linear"].params.get("output_encoding", "raw") == "row_residues":
+                from .offset_codec import compiled_row_layout
+                row_layout = compiled_row_layout(compiled)
             for index, role_id in enumerate(("worker_a", "worker_b")):
                 request = {
                     "schema": "pllm.offset_worker_session.v1", "model": model_id,
@@ -361,6 +389,8 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                         json.loads(compiled._canonical_composition)
                     ).digest(),
                 }
+                if row_layout is not None:
+                    request["residue_layout_digest"] = row_layout
                 status, payload = post(index, "/v1/offset-reference/sessions", phase="setup",
                                        json=request)
                 if status != 200:
@@ -381,6 +411,8 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                     "body_fingerprint": metadata["body_fingerprint"],
                     "stage_commitment": metadata["seeded_stage_commitment"],
                 }
+                if row_layout is not None:
+                    expected["residue_layout_digest"] = row_layout
                 if (
                     type(value) is not dict or set(value) != set(expected) | {"id"}
                     or any(value.get(field) != item for field, item in expected.items())

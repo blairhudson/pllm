@@ -105,6 +105,7 @@ def create_offset_worker_app(
     graph_digest = two_online_reference_graph().digest()
     composition_digest: str | None = None
     input_encoding = "raw"
+    output_encoding = "raw"
     if composition is not None:
         from pllm.profiles import resolve_runtime_composition
 
@@ -123,6 +124,16 @@ def create_offset_worker_app(
             raise ValueError("offset worker kernel differs from its composition")
         composition_digest = composition.digest()
         input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
+        output_encoding = composition.components["linear"].params.get("output_encoding", "raw")
+    row_layout = None
+    if output_encoding == "row_residues":
+        from .offset_codec import row_layout_digest
+
+        row_layout = row_layout_digest([
+            (sid, entry.weight_digest, entry.spec.in_features, entry.spec.out_features,
+             entry.spec.activation_bits, entry.output_residue_bits.hex())
+            for sid, entry in model.stages.items() if sid not in {"token_lookup", "lm_head"}
+        ])
     bundle_lock = threading.Lock()
     bundle_record: tuple[bytes, dict[str, Any]] | None = None
 
@@ -130,7 +141,7 @@ def create_offset_worker_app(
         nonlocal bundle_record
         with bundle_lock:
             if bundle_record is None:
-                payload = engine.client_bundle(model_id, placement="offset")
+                payload = engine.client_bundle(model_id, placement="offset", output_encoding=output_encoding)
                 fingerprint = hashlib.sha256(payload).hexdigest()
                 bundle_record = (payload, {
                     "schema": 2, "sha256": fingerprint,
@@ -245,6 +256,8 @@ def create_offset_worker_app(
             "max_input_tokens", "max_new_tokens", "body_fingerprint",
             "stage_commitment", "runtime_config_digest", "composition_digest",
         }
+        if row_layout is not None:
+            expected.add("residue_layout_digest")
         if type(body) is not dict or set(body) != expected:
             raise _reject("offset worker session schema differs")
         bound = body["max_input_tokens"]
@@ -266,6 +279,7 @@ def create_offset_worker_app(
             or len(body["composition_digest"]) != 64
             or any(char not in "0123456789abcdef" for char in body["composition_digest"])
             or (composition_digest is not None and body["composition_digest"] != composition_digest)
+            or (row_layout is not None and body.get("residue_layout_digest") != row_layout)
             or len(model.stages) * (1 + output_bound) > _MAX_TOTAL_CALLS
         ):
             raise _reject("offset worker session commitments differ")
@@ -303,6 +317,7 @@ def create_offset_worker_app(
             "decoder_plan": plan.digest,
             "body_fingerprint": metadata["body_fingerprint"],
             "stage_commitment": metadata["seeded_stage_commitment"],
+            **({"residue_layout_digest": row_layout} if row_layout is not None else {}),
         }
 
     @app.post("/v1/offset-reference/sessions/{session_id}/stages/{stage_id}")
@@ -373,6 +388,11 @@ def create_offset_worker_app(
             results = await engine.execute_stage(model_id, entry.spec, [payload])
             if len(results) != 1:
                 raise ValueError("offset worker returned the wrong stage result count")
+            if output_encoding == "row_residues":
+                from .offset_codec import pack_row_response
+                from .stage_protocol import MaskedStageResponse
+
+                results = [pack_row_response(MaskedStageResponse.unpack(results[0]), entry.output_residue_bits)]
         except BaseException as exc:
             with lock:
                 session.terminal = True

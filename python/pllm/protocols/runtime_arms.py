@@ -16,19 +16,24 @@ class TwoOnlineOffsetLinear(ProtocolMethod):
         lifecycle_phase="online",
         parameter_schema={"type": "object", "properties": {
             "input_encoding": {"type": "string", "enum": ["raw", "seeded"]},
+            "output_encoding": {"type": "string", "enum": ["raw", "row_residues"]},
         }, "additionalProperties": False},
         capabilities=("two-online-public-linear", "additive-input-shares"),
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, input_encoding: str = "raw") -> None:
+    def __init__(self, *, input_encoding: str = "raw", output_encoding: str = "raw") -> None:
         if type(input_encoding) is not str or input_encoding not in {"raw", "seeded"}:
             raise ConfigurationError("offset input encoding must be raw or seeded")
-        super().__init__(self.descriptor.component,
-            {"input_encoding": input_encoding} if input_encoding != "raw" else {})
+        if type(output_encoding) is not str or output_encoding not in {"raw", "row_residues"}:
+            raise ConfigurationError("offset output encoding must be raw or row_residues")
+        super().__init__(self.descriptor.component, {
+            key: value for key, value in (("input_encoding", input_encoding),
+                ("output_encoding", output_encoding)) if value != "raw"
+        })
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"input_encoding": self.params.get("input_encoding", "raw")}
+        return {key: self.params.get(key, "raw") for key in ("input_encoding", "output_encoding")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

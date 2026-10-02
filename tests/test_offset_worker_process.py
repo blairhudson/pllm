@@ -23,6 +23,7 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 def _offset_experiment(
     root: Path, model_id: str, deployment_root: Path, *, max_input_tokens: int = 4,
+    input_encoding: str = "raw", output_encoding: str = "raw",
 ):
     from pllm import Deployment, ExecutionBudget, Experiment
     from pllm.profiles import TwoOnlineOffsetCpu
@@ -33,6 +34,7 @@ def _offset_experiment(
         pipeline=TwoOnlineOffsetCpu(
             pllm.Model.path(str(root), model_id=model_id),
             quantization=SymmetricPerRow(weight_bits=4, activation_bits=4),
+            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding, output_encoding=output_encoding),
         ),
         deployment=Deployment.local(root=str(deployment_root)),
         budget=ExecutionBudget(max_input_tokens=max_input_tokens, max_new_tokens=2, requests=1),
@@ -41,8 +43,9 @@ def _offset_experiment(
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
 @pytest.mark.parametrize("input_encoding", ["raw", "seeded"])
+@pytest.mark.parametrize("output_encoding", ["raw", "row_residues"])
 def test_two_worker_experiment_uses_shared_roles_and_responses(
-    tmp_path: Path, model_type: str, input_encoding: str,
+    tmp_path: Path, model_type: str, input_encoding: str, output_encoding: str,
 ) -> None:
     from pllm import Deployment, ExecutionBudget, Experiment
     from pllm.profiles import TwoOnlineOffsetCpu
@@ -57,7 +60,7 @@ def test_two_worker_experiment_uses_shared_roles_and_responses(
     experiment = Experiment(
         name=f"offset-{model_type}",
         pipeline=TwoOnlineOffsetCpu(pllm.Model.path(str(root), model_id=model_id),
-            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding)),
+            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding, output_encoding=output_encoding)),
         deployment=Deployment.local(root=str(tmp_path)),
         budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
     )
@@ -150,8 +153,9 @@ def test_closing_client_burns_paused_two_worker_stream(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("encoding", ["raw", "combined"])
 def test_separate_offset_worker_processes_match_compiled_prefill_and_decode(
-    tmp_path: Path, model_type: str,
+    tmp_path: Path, model_type: str, encoding: str,
 ) -> None:
     root = create_tiny_llama_checkpoint(
         tmp_path / "model", num_hidden_layers=1, model_type=model_type,
@@ -161,11 +165,13 @@ def test_separate_offset_worker_processes_match_compiled_prefill_and_decode(
     manifest = load_hf_directory(root, model_id=model_id)
     local_worker = MaskedTransformerEngine(threads=1)
     asyncio.run(local_worker.load(manifest))
-    bundle = ClientBundle.unpack(local_worker.client_bundle(model_id, placement="offset"))
+    output_encoding = "row_residues" if encoding == "combined" else "raw"
+    bundle = ClientBundle.unpack(local_worker.client_bundle(model_id, placement="offset", output_encoding=output_encoding))
     baseline_bundle = ClientBundle.unpack(local_worker.client_bundle(model_id))
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     plan = pllm.lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=2)
-    experiment = _offset_experiment(root, model_id, tmp_path)
+    experiment = _offset_experiment(root, model_id, tmp_path,
+        input_encoding="seeded" if encoding == "combined" else "raw", output_encoding=output_encoding)
     compiled = compile_runtime_model(
         plan, bundle, composition=experiment.pipeline,
     )
@@ -212,13 +218,21 @@ def _check_two_worker_parity(
                 RemoteLinear(baseline_bundle.stages, LocalCorrelations(), exchange)
             )
             candidate = compiled.session(transport)
+
+            def assert_numeric_parity():
+                np.testing.assert_array_equal(candidate.logits, baseline.logits)
+                for actual, expected in zip(candidate._runtime.caches, baseline._runtime.caches, strict=True):
+                    assert actual.length == expected.length
+                    np.testing.assert_array_equal(actual.key[:actual.length], expected.key[:expected.length])
+                    np.testing.assert_array_equal(actual.value[:actual.length], expected.value[:expected.length])
+
             for session in (baseline, candidate):
                 session.prefill_ids([0, 2])
-            np.testing.assert_allclose(candidate.logits, baseline.logits, rtol=0, atol=1e-4)
+            assert_numeric_parity()
             assert candidate.select_next() == baseline.select_next()
             for session in (baseline, candidate):
                 session.decode_selected()
-            np.testing.assert_allclose(candidate.logits, baseline.logits, rtol=0, atol=1e-4)
+            assert_numeric_parity()
             assert candidate.select_next() == baseline.select_next()
             candidate.finish()
             baseline.finish()

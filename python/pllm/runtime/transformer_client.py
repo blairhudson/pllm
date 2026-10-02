@@ -237,6 +237,7 @@ class StageMetadata:
     seeded_profile: SeededRingProfile | None = None
     input_equalization: np.ndarray | None = None
     equalization_profile_digest: str | None = None
+    output_residue_bits: bytes | None = None
 
     @property
     def scales(self) -> np.ndarray:
@@ -429,6 +430,14 @@ class ClientBundle:
                         f"invalid seeded ring profile for {stage_id}"
                     ) from exc
             client_weight = None
+            output_residue_bits = row.get("output_residue_bits")
+            if output_residue_bits is not None and (
+                privacy.get("mode") != "offset_public"
+                or type(output_residue_bits) is not bytes or len(output_residue_bits) != out_features
+                or seeded_profile is None or "client_weight" in row
+                or any(not 1 <= width <= seeded_profile.wire_bits for width in output_residue_bits)
+            ):
+                raise TransformerClientError(f"invalid output residue layout for {stage_id}")
             client_weight_scales = None
             client_weight_layout = "linear"
             weight_row = row.get("client_weight")
@@ -549,6 +558,7 @@ class ClientBundle:
                 seeded_profile=seeded_profile,
                 input_equalization=equalization,
                 equalization_profile_digest=row.get("equalization_profile_digest"),
+                output_residue_bits=output_residue_bits,
             )
         # Keep the legacy embedding stage name as a read-only alias. Round 8
         # fuses the token embedding and Gemma PLE table into ``token_lookup``,
