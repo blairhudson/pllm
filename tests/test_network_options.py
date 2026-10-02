@@ -73,7 +73,9 @@ def test_ordered_context_benchmark_combines_placement_prefix_and_sdk_transport(
         tmp_path / "weights", hidden_size=128, intermediate_size=256, head_dim=32
     )
     context = "A public conversation about weather and maps. " + "Common context. " * 3
-    prompts = [context, context + " Next.", context + " Next. More."]
+    # Matching full prefill geometry admits exact proper-prefix branches.
+    # Growing widths are separately checked to miss rather than reuse old-width KV.
+    prompts = [context + " First.", context + " Other.", context + " Third."]
     candidates = []
     for cache in (False, True):
         experiment = selected(root, cache=cache)

@@ -39,3 +39,13 @@ checkpoint/weight locks and bound execution inputs. See the
 [Qwen2 workflow](/sdk/inference/masked-linear/) serves an actual request.
 
 API: [`compile`](/sdk/reference/python/pllm/compiler/#objects-and-signatures)
+
+## Network selection before execution
+
+[`pllm.compiler.plan`](/sdk/reference/python/pllm/compiler/#objects-and-signatures)
+is the separate offline network-placement entry point. It accepts a
+`PlanningRequest` and explicit snapshot, ranks bounded candidate/party assignments,
+and returns an immutable `PlanningResult`. Native validation owns legality;
+planning alone neither compiles a source-locked runtime nor reserves hosts.
+Follow the [checked planning fixture](/sdk/deployment/) and
+[execution lease gate](/sdk/deployment/execution/) to execute the selection.

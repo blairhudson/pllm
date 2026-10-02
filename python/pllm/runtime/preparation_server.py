@@ -192,7 +192,7 @@ def _validate_inference_url(value: str | None) -> str:
         or not parsed.hostname
         or parsed.username
         or parsed.password
-        or parsed.path.rstrip("/")
+        or parsed.path.rstrip("/") not in {"", "/roles/inference"}
         or parsed.params
         or parsed.query
         or parsed.fragment
@@ -208,7 +208,7 @@ def _validate_inference_url(value: str | None) -> str:
         loopback = parsed.hostname.lower() == "localhost"
     if parsed.scheme != "https" and not loopback:
         raise ValueError("preparation inference URL must use HTTPS outside loopback")
-    return urlunparse((parsed.scheme, parsed.netloc, "", "", "", ""))
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", "", ""))
 
 
 def _correction_websocket_url(inference_url: str) -> str:
@@ -217,7 +217,7 @@ def _correction_websocket_url(inference_url: str) -> str:
         (
             "wss" if parsed.scheme == "https" else "ws",
             parsed.netloc,
-            CORRECTION_CHANNEL_PATH,
+            parsed.path.rstrip("/") + CORRECTION_CHANNEL_PATH,
             "",
             "",
             "",
@@ -249,6 +249,7 @@ def create_preparation_app(
     *,
     audit_hook: Callable[[str, bytes], None] | None = None,
     push_client: httpx.AsyncClient | None = None,
+    owns_engine: bool = True,
 ) -> FastAPI:
     if PrivacyMode.parse(config.privacy_mode) is not PrivacyMode.PUBLIC:
         raise ValueError("preparation service supports public-weight models only")
@@ -298,7 +299,7 @@ def create_preparation_app(
             session_registry.close()
             if owns_push_client:
                 await push_http.aclose()
-            close = getattr(engine, "close", None)
+            close = getattr(engine, "close", None) if owns_engine else None
             if close:
                 value = close()
                 if asyncio.iscoroutine(value):

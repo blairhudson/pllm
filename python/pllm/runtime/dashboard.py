@@ -72,6 +72,41 @@ def _validate_output_digest_capture(value: bool) -> bool:
     return value
 
 
+def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any] | None:
+    """Shared benchmark sample of public body storage; never a peak-RAM claim."""
+    if client is None:
+        return None
+    core = client._core
+    with core._transformer_state_lock:
+        state = core._transformer_states.get(model_id)
+    if state is None:
+        return None
+    bundle = state.bundle
+    stages = {
+        key: stage for key, stage in bundle.stages.items()
+        if stage.layer_index is not None and stage.op == "linear"
+    }
+    local = {key: stage for key, stage in stages.items() if stage.client_weight is not None}
+    with bundle._local_lock:
+        snapshots = set(bundle._local_matrices)
+    local_macs = sum(stage.in_features * stage.out_features for stage in local.values())
+    total_macs = sum(stage.in_features * stage.out_features for stage in stages.values())
+    return {
+        "schema": "pllm.client_body_placement.v1",
+        "sample_boundary": "after-final-measured-response",
+        "local_stage_count": len(local),
+        "remote_stage_count": len(stages) - len(local),
+        "client_body_i8_weight_bytes": sum(stage.client_weight.nbytes for stage in local.values()),
+        "client_body_scale_bytes": sum(stage.client_weight_scales.nbytes for stage in local.values()),
+        "native_body_i8_snapshot_bytes": sum(
+            stage.client_weight.nbytes for key, stage in local.items() if key in snapshots
+        ),
+        "declared_body_linear_macs_per_row_client": local_macs,
+        "declared_body_linear_macs_per_row_remote": total_macs - local_macs,
+        "peak_client_memory_bytes": None,
+    }
+
+
 def _http_origin(host: str, port: int) -> str:
     rendered_host = f"[{host}]" if ":" in host else host
     return f"http://{rendered_host}:{port}"
@@ -357,10 +392,14 @@ class DashboardConfig:
     otel_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
     temperature: float | None = None
     capture_output_digest: bool = False
+    docker: bool = False
+    docker_image: str | None = None
 
     def __post_init__(self) -> None:
         _validate_request_temperature(self.temperature)
         _validate_output_digest_capture(self.capture_output_digest)
+        if type(self.docker) is not bool or (self.docker_image is not None and not self.docker):
+            raise ValueError("Docker image requires the Docker role backend")
 
 
 @dataclass(slots=True)
@@ -426,8 +465,8 @@ class DashboardRuntime:
                 raise ValueError("dashboard bundle encoding conflicts with immutable Experiment")
             self._bundle_compression = profile.bundle_compression
         self._bundle_compression = self._bundle_compression or "none"
-        if self._bundle_compression not in {"none", "zlib"}:
-            raise ValueError("bundle_compression must be none or zlib")
+        if self._bundle_compression not in {"none", "zlib", "artifacts"}:
+            raise ValueError("bundle_compression must be none, zlib, or artifacts")
         self._prefill_cache_mib = getattr(config, "prefill_cache_mib", 0)
         if type(self._prefill_cache_mib) is not int or not 0 <= self._prefill_cache_mib <= 256:
             raise ValueError("prefill_cache_mib must be in [0, 256]")
@@ -521,42 +560,7 @@ class DashboardRuntime:
 
     def client_body_placement(self) -> dict[str, Any] | None:
         """Sample public body storage and declared per-row matrix work, not peak RAM."""
-        if self._client is None:
-            return None
-        core = self._client._core
-        with core._transformer_state_lock:
-            state = core._transformer_states.get(self.config.model_id)
-        if state is None:
-            return None
-        bundle = state.bundle
-        stages = {
-            key: stage
-            for key, stage in bundle.stages.items()
-            if stage.layer_index is not None and stage.op == "linear"
-        }
-        local = {key: stage for key, stage in stages.items() if stage.client_weight is not None}
-        with bundle._local_lock:
-            snapshots = set(bundle._local_matrices)
-        local_macs = sum(stage.in_features * stage.out_features for stage in local.values())
-        total_macs = sum(stage.in_features * stage.out_features for stage in stages.values())
-        return {
-            "schema": "pllm.client_body_placement.v1",
-            "sample_boundary": "after-final-measured-response",
-            "local_stage_count": len(local),
-            "remote_stage_count": len(stages) - len(local),
-            "client_body_i8_weight_bytes": sum(
-                stage.client_weight.nbytes for stage in local.values()
-            ),
-            "client_body_scale_bytes": sum(
-                stage.client_weight_scales.nbytes for stage in local.values()
-            ),
-            "native_body_i8_snapshot_bytes": sum(
-                stage.client_weight.nbytes for key, stage in local.items() if key in snapshots
-            ),
-            "declared_body_linear_macs_per_row_client": local_macs,
-            "declared_body_linear_macs_per_row_remote": total_macs - local_macs,
-            "peak_client_memory_bytes": None,
-        }
+        return client_body_placement_snapshot(self._client, self.config.model_id)
 
     def cold_process_cpu(self) -> dict[str, dict[str, float | None] | None]:
         """CPU from benchmark startup through the first response, including import/preparation.
@@ -742,6 +746,7 @@ class DashboardRuntime:
                 telemetry_token=self.config.otel_token,
                 credential_prefix="dash",
                 progress=lambda role: self._set(startup_step=role),
+                **({"docker": True, "docker_image": self.config.docker_image} if self.config.docker else {}),
             )
             await asyncio.to_thread(self._topology.start)
             for status in self._topology.statuses:

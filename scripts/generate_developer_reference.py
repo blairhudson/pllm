@@ -30,7 +30,9 @@ CLI_REFERENCE_ROOT = ROOT / "docs/content/docs/reference/cli"
 SDK_GUIDES_ROOT = ROOT / "docs/content/docs/sdk"
 MODEL_COMPATIBILITY = ROOT / "docs/data/model-compatibility.json"
 MODEL_CAPABILITY_DOC_ROOT = SDK_GUIDES_ROOT / "models/capabilities"
-CLI_ROOT_ORDER = ("gateway", "serve", "config", "components", "topology", "benchmark", "dev")
+CLI_ROOT_ORDER = (
+    "gateway", "serve", "network", "plan", "config", "components", "topology", "benchmark", "dev"
+)
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,19 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             "pllm gateway --inference-url https://inference.example.com "
             "--preparation-url https://preparation.example.com",
             validate_resolution=True,
+        ),
+        CliExample(
+            "Serve a fixed network decision",
+            "Use `plan.json` and `network.json` exported by the [network planning guide]"
+            "(/learn/topologies/network-planning/). Each response revalidates the selection and "
+            "opens a fresh execution lease; operator declarations are not independence proof.",
+            "pllm gateway --plan plan.json --network network.json",
+        ),
+        CliExample(
+            "Plan before each response",
+            "Use the guide's public `request.json` and matching network declaration. "
+            "Discovery and bounded planning run before each ordinary SDK response attempt.",
+            "pllm gateway --request request.json --network network.json",
         ),
     ),
     "pllm serve inference": (
@@ -117,6 +132,101 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             "commitments agree.",
             "pllm serve preparation --experiment examples/pllm.yaml",
             validate_resolution=True,
+        ),
+    ),
+    "pllm serve party": (
+        CliExample(
+            "Host installed CPU worker roles",
+            "Generate `network.json` and `party-a.json` with the [two-party fixture]"
+            "(https://github.com/blairhudson/pllm/blob/main/examples/networks/README.md). "
+            "Set the configured credential environment references before startup. "
+            "Separate loopback processes remain co-located functionality evidence.",
+            "pllm serve party --network network.json --party party-a.json --port 8101",
+        ),
+    ),
+    "pllm serve directory": (
+        CliExample(
+            "Host approved expiring membership",
+            "Create `directory.json` from a live network with an approved directory origin "
+            "and `directory_credential_env`, as described in the [network guide]"
+            "(/learn/topologies/network-planning/). Membership does not reserve capacity "
+            "or introduce new trust roots.",
+            "pllm serve directory --network directory.json --port 8103",
+        ),
+    ),
+    "pllm network inspect": (
+        CliExample(
+            "Inspect the shipped loopback declaration",
+            "Read public trust roots and credential reference names without contacting hosts.",
+            "pllm network inspect examples/networks/loopback.json --format json",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm network parties": (
+        CliExample(
+            "Inspect embedded offers without discovery",
+            "The shipped declaration embeds local client authority. Remove `--dry-run` only "
+            "after starting the approved hosts to obtain authenticated current offers.",
+            "pllm network parties examples/networks/loopback.json --dry-run --format json",
+            validate_resolution=True,
+        ),
+    ),
+    "pllm network snapshot": (
+        CliExample(
+            "Export an observed network snapshot",
+            "Use `network.json` from the [planning guide](/learn/topologies/network-planning/). "
+            "Local networks export static declarations; HTTP networks discover fresh installed "
+            "offers. Existing output files require `--force`.",
+            "pllm network snapshot network.json --output snapshot.json --format json",
+        ),
+    ),
+    "pllm network drain": (
+        CliExample(
+            "Drain an approved live party",
+            "Set the configured credential reference and start party `a` from the "
+            "[two-party fixture](https://github.com/blairhudson/pllm/blob/main/examples/"
+            "networks/README.md). New reservations stop while admitted work finishes.",
+            "pllm network drain examples/networks/loopback.json --party a --format json",
+        ),
+    ),
+    "pllm network leave": (
+        CliExample(
+            "Leave after admitted work drains",
+            "Use the same approved HTTP party and credential environment as `drain`. "
+            "Departure reports `draining` until admitted leases release or expire, then `left`.",
+            "pllm network leave examples/networks/loopback.json --party a --format json",
+        ),
+    ),
+    "pllm plan create": (
+        CliExample(
+            "Create an immutable offline decision",
+            "Export `request.json` and `snapshot.json` from the [pure planning example]"
+            "(/sdk/deployment/), then rank bounded assignments without loading weights "
+            "or reserving hosts. Existing output files require `--force`.",
+            "pllm plan create request.json --snapshot snapshot.json --output plan.json --format json",
+        ),
+    ),
+    "pllm plan inspect": (
+        CliExample(
+            "Replay and inspect a saved decision",
+            "Read `plan.json` created by `plan create`; import replays native legality and scoring.",
+            "pllm plan inspect plan.json --format json",
+        ),
+    ),
+    "pllm plan explain": (
+        CliExample(
+            "Explain selection and coverage",
+            "Inspect the saved winner, ordered policy, alternatives, rejections and search "
+            "coverage. A feasible truncated search is not exhaustive.",
+            "pllm plan explain plan.json --format json",
+        ),
+    ),
+    "pllm plan validate": (
+        CliExample(
+            "Revalidate against current observations",
+            "Use a fresh `snapshot.json` to check expiry, selected host epoch and native "
+            "capacity. Validation does not reserve execution authority.",
+            "pllm plan validate plan.json --snapshot snapshot.json --format json",
         ),
     ),
     "pllm config show": (
@@ -210,6 +320,23 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             "pllm benchmark run --experiment examples/benchmarks/qwen-prepared-cpu-4.yaml "
             "--max-output-tokens 8 --repetitions 1 --output benchmark.json",
             validate_resolution=True,
+        ),
+        CliExample(
+            "Benchmark a fixed network decision",
+            "Use the [network guide's exported files](/learn/topologies/network-planning/). "
+            "Each measured response opens a fresh lease through the ordinary SDK route. "
+            "The selected experiment owns execution settings.",
+            "pllm benchmark run --plan plan.json --network network.json "
+            "--max-output-tokens 2 --warmups 0 --repetitions 1",
+        ),
+        CliExample(
+            "Compare bounded feasible network controls",
+            "Discover and plan from `request.json`, then compare matched feasible compositions "
+            "or live host assignments under the same source, numeric and workload contracts. "
+            "Covered bodies and available CPU samples do not establish full-wire cost "
+            "or independently operated privacy.",
+            "pllm benchmark run --request request.json --network network.json "
+            "--compare-feasible --max-output-tokens 2 --warmups 0 --repetitions 1",
         ),
     ),
     "pllm benchmark quality": (
@@ -767,7 +894,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": NATIVE_EXAMPLE,
     },
     "pllm.plan": {
-        "purpose": "Plan records and locks bind semantic, numeric, privacy, and deployment decisions into immutable digest-addressed documents.",
+        "purpose": "Plan records and locks bind semantic, numeric, privacy, and deployment decisions into immutable digest-addressed documents. PlanningResult preserves bounded network search coverage, costs and rejections, and replays native legality and scoring on import; it is not an execution reservation.",
         "citations": (),
         "example": PLAN_RECORD_EXAMPLE,
     },
@@ -857,7 +984,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": SCHEDULER_EXAMPLE,
     },
     "pllm.search": {
-        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions.",
+        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions. PlanningRequest and PlanningPolicy separately bound offline network placement over exact source, numeric and workload contracts; unknown required costs fail closed.",
         "citations": (),
         "example": SEARCH_EXAMPLE,
     },
@@ -887,7 +1014,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": PIPELINE_EXAMPLE,
     },
     "pllm.deployment": {
-        "purpose": "Deployment records describe current local execution and separately inspect digest-bound operator/origin/TEE policy declarations without starting services, verifying attestation, or embedding credentials.",
+        "purpose": "Deployment APIs separate immutable static/local or authenticated HTTP network declarations, read-only discovery, and selected execution leases. Live CPU two-online-offset admission checks installed source, host epoch, numerics, schedule, capacity and TTL; imported offers alone grant no live authority. Operator separation is declared, not verified physical independence, and public records contain credential environment references rather than values.",
         "citations": (),
         "example": DEPLOYMENT_EXAMPLE,
     },
@@ -897,7 +1024,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": RUNTIME_EXAMPLE,
     },
     "pllm.compiler": {
-        "purpose": "The compiler accepts canonical request bytes, verifies complete capability coverage, and returns opaque native plans or fails closed.",
+        "purpose": "The compiler accepts canonical request bytes, verifies complete capability coverage, and returns opaque native plans or fails closed. The separate plan entry point performs bounded pure network placement against an explicit snapshot; native code owns legality and the immutable result does not reserve hosts or load weights.",
         "citations": (HYCC_CITATION,),
         "example": COMPILER_EXAMPLE,
     },
@@ -1066,7 +1193,9 @@ def render_cli_reference(
         "transport, inspect configuration, and compare components. Open "
         "[Private inference](/cli/private-inference/), [Provider roles](/cli/provider-roles/), "
         "[Benchmarking](/cli/benchmarking/), [Topologies](/cli/topologies/), or "
-        "[Inspect components](/cli/inspect-and-research/). Choose a command group below for "
+        "[Inspect components](/cli/inspect-and-research/), or "
+        "[Network planning and operation](/learn/topologies/network-planning/). "
+        "Choose a command group below for "
         "exact generated arguments.\n\n",
         "## Complete grammar\n\n",
         "```text\n",
@@ -1076,12 +1205,36 @@ def render_cli_reference(
         "`--no-color`, `--no-input`, and `--dry-run`. Root also accepts `--version`. Argument "
         "abbreviation is disabled.\n\n",
         "[Download exact complete help](/downloads/cli-help.txt).\n\n",
+        _network_cli_context(),
         "## `pllm --help`\n\n",
         "```text\n",
         sections[0][1],
         "```\n",
     ]
     return "".join(body)
+
+
+def _network_cli_context() -> str:
+    return (
+        "## Network selection and operation\n\n"
+        "`gateway` and `benchmark run` accept mutually exclusive `--plan PATH` or "
+        "`--request PATH`, both requiring `--network PATH`. Plan mode revalidates a fixed "
+        "selection; request mode discovers and performs bounded planning before each response. "
+        "Selection owns execution settings and excludes `--experiment` and manual "
+        "model/endpoint/numeric overrides. Benchmark `--compare-feasible` adds bounded "
+        "matched controls. Every live response obtains fresh reserved/armed capacity; "
+        "dry runs do not start services or perform discovery.\n\n"
+        "`network inspect` reads declarations; `parties` and `snapshot` discover live offers "
+        "unless dry-run. `drain` stops new admission; `leave` completes after admitted work "
+        "drains. `plan create` writes an immutable offline result; `inspect` and `explain` "
+        "replay and describe it; `validate` checks current snapshot/expiry and native placement. "
+        "`serve party` requires a locked installed `PartySpec`; `serve directory` requires "
+        "configured directory trust and credentials. Public credential fields name "
+        "environment variables, never embedded credential values.\n\n"
+        "See [checked commands and fixtures](/learn/topologies/network-planning/) and "
+        "[SDK execution leases](/sdk/deployment/execution/). HTTP role hosting currently "
+        "supports CPU two-online-offset; declared operator IDs are not independence proof.\n\n"
+    )
 
 
 def _render_cli_examples(examples: tuple[CliExample, ...]) -> str:
@@ -1103,6 +1256,8 @@ def render_cli_command_reference(
     command: str, help_text: str, examples: tuple[CliExample, ...] | None
 ) -> str:
     body = [_frontmatter(command, f"Exact {command} help from the installed PLLM CLI.")]
+    if command in {"pllm gateway", "pllm benchmark run", "pllm network", "pllm plan"}:
+        body.append(_network_cli_context())
     if examples is None:
         body.append(
             "Choose a subcommand below. Each executable command page includes an example.\n\n"
@@ -1148,7 +1303,7 @@ def render_gateway_local_guide() -> str:
 
 
 def render_gateway_provider_guide() -> str:
-    example = CLI_EXAMPLES["pllm gateway"][3:]
+    example = CLI_EXAMPLES["pllm gateway"][3:4]
     return "".join(
         (
             _frontmatter(
@@ -1443,7 +1598,7 @@ MODULE_USER_GUIDES = {
     "pllm.state": "/sdk/components/state/",
     "pllm.verification": "/sdk/components/verification/",
     "pllm.pipeline": "/sdk/experiments/",
-    "pllm.deployment": "/sdk/run/deployment/",
+    "pllm.deployment": "/sdk/deployment/",
     "pllm.runtime": "/sdk/run/",
     "pllm.compiler": "/sdk/plans/compile/",
     "pllm.evidence": "/sdk/evaluate/evidence/",
@@ -1456,6 +1611,25 @@ OBJECT_USER_GUIDES = {
     ("pllm", "ExecutionBudget"): "/sdk/experiments/define/",
     ("pllm", "lower_model"): "/sdk/plans/lower/",
     ("pllm", "OpenAI"): "/sdk/run/clients/",
+    ("pllm.deployment", "NetworkSpec"): "/sdk/deployment/network/",
+    ("pllm.deployment", "PartyTrust"): "/sdk/deployment/network/",
+    ("pllm.deployment", "PartySpec"): "/sdk/deployment/network/",
+    ("pllm.deployment", "PartyOffer"): "/sdk/deployment/network/",
+    ("pllm.deployment", "LivePartyOffer"): "/sdk/deployment/network/",
+    ("pllm.deployment", "NetworkSnapshot"): "/sdk/deployment/network/",
+    ("pllm.deployment", "LinkObservation"): "/sdk/deployment/network/",
+    ("pllm.deployment", "discover"): "/sdk/deployment/network/",
+    ("pllm.deployment", "async_discover"): "/sdk/deployment/network/",
+    ("pllm.deployment", "ExecutionBinding"): "/sdk/deployment/execution/",
+    ("pllm.deployment", "LiveExecutionBinding"): "/sdk/deployment/execution/",
+    ("pllm.deployment", "ExecutionLease"): "/sdk/deployment/execution/",
+    ("pllm.deployment", "open_execution"): "/sdk/deployment/execution/",
+    ("pllm.deployment", "async_open_execution"): "/sdk/deployment/execution/",
+    ("pllm.search", "PlanningRequest"): "/sdk/deployment/",
+    ("pllm.search", "PlanningPolicy"): "/sdk/deployment/",
+    ("pllm.search", "CandidateCostEvidence"): "/sdk/deployment/",
+    ("pllm.compiler", "plan"): "/sdk/deployment/",
+    ("pllm.plan", "PlanningResult"): "/sdk/deployment/",
 }
 
 _REFERENCE_LINK = re.compile(
@@ -1597,6 +1771,12 @@ def _object_summary(item: dict[str, Any], public_module: str) -> str:
         paragraph = documentation.split("\n\n", 1)[0].replace("\n", " ")
         return paragraph.rstrip(".") + "."
     specific = {
+        "NetworkSpec": "Immutable static/local or authenticated HTTP network declaration with explicit approved trust roots and credential environment references",
+        "NetworkSnapshot": "Immutable bounded observation of party offers and directed-link estimates; it carries no capacity reservation",
+        "PartyOffer": "Static party capability and capacity declaration with authenticated=False; it is not a live host observation",
+        "PartyTrust": "Approved party/operator/origin record naming a local credential environment variable rather than its value",
+        "PlanningPolicy": "Explicit ordered network-placement objectives, bounded search limits and fail-closed freshness/resource/privacy constraints",
+        "PlanningRequest": "Immutable network-placement request binding a lowered model, explicit same-source/numeric/budget candidates and planning policy",
         "AsyncOpenAI": "Asynchronous OpenAI-compatible client that targets the trusted local PLLM gateway",
         "OpenAI": "Synchronous OpenAI-compatible client that targets the trusted local PLLM gateway",
         "AsyncSSETransport": "Asynchronous transport for consuming bounded server-sent response streams",

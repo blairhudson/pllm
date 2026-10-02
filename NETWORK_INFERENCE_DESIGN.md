@@ -1,12 +1,49 @@
 # Network-aware inference: CLI and SDK design
 
-Status: **proposed, not implemented**. Date: 2026-10-01.
+Status: **bounded foundation implemented; broader network design remains a roadmap**.
+Date: 2026-10-01.
 
-This document designs the next PLLM vertical slices. New command syntax, Python
-symbols, schema names and signatures below are proposals, not runnable examples.
-They must pass end-to-end tests before appearing as supported public documentation.
+This document retains the original design below. Proposed signatures are not
+automatically supported: the implementation ledger identifies the tested subset.
 Existing network-reduction evidence is linked in
 [NETWORK_IO_10X_RESEARCH.md](NETWORK_IO_10X_RESEARCH.md).
+
+## Implementation ledger
+
+| Slice | Implemented and checked | Boundary |
+| --- | --- | --- |
+| A: snapshot planning | Immutable network/request/result records, bounded deterministic search, strict native role/resource admission, replayable decisions, selected local SDK execution | Installed client-only, prepared and two-offset compositions; unknown required costs reject |
+| B: live parties | Explicit network Experiment v3, authenticated offers and directory membership, instance epochs, capacity reservation/arm/release, expiry, drain and cancellation | Live CPU two-offset and prepared Inference/Preparation roles; isolated one-use inventories and selected-peer push credentials; declared operators do not prove independence |
+| C: shared application paths | Ordinary gateway and benchmark accept selected plans or planning requests; controlled east-fast/west-fast cohorts select different hosts | Selected latency regret was zero in two three-repetition loopback scenarios; full-wire and whole-response aggregate CPU remain unknown |
+| E1: private state locality | Immutable shared KV blocks, compiler-bound batched suffix schedule, explicit canonical valid-prefix float32 reductions, real provider acknowledgement before inventory reservation | Canonical numeric choice admits growing-width completed-prefill reuse; historical numeric mode still requires matching full extent; generated KV remains explicitly response-owned |
+| E2: public artifact locality | `ClientBundleTransport("artifacts")`, authenticated object delivery, bounded content-addressed cache, exact raw reconstruction before native import | Public compiled prepared bundles; private state and one-use inventory never become public artifacts |
+| E3: shallow HE | Real-shaped exact encrypted linear-region feasibility screen | Tested projection costs roughly 40 times the prepared stage bodies; non-selectable |
+| F: locality-aware planning | Source-bound `ArtifactCostEvidence`, declared public residency, `reuse_horizon` and horizon body objectives | Public misses charged once; manifests, one-use material and online work charged each workload; declarations are estimates |
+| G: Linux benchmark backend | Ordinary `benchmark run --docker`, slim public CPU image, one container per provider role, cgroup and interface samples | Co-located Docker development topology; host client; interface counters include control/telemetry and do not establish all-link full wire |
+
+Reproducible controls and current APIs:
+
+- [`examples/benchmarks/network_planning.py`](examples/benchmarks/network_planning.py)
+- [`examples/networks/README.md`](examples/networks/README.md)
+- [`network-planner-benchmark-2026-10-01.md`](docs/evidence/network-planner-benchmark-2026-10-01.md)
+- [`batched-continuation-2026-10-01.md`](docs/evidence/batched-continuation-2026-10-01.md)
+- [`artifact-locality-2026-10-01.md`](docs/evidence/artifact-locality-2026-10-01.md)
+- [`exact-linear-he-review-2026-10-01.md`](docs/evidence/exact-linear-he-review-2026-10-01.md)
+
+### Numeric state gate
+
+Pinned W8A8 execution exposed 1.9434-logit drift between generated incremental
+state and canonical one-shot prefill, and 1.8366 drift when prefill-only state was
+reused under another attention-reduction extent. Token equality is insufficient
+to authorize exact fresh-cache reuse. Cache keys now include original prefill
+extent under the historical numeric choice and require a sealed completed-prefill
+execution basis. The opt-in `SymmetricPerRow(causal_reduction="prefix_f32")`
+binds valid-prefix score, softmax and weighted-value reductions. Checked pinned
+Qwen splits and teacher-forced decode match every logit and KV value, allowing
+growing-width completed-prefill reuse in that composition. Generated state
+remains private to matching `previous_response_id` continuation. Broad generated
+fresh-promotion is pending a compatible numerical contract, not enabled by this
+implementation.
 
 ## 1. Product contract
 

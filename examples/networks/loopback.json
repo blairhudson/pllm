@@ -1,0 +1,25 @@
+{
+  "schema": "pllm.network_spec.v2",
+  "network_id": "loopback-offset",
+  "backend": "http",
+  "allowed_operators": ["client", "declared-operator-a", "declared-operator-b"],
+  "directory_origin": null,
+  "directory_credential_env": null,
+  "parties": [
+    {"schema": "pllm.party_trust.v1", "party_id": "a", "operator_id": "declared-operator-a", "origin": "http://127.0.0.1:8101", "credential_env": "PLLM_NETWORK_A"},
+    {"schema": "pllm.party_trust.v1", "party_id": "b", "operator_id": "declared-operator-b", "origin": "http://127.0.0.1:8102", "credential_env": "PLLM_NETWORK_B"}
+  ],
+  "snapshot": {
+    "schema": "pllm.network_snapshot.v1", "network_id": "loopback-offset",
+    "source": "trusted-local-client", "observed_at_ms": 0, "expires_at_ms": 4102444800000,
+    "links": [],
+    "offers": [{
+      "schema": "pllm.party_offer.v1", "party_id": "client", "operator_id": "client",
+      "instance_epoch": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "expires_at_ms": 4102444800000, "capabilities": ["trusted_client"],
+      "max_memory_bytes": 67108864, "max_weight_bytes": 67108864,
+      "max_sessions": 8, "active_sessions": 0, "allowed_models": ["*"],
+      "allowed_compositions": ["*"], "devices": ["cpu"], "authenticated": false
+    }]
+  }
+}

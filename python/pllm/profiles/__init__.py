@@ -590,6 +590,7 @@ class RuntimeComposition:
     inventory_policy: str = "prewarm"
     prepared_inventory_rows: int = 64
     bundle_compression: str = "none"
+    causal_reduction: str | None = None
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
@@ -617,7 +618,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             delivery.component != ClientBundleTransport.descriptor.component
             or set(delivery.params) != {"encoding"}
-            or delivery.params["encoding"] not in {"none", "zlib"}
+            or delivery.params["encoding"] not in {"none", "zlib", "artifacts"}
             or identities.get("linear") != "pllm/masked-linear"
             or "verification" in identities
         ):
@@ -711,10 +712,13 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             equalization_digest = quantization.params["profile_digest"]
         elif (
             quantization.component != SymmetricPerRow.descriptor.component
-            or set(quantization.params) != {"weight_bits", "activation_bits"}
+            or set(quantization.params) not in ({"weight_bits", "activation_bits"},
+                {"weight_bits", "activation_bits", "causal_reduction"})
+            or ("causal_reduction" in quantization.params
+                and quantization.params["causal_reduction"] != "prefix_f32")
             or any(
                 type(value) is not int or value not in {4, 8}
-                for value in quantization.params.values()
+                for value in (quantization.params["weight_bits"], quantization.params["activation_bits"])
             )
             or identities.get("linear")
             not in {
@@ -729,6 +733,7 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         {
             "weight_bits": quantization.params["weight_bits"],
             "activation_bits": quantization.params["activation_bits"],
+            "causal_reduction": quantization.params.get("causal_reduction"),
         }
         if quantization is not None and equalization_digest is None
         else {}

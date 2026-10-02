@@ -34,6 +34,7 @@ def local(kind: str, *values: np.ndarray, epsilon: str = "1e-6") -> np.ndarray:
     attrs = {"epsilon": epsilon, "weight": "synthetic", "weight_offset": 0}
     runtime = SimpleNamespace(
         nonlinear_evaluator=None,
+        _causal_reduction=None,
         _weight=lambda _: np.ones(values[0].shape[-1], dtype=np.float32),
     )
     inputs = [f"source{i}" for i in range(len(values))]
@@ -165,7 +166,7 @@ def rounded_probe() -> dict[str, Any]:
             "layer": 0,
         }
         baseline = SemanticDecoderRuntime._local(
-            SimpleNamespace(),
+            SimpleNamespace(_causal_reduction=None),
             operation,
             {"p": probabilities.reshape(1, 1, 1, 8), "v": values.reshape(1, 1, 8, 4)},
             {},

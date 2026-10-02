@@ -7,12 +7,13 @@ ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup
 ENV PATH="/usr/local/cargo/bin:$PATH" UV_LINK_MODE=copy
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 ENV UV_PROJECT_ENVIRONMENT=/opt/pllm/.venv
+ARG PLLM_EXTRAS=he
 WORKDIR /build
 COPY . .
 # Resolved locks are mandatory for deployment, rather than silently changing dependencies.
 RUN test -f Cargo.lock && test -f uv.lock
 RUN cargo metadata --locked --format-version 1 > /dev/null
-RUN uv sync --locked --extra he --no-dev && uv build --wheel --out-dir /dist
+RUN if [ -n "$PLLM_EXTRAS" ]; then uv sync --locked --extra "$PLLM_EXTRAS" --no-dev; else uv sync --locked --no-dev; fi && uv build --wheel --out-dir /dist
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS runtime
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1

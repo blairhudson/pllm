@@ -10,10 +10,11 @@ from typing import Sequence
 
 import numpy as np
 
-from .transformer_client import LayerCache, RuntimeSnapshot
+from .transformer_client import LayerCache, RuntimeSnapshot, SnapshotStateBasis
 
 
-def prefill_key(binding_digest: str, bundle_fingerprint: str, token_ids: Sequence[int]) -> str:
+def prefill_key(binding_digest: str, bundle_fingerprint: str, token_ids: Sequence[int],
+                 *, prefill_extent: int | None = None, causal_reduction: str | None = None) -> str:
     values = np.asarray(token_ids, dtype=np.int64)
     if (
         values.ndim != 1
@@ -22,10 +23,16 @@ def prefill_key(binding_digest: str, bundle_fingerprint: str, token_ids: Sequenc
         or np.any(values > 0xFFFFFFFF)
     ):
         raise ValueError("prefill cache token IDs are invalid")
-    hasher = hashlib.sha256(b"pllm.client.prefill-cache.v1\0")
+    extent = int(values.size) if prefill_extent is None else prefill_extent
+    if type(extent) is not int or not values.size <= extent <= 1_000_000:
+        raise ValueError("prefill cache attention geometry is invalid")
+    if causal_reduction not in {None, "prefix_f32"}:
+        raise ValueError("unknown prefill numeric contract")
+    hasher = hashlib.sha256(b"pllm.client.prefill-cache.v3\0" if causal_reduction else b"pllm.client.prefill-cache.v2\0")
     hasher.update(binding_digest.encode("ascii"))
     hasher.update(bundle_fingerprint.encode("ascii"))
     hasher.update(len(values).to_bytes(4, "big"))
+    hasher.update((0 if causal_reduction else extent).to_bytes(4, "big"))
     hasher.update(values.astype("<u4").tobytes())
     return hasher.hexdigest()
 
@@ -50,6 +57,8 @@ class _Entry:
     layers: int
     blocks: tuple[tuple[str, int], ...]
     logits: np.ndarray | None
+    semantic_binding_digest: str | None = None
+    state_basis: SnapshotStateBasis | None = None
 
 
 class ExactPrefillCache:
@@ -63,10 +72,13 @@ class ExactPrefillCache:
     _BLOCK_ROWS = 8
     _MAX_ENTRIES = 4096
 
-    def __init__(self, max_bytes: int) -> None:
+    def __init__(self, max_bytes: int, *, causal_reduction: str | None = None) -> None:
         if type(max_bytes) is not int or not 0 < max_bytes <= 256 << 20:
             raise ValueError("prefill cache must be bounded to at most 256 MiB")
         self.max_bytes = max_bytes
+        if causal_reduction not in {None, "prefix_f32"}:
+            raise ValueError("unknown prefill numeric contract")
+        self.causal_reduction = causal_reduction
         self._bytes = 0
         self._entries: OrderedDict[str, _Entry] = OrderedDict()
         self._blocks: dict[str, _Block] = {}
@@ -98,7 +110,7 @@ class ExactPrefillCache:
                 [pair[1][:length] for pair, (_, length) in zip(pairs, entry.blocks, strict=True)]
             )
             caches.append(LayerCache(key, value, entry.position))
-        return RuntimeSnapshot(entry.position, caches, {})
+        return RuntimeSnapshot(entry.position, caches, {}, entry.semantic_binding_digest, entry.state_basis)
 
     def get(
         self, key: str, *, position: int, layers: int
@@ -107,7 +119,9 @@ class ExactPrefillCache:
             entry = self._entries.get(key)
             if entry is None:
                 return None
-            if entry.position != position or entry.layers != layers or entry.logits is None:
+            if (entry.position != position or entry.layers != layers or entry.logits is None
+                    or entry.state_basis is None or not entry.state_basis.completed_prefill()
+                    or entry.state_basis.prefill_extent != position):
                 self._remove(key)
                 return None
             self._entries.move_to_end(key)
@@ -123,12 +137,15 @@ class ExactPrefillCache:
     ) -> tuple[int, RuntimeSnapshot] | None:
         """Find longest retained proper prefix; never return a mutable cached share."""
         for position in range(len(token_ids) - 1, 0, -1):
-            key = prefill_key(binding_digest, bundle_fingerprint, token_ids[:position])
+            key = prefill_key(binding_digest, bundle_fingerprint, token_ids[:position],
+                              prefill_extent=len(token_ids), causal_reduction=self.causal_reduction)
             with self._lock:
                 entry = self._entries.get(key)
                 if entry is None:
                     continue
-                if entry.position != position or entry.layers != layers:
+                if (entry.position != position or entry.layers != layers
+                        or entry.state_basis is None or not entry.state_basis.completed_prefill()
+                        or self.causal_reduction is None and entry.state_basis.prefill_extent != len(token_ids)):
                     self._remove(key)
                     continue
                 self._entries.move_to_end(key)
@@ -155,10 +172,13 @@ class ExactPrefillCache:
             or not 1 <= snapshot.position <= 4096
             or not snapshot.caches
             or snapshot.shared_kv
+            or snapshot.state_basis is None
+            or not snapshot.state_basis.completed_prefill()
+            or snapshot.state_basis.position != snapshot.position
         ):
             return False
         for row in snapshot.caches:
-            if row.length != snapshot.position or row.key is None or row.value is None:
+            if type(row) is not LayerCache or row.length != snapshot.position or row.key is None or row.value is None:
                 return False
             if (
                 row.key.dtype != np.float32
@@ -234,7 +254,8 @@ class ExactPrefillCache:
         keys, blocks = self._prepare(snapshot)
         with self._lock:
             try:
-                return self._put(key, snapshot.position, len(snapshot.caches), keys, blocks, values)
+                return self._put(key, snapshot.position, len(snapshot.caches), keys, blocks, values,
+                                  snapshot.semantic_binding_digest, snapshot.state_basis)
             finally:
                 self._discard(blocks)
 
@@ -249,6 +270,7 @@ class ExactPrefillCache:
         total = len(token_ids)
         if snapshot.position != total or total < 2 or not self._valid(snapshot):
             return 0
+        assert snapshot.state_basis is not None
         # All checkpoints reference the same immutable full blocks. Only the
         # last reference is clipped; materialization never reveals future rows.
         positions = {
@@ -270,12 +292,16 @@ class ExactPrefillCache:
             try:
                 for position in sorted(positions):
                     if self._put(
-                        prefill_key(binding_digest, bundle_fingerprint, token_ids[:position]),
+                         prefill_key(binding_digest, bundle_fingerprint, token_ids[:position],
+                                     prefill_extent=snapshot.state_basis.prefill_extent,
+                                     causal_reduction=self.causal_reduction),
                         position,
                         len(snapshot.caches),
                         keys,
                         blocks,
                         None,
+                        snapshot.semantic_binding_digest,
+                        snapshot.state_basis._prefix(position),
                     ):
                         saved += 1
             finally:
@@ -290,7 +316,11 @@ class ExactPrefillCache:
         keys: list[str],
         blocks: dict[str, _Block],
         values: np.ndarray | None,
+        semantic_binding_digest: str | None = None,
+        state_basis: SnapshotStateBasis | None = None,
     ) -> bool:
+        if state_basis is None or not state_basis.completed_prefill() or state_basis.position != position:
+            return False
         refs = tuple(
             (block_key, min(self._BLOCK_ROWS, position - offset))
             for offset, block_key in zip(range(0, position, self._BLOCK_ROWS), keys)
@@ -302,6 +332,8 @@ class ExactPrefillCache:
             and old is not None
             and old.position == position
             and old.layers == layers
+            and old.state_basis is not None
+            and old.state_basis.prefill_extent == state_basis.prefill_extent
             and len(old.blocks) == len(refs)
             and all(
                 old_length == length
@@ -348,7 +380,7 @@ class ExactPrefillCache:
                 self._blocks[block_key] = _Block(arrays, source.bytes)
                 self._bytes += source.bytes
             self._blocks[block_key].references += 1
-        self._entries[key] = _Entry(position, layers, refs, logits)
+        self._entries[key] = _Entry(position, layers, refs, logits, semantic_binding_digest, state_basis)
         self._bytes += 0 if logits is None else logits.nbytes
         return True
 

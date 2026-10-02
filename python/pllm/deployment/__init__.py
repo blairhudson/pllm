@@ -1,9 +1,31 @@
 """Public deployment declarations."""
 
 from pllm.configuration import Deployment
-from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
+from pllm.components._planned import (
+    PendingComponent as PendingMethod,
+    install_planned_components,
+    planned as pending,
+)
 from pllm.deployment.role_placement import (
-    AttestationPolicy, PlacementAssessment, RoleDeployment, RolePlacement,
+    AttestationPolicy,
+    PlacementAssessment,
+    RoleDeployment,
+    RolePlacement,
+)
+from pllm.deployment.network import (
+    LinkObservation,
+    NetworkError,
+    NetworkSnapshot,
+    NetworkSpec,
+    PartyOffer,
+    LivePartyOffer,
+    PartySpec,
+    PartyTrust,
+    discover,
+    async_discover,
+)
+from pllm.deployment.execution import (
+    ExecutionBinding, LiveExecutionBinding, ExecutionLease, open_execution, async_open_execution,
 )
 
 
@@ -11,9 +33,29 @@ from pllm.deployment.role_placement import (
 class TeeFheTopology(PendingMethod):
     pass
 
+
 __all__ = [
-    "AttestationPolicy", "Deployment", "PlacementAssessment", "RoleDeployment",
-    "RolePlacement", "TeeFheTopology",
+    "AttestationPolicy",
+    "Deployment",
+    "PlacementAssessment",
+    "RoleDeployment",
+    "RolePlacement",
+    "TeeFheTopology",
+    "LinkObservation",
+    "NetworkError",
+    "NetworkSnapshot",
+    "NetworkSpec",
+    "PartyOffer",
+    "LivePartyOffer",
+    "PartySpec",
+    "PartyTrust",
+    "discover",
+    "async_discover",
+    "ExecutionBinding",
+    "LiveExecutionBinding",
+    "ExecutionLease",
+    "open_execution",
+    "async_open_execution",
 ]
 
 install_planned_components(globals())

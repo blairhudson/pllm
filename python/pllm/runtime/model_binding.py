@@ -420,6 +420,7 @@ class CompiledRuntimeModel:
             token_cache_size=token_cache_size,
             token_cache_lock=token_cache_lock,
             nonlinear_evaluator=nonlinear_evaluator,
+            causal_reduction=options.causal_reduction,
         )
 
     def _runtime_with_nonlinear(

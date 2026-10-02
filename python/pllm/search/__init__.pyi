@@ -3,6 +3,12 @@ from typing import Any
 
 from pllm.configuration import Experiment
 from pllm.evidence import BenchmarkResult
+from pllm.search.placement import (
+    ArtifactCostEvidence as ArtifactCostEvidence,
+    CandidateCostEvidence as CandidateCostEvidence,
+    PlanningPolicy as PlanningPolicy,
+    PlanningRequest as PlanningRequest,
+)
 
 class SearchError(ValueError): ...
 

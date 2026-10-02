@@ -57,8 +57,25 @@ assert [candidate.parameters["pipeline__kernels__threads"] for candidate in cand
 assert len({candidate.configuration_digest for candidate in candidates}) == 3
 ```
 
-API: [`pllm.search`](/sdk/reference/python/pllm/#objects-and-signatures)
+API: [`pllm.search`](/sdk/reference/python/pllm/search/#objects-and-signatures)
 
 Persist the exact candidate experiment with each observation. Do not select a
 winner from latency alone when token counts, model fingerprints, environments,
 or other evidence-cohort fields differ.
+
+## Bounded network placement
+
+`PlanningRequest` and `PlanningPolicy` describe a separate offline placement
+search over explicit immutable experiments and a `NetworkSnapshot`.
+[`compiler.plan`](/sdk/reference/python/pllm/compiler/#objects-and-signatures)
+uses ordered objectives, capacity/freshness gates, native role legality, and
+declared operator separation. Unknown required costs reject a candidate;
+arithmetic/link estimates are not measured benchmark results. Numeric contracts
+and source/budget identity must match across candidates.
+
+Inspect coverage before treating a feasible decision as exhaustive; bounded
+no-winner searches can be inconclusive. The [network planning guide](/sdk/deployment/)
+contains a pure no-weights example and immutable result replay. Gateway/benchmark
+request mode discovers and replans before each response; saved-plan mode keeps
+the selection and revalidates admission. Neither creates a universal pricing,
+privacy, or hardware-compute score.

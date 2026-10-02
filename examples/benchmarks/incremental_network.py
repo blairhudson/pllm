@@ -1,4 +1,11 @@
-"""Immutable candidates for canonical cold/warm and context-sequence benchmarks."""
+"""Immutable candidates for canonical cold/warm and context-sequence benchmarks.
+
+Fresh prefix reuse admits only sealed completed prefills with the same actual
+full-input reduction extent; fixed_input_tokens is capacity, not numeric width.
+Changed-width context growth and generated decode state miss the fresh cache.
+Historical pre-gate growth-context savings are not current exact-reuse claims.
+Explicit previous_response_id retains separate response-owned incremental state.
+"""
 
 from pllm import Deployment, ExecutionBudget, Experiment, Model
 from pllm.kernels import Cpu

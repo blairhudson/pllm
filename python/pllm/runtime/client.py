@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, Mapping, TypeVar
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
 import msgpack
@@ -30,6 +30,15 @@ from .bundle_compression import (
     ENCODING as BUNDLE_ENCODING,
     BundleFrameError,
     decode_bundle_frames,
+)
+from .bundle_artifacts import (
+    ENCODING as ARTIFACT_ENCODING,
+    MAX_MANIFEST_BYTES,
+    MAX_RAW_BYTES as MAX_ARTIFACT_RAW_BYTES,
+    ArtifactError,
+    configure_artifact_cache,
+    parse_manifest,
+    reconstruct_bundle,
 )
 from .prefill_cache import ExactPrefillCache, prefill_key
 
@@ -232,6 +241,8 @@ class PrivacyAudit:
     token_lookup_cache_hits: int = 0
     token_lookup_cache_misses: int = 0
     kv_continuation_hits: int = 0
+    kv_continuation_batched_hits: int = 0
+    kv_continuation_legacy_sequential_hits: int = 0
     kv_continuation_misses: int = 0
     prefill_cache_hits: int = 0
     prefill_cache_misses: int = 0
@@ -1020,8 +1031,8 @@ class RuntimeClient:
             bundle_compression = expected_encoding
         if bundle_compression is None:
             bundle_compression = "none"
-        if bundle_compression not in {"none", "zlib"}:
-            raise ValueError("bundle_compression must be none or zlib")
+        if bundle_compression not in {"none", "zlib", "artifacts"}:
+            raise ValueError("bundle_compression must be none, zlib, or artifacts")
         self.bundle_cache_mode = bundle_cache_mode
         self.bundle_compression = bundle_compression
         self._bundle_cache_explicit = bundle_cache_dir is not None
@@ -1206,11 +1217,9 @@ class RuntimeClient:
             raise ProtocolError("provider client bundle fingerprint is invalid", 409)
         if descriptor["etag"] != f'"{fingerprint}"':
             raise ProtocolError("provider client bundle descriptor is invalid", 409)
-        try:
-            schema = int(descriptor["schema"])
-            size = int(descriptor["size"])
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise ProtocolError("provider client bundle descriptor is invalid", 409) from exc
+        if type(descriptor["schema"]) is not int or type(descriptor["size"]) is not int:
+            raise ProtocolError("provider client bundle descriptor is invalid", 409)
+        schema, size = descriptor["schema"], descriptor["size"]
         if schema < 1 or size < 1 or size > _MAX_CLIENT_BUNDLE_BYTES:
             raise ProtocolError("provider client bundle descriptor is invalid", 409)
         return descriptor
@@ -1366,6 +1375,93 @@ class RuntimeClient:
             raise _BundleIntegrityError("provider client bundle descriptor mismatch", 409)
         return bundle, payload
 
+    def _load_artifact_bundle(
+        self, model_id: str, *, fingerprint: str, schema: int, size: int,
+    ) -> ClientBundle:
+        if schema != 2 or not 0 < size <= MAX_ARTIFACT_RAW_BYTES:
+            raise _BundleIntegrityError("artifact raw admission exceeds schema/4 GiB cap", 409)
+        cache = getattr(self, "bundle_artifact_cache", None)
+        if cache is None:
+            cache = configure_artifact_cache(self)
+        stats = cache.stats
+        initial_stats = stats.to_dict()
+        headers = dict(self.headers)
+        headers["X-PLLM-Accept-Bundle-Encoding"] = ARTIFACT_ENCODING
+        model_path = quote(model_id, safe="")
+
+        def download(path: str, maximum: int, *, object_key: str | None = None) -> bytes:
+            output = bytearray()
+            with self.http.stream("GET", path, headers=headers, follow_redirects=False) as response:
+                if not response.is_success:
+                    response.read()
+                _raise(response)
+                if response.headers.get("Content-Encoding", "identity") != "identity":
+                    raise ArtifactError("artifact transport compression is unsupported")
+                if response.headers.get("X-PLLM-Bundle-SHA256") != fingerprint:
+                    raise ArtifactError("artifact original raw binding mismatch")
+                if object_key is None:
+                    if response.headers.get("X-PLLM-Bundle-Encoding") != ARTIFACT_ENCODING:
+                        raise ArtifactError("provider does not support explicit artifacts encoding")
+                    stats.manifest_requests += 1
+                else:
+                    if response.headers.get("X-PLLM-Object-SHA256") != object_key:
+                        raise ArtifactError("artifact response object binding mismatch")
+                    stats.object_requests += 1
+                chunks = ((response.content,) if response.is_stream_consumed else
+                          response.iter_raw(chunk_size=65536))
+                for chunk in chunks:
+                    self.audit.bundle_network_bytes += len(chunk)
+                    if object_key is None:
+                        stats.manifest_download_bytes += len(chunk)
+                    else:
+                        stats.object_download_bytes += len(chunk)
+                    if len(output) + len(chunk) > maximum:
+                        raise ArtifactError("artifact response exceeds its byte bound")
+                    output.extend(chunk)
+            return bytes(output)
+
+        try:
+            document = download(f"/v1/runtime/models/{model_path}/client-bundle", MAX_MANIFEST_BYTES)
+            started, cpu_started = time.perf_counter(), time.process_time()
+            manifest = parse_manifest(document, fingerprint=fingerprint, size=size)
+            stats.manifest_parse_seconds += time.perf_counter() - started
+            stats.manifest_parse_cpu_seconds += time.process_time() - cpu_started
+
+            def read(row):
+                before = stats.to_dict()
+
+                def fetch():
+                    # No URLs from the manifest: exact authenticated inference-origin
+                    # route with descriptor binding; redirects fail closed.
+                    return download(
+                        f"/v1/runtime/models/{model_path}/client-bundle-objects/{fingerprint}/{row['sha256']}",
+                        row["size"], object_key=row["sha256"],
+                    )
+
+                payload = cache.fetch(row, fetch)
+                self.audit.bundle_cache_corruptions += stats.corruptions - before["corruptions"]
+                return payload
+
+            started, cpu_started = time.perf_counter(), time.process_time()
+            payload = reconstruct_bundle(manifest, read)
+            stats.reconstruction_seconds += time.perf_counter() - started
+            stats.reconstruction_cpu_seconds += time.process_time() - cpu_started
+            bundle = ClientBundle.unpack(payload)
+            if bundle.model_id != model_id or bundle.schema_version != schema:
+                raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
+            # Existing audit counters retain bundle-level semantics. Detailed
+            # per-object/ref counts live in artifact_cache_stats, so duplicate
+            # scale references cannot label a cold transfer as a warm bundle.
+            if stats.object_requests == initial_stats["object_requests"]:
+                self.audit.bundle_cache_hits += 1
+            elif stats.corruptions == initial_stats["corruptions"]:
+                self.audit.bundle_cache_misses += 1
+            return bundle
+        except (ArtifactError, TransformerClientError, ValueError, TypeError, KeyError) as exc:
+            raise _BundleIntegrityError(f"provider client bundle artifacts invalid: {exc}", 409) from exc
+        except OSError as exc:
+            raise ProtocolError(f"configured public artifact cache is unavailable: {exc}") from exc
+
     @staticmethod
     def _write_cached_bundle(path: Path, payload: bytes | bytearray) -> None:
         temporary: Path | None = None
@@ -1406,6 +1502,8 @@ class RuntimeClient:
         fingerprint = str(descriptor["sha256"])
         schema = int(descriptor["schema"])
         size = int(descriptor["size"])
+        if self.bundle_compression == "artifacts":
+            return self._load_artifact_bundle(model_id, fingerprint=fingerprint, schema=schema, size=size)
         if self.bundle_cache_mode == "off":
             return self._download_client_bundle(
                 model_id, fingerprint=fingerprint, schema=schema, size=size
@@ -1830,11 +1928,45 @@ class RuntimeClient:
                 for operation in graph["operations"]
             ):
                 return None
+        if self.prefill_cache_mode == "prefix":
+            self._decoder_continuation(compiled).admit(1, max(1, len(ids) - 1))
+        from pllm.profiles import resolve_runtime_composition
+        from pllm.configuration import Pipeline
+        numeric = resolve_runtime_composition(Pipeline.from_spec(json.loads(compiled._canonical_composition)))
+        reduction = None if numeric is None else numeric.causal_reduction
         with self._transformer_state_lock:
             if state.prefill_cache is None:
-                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes)
+                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes, causal_reduction=reduction)
             cache = state.prefill_cache
-        return cache, prefill_key(compiled.digest, state.bundle_fingerprint, ids)
+        return cache, prefill_key(compiled.digest, state.bundle_fingerprint, ids, causal_reduction=reduction)
+
+    @staticmethod
+    def _decoder_continuation(compiled: CompiledRuntimeModel):
+        from pllm.configuration import Pipeline
+
+        return compiled._plan.continuation_schedule(
+            Pipeline.from_spec(json.loads(compiled._canonical_composition))
+        )
+
+    def _admitted_decoder_continuation(
+        self, session_value: dict[str, Any], compiled: CompiledRuntimeModel
+    ):
+        """Require an independently bound provider extension; never downgrade."""
+        contract = self._decoder_continuation(compiled)
+        if session_value.get("decoder_continuation") != contract.handshake_spec():
+            raise ModelError("provider did not admit the native decoder continuation extension")
+        return contract
+
+    @staticmethod
+    def _render_cached_decoder_prompt(state: _TransformerCryptoState, messages: list[Any], **kwargs: Any) -> str:
+        # Strict templates may inspect tool_calls even for ordinary assistant
+        # text. Supply its generic empty value rather than changing token cohort
+        # through the bundle renderer's deterministic fallback.
+        rows = [dict(row.to_prompt_dict() if hasattr(row, "to_prompt_dict") else row) for row in messages]
+        for row in rows:
+            if row.get("role") == "assistant":
+                row.setdefault("tool_calls", [])
+        return state.bundle.render_prompt(rows, **kwargs)
 
     @staticmethod
     def _profitable_cached_prefix(
@@ -1842,9 +1974,8 @@ class RuntimeClient:
         total: int,
         state: _TransformerCryptoState,
     ) -> bool:
-        # Suffix is currently executed by single-token decode, whereas an
-        # ordinary prefill packs all rows per stage. Keep large suffixes on the
-        # batched path until a compiler-bound chunked-continuation phase exists.
+        # Both candidates pack one query block per stage. This compares covered
+        # stage-body estimates; measured counters, not this estimate, prove gain.
         if not 0 < position < total:
             return False
         stages = tuple(
@@ -1855,10 +1986,8 @@ class RuntimeClient:
         per_row = sum(
             (stage.in_features + stage.out_features) * stage.wire_bits // 8 for stage in stages
         )
-        # Include one envelope/HTTP-body allowance per stage and decode row.
-        # Require a 2x body margin; this is an admission estimate, not a wire
-        # or latency guarantee. Matched benchmark counters remain authoritative.
-        return 2 * (total - position) * (per_row + 1024 * len(stages)) < total * per_row
+        overhead = 1024 * len(stages)
+        return (total - position) * per_row + overhead < total * per_row + overhead
 
     def _prepare_inventory_locked(
         self,
@@ -2286,6 +2415,11 @@ class RuntimeClient:
                         "stage_commitment": compiled.to_spec()["stage_commitment"],
                         "runtime_config_digest": compiled.runtime_config_digest,
                     }
+                    if self.prefill_cache_mode == "prefix":
+                        session_body["decoder_continuation"] = {
+                            "composition": json.loads(compiled._canonical_composition),
+                            "contract": self._decoder_continuation(compiled).handshake_spec(),
+                        }
             if state.context_ids:
                 session_body["context_ids"] = list(state.context_ids.values())
             online_started = False
@@ -2503,7 +2637,7 @@ class RuntimeClient:
     def prepared_rows_for_response(
         self,
         model: str,
-        input: str,
+        input: str | list[Any],
         max_output_tokens: int,
         *,
         instructions: str | None = None,
@@ -2512,11 +2646,8 @@ class RuntimeClient:
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
         state = self._transformer_state(model)
-        messages: list[dict[str, str]] = []
-        if instructions:
-            messages.append({"role": "system", "content": instructions})
-        messages.append({"role": "user", "content": input})
-        rendered = state.bundle.render_prompt(messages, add_generation_prompt=True)
+        messages = normalize_input(input, instructions=instructions)
+        rendered = self._render_cached_decoder_prompt(state, messages, add_generation_prompt=True)
         tokenizer = state.bundle.tokenizer()
         add_bos = bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True))
         ids = tokenizer.encode(rendered, add_bos=add_bos)
@@ -3015,7 +3146,8 @@ class RuntimeClient:
         policy_instruction = policy.prompt_instruction()
         if policy_instruction:
             render_messages.insert(0, {"role": "system", "content": policy_instruction})
-        rendered = state.bundle.render_prompt(
+        rendered = self._render_cached_decoder_prompt(
+            state,
             render_messages,
             add_generation_prompt=True,
             tools=policy.prompt_tools() if policy.enabled else None,
@@ -3358,11 +3490,24 @@ class RuntimeClient:
                     suffix = full_input_ids[len(prior.token_ids) :]
 
             if prior is not None and suffix is not None:
-                runtime.restore(prior.snapshot)
-                continuation_used = True
                 pending_input_ids = [*prior.pending_token_ids, *suffix]
+                if prior.snapshot.position != len(prior.token_ids) - len(prior.pending_token_ids):
+                    raise ModelError("prior response state differs from its evaluated tokens")
+                if self.prefill_cache_mode == "prefix":
+                    if compiled is None:
+                        raise ModelError("prefix conversation requires native continuation")
+                    contract = self._admitted_decoder_continuation(session_value, compiled)
+                    if pending_input_ids:
+                        contract.admit(prior.snapshot.position, len(pending_input_ids))
+                    elif prior.snapshot.position > contract.to_dict()["token_bound"]:
+                        raise ModelError("prior response exceeds fixed continuation token bound")
+                    runtime.install_continuation(contract)
+                runtime.restore_for_response(prior.snapshot, previous_id)
+                continuation_used = True
                 logits = (
-                    runtime.forward_ids(pending_input_ids)[-1]
+                    (runtime.continue_ids(pending_input_ids)[-1]
+                     if self.prefill_cache_mode == "prefix"
+                     else runtime.forward_ids(pending_input_ids)[-1])
                     if pending_input_ids
                     else prior.next_logits.copy()
                 )
@@ -3386,9 +3531,11 @@ class RuntimeClient:
                     # another response's masked correction or token selection.
                     assert runtime.position < len(full_input_ids)
                     reused = runtime.position
-                    logits = np.empty(0, dtype=np.float32)
-                    for token in full_input_ids[reused:]:
-                        logits = runtime.decode_step(token, runtime.caches, runtime.position)[0]
+                    assert compiled is not None
+                    runtime.install_continuation(
+                        self._admitted_decoder_continuation(session_value, compiled)
+                    )
+                    logits = runtime.continue_ids(full_input_ids[reused:])[-1]
                     self.audit.prefill_prefix_tokens_reused += reused
                 else:
                     if runtime.position != len(full_input_ids):
@@ -3463,6 +3610,10 @@ class RuntimeClient:
             if previous_id:
                 if continuation_used:
                     self.audit.kv_continuation_hits += 1
+                    if self.prefill_cache_mode == "prefix":
+                        self.audit.kv_continuation_batched_hits += 1
+                    else:
+                        self.audit.kv_continuation_legacy_sequential_hits += 1
                 else:
                     self.audit.kv_continuation_misses += 1
 
@@ -3643,22 +3794,27 @@ class RuntimeClient:
                     json={"usage": usage.to_dict()},
                 )
                 _raise(complete)
+            evaluated_ids = [*input_ids, *output_ids]
+            if (runtime.position != len(evaluated_ids) - len(pending_token_ids)
+                    or (pending_token_ids and evaluated_ids[runtime.position:] != pending_token_ids)):
+                raise ModelError("generated state differs from the exact evaluated token cohort")
             self.cache[response_id] = final
             self.histories[response_id] = rendered + raw_text
             assistant_history: dict[str, Any] = {"role": "assistant", "content": parsed.text}
             if history_calls:
                 assistant_history["tool_calls"] = history_calls
             self.message_histories[response_id] = [*structured, assistant_history]
-            with self._transformer_conversation_lock:
-                self._transformer_conversations[response_id] = _TransformerConversationState(
-                    model_id=model_id,
-                    bundle_fingerprint=state.bundle_fingerprint,
-                    token_ids=[*input_ids, *output_ids],
-                    rendered_context=rendered + raw_text,
-                    snapshot=runtime.snapshot(),
-                    next_logits=np.asarray(logits, dtype=np.float32).copy(),
-                    pending_token_ids=pending_token_ids,
-                )
+            if bool(body.get("store", True)):
+                with self._transformer_conversation_lock:
+                    self._transformer_conversations[response_id] = _TransformerConversationState(
+                        model_id=model_id,
+                        bundle_fingerprint=state.bundle_fingerprint,
+                        token_ids=[*input_ids, *output_ids],
+                        rendered_context=rendered + raw_text,
+                        snapshot=runtime.snapshot_for_response(response_id),
+                        next_logits=np.asarray(logits, dtype=np.float32).copy(),
+                        pending_token_ids=pending_token_ids,
+                    )
             self._remember_response(response_id)
             session_completed = True
             yield ResponseEvent.from_dict(
@@ -3852,9 +4008,54 @@ class OpenAI:
         experiment: Experiment | ExperimentProfile | None = None,
         local_engine: MaskedTransformerEngine | None = None,
         role_connections: Mapping[str, tuple[str, str]] | None = None,
+        execution: Any | None = None,
     ) -> None:
         from pllm.configuration import Experiment, ExperimentProfile
         from pllm.settings import ClientSettings
+
+        if execution is not None:
+            from pllm.deployment.execution import ExecutionLease
+
+            if not isinstance(execution, ExecutionLease):
+                raise TypeError("execution must be an ExecutionLease")
+            overrides = (
+                api_key,
+                base_url,
+                default_model,
+                model,
+                session_transport,
+                correlation_mode,
+                preparation_base_url,
+                preparation_api_key,
+                correlation_prefetch,
+                prepared_inventory_rows,
+                token_cache_size,
+                prefill_cache_bound_tokens,
+                bundle_cache_mode,
+                bundle_cache_dir,
+                bundle_compression,
+                tenseal_path,
+                timeout,
+                http_client,
+                preparation_http_client,
+                experiment,
+                local_engine,
+                role_connections,
+            )
+            if (
+                any(value is not None for value in overrides)
+                or prefill_cache_bytes != 0
+                or prefill_cache_mode != "exact"
+                or background_inventory_refill is not True
+            ):
+                raise ValueError("execution conflicts with manual client overrides")
+            leased = execution._construct_client()
+            self._core = leased._core
+            self._owned_topology = None
+            self.responses = leased.responses
+            self.models = leased.models
+            self.runtime = leased.runtime
+            return
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
         if profile is not None and "inventory" in json.loads(profile.canonical_composition).get(

@@ -27,6 +27,80 @@ class TopologyError(RuntimeError):
     pass
 
 
+async def load_role_adapter(
+    experiment: Experiment, role_id: str, api_key: str, *,
+    preloaded_engine=None, push_key: str | None = None, inference_url: str | None = None,
+):
+    """Shared installed role factory for local children and authenticated parties.
+
+    Admission never installs a method described by an offer. Exact composition
+    determines the existing engine, numeric settings and session protocol.
+    """
+    from pllm.model_loader import resolve_model
+    from pllm.profiles import resolve_runtime_composition
+    from pllm.runtime.offset_worker import create_offset_worker_app
+    from pllm.runtime.transformer_engine import MaskedTransformerEngine
+
+    profile = experiment.resolve()
+    options = resolve_runtime_composition(experiment.pipeline)
+    roles = {role.id for role in profile.role_graph.roles} - {"client"}
+    if options is None or role_id not in roles or roles not in (
+        {"worker_a", "worker_b"}, {"inference", "preparation"},
+    ):
+        raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: installed network adapter is unavailable")
+    kernels = experiment.pipeline.components["kernels"]
+    engine = preloaded_engine or MaskedTransformerEngine(
+        threads=kernels.params.get("threads", 1),
+        weight_bits=options.weight_bits, activation_bits=options.activation_bits,
+        metal_min_rows=kernels.params.get("min_rows")
+        if kernels.component == "pllm/apple-metal-int8/v1" else None,
+        verification_component=options.verification_component or "none",
+        verification_target_failure_bits=options.verification_target_failure_bits,
+        public_equalization_digest=options.public_equalization_digest,
+        remote_output_head=options.remote_output_head,
+        client_prefix_layers=options.client_prefix_layers,
+        client_linear_roles=options.client_linear_roles,
+    )
+    if preloaded_engine is None:
+        source = resolve_model(experiment.pipeline.model)
+        await engine.load(source.manifest)
+    if role_id in {"worker_a", "worker_b"}:
+        return create_offset_worker_app(engine, model_id=profile.model, role_id=role_id,
+                                       api_key=api_key, composition=experiment.pipeline), engine
+    from pllm.runtime.config import GatewayConfig
+    from pllm.runtime.preparation_server import create_preparation_app
+    from pllm.runtime.server import create_app
+
+    push_key = push_key or secrets.token_urlsafe(32)
+    if role_id == "inference":
+        manifest = engine._model(profile.model).manifest
+        return create_app(GatewayConfig(api_keys=(api_key,), provider_push_api_key=push_key),
+                          private_models={}, engines={"masked-transformer": engine},
+                          preloaded_models=(("masked-transformer", manifest),),
+                          owns_engines=False), engine
+    return create_preparation_app(GatewayConfig(
+        api_keys=(api_key,), preparation_push_api_key=push_key,
+        preparation_inference_url=inference_url or "http://127.0.0.1",
+    ), engine, owns_engine=False), engine
+
+
+def role_client(experiment, connections):
+    """Common topology-to-SDK routing; uses the existing inference executor."""
+    from pllm.runtime.client import OpenAI
+
+    roles = set(connections)
+    if roles == {"worker_a", "worker_b"}:
+        return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
+                       role_connections=connections)
+    if roles == {"inference", "preparation"}:
+        return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
+                      base_url=connections["inference"][0], api_key=connections["inference"][1],
+                      preparation_base_url=connections["preparation"][0],
+                      preparation_api_key=connections["preparation"][1],
+                      background_inventory_refill=False)
+    raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: no admitted role client")
+
+
 def _spawn_role_process(
     command: list[str],
     *,
@@ -400,7 +474,7 @@ class LocalTopology:
                 role: [
                     sys.executable,
                     "-m",
-                    "pllm.runtime.offset_worker",
+                    "pllm.runtime.party",
                     self._model.source,
                     "--model-id",
                     self._model_id,
@@ -759,6 +833,8 @@ class LocalTopology:
                 **overrides,
             )
         if set(self._role_ids) == {"worker_a", "worker_b"}:
+            if not overrides:
+                return role_client(self._experiment, self.worker_connections())
             return OpenAI(
                 default_model=self._model_id,
                 experiment=self._experiment,
@@ -898,10 +974,18 @@ def build_roles(
     credential_prefix: str = "local",
     startup_timeout: float = 300.0,
     progress: Callable[[str], None] | None = None,
+    docker: bool = False,
+    docker_image: str | None = None,
 ) -> LocalTopology:
+    if type(docker) is not bool:
+        raise TypeError("docker must be a boolean")
+    if docker_image is not None and not docker:
+        raise ValueError("docker_image requires docker=True")
     experiment = model if isinstance(model, Experiment) else None
     pipeline: Pipeline | None = None
     if experiment is not None:
+        if experiment.deployment.kind == "network":
+            raise TopologyError("network deployment requires open_execution live admission")
         experiment.resolve()
         pipeline = experiment.pipeline
     elif isinstance(model, Pipeline):
@@ -1015,7 +1099,13 @@ def build_roles(
             raise ValueError("telemetry endpoint must be an HTTP(S) URL without credentials")
     if progress is not None and not callable(progress):
         raise TypeError("progress must be callable")
-    return LocalTopology(
+    topology_type = LocalTopology
+    extra = {}
+    if docker:
+        from .docker_roles import DockerTopology
+        topology_type = DockerTopology
+        extra["docker_image"] = docker_image
+    return topology_type(
         model,
         model_id=resolved_id,
         experiment=experiment,
@@ -1048,6 +1138,7 @@ def build_roles(
         credential_prefix=credential_prefix,
         startup_timeout=float(startup_timeout),
         progress=progress,
+        **extra,
     )
 
 

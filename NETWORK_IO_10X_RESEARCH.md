@@ -2,20 +2,25 @@
 
 ## Network-aware direction
 
-The proposed next product architecture is a compiler-driven multi-party inference
+The bounded implemented foundation is a compiler-driven multi-party inference
 network: registered parties advertise capabilities and participation constraints;
 the client selects and admits a compatible execution under explicit privacy and
 resource policy. See [CLI/SDK network design](NETWORK_INFERENCE_DESIGN.md) for the
-proposed records, command grammar, versioning, live reservation lifecycle and
-implementation slices. Those new APIs/commands are designs, not available features.
+records, command grammar, versioning, live reservation lifecycle and implementation
+ledger. The broader design remains a roadmap; live admission covers CPU two-offset
+and prepared Inference/Preparation roles, alongside local client-only execution.
 
-Next experiments target exact batched continuation and inventory waste, measured
-placement plus artifact-granular public-weight reuse, and a bounded real-shape
-exact HE linear-region screen. Shallow HE would replace a priced prepared boundary
-while retaining client nonlinear work; it does not resurrect the depth-incomplete
-token-boundary decoder. All paths retain matched body, numeric, compute and
-cold/steady evidence gates. Detailed scope and stop conditions are in section 8
-of the network design.
+Compiler-bound batched continuation, shared KV blocks and exact public artifact
+delivery are now implemented. Legacy numeric mode retains the matching-prefill-extent
+gate. The explicit `SymmetricPerRow(causal_reduction="prefix_f32")` contract passes
+all split boundaries on generated checkpoints; the retained pinned report covers
+one 12-token context at four splits and teacher replay. Growing-width completed-prefill
+reuse is implemented, with broader real-checkpoint validation still required. Generated KV stays response-owned and cannot
+enter ordinary fresh-cache keys. Explicit prior-response continuation remains available.
+Artifact placement switching reuses public objects, while one-use rows stay fresh.
+The real-shaped exact HE projection cost roughly 40 times prepared stage bodies
+and remains non-selectable. Evidence and next gates are in the implementation
+ledger and section 8 of the network design.
 
 ## Current direction: measured incremental gains
 
@@ -43,9 +48,12 @@ or fails its numeric-quality gate.
    compression, aggregate CPU and representative quality remain separate gates.
 2. **Shared-prefix workloads: progress `ClientPrefixReuse`.**
    The existing 168-of-175-token overlap cohort measured **279.29 → 11.58 MB**
-   online. This is the largest demonstrated workload-specific win, not a
-   fresh-prompt gain. Expand realistic multi-turn tests and cache-budget/eviction
-   accounting; preserve explicit prefix-equality/access-pattern visibility.
+    online. This is the largest demonstrated workload-specific win, not a
+    fresh-prompt gain. Expand realistic multi-turn tests and cache-budget/eviction
+    accounting; preserve explicit prefix-equality/access-pattern visibility.
+    **Historical, pre-gate measurement:** current exact reuse additionally requires
+    matching full-input width. Changed-width/growing contexts miss safely; the
+    archived saving is not a current exact numerical-parity claim.
 3. **Cold short requests: progress request-sized inventory.**
    A matched 39+1 cohort measured **268.05 → 244.70 MB** covered cold bodies
    (**8.71%**), from issuing 39 rather than 64 rows per stage. Online bytes did

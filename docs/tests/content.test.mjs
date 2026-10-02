@@ -341,6 +341,27 @@ test('relocated evaluation guides execute their real SDK examples', () => {
   }
 });
 
+test('network deployment and continuation guides execute public SDK examples', () => {
+  for (const route of [
+    '/sdk/deployment/', '/sdk/deployment/network/', '/sdk/deployment/execution/',
+    '/sdk/plans/continuation/',
+  ]) {
+    const content = byRoute.get(route)?.content;
+    assert.ok(content, route);
+    const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
+    assert.ok(examples.length > 0, route);
+    for (const [index, example] of examples.entries()) {
+      const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', example[1]], {
+        cwd: path.join(siteRoot, '..'), encoding: 'utf8',
+        env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
+        timeout: 120_000,
+      });
+      assert.equal(execution.status, 0,
+        `${route} example ${index + 1}:\n${execution.stdout}\n${execution.stderr}`);
+    }
+  }
+});
+
 test('component option guides execute supported examples and cite bounded research', () => {
   const options = [
     ['/sdk/components/protocols/masked-linear/', 'pllm/masked-linear', '/research/papers/slalom/'],
@@ -717,7 +738,7 @@ test('each top-level journey owns an isolated Fumadocs sidebar', () => {
     .entries.slice(0, 3).map((entry) => entry.label), ['Start', 'Core concepts', 'Working with PLLM']);
   assert.deepEqual(cli.pages.slice(-1), ['../reference/cli']);
   assert.deepEqual(sdk.pages, [
-    'index', 'experiments', 'topologies', 'models', 'inference', 'components',
+    'index', 'experiments', 'deployment', 'topologies', 'models', 'inference', 'components',
     'run', 'plans', 'evaluate', 'extend', '../reference',
   ]);
   assert.deepEqual(research.pages.slice(-3), ['../recipes', 'papers', 'records']);

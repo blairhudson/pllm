@@ -63,6 +63,26 @@ assert pipeline.quantization.get_params() == {
     "weight_bits": 8,
     "activation_bits": 8,
 }
+canonical = MaskedLinearCpu(
+    model, quantization=SymmetricPerRow(causal_reduction="prefix_f32")
+)
+assert canonical.quantization.get_params()["causal_reduction"] == "prefix_f32"
+assert pipeline.digest() != canonical.digest()
 ```
 
 API: [`SymmetricPerRow`](/sdk/reference/python/pllm/quantization/#objects-and-signatures).
+
+## Canonical causal reduction
+
+`causal_reduction="prefix_f32"` binds a distinct numeric composition. Float32
+attention scores, softmax and weighted-value reductions operate on each query's
+valid causal prefix. Future zero padding no longer changes the reduction width.
+The compiler admits this choice only for dense full-causal float32 graphs;
+BF16 and windowed/shared-KV graphs fail closed.
+
+This opt-in contract permits growing-width completed-prefill reuse with
+[`ClientPrefixReuse`](/sdk/components/state/client-prefix-reuse/). The pinned
+Qwen control checks exact logits and all KV values across four partitions and
+teacher-forced decode. It does not promote generated state into the fresh cache
+or establish broad generation quality. Omitting the option preserves historical
+numeric identities and their same-width reuse restriction.

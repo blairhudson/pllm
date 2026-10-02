@@ -779,6 +779,8 @@ def _run_loopback_benchmark(
     _cohort_salt: bytes | None = None,
     temperature: float | None = None,
     capture_output_digest: bool = False,
+    docker: bool = False,
+    docker_image: str | None = None,
 ) -> dict[str, Any]:
     from .dashboard import _validate_output_digest_capture, _validate_request_temperature
 
@@ -819,8 +821,8 @@ def _run_loopback_benchmark(
     bundle_compression = bundle_compression or "none"
     if inventory_policy not in {"prewarm", "request-sized"}:
         raise ValueError("inventory policy must be prewarm or request-sized")
-    if bundle_compression not in {"none", "zlib"}:
-        raise ValueError("bundle compression must be none or zlib")
+    if bundle_compression not in {"none", "zlib", "artifacts"}:
+        raise ValueError("bundle compression must be none, zlib, or artifacts")
     if type(prefill_cache_mib) is not int or not 0 <= prefill_cache_mib <= 256:
         raise ValueError("prefill cache must be in [0, 256] MiB")
     if experiment is not None:
@@ -898,6 +900,8 @@ def _run_loopback_benchmark(
         temperature=temperature,
         capture_output_digest=capture_output_digest,
         otel_token=_DASHBOARD_TOKEN,
+        docker=docker,
+        docker_image=docker_image,
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
@@ -938,6 +942,12 @@ def _run_loopback_benchmark(
                 time.monotonic() + timeout_seconds,
                 progress,
             )
+            runtime = dashboard_app.state.dashboard_runtime
+            def resources():
+                topology = runtime._topology
+                sampler = getattr(topology, "resource_samples", None)
+                return sampler() if sampler is not None else None
+            docker_samples = {"startup": resources(), "warmups": [], "runs": []} if docker else None
             if stage_snapshots is not None:
                 stage_snapshots["after_ready"] = stage_snapshot()
             initial_preparation_audit = (
@@ -955,6 +965,7 @@ def _run_loopback_benchmark(
                 if progress is not None:
                     progress(f"Running warmup {index + 1}/{warmups}")
                 before = stage_snapshot() if stage_snapshots is not None else None
+                docker_before = resources() if docker else None
                 run = _run_once(
                     client,
                     handle,
@@ -967,6 +978,8 @@ def _run_loopback_benchmark(
                     capture_output_digest=capture_output_digest,
                 )
                 warmup_runs.append(run)
+                if docker_samples is not None:
+                    docker_samples["warmups"].append({"before": docker_before, "after": resources()})
                 if stage_snapshots is not None and before is not None:
                     after = stage_snapshot()
                     stage_snapshots["warmups"].append((before, after))
@@ -979,6 +992,7 @@ def _run_loopback_benchmark(
                         f"Running measurement {index + 1}/{repetitions * len(measured_prompts)}"
                     )
                 before = stage_snapshot() if stage_snapshots is not None else None
+                docker_before = resources() if docker else None
                 run = _run_once(
                     client,
                     handle,
@@ -994,6 +1008,8 @@ def _run_loopback_benchmark(
                     run["context_index"] = index % len(measured_prompts)
                     run["sequence_repetition"] = index // len(measured_prompts)
                 runs.append(run)
+                if docker_samples is not None:
+                    docker_samples["runs"].append({"before": docker_before, "after": resources()})
                 if stage_snapshots is not None and before is not None:
                     after = stage_snapshot()
                     stage_snapshots["runs"].append((before, after))
@@ -1052,6 +1068,16 @@ def _run_loopback_benchmark(
             sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
         )
     report["client_body_placement"] = client_body_placement
+    if docker:
+        report["configuration"]["provider_backend"] = "docker"
+        report["docker_accounting"] = {
+            "schema": "pllm.docker_benchmark_accounting.v1",
+            "scope": "co-located Linux provider containers; host client",
+            "cpu_scope": "cgroup lifetime CPU includes resource sampler",
+            "network_scope": "per-role kernel interface counters; health, OTLP, TCP/IP and peer traffic included",
+            "full_wire_bytes": None,
+            "samples": docker_samples,
+        }
     if experiment is not None:
         report["experiment"] = {
             "name": experiment.name,
@@ -1086,6 +1112,8 @@ def run_loopback_benchmark(
     _cohort_salt: bytes | None = None,
     temperature: float | None = None,
     capture_output_digest: bool = False,
+    docker: bool = False,
+    docker_image: str | None = None,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
@@ -1101,6 +1129,8 @@ def run_loopback_benchmark(
             show_dashboard=show_dashboard,
             progress=progress,
             experiment=experiment,
+            docker=docker,
+            docker_image=docker_image,
             inventory_policy=inventory_policy,
             bundle_compression=bundle_compression,
             prefill_cache_mib=prefill_cache_mib,

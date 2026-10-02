@@ -1,4 +1,10 @@
-from typing import Never, final
+from typing import Any, Never, final
+from collections.abc import Mapping
+from pathlib import Path
+
+from pllm.configuration import Experiment
+from pllm.deployment.network import NetworkSnapshot
+from pllm.search.placement import PlanningRequest
 
 from pllm import _native
 
@@ -28,3 +34,40 @@ class CompiledPlan:
 
 def _wrap(native: _native.CompiledPlan) -> CompiledPlan: ...
 def _unwrap(plan: CompiledPlan) -> _native.CompiledPlan: ...
+
+@final
+class PlanningResult:
+    request: PlanningRequest
+    snapshot: NetworkSnapshot
+    experiment: Experiment | None
+    @property
+    def status(self) -> str: ...
+    @property
+    def exhaustive(self) -> bool: ...
+    @property
+    def digest(self) -> str: ...
+    @property
+    def costs(self) -> Mapping[str, Any] | None: ...
+    @property
+    def native_placement(self) -> Mapping[str, Any] | None: ...
+    def to_spec(self) -> dict[str, Any]: ...
+    def canonical_bytes(self) -> bytes: ...
+    @classmethod
+    def from_spec(
+        cls,
+        value: dict[str, Any],
+        *,
+        request: PlanningRequest | None = ...,
+        snapshot: NetworkSnapshot | None = ...,
+    ) -> PlanningResult: ...
+    @classmethod
+    def from_file(
+        cls,
+        path: str | Path,
+        *,
+        request: PlanningRequest | None = ...,
+        snapshot: NetworkSnapshot | None = ...,
+    ) -> PlanningResult: ...
+    def validate(
+        self, *, snapshot: NetworkSnapshot | None = ..., evaluated_at_ms: int | None = ...
+    ) -> dict[str, Any]: ...

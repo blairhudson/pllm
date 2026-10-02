@@ -1,0 +1,80 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "cohort_digest": "8795ece4fb12fef4709381c7239293bd4c71d13acc52450b1b2199d3b11c3e77",
+  "input_tokens": 12,
+  "samples": [
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "max_abs_logit_difference": 1.449540138244629,
+      "mode": "legacy",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "max_abs_logit_difference": 1.4383156299591064,
+      "mode": "legacy",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "legacy",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": false,
+      "array_equal_logits": false,
+      "max_abs_logit_difference": 1.0098423957824707,
+      "mode": "legacy",
+      "partition": "teacher_fold"
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "canonical_prefix_f32_reference",
+      "partition": 1
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "canonical_prefix_f32_reference",
+      "partition": 4
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "canonical_prefix_f32_reference",
+      "partition": 6
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "canonical_prefix_f32_reference",
+      "partition": 11
+    },
+    {
+      "array_equal_all_kv": true,
+      "array_equal_logits": true,
+      "max_abs_logit_difference": 0.0,
+      "mode": "canonical_prefix_f32_reference",
+      "partition": "teacher_fold"
+    }
+  ],
+  "schema": "pllm.causal_partition_gate.v1",
+  "scope": "local W8A8 numeric gate with explicit compiled prefix_f32 contract; no cache promotion",
+  "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7"
+}

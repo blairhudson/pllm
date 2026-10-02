@@ -20,7 +20,12 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod compact_protected;
+mod decoder_continuation;
 mod decoder_runtime_schedule;
+pub use decoder_continuation::{
+    admit_decoder_continuation, decoder_continuation_bytes, lower_decoder_continuation,
+    DecoderContinuation, DECODER_CONTINUATION_SCHEMA,
+};
 mod dense_qwen_attention;
 mod dense_qwen_layer;
 mod dense_qwen_mlp;
@@ -28,6 +33,8 @@ mod dense_qwen_mlp_protected;
 mod gated_tensor;
 mod logrow_protected;
 mod logrow_session;
+mod network_placement;
+pub use network_placement::{network_placement_requirements, validate_network_placement};
 mod provenance_primitives;
 mod rms_norm_protected;
 mod rms_norm_stream_protected;
@@ -1262,10 +1269,12 @@ struct ExperimentComponent {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct ExperimentDeployment {
-    kind: String,
-    root: String,
+#[serde(tag = "kind", deny_unknown_fields)]
+enum ExperimentDeployment {
+    #[serde(rename = "local")]
+    Local { root: String },
+    #[serde(rename = "network")]
+    Network(pllm_types::network::NetworkExperimentDeployment),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -1567,13 +1576,23 @@ fn document_error(message: impl Into<String>) -> Vec<Diagnostic> {
 }
 
 fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
-    if document.schema != "pllm.experiment.v2" {
-        return Err("configuration schema must be pllm.experiment.v2".into());
+    match (&*document.schema, &document.deployment) {
+        ("pllm.experiment.v2", ExperimentDeployment::Local { root }) if !root.is_empty() => {}
+        ("pllm.experiment.v3", ExperimentDeployment::Network(intent))
+            if pllm_types::valid_identity(&intent.network_id)
+                && intent
+                    .network_spec_digest
+                    .as_str()
+                    .bytes()
+                    .any(|byte| byte != b'0')
+                && intent
+                    .snapshot_digest
+                    .as_ref()
+                    .is_none_or(|digest| digest.as_str().bytes().any(|byte| byte != b'0')) => {}
+        _ => return Err("experiment schema and deployment intent disagree".into()),
     }
     if document.name.is_empty()
         || document.pipeline.model.source.is_empty()
-        || document.deployment.kind != "local"
-        || document.deployment.root.is_empty()
         || document.budget.requests == 0
         || document.budget.max_input_tokens == 0
         || document.budget.max_new_tokens == 0
@@ -1850,7 +1869,7 @@ fn validate_masked_linear_composition(
                     .params
                     .get("encoding")
                     .and_then(serde_json::Value::as_str),
-                Some("none" | "zlib")
+                Some("none" | "zlib" | "artifacts")
             )
             || verification.is_some()
         {
@@ -1979,7 +1998,13 @@ fn valid_baseline_quantization(quantization: &ExperimentComponent) -> bool {
             .and_then(serde_json::Value::as_u64)
     };
     quantization.component == "pllm/symmetric-per-row-quantization/v1"
-        && quantization.params.len() == 2
+        && (quantization.params.len() == 2
+            || (quantization.params.len() == 3
+                && quantization
+                    .params
+                    .get("causal_reduction")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("prefix_f32")))
         && matches!(bits("weight_bits"), Some(4 | 8))
         && matches!(bits("activation_bits"), Some(4 | 8))
 }
@@ -2606,6 +2631,11 @@ pub fn compile_document(bytes: &[u8]) -> Result<CompiledPlan, Vec<Diagnostic>> {
         )));
     }
     validate_experiment(&document.configuration).map_err(document_error)?;
+    if document.configuration.schema != "pllm.experiment.v2" {
+        return Err(document_error(
+            "compile_request.v2 requires experiment.v2; network admission uses its versioned API",
+        ));
+    }
     validate_experiment_model(&document.configuration.pipeline.model).map_err(document_error)?;
     if document
         .operations

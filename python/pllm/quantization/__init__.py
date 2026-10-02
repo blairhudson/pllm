@@ -36,6 +36,7 @@ class SymmetricPerRow(QuantizationScheme):
             "properties": {
                 "weight_bits": {"enum": [4, 8]},
                 "activation_bits": {"enum": [4, 8]},
+                "causal_reduction": {"enum": ["prefix_f32"]},
             },
             "required": ["weight_bits", "activation_bits"],
             "additionalProperties": False,
@@ -43,14 +44,20 @@ class SymmetricPerRow(QuantizationScheme):
         capabilities=("symmetric", "per-row", "prepared-masked-linear"),
     )
 
-    def __init__(self, *, weight_bits: int = 8, activation_bits: int = 8) -> None:
+    def __init__(self, *, weight_bits: int = 8, activation_bits: int = 8,
+                 causal_reduction: str | None = None) -> None:
         if type(weight_bits) is not int or weight_bits not in {4, 8}:
             raise ConfigurationError("weight_bits must be 4 or 8")
         if type(activation_bits) is not int or activation_bits not in {4, 8}:
             raise ConfigurationError("activation_bits must be 4 or 8")
+        if causal_reduction is not None and (
+            not isinstance(causal_reduction, str) or causal_reduction != "prefix_f32"
+        ):
+            raise ConfigurationError("causal_reduction must be prefix_f32 or None")
         super().__init__(
             self.descriptor.component,
-            {"weight_bits": weight_bits, "activation_bits": activation_bits},
+            {"weight_bits": weight_bits, "activation_bits": activation_bits,
+             **({"causal_reduction": causal_reduction} if causal_reduction is not None else {})},
         )
 
     @classmethod

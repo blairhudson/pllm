@@ -1,0 +1,76 @@
+---
+title: "Network records and discovery"
+description: "Separate static offers, authenticated observations, and explicit network intent."
+---
+
+[`NetworkSpec`](/sdk/reference/python/pllm/deployment/#networkspec) supports
+`backend="local"` static declarations and `backend="http"` authenticated discovery.
+Local declarations serialize as `pllm.network_spec.v1`; HTTP trust roots serialize
+as v2. The live role-host implementation currently admits CPU two-online-offset
+execution, not arbitrary remote graphs or GPU hosting.
+
+`PartyOffer` is a static declaration with `authenticated=False`.
+`PartyTrust` approves a party/operator/origin and names a credential environment
+variable. `PartySpec` installs one exact pipeline, source lock, allowed worker
+roles, capacities, and bounded workload. `LivePartyOffer` adds the installed
+descriptor/source, host epoch, role IDs, accepting status, and bounded expiry.
+Importing a record with `authenticated=True` alone grants no live authority.
+
+## Python SDK example
+
+Inspect the checked-in loopback configuration from the repository root. No live
+service or credential is needed for this example.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.deployment import NetworkSpec
+from pllm.profiles import TwoOnlineOffsetCpu
+
+network = NetworkSpec.from_file("examples/networks/loopback.json")
+intent = Deployment.network(
+    network_id=network.network_id, network_spec_digest=network.digest
+)
+experiment = Experiment(
+    "network-intent", TwoOnlineOffsetCpu(Model.tiny()), intent,
+    ExecutionBudget(requests=1, max_input_tokens=32, max_new_tokens=2),
+)
+assert network.backend == "http"
+assert tuple(party.credential_env for party in network.parties) == (
+    "PLLM_NETWORK_A", "PLLM_NETWORK_B"
+)
+assert experiment.to_spec()["schema"] == "pllm.experiment.v3"
+assert experiment.deployment.network_spec_digest == network.digest
+assert Experiment.from_spec(experiment.to_spec()) == experiment
+```
+
+API: [`pllm.deployment`](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
+
+`Deployment.network(...)` is explicit v3 intent bound to the network digest,
+optionally to a snapshot digest. It has no local root. Existing local experiments
+retain v2 serialization; the planner does not silently convert them into network
+authority. Execution resolves and checks actual source locks rather than relying
+on a documentation digest.
+
+## Live discovery
+
+`discover(network)` and `async_discover(network)` return `NetworkSnapshot` records.
+For HTTP, credentials resolve from configured environment references; an optional
+`credentials` mapping is keyed by those reference names and contains local values.
+Public files contain reference names only. Origins require HTTPS except loopback
+HTTP; redirects and embedded URL credentials are rejected.
+
+Discovery checks approved membership, fetches each installed party offer, and
+preserves local client authority. An optional directory advertises membership,
+not new trust roots. Discovery neither measures links nor reserves capacity.
+Directed `LinkObservation` estimates carry source, age, expiry, and uncertainty;
+missing required links cannot be treated as free transport.
+
+Operator separation checks compare **declared** identities. Two loopback hosts
+with different declarations still do not prove physical operator independence.
+The example's long-lived local client seed is not a substitute for fresh remote
+offers; planning policies and live admission check current observations.
+
+The [two-party fixture](https://github.com/blairhudson/pllm/blob/main/examples/networks/README.md)
+generates locked checkpoint and `PartySpec` files. Its
+[`two_party.py`](https://github.com/blairhudson/pllm/blob/main/examples/networks/two_party.py)
+run path discovers fresh offers before constructing a request.

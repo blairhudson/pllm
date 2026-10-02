@@ -45,6 +45,7 @@ def test_huggingface_local_source_resolution(tmp_path: Path):
 
 
 def test_huggingface_repo_resolution_uses_shared_hub_snapshot(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
     root = create_tiny_gemma4_checkpoint(tmp_path / "snapshot")
     captured = {}
 

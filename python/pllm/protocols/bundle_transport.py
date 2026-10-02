@@ -4,7 +4,7 @@ from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationE
 
 
 class ClientBundleTransport(ComponentRef):
-    """Negotiate bounded zlib frames; validate and cache only original raw bytes."""
+    """Select raw, bounded zlib frames, or public content-addressed artifacts."""
 
     __slots__ = ()
     descriptor = ComponentDescriptor(
@@ -19,15 +19,15 @@ class ClientBundleTransport(ComponentRef):
             "type": "object",
             "required": ["encoding"],
             "additionalProperties": False,
-            "properties": {"encoding": {"type": "string", "enum": ["none", "zlib"]}},
+            "properties": {"encoding": {"type": "string", "enum": ["none", "zlib", "artifacts"]}},
         },
         capabilities=("bounded-bundle-frames", "raw-bundle-digest-verification"),
         role_eligibility=("client", "inference"),
     )
 
     def __init__(self, encoding: str = "zlib") -> None:
-        if encoding not in {"none", "zlib"}:
-            raise ConfigurationError("bundle encoding must be none or zlib")
+        if encoding not in {"none", "zlib", "artifacts"}:
+            raise ConfigurationError("bundle encoding must be none, zlib, or artifacts")
         super().__init__(self.descriptor.component, {"encoding": encoding})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:

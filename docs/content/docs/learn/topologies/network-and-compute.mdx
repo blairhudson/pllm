@@ -15,6 +15,11 @@ Cold acquisition of the checkpoint can still require a large download; the
 client must retain its weights on disk and hold its quantized working set in
 memory. Its prompt privacy needs no remote non-collusion or TEE assumption.
 
+The [network lifecycle](/learn/topologies/network-planning/) now supports explicit
+static/local and authenticated HTTP offers, bounded offline placement, and
+separate execution admission through the ordinary SDK/gateway/benchmark routes.
+Native legality and declared operator separation do not prove physical independence.
+
 The compute comparator uses two **online** inference workers: the
 client splits each integer stage input into fresh additive shares, each server
 performs one matching matrix operation, and the client reconstructs before its
@@ -95,10 +100,12 @@ separates other paper-derived roles from these executable options.
 
 Gemma E2B's pinned W8A8 client bundle alone
 measures 2,790,944,732 bytes, so cold-start traffic cannot be hidden inside
-warm-token results. Search over new topology choices and per-edge objective
-selection remain planned. The [existing benchmark](/cli/benchmarking/) selects
-all four CPU topologies but does not rank unqualified network/compute
-objectives or establish deployed privacy.
+warm-token results. [Bounded network planning](/sdk/deployment/) can now rank
+explicit candidate compositions and directed-link estimates under an explicit
+policy; unknown required costs fail closed. The [existing benchmark](/cli/benchmarking/)
+executes selected plans and matched feasible controls, but does not rank
+unqualified network/compute objectives or establish deployed privacy. Broader
+roadmap topology search still requires executable contracts and scoped evidence.
 
 It now records a partial **per-link stage-body ledger** for the current
 prepared graph. One checked, single-host `benchmark run --tiny` response with

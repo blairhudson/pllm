@@ -588,18 +588,48 @@ class Pipeline(_Configuration):
 @dataclass(frozen=True, slots=True)
 class Deployment(_Configuration):
     kind: str
-    root: str
+    root: str | None = None
+    network_id: str | None = None
+    network_spec_digest: str | None = None
+    snapshot_digest: str | None = None
 
     def __post_init__(self) -> None:
-        if self.kind != "local":
-            raise ConfigurationError("deployment.kind must be 'local'")
-        _string(self.root, "deployment.root")
+        if self.kind == "local":
+            _string(self.root, "deployment.root")
+            if any(value is not None for value in (
+                self.network_id, self.network_spec_digest, self.snapshot_digest
+            )):
+                raise ConfigurationError("local deployment cannot contain network intent")
+        elif self.kind == "network":
+            from pllm.deployment.network import digest_value, identity
+
+            if self.root is not None:
+                raise ConfigurationError("network deployment has no local root")
+            try:
+                identity(self.network_id, "network_id")
+                digest_value(self.network_spec_digest, "network_spec", nonzero=True)
+                if self.snapshot_digest is not None:
+                    digest_value(self.snapshot_digest, "snapshot", nonzero=True)
+            except ValueError as exc:
+                raise ConfigurationError(str(exc)) from exc
+        else:
+            raise ConfigurationError("deployment.kind must be 'local' or 'network'")
 
     @classmethod
     def local(cls, *, root: str) -> Deployment:
         return cls(kind="local", root=root)
 
+    @classmethod
+    def network(cls, *, network_id: str, network_spec_digest: str,
+                snapshot_digest: str | None = None) -> Deployment:
+        return cls(kind="network", network_id=network_id,
+                   network_spec_digest=network_spec_digest, snapshot_digest=snapshot_digest)
+
     def to_spec(self) -> dict[str, Any]:
+        if self.kind == "network":
+            return {"kind": "network", "network_id": self.network_id,
+                    "network_spec_digest": self.network_spec_digest,
+                    "snapshot_digest": self.snapshot_digest}
         return {"kind": self.kind, "root": self.root}
 
 
@@ -658,7 +688,7 @@ class Experiment(_Configuration):
 
     def to_spec(self) -> dict[str, Any]:
         return {
-            "schema": _EXPERIMENT_SCHEMA,
+            "schema": "pllm.experiment.v3" if self.deployment.kind == "network" else _EXPERIMENT_SCHEMA,
             "name": self.name,
             "pipeline": self.pipeline.to_spec(),
             "deployment": self.deployment.to_spec(),
@@ -863,17 +893,22 @@ def _experiment_from_spec(
     providers: Iterable[ProviderDescriptor] = (),
 ) -> Experiment:
     data = _fields(value, {"schema", "name", "pipeline", "deployment", "budget"}, "experiment")
-    if data["schema"] != _EXPERIMENT_SCHEMA:
+    if data["schema"] not in {_EXPERIMENT_SCHEMA, "pllm.experiment.v3"}:
         raise ConfigurationError(f"unsupported schema: {data['schema']!r}")
     pipeline = Pipeline.from_spec(data["pipeline"], providers=providers)
-    deployment_data = _fields(data["deployment"], {"kind", "root"}, "deployment")
+    network = data["schema"] == "pllm.experiment.v3"
+    deployment_data = _fields(data["deployment"],
+                             {"kind", "network_id", "network_spec_digest", "snapshot_digest"}
+                             if network else {"kind", "root"}, "deployment")
+    if deployment_data["kind"] != ("network" if network else "local"):
+        raise ConfigurationError("experiment schema and deployment kind disagree")
     budget_data = _fields(
         data["budget"], {"requests", "max_input_tokens", "max_new_tokens"}, "budget"
     )
     return Experiment(
         name=data["name"],
         pipeline=pipeline,
-        deployment=Deployment(kind=deployment_data["kind"], root=deployment_data["root"]),
+        deployment=Deployment(**deployment_data),
         budget=ExecutionBudget(
             requests=budget_data["requests"],
             max_input_tokens=budget_data["max_input_tokens"],

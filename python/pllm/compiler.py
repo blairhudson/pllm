@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pllm.plan import CompiledPlan, _wrap
+
+if TYPE_CHECKING:
+    from pllm.deployment.network import NetworkSnapshot
+    from pllm.plan import PlanningResult
+    from pllm.search.placement import PlanningRequest
 
 
 class CompilationError(ValueError):
@@ -38,4 +43,11 @@ def compile(request: Mapping[str, Any] | bytes | str) -> CompiledPlan:
         raise CompilationError(str(exc)) from exc
 
 
-__all__ = ["CompilationError", "compile"]
+def plan(request: PlanningRequest, *, snapshot: NetworkSnapshot) -> PlanningResult:
+    """Plan explicit candidates offline against one immutable static snapshot."""
+    from pllm.search.placement import search_placements
+
+    return search_placements(request, snapshot)
+
+
+__all__ = ["CompilationError", "compile", "plan"]

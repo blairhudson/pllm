@@ -1,0 +1,88 @@
+---
+title: "Network planning and operation"
+description: "Use explicit discovery, bounded placement decisions, and fresh response leases."
+---
+
+The implemented network lifecycle is **declare → discover → plan → admit →
+respond → release**. Planning is pure and model-neutral; HTTP discovery observes
+approved installed hosts; admission separately checks and arms one bounded
+response attempt. Public records are immutable JSON, not bearer authority.
+Follow the [SDK network guide](/sdk/deployment/) for checked examples.
+
+## Inspect a declaration
+
+From the repository root, inspect the checked-in live loopback declaration without
+contacting hosts:
+
+```bash
+pllm network inspect examples/networks/loopback.json --format json
+pllm network parties examples/networks/loopback.json --dry-run --format json
+```
+
+The second command's dry run reports embedded offers only. Without `--dry-run`,
+`parties` and `snapshot` perform authenticated live discovery for HTTP networks.
+The example initially embeds local client authority, not fresh remote offers.
+Credentials are resolved from `PLLM_NETWORK_A` / `PLLM_NETWORK_B`; no credential
+values belong in exported configuration.
+
+## Persist and replay an offline decision
+
+Write `network.json`, `request.json`, and `snapshot.json` from the corresponding
+records' `canonical_bytes()` in the [planning example](/sdk/deployment/), then run
+these commands in that directory. This fixture uses a local network and lowers
+config only; it does not need model weights.
+
+```bash
+pllm network snapshot network.json --output observed.json --format json
+pllm plan create request.json --snapshot observed.json --output plan.json --format json
+pllm plan inspect plan.json --format json
+pllm plan explain plan.json --format json
+pllm plan validate plan.json --snapshot observed.json --format json
+pllm gateway --plan plan.json --network network.json --dry-run --format json
+pllm gateway --request request.json --network network.json --dry-run --format json
+pllm benchmark run --request request.json --network network.json \
+  --compare-feasible --max-output-tokens 2 --warmups 0 --repetitions 1 \
+  --dry-run --format json
+```
+
+`--output` refuses existing files unless `--force` is supplied. Dry runs suppress
+writes/startup/discovery, but still parse records and validate selected intent.
+`plan validate` uses current time; refresh short-lived fixture observations rather
+than hardcoding expired timestamps. A saved result contains rejections and search
+coverage as well as its winner. A feasible truncated search is not exhaustive.
+
+## Operate live hosts
+
+`serve party --network ... --party ...` installs a CPU role host from a locked
+`PartySpec`; `serve directory --network ...` optionally maintains authenticated
+expiring membership. Directory configuration requires its own approved origin and
+credential reference. `network drain NETWORK --party ID` stops new admission;
+`network leave NETWORK --party ID` completes departure after admitted work drains.
+Consult installed
+help and the [two-party fixture](https://github.com/blairhudson/pllm/blob/main/examples/networks/README.md)
+for generated party files and host ports.
+
+The currently admitted HTTP graph is `TwoOnlineOffsetCpu` with one trusted local
+client and two installed worker roles. Separate operator IDs are declarations,
+not verified physical independence. Host restart/epoch changes, stale offers,
+source/numeric/schedule mismatches, or capacity exhaustion invalidate admission.
+Every response reserves and arms a fresh lease. Reusable read-only public
+artifacts never make one-use masks or capacity tokens reusable.
+
+## Evidence boundaries
+
+The ordinary SDK/gateway/benchmark route executes selected configurations;
+`--compare-feasible` records bounded matched controls, not an arbitrary global
+network optimum. Arithmetic/link estimates, covered protocol bodies, available
+CPU samples, and retained payload sizes have distinct scopes. Full wire,
+allocator-exact peak memory, hardware independence, pricing and deployed privacy
+remain separate evidence gates.
+
+[Artifact locality](/sdk/components/protocols/client-bundle-transport/) reduces
+repeated public-object delivery. [Prefix reuse](/sdk/components/state/client-prefix-reuse/)
+admits only same-width sealed completed prefills; generated KV requires explicit
+response ownership. These implemented paths do not make all roadmap topologies
+selectable. The [full-shape encrypted-linear review](https://github.com/blairhudson/pllm/blob/main/docs/evidence/exact-linear-he-review-2026-10-01.md)
+executed a 4864→896 W8A8 projection exactly, but its 1,110,488 ciphertext body
+bytes were about 40× the 27,649-byte prepared control. That research path remains
+nonselectable; it is not a network-planner HE production capability.

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import shlex
 import subprocess
 import sys
@@ -245,22 +246,89 @@ def test_cli_example_validation_rejects_missing_and_extra_commands(monkeypatch) 
         reference.validate_cli_examples()
 
 
+def test_network_cli_examples_resolve_with_generated_files(tmp_path) -> None:
+    """Check symbolic operands against real public records without live mutations."""
+    from dataclasses import replace
+
+    from pllm.deployment import NetworkSpec
+
+    planning_guide = DOCS_ROOT / "sdk/deployment/index.mdx"
+    namespace = {}
+    exec(compile(PYTHON_FENCE.findall(planning_guide.read_text())[0], str(planning_guide), "exec"), namespace)
+    files = {}
+    for name in ("network", "request", "snapshot", "decision"):
+        filename = "plan.json" if name == "decision" else f"{name}.json"
+        path = tmp_path / filename
+        path.write_bytes(namespace[name].canonical_bytes())
+        files[filename] = str(path)
+
+    environment = {
+        **os.environ,
+        "PYTHONPATH": str(ROOT / "python"),
+        "PLLM_NETWORK_A": secrets.token_urlsafe(32),
+        "PLLM_NETWORK_B": secrets.token_urlsafe(32),
+        "PLLM_NETWORK_DIRECTORY": secrets.token_urlsafe(32),
+    }
+    live = tmp_path / "live"
+    prepared = subprocess.run(
+        [sys.executable, str(ROOT / "examples/networks/two_party.py"),
+         "prepare", "--root", str(live)],
+        cwd=ROOT, env=environment, capture_output=True, text=True, timeout=30,
+    )
+    assert prepared.returncode == 0, prepared.stdout + prepared.stderr
+    directory = replace(
+        NetworkSpec.from_file(live / "network.json"),
+        directory_origin="http://127.0.0.1:8103",
+        directory_credential_env="PLLM_NETWORK_DIRECTORY",
+    )
+    directory_path = live / "directory.json"
+    directory_path.write_bytes(directory.canonical_bytes())
+    checked = set()
+    for command, examples in reference.CLI_EXAMPLES.items():
+        for example in examples:
+            if not (
+                command.startswith(("pllm network ", "pllm plan "))
+                or command in {"pllm serve party", "pllm serve directory"}
+                or "--network" in shlex.split(example.command)
+            ):
+                continue
+            arguments = shlex.split(example.command)[1:]
+            service = command in {"pllm serve party", "pllm serve directory"}
+            for index, argument in enumerate(arguments):
+                if index and arguments[index - 1] == "--output":
+                    arguments[index] = str(tmp_path / f"output-{Path(argument).name}")
+                elif service and argument in {"network.json", "party-a.json", "directory.json"}:
+                    arguments[index] = str(live / argument)
+                elif argument in files:
+                    arguments[index] = files[argument]
+            completed = subprocess.run(
+                [sys.executable, "-m", "pllm", *arguments,
+                 "--dry-run", "--no-input", "--format", "json"],
+                cwd=ROOT, env=environment, capture_output=True, text=True, timeout=30,
+            )
+            assert completed.returncode == 0, (
+                f"{example.command}:\n{completed.stdout}{completed.stderr}"
+            )
+            assert json.loads(completed.stdout)["data"]["dry_run"] is True
+            checked.add(command)
+    assert checked == {
+        command for command in reference.cli_leaf_commands()
+        if command.startswith(("pllm network ", "pllm plan "))
+    } | {"pllm serve party", "pllm serve directory", "pllm gateway", "pllm benchmark run"}
+    assert not list(tmp_path.glob("output-*.json"))
+
+
 def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
     outputs = reference.render_cli_reference_outputs()
     root = json.loads(outputs[reference.CLI_REFERENCE_ROOT / "meta.json"])
     assert root == {
         "title": "Command reference",
         "root": True,
-        "pages": [
-            "index",
-            "gateway",
-            "serve",
-            "config",
-            "components",
-            "topology",
-            "benchmark",
-            "dev",
-        ],
+        "pages": ["index", *reference.CLI_ROOT_ORDER],
+    }
+    assert reference.CLI_ROOT_ORDER[:4] == ("gateway", "serve", "network", "plan")
+    assert set(reference.CLI_ROOT_ORDER) == {
+        command.split()[1] for command, _ in reference.cli_help_sections() if " " in command
     }
     assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "config/meta.json"])["pages"] == [
         "index",
@@ -275,6 +343,12 @@ def test_cli_sidebar_metadata_preserves_command_hierarchy_and_order() -> None:
         "index",
         "local-experiments",
         "provider-connections",
+    ]
+    assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "network/meta.json"])["pages"] == [
+        "index", "inspect", "parties", "snapshot", "drain", "leave",
+    ]
+    assert json.loads(outputs[reference.CLI_REFERENCE_ROOT / "plan/meta.json"])["pages"] == [
+        "index", "create", "inspect", "explain", "validate",
     ]
     assert reference.CLI_REFERENCE_ROOT / "gateway/index.mdx" in outputs
     assert reference.CLI_REFERENCE_ROOT / "gateway/local-experiments.mdx" in outputs
@@ -435,6 +509,21 @@ def test_reference_backlinks_point_to_the_relevant_user_guides() -> None:
         ("pllm", "Model", "/sdk/models/"),
         ("pllm", "Experiment", "/sdk/experiments/"),
         ("pllm.client", "OpenAI", "/sdk/run/clients/"),
+        *(
+            ("pllm.deployment", symbol, "/sdk/deployment/network/")
+            for symbol in (
+                "NetworkSpec", "PartyTrust", "PartySpec", "PartyOffer", "LivePartyOffer",
+                "NetworkSnapshot", "discover", "async_discover",
+            )
+        ),
+        *(
+            ("pllm.deployment", symbol, "/sdk/deployment/execution/")
+            for symbol in ("ExecutionLease", "open_execution", "async_open_execution")
+        ),
+        ("pllm.search", "PlanningRequest", "/sdk/deployment/"),
+        ("pllm.search", "PlanningPolicy", "/sdk/deployment/"),
+        ("pllm.compiler", "plan", "/sdk/deployment/"),
+        ("pllm.plan", "PlanningResult", "/sdk/deployment/"),
         ("pllm.verification", "FreivaldsVerify", "/sdk/components/verification/freivalds/"),
         ("pllm.assurance", "SubspaceLeakageRegression", "/sdk/components/research-method-roadmap/"),
         (

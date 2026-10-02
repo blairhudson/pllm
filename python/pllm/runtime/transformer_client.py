@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import math
+import hashlib
+import hmac
+import json
 import secrets
 import threading
 from collections import OrderedDict, defaultdict, deque
@@ -1111,11 +1114,85 @@ class LayerCache:
         )
 
 
+_STATE_BASIS_KEY = secrets.token_bytes(32)
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotStateBasis:
+    """Process-local execution provenance, not a caller-selected cache label.
+
+    Seals authenticate qualifier/owner fields, not mutable KV payloads. Shape and
+    numeric validation remain mandatory. Unlowered state never qualifies as an
+    ordinary completed prefill or native continuation input.
+    """
+
+    phase: str
+    position: int
+    source_binding_digest: str
+    native_phase_digest: str
+    execution_digest: str
+    prefill_extent: int
+    owner_response_id: str | None
+    seal: str
+
+    def _payload(self) -> bytes:
+        return json.dumps([
+            "pllm.decoder.snapshot-basis.v1", self.phase, self.position,
+            self.source_binding_digest, self.native_phase_digest,
+            self.execution_digest, self.prefill_extent, self.owner_response_id,
+        ], separators=(",", ":")).encode()
+
+    def valid(self) -> bool:
+        digests = (self.source_binding_digest, self.native_phase_digest, self.execution_digest)
+        return (
+            self.phase in {"completed_prefill", "incremental", "unqualified"}
+            and type(self.position) is int and self.position > 0
+            and type(self.prefill_extent) is int
+            and (self.prefill_extent == 0 if self.phase == "unqualified" else self.prefill_extent > 0)
+            and (self.phase != "completed_prefill" or self.position <= self.prefill_extent)
+            and all(type(value) is str and len(value) == 64
+                    and all(char in "0123456789abcdef" for char in value) for value in digests)
+            and (self.owner_response_id is None or type(self.owner_response_id) is str
+                 and bool(self.owner_response_id))
+            and type(self.seal) is str
+            and hmac.compare_digest(self.seal, hmac.new(_STATE_BASIS_KEY, self._payload(), "sha256").hexdigest())
+        )
+
+    def completed_prefill(self) -> bool:
+        return self.valid() and self.phase == "completed_prefill" and self.owner_response_id is None
+
+    def _with_owner(self, owner: str) -> SnapshotStateBasis:
+        if not self.valid() or not owner:
+            raise TransformerClientError("invalid snapshot execution basis/owner")
+        return _snapshot_state_basis(
+            self.phase, self.position, self.source_binding_digest,
+            self.native_phase_digest, self.execution_digest, owner, self.prefill_extent,
+        )
+
+    def _prefix(self, position: int) -> SnapshotStateBasis:
+        if not self.completed_prefill() or not 0 < position <= self.position:
+            raise TransformerClientError("only completed prefill basis can produce a cache prefix")
+        return _snapshot_state_basis(
+            self.phase, position, self.source_binding_digest, self.native_phase_digest,
+            hashlib.sha256(self._payload() + position.to_bytes(8, "big")).hexdigest(), None, self.prefill_extent,
+        )
+
+
+def _snapshot_state_basis(phase: str, position: int, source: str, native_phase: str,
+                          execution: str, owner: str | None = None,
+                          prefill_extent: int = 0) -> SnapshotStateBasis:
+    basis = SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner, "")
+    return SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner,
+                              hmac.new(_STATE_BASIS_KEY, basis._payload(), "sha256").hexdigest())
+
+
 @dataclass(slots=True)
 class RuntimeSnapshot:
     position: int
     caches: list[LayerCache]
     shared_kv: dict[str, tuple[np.ndarray, np.ndarray]]
+    semantic_binding_digest: str | None = None
+    state_basis: SnapshotStateBasis | None = None
 
 
 class MaskedTransformerClientRuntime:
@@ -1221,6 +1298,34 @@ class MaskedTransformerClientRuntime:
                 key: (value[0].copy(), value[1].copy()) for key, value in self.shared_kv.items()
             },
         )
+
+    def _unlowered_state_binding(self) -> str:
+        return hashlib.sha256(json.dumps({
+            "config": self.cfg, "privacy": self.bundle.privacy,
+        }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    def snapshot_for_response(self, response_id: str) -> RuntimeSnapshot:
+        saved = self.snapshot()
+        basis = saved.state_basis
+        if basis is None:
+            source = self._unlowered_state_binding()
+            basis = _snapshot_state_basis(
+                "unqualified", saved.position, source,
+                hashlib.sha256(b"unlowered legacy execution").hexdigest(),
+                hashlib.sha256(source.encode() + saved.position.to_bytes(8, "big")).hexdigest(),
+            )
+        saved.state_basis = basis._with_owner(response_id)
+        return saved
+
+    def restore_for_response(self, snapshot: RuntimeSnapshot, response_id: str) -> None:
+        basis = snapshot.state_basis
+        if (basis is None or not basis.valid() or basis.owner_response_id != response_id
+                or basis.position != snapshot.position
+                or basis.source_binding_digest != self._unlowered_state_binding()):
+            raise TransformerClientError("prior response snapshot owner/source basis mismatch")
+        # Legacy unlowered execution is explicit conversation-only. Never route
+        # its unqualified basis through the ordinary prefill cache/native adapter.
+        MaskedTransformerClientRuntime.restore(self, snapshot)
 
     def restore(self, snapshot: RuntimeSnapshot) -> None:
         self.position = int(snapshot.position)

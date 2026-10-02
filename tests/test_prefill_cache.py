@@ -13,7 +13,16 @@ from pllm.state import ClientPrefixReuse
 from pllm.runtime.prefill_cache import ExactPrefillCache, prefill_key
 from pllm.runtime.servers import build_roles
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
-from pllm.runtime.transformer_client import LayerCache, RuntimeSnapshot
+from pllm.runtime.transformer_client import LayerCache, RuntimeSnapshot, _snapshot_state_basis
+
+
+def _completed_basis(tokens: int):
+    # Storage fixtures represent trusted completed-prefill output. Native phase
+    # production and rejection of relabeled/generated state have separate tests.
+    return _snapshot_state_basis(
+        "completed_prefill", tokens, "a" * 64, "b" * 64, "c" * 64,
+        prefill_extent=tokens,
+    )
 
 
 def _snapshot(value: float) -> RuntimeSnapshot:
@@ -27,6 +36,7 @@ def _snapshot(value: float) -> RuntimeSnapshot:
             )
         ],
         {},
+        state_basis=_completed_basis(2),
     )
 
 
@@ -54,7 +64,9 @@ def test_cache_key_and_eviction_keep_only_bounded_independent_snapshots() -> Non
 
 def _long_snapshot(tokens: int) -> RuntimeSnapshot:
     key = np.arange(tokens * 4, dtype=np.float32).reshape(tokens, 2, 2)
-    return RuntimeSnapshot(tokens, [LayerCache(key, key + 1, tokens)], {})
+    return RuntimeSnapshot(
+        tokens, [LayerCache(key, key + 1, tokens)], {}, state_basis=_completed_basis(tokens)
+    )
 
 
 def test_shared_blocks_keep_all_checkpoints_without_quadratic_payloads() -> None:
@@ -69,7 +81,9 @@ def test_shared_blocks_keep_all_checkpoints_without_quadratic_payloads() -> None
     assert cache.put(prefill_key("a" * 64, "b" * 64, ids), snapshot, np.ones(2, np.float32))
     assert cache.size_bytes == payload + 8
     for position in (1, 2, 4, 8, 64, 120, 127):
-        found = cache.longest_prefix("a" * 64, "b" * 64, ids[:position] + [999], layers=1)
+        found = cache.longest_prefix(
+            "a" * 64, "b" * 64, ids[:position] + [999] * (128 - position), layers=1
+        )
         assert found is not None and found[0] == position
         np.testing.assert_array_equal(found[1].caches[0].key, snapshot.caches[0].key[:position])
     assert cache.longest_prefix("c" * 64, "b" * 64, ids + [999], layers=1) is None
@@ -84,7 +98,7 @@ def test_shared_block_eviction_erases_only_last_reference_and_hits_are_independe
     shared = list(cache._blocks.values())
     # Removing one checkpoint must not corrupt longer ones sharing its block.
     with cache._lock:
-        cache._remove(prefill_key("a" * 64, "b" * 64, ids[:1]))
+        cache._remove(prefill_key("a" * 64, "b" * 64, ids[:1], prefill_extent=16))
     found = cache.longest_prefix("a" * 64, "b" * 64, ids, layers=1)
     assert found is not None and found[0] == 15
     found[1].caches[0].key.fill(-99)
@@ -107,7 +121,7 @@ def test_branch_blocks_share_prefix_and_remain_correct_under_eviction() -> None:
     assert cache.put_prefixes("a" * 64, "b" * 64, other, branch)
     assert cache.block_count == 5
     for tokens, snapshot in ((ids, first), (other, branch)):
-        found = cache.longest_prefix("a" * 64, "b" * 64, tokens + [999], layers=1)
+        found = cache.longest_prefix("a" * 64, "b" * 64, tokens[:-1] + [999], layers=1)
         assert found is not None and found[0] == 31
         np.testing.assert_array_equal(found[1].caches[0].key, snapshot.caches[0].key[:31])
     # A larger unrelated branch forces eviction of shared prefixes. Candidate
@@ -135,7 +149,7 @@ def test_oversized_prefill_retains_bounded_prefix_without_allocating_full_candid
     assert cache.size_bytes == before
 
 
-def test_checkpoint_keeps_logits_only_for_bit_identical_state() -> None:
+def test_checkpoint_keeps_logits_separate_across_prefill_geometry() -> None:
     cache = ExactPrefillCache(4096)
     ids = list(range(16))
     snapshot = _long_snapshot(8)
@@ -148,7 +162,12 @@ def test_checkpoint_keeps_logits_only_for_bit_identical_state() -> None:
     np.testing.assert_array_equal(fetched[1], [3, 4])
     longer.caches[0].key[0, 0, 0] += 1
     cache.put_prefixes("a" * 64, "b" * 64, ids, longer)
-    assert cache.get(key, position=8, layers=1) is None
+    # The 16-wide prefill never overwrites the isolated 8-wide logit checkpoint,
+    # even when prefix IDs or payloads coincide.
+    np.testing.assert_array_equal(cache.get(key, position=8, layers=1)[1], [3, 4])
+    changed = cache.longest_prefix("a" * 64, "b" * 64, ids[:-1] + [999], layers=1)
+    assert changed is not None and changed[0] == 15
+    np.testing.assert_array_equal(changed[1].caches[0].key, longer.caches[0].key[:15])
 
 
 @pytest.mark.parametrize("bad", ["length", "nonfinite", "shape", "shared"])
@@ -322,7 +341,6 @@ def test_verified_placement_does_not_activate_unverified_prefill_reuse(tmp_path:
 
 def test_prefix_reuse_restores_only_causal_kv_and_reserves_suffix_rows(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = create_tiny_llama_checkpoint(
         tmp_path / "model",
@@ -358,7 +376,13 @@ def test_prefix_reuse_restores_only_causal_kv_and_reserves_suffix_rows(
                 temperature=0,
             )
             assert first.usage is not None
-            following = base + "more"
+            # An expanded reduction extent is numerically distinct: it must
+            # execute canonically rather than reuse old-width KV.
+            changed_width = base + "more"
+            assert client.prepared_rows_for_response(changed_width, 1, model=model_id) == (
+                client.prepared_rows_for_response(changed_width, 1, model=model_id, store=False)
+            )
+            following = base[:-4] + "more"
             full_rows = client.prepared_rows_for_response(
                 following,
                 1,
@@ -366,11 +390,8 @@ def test_prefix_reuse_restores_only_causal_kv_and_reserves_suffix_rows(
                 store=False,
             )
             suffix_rows = client.prepared_rows_for_response(following, 1, model=model_id)
-            # Tiny matrices cannot amortize per-token HTTP envelopes. Admission
-            # rejects reuse even though a matching checkpoint exists.
-            assert suffix_rows == full_rows
-            monkeypatch.setattr(client._core, "_profitable_cached_prefix", lambda *_: True)
-            suffix_rows = client.prepared_rows_for_response(following, 1, model=model_id)
+            # The native continuation packs the suffix once per stage, so the
+            # retained prefix saves rows even for these tiny matrices.
             assert 0 < suffix_rows < full_rows
             before_bytes = client.privacy_audit.masked_online_upload_bytes
             reused = client.responses.create(

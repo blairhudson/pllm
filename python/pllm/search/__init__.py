@@ -578,7 +578,13 @@ class QualityLockedNetworkSearch:
         }
 
 
+from pllm.search.placement import ArtifactCostEvidence, CandidateCostEvidence, PlanningPolicy, PlanningRequest
+
 __all__ = [
+    "CandidateCostEvidence",
+    "ArtifactCostEvidence",
+    "PlanningPolicy",
+    "PlanningRequest",
     "Constraint",
     "GridSearch",
     "ParetoFrontier",

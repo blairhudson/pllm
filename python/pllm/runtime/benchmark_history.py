@@ -38,6 +38,8 @@ _PRIVACY_FIELDS = frozenset(
         "token_lookup_cache_misses",
         "kv_continuation_hits",
         "kv_continuation_misses",
+        "kv_continuation_batched_hits",
+        "kv_continuation_legacy_sequential_hits",
         "prefill_cache_hits",
         "prefill_cache_misses",
         "prefill_prefix_tokens_reused",

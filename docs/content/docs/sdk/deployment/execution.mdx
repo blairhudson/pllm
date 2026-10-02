@@ -1,0 +1,72 @@
+---
+title: "Execution leases"
+description: "Admit one selected response attempt through the ordinary SDK lifecycle."
+---
+
+`open_execution` checks the selected plan against the network and actual model
+source before starting local roles or reserving HTTP hosts. A live attempt checks
+installed descriptor, epoch, source/numeric/schedule commitments, capacity, and
+TTL, reserves all selected provider roles, then arms them. CPU two-offset and
+prepared Inference/Preparation placements use the same admission lifecycle.
+Prepared attempts get isolated runtime inventories and distinct client/push
+credentials; the selected Preparation pushes only to the selected Inference.
+Partial failures abort
+the attempt and release reservations; unreachable hosts revoke at authoritative
+TTL. A live `PartySpec` supports one request, at most 64 input tokens and 32 new
+tokens, with lease bounds of 5–300 seconds.
+
+## Python SDK example
+
+This checked helper takes a feasible, source-locked decision and its matching
+network. Use the generated-checkpoint
+[`network_planning.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/network_planning.py)
+for a complete local SDK/benchmark run, or the two-party fixture for HTTP hosts.
+
+```python
+from pllm import OpenAI
+from pllm.deployment import ExecutionLease, NetworkSpec, open_execution
+from pllm.plan import PlanningResult
+
+def respond(decision: PlanningResult, network: NetworkSpec):
+    assert decision.status == "feasible"
+    with open_execution(decision, network=network) as lease:
+        assert isinstance(lease, ExecutionLease)
+        with OpenAI(execution=lease) as client:
+            response = client.responses.create(
+                input="Hi", max_output_tokens=2, temperature=0.0
+            )
+            assert response.usage.output_tokens <= 2
+            return response
+
+assert callable(respond)
+```
+
+API: [`open_execution` and `ExecutionLease`](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
+
+Await `async_open_execution(...)`, then use `async with` on the returned lease and
+`AsyncOpenAI(execution=lease)`
+and await its Responses calls. Both paths share existing cancellation, teardown,
+and inventory cleanup. A lease has one client owner and cannot be copied or
+pickled. Manual endpoint/execution overrides are rejected. Output/input caps and
+request budget are checked before provider work.
+
+For live execution, every response attempt gets a new reserve/arm lifecycle and
+lease. Fixed-plan gateways revalidate the saved selection; request-mode gateways
+discover and perform bounded planning before each response. They call the
+ordinary SDK Responses route. Public read-only artifacts may survive between
+attempts; capacity tokens, sessions, additive shares, and one-use masks do not.
+
+## CLI selection
+
+`gateway` and `benchmark run` accept either `--plan` or `--request`, together with
+`--network`. These selections are mutually exclusive with `--experiment` and
+own execution settings. Use `--plan` for a fixed saved decision and `--request`
+for fresh bounded planning. `--compare-feasible` adds bounded matched benchmark
+controls: local candidate compositions or live admitted host assignments.
+It does not compare unqualified models or grant new host authority.
+
+The benchmark records selected placement and phase/body accounting through the
+ordinary benchmark records. Body totals and available process CPU samples do not
+establish full-wire cost, peak memory, verified independence, or a production
+privacy claim. See [network and compute](/learn/topologies/network-and-compute/)
+and [network operation](/learn/topologies/network-planning/).

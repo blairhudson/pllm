@@ -5,6 +5,8 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::fmt;
 
+pub mod network;
+
 pub const LOGICAL_PLAN_SCHEMA_VERSION: &str = "pllm.logical_plan.v2";
 pub const EXECUTION_PLAN_SCHEMA_VERSION: &str = "pllm.execution_plan.v1";
 pub const PLAN_LOCK_SCHEMA_VERSION: &str = "pllm.plan_lock.v1";

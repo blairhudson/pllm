@@ -31,6 +31,7 @@ class RuntimeComposition:
     verification_target_failure_bits: int
     weight_bits: int
     activation_bits: int
+    causal_reduction: str | None
     prefix_cache_bytes: int
     prefix_cache_bound_tokens: int | None
     remote_output_head: bool
@@ -55,6 +56,7 @@ class RuntimeComposition:
         verification_target_failure_bits: int = ...,
         weight_bits: int = ...,
         activation_bits: int = ...,
+        causal_reduction: str | None = ...,
     ) -> None: ...
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None: ...

@@ -27,6 +27,12 @@ class _Parser(argparse.ArgumentParser):
         raise UsageError(message)
 
 
+class _BenchmarkModelAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        namespace.benchmark_model_override = True
+
+
 def _add_globals(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--format",
@@ -197,6 +203,27 @@ def build_parser() -> _Parser:
     parser.add_argument("--version", action="version", version=f"pllm {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
 
+    network = _command(commands, "network", help="inspect static local network declarations")
+    network_commands = network.add_subparsers(dest="network_command", required=True)
+    for name in ("inspect", "parties", "snapshot", "drain", "leave"):
+        command = _command(network_commands, name)
+        command.add_argument("NETWORK", help="strict static NetworkSpec JSON file")
+        if name in {"drain", "leave"}:
+            command.add_argument("--party", required=True)
+        if name == "snapshot":
+            command.add_argument("--output", required=True)
+            command.add_argument("--force", action="store_true")
+    planning = _command(commands, "plan", help="offline placement planning and validation")
+    plan_commands = planning.add_subparsers(dest="plan_command", required=True)
+    for name in ("create", "inspect", "explain", "validate"):
+        command = _command(plan_commands, name)
+        command.add_argument("REQUEST" if name == "create" else "PLAN")
+        if name in {"create", "validate"}:
+            command.add_argument("--snapshot", required=True)
+        if name == "create":
+            command.add_argument("--output", required=True)
+            command.add_argument("--force", action="store_true")
+
     config = _command(commands, "config", help="inspect or export public configuration")
     config_commands = config.add_subparsers(dest="config_command", metavar="COMMAND", required=True)
     show = _command(config_commands, "show", help="show validated public configuration")
@@ -245,11 +272,15 @@ def build_parser() -> _Parser:
     gateway.add_argument("--inference-key", default=os.getenv("PLLM_INFERENCE_API_KEY"))
     gateway.add_argument("--preparation-url")
     gateway.add_argument("--preparation-key", default=os.getenv("PLLM_PREPARATION_API_KEY"))
-    gateway.add_argument(
+    gateway_selection = gateway.add_mutually_exclusive_group()
+    gateway_selection.add_argument(
         "--experiment",
         metavar="TARGET",
         help=("local Experiment .json/.yaml or explicit Python path.py:object/module:object"),
     )
+    gateway_selection.add_argument("--plan", type=Path, help="fixed native-selected plan")
+    gateway_selection.add_argument("--request", type=Path, help="bounded planning before each response")
+    gateway.add_argument("--network", type=Path, help="network trust/discovery configuration")
     gateway.add_argument(
         "--factory", action="store_true", help="call the Python target as a zero-argument factory"
     )
@@ -291,6 +322,13 @@ def build_parser() -> _Parser:
         serve_commands, "preparation", help="run the trusted preparation service"
     )
     _add_server_options(preparation)
+    for name in ("party", "directory"):
+        service = _command(serve_commands, name, help=f"run authenticated {name} service")
+        service.add_argument("--network", required=True)
+        if name == "party":
+            service.add_argument("--party", required=True)
+        service.add_argument("--host", default="127.0.0.1")
+        service.add_argument("--port", type=int, default=8000 if name == "party" else 8001)
 
     benchmark = _command(commands, "benchmark", help="run reproducible local benchmarks")
     benchmark_commands = benchmark.add_subparsers(
@@ -301,7 +339,8 @@ def build_parser() -> _Parser:
         "run",
         help="run the real client, preparation, and inference roles on loopback",
     )
-    benchmark_run.add_argument(
+    benchmark_selection = benchmark_run.add_mutually_exclusive_group()
+    benchmark_selection.add_argument(
         "--experiment",
         action="append",
         default=[],
@@ -311,6 +350,14 @@ def build_parser() -> _Parser:
             "compare pipelines"
         ),
     )
+    benchmark_selection.add_argument("--plan", type=Path, help="fixed selected deployment")
+    benchmark_selection.add_argument("--request", type=Path, help="bounded network planning request")
+    benchmark_run.add_argument("--network", type=Path)
+    benchmark_run.add_argument("--compare-feasible", action="store_true", help="bounded matched feasible controls")
+    benchmark_run.add_argument("--temperature", type=float, help="sampling temperature; omitted preserves SDK default 0.8")
+    benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
+    benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
+    benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
     benchmark_run.add_argument(
         "--factory",
         action="store_true",
@@ -324,6 +371,7 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument(
         "--model",
         default="Qwen/Qwen2.5-0.5B-Instruct",
+        action=_BenchmarkModelAction,
         help="Hugging Face model ID or local checkpoint path",
     )
     benchmark_run.add_argument("--model-id", help="stable model identity stored in the report")
@@ -380,7 +428,7 @@ def build_parser() -> _Parser:
     )
     benchmark_run.add_argument(
         "--bundle-compression",
-        choices=("none", "zlib"),
+        choices=("none", "zlib", "artifacts"),
         default=None,
         help="override bundle encoding (default: Experiment selection or none)",
     )
@@ -645,6 +693,15 @@ def _topology(args: argparse.Namespace, output_format: str, no_input: bool, dry_
 
 
 def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
+    selection = _network_selection(args, gateway=False)
+    from pllm.runtime.dashboard import _sampling_choice, _validate_request_temperature
+
+    try:
+        _validate_request_temperature(args.temperature)
+    except ValueError as exc:
+        raise ResolutionError("BENCHMARK_TEMPERATURE", str(exc)) from exc
+    if selection is None:
+        args.model = args.model or "Qwen/Qwen2.5-0.5B-Instruct"
     if not 1 <= args.max_output_tokens <= 512:
         raise ResolutionError(
             "BENCHMARK_OUTPUT_LIMIT", "max output tokens must be between 1 and 512"
@@ -806,11 +863,21 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             for experiment in experiments
         ],
         "save_best": str(args.save_best) if args.save_best is not None else None,
+        "sampling": _sampling_choice(args.temperature),
     }
+    if selection is not None:
+        network, result, request = selection
+        candidates = (result.experiment,) if result is not None else request.candidates
+        if any(args.max_output_tokens > item.budget.max_new_tokens for item in candidates):
+            raise ResolutionError("BENCHMARK_EXPERIMENT_BUDGET", "output cap exceeds selected network budget")
+        configuration["network"] = {"backend": network.backend, "digest": network.digest,
+                                    "mode": "fixed-plan" if result is not None else "per-response-request",
+                                    "compare_feasible": args.compare_feasible}
     if dry_run:
         data = {"configuration": configuration, "dry_run": True}
         if output_format == "human":
-            print("Would run the client, preparation, and inference roles on loopback")
+            print("Would run selected network responses" if selection is not None else
+                  "Would run the client, preparation, and inference roles on loopback")
         else:
             emit_machine("benchmark.run", data, output_format)
         return
@@ -825,7 +892,19 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
         report: dict[str, Any] | None = None
-        selected_experiments = experiments or [None]
+        selected_experiments = [] if selection is not None else experiments or [None]
+        if selection is not None:
+            if args.docker or args.docker_image:
+                raise ValueError("Docker starts local provider roles; selected network plans use their admitted hosts")
+            from pllm.runtime.network_benchmark import run_network_benchmark
+
+            report = run_network_benchmark(
+                network=network, result=result, request=request, prompt=prompt,
+                max_output_tokens=args.max_output_tokens, warmups=args.warmups,
+                repetitions=args.repetitions, timeout_seconds=args.timeout,
+                temperature=args.temperature, compare_feasible=args.compare_feasible,
+                capture_output_digest=args.capture_output_digest,
+            )
         for index, experiment in enumerate(selected_experiments, start=1):
             prefix = f"[{index}/{len(selected_experiments)}] " if experiments else ""
             report = run_loopback_benchmark(
@@ -851,6 +930,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 prefill_cache_bound_tokens=args.prefill_cache_bound_tokens,
                 _cohort_salt=cohort_salt,
                 experiment=experiment,
+                temperature=args.temperature,
+                capture_output_digest=args.capture_output_digest,
                 progress=(
                     lambda message, prefix=prefix: (
                         print(prefix + message, file=sys.stderr, flush=True)
@@ -858,6 +939,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                         else None
                     )
                 ),
+                docker=args.docker,
+                docker_image=args.docker_image,
             )
             if experiment is not None:
                 report["experiment"] = {
@@ -868,7 +951,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 candidate_reports.append((experiment, report))
         if len(candidate_reports) > 1:
             report = build_comparison_report(candidate_reports)
-    except (LoopbackBenchmarkError, ValueError) as exc:
+    except (LoopbackBenchmarkError, ValueError, RuntimeError) as exc:
         raise RuntimeFailure("BENCHMARK_FAILED", str(exc)) from exc
     if report is None:
         raise RuntimeFailure("BENCHMARK_FAILED", "benchmark produced no report")
@@ -915,11 +998,16 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     data = {"output": str(output) if output is not None else None, "report": report}
     if output_format == "human":
         if "candidates" in report:
-            print(f"Compared {len(report['candidates'])} Experiment pipelines")
-            for ranking in report["rankings"].get("full_seconds", []):
+            label = "selected placements" if selection is not None else "Experiment pipelines"
+            print(f"Compared {len(report['candidates'])} {label}")
+            for ranking in report.get("rankings", {}).get("full_seconds", []):
                 print(f"{ranking['rank']}. {ranking['name']}: {ranking['value']:.3f}s median full")
             if not report["checks"]["matched_workload"]:
                 print("No ranking: measured workloads did not match exactly")
+            if selection is not None:
+                regret = report["summary"]["selected_plan_latency_regret_seconds"]
+                if regret is not None:
+                    print(f"Selected placement measured median latency regret: {regret:.3f}s")
         else:
             summary = report["summary"]
             ttft = summary["median_ttft_seconds"]
@@ -1083,6 +1171,26 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         raise ResolutionError("GATEWAY_HOST", "gateway bind must use a loopback address")
     if not 1 <= args.port <= 65_535:
         raise ResolutionError("GATEWAY_PORT", "gateway port must be between 1 and 65535")
+    selection = _network_selection(args, gateway=True)
+    if selection is not None:
+        network, result, request = selection
+        data = {"dry_run": dry_run, "url": _service_url(args.host, args.port),
+                "network_digest": network.digest, "backend": network.backend,
+                "mode": "fixed-plan" if result is not None else "per-response-request"}
+        if dry_run:
+            if output_format == "human":
+                print(f"Would start selected network gateway on {data['url']}")
+            else:
+                emit_machine("gateway", data, output_format)
+            return
+        from pllm.runtime.network_benchmark import SelectedClientFactory
+        from pllm.runtime.sidecar import create_sidecar_app
+        import uvicorn
+
+        factory = SelectedClientFactory(network, result=result, request=request)
+        uvicorn.run(create_sidecar_app(client_factory=factory, local_api_key=args.api_key),
+                    host=args.host, port=args.port, access_log=False)
+        return
     experiment = None
     experiment_data = None
     resolved_experiment = None
@@ -1220,6 +1328,59 @@ def _gateway(args: argparse.Namespace, output_format: str, no_input: bool, dry_r
         raise ResolutionError("GATEWAY_CONFIGURATION", str(exc)) from exc
     except Exception as exc:
         raise RuntimeFailure("GATEWAY_FAILED", f"gateway failed ({type(exc).__name__})") from exc
+
+
+def _network_selection(args: argparse.Namespace, *, gateway: bool):
+    """Offline selection checks shared by gateway/benchmark; dry-run never discovers."""
+    mode = args.plan is not None or args.request is not None
+    if not mode:
+        if args.network is not None or getattr(args, "compare_feasible", False):
+            raise ResolutionError("NETWORK_SELECTION", "--network/--compare-feasible requires --plan or --request")
+        return None
+    if args.network is None:
+        raise ResolutionError("NETWORK_REQUIRED", "--plan/--request requires --network")
+    names = ["experiment", "factory", "trust_python", "model", "model_id", "tiny"]
+    if not gateway and not getattr(args, "benchmark_model_override", False):
+        names.remove("model")
+    names += (["local", "config", "inference_url", "preparation_url", "weight_bits", "activation_bits",
+               "transport", "correlation_mode", "correlation_prefetch", "prepared_inventory_rows",
+               "token_cache_size", "bundle_cache_mode", "bundle_cache_dir", "local_files_only", "timeout",
+               "revision"]
+              if gateway else ["save_best", "show_dashboard", "inventory_policy", "bundle_compression",
+                               "prefill_cache_mib", "prefill_cache_bound_tokens", "prompt_sequence_file",
+                               "warmup_prompt_file"])
+    conflicts = ["--" + name.replace("_", "-") for name in names if getattr(args, name, None)]
+    if not gateway and args.prefill_cache_mode != "exact":
+        conflicts.append("--prefill-cache-mode")
+    if conflicts:
+        raise ResolutionError("NETWORK_OVERRIDE_CONFLICT", "selected network owns execution settings; remove " + ", ".join(conflicts))
+    from pllm.deployment import NetworkSpec
+    from pllm.plan import PlanningResult
+    from pllm.search import PlanningRequest
+    from .network import load_record
+
+    network = load_record(NetworkSpec, args.network)
+    result = load_record(PlanningResult, args.plan) if args.plan is not None else None
+    request = load_record(PlanningRequest, args.request) if args.request is not None else None
+    if result is not None:
+        if result.status != "feasible":
+            raise ResolutionError("NO_FEASIBLE_PLACEMENT", "selected plan is not feasible")
+        import time
+
+        try:
+            result.validate(snapshot=result.snapshot if network.backend == "http" else network.snapshot,
+                            evaluated_at_ms=time.time_ns() // 1_000_000)
+        except (TypeError, ValueError) as exc:
+            raise ResolutionError("PLAN_VALIDATION", str(exc)) from exc
+    candidates = (result.experiment,) if result is not None else request.candidates
+    for item in candidates:
+        intent = item.deployment
+        if network.backend == "http" and (intent.kind != "network" or intent.network_id != network.network_id
+                                         or intent.network_spec_digest != network.digest):
+            raise ResolutionError("NETWORK_INTENT", "selected candidate network intent differs")
+        if network.backend == "local" and intent.kind != "local":
+            raise ResolutionError("NETWORK_INTENT", "local backend requires local deployment")
+    return network, result, request
 
 
 def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run: bool) -> None:
@@ -1462,7 +1623,15 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.command is None:
             parser.print_help()
             return
-        if args.command == "config":
+        if args.command == "network":
+            from .network import run
+
+            run(args, output_format, dry_run)
+        elif args.command == "plan":
+            from .plan import run
+
+            run(args, output_format, dry_run)
+        elif args.command == "config":
             _config(args, output_format, no_input, dry_run)
         elif args.command == "components":
             _components(args, output_format, dry_run)
@@ -1471,7 +1640,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         elif args.command == "gateway":
             _gateway(args, output_format, no_input, dry_run)
         elif args.command == "serve":
-            _serve(args, output_format, no_input, dry_run)
+            if args.serve_role in {"party", "directory"}:
+                from .network import serve
+
+                serve(args, output_format, dry_run)
+            else:
+                _serve(args, output_format, no_input, dry_run)
         elif args.command == "benchmark":
             if args.benchmark_command == "quality":
                 _benchmark_quality(args, output_format, no_input, dry_run)

@@ -314,6 +314,24 @@ separate axis unless an exact schedule, binding and execution test say otherwise
 
 ## Python package
 
+Network-aware planning reuses the existing Experiment, compiler, role adapters,
+SDK, gateway and benchmark driver. `pllm.deployment` owns immutable network,
+party, offer and snapshot records plus discovery and opaque execution leases;
+`pllm.search` owns bounded placement policy and candidate generation;
+`pllm.compiler.plan` invokes native role/resource validation and returns an
+immutable `PlanningResult`. Its costs retain their estimate/measurement scope
+and unknown fields. Existing local Experiment v2 documents preserve their
+identities; explicit network deployment uses v3. Authenticated HTTP offers bind
+instance epochs and source commitments. Reservation, arm, execution and release
+use fresh bounded leases, with expiry, drain and cancellation enforcement.
+The live host slice implements CPU two-offset and prepared Inference/Preparation
+roles; snapshot/local planning also covers admitted client-only compositions. Registered operator
+names and authenticated offers do not establish physical independence. The
+ordinary gateway and benchmark can consume selected plans or planning requests;
+two controlled loopback network changes selected different hosts with zero
+measured latency regret against their matched controls. This is bounded search
+over supported candidates, not a universal optimal scheduler.
+
 `python/pllm` is the only installed namespace. Its public API consists of the
 client classes, configuration, response types, semantic model planning,
 application factories and native matrix interface. `pllm.lower_model` accepts
@@ -549,6 +567,36 @@ closed; neither selection establishes real-model generation quality.
 
 ## Hot operations
 
+Live network execution now admits CPU prepared Inference/Preparation roles as
+well as two-offset workers through the same authenticated reserve/arm/release
+lifecycle. Each prepared lease owns an isolated runtime app and inventories;
+client credentials and selected-peer push credentials are distinct. Source,
+composition, epoch, capacity and workload bounds are checked before material.
+Release, expiry and cancellation burn the attempt's state. Declared operator
+separation remains a placement statement, not evidence of physical independence.
+
+The placement planner can bind `pllm.search.ArtifactCostEvidence` to actual
+public bundle manifests and declared resident object keys. A bounded
+`PlanningPolicy.reuse_horizon` prices missing public objects once and manifests,
+fresh preparation and online arithmetic bodies per workload. Unknown required
+costs still reject candidates; residency declarations remain estimates and
+execution revalidates cache contents.
+
+`SymmetricPerRow(causal_reduction="prefix_f32")` is a separately digested
+float32 full-causal numeric option. Scores, softmax and weighted values reduce
+only over each query's valid prefix. Pinned Qwen partition and teacher-forced
+decode checks match every logit and KV value. This permits growing-width
+completed-prefill reuse; default numeric mode retains the same-width gate and
+generated snapshots remain explicitly response-owned.
+
+`pllm benchmark run --docker` uses the existing role supervisor and benchmark
+driver with a minimal public CPU runtime image and one Linux container per
+provider role. Model/checkpoint and selected shared-Hub blobs mount read-only;
+credentials enter environment variables. Reports retain exact composition and
+body identities, cgroup CPU/memory and per-interface counters. The client stays
+on the host. Docker-local roles are co-located; interface samples include control
+and telemetry and do not establish complete all-link wire accounting.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
 Input and output conversions are explicit. This is not a zero copy interface.
 The present snapshot consumes one extra signed byte per weight while the source
@@ -648,6 +696,17 @@ reuse the wrong state. A pinned Qwen2.5 two-candidate loopback cohort reduced
 covered online bodies from 279.29 MB to 11.58 MB for a 175-token prompt with a
 168-token shared prefix and seven fresh suffix rows. This is an opt-in
 repeat-workload result, not a saving for unrelated new prompts or full wire.
+That historical cohort predates the stricter numeric state gate: pinned W8A8
+prefill-only KV reused at a different attention-reduction extent differed by
+1.8366 logits. Cache v2 keys therefore include original actual full-input width.
+Only sealed completed-prefill state with matching width may enter ordinary
+proper-prefix reuse. Immutable eight-row blocks share storage across qualified
+checkpoints, while returned snapshots remain independent; eviction erases blocks
+only after their last reference. The separately digested native continuation
+schedule admits batched uncached suffixes and must receive an exact provider
+acknowledgement before material reservation. Generated incremental KV differs
+from canonical fresh prefill in the checked checkpoint and remains confined to
+matching explicit prior-response ownership; it is not promoted into fresh keys.
 
 `pllm.roles.OutputHeadAtInference` separately moves an untied public output
 head into the prepared Inference stage schedule. It binds provider stage,
@@ -698,6 +757,25 @@ prefix reuse and zlib reduces online bodies from 647.60 to 240.68 MB and covered
 setup-inclusive bodies from 1,171.96 to 547.41 MB. These co-located protocol-body
 counts exclude wire framing and checkpoint distribution; compression increases
 cold CPU in this cohort.
+These growing-context measurements are historical, before the matching-width
+cache gate, and do not establish current exact cross-width reuse savings.
+
+`ClientBundleTransport("artifacts")` adds public immutable object locality to
+compiled prepared bundles. Every import fetches an authenticated manifest, then
+reuses or fetches bounded content-addressed objects under source, shape, dtype,
+orientation and numeric commitments. It reconstructs and verifies the exact raw
+bundle before ordinary native admission. The byte/count-bounded cache verifies
+reads, repairs corruption and uses atomic writes; its default payload ceiling is
+2 GiB. It contains no private KV, masks or one-use inventory. A cached pinned
+Qwen SDK cohort fetched 173 cold objects (145.28 MB), then only 48 new objects
+(44.04 MB) when switching to client attention. Returning to baseline fetched zero
+objects but still paid for a fresh 195 kB manifest. Raw, zlib and artifact controls
+have bit-identical checked W8A8 prefill/decode logits. Ordinary SDK admission and
+the canonical benchmark path passed without temporary option whitelists.
+Object storage, reconstructed NumPy payloads and native snapshots are distinct
+ownership categories, not peak-memory measurements. The real-shaped shallow
+encrypted-linear feasibility screen remains non-selectable: its sampled exact
+4,864-to-896 projection costs roughly 40 times the prepared stage bodies.
 
 ## Application boundary
 

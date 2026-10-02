@@ -1,16 +1,21 @@
 ---
 title: "Client prefix reuse"
-description: "Reuse a bounded client-owned causal prefill for another prompt sharing its exact token prefix."
+description: "Reuse sealed client-owned prefills under an explicitly bound numerical contract."
 ---
 
 [`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#clientprefixreuse)
 (`pllm/client-prefix-reuse/v1`) is an optional `cache` slot in
 `MaskedLinearCpu`. The fixed input-token bound, byte limit, composition,
-client bundle and token prefix bind every cached KV snapshot. Only complete
-prior prepared prefills can be reused; restored suffix tokens execute with
-new one-use provider rows. An upper-bound estimate rejects suffixes whose
-per-token stage messages would cost more than batched prefill. Reused lengths
-can reveal prefix equality, so the component is off by default.
+client bundle and exact token prefix bind every cached KV snapshot. These
+identities alone are insufficient: **the source's full-prefill reduction extent
+must equal the new request's total input-token count** under the historical
+numeric contract, even for proper-prefix reuse. A fixed capacity is not the
+actual reduction extent. Selecting
+[`SymmetricPerRow(causal_reduction="prefix_f32")`](/sdk/components/quantization/symmetric-per-row/)
+binds canonical valid-prefix attention reductions and permits growing-width
+completed-prefill reuse. Only sealed,
+completed, unowned prefill snapshots qualify. Reused lengths can reveal prefix
+equality, so the component is off by default.
 
 Retained checkpoints share immutable eight-token KV blocks instead of copying
 the entire prefix for every checkpoint. Cache hits materialize independent
@@ -18,10 +23,21 @@ mutable runtime state; eviction erases a block after its last reference. The
 byte limit counts retained NumPy payloads, not Python metadata, runtime copies
 or peak memory. A separate entry ceiling bounds metadata growth.
 
-Suffixes still execute one token at a time through the compiled decode phase.
-There is no admitted batched-continuation phase or general generated-prefix
-promotion. Explicit response continuations retain their existing pending-token
-handling; this storage improvement does not change those execution contracts.
+Admitted suffixes use the native batched-continuation phase with fresh
+one-use provider rows. Provider admission checks source/config/composition,
+numeric and schedule identity, installed stages, and bounds before reservation;
+the client requires the exact continuation acknowledgement. Missing admission
+does not silently downgrade to a sequential path. See
+[continuation contracts](/sdk/plans/continuation/).
+
+Generated decode makes lineage incremental. It is **never promoted into the
+fresh-prompt cache**, even when an ordinary message history retokenizes to the
+same IDs. `previous_response_id` is a separate response-owned incremental path:
+owner, source, numeric and execution basis must match before restoration. Its
+pending sampled token has not yet been evaluated and is appended with the suffix.
+Cancellation and `store=False` retain no completed private conversation snapshot.
+The internal state-basis seal is trusted client-local provenance, not a remote
+quote or GPU attestation; it does not authenticate mutable KV payload contents.
 
 ## Python SDK example
 
@@ -44,9 +60,25 @@ assert experiment.resolve().composition_digest == experiment.pipeline.digest()
 For matched on/off execution use the
 [benchmark guide](/sdk/evaluate/benchmark/) and the
 [Qwen2.5 cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/client-prefix-reuse-qwen25-2026-09-28.json).
-One checked 175-token prompt sharing 168 cached tokens reduced covered online
-bodies from 279.29 MB to 11.58 MB; it did not eliminate cold bundle delivery,
-generalize to unrelated prompts, or measure full wire bytes. Compare complete
-replies under one stable source lock and fixed generation budget.
+That historical cohort's 175-token prompt sharing 168 cached tokens reported
+279.29 MB to 11.58 MB of covered online bodies **before the numeric geometry
+gate**. Its historical-contract cross-width append is now blocked; those figures are not current
+exact-reuse savings. Historical growth-context reductions of 62.8% online and
+53.3% setup-through-response likewise remain archived pre-gate measurements.
+
+The [corrected production cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/batched-continuation-2026-10-01.md)
+uses a pinned Qwen2.5 W8A8 source and branch with **63 input tokens**, a 40-token
+prefix and a 23-token suffix. Native suffix execution uses **96 stage calls** and
+**36,714,816 covered online bytes**, versus 100,551,168 for fresh prefill; every
+logit is array-equal. The changed-width 50/55-token branches safely miss and
+execute fresh prefill. These are one-loopback-request application bodies, not
+full-wire measurements or general context-growth savings.
+
+The same evidence exposes **1.8366047** logit drift across prefill widths and
+**1.9433875** for generated-state aliasing against canonical fresh prefill.
+Unchanged output text or argmax does not pass the numeric gate. Explicit prior
+continuation remains valid against its incremental execution reference, not as
+an equivalent fresh-prompt optimization. Compare all logits under the appropriate
+source, numeric, execution and workload identities.
 
 API: [`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#objects-and-signatures)

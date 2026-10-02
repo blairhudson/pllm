@@ -1,0 +1,52 @@
+---
+title: "Continuation contracts"
+description: "Inspect native full-KV batched suffix admission without claiming fresh numeric equivalence."
+---
+
+`ModelPlan.continuation_schedule(pipeline)` compiles an independently digested
+full-KV batched suffix extension. The contract binds source plan/config,
+composition, source schedule, numerics and token bounds. It retains original
+grouped prefill stage identities and source RoPE, absolute positions and causal
+masking. Hybrid, recurrent, sliding and shared-state layouts are unsupported.
+
+## Python SDK example
+
+This pure configuration example checks native bounds; it loads no weights and
+does not authorize a provider session.
+
+```python
+from pllm import Model, lower_model
+from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
+
+config = {
+    "model_type": "qwen2", "hidden_size": 8, "intermediate_size": 16,
+    "num_hidden_layers": 1, "num_attention_heads": 2,
+    "num_key_value_heads": 1, "vocab_size": 32,
+    "max_position_embeddings": 256, "hidden_act": "silu",
+    "rms_norm_eps": 1e-6, "rope_theta": 10000.0,
+    "tie_word_embeddings": True,
+}
+model_plan = lower_model(config, batch=1, max_input_tokens=64, max_new_tokens=2)
+pipeline = MaskedLinearCpu(
+    Model.tiny(), quantization=SymmetricPerRow(weight_bits=8, activation_bits=8)
+)
+contract = model_plan.continuation_schedule(pipeline)
+assert contract.admit(prefix=8, query=8) > 0
+assert contract.handshake_spec()["schema"] == "pllm.decoder_continuation_session.v1"
+assert len(contract.digest) == 64
+```
+
+API: [`ModelPlan` and `lower_model`](/sdk/reference/python/pllm/#objects-and-signatures)
+
+Runtime/provider admission additionally checks installed stage artifacts and
+ownership before reserving one-use rows. The exact acknowledgement is required;
+invalid shapes/nonfinite values burn the session and reserved material. There
+is no implicit sequential fallback after failed admission.
+
+Native legality does not prove that old KV equals a new full prefill. Fresh
+cache admission also requires sealed completed-prefill lineage and matching
+actual full-input reduction extent. Generated state instead requires explicit
+response ownership and its original source/numeric/execution basis. See
+[client prefix reuse](/sdk/components/state/client-prefix-reuse/) for numeric
+counterexamples and current same-width production evidence.

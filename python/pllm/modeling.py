@@ -81,6 +81,61 @@ class ModelPlan:
         ).encode()
         return ModelPlan(_native.apply_model_component(self._canonical_bytes, document))
 
+    def continuation_schedule(self, composition: "Pipeline") -> "DecoderContinuationSchedule":
+        """Compile an independently digested full-KV batched suffix extension."""
+        from pllm import _native
+
+        pipeline = composition.canonical_bytes()
+        return DecoderContinuationSchedule(
+            _native.decoder_continuation(self._canonical_bytes, pipeline),
+            self._canonical_bytes,
+            pipeline,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DecoderContinuationSchedule:
+    _canonical_bytes: bytes
+    _source_plan: bytes
+    _composition: bytes
+
+    def __post_init__(self) -> None:
+        from pllm import _native
+
+        if self._canonical_bytes != _native.decoder_continuation(self._source_plan, self._composition):
+            raise ValueError("continuation source/numeric/schedule contract mismatch")
+
+    @property
+    def digest(self) -> str:
+        return hashlib.sha256(b"pllm.decoder_continuation.v1\0" + self._canonical_bytes).hexdigest()
+
+    def canonical_bytes(self) -> bytes:
+        return self._canonical_bytes
+
+    def to_dict(self) -> dict[str, Any]:
+        return json.loads(self._canonical_bytes)
+
+    def handshake_spec(self) -> dict[str, Any]:
+        """Public extension slot; contains no private prefix length or tokens."""
+        document = self.to_dict()
+        return {
+            "schema": "pllm.decoder_continuation_session.v1",
+            "digest": self.digest,
+            **{key: document[key] for key in (
+                "source_plan_digest", "model_config_digest", "composition_digest",
+                "source_schedule_digest", "numeric_digest", "token_bound",
+            )},
+        }
+
+    def admit(self, prefix: int, query: int, *, memory_bytes: int = 2 << 30) -> int:
+        from pllm import _native
+
+        if any(type(n) is not int or n < 0 for n in (prefix, query, memory_bytes)):
+            raise ValueError("continuation bounds must be nonnegative integers")
+        return int(_native.admit_decoder_continuation(
+            self._source_plan, self._composition, self._canonical_bytes, prefix, query, memory_bytes
+        ))
+
 
 @dataclass(frozen=True, slots=True)
 class DecoderCoverageReport:
@@ -186,4 +241,4 @@ def lower_model(
     )
 
 
-__all__ = ["DecoderCoverageReport", "DecoderRuntimeSchedule", "ModelPlan", "lower_model"]
+__all__ = ["DecoderContinuationSchedule", "DecoderCoverageReport", "DecoderRuntimeSchedule", "ModelPlan", "lower_model"]

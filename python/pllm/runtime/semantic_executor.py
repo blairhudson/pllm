@@ -10,7 +10,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from pllm.modeling import ModelPlan
+from pllm.modeling import DecoderContinuationSchedule, ModelPlan
 
 from .semantic_attention import (
     SemanticAttentionError,
@@ -42,11 +42,15 @@ from .transformer_client import (
     LayerCache,
     MaskedTransformerClientRuntime,
     TransformerClientError,
+    RuntimeSnapshot,
+    _snapshot_state_basis,
 )
 
 
 class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
     """Execute validated semantic steps with client-owned attention and cache state."""
+
+    _causal_reduction: str | None = None
 
     def __init__(
         self,
@@ -61,6 +65,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         token_cache_size: int = 512,
         token_cache_lock: threading.Lock | None = None,
         nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
+        causal_reduction: str | None = None,
     ) -> None:
         super().__init__(
             bundle,
@@ -71,8 +76,27 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             nonlinear_evaluator=nonlinear_evaluator,
         )
         self._graphs = plan.to_dict()
+        if causal_reduction not in {None, "prefix_f32"}:
+            raise TransformerClientError("unsupported causal reduction contract")
+        self._causal_reduction = causal_reduction
+        self._source_plan = plan
+        self._continuation_contract: DecoderContinuationSchedule | None = None
+        self._continuation_failed = False
         self._text_only_tokens = self._excluded_multimodal_tokens(self._graphs, bundle.cfg)
         self._schedule = schedule
+        # Workload bounds may change across explicit response continuations.
+        # Snapshot compatibility binds exact source config, numeric composition
+        # and weight/stage commitments; native suffix admission separately binds
+        # the full source plan and its fixed input bound.
+        import hashlib
+        import json
+
+        self._state_binding_digest = hashlib.sha256(json.dumps({
+            "config": self._graphs["config_digest"],
+            "composition": schedule["composition_digest"],
+            "body": bundle.privacy.get("body_fingerprint"),
+            "stages": bundle.privacy.get("stage_commitment"),
+        }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         self._stages = dict(stages)
         self._tensors = dict(tensors)
         self._window_contracts = self._declared_windows(self._graphs)
@@ -199,9 +223,127 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
 
     def reset(self) -> None:
         super().reset()
+        self._snapshot_basis = None
+        self._continuation_owner = None
         self._hybrid_states: dict[tuple[int, str], np.ndarray] = {}
         for layer, window in getattr(self, "_window_contracts", {}).items():
             self.caches[layer] = WindowedLayerCache(window=window)
+
+    def snapshot(self) -> RuntimeSnapshot:
+        saved = super().snapshot()
+        saved.semantic_binding_digest = self._state_binding_digest
+        saved.state_basis = self._snapshot_basis
+        return saved
+
+    def install_continuation(self, contract: DecoderContinuationSchedule) -> None:
+        """Bind a native extension without changing the original stage schema."""
+        if not isinstance(contract, DecoderContinuationSchedule):
+            raise TransformerClientError("continuation requires a native schedule contract")
+        document = contract.to_dict()
+        if (
+            contract._source_plan != self._source_plan.canonical_bytes()
+            or document["source_plan_digest"] != self._source_plan.digest
+            or document["composition_digest"] != self._schedule["composition_digest"]
+            or self._window_contracts or self._hybrid_contracts or self.shared_kv
+        ):
+            raise TransformerClientError("continuation differs from bound decoder source/state")
+        # The facade reconstructs the native contract; compare the original schedule
+        # too, so custom callback schedules cannot silently broaden capability.
+        import hashlib
+        import json
+
+        payload = json.dumps(self._schedule, sort_keys=True, separators=(",", ":")).encode()
+        digest = hashlib.sha256(b"pllm.decoder_runtime_schedule.v2\0" + payload).hexdigest()
+        if digest != document["source_schedule_digest"]:
+            raise TransformerClientError("continuation source schedule mismatch")
+        self._continuation_contract = contract
+
+    def _validate_full_snapshot(self, snapshot: RuntimeSnapshot) -> None:
+        if (
+            type(snapshot.position) is not int or snapshot.position < 1
+            or snapshot.position > self._graphs["decode"]["maximum_key_sequence"]
+            or snapshot.shared_kv or len(snapshot.caches) != self.layers
+            or snapshot.semantic_binding_digest != self._state_binding_digest
+        ):
+            raise TransformerClientError("semantic snapshot source/state binding mismatch")
+        declarations = self._graphs["decode"]["state_inputs"]
+        if len(declarations) != 2 * self.layers:
+            raise TransformerClientError("semantic snapshot lacks exclusive full-KV owners")
+        for state in declarations:
+            row = snapshot.caches[int(state["layer"])]
+            tensor = row.key if state["kind"] == "key" else row.value
+            shape = state["shape"]
+            if (
+                type(row) is not LayerCache or row.length != snapshot.position
+                or tensor is None or tensor.dtype != np.float32 or tensor.ndim != 3
+                or tensor.shape[0] < snapshot.position
+                or tensor.shape[1:] != (shape[1], shape[3])
+                or not np.all(np.isfinite(tensor[:snapshot.position]))
+            ):
+                raise TransformerClientError("semantic snapshot full-KV shape/numeric mismatch")
+
+    def restore(self, snapshot: RuntimeSnapshot) -> None:
+        if not self._window_contracts and not self._hybrid_contracts:
+            self._validate_full_snapshot(snapshot)
+        basis = snapshot.state_basis
+        if (basis is None or not basis.completed_prefill() or basis.position != snapshot.position
+                or basis.source_binding_digest != self._state_binding_digest):
+            raise TransformerClientError("ordinary restore requires completed prefill execution basis")
+        super().restore(snapshot)
+        self._snapshot_basis = basis
+        self._continuation_owner = None
+
+    def restore_for_response(self, snapshot: RuntimeSnapshot, response_id: str) -> None:
+        if self._window_contracts or self._hybrid_contracts or snapshot.shared_kv:
+            raise TransformerClientError("prior snapshot requires exclusive supported full-KV state")
+        self._validate_full_snapshot(snapshot)
+        basis = snapshot.state_basis
+        if (basis is None or not basis.valid() or basis.position != snapshot.position
+                or basis.phase not in {"completed_prefill", "incremental"}
+                or basis.source_binding_digest != self._state_binding_digest
+                or basis.owner_response_id != response_id):
+            raise TransformerClientError("prior response snapshot owner/source execution basis mismatch")
+        super().restore(snapshot)
+        self._snapshot_basis = basis
+        self._continuation_owner = response_id
+
+    def continue_ids(self, ids: list[int] | np.ndarray, *, memory_bytes: int = 2 << 30) -> np.ndarray:
+        """Append a query block to declared existing full KV; one call per linear stage."""
+        if self._continuation_failed:
+            raise TransformerClientError("continuation session is burned")
+        try:
+            contract = self._continuation_contract
+            if contract is None:
+                raise TransformerClientError("native continuation contract was not admitted")
+            tokens = np.asarray(ids)
+            if tokens.ndim != 1 or not np.issubdtype(tokens.dtype, np.integer):
+                raise TransformerClientError("continuation token shape/type is invalid")
+            if np.any(tokens < 0) or np.any(tokens >= int(self.cfg["vocab_size"])):
+                raise TransformerClientError("continuation token ID exceeds vocabulary")
+            contract.admit(self.position, int(tokens.size), memory_bytes=memory_bytes)
+            basis = self._snapshot_basis
+            if (basis is None or not basis.valid() or basis.position != self.position
+                    or basis.source_binding_digest != self._state_binding_digest
+                    or (not basis.completed_prefill()
+                        and (basis.phase not in {"completed_prefill", "incremental"}
+                             or not self._continuation_owner
+                             or basis.owner_response_id != self._continuation_owner))):
+                raise TransformerClientError("native continuation requires prefill or explicit prior-owner basis")
+            self._validate_full_snapshot(RuntimeSnapshot(
+                self.position, self.caches, self.shared_kv, self._state_binding_digest
+            ))
+            result = self._forward(tokens.astype(np.int64), continuation=True)
+            if not np.all(np.isfinite(result)):
+                raise TransformerClientError("continuation produced nonfinite logits")
+            return result
+        except BaseException:
+            self._continuation_failed = True
+            # One-use reservations are never returned, even when failure precedes
+            # consumption. The enclosing client cancels the provider session.
+            inventory = getattr(self.remote, "inventory", None)
+            if inventory is not None:
+                inventory.close()
+            raise
 
     def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
         if len(ids) == 0 and self.cfg.get("bos_token_policy") == "nonempty_only":
@@ -619,6 +761,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 raise TransformerClientError("semantic cache suffix lacks a retained prefix")
             return stored[: cache.length].transpose(1, 0, 2)[None]
         elif kind == "attention_scores":
+            if self._causal_reduction is not None:
+                from .causal_reduction import scores
+                positions = np.arange(self.position, self.position + source.shape[2], dtype=np.int64)
+                return scores(source, values[inputs[1]], positions, int(attrs["group_size"]))
             if "key_layout" in attrs:
                 try:
                     return semantic_attention_scores(
@@ -656,6 +802,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             except SemanticAttentionError as exc:
                 raise TransformerClientError(str(exc)) from exc
         elif kind == "softmax":
+            if self._causal_reduction is not None:
+                from .causal_reduction import softmax
+                return softmax(source)
             if attrs.get("output_dtype") == "bfloat16" and attrs.get("compute_dtype") == "float32":
                 if attrs.get("axis") != -1:
                     raise TransformerClientError("semantic softmax axis is unsupported")
@@ -669,6 +818,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             probabilities = np.exp(centered).astype(np.float32)
             return probabilities / probabilities.sum(axis=-1, keepdims=True)
         elif kind == "attention_values":
+            if self._causal_reduction is not None:
+                from .causal_reduction import values as weighted_values
+                positions = np.arange(self.position, self.position + source.shape[2], dtype=np.int64)
+                return weighted_values(source, values[inputs[1]], positions, int(attrs["group_size"]))
             if "value_layout" in attrs:
                 try:
                     return semantic_attention_values(
@@ -761,9 +914,18 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             f"semantic operator {kind!r} ({operation.get('id')!r}, layout={attrs.get('layout')!r}) is not executable"
         )
 
-    def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False) -> np.ndarray:
+    def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False,
+                 continuation: bool = False) -> np.ndarray:
+        if self._continuation_failed:
+            raise TransformerClientError("continuation session is burned")
         phase = "prefill" if self.position == 0 else "decode"
         graph = self._graphs[phase]
+        phase_schedule = self._schedule[phase]
+        if continuation:
+            if self._continuation_contract is None:
+                raise TransformerClientError("native continuation contract was not admitted")
+            document = self._continuation_contract.to_dict()
+            phase, graph, phase_schedule = "prefill", document["graph"], document["schedule"]
         if any(int(value) in self._text_only_tokens for value in ids):
             raise TransformerClientError("multimodal tokens require an unimplemented position policy")
         if (
@@ -774,6 +936,9 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         ):
             raise TransformerClientError("semantic execution exceeds compiled workload bounds")
         positions = np.arange(self.position, self.position + ids.size, dtype=np.int64)
+        previous_basis = self._snapshot_basis
+        # A partial/failed phase must never retain completed-prefill qualification.
+        self._snapshot_basis = None
         values: dict[str, Any] = {
             "input.tokens": ids,
             "input.positions": positions,
@@ -815,7 +980,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             values[state["id"]] = stored[: cache.length].transpose(1, 0, 2)[None]
         operations = {op["id"]: op for op in graph["operations"]}
         state_kinds = self._declared_state_kinds(graph)
-        steps = self._schedule[phase]["steps"]
+        steps = phase_schedule["steps"]
         remaining = Counter(input_id for step in steps for input_id in step["input_ids"])
         selections = [
             op for op in graph["operations"] if op["operator"] == "greedy_token_selection"
@@ -860,12 +1025,22 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                         if stage.client_weight is not None
                         else self.remote(stage_id, input_value)
                     )
+                    if continuation and (
+                        np.asarray(values[op_ids[0]]).shape != np.asarray(input_value).shape[:-1] + (stage.out_features,)
+                        or np.asarray(values[op_ids[0]]).dtype != np.float32
+                    ):
+                        raise TransformerClientError("continuation output head shape/type mismatch")
                 else:
                     input_value = values[step["input_ids"][0]]
                     if step["executor"] == "client_linear" and self.bundle.stages[stage_id].client_weight is not None:
                         output = self.bundle.local_linear(stage_id, input_value)
                     else:
                         output = self.remote(stage_id, input_value)
+                    if continuation and (
+                        np.asarray(output).shape != np.asarray(input_value).shape[:-1] + (self.bundle.stages[stage_id].out_features,)
+                        or np.asarray(output).dtype != np.float32
+                    ):
+                        raise TransformerClientError("continuation remote stage shape/type mismatch")
                     for op_id, row in zip(op_ids, step["outputs"], strict=True):
                         offset = int(row["stage_offset"])
                         width = int(row["stage_width"])
@@ -874,6 +1049,15 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                     values[op_id] = self._numeric_output(operations[op_id], values[op_id])
             else:
                 raise TransformerClientError("semantic runtime executor is unsupported")
+            if continuation:
+                for op_id in op_ids:
+                    tensor = np.asarray(values[op_id])
+                    if np.issubdtype(tensor.dtype, np.floating):
+                        # Causal masking intentionally inserts negative infinity.
+                        valid = (not np.any(np.isnan(tensor)) and not np.any(np.isposinf(tensor))) \
+                            if operations[op_id]["operator"] == "causal_mask" else np.all(np.isfinite(tensor))
+                        if not valid:
+                            raise TransformerClientError("continuation operation produced nonfinite state")
             for op_id in op_ids:
                 identity = produced_hybrid.get(op_id)
                 if identity is None:
@@ -897,6 +1081,28 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             raise TransformerClientError("semantic hybrid state output is incomplete")
         self._hybrid_states = pending_hybrid
         self.position += ids.size
+        import hashlib
+        import json
+
+        native_phase = hashlib.sha256(json.dumps({
+            "source_plan": self._source_plan.digest, "graph": graph,
+            "schedule": phase_schedule,
+        }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        execution = hashlib.sha256(
+            b"pllm.decoder.execution-basis.v1\0" + native_phase.encode()
+            + (b"" if previous_basis is None else previous_basis.execution_digest.encode())
+            + positions.astype("<i8").tobytes() + ids.astype("<i8").tobytes()
+        ).hexdigest()
+        incremental = phase == "decode" or (previous_basis is not None and (
+            previous_basis.phase != "completed_prefill" or previous_basis.owner_response_id is not None
+            or self._causal_reduction is None and previous_basis.prefill_extent != self.position
+        ))
+        self._snapshot_basis = _snapshot_state_basis(
+            "incremental" if incremental else "completed_prefill", self.position,
+            self._state_binding_digest, native_phase, execution, self._continuation_owner,
+            self.position if previous_basis is None or self._causal_reduction and not incremental
+            else previous_basis.prefill_extent,
+        )
         return np.asarray(values[logits_id], dtype=np.float32)
 
 

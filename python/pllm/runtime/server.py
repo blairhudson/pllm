@@ -21,6 +21,7 @@ from pllm.model_loader import model_from_runtime_spec, resolve_model
 
 from .backends import BackendRegistry
 from .bundle_compression import ENCODING as BUNDLE_ENCODING, encode_bundle_frames
+from .bundle_artifacts import ENCODING as ARTIFACT_ENCODING, ArtifactError, export_bundle
 from .config import GatewayConfig
 from .correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -165,6 +166,8 @@ def create_app(
     private_models: dict[str, MaskedBigramModel] | None = None,
     engines: dict[str, InferenceEngine] | None = None,
     audit_hook: Callable[[str, bytes], None] | None = None,
+    preloaded_models: tuple[tuple[str, ImportedModelManifest], ...] = (),
+    owns_engines: bool = True,
 ) -> FastAPI:
     config = config or GatewayConfig()
     if config.provider_push_api_key and config.provider_push_api_key in config.api_keys:
@@ -211,6 +214,18 @@ def create_app(
     responses = RetainedResponses(config.response_retention_seconds)
     imported: dict[str, ImportedModelManifest] = {}
     model_engine_routes: dict[str, str] = {}
+    for engine_name, manifest in preloaded_models:
+        if engine_name not in engines or manifest.id in imported:
+            raise ValueError("preloaded model must have one installed engine")
+        imported[manifest.id] = manifest
+        model_engine_routes[manifest.id] = engine_name
+        for stage in manifest.stages:
+            engine_schedulers[(manifest.id, stage.id)] = StageBatchScheduler(
+                EngineStageExecutor(engines[engine_name], manifest.id, stage),
+                max_batch_size=config.max_batch_size,
+                max_wait_ms=config.max_batch_wait_ms,
+                adaptive_wait=config.adaptive_batching,
+            )
     client_bundles: dict[tuple[str, str], tuple[bytes, dict[str, Any]]] = {}
     backend_models: list[dict[str, Any]] = []
     rendezvous = CorrectionRendezvous(
@@ -271,7 +286,7 @@ def create_app(
                 close = getattr(adapter, "close", None)
                 if close:
                     await close()
-            for engine in engines.values():
+            for engine in engines.values() if owns_engines else ():
                 close = getattr(engine, "close", None)
                 if close:
                     value = close()
@@ -400,6 +415,21 @@ def create_app(
         cached = (payload, descriptor)
         client_bundles[key] = cached
         return cached
+
+    artifact_bundles = {}
+
+    def artifact_bundle_record(engine_name: str, model_id: str):
+        payload, descriptor = client_bundle_record(engine_name, model_id)
+        key = (engine_name, model_id)
+        cached = artifact_bundles.get(key)
+        if cached is None or cached[0] != descriptor["sha256"]:
+            try:
+                exported = export_bundle(payload)
+            except ArtifactError as exc:
+                raise HTTPException(status_code=409, detail={"error": {"message": str(exc)}}) from exc
+            cached = (descriptor["sha256"], exported)
+            artifact_bundles[key] = cached
+        return cached[1], descriptor
 
     @app.get("/healthz")
     @app.get("/health")
@@ -639,6 +669,44 @@ def create_app(
             imported[manifest.id] = manifest
         return manifest.to_dict()
 
+    @app.get("/v1/runtime/models/{model_id:path}/client-bundle-objects/{raw_digest}/{object_digest}")
+    async def model_client_bundle_object(
+        model_id: str, raw_digest: str, object_digest: str,
+        authorization: str | None = Header(default=None),
+    ) -> FastAPIResponse:
+        auth_token(authorization)
+        engine_name = model_engine_routes.get(model_id)
+        if engine_name is None:
+            raise HTTPException(status_code=404, detail="Model has no client bundle")
+        exported, descriptor = artifact_bundle_record(engine_name, model_id)
+        if raw_digest != descriptor["sha256"] or object_digest not in exported.objects:
+            raise HTTPException(status_code=404, detail="Unknown artifact binding/object")
+        payload = exported.objects[object_digest]
+
+        def chunks():
+            view = memoryview(payload)
+            for offset in range(0, len(view), 65536):
+                yield view[offset:offset + 65536].tobytes()
+
+        return StreamingResponse(chunks(), media_type="application/octet-stream", headers={
+            "Content-Length": str(len(payload)), "ETag": f'"{object_digest}"',
+            "X-PLLM-Object-SHA256": object_digest,
+            "X-PLLM-Bundle-SHA256": str(descriptor["sha256"]),
+        })
+
+    @app.get("/v1/runtime/models/{model_id:path}/client-bundle-artifacts")
+    async def model_client_bundle_artifacts(
+        model_id: str, authorization: str | None = Header(default=None),
+    ) -> FastAPIResponse:
+        auth_token(authorization)
+        engine_name = model_engine_routes.get(model_id)
+        if engine_name is None:
+            raise HTTPException(status_code=404, detail="Model has no client bundle")
+        exported, descriptor = artifact_bundle_record(engine_name, model_id)
+        return FastAPIResponse(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
+                               headers={"X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING,
+                                        "X-PLLM-Bundle-SHA256": str(descriptor["sha256"])})
+
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle")
     async def model_client_bundle(
         model_id: str,
@@ -661,6 +729,11 @@ def create_app(
             "X-PLLM-Bundle-Schema": str(descriptor["schema"]),
             "X-PLLM-Model-ID": model_id,
         }
+        if accept_bundle_encoding == ARTIFACT_ENCODING:
+            exported, _ = artifact_bundle_record(engine_name, model_id)
+            headers["X-PLLM-Bundle-Encoding"] = ARTIFACT_ENCODING
+            return FastAPIResponse(exported.manifest,
+                                   media_type="application/vnd.pllm.bundle-artifacts", headers=headers)
         if if_none_match == descriptor["etag"]:
             return FastAPIResponse(status_code=304, headers=headers)
         if accept_bundle_encoding == BUNDLE_ENCODING:
@@ -745,6 +818,9 @@ def create_app(
                 },
             )
         decoder_contract = body.get("decoder_plan")
+        continuation_slot = None
+        if body.get("decoder_continuation") is not None and decoder_contract is None:
+            raise HTTPException(status_code=409, detail="Continuation requires a compiled decoder")
         if (
             imported_manifest is not None
             and imported_manifest.metadata.get("decoder_execution") == "semantic_schedule_v1"
@@ -826,6 +902,18 @@ def create_app(
                     status_code=409,
                     detail={"error": {"message": "Compiled decoder plan differs from provider"}},
                 )
+            if body.get("decoder_continuation") is not None:
+                from .continuation_admission import admit_continuation
+
+                try:
+                    continuation_slot = admit_continuation(
+                        body["decoder_continuation"], provider_plan, engines[engine_name], model_id
+                    )
+                except (AttributeError, KeyError, TypeError, ValueError) as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"error": {"message": "Compiled decoder continuation is invalid"}},
+                    ) from exc
         session_id = new_id("rts")
         session = RuntimeSession(session_id, new_id("resp"), model_id, api_key)
         session.execution = str(body.get("execution") or "runtime")
@@ -941,6 +1029,8 @@ def create_app(
             "manifest": session_manifest,
             "websocket_path": f"/v1/runtime/ws/{session.id}",
         }
+        if continuation_slot is not None:
+            result["decoder_continuation"] = continuation_slot
         if expected_authorization is not None:
             result["preparation_authorization"] = {
                 "body_fingerprint": expected_authorization.body_fingerprint,

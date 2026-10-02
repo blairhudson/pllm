@@ -1,0 +1,3789 @@
+{
+  "admission": {
+    "temporary_whitelist_probe": false
+  },
+  "cached_model_source": null,
+  "canonical_benchmark": {
+    "checks": {
+      "all_runs_completed": true,
+      "authoritative_token_usage": true,
+      "model_fingerprint_present": true,
+      "no_online_preparation_requests": true,
+      "no_plaintext_prompt_bytes_sent": true,
+      "no_plaintext_token_ids_sent": true,
+      "passed": true,
+      "sampling_matches_request": true
+    },
+    "client_body_placement": {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "declared_body_linear_macs_per_row_client": 0,
+      "declared_body_linear_macs_per_row_remote": 884736,
+      "local_stage_count": 0,
+      "native_body_i8_snapshot_bytes": 0,
+      "peak_client_memory_bytes": null,
+      "remote_stage_count": 8,
+      "sample_boundary": "after-final-measured-response",
+      "schema": "pllm.client_body_placement.v1"
+    },
+    "configuration": {
+      "bundle_compression": "artifacts",
+      "capture_output_digest": true,
+      "inventory_policy": "request-sized",
+      "max_output_tokens": 2,
+      "model_id": "artifact-locality-tiny",
+      "prefill_cache_bound_tokens": null,
+      "prefill_cache_mib": 0,
+      "prefill_cache_mode": "exact",
+      "prompt_digest": "15f195e1240ce8367ca3708f6e79caec041f021a4ae8e3b32ea7a015f35206f2",
+      "prompt_sequence_digest": null,
+      "repetitions": 1,
+      "roles": [
+        "client",
+        "inference",
+        "preparation"
+      ],
+      "sampling": {
+        "effective_temperature": 0.0,
+        "mode": "greedy",
+        "requested_temperature": 0.0,
+        "top_p": null
+      },
+      "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+      "tiny": false,
+      "warmup_prompt_digest": "15f195e1240ce8367ca3708f6e79caec041f021a4ae8e3b32ea7a015f35206f2",
+      "warmups": 0
+    },
+    "experiment": {
+      "configuration_digest": "0c4aa97f09e30cf2368dd18624148358e6778c6074decddfef3f18f60c49cba4",
+      "name": "baseline-artifacts",
+      "pipeline_digest": "0c4ba537ee9e24e3824af2482734aea184afb067e2073ce1f8e2c752bf8aa466"
+    },
+    "limitations": [
+      "single host and loopback network",
+      "diagnostic record, not a canonical EvidenceReport",
+      "does not establish model quality, energy, price, adversarial security, or non-collusion"
+    ],
+    "privacy_admission": null,
+    "process_cpu_accounting": {
+      "aggregate_cold_first_response_cpu_seconds": 2.069020224,
+      "aggregate_startup_cpu_seconds": 1.689282192,
+      "cold_first_response_cpu_seconds_by_role": {
+        "client": 0.437114,
+        "inference": 0.878665736,
+        "preparation": 0.753240488
+      },
+      "full_response_compute_cap_checked": false,
+      "schema": "pllm.topology_process_cpu.v1",
+      "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+      "startup_cpu_seconds_by_role": {
+        "client": 0.212329,
+        "inference": 0.76994172,
+        "preparation": 0.707011472
+      },
+      "unmeasured": [
+        "source resolution before dashboard startup, if any",
+        "accelerator compute, energy, and CPU after the first response",
+        "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+      ]
+    },
+    "runs": [
+      {
+        "cold": true,
+        "context_tokens": 48,
+        "durations": {
+          "full_seconds": 0.921187333,
+          "generation_seconds": 0.01281725,
+          "online_seconds": 0.189312,
+          "preparation_seconds": 0.124722125,
+          "tokens_per_second": 78.01985605336557,
+          "transition_seconds": 0.606873375,
+          "ttft_seconds": 0.174724917
+        },
+        "failure": null,
+        "generation": {
+          "output_text_digest": "bbb0a94f3349889424d052ae10a0b90756640a0f2915fec2aa3a7669bda87888",
+          "response_status": "incomplete"
+        },
+        "inventory": {
+          "burned": 0,
+          "consumed": 49,
+          "generated": 49,
+          "required": 49,
+          "reused": 0
+        },
+        "max_output_tokens": 2,
+        "model_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "model_id": "artifact-locality-tiny",
+        "privacy": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 116695,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 12240209,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 9811003,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10619457,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "processes": {
+          "client": {
+            "cpu_seconds": 0.21873599999999271,
+            "rss_peak_bytes": null
+          },
+          "inference": {
+            "cpu_seconds": 0.10796443199999994,
+            "rss_peak_bytes": 122552320
+          },
+          "preparation": {
+            "cpu_seconds": 0.046274999999999955,
+            "rss_peak_bytes": 113278976
+          }
+        },
+        "run_id": "bench-763448dbf4bc65079141d286f8152371",
+        "sampling": {
+          "effective_temperature": 0.0,
+          "mode": "greedy",
+          "requested_temperature": 0.0,
+          "top_p": null
+        },
+        "schema_version": 3,
+        "status": "completed",
+        "timestamps": {
+          "finished_at_ns": 1790877618866844000,
+          "first_token_at_ns": 1790877618852259000,
+          "last_token_at_ns": 1790877618865076000,
+          "online_started_at_ns": 1790877618677534000,
+          "preparation_finished_at_ns": 1790877618070661000,
+          "preparation_started_at_ns": 1790877617945939000,
+          "started_at_ns": 1790877617945659000
+        },
+        "tokens": {
+          "authoritative": true,
+          "input_tokens": 48,
+          "output_tokens": 2,
+          "total_tokens": 50
+        },
+        "warm": false
+      }
+    ],
+    "schema_version": "pllm.loopback_benchmark.v1",
+    "scope": "single-host-loopback-diagnostic",
+    "summary": {
+      "accounted_setup_through_first_response_body_bytes": 2052315,
+      "completed_runs": 1,
+      "median_covered_all_link_serialized_body_bytes": 2052315,
+      "median_full_seconds": 0.921187333,
+      "median_online_all_link_serialized_body_bytes": 1178364,
+      "median_online_seconds": 0.189312,
+      "median_tokens_per_second": 78.01985605336557,
+      "median_ttft_seconds": 0.174724917,
+      "total_accounted_benchmark_body_bytes": 2052315,
+      "total_output_tokens": 2,
+      "total_run_covered_all_link_serialized_body_bytes": 2052315,
+      "total_run_full_seconds": 0.921187333,
+      "total_run_online_all_link_serialized_body_bytes": 1178364
+    },
+    "topology_accounting": {
+      "runs": [
+        {
+          "aggregate_run_window_cpu_seconds": 0.3729754319999926,
+          "all_link_serialized_body_bytes": 2052315,
+          "body_bytes_by_edge": [
+            {
+              "destination": "preparation",
+              "phase": "offline",
+              "serialized_body_bytes": 1266,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "offline",
+              "serialized_body_bytes": 742,
+              "source": "preparation"
+            },
+            {
+              "destination": "inference",
+              "phase": "offline",
+              "serialized_body_bytes": 755248,
+              "source": "preparation"
+            },
+            {
+              "destination": "client",
+              "phase": "cold",
+              "serialized_body_bytes": 116695,
+              "source": "inference"
+            },
+            {
+              "destination": "inference",
+              "phase": "online",
+              "serialized_body_bytes": 424146,
+              "source": "client"
+            },
+            {
+              "destination": "client",
+              "phase": "online",
+              "serialized_body_bytes": 754218,
+              "source": "inference"
+            }
+          ],
+          "client_serialized_body_bytes": 1297067,
+          "full_response_compute_cap_checked": false,
+          "online_all_link_serialized_body_bytes": 1178364,
+          "online_client_serialized_body_bytes": 1178364,
+          "run_window_cpu_seconds_by_role": {
+            "client": 0.21873599999999271,
+            "inference": 0.10796443199999994,
+            "preparation": 0.046274999999999955
+          },
+          "schema": "pllm.topology_body_accounting.v1",
+          "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+          "total_wire_bytes": null,
+          "tracked_body_counter_set_present": true,
+          "unmeasured": [
+            "HTTP/TLS/WebSocket framing and control traffic",
+            "inference-to-preparation correction acknowledgements",
+            "duplicate or failed transport attempts not represented by client audit counters",
+            "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+            "GPU work, uninstrumented client work, and cold checkpoint distribution"
+          ]
+        }
+      ],
+      "stages": {
+        "runs": [
+          {
+            "body_bytes_by_stage_and_edge": {
+              "layers.0.mlp.down_proj": {
+                "client->inference": 151802,
+                "client->preparation": 103,
+                "inference->client": 19009,
+                "preparation->client": 84,
+                "preparation->inference": 19139
+              },
+              "layers.0.mlp.gate_up_proj": {
+                "client->inference": 20090,
+                "client->preparation": 103,
+                "inference->client": 301256,
+                "preparation->client": 89,
+                "preparation->inference": 301384
+              },
+              "layers.0.self_attn.o_proj": {
+                "client->inference": 20089,
+                "client->preparation": 103,
+                "inference->client": 19012,
+                "preparation->client": 87,
+                "preparation->inference": 19141
+              },
+              "layers.0.self_attn.qkv_proj": {
+                "client->inference": 20092,
+                "client->preparation": 103,
+                "inference->client": 37832,
+                "preparation->client": 89,
+                "preparation->inference": 37960
+              },
+              "layers.1.mlp.down_proj": {
+                "client->inference": 151802,
+                "client->preparation": 103,
+                "inference->client": 19009,
+                "preparation->client": 84,
+                "preparation->inference": 19139
+              },
+              "layers.1.mlp.gate_up_proj": {
+                "client->inference": 20090,
+                "client->preparation": 103,
+                "inference->client": 301256,
+                "preparation->client": 89,
+                "preparation->inference": 301384
+              },
+              "layers.1.self_attn.o_proj": {
+                "client->inference": 20089,
+                "client->preparation": 103,
+                "inference->client": 19012,
+                "preparation->client": 87,
+                "preparation->inference": 19141
+              },
+              "layers.1.self_attn.qkv_proj": {
+                "client->inference": 20092,
+                "client->preparation": 103,
+                "inference->client": 37832,
+                "preparation->client": 89,
+                "preparation->inference": 37960
+              }
+            },
+            "expected_stage_body_bytes_by_edge": {
+              "client->inference": 424146,
+              "client->preparation": 824,
+              "inference->client": 754218,
+              "preparation->client": 698,
+              "preparation->inference": 755248
+            },
+            "measured_body_bytes_by_edge": {
+              "client->inference": 424146,
+              "client->preparation": 824,
+              "inference->client": 754218,
+              "preparation->client": 698,
+              "preparation->inference": 755248
+            },
+            "reconciled_with_protocol_bodies": true,
+            "schema": "pllm.prepared_stage_body_attribution.v1",
+            "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+            "unmeasured": [
+              "session authorization, bundle delivery and other bodies with no semantic stage",
+              "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+            ]
+          }
+        ],
+        "startup": {
+          "body_bytes_by_stage_and_edge": {},
+          "expected_stage_body_bytes_by_edge": {
+            "client->inference": 0,
+            "client->preparation": 0,
+            "inference->client": 0,
+            "preparation->client": 0,
+            "preparation->inference": 0
+          },
+          "measured_body_bytes_by_edge": {
+            "client->inference": 0,
+            "client->preparation": 0,
+            "inference->client": 0,
+            "preparation->client": 0,
+            "preparation->inference": 0
+          },
+          "reconciled_with_protocol_bodies": true,
+          "schema": "pllm.prepared_stage_body_attribution.v1",
+          "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+          "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+          ]
+        },
+        "warmups": []
+      },
+      "startup": {
+        "aggregate_run_window_cpu_seconds": null,
+        "all_link_serialized_body_bytes": 0,
+        "body_bytes_by_edge": [
+          {
+            "destination": "preparation",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "preparation"
+          },
+          {
+            "destination": "inference",
+            "phase": "offline",
+            "serialized_body_bytes": 0,
+            "source": "preparation"
+          },
+          {
+            "destination": "client",
+            "phase": "cold",
+            "serialized_body_bytes": 0,
+            "source": "inference"
+          },
+          {
+            "destination": "inference",
+            "phase": "online",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 0,
+            "source": "inference"
+          }
+        ],
+        "client_serialized_body_bytes": 0,
+        "full_response_compute_cap_checked": false,
+        "online_all_link_serialized_body_bytes": 0,
+        "online_client_serialized_body_bytes": 0,
+        "run_window_cpu_seconds_by_role": null,
+        "schema": "pllm.topology_body_accounting.v1",
+        "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+        "total_wire_bytes": null,
+        "tracked_body_counter_set_present": true,
+        "unmeasured": [
+          "HTTP/TLS/WebSocket framing and control traffic",
+          "inference-to-preparation correction acknowledgements",
+          "duplicate or failed transport attempts not represented by client audit counters",
+          "model import and checkpoint distribution before initial inventory",
+          "GPU work, uninstrumented client work, and cold checkpoint distribution"
+        ]
+      },
+      "warmups": []
+    },
+    "warmup_runs": []
+  },
+  "code_sha256": {
+    "crates/pllm-compiler/src/lib.rs": "4ba88fe961f9901bba07d3e6fe7531fc121f0b4555ea7c1950e849451bd0d7e5",
+    "python/pllm/profiles/__init__.py": "d425366af7e71adc3d19e9fabcc88b51f1d2c8b309f5146a36feca4ebb62ad11",
+    "python/pllm/protocols/bundle_transport.py": "b53d39590409219cf465bea8bcb7a6e893299793284a0c4328fca9d8a4449e38",
+    "python/pllm/runtime/bundle_artifacts.py": "64bb9882498661690a248fe055946c147d63dcf7c30ffb2bd805716808032652",
+    "python/pllm/runtime/client.py": "d18bc1f8cf3569dd155a0834727c832f456ae1603038db93394648a32be0a50e",
+    "python/pllm/runtime/server.py": "94abcf9c8b1107f59493d9578456052289a6e10ea113d1f6a5c2ff34c8e11d0d",
+    "python/pllm/runtime/transformer_engine.py": "3f08fb27a2d943abb2290c9c3dd4591d0fffaf3427f7284619d1199a70f5113f",
+    "scripts/probe_artifact_locality.py": "bec7abf11366f430e58242a2c031137a59cfda777cbce626a2649a062ea5e951"
+  },
+  "date": "2026-10-01",
+  "pinned_qwen": {
+    "actual_most_remote_mac_profile": {
+      "all_linear_macs_per_row": 493961216,
+      "artifact_cache": {
+        "corruptions": 0,
+        "evictions": 0,
+        "hash_io_cpu_seconds": 0.40301199999999326,
+        "hash_io_seconds": 0.44474708288908005,
+        "hits": 1,
+        "manifest_download_bytes": 195074,
+        "manifest_parse_cpu_seconds": 0.00883800000000079,
+        "manifest_parse_seconds": 0.008844499941915274,
+        "manifest_requests": 1,
+        "misses": 173,
+        "object_download_bytes": 145280349,
+        "object_requests": 173,
+        "reconstruction_cpu_seconds": 0.8313269999999982,
+        "reconstruction_seconds": 1.0943404589779675,
+        "retained_payload_bytes": 145280349
+      },
+      "audit": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 1,
+        "bundle_network_bytes": 145475423,
+        "correction_push_bytes": 33652064,
+        "correction_push_ns": 156799953,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "inference_download_bytes": 33639296,
+        "inference_server_ns": 2622533005,
+        "inference_stage_calls": 192,
+        "inference_upload_bytes": 23880512,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 33668758,
+        "masked_online_upload_bytes": 23912694,
+        "online_steps": 3456,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 0,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 96,
+        "preparation_download_bytes": 8576,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 3456,
+        "preparation_server_ns": 2671897665,
+        "preparation_upload_bytes": 9888,
+        "public_context_bytes": 0,
+        "session_authorization_download_bytes": 44,
+        "session_authorization_upload_bytes": 2770,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "captured_logits": [
+        {
+          "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+          "shape": [
+            1,
+            151936
+          ]
+        },
+        {
+          "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+          "shape": [
+            1,
+            151936
+          ]
+        }
+      ],
+      "child_response_cpu_seconds": {
+        "inference": 3.711520128,
+        "preparation": 2.9399742720000024
+      },
+      "client_bundle_numpy_payload_bytes": 138856448,
+      "client_cpu_seconds": 4.554109999999998,
+      "encoding": "artifacts",
+      "exact_raw_output": true,
+      "exact_raw_w8_logits": true,
+      "experiment_digest": "3f424aa39d6227db00c1d5bea8fc574b9abb5167bb715e07fc44411779f2a747",
+      "greater_than_74_percent_all_linear_remote_macs": false,
+      "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+      "material_inventory_id": "rti_8a29b8a0170d4d8180e7b28343ced2a4",
+      "material_status": {
+        "available": 0,
+        "burned": 0,
+        "capacity": 36,
+        "consumed": 36,
+        "id": "rti_8a29b8a0170d4d8180e7b28343ced2a4",
+        "reserved": 0,
+        "status": "ready"
+      },
+      "native_cpu_i8_snapshot_bytes": 136134656,
+      "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+      "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+      "peak_client_memory_bytes": null,
+      "placement": {
+        "client_body_i8_weight_bytes": 0,
+        "client_body_scale_bytes": 0,
+        "declared_body_linear_macs_per_row_client": 0,
+        "declared_body_linear_macs_per_row_remote": 357826560,
+        "local_stage_count": 0,
+        "native_body_i8_snapshot_bytes": 0,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 96,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "placement_name": "baseline",
+      "private_prefill_cache_payload_bytes": 0,
+      "raw_bundle_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+      "remote_all_linear_mac_fraction": 0.7244021360575806,
+      "remote_head_scope_blocker": "installed remote-head runtime rejects tied token/head checkpoints",
+      "remote_linear_macs_per_row": 357826560,
+      "seconds": 11.183169124647975,
+      "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+      "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+      "usage": {
+        "input_tokens": 35,
+        "output_tokens": 2
+      }
+    },
+    "all_private_inventory_ids_distinct": true,
+    "cache_cap_bytes": 536870912,
+    "child_processes": [
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 7.841600512,
+          "preparation": 7.8536719360000005
+        },
+        "placement": "baseline",
+        "processes": [
+          {
+            "pid": 44688,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 44885,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 16.09213541727513
+      },
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 7.190665088,
+          "preparation": 7.234159488
+        },
+        "placement": "attention",
+        "processes": [
+          {
+            "pid": 46248,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 46462,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 14.816444334108382
+      },
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 7.20389952,
+          "preparation": 7.103250431999999
+        },
+        "placement": "return_baseline",
+        "processes": [
+          {
+            "pid": 47909,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 48051,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 14.611057959031314
+      }
+    ],
+    "horizons": [
+      {
+        "artifact_object_download_bytes": 145280349,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 236730217,
+        "kind": "measured_one_request",
+        "manifest_download_bytes": 195074,
+        "placement": "baseline",
+        "requests": 1,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 145280349,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 1059779029,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 1950740,
+        "placement": "baseline",
+        "requests": 10,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 145280349,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 9290267149,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 19507400,
+        "placement": "baseline",
+        "requests": 100,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 44040192,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 120144974,
+        "kind": "measured_one_request",
+        "manifest_download_bytes": 230556,
+        "placement": "attention",
+        "requests": 1,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 44040192,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 805088012,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 2305560,
+        "placement": "attention",
+        "requests": 10,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 44040192,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 7654518392,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 23055600,
+        "placement": "attention",
+        "requests": 100,
+        "source_checkpoint_network_download_bytes": 0
+      }
+    ],
+    "invalid_manifest": {
+      "artifact_cache": {
+        "corruptions": 0,
+        "evictions": 0,
+        "hash_io_cpu_seconds": 0.5912930000001921,
+        "hash_io_seconds": 0.6057262476533651,
+        "hits": 174,
+        "manifest_download_bytes": 192572,
+        "manifest_parse_cpu_seconds": 0.007891000000000759,
+        "manifest_parse_seconds": 0.007901167031377554,
+        "manifest_requests": 1,
+        "misses": 0,
+        "object_download_bytes": 0,
+        "object_requests": 0,
+        "reconstruction_cpu_seconds": 0.0,
+        "reconstruction_seconds": 0.0,
+        "retained_payload_bytes": 189320541
+      },
+      "audit": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 0,
+        "bundle_network_bytes": 192572,
+        "correction_push_bytes": 0,
+        "correction_push_ns": 0,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "inference_download_bytes": 0,
+        "inference_server_ns": 0,
+        "inference_stage_calls": 0,
+        "inference_upload_bytes": 0,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 0,
+        "masked_online_upload_bytes": 0,
+        "online_steps": 0,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 0,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 0,
+        "preparation_download_bytes": 0,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 0,
+        "preparation_server_ns": 0,
+        "preparation_upload_bytes": 0,
+        "public_context_bytes": 0,
+        "session_authorization_download_bytes": 0,
+        "session_authorization_upload_bytes": 0,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "bad_raw_digest_rejected": true,
+      "reserved_rows": 0
+    },
+    "samples": [
+      {
+        "all_linear_macs_per_row": 493961216,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 145977006,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 192861374,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2673466543,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2668390542,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 3.5522567679999986,
+          "preparation": 2.978024959999999
+        },
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.045528,
+        "encoding": "none",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "331d82ecdffd0edc0d6484c8a5687109ce10cc87d04fc5feda6d3d6d946b85aa",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_cdcc316e85074378ac6b734d55a1043c",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_cdcc316e85074378ac6b734d55a1043c",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+        "raw_zlib_analysis": {
+          "extra_probe_control_download_bytes": 145977006,
+          "hash_and_zlib_cpu_seconds": 4.069257,
+          "hash_and_zlib_seconds": 4.0728630409576,
+          "raw_bytes": 145977006,
+          "raw_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+          "zlib_framed_bytes": 124900312
+        },
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 10.585802416782826,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 124900312,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 159577666,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2623990622,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2638766655,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 7.198815487999999,
+          "preparation": 2.9437951999999985
+        },
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.586117,
+        "encoding": "zlib",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "8151add1fa8ac3f46f02c6b751a850a5fec138658b1038e300f2bac2971d1e27",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_6b54521455db4649b5d2b9df238ee9ca",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_6b54521455db4649b5d2b9df238ee9ca",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 14.091788500081748,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.40301199999999326,
+          "hash_io_seconds": 0.44474708288908005,
+          "hits": 1,
+          "manifest_download_bytes": 195074,
+          "manifest_parse_cpu_seconds": 0.00883800000000079,
+          "manifest_parse_seconds": 0.008844499941915274,
+          "manifest_requests": 1,
+          "misses": 173,
+          "object_download_bytes": 145280349,
+          "object_requests": 173,
+          "reconstruction_cpu_seconds": 0.8313269999999982,
+          "reconstruction_seconds": 1.0943404589779675,
+          "retained_payload_bytes": 145280349
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 145475423,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 156799953,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2622533005,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2671897665,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 3.711520128,
+          "preparation": 2.9399742720000024
+        },
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.554109999999998,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "3f424aa39d6227db00c1d5bea8fc574b9abb5167bb715e07fc44411779f2a747",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_8a29b8a0170d4d8180e7b28343ced2a4",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_8a29b8a0170d4d8180e7b28343ced2a4",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 11.183169124647975,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.4887830000000193,
+          "hash_io_seconds": 0.5133448280394077,
+          "hits": 174,
+          "manifest_download_bytes": 195074,
+          "manifest_parse_cpu_seconds": 0.008428999999999576,
+          "manifest_parse_seconds": 0.008438915945589542,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.7244320000000002,
+          "reconstruction_seconds": 0.7495007086545229,
+          "retained_payload_bytes": 145280349
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 195074,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 155488629,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2618042299,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2647451377,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.442599999999999,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_ef3e5ae452a342febbb9b2878f104888",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_ef3e5ae452a342febbb9b2878f104888",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "61289702c0634aa0c6d2dc180131d47801b1b0c01087063c2642cbfc6310ba7c",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 10.6080591250211,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 190217984,
+          "correction_push_bytes": 28327588,
+          "correction_push_ns": 130674544,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 28321204,
+          "inference_server_ns": 2493985874,
+          "inference_stage_calls": 96,
+          "inference_upload_bytes": 19184020,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 28335930,
+          "masked_online_upload_bytes": 19200046,
+          "online_steps": 1728,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 48,
+          "preparation_download_bytes": 4228,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 1728,
+          "preparation_server_ns": 2500638956,
+          "preparation_upload_bytes": 4944,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 1446,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 3.2251686400000006,
+          "preparation": 2.7162041599999993
+        },
+        "client_bundle_numpy_payload_bytes": 183093248,
+        "client_cpu_seconds": 4.283394000000001,
+        "encoding": "none",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "697a222f81d16e2ef9b9fea9ccf904050e8bc0d1a22f045498c18dfb4be7ca3b",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_8e2e8f29683d48d1ace60688dae16643",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_8e2e8f29683d48d1ace60688dae16643",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 180174848,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 44040192,
+          "client_body_scale_bytes": 196608,
+          "declared_body_linear_macs_per_row_client": 44040192,
+          "declared_body_linear_macs_per_row_remote": 313786368,
+          "local_stage_count": 48,
+          "native_body_i8_snapshot_bytes": 44040192,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 48,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3210cdc442c3aeba3e4e59947ea2432275ed3de350e40ef74ba6b0767ef47078",
+        "raw_zlib_analysis": {
+          "extra_probe_control_download_bytes": 190217984,
+          "hash_and_zlib_cpu_seconds": 5.389626,
+          "hash_and_zlib_seconds": 5.40155650023371,
+          "raw_bytes": 190217984,
+          "raw_sha256": "3210cdc442c3aeba3e4e59947ea2432275ed3de350e40ef74ba6b0767ef47078",
+          "zlib_framed_bytes": 164303219
+        },
+        "remote_all_linear_mac_fraction": 0.635244950081263,
+        "remote_linear_macs_per_row": 313786368,
+        "seconds": 10.140468040946871,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "4d61258dc52baf6963d7e089235451dcc3ab940bbd380c2e2d0b2d87d67a151a",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 164303219,
+          "correction_push_bytes": 28327588,
+          "correction_push_ns": 92905585,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 28321204,
+          "inference_server_ns": 2384321876,
+          "inference_stage_calls": 96,
+          "inference_upload_bytes": 19184020,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 28335930,
+          "masked_online_upload_bytes": 19200046,
+          "online_steps": 1728,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 48,
+          "preparation_download_bytes": 4228,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 1728,
+          "preparation_server_ns": 2384316752,
+          "preparation_upload_bytes": 4944,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 1446,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 8.052142463999997,
+          "preparation": 2.6150187519999992
+        },
+        "client_bundle_numpy_payload_bytes": 183093248,
+        "client_cpu_seconds": 4.871715000000002,
+        "encoding": "zlib",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "5db20dbb2f0edf75d5dbcb35c6fe9a4a19f002a486faa8a3c36a54470824a143",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_5191ec428cd046f89df395b3ebfa19db",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_5191ec428cd046f89df395b3ebfa19db",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 180174848,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 44040192,
+          "client_body_scale_bytes": 196608,
+          "declared_body_linear_macs_per_row_client": 44040192,
+          "declared_body_linear_macs_per_row_remote": 313786368,
+          "local_stage_count": 48,
+          "native_body_i8_snapshot_bytes": 44040192,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 48,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3210cdc442c3aeba3e4e59947ea2432275ed3de350e40ef74ba6b0767ef47078",
+        "remote_all_linear_mac_fraction": 0.635244950081263,
+        "remote_linear_macs_per_row": 313786368,
+        "seconds": 14.494557541795075,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "4d61258dc52baf6963d7e089235451dcc3ab940bbd380c2e2d0b2d87d67a151a",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.7981109999999916,
+          "hash_io_seconds": 0.8479418279603124,
+          "hits": 222,
+          "manifest_download_bytes": 230556,
+          "manifest_parse_cpu_seconds": 0.010372000000003823,
+          "manifest_parse_seconds": 0.010371041018515825,
+          "manifest_requests": 1,
+          "misses": 48,
+          "object_download_bytes": 44040192,
+          "object_requests": 48,
+          "reconstruction_cpu_seconds": 1.1688709999999958,
+          "reconstruction_seconds": 1.294786292128265,
+          "retained_payload_bytes": 189320541
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 44270748,
+          "correction_push_bytes": 28327588,
+          "correction_push_ns": 96954208,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 28321204,
+          "inference_server_ns": 2364388423,
+          "inference_stage_calls": 96,
+          "inference_upload_bytes": 19184020,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 28335930,
+          "masked_online_upload_bytes": 19200046,
+          "online_steps": 1728,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 48,
+          "preparation_download_bytes": 4228,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 1728,
+          "preparation_server_ns": 2388308040,
+          "preparation_upload_bytes": 4944,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 1446,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 3.229894016000003,
+          "preparation": 2.614623744000001
+        },
+        "client_bundle_numpy_payload_bytes": 183093248,
+        "client_cpu_seconds": 5.055296000000006,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "a24e5a1a4f620e701a4a3f4aaa638df9c34621f49daea2ae2c69db1441b61955",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_2129ce3cb1bf4bc584de7d0abaa4918e",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_2129ce3cb1bf4bc584de7d0abaa4918e",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 180174848,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 44040192,
+          "client_body_scale_bytes": 196608,
+          "declared_body_linear_macs_per_row_client": 44040192,
+          "declared_body_linear_macs_per_row_remote": 313786368,
+          "local_stage_count": 48,
+          "native_body_i8_snapshot_bytes": 44040192,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 48,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3210cdc442c3aeba3e4e59947ea2432275ed3de350e40ef74ba6b0767ef47078",
+        "remote_all_linear_mac_fraction": 0.635244950081263,
+        "remote_linear_macs_per_row": 313786368,
+        "seconds": 10.672205542214215,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "4d61258dc52baf6963d7e089235451dcc3ab940bbd380c2e2d0b2d87d67a151a",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.8862240000000625,
+          "hash_io_seconds": 0.9168213731609285,
+          "hits": 270,
+          "manifest_download_bytes": 230556,
+          "manifest_parse_cpu_seconds": 0.009888000000003672,
+          "manifest_parse_seconds": 0.00989154214039445,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 1.1950700000000012,
+          "reconstruction_seconds": 1.2259766249917448,
+          "retained_payload_bytes": 189320541
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 230556,
+          "correction_push_bytes": 28327588,
+          "correction_push_ns": 93856292,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 28321204,
+          "inference_server_ns": 2362898080,
+          "inference_stage_calls": 96,
+          "inference_upload_bytes": 19184020,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 28335930,
+          "masked_online_upload_bytes": 19200046,
+          "online_steps": 1728,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 48,
+          "preparation_download_bytes": 4228,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 1728,
+          "preparation_server_ns": 2385722958,
+          "preparation_upload_bytes": 4944,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 1446,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 183093248,
+        "client_cpu_seconds": 5.137385000000002,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_3d3c6b5e70314e148c5ee86de186fac8",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_3d3c6b5e70314e148c5ee86de186fac8",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 180174848,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 44040192,
+          "client_body_scale_bytes": 196608,
+          "declared_body_linear_macs_per_row_client": 44040192,
+          "declared_body_linear_macs_per_row_remote": 313786368,
+          "local_stage_count": 48,
+          "native_body_i8_snapshot_bytes": 44040192,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 48,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3210cdc442c3aeba3e4e59947ea2432275ed3de350e40ef74ba6b0767ef47078",
+        "remote_all_linear_mac_fraction": 0.635244950081263,
+        "remote_linear_macs_per_row": 313786368,
+        "seconds": 10.332595249637961,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "4d61258dc52baf6963d7e089235451dcc3ab940bbd380c2e2d0b2d87d67a151a",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.606778999999996,
+          "hash_io_seconds": 0.62879149755463,
+          "hits": 174,
+          "manifest_download_bytes": 195074,
+          "manifest_parse_cpu_seconds": 0.010078999999997507,
+          "manifest_parse_seconds": 0.01008429192006588,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.8493079999999935,
+          "reconstruction_seconds": 0.8714889581315219,
+          "retained_payload_bytes": 189320541
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 195074,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 191482580,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2627360999,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2654951543,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 3.677028096000001,
+          "preparation": 2.9681520640000016
+        },
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.6525919999999985,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "b4991674b51ba87e4ad5b1e726753d37a4fd1203237ed2980c0d8fb29bea3496",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_26a2675275954fefa66275f786453670",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_26a2675275954fefa66275f786453670",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "return_baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "e9faa17cd993785db114d0aa4188f60b0359744ef4dba1311acf2d47c89a71a6",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 11.282031291630119,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.5826399999999978,
+          "hash_io_seconds": 0.6004278012551367,
+          "hits": 174,
+          "manifest_download_bytes": 195074,
+          "manifest_parse_cpu_seconds": 0.008168999999995208,
+          "manifest_parse_seconds": 0.008169209118932486,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.8149149999999992,
+          "reconstruction_seconds": 0.8330056252889335,
+          "retained_payload_bytes": 189320541
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 195074,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 162603868,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2630447170,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2689259416,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.5455710000000025,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_4bc8b7a8882041139e97eacb9fccd3c4",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_4bc8b7a8882041139e97eacb9fccd3c4",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "return_baseline_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "e9faa17cd993785db114d0aa4188f60b0359744ef4dba1311acf2d47c89a71a6",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 10.834144625347108,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 493961216,
+        "artifact_cache": {
+          "corruptions": 1,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.5899049999999733,
+          "hash_io_seconds": 0.6076654563657939,
+          "hits": 173,
+          "manifest_download_bytes": 195074,
+          "manifest_parse_cpu_seconds": 0.007631000000003496,
+          "manifest_parse_seconds": 0.007630332838743925,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 3584,
+          "object_requests": 1,
+          "reconstruction_cpu_seconds": 0.8232210000000038,
+          "reconstruction_seconds": 0.8518316247500479,
+          "retained_payload_bytes": 189320541
+        },
+        "audit": {
+          "bundle_cache_corruptions": 1,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 198658,
+          "correction_push_bytes": 33652064,
+          "correction_push_ns": 158315834,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 33639296,
+          "inference_server_ns": 2628162463,
+          "inference_stage_calls": 192,
+          "inference_upload_bytes": 23880512,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 33668758,
+          "masked_online_upload_bytes": 23912694,
+          "online_steps": 3456,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 96,
+          "preparation_download_bytes": 8576,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 3456,
+          "preparation_server_ns": 2646117968,
+          "preparation_upload_bytes": 9888,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 2770,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+        "captured_logits": [
+          {
+            "sha256": "85a22a5395fb8772dc7dd4e121f7963cb201de55b6de1c022c6217d0505ac831",
+            "shape": [
+              1,
+              151936
+            ]
+          },
+          {
+            "sha256": "c8448d44187c11536efefa1f8909adbdf60c1dbb1841742e557e5fcd9be1cc7b",
+            "shape": [
+              1,
+              151936
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 138856448,
+        "client_cpu_seconds": 4.533706000000002,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 630095872,
+        "material_inventory_id": "rti_e2ff84007cca45379b3d2c504ed16604",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 36,
+          "consumed": 36,
+          "id": "rti_e2ff84007cca45379b3d2c504ed16604",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 136134656,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "ab87b29b98c072572b635695dbcbcdd91ddac749e720d8715e622494b4842ae4",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "corrupt_object_repair",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "e9faa17cd993785db114d0aa4188f60b0359744ef4dba1311acf2d47c89a71a6",
+        "remote_all_linear_mac_fraction": 0.7244021360575806,
+        "remote_linear_macs_per_row": 357826560,
+        "seconds": 10.77534241694957,
+        "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+        "stage_commitment": "b9be12838dace6832f27a0498a9be75d60883bb6766ccfce2e8b298742b1bf26",
+        "usage": {
+          "input_tokens": 35,
+          "output_tokens": 2
+        }
+      }
+    ],
+    "source": {
+      "local_files_only": true,
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+    },
+    "source_checkpoint_network_download_bytes": 0,
+    "source_resolution": {
+      "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+      "checkpoint_storage_bytes": 988097824,
+      "cpu_seconds": 1.3971719999999994,
+      "network_download_bytes": 0,
+      "seconds": 1.4220497091300786,
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+    }
+  },
+  "schema": "pllm.artifact_locality_evidence.v1",
+  "scope": "public compiled schema-2 prepared bundles; ordinary SDK; two child roles; covered bodies, not wire/RSS",
+  "tiny": {
+    "actual_most_remote_mac_profile": {
+      "all_linear_macs_per_row": 917760,
+      "artifact_cache": {
+        "corruptions": 0,
+        "evictions": 0,
+        "hash_io_cpu_seconds": 0.009726000000001012,
+        "hash_io_seconds": 0.00972416391596198,
+        "hits": 19,
+        "manifest_download_bytes": 23447,
+        "manifest_parse_cpu_seconds": 0.001250999999999891,
+        "manifest_parse_seconds": 0.0012520826421678066,
+        "manifest_requests": 1,
+        "misses": 0,
+        "object_download_bytes": 0,
+        "object_requests": 0,
+        "reconstruction_cpu_seconds": 0.013865000000000016,
+        "reconstruction_seconds": 0.013865292072296143,
+        "retained_payload_bytes": 190984
+      },
+      "audit": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 1,
+        "bundle_cache_misses": 0,
+        "bundle_network_bytes": 23447,
+        "correction_push_bytes": 793482,
+        "correction_push_ns": 13357456,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "inference_download_bytes": 756040,
+        "inference_server_ns": 10279998,
+        "inference_stage_calls": 18,
+        "inference_upload_bytes": 425810,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 759052,
+        "masked_online_upload_bytes": 429064,
+        "online_steps": 394,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 0,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 9,
+        "preparation_download_bytes": 767,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 441,
+        "preparation_server_ns": 11062957,
+        "preparation_upload_bytes": 927,
+        "public_context_bytes": 0,
+        "session_authorization_download_bytes": 44,
+        "session_authorization_upload_bytes": 450,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+      "captured_logits": [
+        {
+          "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+          "shape": [
+            1,
+            258
+          ]
+        },
+        {
+          "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+          "shape": [
+            1,
+            258
+          ]
+        }
+      ],
+      "client_bundle_numpy_payload_bytes": 60168,
+      "client_cpu_seconds": 0.17381999999999964,
+      "exact_raw_output": true,
+      "exact_raw_w8_logits": true,
+      "greater_than_74_percent_all_linear_remote_macs": true,
+      "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+      "material_inventory_id": "rti_140434ff1f6140e4bd376bd0d0d82100",
+      "material_status": {
+        "available": 0,
+        "burned": 47,
+        "capacity": 49,
+        "consumed": 2,
+        "id": "rti_140434ff1f6140e4bd376bd0d0d82100",
+        "reserved": 0,
+        "status": "ready"
+      },
+      "native_cpu_i8_snapshot_bytes": 0,
+      "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+      "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+      "peak_client_memory_bytes": null,
+      "placement": {
+        "client_body_i8_weight_bytes": 0,
+        "client_body_scale_bytes": 0,
+        "declared_body_linear_macs_per_row_client": 0,
+        "declared_body_linear_macs_per_row_remote": 884736,
+        "local_stage_count": 0,
+        "native_body_i8_snapshot_bytes": 0,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 8,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "private_prefill_cache_payload_bytes": 0,
+      "raw_bundle_sha256": "6ab47e2649f6cbac3746744a820b2d494f6ad517cdce1d4993c3e0f83380296a",
+      "remote_all_linear_mac_fraction": 1.0,
+      "remote_linear_macs_per_row": 917760,
+      "seconds": 0.26604841696098447,
+      "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+      "stage_commitment": "d5552d6e07cbf62309d3bef8bd1eea7c91302d45c1fd93d961b99a7e1ff63084",
+      "usage": {
+        "input_tokens": 48,
+        "output_tokens": 2
+      }
+    },
+    "all_private_inventory_ids_distinct": true,
+    "cache_cap_bytes": 536870912,
+    "child_processes": [
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 0.6405869120000001,
+          "preparation": 0.618438304
+        },
+        "placement": "baseline",
+        "processes": [
+          {
+            "pid": 44450,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 44476,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 1.4215407497249544
+      },
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 0.624045512,
+          "preparation": 0.613077936
+        },
+        "placement": "attention",
+        "processes": [
+          {
+            "pid": 44516,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 44539,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 1.3967847498133779
+      },
+      {
+        "child_cpu_seconds_at_ready": {
+          "inference": 0.62583208,
+          "preparation": 0.629410864
+        },
+        "placement": "return_baseline",
+        "processes": [
+          {
+            "pid": 44576,
+            "role": "inference",
+            "running": true
+          },
+          {
+            "pid": 44588,
+            "role": "preparation",
+            "running": true
+          }
+        ],
+        "source_and_role_startup_seconds": 1.3872169577516615
+      }
+    ],
+    "horizons": [
+      {
+        "artifact_object_download_bytes": 92680,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 2057369,
+        "kind": "measured_one_request",
+        "manifest_download_bytes": 24015,
+        "placement": "baseline",
+        "requests": 1,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 92680,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 19739570,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 240150,
+        "placement": "baseline",
+        "requests": 10,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 92680,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 196561580,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 2401500,
+        "placement": "baseline",
+        "requests": 100,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 98304,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 1754358,
+        "kind": "measured_one_request",
+        "manifest_download_bytes": 27037,
+        "placement": "attention",
+        "requests": 1,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 98304,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 16658844,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 270370,
+        "placement": "attention",
+        "requests": 10,
+        "source_checkpoint_network_download_bytes": 0
+      },
+      {
+        "artifact_object_download_bytes": 98304,
+        "covered_source_preparation_session_decode_bundle_body_bytes": 165703704,
+        "kind": "projection_from_one_cold_one_warm_request",
+        "manifest_download_bytes": 2703700,
+        "placement": "attention",
+        "requests": 100,
+        "source_checkpoint_network_download_bytes": 0
+      }
+    ],
+    "invalid_manifest": {
+      "artifact_cache": {
+        "corruptions": 0,
+        "evictions": 0,
+        "hash_io_cpu_seconds": 0.01053000000000015,
+        "hash_io_seconds": 0.010529457125812769,
+        "hits": 21,
+        "manifest_download_bytes": 23920,
+        "manifest_parse_cpu_seconds": 0.0011339999999999684,
+        "manifest_parse_seconds": 0.001133000012487173,
+        "manifest_requests": 1,
+        "misses": 0,
+        "object_download_bytes": 0,
+        "object_requests": 0,
+        "reconstruction_cpu_seconds": 0.0,
+        "reconstruction_seconds": 0.0,
+        "retained_payload_bytes": 190984
+      },
+      "audit": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 0,
+        "bundle_network_bytes": 23920,
+        "correction_push_bytes": 0,
+        "correction_push_ns": 0,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "inference_download_bytes": 0,
+        "inference_server_ns": 0,
+        "inference_stage_calls": 0,
+        "inference_upload_bytes": 0,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 0,
+        "masked_online_upload_bytes": 0,
+        "online_steps": 0,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 0,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 0,
+        "preparation_download_bytes": 0,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 0,
+        "preparation_server_ns": 0,
+        "preparation_upload_bytes": 0,
+        "public_context_bytes": 0,
+        "session_authorization_download_bytes": 0,
+        "session_authorization_upload_bytes": 0,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "bad_raw_digest_rejected": true,
+      "reserved_rows": 0
+    },
+    "samples": [
+      {
+        "all_linear_macs_per_row": 917760,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 106641,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 12897331,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10289542,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 13580959,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.06467836800000004,
+          "preparation": 0.03824061600000006
+        },
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.21022399999999997,
+        "encoding": "none",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "82e44cec5610145ddb12b505f5b0a13982f20e2179f9c054912d7854e75282fb",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_75b9b13f889d4a449a1a45f5452abef1",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_75b9b13f889d4a449a1a45f5452abef1",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3156b3c5308e57d4f5194f39636631f94e728e449422099c0e63bbd455a1519c",
+        "raw_zlib_analysis": {
+          "extra_probe_control_download_bytes": 106641,
+          "hash_and_zlib_cpu_seconds": 0.0033119999999999816,
+          "hash_and_zlib_seconds": 0.0038747908547520638,
+          "raw_bytes": 106641,
+          "raw_sha256": "3156b3c5308e57d4f5194f39636631f94e728e449422099c0e63bbd455a1519c",
+          "zlib_framed_bytes": 90557
+        },
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.32932037487626076,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 90557,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 8664209,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10002042,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 9892126,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.046959152000000004,
+          "preparation": 0.021445304
+        },
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.15790000000000015,
+        "encoding": "zlib",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "5f8e6335448c5d554d3bef7e379289eb7bab8be94070dcc9d8eab0434710bd09",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_abfbf53635f24dc4bf2adf085f5dbf98",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_abfbf53635f24dc4bf2adf085f5dbf98",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3156b3c5308e57d4f5194f39636631f94e728e449422099c0e63bbd455a1519c",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.22374058328568935,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.01606699999999983,
+          "hash_io_seconds": 0.016480084974318743,
+          "hits": 2,
+          "manifest_download_bytes": 24015,
+          "manifest_parse_cpu_seconds": 0.0012730000000000796,
+          "manifest_parse_seconds": 0.0012724585831165314,
+          "manifest_requests": 1,
+          "misses": 19,
+          "object_download_bytes": 92680,
+          "object_requests": 19,
+          "reconstruction_cpu_seconds": 0.029739999999999878,
+          "reconstruction_seconds": 0.03974349983036518,
+          "retained_payload_bytes": 92680
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 116695,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 8827625,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 9976499,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10101040,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.057601728000000074,
+          "preparation": 0.022318416000000063
+        },
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.1855119999999999,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "f183006cd22898013ac41b2ff3808fe62fc382daa1737359c34ad3a376e1b613",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_593247ce6fcf4777a0b9583ddf4fc139",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_593247ce6fcf4777a0b9583ddf4fc139",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3156b3c5308e57d4f5194f39636631f94e728e449422099c0e63bbd455a1519c",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.26136549981310964,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.009379999999999278,
+          "hash_io_seconds": 0.009379956871271133,
+          "hits": 21,
+          "manifest_download_bytes": 24015,
+          "manifest_parse_cpu_seconds": 0.0012159999999998838,
+          "manifest_parse_seconds": 0.001215292140841484,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.01376299999999997,
+          "reconstruction_seconds": 0.013761833310127258,
+          "retained_payload_bytes": 92680
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 24015,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 9520127,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10080208,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10091708,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.1699320000000002,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_0be1c910a3834cd193a124b2a5bce6f1",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_0be1c910a3834cd193a124b2a5bce6f1",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "baseline_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "3156b3c5308e57d4f5194f39636631f94e728e449422099c0e63bbd455a1519c",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.23419041698798537,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 208441,
+          "correction_push_bytes": 641046,
+          "correction_push_ns": 8480500,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 640530,
+          "inference_server_ns": 8509832,
+          "inference_stage_calls": 8,
+          "inference_upload_bytes": 343784,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 641738,
+          "masked_online_upload_bytes": 345098,
+          "online_steps": 196,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 4,
+          "preparation_download_bytes": 346,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 196,
+          "preparation_server_ns": 9196542,
+          "preparation_upload_bytes": 412,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 333,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.05184890399999997,
+          "preparation": 0.029781407999999954
+        },
+        "client_bundle_numpy_payload_bytes": 195600,
+        "client_cpu_seconds": 0.16578300000000024,
+        "encoding": "none",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "beca663d92edc7f5b31e0d84f2103c5cb0f1857b854c2b3e8143c24592c4d24c",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_4f258c75ec3a456482b7b137e551b1fd",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_4f258c75ec3a456482b7b137e551b1fd",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 131328,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 98304,
+          "client_body_scale_bytes": 3072,
+          "declared_body_linear_macs_per_row_client": 98304,
+          "declared_body_linear_macs_per_row_remote": 786432,
+          "local_stage_count": 4,
+          "native_body_i8_snapshot_bytes": 98304,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "64790e99a610afc2f078972bcac189a46a9d53274b639d4372f4101b7e4c777d",
+        "raw_zlib_analysis": {
+          "extra_probe_control_download_bytes": 208441,
+          "hash_and_zlib_cpu_seconds": 0.006083999999999978,
+          "hash_and_zlib_seconds": 0.006658833008259535,
+          "raw_bytes": 208441,
+          "raw_sha256": "64790e99a610afc2f078972bcac189a46a9d53274b639d4372f4101b7e4c777d",
+          "zlib_framed_bytes": 187225
+        },
+        "remote_all_linear_mac_fraction": 0.8569037656903765,
+        "remote_linear_macs_per_row": 786432,
+        "seconds": 0.23478729091584682,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "58142f281c5451d8a2ec217859014839dc2f02597e8738978e6d4a2cc590ecce",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 187225,
+          "correction_push_bytes": 641046,
+          "correction_push_ns": 5274708,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 640530,
+          "inference_server_ns": 8383250,
+          "inference_stage_calls": 8,
+          "inference_upload_bytes": 343784,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 641738,
+          "masked_online_upload_bytes": 345098,
+          "online_steps": 196,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 4,
+          "preparation_download_bytes": 346,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 196,
+          "preparation_server_ns": 8625584,
+          "preparation_upload_bytes": 412,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 333,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.039562151999999906,
+          "preparation": 0.020187167999999978
+        },
+        "client_bundle_numpy_payload_bytes": 195600,
+        "client_cpu_seconds": 0.16167799999999977,
+        "encoding": "zlib",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "de29fb6a137aa07be1c417ec7b7d44819bf2ac4064917393088f19f9ba4105ac",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_091f2e3974f740e6a0404426fc3d0a5f",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_091f2e3974f740e6a0404426fc3d0a5f",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 131328,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 98304,
+          "client_body_scale_bytes": 3072,
+          "declared_body_linear_macs_per_row_client": 98304,
+          "declared_body_linear_macs_per_row_remote": 786432,
+          "local_stage_count": 4,
+          "native_body_i8_snapshot_bytes": 98304,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "64790e99a610afc2f078972bcac189a46a9d53274b639d4372f4101b7e4c777d",
+        "remote_all_linear_mac_fraction": 0.8569037656903765,
+        "remote_linear_macs_per_row": 786432,
+        "seconds": 0.20996524998918176,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "58142f281c5451d8a2ec217859014839dc2f02597e8738978e6d4a2cc590ecce",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.016973999999998934,
+          "hash_io_seconds": 0.01724678836762905,
+          "hits": 25,
+          "manifest_download_bytes": 27037,
+          "manifest_parse_cpu_seconds": 0.0013999999999998458,
+          "manifest_parse_seconds": 0.00139999995008111,
+          "manifest_requests": 1,
+          "misses": 4,
+          "object_download_bytes": 98304,
+          "object_requests": 4,
+          "reconstruction_cpu_seconds": 0.025722000000000023,
+          "reconstruction_seconds": 0.028172167018055916,
+          "retained_payload_bytes": 190984
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 1,
+          "bundle_network_bytes": 125341,
+          "correction_push_bytes": 641046,
+          "correction_push_ns": 5170793,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 640530,
+          "inference_server_ns": 8415333,
+          "inference_stage_calls": 8,
+          "inference_upload_bytes": 343784,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 641738,
+          "masked_online_upload_bytes": 345098,
+          "online_steps": 196,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 4,
+          "preparation_download_bytes": 346,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 196,
+          "preparation_server_ns": 8660625,
+          "preparation_upload_bytes": 412,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 333,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.038411303999999924,
+          "preparation": 0.017389584000000013
+        },
+        "client_bundle_numpy_payload_bytes": 195600,
+        "client_cpu_seconds": 0.18718099999999982,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "ccc86e8f877dc4acded1bf972b22b632fb3ef4085db120ee593ac7ec10c0f633",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_253e876864c84ca7b5b4ce2a0cc54b4f",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_253e876864c84ca7b5b4ce2a0cc54b4f",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 131328,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 98304,
+          "client_body_scale_bytes": 3072,
+          "declared_body_linear_macs_per_row_client": 98304,
+          "declared_body_linear_macs_per_row_remote": 786432,
+          "local_stage_count": 4,
+          "native_body_i8_snapshot_bytes": 98304,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "64790e99a610afc2f078972bcac189a46a9d53274b639d4372f4101b7e4c777d",
+        "remote_all_linear_mac_fraction": 0.8569037656903765,
+        "remote_linear_macs_per_row": 786432,
+        "seconds": 0.2300879997201264,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "58142f281c5451d8a2ec217859014839dc2f02597e8738978e6d4a2cc590ecce",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.014517999999999809,
+          "hash_io_seconds": 0.014517711475491524,
+          "hits": 29,
+          "manifest_download_bytes": 27037,
+          "manifest_parse_cpu_seconds": 0.0013689999999999536,
+          "manifest_parse_seconds": 0.0013676253147423267,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.020443999999999907,
+          "reconstruction_seconds": 0.020444042049348354,
+          "retained_payload_bytes": 190984
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 27037,
+          "correction_push_bytes": 641046,
+          "correction_push_ns": 4891541,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 640530,
+          "inference_server_ns": 8399624,
+          "inference_stage_calls": 8,
+          "inference_upload_bytes": 343784,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 641738,
+          "masked_online_upload_bytes": 345098,
+          "online_steps": 196,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 4,
+          "preparation_download_bytes": 346,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 196,
+          "preparation_server_ns": 8589791,
+          "preparation_upload_bytes": 412,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 333,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 195600,
+        "client_cpu_seconds": 0.181346,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_9f4d01998a164508915a7332a0e601b2",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_9f4d01998a164508915a7332a0e601b2",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 131328,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 98304,
+          "client_body_scale_bytes": 3072,
+          "declared_body_linear_macs_per_row_client": 98304,
+          "declared_body_linear_macs_per_row_remote": 786432,
+          "local_stage_count": 4,
+          "native_body_i8_snapshot_bytes": 98304,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "attention_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "64790e99a610afc2f078972bcac189a46a9d53274b639d4372f4101b7e4c777d",
+        "remote_all_linear_mac_fraction": 0.8569037656903765,
+        "remote_linear_macs_per_row": 786432,
+        "seconds": 0.21931462502107024,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "58142f281c5451d8a2ec217859014839dc2f02597e8738978e6d4a2cc590ecce",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.011006000000001848,
+          "hash_io_seconds": 0.011007082182914019,
+          "hits": 21,
+          "manifest_download_bytes": 24015,
+          "manifest_parse_cpu_seconds": 0.001312000000000424,
+          "manifest_parse_seconds": 0.0013127503916621208,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.01591100000000001,
+          "reconstruction_seconds": 0.015934624709188938,
+          "retained_payload_bytes": 190984
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 24015,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 13260415,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10098791,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10761457,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "child_response_cpu_seconds": {
+          "inference": 0.05658236800000005,
+          "preparation": 0.03510612000000002
+        },
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.1781170000000003,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "experiment_digest": "ace3567adf87a060d504f0977d47f1d61b72c4f09a1e74fbeee79c9cae3dc650",
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_9d96ddd1ec9241d6814ed8f6936eaff8",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_9d96ddd1ec9241d6814ed8f6936eaff8",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "return_baseline",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "4bd6a60dacaebb3e7a47b2e38c2d033be74db105f19f6479faebba9a9d20843f",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.2677240837365389,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 0,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.010441999999999396,
+          "hash_io_seconds": 0.010444997809827328,
+          "hits": 21,
+          "manifest_download_bytes": 24015,
+          "manifest_parse_cpu_seconds": 0.001222999999999974,
+          "manifest_parse_seconds": 0.0012233746238052845,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 0,
+          "object_requests": 0,
+          "reconstruction_cpu_seconds": 0.01484099999999966,
+          "reconstruction_seconds": 0.01484024990350008,
+          "retained_payload_bytes": 190984
+        },
+        "audit": {
+          "bundle_cache_corruptions": 0,
+          "bundle_cache_hits": 1,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 24015,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 8720623,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10138708,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10038749,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.17115000000000036,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_7c8848df24ee4750a4db50a5cfa57790",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_7c8848df24ee4750a4db50a5cfa57790",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "return_baseline_warm",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "4bd6a60dacaebb3e7a47b2e38c2d033be74db105f19f6479faebba9a9d20843f",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.2383865830488503,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      },
+      {
+        "all_linear_macs_per_row": 917760,
+        "artifact_cache": {
+          "corruptions": 1,
+          "evictions": 0,
+          "hash_io_cpu_seconds": 0.011509000000000214,
+          "hash_io_seconds": 0.011545125395059586,
+          "hits": 20,
+          "manifest_download_bytes": 24015,
+          "manifest_parse_cpu_seconds": 0.0011299999999998533,
+          "manifest_parse_seconds": 0.0011305827647447586,
+          "manifest_requests": 1,
+          "misses": 0,
+          "object_download_bytes": 512,
+          "object_requests": 1,
+          "reconstruction_cpu_seconds": 0.016531000000000073,
+          "reconstruction_seconds": 0.02481208276003599,
+          "retained_payload_bytes": 190984
+        },
+        "audit": {
+          "bundle_cache_corruptions": 1,
+          "bundle_cache_hits": 0,
+          "bundle_cache_misses": 0,
+          "bundle_network_bytes": 24527,
+          "correction_push_bytes": 755248,
+          "correction_push_ns": 9062376,
+          "correlation_count": 0,
+          "direct_fhe_download_bytes": 0,
+          "direct_fhe_steps": 0,
+          "direct_fhe_upload_bytes": 0,
+          "encrypted_correlation_download_bytes": 0,
+          "encrypted_correlation_upload_bytes": 0,
+          "inference_download_bytes": 754218,
+          "inference_server_ns": 10046460,
+          "inference_stage_calls": 16,
+          "inference_upload_bytes": 424146,
+          "kv_continuation_batched_hits": 0,
+          "kv_continuation_hits": 0,
+          "kv_continuation_legacy_sequential_hits": 0,
+          "kv_continuation_misses": 0,
+          "masked_online_download_bytes": 756634,
+          "masked_online_upload_bytes": 426784,
+          "online_steps": 392,
+          "plaintext_prompt_bytes_sent": 0,
+          "plaintext_token_ids_sent": 0,
+          "prefill_cache_hits": 0,
+          "prefill_cache_misses": 0,
+          "prefill_prefix_tokens_reused": 0,
+          "preparation_attempts": 8,
+          "preparation_download_bytes": 698,
+          "preparation_failures": 0,
+          "preparation_requests_during_online": 0,
+          "preparation_rows": 392,
+          "preparation_server_ns": 10303334,
+          "preparation_upload_bytes": 824,
+          "public_context_bytes": 0,
+          "session_authorization_download_bytes": 44,
+          "session_authorization_upload_bytes": 442,
+          "token_lookup_cache_hits": 0,
+          "token_lookup_cache_misses": 0
+        },
+        "body_fingerprint": "4942ced36361a5bd425de5462cb4d239da1d52297b59ed239b46d8489fd1e6ef",
+        "captured_logits": [
+          {
+            "sha256": "8bf9a46cce07f64987e1299a937950493e72926ee00e9dd4fb53ce0cf45327e6",
+            "shape": [
+              1,
+              258
+            ]
+          },
+          {
+            "sha256": "8ca54db84c5e45e9029d320ddde2cf7fd4138cb6560213f53c6ced8d0da647de",
+            "shape": [
+              1,
+              258
+            ]
+          }
+        ],
+        "client_bundle_numpy_payload_bytes": 94224,
+        "client_cpu_seconds": 0.1721729999999999,
+        "encoding": "artifacts",
+        "exact_raw_output": true,
+        "exact_raw_w8_logits": true,
+        "inference_native_i8_stage_snapshot_payload_floor_bytes": 950784,
+        "material_inventory_id": "rti_79c2d2a61f2046c5ab36ace1a4f70e1f",
+        "material_status": {
+          "available": 0,
+          "burned": 0,
+          "capacity": 49,
+          "consumed": 49,
+          "id": "rti_79c2d2a61f2046c5ab36ace1a4f70e1f",
+          "reserved": 0,
+          "status": "ready"
+        },
+        "native_cpu_i8_snapshot_bytes": 33024,
+        "native_snapshot_floor_scope": "shape-derived stage payload floor per role; excludes allocator overhead, source and NumPy copies; not peak RAM",
+        "output_sha256": "a2503fa9cdb70ff004b01a88cf8ed216c19f5d41f0cc9759f82677f1ef11cae6",
+        "peak_client_memory_bytes": null,
+        "placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 884736,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 8,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "placement_name": "corrupt_object_repair",
+        "private_prefill_cache_payload_bytes": 0,
+        "raw_bundle_sha256": "4bd6a60dacaebb3e7a47b2e38c2d033be74db105f19f6479faebba9a9d20843f",
+        "remote_all_linear_mac_fraction": 0.9640167364016736,
+        "remote_linear_macs_per_row": 884736,
+        "seconds": 0.24461379135027528,
+        "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015",
+        "stage_commitment": "cae0341f6c06623880227bc0d6aac3cf4d9984b9e735a05557b2c30c490f292f",
+        "usage": {
+          "input_tokens": 48,
+          "output_tokens": 2
+        }
+      }
+    ],
+    "source_checkpoint_network_download_bytes": 0,
+    "source_resolution": {
+      "checkpoint_digest": "59c0d66948b3191f0ae60d1b62091805a0a34be28c9c03853741170529b180fc",
+      "checkpoint_storage_bytes": 3810568,
+      "cpu_seconds": 0.05073299999999992,
+      "network_download_bytes": 0,
+      "seconds": 0.059428333304822445,
+      "source_lock_digest": "12420ba8abee3e3396d8ce7d0a74e772cf4f3acfce5296cff1fa6d6132a35015"
+    }
+  }
+}

@@ -1842,6 +1842,15 @@ class MaskedTransformerEngine:
         ).hexdigest()
         return config
 
+    def client_bundle_artifacts(self, model_id: str):
+        """Export reusable public prepared tensors with the original raw commitment."""
+        from .bundle_artifacts import ArtifactError, export_bundle
+
+        model = self._model(model_id)
+        if model.manifest.metadata.get("privacy_mode") != "public":
+            raise ArtifactError("artifacts require public prepared weights")
+        return export_bundle(self.client_bundle(model_id))
+
     def client_bundle(
         self,
         model_id: str,

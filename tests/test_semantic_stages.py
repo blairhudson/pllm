@@ -30,7 +30,7 @@ def _pinned_token_group() -> tuple[dict, dict, int]:
     source = Path("crates/pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json")
     config = json.loads(source.read_text())
     plan = lower_model(config, batch=1, max_input_tokens=2, max_new_tokens=2)
-    operations = {operation["id"]: operation for operation in plan.prefill["operations"]}
+    operations = {operation["id"]: operation for operation in plan.to_dict()["prefill"]["operations"]}
     first = operations["main_embedding"]
     second = operations["ple_token_embedding"]
     first_width = first["output_shape"][-1]
@@ -155,6 +155,13 @@ def test_fused_token_lookup_assigns_each_declared_numeric_output(selected: str) 
     step, operations, vocabulary = _pinned_token_group()
     stage = _token_lookup_stage(step, operations, vocabulary)
     decoder = object.__new__(SemanticDecoderRuntime)
+    # Isolated token-boundary fixture still needs the phase lifecycle fields;
+    # this does not advertise whole-decoder admission for the synthetic graph.
+    decoder._continuation_failed = False
+    decoder._snapshot_basis = None
+    decoder._continuation_owner = None
+    decoder._source_plan = SimpleNamespace(digest="a" * 64)
+    decoder._state_binding_digest = "b" * 64
     decoder.position = 0
     decoder.caches = []
     decoder._text_only_tokens = frozenset()

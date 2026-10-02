@@ -1,15 +1,18 @@
 ---
 title: "Client bundle transport"
-description: "Select bounded zlib frames without changing the raw bundle or its numeric execution."
+description: "Select raw, bounded zlib, or reusable public artifacts with exact bundle reconstruction."
 ---
 
 API: [`ClientBundleTransport`](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
 
 `ClientBundleTransport`
-selects `none` or `zlib` in `MaskedLinearCpu(delivery=...)`. The client negotiates
-bounded independent frames, checks lengths and the original uncompressed digest,
-then imports and caches only raw bytes. Older providers may return raw transport.
-This choice applies to ordinary public prepared execution, not proprietary bundles.
+selects `none`, `zlib`, or `artifacts` in `MaskedLinearCpu(delivery=...)`.
+For zlib, the client negotiates bounded independent frames, checks lengths and
+the original uncompressed digest, then imports and caches raw bytes. Older
+providers may return raw transport for that encoding. Explicit artifact
+negotiation fails closed instead of falling back to raw/zlib.
+This choice applies to ordinary public compiled prepared execution, not
+proprietary bundles or live offset delivery.
 
 ## Python SDK example
 
@@ -19,14 +22,14 @@ from pllm.profiles import MaskedLinearCpu
 from pllm.protocols import ClientBundleTransport
 
 experiment = Experiment(
-    "zlib-bundle",
-    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("zlib")),
-    Deployment.local(root="local://zlib-bundle"),
+    "artifact-bundle",
+    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts")),
+    Deployment.local(root="local://artifact-bundle"),
     ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
 )
-assert experiment.resolve().bundle_compression == "zlib"
+assert experiment.resolve().bundle_compression == "artifacts"
 assert experiment.pipeline.delivery.component == "pllm/client-bundle-transport/v1"
-assert experiment.pipeline.delivery.get_params() == {"encoding": "zlib"}
+assert experiment.pipeline.delivery.get_params() == {"encoding": "artifacts"}
 ```
 
 Compression reduces cold delivery, not warm stage traffic or persistent raw-cache
@@ -34,3 +37,36 @@ size. In the checked client-attention Qwen cohort it saves about 25.91 MB of col
 bodies, with higher cold CPU. It remains an explicit option. The
 [benchmark guide](/sdk/evaluate/benchmark/) compares bytes and measured CPU
 rather than treating encoding as a universal improvement.
+
+## Public artifact locality
+
+Artifact delivery obtains a fresh authenticated manifest, fetches missing public
+matrix/vector/tokenizer objects, and reconstructs the exact ordered raw bundle.
+Original SHA-256 and size commitments must pass before unpacking and ordinary
+native source/stage binding. Objects bind content SHA-256 plus canonical source,
+shape/dtype, orientation and numeric context: equal bytes alone do not establish
+interchangeability. The public namespace is
+`ClientBundleCachePath/public-artifacts`, separate from KV, native snapshots,
+masks, capacity credentials and one-use preparation material.
+
+Verified cache reads detect corruption and re-fetch affected objects. Atomic
+admission, bounded byte/count LRU and verified reader-owned copies preserve
+active imports during eviction. The default public object cap is **2 GiB**; the
+[checked cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/artifact-locality-2026-10-01.md)
+used an explicit **512 MiB** cap. Retained payload, native CPU snapshot payload,
+checkpoint storage and peak RAM are separate quantities; artifact selection does
+not eliminate the native CPU snapshot or measure peak memory.
+
+| Pinned Qwen2.5 SDK import | Object requests | Serialized object bytes | Manifest bytes |
+| --- | ---: | ---: | ---: |
+| Baseline cold | 173 | 145,280,349 | 195,074 |
+| Switch to client attention | 48 | 44,040,192 | 230,556 |
+| Return to baseline after role restart | 0 | 0 | 195,074 |
+
+Warm object reuse still charges each fresh manifest to bundle network accounting.
+The cohort checks array-equal prefill/decode logits against matching raw controls;
+one-use inventory remains new for every SDK client. Its 72.44% baseline and
+63.52% client-attention remote MAC fractions are **per-row all-linear** diagnostics,
+not whole-response fractions: output-head rows differ from body rows. Use the
+[planner's bounded-workload denominator](/sdk/deployment/) for selection; these
+per-row figures do not establish a whole-response 74% remote-work failure.

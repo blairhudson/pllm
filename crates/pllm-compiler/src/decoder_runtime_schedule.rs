@@ -1603,6 +1603,43 @@ pub fn lower_decoder_runtime_schedule(
         .filter_map(serde_json::Value::as_str)
         .collect();
     plan.validate().map_err(|error| error.to_string())?;
+    if composition
+        .components
+        .get("quantization")
+        .and_then(|component| component.params.get("causal_reduction"))
+        .is_some()
+    {
+        for graph in [&plan.prefill, &plan.decode] {
+            if graph
+                .state_outputs
+                .iter()
+                .any(|state| !matches!(state.kind, StateKind::Key | StateKind::Value))
+            {
+                return Err("canonical prefix reduction requires full key/value state".into());
+            }
+            for operation in &graph.operations {
+                if operation
+                    .attributes
+                    .get("output_dtype")
+                    .is_some_and(|dtype| {
+                        !matches!(dtype.as_str(), Some("float32" | "model_native"))
+                    })
+                    || operation.attributes.get("key_layout").is_some()
+                    || operation.attributes.get("value_layout").is_some()
+                    || (operation.operator == ModelOperator::CausalMask
+                        && operation
+                            .attributes
+                            .as_object()
+                            .is_none_or(|attrs| !attrs.is_empty()))
+                {
+                    return Err(
+                        "canonical prefix reduction requires dense full causal float32 operations"
+                            .into(),
+                    );
+                }
+            }
+        }
+    }
     if client_prefix_layers > 0
         && !plan
             .prefill
