@@ -1,0 +1,39 @@
+---
+title: "Private head retrieval gate"
+description: "Public compressed indices, private original-row retrieval and exact greedy winner checks."
+---
+
+`PrivateHeadRetrievalProbe` tests a small public head index followed by private
+retrieval of original quantized rows. Public calibration may change the index;
+pretrained weights stay unchanged. Rust owns query projection, quantization,
+GEMM, residual bounds, ranking and private page evaluation. Python owns the
+public offline fit, reference arithmetic and report.
+
+Every candidate budget has fixed-sized private queries, including padded
+duplicates. A greedy winner needs an exact original-row score above every omitted
+row's conservative bound. Approximate agreement alone cannot authorize execution.
+This does not implement temperature/top-p selection or a whole decoder.
+
+Pinned Qwen rank-32/64 indices use 9.95/15.04 MB native payload. On 32 fresh
+confirmation positions after 80 public calibration positions, 128 candidates
+match 22/32 and 27/32 winners, with zero certificates. That budget additionally
+projects 7.47 MB private page bodies per output token. The gate fails; the probe
+remains non-selectable. Index payload counts are not peak-memory samples.
+
+## Python SDK example
+
+```python
+from pllm.metrics import PrivateHeadRetrievalProbe
+
+result = PrivateHeadRetrievalProbe(rank=4, candidate_counts=(1, 8, 64)).run()
+assert result["private_page_exact"]
+assert result["all_checked_bounds_valid"]
+assert result["candidates"][-1]["certified_winners"] == 4
+assert result["whole_decoder_executable"] is False
+```
+
+The example uses bounded public generated data.
+
+API: [`pllm.metrics.PrivateHeadRetrievalProbe`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)
+
+See [private pages](/sdk/evaluate/private-pages/) for the lookup lifecycle.

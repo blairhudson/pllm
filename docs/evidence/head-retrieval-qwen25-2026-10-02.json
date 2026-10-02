@@ -1,0 +1,141 @@
+{
+  "cases": [
+    {
+      "all_checked_bounds_valid": true,
+      "candidates": [
+        {
+          "candidate_count": 1,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 58336,
+          "native_index_cpu_seconds_median": 0.001299,
+          "query_rows": 32,
+          "winner_agreement": 0
+        },
+        {
+          "candidate_count": 8,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 466688,
+          "native_index_cpu_seconds_median": 0.0013024999999999998,
+          "query_rows": 32,
+          "winner_agreement": 2
+        },
+        {
+          "candidate_count": 32,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 1866752,
+          "native_index_cpu_seconds_median": 0.001242,
+          "query_rows": 32,
+          "winner_agreement": 2
+        },
+        {
+          "candidate_count": 128,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 7467008,
+          "native_index_cpu_seconds_median": 0.0013555,
+          "query_rows": 32,
+          "winner_agreement": 6
+        }
+      ],
+      "client_index_payload_bytes": 9953280,
+      "features": 896,
+      "index_digest": "d4887f9efa102862486af294793ec0017ef803f439cc7f21b51789c15eff795d",
+      "index_distribution_body_bytes": 8737792,
+      "limitations": [
+        "Public-weight index fit, no model training; trusted offline residual bounds require source binding",
+        "Candidate membership and inputs stay client-local; fresh DPF shares hide fixed-budget page indices",
+        "Projected retrieval pads duplicate pages to fixed counts; data-dependent early stopping is not admitted",
+        "Index CPU excludes private page transfer, candidate re-evaluation and sampling",
+        "Only greedy winner certificates; no temperature/top-p or whole-generation quality claim",
+        "Original source head is fully evaluated for this oracle; fixture memory is not client peak RSS",
+        "Full wire, independent parties and deployment source distribution remain unmeasured"
+      ],
+      "original_table_bytes": 136742400,
+      "private_page_body_bytes": 58336,
+      "private_page_exact": true,
+      "private_page_worker_cpu_seconds": 0.053361,
+      "public_index_fit_cpu_seconds": 0.5499,
+      "rank": 32,
+      "reference_head_cpu_seconds_median": 0.010687,
+      "rows": 151936,
+      "schema": "pllm.private_head_retrieval_probe.v1",
+      "scope": "same-hidden W8A8 greedy head screen; one native private original-page sample",
+      "source_digest": "9349d43b31017c7c3dbe7a3c9e1f323ce2187f33acb850d6febdbb3524d0e334",
+      "whole_decoder_executable": false
+    },
+    {
+      "all_checked_bounds_valid": true,
+      "candidates": [
+        {
+          "candidate_count": 1,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 58336,
+          "native_index_cpu_seconds_median": 0.001458,
+          "query_rows": 32,
+          "winner_agreement": 0
+        },
+        {
+          "candidate_count": 8,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 466688,
+          "native_index_cpu_seconds_median": 0.0014665,
+          "query_rows": 32,
+          "winner_agreement": 1
+        },
+        {
+          "candidate_count": 32,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 1866752,
+          "native_index_cpu_seconds_median": 0.001459,
+          "query_rows": 32,
+          "winner_agreement": 3
+        },
+        {
+          "candidate_count": 128,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 7467008,
+          "native_index_cpu_seconds_median": 0.0014745000000000001,
+          "query_rows": 32,
+          "winner_agreement": 7
+        }
+      ],
+      "client_index_payload_bytes": 15044608,
+      "features": 896,
+      "index_digest": "cb140622903bb3d77ad995ab4df7c11473a43e3100a7f1b879ab26fc627eb874",
+      "index_distribution_body_bytes": 13829120,
+      "limitations": [
+        "Public-weight index fit, no model training; trusted offline residual bounds require source binding",
+        "Candidate membership and inputs stay client-local; fresh DPF shares hide fixed-budget page indices",
+        "Projected retrieval pads duplicate pages to fixed counts; data-dependent early stopping is not admitted",
+        "Index CPU excludes private page transfer, candidate re-evaluation and sampling",
+        "Only greedy winner certificates; no temperature/top-p or whole-generation quality claim",
+        "Original source head is fully evaluated for this oracle; fixture memory is not client peak RSS",
+        "Full wire, independent parties and deployment source distribution remain unmeasured"
+      ],
+      "original_table_bytes": 136742400,
+      "private_page_body_bytes": 58336,
+      "private_page_exact": true,
+      "private_page_worker_cpu_seconds": 0.032219,
+      "public_index_fit_cpu_seconds": 0.683876,
+      "rank": 64,
+      "reference_head_cpu_seconds_median": 0.010583,
+      "rows": 151936,
+      "schema": "pllm.private_head_retrieval_probe.v1",
+      "scope": "same-hidden W8A8 greedy head screen; one native private original-page sample",
+      "source_digest": "9349d43b31017c7c3dbe7a3c9e1f323ce2187f33acb850d6febdbb3524d0e334",
+      "whole_decoder_executable": false
+    }
+  ],
+  "driver_sha256": "31bf8dc0733ce34f80e383d4a619f9823a19378d17c1f82aaabfe0238a4c87a0",
+  "schema": "pllm.private_head_retrieval_benchmark.v1",
+  "source": {
+    "activation_bits": 8,
+    "cohort_digest": "b0e45bd2b04731d5009afefa0b5025522561af0458e5ab2777b4dcc5b94f52b1",
+    "head_weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+    "hidden_source": "upstream float32, original W8 head, A8 final hidden",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "prefill_positions": 8,
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "teacher_forced_decode_positions": 24,
+    "weight_bits": 8
+  }
+}

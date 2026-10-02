@@ -1,0 +1,148 @@
+{
+  "cases": [
+    {
+      "all_checked_bounds_valid": true,
+      "bound_contract": "pllm.head_index_query_residual.v1",
+      "candidates": [
+        {
+          "candidate_count": 1,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 58336,
+          "native_index_cpu_seconds_median": 0.001443,
+          "query_rows": 32,
+          "winner_agreement": 3
+        },
+        {
+          "candidate_count": 8,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 466688,
+          "native_index_cpu_seconds_median": 0.0014225000000000002,
+          "query_rows": 32,
+          "winner_agreement": 13
+        },
+        {
+          "candidate_count": 32,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 1866752,
+          "native_index_cpu_seconds_median": 0.0012465,
+          "query_rows": 32,
+          "winner_agreement": 19
+        },
+        {
+          "candidate_count": 128,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 7467008,
+          "native_index_cpu_seconds_median": 0.0012859999999999998,
+          "query_rows": 32,
+          "winner_agreement": 22
+        }
+      ],
+      "client_index_payload_bytes": 9953280,
+      "features": 896,
+      "index_digest": "f5ba3bf920c99023a6632b0a5e499a8b570eb447c02095f7213b58cc3ad29a44",
+      "index_distribution_body_bytes": 8737792,
+      "limitations": [
+        "Public-weight index fit, no model training; trusted offline residual bounds require source binding",
+        "Candidate membership and inputs stay client-local; fresh DPF shares hide fixed-budget page indices",
+        "Projected retrieval pads duplicate pages to fixed counts; data-dependent early stopping is not admitted",
+        "Index CPU excludes private page transfer, candidate re-evaluation and sampling",
+        "Only greedy winner certificates; no temperature/top-p or whole-generation quality claim",
+        "Original source head is fully evaluated for this oracle; fixture memory is not client peak RSS",
+        "Full wire, independent parties and deployment source distribution remain unmeasured"
+      ],
+      "original_table_bytes": 136742400,
+      "private_page_body_bytes": 58336,
+      "private_page_exact": true,
+      "private_page_worker_cpu_seconds": 0.04108,
+      "projection_source": "public_query_calibration",
+      "public_calibration_digest": "1736045275541417296898d7a9d597c445ed265a1ff6cb612af3a7ad88850ac0",
+      "public_index_fit_cpu_seconds": 0.481369,
+      "rank": 32,
+      "reference_head_cpu_seconds_median": 0.012442499999999999,
+      "rows": 151936,
+      "schema": "pllm.private_head_retrieval_probe.v1",
+      "scope": "same-hidden W8A8 greedy head screen; one native private original-page sample",
+      "source_digest": "9349d43b31017c7c3dbe7a3c9e1f323ce2187f33acb850d6febdbb3524d0e334",
+      "whole_decoder_executable": false
+    },
+    {
+      "all_checked_bounds_valid": true,
+      "bound_contract": "pllm.head_index_query_residual.v1",
+      "candidates": [
+        {
+          "candidate_count": 1,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 58336,
+          "native_index_cpu_seconds_median": 0.0014215,
+          "query_rows": 32,
+          "winner_agreement": 6
+        },
+        {
+          "candidate_count": 8,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 466688,
+          "native_index_cpu_seconds_median": 0.0014735,
+          "query_rows": 32,
+          "winner_agreement": 14
+        },
+        {
+          "candidate_count": 32,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 1866752,
+          "native_index_cpu_seconds_median": 0.001441,
+          "query_rows": 32,
+          "winner_agreement": 19
+        },
+        {
+          "candidate_count": 128,
+          "certified_winners": 0,
+          "fixed_budget_head_body_bytes_per_token": 7467008,
+          "native_index_cpu_seconds_median": 0.001493,
+          "query_rows": 32,
+          "winner_agreement": 27
+        }
+      ],
+      "client_index_payload_bytes": 15044608,
+      "features": 896,
+      "index_digest": "f610acc85c1826dd25bee94bad97bd1acc5f72a426dfd886db10ef77034318fb",
+      "index_distribution_body_bytes": 13829120,
+      "limitations": [
+        "Public-weight index fit, no model training; trusted offline residual bounds require source binding",
+        "Candidate membership and inputs stay client-local; fresh DPF shares hide fixed-budget page indices",
+        "Projected retrieval pads duplicate pages to fixed counts; data-dependent early stopping is not admitted",
+        "Index CPU excludes private page transfer, candidate re-evaluation and sampling",
+        "Only greedy winner certificates; no temperature/top-p or whole-generation quality claim",
+        "Original source head is fully evaluated for this oracle; fixture memory is not client peak RSS",
+        "Full wire, independent parties and deployment source distribution remain unmeasured"
+      ],
+      "original_table_bytes": 136742400,
+      "private_page_body_bytes": 58336,
+      "private_page_exact": true,
+      "private_page_worker_cpu_seconds": 0.032689,
+      "projection_source": "public_query_calibration",
+      "public_calibration_digest": "1736045275541417296898d7a9d597c445ed265a1ff6cb612af3a7ad88850ac0",
+      "public_index_fit_cpu_seconds": 0.601975,
+      "rank": 64,
+      "reference_head_cpu_seconds_median": 0.011138,
+      "rows": 151936,
+      "schema": "pllm.private_head_retrieval_probe.v1",
+      "scope": "same-hidden W8A8 greedy head screen; one native private original-page sample",
+      "source_digest": "9349d43b31017c7c3dbe7a3c9e1f323ce2187f33acb850d6febdbb3524d0e334",
+      "whole_decoder_executable": false
+    }
+  ],
+  "driver_sha256": "6d12ed47bca47b4dc0f52ecd635ceffe26f5033477b8b27e6285cdd06e63fdfd",
+  "schema": "pllm.private_head_retrieval_benchmark.v1",
+  "source": {
+    "activation_bits": 8,
+    "cohort_digest": "322745a2f00199a81563c1ea8a309586d0a48f60bae724bd99af83b8838742b5",
+    "head_weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+    "hidden_source": "upstream float32, original W8 head, A8 final hidden",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "prefill_positions": 8,
+    "public_calibration_positions": 80,
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "teacher_forced_decode_positions": 24,
+    "weight_bits": 8
+  }
+}

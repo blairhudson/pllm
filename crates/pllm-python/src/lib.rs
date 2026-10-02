@@ -4,6 +4,7 @@
 use pllm_core::{codec, kernels};
 
 mod continuation;
+mod head_index;
 mod logrow;
 mod network;
 mod offset_transport;
@@ -1649,6 +1650,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     logrow::register(module)?;
     projected_polynomial::register(module)?;
     private_pages::register(module)?;
+    head_index::register(module)?;
     offset_transport::register(module)?;
     polynomial_shift::register(module)?;
     network::register(module)?;

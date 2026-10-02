@@ -10,7 +10,7 @@ All five methods use native hot paths and existing SDK/benchmark conventions.
 | Seeded additive ingress | A fresh seed given only to the mask worker replaces one tensor upload; exact reconstruction, role/context binding and cancellation remain intact | Implemented as opt-in `TwoOnlineOffsetLinear(input_encoding="seeded")` |
 | Public-bound row residues | Per-output weight bounds permit smaller exact power-of-two rings without activation-dependent sizes | Implemented as opt-in `output_encoding="row_residues"`; combines with seeded ingress |
 | Private paged embeddings | Two non-colluding public-table workers return one hidden page, avoiding a client vocabulary-weight snapshot | Bounded native SDK probe: exact pages, one-use party state and real-table scan costs measured |
-| Compact private head retrieval | A small public index plus privately retrieved original rows reduces client head storage and arithmetic | Next: fixed query budgets, held-out winner coverage and exact certification; approximation alone cannot authorize exact decoding |
+| Compact private head retrieval | A small public index plus privately retrieved original rows reduces client head storage and arithmetic | Native SDK screen tested weight-only and public-query-calibrated indices; neither earned exact decoding admission |
 | File-backed exact kernels | Authenticated immutable public pages cap live weight memory while preserving exact integer products | Next: native bounded paging, corruption/race checks and measured CPU/memory tradeoff |
 
 ## 1. Seeded additive ingress
@@ -149,3 +149,58 @@ open. It assumes semi-honest, non-colluding servers under AES-based DPF privacy.
 
 Reproduce: `.venv/bin/python scripts/probe_private_pages.py --pinned --output
 /tmp/private-pages.json`. Evidence: `docs/evidence/private-pages-qwen25-2026-10-02.json`.
+
+## 4. Compressed head index with private original-row retrieval
+
+`pllm.metrics.PrivateHeadRetrievalProbe` builds a native index from public
+weights, optionally using separate public calibration activations. Rank 32/64
+occupies 9.95/15.04 MB native payload, versus the original 136.74 MB row/scale
+table. Rust performs query projection, A8 coding, GEMM, bounds and fixed-count
+ranking with the GIL released. Exact source weights remain unchanged: selected
+rows must be retrieved privately and re-evaluated.
+
+For public basis `U`, exact coefficients `P = W U`, quantized index `P_hat`,
+coordinate `z = U^T x` and coded coordinate `z_hat`, use:
+
+```
+W x = P_hat z_hat + W(x - U z) + (P - P_hat)z + P_hat(z - z_hat).
+```
+
+Public row-norm/coefficient-error bounds, private query residuals and conservative
+floating-point allowances upper-bound omitted scores. This identity does not
+require exact floating-point orthogonality. Certification requires the exact
+winning score to strictly exceed every omitted bound. All checked omitted rows
+satisfy their bounds; independent Python oracles verify native ranking and ties.
+
+The initial weight-only index found 6/32 and 7/32 original W8A8 winners at rank
+32/64 with 128 candidates, with zero certificates. A second index used **80 public
+calibration positions** and **32 fresh confirmation positions** (eight prefills,
+24 teacher-forced decode positions):
+
+| Rank | 1 candidate | 8 candidates | 32 candidates | 128 candidates | Certificates |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 32 | 3/32 | 13/32 | 19/32 | 22/32 | 0/32 at every budget |
+| 64 | 6/32 | 14/32 | 19/32 | 27/32 | 0/32 at every budget |
+
+These are different discovery/confirmation cohorts, not a paired improvement
+claim. Both compare same-hidden original W8A8 heads; upstream float32 supplies
+hidden trajectories. They do not measure whole-generation quality.
+
+One selected original page was retrieved exactly. At 32 records per page, fixed
+private budgets charge **58,336 B per candidate slot**, including padded duplicate
+queries: 1.87 MB per output token at 32 candidates, or 7.47 MB at 128. Skipping
+duplicates or stopping on a private certificate would expose input-dependent
+activity and is not admitted. Index scoring alone costs about 1–2 ms client CPU,
+versus roughly 10.6 ms for the full native head; retrieval and exact candidate
+scoring are additional. Payload counts are not peak RSS.
+
+**Veto:** smaller index and cheap ranking do not preserve tested winners or meet
+the private retrieval budget. This SDK probe cannot replace the full head or
+select an Experiment. The next method tests exact file-backed execution.
+
+Evidence: `docs/evidence/head-retrieval-qwen25-2026-10-02.json` and
+`docs/evidence/head-retrieval-query-calibrated-qwen25-2026-10-02.json`.
+
+```sh
+OPENBLAS_NUM_THREADS=4 VECLIB_MAXIMUM_THREADS=4 .venv/bin/python scripts/probe_head_retrieval.py --pinned --query-calibrated --output /tmp/head-retrieval.json
+```
