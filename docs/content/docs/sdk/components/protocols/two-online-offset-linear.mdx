@@ -18,6 +18,17 @@ Checkpoint distribution, full-response aggregate compute, peak client memory,
 disk use, energy and wire framing are unmeasured. Review all privacy and
 resource conditions before applying any performance claim.
 
+`TwoOnlineOffsetLinear(input_encoding="seeded")` binds a native AES-256 share
+encoding to the composition. For each stage the client gives worker B a fresh
+32-byte seed and sends only the complementary residue tensor to worker A.
+Expansion binds the session, ticket, source body, stage, weight, semantic plan,
+composition, dimensions and ring. Worker A never receives that seed. Both
+workers still perform the same matrix product; outputs reconstruct exactly.
+This changes mask generation to a computational PRG assumption. It requires
+non-colluding workers and does not authorize seed reuse. Wrong-role, raw/seeded
+downgrades, replay and malformed envelopes fail closed. Rust expands and
+subtracts masks with the Python interpreter lock released.
+
 ## Python SDK example
 
 ```python
@@ -34,6 +45,10 @@ experiment = Experiment(
 )
 assert experiment.pipeline.components["linear"] == TwoOnlineOffsetLinear()
 assert experiment.resolve().role_graph is not None
+
+seeded = experiment.with_params(pipeline__linear__input_encoding="seeded")
+assert seeded.pipeline.digest() != experiment.pipeline.digest()
+assert seeded.resolve().client_runtime == "compiled_offset_v1"
 ```
 
 Run from the repository root. Use the [topology guide](/sdk/topologies/options/)

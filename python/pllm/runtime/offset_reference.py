@@ -99,6 +99,9 @@ class _TwoOnlineShareEvaluator:
         self._session_a, self._session_b = sessions
         self._costs = OffsetReferenceCosts(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         self._maximum_rows = int(compiled._plan.to_dict()["prefill"]["query_sequence"])
+        composition = Pipeline.from_spec(json.loads(compiled._canonical_composition))
+        self._composition_digest = composition.digest()
+        self._input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
 
     @property
     def costs(self) -> OffsetReferenceCosts:
@@ -135,14 +138,29 @@ class _TwoOnlineShareEvaluator:
         if profile.ring not in {"u16", "u24", "u32"}:
             raise OffsetReferenceError("offset stages require an exact wrapping ring")
         modulus = profile.modulus
-        clear = quantized.values.reshape(rows, stage.in_features).astype(np.int64) % modulus
-        raw_mask = bytearray(secrets.token_bytes(rows * stage.in_features * 4))
-        mask = np.frombuffer(raw_mask, dtype="<u4").reshape(rows, stage.in_features)
-        left = np.asarray((clear - mask.astype(np.int64)) % modulus, dtype=np.uint32)
+        mask = None
+        if self._input_encoding == "seeded":
+            from pllm import _native
+            from .offset_codec import context, pack_seed, seed_header
+
+            seed = secrets.token_bytes(32)
+            right_ticket = secrets.token_hex(16)
+            header = seed_header(model=self._model_id, stage=stage_id,
+                body=self._fingerprint, weight=stage.weight_digest, plan=self._compiled._plan.digest,
+                composition=self._composition_digest, session=self._session_b, ticket=right_ticket,
+                rows=rows, columns=stage.in_features, bits=profile.wire_bits)
+            left = np.frombuffer(bytearray(_native.offset_seeded_share(seed, context(header),
+                rows * stage.in_features, profile.wire_bits, quantized.values.tobytes())), dtype="<u4").reshape(rows, stage.in_features)
+            right_request = pack_seed(header, seed)
+        else:
+            clear = quantized.values.reshape(rows, stage.in_features).astype(np.int64) % modulus
+            raw_mask = bytearray(secrets.token_bytes(rows * stage.in_features * 4))
+            mask = np.frombuffer(raw_mask, dtype="<u4").reshape(rows, stage.in_features)
+            left = np.asarray((clear - mask.astype(np.int64)) % modulus, dtype=np.uint32)
         try:
             # Every uint32 value is already a valid residue modulo 2**32;
             # NumPy cannot cast that modulus itself to a uint32 scalar.
-            if modulus != 1 << 32:
+            if mask is not None and modulus != 1 << 32:
                 mask %= modulus
             def request(share: np.ndarray, session_id: str) -> tuple[str, bytes]:
                 ticket = secrets.token_hex(16)
@@ -165,7 +183,8 @@ class _TwoOnlineShareEvaluator:
                 ).pack()
 
             left_ticket, left_request = request(left, self._session_a)
-            right_ticket, right_request = request(mask, self._session_b)
+            if mask is not None:
+                right_ticket, right_request = request(mask, self._session_b)
             left_result = self._exchange_a(stage_id, [left_request])
             right_result = self._exchange_b(stage_id, [right_request])
             if (
@@ -219,7 +238,8 @@ class _TwoOnlineShareEvaluator:
             return np.ascontiguousarray(output, dtype=np.float32)
         finally:
             left.fill(0)
-            mask.fill(0)
+            if mask is not None:
+                mask.fill(0)
 
 
 class TwoOnlineOffsetReference(_TwoOnlineShareEvaluator):

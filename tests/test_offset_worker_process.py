@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import pllm
+from pllm.protocols import TwoOnlineOffsetLinear
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.offset_reference import OffsetReferenceError, TwoOnlineOffsetTransport
@@ -39,8 +40,9 @@ def _offset_experiment(
 
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("input_encoding", ["raw", "seeded"])
 def test_two_worker_experiment_uses_shared_roles_and_responses(
-    tmp_path: Path, model_type: str,
+    tmp_path: Path, model_type: str, input_encoding: str,
 ) -> None:
     from pllm import Deployment, ExecutionBudget, Experiment
     from pllm.profiles import TwoOnlineOffsetCpu
@@ -54,7 +56,8 @@ def test_two_worker_experiment_uses_shared_roles_and_responses(
     )
     experiment = Experiment(
         name=f"offset-{model_type}",
-        pipeline=TwoOnlineOffsetCpu(pllm.Model.path(str(root), model_id=model_id)),
+        pipeline=TwoOnlineOffsetCpu(pllm.Model.path(str(root), model_id=model_id),
+            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding)),
         deployment=Deployment.local(root=str(tmp_path)),
         budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
     )

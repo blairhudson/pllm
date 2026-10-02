@@ -1,6 +1,6 @@
-"""Isolated research worker for a bounded, two-online-offset comparison.
+"""Isolated worker for the bounded, two-online-offset Experiment.
 
-This is not a public Experiment or provider role. Each worker verifies the
+Each worker verifies the
 compiled semantic decoder and its local weight commitments before accepting
 one-use additive input shares over an authenticated HTTP session.
 """
@@ -104,6 +104,7 @@ def create_offset_worker_app(
 
     graph_digest = two_online_reference_graph().digest()
     composition_digest: str | None = None
+    input_encoding = "raw"
     if composition is not None:
         from pllm.profiles import resolve_runtime_composition
 
@@ -121,6 +122,7 @@ def create_offset_worker_app(
         ):
             raise ValueError("offset worker kernel differs from its composition")
         composition_digest = composition.digest()
+        input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
     bundle_lock = threading.Lock()
     bundle_record: tuple[bytes, dict[str, Any]] | None = None
 
@@ -315,10 +317,27 @@ def create_offset_worker_app(
             entry = model.stages.get(stage_id)
             if entry is None or entry.seeded_profile is None:
                 raise ValueError("offset stage is not in the admitted decoder")
-            parsed = MaskedStageRequest.unpack(
-                payload, max_rows=session.max_input_tokens,
-                max_tensor_elements=_MAX_TENSOR_ELEMENTS,
-            )
+            from .offset_codec import SEED_MAGIC, expand_request, seed_header, unpack_seed
+
+            seeded = payload.startswith(SEED_MAGIC)
+            if seeded != (input_encoding == "seeded" and role_id == "worker_b"):
+                raise ValueError("offset input encoding differs from its role contract")
+            if seeded:
+                header, seed = unpack_seed(payload, max_rows=session.max_input_tokens)
+                expected = seed_header(model=model_id, stage=stage_id,
+                    body=metadata["body_fingerprint"], weight=entry.weight_digest,
+                    plan=session.plan_digest, composition=composition_digest,
+                    session=session_id, ticket=header["ticket"], rows=header["rows"],
+                    columns=entry.spec.in_features, bits=entry.seeded_profile.wire_bits)
+                if header != expected or header["rows"] * entry.spec.out_features > _MAX_TENSOR_ELEMENTS:
+                    raise ValueError("seeded offset request differs from its bound stage")
+                parsed = expand_request(header, seed, entry)
+                payload = parsed.pack()
+            else:
+                parsed = MaskedStageRequest.unpack(
+                    payload, max_rows=session.max_input_tokens,
+                    max_tensor_elements=_MAX_TENSOR_ELEMENTS,
+                )
             if (
                 parsed.session_id != session_id
                 or parsed.model != model_id

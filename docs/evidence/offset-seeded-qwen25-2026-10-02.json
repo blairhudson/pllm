@@ -1,0 +1,888 @@
+{
+  "candidates": [
+    {
+      "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+      "name": "offset-raw",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {}
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/two-online-offset-workers/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true,
+          "two_worker_bodies_tracked": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276",
+          "prompt_sequence_digest": null,
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "worker_a",
+            "worker_b"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+          "name": "offset-raw",
+          "pipeline_digest": "2f88f5fc01fa83ddec8755673e747e6e6887a7fb637db3773c60c74569bcf0c1"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "privacy_admission": {
+          "independent_operators_verified": false,
+          "reason": "loopback offset workers share one operator and host"
+        },
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 37.166091344,
+          "aggregate_startup_cpu_seconds": 18.90984176,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 11.299762,
+            "worker_a": 12.553475584000001,
+            "worker_b": 13.31285376
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 2.789948,
+            "worker_a": 7.657974016,
+            "worker_b": 8.461919744
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 39,
+            "durations": {
+              "full_seconds": 12.587748542,
+              "generation_seconds": 1.94111825,
+              "online_seconds": 11.957306167,
+              "preparation_seconds": null,
+              "tokens_per_second": 3.60616876380406,
+              "transition_seconds": null,
+              "ttft_seconds": 10.013999334
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "03332507a8e50e88a46210e4e235a6f8747266851a9fb8990590a702e39725ae",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 1,
+              "bundle_network_bytes": 145977052,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 768,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 4416,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 43079104,
+              "role_link.worker_a.online_upload_bytes": 30756544,
+              "role_link.worker_a.setup_download_bytes": 439,
+              "role_link.worker_a.setup_upload_bytes": 656,
+              "role_link.worker_a.teardown_download_bytes": 62,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 43079104,
+              "role_link.worker_b.online_upload_bytes": 30756544,
+              "role_link.worker_b.setup_download_bytes": 439,
+              "role_link.worker_b.setup_upload_bytes": 656,
+              "role_link.worker_b.teardown_download_bytes": 62,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 8.459024,
+                "rss_peak_bytes": null
+              },
+              "worker_a": {
+                "cpu_seconds": 4.893728,
+                "rss_peak_bytes": 2690203648
+              },
+              "worker_b": {
+                "cpu_seconds": 4.849009,
+                "rss_peak_bytes": 2549923840
+              }
+            },
+            "run_id": "bench-6c538af8f3b32dc12e5a392de1e3cbb5",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1790969039953945000,
+              "first_token_at_ns": 1790969038010636000,
+              "last_token_at_ns": 1790969039951759000,
+              "online_started_at_ns": 1790969027996623000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1790969027366183000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "total_tokens": 47
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "completed_runs": 1,
+          "median_covered_all_link_serialized_body_bytes": 293650662,
+          "median_full_seconds": 12.587748542,
+          "median_online_all_link_serialized_body_bytes": 147671296,
+          "median_online_seconds": 11.957306167,
+          "median_tokens_per_second": 3.60616876380406,
+          "median_ttft_seconds": 10.013999334,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 293650662,
+          "total_run_full_seconds": 12.587748542,
+          "total_run_online_all_link_serialized_body_bytes": 147671296
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 18.201760999999998,
+              "all_link_serialized_body_bytes": 293650662,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 656,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 439,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 30756544,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 43079104,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 62,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 656,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 439,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 30756544,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 43079104,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 62,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "bundle",
+                  "serialized_body_bytes": 145977052,
+                  "source": "worker_a"
+                }
+              ],
+              "client_serialized_body_bytes": 293650662,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 147671296,
+              "online_client_serialized_body_bytes": 147671296,
+              "run_window_cpu_seconds_by_role": {
+                "client": 8.459024,
+                "worker_a": 4.893728,
+                "worker_b": 4.849009
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "HTTP headers, TLS and transport framing",
+                "model descriptor and authenticated monitoring request bodies",
+                "worker model import and cold checkpoint distribution",
+                "peak client memory, energy, and disk activity"
+              ]
+            }
+          ],
+          "startup": null,
+          "warmups": []
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+      "name": "offset-seeded",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 4
+            }
+          },
+          "linear": {
+            "component": "pllm/two-online-offset-linear/v1",
+            "params": {
+              "input_encoding": "seeded"
+            }
+          },
+          "quantization": {
+            "component": "pllm/symmetric-per-row-quantization/v1",
+            "params": {
+              "activation_bits": 8,
+              "weight_bits": 8
+            }
+          },
+          "topology": {
+            "component": "pllm/two-online-offset-workers/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "source": "Qwen/Qwen2.5-0.5B-Instruct"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true,
+          "two_worker_bodies_tracked": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 357826560,
+          "local_stage_count": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 96,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "prewarm",
+          "max_output_tokens": 8,
+          "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276",
+          "prompt_sequence_digest": null,
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "worker_a",
+            "worker_b"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+          "tiny": false,
+          "warmup_prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+          "name": "offset-seeded",
+          "pipeline_digest": "f874dc21677b47bd8326feaec40a281e0a7369c3201d0a28d147856be0f392ce"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "privacy_admission": {
+          "independent_operators_verified": false,
+          "reason": "loopback offset workers share one operator and host"
+        },
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 35.911481672,
+          "aggregate_startup_cpu_seconds": 16.52751204,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 11.211133,
+            "worker_a": 11.742940928,
+            "worker_b": 12.957407744000001
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 2.363457,
+            "worker_a": 7.092182272,
+            "worker_b": 7.071872768
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 39,
+            "durations": {
+              "full_seconds": 13.989072667,
+              "generation_seconds": 2.9628905,
+              "online_seconds": 13.362333084,
+              "preparation_seconds": null,
+              "tokens_per_second": 2.3625577793036903,
+              "transition_seconds": null,
+              "ttft_seconds": 10.39644575
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "03332507a8e50e88a46210e4e235a6f8747266851a9fb8990590a702e39725ae",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 8,
+            "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+            "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 1,
+              "bundle_network_bytes": 145977052,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "inference_download_bytes": 0,
+              "inference_server_ns": 0,
+              "inference_stage_calls": 768,
+              "inference_upload_bytes": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "online_steps": 4416,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "public_context_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 43079104,
+              "role_link.worker_a.online_upload_bytes": 30756544,
+              "role_link.worker_a.setup_download_bytes": 439,
+              "role_link.worker_a.setup_upload_bytes": 656,
+              "role_link.worker_a.teardown_download_bytes": 62,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 43079104,
+              "role_link.worker_b.online_upload_bytes": 390400,
+              "role_link.worker_b.setup_download_bytes": 439,
+              "role_link.worker_b.setup_upload_bytes": 656,
+              "role_link.worker_b.teardown_download_bytes": 62,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 8.792411999999999,
+                "rss_peak_bytes": null
+              },
+              "worker_a": {
+                "cpu_seconds": 4.648782,
+                "rss_peak_bytes": 2697019392
+              },
+              "worker_b": {
+                "cpu_seconds": 5.883471,
+                "rss_peak_bytes": 2549792768
+              }
+            },
+            "run_id": "bench-d931dfff4d09fa226e4bf32b1fe87348",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1790969072132147000,
+              "first_token_at_ns": 1790969069166260000,
+              "last_token_at_ns": 1790969072129155000,
+              "online_started_at_ns": 1790969058769800000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1790969058143061000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 39,
+              "output_tokens": 8,
+              "total_tokens": 47
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": null,
+          "completed_runs": 1,
+          "median_covered_all_link_serialized_body_bytes": 263284518,
+          "median_full_seconds": 13.989072667,
+          "median_online_all_link_serialized_body_bytes": 117305152,
+          "median_online_seconds": 13.362333084,
+          "median_tokens_per_second": 2.3625577793036903,
+          "median_ttft_seconds": 10.39644575,
+          "total_accounted_benchmark_body_bytes": null,
+          "total_output_tokens": 8,
+          "total_run_covered_all_link_serialized_body_bytes": 263284518,
+          "total_run_full_seconds": 13.989072667,
+          "total_run_online_all_link_serialized_body_bytes": 117305152
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 19.324665,
+              "all_link_serialized_body_bytes": 263284518,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 656,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 439,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 30756544,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 43079104,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 62,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 656,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 439,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 390400,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 43079104,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 62,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "bundle",
+                  "serialized_body_bytes": 145977052,
+                  "source": "worker_a"
+                }
+              ],
+              "client_serialized_body_bytes": 263284518,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 117305152,
+              "online_client_serialized_body_bytes": 117305152,
+              "run_window_cpu_seconds_by_role": {
+                "client": 8.792411999999999,
+                "worker_a": 4.648782,
+                "worker_b": 5.883471
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "HTTP headers, TLS and transport framing",
+                "model descriptor and authenticated monitoring request bodies",
+                "worker model import and cold checkpoint distribution",
+                "peak client memory, energy, and disk activity"
+              ]
+            }
+          ],
+          "startup": null,
+          "warmups": []
+        },
+        "warmup_runs": []
+      }
+    }
+  ],
+  "checks": {
+    "all_candidates_passed": true,
+    "matched_kernel_backend": true,
+    "matched_workload": true,
+    "passed": true,
+    "unique_configurations": true
+  },
+  "comparison_key": {
+    "effective_sampling": {
+      "mode": "greedy",
+      "temperature": 0.0,
+      "top_p": null
+    },
+    "input_tokens": 39,
+    "max_output_tokens": 8,
+    "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "output_tokens": 8,
+    "prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276",
+    "warm": false,
+    "warmup_prompt_digest": "eebfe2bc1e84428dc3d579511622cd37965bacc989172263247e060568330276"
+  },
+  "compute_cap_diagnostic": null,
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic comparison, not a canonical EvidenceReport",
+    "rankings require exact matched measured workloads and kernel backends",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "rankings": {
+    "accounted_setup_through_first_response_body_bytes": [],
+    "covered_all_link_serialized_body_bytes": [
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 1,
+        "value": 263284518.0
+      },
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 2,
+        "value": 293650662.0
+      }
+    ],
+    "full_seconds": [
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 1,
+        "value": 12.587748542
+      },
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 2,
+        "value": 13.989072667
+      }
+    ],
+    "online_all_link_serialized_body_bytes": [
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 1,
+        "value": 117305152.0
+      },
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 2,
+        "value": 147671296.0
+      }
+    ],
+    "online_seconds": [
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 1,
+        "value": 11.957306167
+      },
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 2,
+        "value": 13.362333084
+      }
+    ],
+    "tokens_per_second": [
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 1,
+        "value": 3.60616876380406
+      },
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 2,
+        "value": 2.3625577793036903
+      }
+    ],
+    "total_accounted_benchmark_body_bytes": [],
+    "ttft_seconds": [
+      {
+        "configuration_digest": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+        "name": "offset-raw",
+        "rank": 1,
+        "value": 10.013999334
+      },
+      {
+        "configuration_digest": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+        "name": "offset-seeded",
+        "rank": 2,
+        "value": 10.39644575
+      }
+    ]
+  },
+  "schema_version": "pllm.loopback_benchmark_comparison.v1",
+  "scope": "single-host-loopback-diagnostic-comparison",
+  "winners": {
+    "accounted_setup_through_first_response_body_bytes": null,
+    "covered_all_link_serialized_body_bytes": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+    "full_seconds": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+    "online_all_link_serialized_body_bytes": "674cafda058c48e1104a20e1beb944d86053077ed2e87f365c5a75401a60f010",
+    "online_seconds": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+    "tokens_per_second": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a",
+    "total_accounted_benchmark_body_bytes": null,
+    "ttft_seconds": "1a8000e411cd567a4837d0a3134307306c338fe337093705e5679d9666cdde5a"
+  }
+}

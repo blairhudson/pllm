@@ -783,7 +783,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "topology": "pllm/two-online-offset-workers/v1",
         }
         and public_kernel_valid
-        and all(not pipeline.components[slot].params for slot in ("linear", "topology"))
+        and not pipeline.components["topology"].params
+        and set(pipeline.components["linear"].params) <= {"input_encoding"}
+        and type(pipeline.components["linear"].params.get("input_encoding", "raw")) is str
+        and pipeline.components["linear"].params.get("input_encoding", "raw") in {"raw", "seeded"}
     ):
         return RuntimeComposition(
             "offset_public",

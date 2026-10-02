@@ -14,16 +14,21 @@ class TwoOnlineOffsetLinear(ProtocolMethod):
         category="pllm/protocol-method",
         category_version="1",
         lifecycle_phase="online",
-        parameter_schema={"type": "object", "additionalProperties": False},
+        parameter_schema={"type": "object", "properties": {
+            "input_encoding": {"type": "string", "enum": ["raw", "seeded"]},
+        }, "additionalProperties": False},
         capabilities=("two-online-public-linear", "additive-input-shares"),
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self) -> None:
-        super().__init__(self.descriptor.component)
+    def __init__(self, *, input_encoding: str = "raw") -> None:
+        if type(input_encoding) is not str or input_encoding not in {"raw", "seeded"}:
+            raise ConfigurationError("offset input encoding must be raw or seeded")
+        super().__init__(self.descriptor.component,
+            {"input_encoding": input_encoding} if input_encoding != "raw" else {})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {}
+        return {"input_encoding": self.params.get("input_encoding", "raw")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

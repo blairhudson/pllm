@@ -1,5 +1,7 @@
 from typing import Any, Never, final
 
+def offset_seeded_share(seed: bytes, context: bytes, count: int, bits: int, input: bytes | None = None) -> bytes: ...
+
 def public_polynomial_shift_witness(
     ring_bits: int, linear: int, masked_gate: int, masked_up: int,
     coefficient_gu: int, coefficient_g2: int,

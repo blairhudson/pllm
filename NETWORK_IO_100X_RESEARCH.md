@@ -50,6 +50,12 @@ Compressed feedback must actually implement hidden lookup and selection.
 
 ## Hypotheses and bounded tests
 
+The next five executable/native experiments prioritize a smaller trusted client:
+[seeded ingress, exact row residues, private token pages, compact head retrieval,
+and bounded file-backed kernels](LOW_CLIENT_NETWORK_RESEARCH.md). Their measured
+denominators remain explicit; component compression is not a whole-decoder 100×
+claim.
+
 | Hypothesis | What would need to be true | First falsifiable test | Current outcome |
 | --- | --- | --- | --- |
 | **Opaque cross-layer state** | Most attention/MLP transitions avoid another full hidden-vector opening; exact rescale and KV contracts survive composition | Two complete consecutive layers under one opaque-state contract; count every reshare/refresh and check exact outputs | Unimplemented; budget requires order-of-magnitude fewer source openings |

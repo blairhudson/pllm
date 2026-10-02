@@ -1631,7 +1631,6 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
             component.component.as_str(),
             "pllm/masked-linear"
                 | "pllm/cleartext-linear"
-                | "pllm/two-online-offset-linear/v1"
                 | "pllm/model-aware-corrections"
                 | "pllm/inference"
                 | "pllm/one-online-provider-offline-preparation/v1"
@@ -1641,6 +1640,13 @@ fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
         {
             return Err(format!(
                 "configuration component {slot} does not accept parameters"
+            ));
+        }
+        if component.component == "pllm/two-online-offset-linear/v1"
+            && !valid_offset_parameters(component)
+        {
+            return Err(format!(
+                "configuration component {slot} has invalid offset encoding"
             ));
         }
         if matches!(
@@ -1766,6 +1772,12 @@ fn validate_decoder_linear_composition(
     })
 }
 
+fn valid_offset_parameters(component: &ExperimentComponent) -> bool {
+    component.params.iter().all(|(key, value)| {
+        key == "input_encoding" && matches!(value.as_str(), Some("raw" | "seeded"))
+    })
+}
+
 fn validate_bounded_linear_composition(
     pipeline: &ExperimentPipeline,
     name: &str,
@@ -1777,9 +1789,12 @@ fn validate_bounded_linear_composition(
             .components
             .get(slot)
             .ok_or_else(|| format!("{name} composition requires {slot} component {required}"))?;
-        if component.component != required || !component.params.is_empty() {
+        let offset_encoding = slot == "linear"
+            && required == "pllm/two-online-offset-linear/v1"
+            && valid_offset_parameters(component);
+        if component.component != required || (!component.params.is_empty() && !offset_encoding) {
             return Err(format!(
-                "{name} composition requires {slot} component {required} with no parameters"
+                "{name} composition requires {slot} component {required} with supported parameters"
             ));
         }
     }
