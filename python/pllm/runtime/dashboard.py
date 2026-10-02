@@ -504,6 +504,7 @@ class DashboardRuntime:
         }
         configured_inventory_rows = getattr(config, "startup_inventory_rows", None)
         self._defer_inventory = getattr(config, "defer_inventory_until_request", False)
+        self._background_inventory_refill = profile.background_inventory_refill if profile is not None and profile.inventory_refill is not None else False
         if profile is not None and "inventory" in experiment.pipeline.components:
             if (
                 configured_inventory_rows is not None
@@ -778,7 +779,7 @@ class DashboardRuntime:
                         if self._defer_inventory
                         else self._inventory_rows
                     ),
-                    background_inventory_refill=False,
+                    background_inventory_refill=self._background_inventory_refill,
                 )
             self._client = self._topology.client(**client_options)
             if self._stopping.is_set():

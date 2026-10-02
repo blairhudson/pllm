@@ -195,6 +195,8 @@ class ExperimentProfile:
     client_linear_roles: tuple[str, ...]
     inventory_policy: str
     prepared_inventory_rows: int
+    background_inventory_refill: bool
+    inventory_refill: str | None
     bundle_compression: str
     role_graph: RoleGraph | None
     def __init__(self, experiment: Experiment) -> None: ...

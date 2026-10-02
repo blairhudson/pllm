@@ -67,6 +67,8 @@ _PRIVACY_FIELDS = frozenset(
     }
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
+_PRIVACY_FIELDS |= frozenset({"prepared_stage_rows_" + name for name in
+    ("issued", "reserved", "claimed", "burned", "discarded")})
 _PROCESS_ROLES = _TOPOLOGY_ROLES
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _SAFE_FAILURE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,127}$")

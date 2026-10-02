@@ -11,7 +11,7 @@ import secrets
 import tempfile
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from collections import OrderedDict, defaultdict, deque
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
@@ -262,6 +262,12 @@ class PrivacyAudit:
     session_authorization_download_bytes: int = 0
     preparation_attempts: int = 0
     preparation_rows: int = 0
+    prepared_stage_rows_issued: int = 0
+    prepared_stage_rows_reserved: int = 0
+    prepared_stage_rows_claimed: int = 0
+    prepared_stage_rows_burned: int = 0
+    prepared_stage_rows_discarded: int = 0
+    _inventory_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     preparation_requests_during_online: int = 0
     preparation_failures: int = 0
     bundle_network_bytes: int = 0
@@ -274,12 +280,16 @@ class PrivacyAudit:
         values = {
             name: int(getattr(self, name))
             for name in self.__dataclass_fields__
-            if name != "role_link_bodies"
+            if name != "role_link_bodies" and not name.startswith("_")
         }
         for role, phases in self.role_link_bodies.items():
             for metric, count in phases.items():
                 values[f"role_link.{role}.{metric}"] = int(count)
         return values
+
+    def record_inventory(self, name: str, count: int) -> None:
+        with self._inventory_lock:
+            setattr(self, name, getattr(self, name) + count)
 
 
 class _Channel:
@@ -466,6 +476,7 @@ class _TransformerCryptoState:
     retired_inventories: list[PreparedInventory] = field(default_factory=list)
     active_prepared_responses: int = 0
     refill_in_progress: bool = False
+    refill_future: Future[None] | None = field(default=None, repr=False)
     preparation_verified: bool = False
 
 
@@ -875,7 +886,7 @@ class RuntimeClient:
         preparation_api_key: str | None = None,
         correlation_prefetch: int = 4,
         prepared_inventory_rows: int | None = None,
-        background_inventory_refill: bool = True,
+        background_inventory_refill: bool | None = None,
         token_cache_size: int = 512,
         prefill_cache_bytes: int = 0,
         prefill_cache_mode: str = "exact",
@@ -978,6 +989,16 @@ class RuntimeClient:
         if prepared_inventory_rows < 1:
             raise ValueError("prepared_inventory_rows must be positive")
         self.prepared_inventory_rows = prepared_inventory_rows
+        refill = getattr(self.experiment, "inventory_refill", None)
+        if refill is not None:
+            expected_refill = refill == "idle"
+            if background_inventory_refill is not None and background_inventory_refill != expected_refill:
+                raise ValueError("inventory refill override differs from Experiment")
+            background_inventory_refill = expected_refill
+        if background_inventory_refill is None:
+            background_inventory_refill = True
+        if type(background_inventory_refill) is not bool:
+            raise ValueError("background_inventory_refill must be boolean")
         self.background_inventory_refill = background_inventory_refill
         self._closing = False
         self.token_cache_size = max(0, int(token_cache_size))
@@ -2207,7 +2228,7 @@ class RuntimeClient:
             _raise(sealed)
             if sealed.json().get("status") != "ready":
                 raise ModelError("inference did not commit prepared inventory")
-            return PreparedInventory(inventory_id, rows, prepared_stages)
+            return PreparedInventory(inventory_id, rows, prepared_stages, _audit=self.audit.record_inventory)
         except BaseException:
             self.audit.preparation_failures += 1
             try:
@@ -2326,7 +2347,7 @@ class RuntimeClient:
                 and state.active_prepared_responses == 0
                 and state.prepared_inventory_spare is None
             ):
-                self._provider_executor.submit(self._background_refill, model_id, state)
+                state.refill_future = self._provider_executor.submit(self._background_refill, model_id, state)
 
     def _begin_online(self) -> None:
         with self._activity_lock:
@@ -3993,7 +4014,7 @@ class OpenAI:
         preparation_api_key: str | None = None,
         correlation_prefetch: int | None = None,
         prepared_inventory_rows: int | None = None,
-        background_inventory_refill: bool = True,
+        background_inventory_refill: bool | None = None,
         token_cache_size: int | None = None,
         prefill_cache_bytes: int = 0,
         prefill_cache_mode: str = "exact",
@@ -4046,7 +4067,7 @@ class OpenAI:
                 any(value is not None for value in overrides)
                 or prefill_cache_bytes != 0
                 or prefill_cache_mode != "exact"
-                or background_inventory_refill is not True
+                or background_inventory_refill not in (None, True)
             ):
                 raise ValueError("execution conflicts with manual client overrides")
             leased = execution._construct_client()
@@ -4080,7 +4101,7 @@ class OpenAI:
             or session_transport is not None
             or correlation_mode is not None
             or prepared_inventory_rows is not None
-            or background_inventory_refill is not True
+            or background_inventory_refill not in (None, True)
             or tenseal_path is not None
         ):
             raise ValueError("client-only Experiment requires only client-owned model weights")
@@ -4099,7 +4120,7 @@ class OpenAI:
             or session_transport is not None
             or correlation_mode is not None
             or prepared_inventory_rows is not None
-            or background_inventory_refill is not True
+            or background_inventory_refill not in (None, True)
             or tenseal_path is not None
         ):
             raise ValueError("offset Experiment requires only role-specific worker connections")

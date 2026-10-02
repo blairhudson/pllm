@@ -249,6 +249,10 @@ def test_tiny_benchmark_runs_in_process_over_shared_role_topology() -> None:
     )
     assert report["checks"]["passed"] is True
     assert report["summary"]["completed_runs"] == 1
+    material = report["prepared_material_accounting"]
+    assert material["conserved"] is True
+    assert material["remaining_stage_rows"] == 0
+    assert material["counts"]["issued"] > 0
     compute = report["process_cpu_accounting"]
     assert set(compute["startup_cpu_seconds_by_role"]) == {
         "client", "inference", "preparation",

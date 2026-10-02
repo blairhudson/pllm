@@ -14,6 +14,10 @@ is configuration, not a live mask or ticket handle. Select it in
 - `prewarm` defaults to a 64-row floor. The benchmark may prepare this inventory
   before the first request; a larger request still needs enough rows.
 - `rows=` sets an explicit floor from 1 through 4,096, not a response limit.
+- `refill="on-demand"` prepares only when the next request cannot be served by
+  existing inventory, before opening its online execution. `refill="idle"`
+  additionally allows an idle spare inventory. Omit `refill` to preserve existing
+  identities and SDK/benchmark defaults. Explicit conflicting overrides fail.
 
 Reservations remain one-use. Rejected, cancelled and unused reserved rows burn;
 refill remains idle-only. The policy does not reduce the bodies of ordinary
@@ -28,12 +32,13 @@ from pllm.profiles import MaskedLinearCpu
 
 experiment = Experiment(
     "request-sized",
-    MaskedLinearCpu(Model.tiny(), inventory=PreparedInventory("request-sized")),
+    MaskedLinearCpu(Model.tiny(), inventory=PreparedInventory("request-sized", refill="on-demand")),
     Deployment.local(root="local://request-sized"),
     ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
 )
 assert experiment.resolve().inventory_policy == "request-sized"
 assert experiment.resolve().prepared_inventory_rows == 1
+assert experiment.resolve().background_inventory_refill is False
 assert experiment.pipeline.inventory.component == "pllm/prepared-inventory-policy/v1"
 assert PreparedInventory("prewarm").get_params()["rows"] == 64
 ```
@@ -43,3 +48,15 @@ Conflicting explicit SDK or benchmark overrides are rejected when the Pipeline
 binds a policy. The benchmark records startup separately and also ranks
 setup-through-first-response and whole-sequence accounted bodies, so prewarming
 does not disappear from cost comparisons.
+
+The ordinary benchmark reports `prepared_material_accounting`: sealed **stage
+rows** issued, reserved, claimed, burned and discarded, sampled after client close.
+A claim burns material even if execution later fails; it does not count successful
+outputs. Partial-stage cancellation is charged per stage. Unknown historical
+counters stay unknown. This accounting excludes unsealed failed preparation.
+
+The pinned 34+2-token, repeated-prompt SDK cohort at one/ten requests matched
+outputs and usage. On-demand issued 1,680/2,112 stage rows, versus idle refill's
+3,360/5,040, with zero unused rows discarded. Online bodies were identical; less
+correction distribution trades away ready spare inventory. See
+`docs/evidence/prepared-horizons-2026-10-02.md` for scope and reproduction.

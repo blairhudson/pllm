@@ -1840,7 +1840,15 @@ fn validate_masked_linear_composition(
     let inventory = pipeline.components.get("inventory");
     if let Some(inventory) = inventory {
         if inventory.component != "pllm/prepared-inventory-policy/v1"
-            || inventory.params.len() != 2
+            || !matches!(inventory.params.len(), 2 | 3)
+            || inventory
+                .params
+                .keys()
+                .any(|key| !matches!(key.as_str(), "policy" | "rows" | "refill"))
+            || inventory
+                .params
+                .get("refill")
+                .is_some_and(|value| !matches!(value.as_str(), Some("idle" | "on-demand")))
             || !matches!(
                 inventory
                     .params

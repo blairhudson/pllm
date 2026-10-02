@@ -34,6 +34,22 @@ or fails its numeric-quality gate.
 
 ### Priorities from existing evidence
 
+**2026-10-02 measured update:** canonical `prefix_f32` now supports exact
+growing-prefix reuse, while default numeric mode keeps its matching-width gate.
+The exhaustive pinned partition cohort covers 88 splits and teacher replay.
+The five-request conversation cohort measures 3.01× setup-inclusive saving at
+eight output tokens and 2.56× at 32; see
+[conversation evidence](docs/evidence/conversation-reuse-2026-10-02.md).
+These are exact workload-specific body savings, not fresh-prompt or full-wire claims.
+
+`PreparedInventory(refill="on-demand")` additionally binds refill to the ordinary
+SDK and benchmark. A bounded pinned 34+2-token, one/ten-request cohort eliminates
+unused sealed stage rows, reducing issued rows by 50%/58.1% and correction push
+bodies from 55.08/82.62 MB to 27.54/34.76 MB. Online bodies and outputs match.
+Artifact cache hits pay a fresh 230,556-byte manifest; one-use material is never
+cached. More preparation control calls and possible next-request waiting remain
+charged. See [horizon evidence](docs/evidence/prepared-horizons-2026-10-02.md).
+
 1. **Fresh prompts, fixed Qwen: role-selective client attention projections.**
    Implemented as `ClientLinearRoles`, selecting
    semantic `qkv_projection` and `attention_output` stages across all layers.

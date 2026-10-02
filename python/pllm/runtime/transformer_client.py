@@ -85,33 +85,43 @@ class PreparedInventoryLease:
                 (self._offsets.get(stage_id, 0) for stage_id in self.stages),
                 default=0,
             )
-        self._owner._finish(self.rows, consumed)
+            stage_claims = sum(self._offsets.values())
+            verifiers = tuple(self._verifiers.values())
+            self._verifiers.clear()
+        self._owner._finish(self.rows, consumed, stage_claims)
+        for verifier in verifiers:
+            verifier.cancel()
 
     def take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
         stage = self.stages.get(stage_id)
-        if stage is None or count <= 0:
+        if stage is None or type(count) is not int or count <= 0:
             raise TransformerClientError("prepared inventory stage request is invalid")
         with self._lock:
+            if self._closed:
+                raise TransformerClientError("prepared inventory lease is closed")
             offset = self._offsets.get(stage_id, 0)
             if offset + count > self.rows:
                 raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
             begin = self.start + offset
             end = begin + count
+            self._owner._claim_stage(count)
             self._offsets[stage_id] = offset + count
-        attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, end)]
-        verifier = None
-        if stage.verification is not None:
-            verifier = stage.verification.claim(
-                stage.request.seed,
-                stage.verification_binding,
-                begin,
-                count,
-            )
-            self._verifiers[stage_id] = verifier
+            attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, end)]
+            if stage.verification is not None:
+                verifier = stage.verification.claim(
+                    stage.request.seed, stage.verification_binding, begin, count,
+                )
+                previous = self._verifiers.get(stage_id)
+                if previous is not None:
+                    previous.cancel()
+                self._verifiers[stage_id] = verifier
         return stage.input_mask[begin:end], stage.output_mask[begin:end], attempts
 
     def take_verifier(self, stage_id: str) -> Any | None:
-        return self._verifiers.pop(stage_id, None)
+        with self._lock:
+            if self._closed:
+                raise TransformerClientError("prepared inventory lease is closed")
+            return self._verifiers.pop(stage_id, None)
 
 
 @dataclass(slots=True)
@@ -123,12 +133,31 @@ class PreparedInventory:
     _active: int = 0
     _burned: int = 0
     _consumed: int = 0
+    _stage_claimed: int = 0
+    _stage_burned: int = 0
+    _discarded: int = 0
+    _cancelled: bool = False
+    _audit: Callable[[str, int], None] | None = field(default=None, repr=False, compare=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def __post_init__(self) -> None:
+        self._record("issued", self.capacity * len(self.stages))
+
+    def _record(self, kind: str, count: int) -> None:
+        if self._audit is not None:
+            self._audit("prepared_stage_rows_" + kind, count)
+
+    def _claim_stage(self, count: int) -> None:
+        with self._lock:
+            if self._cancelled:
+                raise TransformerClientError("prepared inventory is cancelled")
+            self._stage_claimed += count
+            self._record("claimed", count)
 
     @property
     def available(self) -> int:
         with self._lock:
-            return self.capacity - self._reserved
+            return 0 if self._cancelled else self.capacity - self._reserved
 
     @property
     def claimed(self) -> int:
@@ -136,23 +165,35 @@ class PreparedInventory:
             return self._reserved
 
     def reserve(self, rows: int) -> PreparedInventoryLease:
-        if rows <= 0:
+        if type(rows) is not int or rows <= 0:
             raise TransformerClientError("prepared inventory reservation must be positive")
         with self._lock:
+            if self._cancelled:
+                raise TransformerClientError("prepared inventory is cancelled")
             if self._reserved + rows > self.capacity:
                 raise TransformerClientError("prepared inventory does not have enough rows")
             start = self._reserved
             self._reserved += rows
             self._active += rows
+            self._record("reserved", rows * len(self.stages))
         return PreparedInventoryLease(self.id, self.stages, start, rows, self)
 
-    def _finish(self, rows: int, consumed: int) -> None:
+    def _finish(self, rows: int, consumed: int, stage_claims: int) -> None:
         with self._lock:
             self._active -= rows
             self._consumed += consumed
             self._burned += rows - consumed
+            burned = rows * len(self.stages) - stage_claims
+            self._stage_burned += burned
+            self._record("burned", burned)
 
     def cancel(self) -> None:
+        with self._lock:
+            if self._cancelled:
+                return
+            self._cancelled = True
+            self._discarded = self.capacity - self._reserved
+            self._record("discarded", self._discarded * len(self.stages))
         for stage in self.stages.values():
             stage.cancel()
 
@@ -160,12 +201,15 @@ class PreparedInventory:
         with self._lock:
             return {
                 "id": self.id,
-                "status": "ready",
+                "status": "cancelled" if self._cancelled else "ready",
                 "capacity": self.capacity,
-                "available": self.capacity - self._reserved,
+                "available": 0 if self._cancelled else self.capacity - self._reserved,
                 "reserved": self._active,
                 "burned": self._burned,
                 "consumed": self._consumed,
+                "stage_rows_claimed": self._stage_claimed,
+                "stage_rows_burned": self._stage_burned,
+                "stage_rows_discarded": self._discarded * len(self.stages),
             }
 
 

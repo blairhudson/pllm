@@ -589,6 +589,8 @@ class RuntimeComposition:
     client_linear_roles: tuple[str, ...] = ()
     inventory_policy: str = "prewarm"
     prepared_inventory_rows: int = 64
+    background_inventory_refill: bool = True
+    inventory_refill: str | None = None
     bundle_compression: str = "none"
     causal_reduction: str | None = None
 
@@ -601,7 +603,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     if inventory is not None:
         if (
             inventory.component != PreparedInventory.descriptor.component
-            or set(inventory.params) != {"policy", "rows"}
+            or set(inventory.params) not in ({"policy", "rows"}, {"policy", "rows", "refill"})
+            or inventory.params.get("refill", "idle") not in {"idle", "on-demand"}
             or inventory.params["policy"] not in {"prewarm", "request-sized"}
             or type(inventory.params["rows"]) is not int
             or not 1 <= inventory.params["rows"] <= 4096
@@ -612,6 +615,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         transport_options.update(
             inventory_policy=inventory.params["policy"],
             prepared_inventory_rows=inventory.params["rows"],
+            background_inventory_refill=inventory.params.get("refill", "idle") == "idle",
+            inventory_refill=inventory.params.get("refill"),
         )
         del identities["inventory"]
     if delivery is not None:

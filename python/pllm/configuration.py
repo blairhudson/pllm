@@ -729,6 +729,8 @@ class ExperimentProfile:
     client_linear_roles: tuple[str, ...]
     inventory_policy: str
     prepared_inventory_rows: int
+    background_inventory_refill: bool
+    inventory_refill: str | None
     bundle_compression: str
     role_graph: RoleGraph | None
 
@@ -775,6 +777,8 @@ class ExperimentProfile:
             object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
             object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
             object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
+            object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)
+            object.__setattr__(self, "inventory_refill", runtime_options.inventory_refill)
             object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
             return
         from pllm import _native
@@ -813,6 +817,8 @@ class ExperimentProfile:
         object.__setattr__(self, "client_linear_roles", runtime_options.client_linear_roles)
         object.__setattr__(self, "inventory_policy", runtime_options.inventory_policy)
         object.__setattr__(self, "prepared_inventory_rows", runtime_options.prepared_inventory_rows)
+        object.__setattr__(self, "background_inventory_refill", runtime_options.background_inventory_refill)
+        object.__setattr__(self, "inventory_refill", runtime_options.inventory_refill)
         object.__setattr__(self, "bundle_compression", runtime_options.bundle_compression)
 
 

@@ -949,6 +949,7 @@ def _run_loopback_benchmark(
                 progress,
             )
             runtime = dashboard_app.state.dashboard_runtime
+            inventory_audit = (runtime._client.privacy_audit if runtime._client is not None else None)
             def resources():
                 topology = runtime._topology
                 sampler = getattr(topology, "resource_samples", None)
@@ -1074,6 +1075,9 @@ def _run_loopback_benchmark(
             sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
         )
     report["client_body_placement"] = client_body_placement
+    if "preparation" in roles and inventory_audit is not None:
+        from .prepared_accounting import material_accounting
+        report["prepared_material_accounting"] = material_accounting(inventory_audit.to_dict())
     if docker:
         report["configuration"]["provider_backend"] = "docker"
         report["configuration"]["link_conditions_digest"] = docker_network.digest if docker_network is not None else None
