@@ -1,0 +1,236 @@
+{
+  "all_24_layers_replaced": true,
+  "calibration_rows_per_layer": [
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101,
+    101
+  ],
+  "code_sha256": {
+    "python/pllm/runtime/polynomial_numeric_reference.py": "7e45fa47ee26cddcb11d296ff19cab14b667db5b4638b1b1718fa18998a251f1",
+    "scripts/probe_projected_polynomial_quality.py": "46910e6f942efbd51758c3f76fae77653c1754183835e6e20c97564ba1d2917f"
+  },
+  "environment": {
+    "python": "3.13.15",
+    "threads": 4,
+    "torch": "2.14.0",
+    "transformers": "5.16.1"
+  },
+  "evaluation_token_counts": [
+    17,
+    9,
+    10,
+    11,
+    17,
+    9,
+    15,
+    17
+  ],
+  "limitations": [
+    "Optimistic float32 oracle; no ring rounding, numeric bridge or protected transport",
+    "Per-channel public fits are more flexible than the fixed native numerator",
+    "Eight independent public prompts, one teacher-forced decode; no broad quality claim",
+    "Residual sparsity receives true activation scales for free and still hides no index positions",
+    "Weights are unchanged; public offline least squares is not gradient training"
+  ],
+  "protected_execution": false,
+  "results": {
+    "fixed_taylor_degree_2": {
+      "decode_same_token": {
+        "mean_top5_recall": 0.0,
+        "top1_matches": 0,
+        "total_prompts": 8,
+        "worst_logit_error": 27.32881736755371
+      },
+      "optimistic_quantized_residual": {
+        "elements": 13191168,
+        "maximum_active_fraction": 0.6157483458518982,
+        "mean_active_fraction": 0.24752425259082442,
+        "nonzero_code_corrections": 3265134,
+        "rows": 2712,
+        "rows_at_most_one_percent_active": 8
+      },
+      "prefill": {
+        "mean_top5_recall": 0.0,
+        "top1_matches": 0,
+        "total_prompts": 8,
+        "worst_logit_error": 23.006793975830078
+      },
+      "profile_digests": null
+    },
+    "public_degree_1": {
+      "decode_same_token": {
+        "mean_top5_recall": 0.0,
+        "top1_matches": 0,
+        "total_prompts": 8,
+        "worst_logit_error": 29.45830726623535
+      },
+      "optimistic_quantized_residual": {
+        "elements": 13191168,
+        "maximum_active_fraction": 0.9031661152839661,
+        "mean_active_fraction": 0.5669440340688557,
+        "nonzero_code_corrections": 7478654,
+        "rows": 2712,
+        "rows_at_most_one_percent_active": 24
+      },
+      "prefill": {
+        "mean_top5_recall": 0.15,
+        "top1_matches": 0,
+        "total_prompts": 8,
+        "worst_logit_error": 22.896106719970703
+      },
+      "profile_digests": [
+        "e04b543a3a4815b54845a2584b60115a71276725c8d548265caf19b08d055144",
+        "cd64551257ffc8098a5d53239dc8305b0dd769ea0e8afcd46408792c402f77f4",
+        "073d5e36973d30bcb39b05e24944bc851cfa6b1d89a0b599ec07d379882d049a",
+        "6a6d4ac317bd5063b6ec5f4f9e80719614a5bd2b95fdd46ac9e6e8cbf15cb582",
+        "d05f29e88484537b190444e65a87a1183ba0719938de6b4739ed816ed47cac77",
+        "91a1a53fcc749bc45431263640c8051336810a59fdf35c54cf5d8030a46c37b6",
+        "7889cd3a76f2df0f06756e966c009e7da89e035fdd416a5bca89852702f3d2dc",
+        "5795d2052c4e1aa29bb87bad0d98424e17e0908e427ba9ab94170a4c997fae18",
+        "d8c847549801e58db9b8cf043d0667ecdcf3416916593b5b83b1899e94e53c68",
+        "59734d86090d6edaa7c947c09e74b8c2d946d982af67ee85310fa98bdf4469a5",
+        "2f8a39b628834a9d8603951acfb05e20e43cbfd0548e9faed3ebb496a90b9484",
+        "bb482bad1ab8cc365b03680af6e35c1636c2b0abf7cb30ff0a0c81f05991fcd2",
+        "536a2f8bf0d9ffe57976f8485cc8f81de0ba1f8ae6fedf84e9aecbe76d3e1cf6",
+        "7f5dcbcf34567e5d4ead31b0eaf7a55f8b02ad769cec849ec556c3feb6356333",
+        "a9fe254e8197203dab8adccdfde67464dcd4431357468002ebe61594999fc1c9",
+        "7f4e61ed962ec83432e91f5994fc1fe960d9e3c38ad11f8a615c05a979a55a0c",
+        "83a5286e5dc8be4474e3b0863863d9fd8e145c0a336879c3716f05c24f0a1e1d",
+        "ba7e30c3ee59ffb0e7ef752d4fb1718dcf21d2ad230ae5b026fce43d9c8de281",
+        "8d3bbb90bba4a4281bdcd554b1f5976dd9045375f2bc4598b91936810bdf6453",
+        "c52295d695c200e122654baf2ba94c3fbb7b55697364fe48fec48e01e3ff44c1",
+        "f8373100c2e61cf72671aa8c485e8dbed7696fd02dc3ce317f41cefad9d500ef",
+        "efeea33b45265b0e4267bd3307c1fde705e15140b6b88027200c29bc3e5805bd",
+        "45ccae825ca15199f02880ebdc5e4e8042b9d7a26244ed3f2f05865bb3f061d4",
+        "d22a7d8e87808da9bc1f13b17a245ef1831dd92faf77e82261972d307a9419c9"
+      ]
+    },
+    "public_degree_2": {
+      "decode_same_token": {
+        "mean_top5_recall": 0.5,
+        "top1_matches": 5,
+        "total_prompts": 8,
+        "worst_logit_error": 14.490091323852539
+      },
+      "optimistic_quantized_residual": {
+        "elements": 13191168,
+        "maximum_active_fraction": 0.7156661152839661,
+        "mean_active_fraction": 0.1865590674002484,
+        "nonzero_code_corrections": 2460932,
+        "rows": 2712,
+        "rows_at_most_one_percent_active": 32
+      },
+      "prefill": {
+        "mean_top5_recall": 0.55,
+        "top1_matches": 6,
+        "total_prompts": 8,
+        "worst_logit_error": 12.292370796203613
+      },
+      "profile_digests": [
+        "c8672aa8308f0d26ee4b52bd2261b4bc2d1b44a290a67f4f65a399c42323c83b",
+        "c80f8d5a6b97a379488c329e6f584154e5a0fa20724ec621348860351526758e",
+        "7b922f6bad3cfa29ffb86eda0ed53cc392bf5a829daa8954b62a5951c7f13ee1",
+        "814fcef73e18170ab36493ff6bee71d814d55749433aec55ae28afe374f22a76",
+        "858a04609cb8d3d191a8aa2390bdd21f430d0781c4470961eadb9a2afd62ed2a",
+        "9ab8835115935b90120545add256a9a74d5b26fcd69c69aceeb8bf9add1c8643",
+        "50b99792ec1e390886d7ccb8f2dd2b887f387a4fd1e3ebafe23dedc4f05a0e5e",
+        "ac4e18b1fa1c51b90b1f87e5241427fa774b4ad8a03ce6ef0313e9efe8926c6d",
+        "2ddab5d44d8af92889f2092cccb6c268091daa87f9162ff5a08cb8ff40d5501b",
+        "515ae9e66f503d48926beb485be60d2a6850273664ef79871012c89330a2b5f4",
+        "b6d8a32e0bcf0946bef3fdf53d67e39c3fcb0fa6b58a67846188be7d4882f680",
+        "44c1b1fe353ace54763669cf013920d79ec70380bdb1aed43e4367713675e346",
+        "941e0f88ee19ca2ac658d48030438037c56de2e607f3352fdab6e6d98fc2cb03",
+        "5fbd90dab933d5bab90f70223a7ffc11869bc9fb81758c51a3c16b0e400d4b8c",
+        "a4db34c525ab7b888964550d14fe06a753796ca60c76182543c74b326cdcd0ef",
+        "59292f00ef48d7f9ac3d7cfc9970e1088f34a81796ce60cf4997356f42e2df97",
+        "986609f918cc6f9a7143c088d03160eafb2801f529ea5c782ab8b3e4232fe6bd",
+        "a243dbbf88bd66912ad7241a644dbc92ab21f66f52eb7e9099f41dceb3e3e959",
+        "7c3a365f1d5419a1f8472e43e973f43fce3a1d9cdd154d6cda9849cb2d94dcef",
+        "f2b690f7d0f356eb5da95828aade2819d4c3c2a28ce77b275475eb711a87c747",
+        "28312e1bc793f7ac9e3b24b598a0b31879c7d444c8b0057f899ce8faed7a2873",
+        "8ecabdce7a275f7272399402aeda5c1087dbd01dc4f9da5870c43e521f94dbb8",
+        "f4ab3c9e94504e9078af9f2178f2489ae29a639f23b3a3f46002eeae95545b3e",
+        "7d7555f970bc2c7796f047fc27b49f3df4341fbda5cfcd2a70c29bfebaf4f9c8"
+      ]
+    },
+    "public_degree_4": {
+      "decode_same_token": {
+        "mean_top5_recall": 0.5,
+        "top1_matches": 3,
+        "total_prompts": 8,
+        "worst_logit_error": 50.84779357910156
+      },
+      "optimistic_quantized_residual": {
+        "elements": 13191168,
+        "maximum_active_fraction": 0.14391447603702545,
+        "mean_active_fraction": 0.023924644125523985,
+        "nonzero_code_corrections": 315594,
+        "rows": 2712,
+        "rows_at_most_one_percent_active": 510
+      },
+      "prefill": {
+        "mean_top5_recall": 0.525,
+        "top1_matches": 4,
+        "total_prompts": 8,
+        "worst_logit_error": 74.65857696533203
+      },
+      "profile_digests": [
+        "ce8799e529d1a7cc172e02c4a8d9002d835a5c4db590011fdc436810ed1aafa8",
+        "93820ea10d2b5f12f77a9f37f0f723039be028432c41bfc03b9ab5a09ba4c68e",
+        "8d14d6ea4f82b6168f460e8a70cc5094b22fdfa5bc454e1b3149b3ac8c54fd85",
+        "4cddcca383c248e66a4e4429ba96114356ffb9403b6e2d8cb87925134c494340",
+        "0fccc473b9a2ad3e6d6695284eb64cfdcf27c7c61e786c40acadd758936d86d9",
+        "fe1bb3eac23f3a84c909d6b793e2ff7e3142db01a7d546cd9a7d64bca810822d",
+        "c08a93f29e5cefe12992d4e8f2bcc554bd32bae1657b56861657095539d60389",
+        "f158560517825459e0cfe8ab73c51caf87ac92b7baabcebf0e5aeddc4043a937",
+        "daa5df6e7b510dceac63c5a29f87436c163bf7ad003395d4e4341117909153cf",
+        "a2653cc32d8be92fc8bb1d5533beb9b1116f64d13077e3902f02ca2b60aca329",
+        "c861303b244570e8ab8ab2ff9c1f97772c1058d6e0cdcaf4911b61c460c753b0",
+        "8ea14f87fba4643660e72768220a203dcc649b10520ebb4496692b46b06118a8",
+        "c51e367d8e8fdf5b4a99398208d4cb93130a9f90f6a0d575165382597e7a2c27",
+        "22cee0024240c55c0f45e557c039b2e82b72b9ba8d78c97b170acb942013ebb5",
+        "cb7e53a4b37000b43ac42ba453c15180736d6682586ceb8d3f0b4ce5ed9f7010",
+        "af4e47c6232281a89a82efaefad8ed5b4bd0797a06ee8994ad65a463c9157950",
+        "afb6c9667988899c45c21dc450833168d510bd56130ca606463893f1819293cd",
+        "dea0f6a59777e3997a9c879853d02541edf5d8c76529e70b1ac79d57e59b8b5f",
+        "db1d0e665c8fbf6a1dde8d6860109f1ac044bd8e308d48b7bccc0ad9e1fb16e3",
+        "7ea631dd5a4851a0c1d757c49d022ab373423672bbda711a44b4cef908acbe25",
+        "9d3067b1517d9c8340a28dcaf88093f99131485855c1abddc1abdf6159bc8e27",
+        "9ce0837d52ccebbface7161353132cea773cc04945b08fc846fffec228dab96b",
+        "abffb8a137639955f15c81358feddd1f95730ea054af78057ce46c306764150c",
+        "37de594d60bc26f7706235aeeede4b034ba57d6133f5c569a6db5874f02bbd8b"
+      ]
+    }
+  },
+  "schema": "pllm.projected_polynomial_quality_gate.v1",
+  "source": {
+    "config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+    "dataset_sha256": "d90ee1f9e6218424fa4cba9878c8e9b3e00b0cc981b9056594e7199b1ec0b110",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "token_cohort_digest": "0a38740cc1625c6c6aafb7d5550aa60cff04c64850e7ce1d282836cfd2b162aa",
+    "weights_sha256": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe"
+  },
+  "whole_generation_quality": false
+}

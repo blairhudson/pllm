@@ -1,0 +1,22 @@
+{
+  "calibration": [
+    "Explain why leaves appear green in one short sentence.",
+    "A baker sells four loaves each morning for six days. How many loaves is that?",
+    "Complete the sequence of seasons: spring, summer, autumn,",
+    "Name one difference between a bicycle and a train.",
+    "Write a friendly greeting to a visitor at a science museum.",
+    "In Python, what does the expression len([3, 5, 8]) return?",
+    "Give one reason people store food in a refrigerator.",
+    "Translate the English word morning into French."
+  ],
+  "evaluation": [
+    "A library has nine blue books and seven red books. How many books are there?",
+    "Finish this phrase: The opposite of noisy is",
+    "Name the planet famous for its large visible rings.",
+    "Write one short sentence explaining what an umbrella is for.",
+    "In Python, what is the result of 3 * (4 + 2)?",
+    "Translate the English word thank you into Italian.",
+    "Which item would you use to measure temperature: a ruler or a thermometer?",
+    "A recipe needs two eggs per cake. How many eggs are needed for five cakes?"
+  ]
+}

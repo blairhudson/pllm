@@ -115,6 +115,24 @@ floor cannot make one-use dealer material disappear. Structural matrix MACs
 also include the extra private-mask projections and dealer work; they are not
 interchangeable with a measured CPU cap.
 
+## Checkpoint numeric gate
+
+The bounded pinned float32 oracle replaces all 24 SiLU activations and checks
+eight held-out public prompts plus one teacher-forced decode each. Fixed Taylor
+scores 0/8 prefill and 0/8 decode selections; a more flexible public per-channel
+quadratic scores 6/8 and 5/8. Neither passes. A quartic improves reference-path
+quantized residual sparsity to 2.39% on average but only matches 4/8 and 3/8
+selections, with 14.39% residual activity in the worst checked row.
+
+```sh
+.venv/bin/python scripts/probe_projected_polynomial_quality.py --output docs/evidence/projected-polynomial-quality-qwen25-2026-10-02.json
+```
+
+This uses an already-cached pinned checkpoint and optional Torch dependencies.
+Public calibration is offline; pretrained weights are unchanged. True activation
+scales are supplied for free when counting residuals, so those counts neither
+authorize a sparse private protocol nor certify capacity on new inputs.
+
 ## Model-admission gate
 
 The function is a polynomial **numerator**, with no intermediate rounding.

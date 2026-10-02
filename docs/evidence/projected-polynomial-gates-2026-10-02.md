@@ -68,7 +68,41 @@ reports: `projected-polynomial-ablation-2026-10-02.json` and
 composition, schedule and baseline body commitments are retained. Material,
 prompts, token IDs, logits and private tensors are excluded.
 
-Next gate is held-out float32 polynomial-replacement fidelity. This is an
-optimistic numeric oracle: a failure stops the construction before any role
-deployment; a pass would still require the complete fixed-point and privacy
-contracts above. No training or pretrained-weight changes are required.
+## Held-out numeric gate
+
+Eight new public calibration prompts and eight disjoint evaluation prompts were
+locked before evaluation. All 24 SiLU activations were replaced in the unchanged
+pinned float32 checkpoint. Each prompt checks prefill and one teacher-forced
+decode; candidate caches evolve under their own numeric path. Fits minimize
+public per-channel gated-output error using bounded offline least squares.
+
+| Float oracle | Prefill top-1 | Same-token decode top-1 | Mean / worst active quantized residual |
+| --- | ---: | ---: | ---: |
+| Fixed Taylor quadratic | 0/8 | 0/8 | 24.75% / 61.57% |
+| Public per-channel affine | 0/8 | 0/8 | 56.69% / 90.32% |
+| Public per-channel quadratic | 6/8 | 5/8 | 18.66% / 71.57% |
+| Public per-channel quartic | 4/8 | 3/8 | 2.39% / 14.39% |
+
+No candidate passes. The latter three are more flexible than the current native
+numerator, yet still do not preserve checkpoint decisions. Higher polynomial
+degree improves local residual sparsity but worsens checked rollout drift; local
+fit error is not a whole-decoder certificate.
+
+Residual counts compare quantized gated outputs on *unmodified reference*
+trajectories, with the true per-row scale supplied for free. This is optimistic
+input to a new sparse-correction hypothesis, not private selection, protected
+quantization or a sparse execution result. The observed maximum is not a public
+worst-case capacity certificate. No input-dependent coordinate lists may simply
+be exposed to a worker.
+
+```sh
+.venv/bin/python scripts/probe_projected_polynomial_quality.py --output docs/evidence/projected-polynomial-quality-qwen25-2026-10-02.json
+```
+
+The bounded command uses cached weights and Torch as an independent float oracle;
+it does not time Python as a serving kernel. Native execution remains in Rust.
+Report binds checkpoint bytes, public dataset, token cohort, profile and code
+digests, and archives aggregates only. **Stop this polynomial-only decoder
+construction.** Retain the tested coefficient compression as a primitive;
+further investigation must supply exact residual correction or another numeric
+contract, then satisfy the complete byte and compute gates above.

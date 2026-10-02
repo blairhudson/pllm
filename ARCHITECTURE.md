@@ -386,6 +386,11 @@ the checked 8-row 32→128→32 case reduces 24-bit material from 32,338 to 7,09
 bytes while peer openings remain 1,618 bytes. This is numerator-only local
 research, with no intermediate rounding, full-model numeric admission,
 independent cryptographic review or full-response performance claim.
+An independent pinned float32 eight-prompt gate rejects the fixed Taylor
+polynomial at 0/8 prefill and decode selections; more flexible public per-channel
+quadratic fits reach only 6/8 and 5/8. Quartic reference-path residuals are sparse
+on average but have no private correction or public capacity certificate. The
+polynomial-only decoder construction remains closed.
 
 The bounded in-process `TwoOnlineOffsetReference` runs two separately loaded
 native stage kernels under one compiled Qwen2/Qwen3 decoder plan. The client

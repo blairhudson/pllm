@@ -44,6 +44,13 @@ reach 1.962× the offset comparator. Wider rings raise material costs. This
 does not establish tenfold inference or numeric/compute admission. See
 [design, ablations and full cost caveats](docs/evidence/projected-polynomial-gates-2026-10-02.md).
 
+Its subsequent locked eight-prompt float32 gate rejects polynomial-only execution:
+fixed Taylor matches 0/8 prefill and decode; public per-channel quadratic matches
+6/8 and 5/8. A quartic leaves 2.39% mean reference-path quantized residuals but
+still matches only 4/8 and 3/8 and reaches 14.39% residual activity on one row.
+Exact sparse correction is a new hypothesis, not evidence that a small mean
+residual can be exposed, safely padded, or evaluated privately within budget.
+
 **Fresh-response gate, 2026-10-02:** compiler-bound 39+8/39+32 screens now evaluate
 25%, 50% and tenfold targets with both parties' bodies and explicit missing
 numeric/material/control obligations. Current quadratic-reference key compositions
