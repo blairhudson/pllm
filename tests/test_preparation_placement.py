@@ -235,5 +235,7 @@ def test_mask_domains_and_inventory_reservations_keep_fresh_rows_one_use():
     assert inventory.status()["consumed"] == 2
     with pytest.raises(TransformerClientError, match="enough rows"):
         inventory.reserve(1)
-    with pytest.raises(TransformerClientError, match="exhausted"):
+    with pytest.raises(TransformerClientError, match="closed"):
         second.take(req.stage_id, 1)
+    assert inventory.status()["burned"] == 1
+    assert inventory.status()["consumed"] == 2

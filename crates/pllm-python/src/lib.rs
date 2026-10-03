@@ -8,6 +8,7 @@ mod head_index;
 mod logrow;
 mod network;
 mod offset_transport;
+mod paged;
 mod polynomial_shift;
 mod private_pages;
 mod projected_polynomial;
@@ -1651,6 +1652,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     projected_polynomial::register(module)?;
     private_pages::register(module)?;
     head_index::register(module)?;
+    paged::register(module)?;
     offset_transport::register(module)?;
     polynomial_shift::register(module)?;
     network::register(module)?;

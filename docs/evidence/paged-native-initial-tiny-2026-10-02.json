@@ -1,0 +1,96 @@
+{
+  "artifacts": {
+    "raw": {
+      "digest": "f7b15672f4c63baa1aee54cb005055f0e2172467fc015e1cea600d821fc605ff",
+      "page_rows": 512,
+      "publisher_export_cpu_seconds": 0.008435,
+      "serialized_bytes": 1049024
+    },
+    "zlib": {
+      "digest": "39bc37bb4d003c90df59a56336a82123dc2c2498c18b96470edad025fa5896fd",
+      "page_rows": 512,
+      "publisher_export_cpu_seconds": 0.012703,
+      "serialized_bytes": 795569
+    }
+  },
+  "candidates": [
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 8.8e-05,
+      "clear_wall_seconds_median": 8.8459e-05,
+      "client_import_cpu_seconds": 0.002639,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 1048576,
+      "page_metadata_bytes": 0,
+      "private_snapshot_disk_bytes": 0,
+      "process_initial_peak_rss_bytes": 38043648,
+      "process_peak_rss_bytes": 41877504,
+      "shape": [
+        8192,
+        128
+      ],
+      "source_array_bytes": 1048576,
+      "storage": "resident",
+      "three_row_gather_cpu_seconds": 2.5e-05,
+      "transient_weight_buffer_bound": 0
+    },
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 0.000561,
+      "clear_wall_seconds_median": 0.000563292,
+      "client_import_cpu_seconds": 0.009857,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 0,
+      "page_metadata_bytes": 512,
+      "private_snapshot_disk_bytes": 1049024,
+      "process_initial_peak_rss_bytes": 37699584,
+      "process_peak_rss_bytes": 38846464,
+      "shape": [
+        8192,
+        128
+      ],
+      "source_array_bytes": 0,
+      "storage": "raw",
+      "three_row_gather_cpu_seconds": 0.000151,
+      "transient_weight_buffer_bound": 131072
+    },
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 0.004499,
+      "clear_wall_seconds_median": 0.004502541,
+      "client_import_cpu_seconds": 0.012667,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 0,
+      "page_metadata_bytes": 512,
+      "private_snapshot_disk_bytes": 795569,
+      "process_initial_peak_rss_bytes": 37797888,
+      "process_peak_rss_bytes": 39059456,
+      "shape": [
+        8192,
+        128
+      ],
+      "source_array_bytes": 0,
+      "storage": "zlib",
+      "three_row_gather_cpu_seconds": 0.000843,
+      "transient_weight_buffer_bound": 180786
+    }
+  ],
+  "driver_sha256": "66b192536ef275950f760bfcd2f636fe7cb32df8c38ae7f9b15d3fa5a6996a06",
+  "limitations": [
+    "Public artifact sizes are serialized-file counts, not measured network transfers",
+    "RSS measures processes, excluding kernel filesystem cache and total device memory",
+    "Source artifact and private immutable snapshot consume separate disk storage",
+    "Weight-buffer bound excludes I/O/output buffers, kernel metadata, stacks and OS cache",
+    "Matrix arithmetic and gathers only; whole decoder and Pipeline integration remain unmeasured"
+  ],
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "raw_weight_bytes": 1048576,
+  "schema": "pllm.paged_native_probe.v1",
+  "scope": "isolated-process one-row exact head kernel; warm filesystem cache",
+  "source": {
+    "kind": "public_generated_integer_weights"
+  }
+}

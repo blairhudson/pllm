@@ -95,6 +95,14 @@ assert isinstance(matrix, CompiledMatrix)
 assert result.tolist() == [[-7, 39]]
 ```
 
+### Bound weight residency with `PagedGEMM`
+
+[`PagedGEMM`](/sdk/evaluate/paged-native/) provides a direct file-backed integer
+matrix and local row-gather interface. An authenticated private snapshot preserves
+exact weights while loading bounded pages for execution. Raw paging trades extra
+CPU/file I/O for lower process RSS; compressed pages also charge decompression.
+Compiler-bound bundle integration is pending, and Pipeline defaults stay resident.
+
 ### Compare the optional Apple Silicon kernel
 
 Install `pllm.run[metal]` on Apple Silicon. [`MetalGEMM`](/sdk/reference/python/pllm/native/#metalgemm)

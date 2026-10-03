@@ -7,8 +7,6 @@ import statistics
 import time
 from dataclasses import dataclass
 
-import numpy as np
-
 
 @dataclass(frozen=True, slots=True)
 class PrivateHeadRetrievalProbe:
@@ -44,6 +42,8 @@ class PrivateHeadRetrievalProbe:
     def run(
         self, *, weights=None, scales=None, inputs=None, input_scales=None, public_calibration=None
     ) -> dict:
+        import numpy as np
+
         from pllm import _native
         from pllm.native import MaskedGEMM
         from pllm.runtime.quantization import dequantize_matmul, quantize_weight_per_row

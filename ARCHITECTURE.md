@@ -69,6 +69,17 @@ field matrix products, without secure mask sampling, a code-distance certificate
 or an executable verifier contract.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
+The separate direct `pllm.native.PagedGEMM` API owns an authenticated private
+file snapshot of raw or adaptive-zlib weight pages, performs bounded native
+clear/modular/wrap32 operations and local row gathers, and retains no full weight
+array in process memory between calls. Snapshot and decoded-weight hashes,
+strict page/frame bounds and source-mutation isolation precede use. One pinned
+head kernel's raw paging lowers isolated process peak RSS by about 10.9x while
+increasing head CPU 2.42x; filesystem cache and total device memory are outside
+that RSS measurement. Compressed pages save artifact bytes but regress repeated
+online CPU substantially. Source artifacts and private snapshots occupy separate
+disk storage. Compiler-bound streamed bundle integration remains pending, so this
+does not yet reduce the ordinary SDK decoder's retained bundle memory.
 The core also owns the bounded `pllm.numeric.silu.quadratic_q7.v1` reference:
 signed Q7 over `[-1, 1]`, deterministic ties-to-even rounding, and an encoded-domain
 absolute SiLU error bound of `0.02285`.

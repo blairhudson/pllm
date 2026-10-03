@@ -1,0 +1,100 @@
+{
+  "artifacts": {
+    "raw": {
+      "digest": "f6de9c389ad2b8e7e92ef684e9593d6b15fd51f69eb8f9f33bb0028ba3dc9c76",
+      "page_rows": 512,
+      "publisher_export_cpu_seconds": 0.975673,
+      "serialized_bytes": 136141848
+    },
+    "zlib": {
+      "digest": "4335060bae2cefc30ef515fc3c6282d9fe7eba92a49cc23659d5d1e3a4891c3e",
+      "page_rows": 512,
+      "publisher_export_cpu_seconds": 1.542944,
+      "serialized_bytes": 120793772
+    }
+  },
+  "candidates": [
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 0.010442,
+      "clear_wall_seconds_median": 0.010481333,
+      "client_import_cpu_seconds": 0.142025,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 136134656,
+      "page_metadata_bytes": 0,
+      "private_snapshot_disk_bytes": 0,
+      "process_initial_peak_rss_bytes": 37748736,
+      "process_peak_rss_bytes": 450134016,
+      "shape": [
+        151936,
+        896
+      ],
+      "source_array_bytes": 136134656,
+      "storage": "resident",
+      "three_row_gather_cpu_seconds": 4.7e-05,
+      "transient_weight_buffer_bound": 0
+    },
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 0.060163,
+      "clear_wall_seconds_median": 0.060468333,
+      "client_import_cpu_seconds": 0.98812,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 0,
+      "page_metadata_bytes": 9504,
+      "private_snapshot_disk_bytes": 136141848,
+      "process_initial_peak_rss_bytes": 37863424,
+      "process_peak_rss_bytes": 41730048,
+      "shape": [
+        151936,
+        896
+      ],
+      "source_array_bytes": 0,
+      "storage": "raw",
+      "three_row_gather_cpu_seconds": 0.000257,
+      "transient_weight_buffer_bound": 917504
+    },
+    {
+      "batch_rows": 1,
+      "clear_cpu_seconds_median": 0.647058,
+      "clear_wall_seconds_median": 0.650035,
+      "client_import_cpu_seconds": 1.519098,
+      "exact_clear_wrap32_and_gather": true,
+      "measured_repetitions": 5,
+      "native_weight_snapshot_bytes": 0,
+      "page_metadata_bytes": 9504,
+      "private_snapshot_disk_bytes": 120793772,
+      "process_initial_peak_rss_bytes": 37847040,
+      "process_peak_rss_bytes": 42942464,
+      "shape": [
+        151936,
+        896
+      ],
+      "source_array_bytes": 0,
+      "storage": "zlib",
+      "three_row_gather_cpu_seconds": 0.004655,
+      "transient_weight_buffer_bound": 1337087
+    }
+  ],
+  "driver_sha256": "66b192536ef275950f760bfcd2f636fe7cb32df8c38ae7f9b15d3fa5a6996a06",
+  "limitations": [
+    "Public artifact sizes are serialized-file counts, not measured network transfers",
+    "RSS measures processes, excluding kernel filesystem cache and total device memory",
+    "Source artifact and private immutable snapshot consume separate disk storage",
+    "Weight-buffer bound excludes I/O/output buffers, kernel metadata, stacks and OS cache",
+    "Matrix arithmetic and gathers only; whole decoder and Pipeline integration remain unmeasured"
+  ],
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "raw_weight_bytes": 136134656,
+  "schema": "pllm.paged_native_probe.v1",
+  "scope": "isolated-process one-row exact head kernel; warm filesystem cache",
+  "source": {
+    "activation_bits": 8,
+    "head_weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "weight_bits": 8
+  }
+}

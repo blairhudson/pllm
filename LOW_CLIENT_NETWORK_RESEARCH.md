@@ -11,7 +11,7 @@ All five methods use native hot paths and existing SDK/benchmark conventions.
 | Public-bound row residues | Per-output weight bounds permit smaller exact power-of-two rings without activation-dependent sizes | Implemented as opt-in `output_encoding="row_residues"`; combines with seeded ingress |
 | Private paged embeddings | Two non-colluding public-table workers return one hidden page, avoiding a client vocabulary-weight snapshot | Bounded native SDK probe: exact pages, one-use party state and real-table scan costs measured |
 | Compact private head retrieval | A small public index plus privately retrieved original rows reduces client head storage and arithmetic | Native SDK screen tested weight-only and public-query-calibrated indices; neither earned exact decoding admission |
-| File-backed exact kernels | Authenticated immutable public pages cap live weight memory while preserving exact integer products | Next: native bounded paging, corruption/race checks and measured CPU/memory tradeoff |
+| File-backed exact kernels | Authenticated immutable public pages cap live weight memory while preserving exact integer products | `pllm.native.PagedGEMM` implemented; raw paging trades higher kernel CPU for lower process RSS; compressed online pages fail the low-CPU objective |
 
 ## 1. Seeded additive ingress
 
@@ -204,3 +204,72 @@ Evidence: `docs/evidence/head-retrieval-qwen25-2026-10-02.json` and
 ```sh
 OPENBLAS_NUM_THREADS=4 VECLIB_MAXIMUM_THREADS=4 .venv/bin/python scripts/probe_head_retrieval.py --pinned --query-calibrated --output /tmp/head-retrieval.json
 ```
+
+## 5. Exact bounded file-backed weights
+
+`pllm.native.PagedGEMM` exports bounded raw/adaptive-zlib public weight pages and
+opens them under an exact artifact digest. Rust validates metadata before copying
+into a private anonymous snapshot, verifies that snapshot and every decoded weight,
+and severs later source-file mutation. Matrices expose no writable dimensions or
+contents. Native positioned reads, bounded decompression, exact clear/modular/wrap32
+GEMM and local row gathers run with the interpreter lock released. No full weight
+array or full native weight snapshot remains resident between operations.
+
+The private file contains public weights only; gathers and private input/output
+stay inside the client boundary. Export is non-overwriting and publishes atomically.
+Malformed lengths, offsets, hashes, zlib completion/trailing bytes, oversized shapes
+and workspace requests fail closed. One executor is reused. The optimized page
+path uses the universally valid signed-i8 bound, avoiding repeated weight scans
+and copies; unusually wide clear matrices retain tighter checked admission.
+
+Five one-row calls per isolated process, pinned 151,936×896 Qwen head, warm
+filesystem cache (clear/wrap32/gather all exactly match the resident control):
+
+| Measurement | Resident | Raw pages | Zlib pages |
+| --- | ---: | ---: | ---: |
+| Process peak RSS | 449.59 MB | 41.16 MB | 41.66 MB |
+| Median clear CPU | 10.62 ms | 25.74 ms | 614.07 ms |
+| Import CPU | 0.120 s | 0.986 s | 1.516 s |
+| Serialized paged artifact | — | 136.14 MB | 120.79 MB |
+| Private snapshot disk | 0 | 136.14 MB | 120.79 MB |
+
+Raw paging reduces this **kernel process peak RSS by 10.9×**, while increasing
+isolated head CPU 2.42×. That is not a 10× whole-client or network result: kernel
+filesystem cache and total device memory are outside RSS. Source artifacts and
+private snapshots consume separate disk storage. Zlib removes 15.35 MB (11.3%)
+of serialized artifact bytes, but costs about 58× resident head CPU; it fails the
+low-client-compute objective for repeated online execution. These file sizes have
+not been measured as a serving transport.
+
+The direct native API is usable now; replacing the SDK's retained bundle arrays
+and binding streamed pages to compiler source/shape/scale commitments is still
+required for whole-decoder memory savings. Keep resident execution the default.
+
+Evidence: `docs/evidence/paged-native-qwen25-2026-10-02.json`; the initial
+revalidating implementation is retained separately as `paged-native-initial-qwen25-2026-10-02.json`.
+Reproduce with `.venv/bin/python scripts/probe_paged_native.py --pinned --output /tmp/paged-native.json`.
+
+## Outcome and next gate
+
+- **Use the exact transport pair:** seeded ingress plus row residues reduced the
+  matched 39+32 offset body's online cost by 23.9%, with exact arithmetic and no
+  added client body weights. Both remain explicit SDK/benchmark choices.
+- **Keep private pages bounded:** eight-row lookup reduces client table needs at
+  measurable worker scan cost, but tied-head replacement and whole-response
+  resource admission remain necessary.
+- **Close the tested head-index route:** no exact certificates and poor fixed-
+  budget winner coverage. Do not substitute approximate head selections.
+- **Use raw paging when client memory dominates:** validate streamed bundle
+  admission and complete client lifecycle next. Budget filesystem cache, disk
+  duplication, import CPU and per-token kernel CPU separately.
+- **Keep fresh-prompt 10×/100× network goals open:** none of these results meets
+  them. The useful next combination is exact transport plus a fully source-bound,
+  low-residency token boundary, measured end to end with the current numeric mode.
+
+Local validation: 1,984 Python tests passed across regression shards, with 49
+expected opt-in skips; 131 core Rust tests, native private-page tests, Clippy,
+Ruff, 64 documentation checks, the production site build and isolated-wheel SDK
+execution passed. Regression cleanup kept metadata-only CLI imports lightweight
+and corrected two stale assertions about closed inventory leases and the existing
+bounded garbling binding dependency. Numerical and network cohorts retain the
+measurement scopes described above.

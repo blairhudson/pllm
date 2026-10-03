@@ -1,6 +1,6 @@
 /** Make imported names clickable inside Shiki-highlighted Python code. */
 
-const STDLIB = new Set(['asyncio', 'importlib', 'json', 'math', 'pathlib', 'platform', 'struct', 'time', '__future__']);
+const STDLIB = new Set(['asyncio', 'importlib', 'json', 'math', 'pathlib', 'platform', 'struct', 'tempfile', 'time', '__future__']);
 const EXTERNAL = {
   openai: 'https://github.com/openai/openai-python',
   numpy: 'https://numpy.org/doc/stable/',

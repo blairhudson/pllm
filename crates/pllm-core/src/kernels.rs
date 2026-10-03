@@ -117,6 +117,24 @@ impl Matrix {
             max_weight,
         })
     }
+    /// Adopt an owned page with the universally valid signed-i8 magnitude bound.
+    /// This avoids re-scanning immutable pages; it never accepts a caller's
+    /// unverified smaller bound. Wide clear work may use `new` for a tighter one.
+    pub(crate) fn from_owned_i8_page(
+        bytes: Vec<u8>,
+        rows: usize,
+        cols: usize,
+    ) -> Result<Self, String> {
+        if rows == 0 || cols == 0 || rows.checked_mul(cols) != Some(bytes.len()) {
+            return Err("weights must be a nonempty [out,in] int8 matrix".into());
+        }
+        Ok(Self {
+            weights: bytes.into_iter().map(|value| value as i8).collect(),
+            rows,
+            cols,
+            max_weight: 128,
+        })
+    }
     /// Matrix dimensions in output, input order.
     pub fn shape(&self) -> (usize, usize) {
         (self.rows, self.cols)

@@ -1,0 +1,46 @@
+---
+title: "Exact file-backed native weights"
+description: "Bound client weight residency with authenticated immutable pages and exact integer execution."
+---
+
+`pllm.native.PagedGEMM` keeps validated signed-i8 weights in a private file snapshot.
+Rust owns admission, positioned reads, bounded decompression, clear/modular/wrap32
+GEMM and local row gathers, releasing Python's interpreter lock. Export accepts
+raw pages or independent adaptive-zlib pages and never overwrites an existing file.
+Shape, file digest, decoded weight digest and strict frame bounds are checked before
+use. Later changes to the source file cannot change admitted weights.
+
+On one pinned Qwen head kernel, raw paging lowered isolated process peak RSS from
+449.59 MB to 41.16 MB, with exact integer outputs and row gathers. Median head CPU
+rose from 10.62 to 25.74 ms. Zlib reduced artifact size from 136.14 to 120.79 MB but
+raised head CPU to 614.07 ms. Keep raw pages for this memory-oriented option.
+
+RSS excludes filesystem cache and total device memory; source artifacts and the
+private snapshot consume separate disk. Measurements cover one matrix, not a
+whole decoder. The direct API is available; compiler-bound streamed bundle
+integration is pending. Existing Pipeline defaults retain resident weights.
+
+## Python SDK example
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import numpy as np
+from pllm.native import PagedGEMM
+
+weights = np.array([[1, 2], [3, -4]], dtype=np.int8)
+with TemporaryDirectory() as root:
+    path = Path(root) / "weights.pllm"
+    digest = PagedGEMM.export(weights, path, page_rows=1)
+    with PagedGEMM(path, digest) as matrix:
+        result = matrix.clear(np.array([[2, -1]], dtype=np.int8))
+        assert result.tolist() == [[0, 10]]
+        assert matrix.gather_rows([1]).tolist() == [[3, -4]]
+        assert matrix.shape == (2, 2)
+```
+
+Gathers access the client's private local snapshot. They do not fetch token-indexed
+rows from a remote provider. Public page retrieval is a separate
+[bounded protocol probe](/sdk/evaluate/private-pages/).
+
+API: [`pllm.native.PagedGEMM`](/sdk/reference/python/pllm/native/#objects-and-signatures)

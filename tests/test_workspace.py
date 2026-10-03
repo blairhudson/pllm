@@ -49,6 +49,7 @@ def test_core_is_independent_of_python():
         'pllm-bench',
         'pllm-assurance',
         'pllm-models',
+        'pllm-garble',  # Bounded native research probes, not Python-dependent Rust.
         'pyo3',
         'serde_json',
         'zeroize',
