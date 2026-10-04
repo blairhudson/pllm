@@ -10,7 +10,7 @@ import tempfile
 
 import numpy as np
 from pllm import Model, lower_model, _native
-from pllm.metrics import (ArtifactPlaneProbe, BatchedPrivateLookupProbe, PreparedResidueProbe,
+from pllm.metrics import (ArtifactEntropyProbe, ArtifactPlaneProbe, BatchedPrivateLookupProbe, PreparedDuplexProbe, PreparedResidueProbe,
                           ProjectedResharingProbe, OrthogonalActivationProbe)
 from pllm.model_loader import resolve_model
 from pllm.profiles import MaskedLinearCpu
@@ -64,8 +64,18 @@ def run(source, method, real):
             data["body_projection"] = {"executed_rows": 70, "dense_integer_body_bytes": raw * 70,
                 "packed_integer_body_bytes": packed * 70, "width_manifest_bytes": metadata,
                 "scope": "39+32 arithmetic bodies only; native public bounds, no controls or transport"}
-        elif method == "artifacts":
-            data = ArtifactPlaneProbe(repetitions=2).run(engine.client_bundle(bundle.model_id))
+        elif method == "duplex":
+            selected = {}
+            remote_ids = {s.stage_id for s in compiled.stage_bindings if s.layer_index is not None}
+            for stage in specs:
+                if stage.id in remote_ids and stage.role not in selected:
+                    selected[stage.role] = stage
+            data = {"kernels": [{"role": role, **PreparedDuplexProbe(rows=39, repetitions=3).run(
+                stages[stage.id].weight.values, dense_wire_bits=stages[stage.id].seeded_profile.wire_bits)}
+                for role, stage in selected.items()]}
+        elif method in {"artifacts", "entropy"}:
+            probe = ArtifactEntropyProbe if method == "entropy" else ArtifactPlaneProbe
+            data = probe(repetitions=2).run(engine.client_bundle(bundle.model_id))
         elif method == "retrieval":
             # Public, fixed-size source records; no candidate decisions leaked.
             table = stages["lm_head"].weight.values
@@ -85,7 +95,7 @@ def run(source, method, real):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--real", action="store_true")
-    parser.add_argument("--method", choices=("resharing", "residues", "artifacts", "retrieval", "orthogonal"), required=True)
+    parser.add_argument("--method", choices=("resharing", "residues", "artifacts", "entropy", "duplex", "retrieval", "orthogonal"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="pllm-wan-methods-") as temp:

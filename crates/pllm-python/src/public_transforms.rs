@@ -28,9 +28,31 @@ fn public_hadamard<'py>(
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_function(wrap_pyfunction!(public_entropy_encode, module)?)?;
+    module.add_function(wrap_pyfunction!(public_entropy_decode, module)?)?;
     module.add_function(wrap_pyfunction!(projected_reshare_reference, module)?)?;
     module.add_function(wrap_pyfunction!(public_bitplanes, module)?)?;
     module.add_function(wrap_pyfunction!(public_hadamard, module)?)
+}
+
+#[pyfunction]
+fn public_entropy_encode<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
+    let output = py
+        .detach(|| pllm_core::public_entropy::encode(data))
+        .map_err(invalid)?;
+    Ok(PyBytes::new(py, &output))
+}
+
+#[pyfunction]
+fn public_entropy_decode<'py>(
+    py: Python<'py>,
+    data: &[u8],
+    expected_size: usize,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let output = py
+        .detach(|| pllm_core::public_entropy::decode(data, expected_size))
+        .map_err(invalid)?;
+    Ok(PyBytes::new(py, &output))
 }
 
 #[pyfunction]

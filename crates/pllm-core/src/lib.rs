@@ -19,6 +19,7 @@ pub mod masked_aggregate;
 pub mod offset_transport;
 pub mod paged;
 pub mod progressive_head;
+pub mod public_entropy;
 pub mod public_transforms;
 pub mod rms_norm;
 pub mod rope;

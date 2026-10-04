@@ -1,0 +1,40 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "99f2910fde9eca2ea8d8fd9b0568866d1bfb1a12169011979d119e9fd7368a9a",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "entropy",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "configurations": [
+      {
+        "client_decode_cpu_seconds_median": 0.514419,
+        "encoding": "zlib",
+        "exact_raw_hash": true,
+        "framed_body_bytes": 124900159,
+        "provider_encode_cpu_seconds_median": 3.944477
+      },
+      {
+        "client_decode_cpu_seconds_median": 0.6814905,
+        "encoding": "rans",
+        "exact_raw_hash": true,
+        "framed_body_bytes": 127747847,
+        "provider_encode_cpu_seconds_median": 0.6360995
+      }
+    ],
+    "frame_raw_bytes_bound": 1048576,
+    "online_stage_body_savings": 0,
+    "peak_client_memory_bytes": null,
+    "raw_bytes": 145977008,
+    "raw_cache_identity_preserved": true,
+    "schema": "pllm.artifact_entropy_probe.v1",
+    "scope": "public object codec only; source fixture/working array is not a client peak sample",
+    "source_digest": "52d639cf3ae0cd43cf4d21eef315bcc5bfd66d9518edd4f3cf965d68acd79e21"
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

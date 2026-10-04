@@ -431,7 +431,8 @@ from .communication import communication_per_token
 from .wan import wan_readiness
 from .projected_resharing import ProjectedResharingProbe
 from .prepared_residues import PreparedResidueProbe
-from .artifact_planes import ArtifactPlaneProbe
+from .prepared_duplex import PreparedDuplexProbe
+from .artifact_planes import ArtifactEntropyProbe, ArtifactPlaneProbe
 from .batched_lookup import BatchedPrivateLookupProbe
 from .orthogonal_activation import OrthogonalActivationProbe
 from .state_reuse import GeneratedStateReuseProbe, StateCompatibilityProbe
@@ -442,7 +443,9 @@ from .progressive_head import ProgressiveHeadProbe
 __all__ = [
     "ProjectedResharingProbe",
     "PreparedResidueProbe",
+    "PreparedDuplexProbe",
     "ArtifactPlaneProbe",
+    "ArtifactEntropyProbe",
     "BatchedPrivateLookupProbe",
     "OrthogonalActivationProbe",
     "wan_readiness",

@@ -1,0 +1,318 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "a6a63b3c7ddf9d9599b6240330f9b72478a9ca222bf953333376e64a22a916a2",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "duplex",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "kernels": [
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "chunk_rows": 39,
+            "chunks": 1,
+            "client_cpu_seconds_median": 0.0005740000000000001,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.09752140000000001,
+            "provider_cpu_seconds_median": 0.010072,
+            "request_body_bytes": 105499,
+            "response_body_bytes": 128213
+          },
+          {
+            "chunk_rows": 16,
+            "chunks": 3,
+            "client_cpu_seconds_median": 0.000758,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.07922159999999999,
+            "provider_cpu_seconds_median": 0.010071000000000002,
+            "request_body_bytes": 105578,
+            "response_body_bytes": 128403
+          },
+          {
+            "chunk_rows": 8,
+            "chunks": 5,
+            "client_cpu_seconds_median": 0.000708,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.07285140000000001,
+            "provider_cpu_seconds_median": 0.010112,
+            "request_body_bytes": 105656,
+            "response_body_bytes": 128595
+          },
+          {
+            "chunk_rows": 4,
+            "chunks": 10,
+            "client_cpu_seconds_median": 0.0008300000000000002,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.0698622,
+            "provider_cpu_seconds_median": 0.010256,
+            "request_body_bytes": 105856,
+            "response_body_bytes": 129075
+          },
+          {
+            "chunk_rows": 1,
+            "chunks": 39,
+            "client_cpu_seconds_median": 0.001428,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.06869920000000002,
+            "provider_cpu_seconds_median": 0.010543999999999998,
+            "request_body_bytes": 121173,
+            "response_body_bytes": 131859
+          }
+        ],
+        "dense_wire_bits": 24,
+        "limitations": [
+          "No pipelined transport, one-use streaming session or whole-response execution is implemented",
+          "One RTT assumed per stage, unlimited peer read/write progress, symmetric party access",
+          "Fresh mask expansion/offline issuance, TCP/TLS, Python scheduling and peak memory are not priced",
+          "One-row decode cannot use row overlap; no decoder TPS claim follows"
+        ],
+        "one_way_delay_ms": 20,
+        "per_party_download_mbps": 100,
+        "per_party_upload_mbps": 40,
+        "role": "qkv_projection",
+        "rows": 39,
+        "schema": "pllm.prepared_duplex_probe.v1",
+        "scope": "measured native integer kernels/codecs; hypothetical full-duplex stage timing",
+        "shape": [
+          1152,
+          896
+        ],
+        "weight_digest": "9cfa314b1ed2abb2f154fff5b5907a8aee36e4eae33685841cfe507780438583",
+        "whole_decoder_executable": false
+      },
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "chunk_rows": 39,
+            "chunks": 1,
+            "client_cpu_seconds_median": 0.000448,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.08932240000000001,
+            "provider_cpu_seconds_median": 0.007901,
+            "request_body_bytes": 105499,
+            "response_body_bytes": 99368
+          },
+          {
+            "chunk_rows": 16,
+            "chunks": 3,
+            "client_cpu_seconds_median": 0.000583,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.0728232,
+            "provider_cpu_seconds_median": 0.007844,
+            "request_body_bytes": 105578,
+            "response_body_bytes": 99558
+          },
+          {
+            "chunk_rows": 8,
+            "chunks": 5,
+            "client_cpu_seconds_median": 0.0005589999999999999,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.0671742,
+            "provider_cpu_seconds_median": 0.007814999999999999,
+            "request_body_bytes": 105656,
+            "response_body_bytes": 99750
+          },
+          {
+            "chunk_rows": 4,
+            "chunks": 10,
+            "client_cpu_seconds_median": 0.0006670000000000001,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.064625,
+            "provider_cpu_seconds_median": 0.007936,
+            "request_body_bytes": 105856,
+            "response_body_bytes": 100235
+          },
+          {
+            "chunk_rows": 1,
+            "chunks": 39,
+            "client_cpu_seconds_median": 0.0013340000000000005,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.06631200000000001,
+            "provider_cpu_seconds_median": 0.008168999999999996,
+            "request_body_bytes": 121173,
+            "response_body_bytes": 103038
+          }
+        ],
+        "dense_wire_bits": 24,
+        "limitations": [
+          "No pipelined transport, one-use streaming session or whole-response execution is implemented",
+          "One RTT assumed per stage, unlimited peer read/write progress, symmetric party access",
+          "Fresh mask expansion/offline issuance, TCP/TLS, Python scheduling and peak memory are not priced",
+          "One-row decode cannot use row overlap; no decoder TPS claim follows"
+        ],
+        "one_way_delay_ms": 20,
+        "per_party_download_mbps": 100,
+        "per_party_upload_mbps": 40,
+        "role": "attention_output",
+        "rows": 39,
+        "schema": "pllm.prepared_duplex_probe.v1",
+        "scope": "measured native integer kernels/codecs; hypothetical full-duplex stage timing",
+        "shape": [
+          896,
+          896
+        ],
+        "weight_digest": "ec275e35e5151ff39d6bd57168e3854cf3059e5e73fd59a2b8e1f45d90823fe6",
+        "whole_decoder_executable": false
+      },
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "chunk_rows": 39,
+            "chunks": 1,
+            "client_cpu_seconds_median": 0.001563,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.364669,
+            "provider_cpu_seconds_median": 0.084122,
+            "request_body_bytes": 105499,
+            "response_body_bytes": 1089076
+          },
+          {
+            "chunk_rows": 16,
+            "chunks": 3,
+            "client_cpu_seconds_median": 0.00189,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.3029424,
+            "provider_cpu_seconds_median": 0.084218,
+            "request_body_bytes": 105578,
+            "response_body_bytes": 1089272
+          },
+          {
+            "chunk_rows": 8,
+            "chunks": 5,
+            "client_cpu_seconds_median": 0.002092,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.28175500000000003,
+            "provider_cpu_seconds_median": 0.084763,
+            "request_body_bytes": 105656,
+            "response_body_bytes": 1089468
+          },
+          {
+            "chunk_rows": 4,
+            "chunks": 10,
+            "client_cpu_seconds_median": 0.0024830000000000004,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.27127480000000004,
+            "provider_cpu_seconds_median": 0.085088,
+            "request_body_bytes": 105856,
+            "response_body_bytes": 1089958
+          },
+          {
+            "chunk_rows": 1,
+            "chunks": 39,
+            "client_cpu_seconds_median": 0.0034210000000000013,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.2648095999999999,
+            "provider_cpu_seconds_median": 0.086457,
+            "request_body_bytes": 121173,
+            "response_body_bytes": 1092741
+          }
+        ],
+        "dense_wire_bits": 24,
+        "limitations": [
+          "No pipelined transport, one-use streaming session or whole-response execution is implemented",
+          "One RTT assumed per stage, unlimited peer read/write progress, symmetric party access",
+          "Fresh mask expansion/offline issuance, TCP/TLS, Python scheduling and peak memory are not priced",
+          "One-row decode cannot use row overlap; no decoder TPS claim follows"
+        ],
+        "one_way_delay_ms": 20,
+        "per_party_download_mbps": 100,
+        "per_party_upload_mbps": 40,
+        "role": "mlp_gate_up",
+        "rows": 39,
+        "schema": "pllm.prepared_duplex_probe.v1",
+        "scope": "measured native integer kernels/codecs; hypothetical full-duplex stage timing",
+        "shape": [
+          9728,
+          896
+        ],
+        "weight_digest": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa",
+        "whole_decoder_executable": false
+      },
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "chunk_rows": 39,
+            "chunks": 1,
+            "client_cpu_seconds_median": 0.001375,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.2704718,
+            "provider_cpu_seconds_median": 0.055252,
+            "request_body_bytes": 759451,
+            "response_body_bytes": 109493
+          },
+          {
+            "chunk_rows": 16,
+            "chunks": 3,
+            "client_cpu_seconds_median": 0.0016059999999999998,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.20732739999999997,
+            "provider_cpu_seconds_median": 0.054154,
+            "request_body_bytes": 759536,
+            "response_body_bytes": 109683
+          },
+          {
+            "chunk_rows": 8,
+            "chunks": 5,
+            "client_cpu_seconds_median": 0.0018909999999999999,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.20896479999999998,
+            "provider_cpu_seconds_median": 0.059619,
+            "request_body_bytes": 759618,
+            "response_body_bytes": 109875
+          },
+          {
+            "chunk_rows": 4,
+            "chunks": 10,
+            "client_cpu_seconds_median": 0.0020529999999999997,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.1999724,
+            "provider_cpu_seconds_median": 0.05538899999999999,
+            "request_body_bytes": 759826,
+            "response_body_bytes": 110355
+          },
+          {
+            "chunk_rows": 1,
+            "chunks": 39,
+            "client_cpu_seconds_median": 0.002961,
+            "exact_integer_output": true,
+            "hypothetical_stage_seconds_median": 0.20002040000000001,
+            "provider_cpu_seconds_median": 0.05576,
+            "request_body_bytes": 775281,
+            "response_body_bytes": 113139
+          }
+        ],
+        "dense_wire_bits": 32,
+        "limitations": [
+          "No pipelined transport, one-use streaming session or whole-response execution is implemented",
+          "One RTT assumed per stage, unlimited peer read/write progress, symmetric party access",
+          "Fresh mask expansion/offline issuance, TCP/TLS, Python scheduling and peak memory are not priced",
+          "One-row decode cannot use row overlap; no decoder TPS claim follows"
+        ],
+        "one_way_delay_ms": 20,
+        "per_party_download_mbps": 100,
+        "per_party_upload_mbps": 40,
+        "role": "mlp_down",
+        "rows": 39,
+        "schema": "pllm.prepared_duplex_probe.v1",
+        "scope": "measured native integer kernels/codecs; hypothetical full-duplex stage timing",
+        "shape": [
+          896,
+          4864
+        ],
+        "weight_digest": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f",
+        "whole_decoder_executable": false
+      }
+    ]
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}
