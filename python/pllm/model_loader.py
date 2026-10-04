@@ -182,10 +182,22 @@ def _source_lock(path: Path, model: Model) -> tuple[str, str, dict[str, Any]]:
         candidate = record.get("sha256")
         etag = None
         if hub_commit is not None and source.is_symlink():
-            blob = source.resolve(strict=True)
-            if blob.parent != (root.parent.parent / "blobs").resolve():
+            # Keep the repository's ETag identity when its blob is deduplicated
+            # into the Hub-wide store (whose storage name need not be SHA-256).
+            repository_blobs = root.parent.parent / "blobs"
+            anchor = Path(os.path.abspath(source.parent / source.readlink()))
+            if anchor.parent.resolve() != repository_blobs.resolve():
                 raise ModelLoadError(f"shared HF snapshot escapes its blob cache: {relative}")
-            etag = blob.name
+            blob = source.resolve(strict=True)
+            shared_blobs = (root.parent.parent.parent / "blobs").resolve()
+            shared_object = (
+                blob.parent.parent == shared_blobs
+                and re.fullmatch(r"[0-9a-f]{64}", blob.name) is not None
+                and blob.parent.name == blob.name[:2]
+            )
+            if blob.parent != repository_blobs.resolve() and not shared_object:
+                raise ModelLoadError(f"shared HF snapshot escapes its blob cache: {relative}")
+            etag = anchor.name
             if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", etag) is None:
                 raise ModelLoadError(f"shared HF blob has no content identity: {relative}")
         sha256 = _file_digest(source, expected_sha1=etag if etag is not None and len(etag) == 40 else None)

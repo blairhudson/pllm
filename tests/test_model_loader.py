@@ -172,6 +172,51 @@ def test_shared_hf_blob_content_is_checked_against_its_cache_identity(tmp_path: 
         _source_lock(root, model)
 
 
+@pytest.mark.parametrize("git_object", [False, True])
+def test_deduplicated_hub_blob_preserves_repository_etag_and_rejects_escape(tmp_path, git_object):
+    from pllm.model_loader import _source_lock
+
+    commit = "a" * 40
+    repository = tmp_path / "hub/models--org--model"
+    root = repository / "snapshots" / commit
+    root.mkdir(parents=True)
+    (repository / "blobs").mkdir()
+    payload = b"deduplicated public checkpoint"
+    etag = (hashlib.sha1(f"blob {len(payload)}\0".encode() + payload).hexdigest()
+            if git_object else hashlib.sha256(payload).hexdigest())
+    # The shared store uses an independent storage address, not the source ETag.
+    storage_key = "b" * 64
+    shared = tmp_path / "hub/blobs" / storage_key[:2] / storage_key
+    shared.parent.mkdir(parents=True)
+    shared.write_bytes(payload)
+    anchor = repository / "blobs" / etag
+    anchor.symlink_to(shared)
+    source = root / "model.safetensors"
+    source.symlink_to(Path("../../blobs") / etag)
+    model = pllm.Model.hf("org/model", revision=commit, local_files_only=True)
+    _, _, lock = _source_lock(root, model)
+    assert lock["files"][0]["sha256"] == hashlib.sha256(payload).hexdigest()
+
+    shared.write_bytes(b"modified cached checkpoint")
+    with pytest.raises(ModelLoadError, match="digest mismatch"):
+        _source_lock(root, model)
+    shared.write_bytes(payload)
+    source.unlink()
+    source.symlink_to(shared)
+    with pytest.raises(ModelLoadError, match="escapes its blob cache"):
+        _source_lock(root, model)
+
+    source.unlink()
+    source.symlink_to(anchor)
+    anchor.unlink()
+    outside = tmp_path / "outside" / storage_key[:2] / storage_key
+    outside.parent.mkdir(parents=True)
+    outside.write_bytes(payload)
+    anchor.symlink_to(outside)
+    with pytest.raises(ModelLoadError, match="escapes its blob cache"):
+        _source_lock(root, model)
+
+
 def test_runtime_model_request_accepts_canonical_and_legacy_shapes() -> None:
     canonical = model_from_runtime_spec({
         "engine": "masked",
