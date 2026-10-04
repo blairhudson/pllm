@@ -113,6 +113,11 @@ def _measured_emulation(report, conditions):
         if (data.get("enforced") is not True or data.get("conditions_digest") != conditions.digest
                 or data.get("role_parties") != assignments or set(data.get("parties", {})) != expected):
             raise ValueError("WAN kernel sampling does not cover the executed parties")
+        from pllm.deployment import LinkConditions
+        link = data.get("link_conditions")
+        link_digest = LinkConditions.from_spec(link).digest if link is not None else None
+        if link_digest != configuration.get("link_conditions_digest"):
+            raise ValueError("WAN kernel delay/loss profile does not match the report")
         for party, caps in data["parties"].items():
             for direction in ("upload", "download"):
                 queue = caps.get(direction, {})
@@ -122,6 +127,7 @@ def _measured_emulation(report, conditions):
                         or len(roots) != 1 or roots[0].get("kind") != "tbf"
                         or roots[0].get("options", {}).get("rate") != rate):
                     raise ValueError("WAN kernel rate differs from the selected party capacity")
+                _check_link_qdisc(queue.get("qdiscs", []), link if direction == "upload" else None)
     check(samples.get("startup"))
     for window in [*samples["warmups"], *samples["runs"]]:
         check(window.get("before"))
@@ -161,6 +167,29 @@ def _measured_emulation(report, conditions):
             "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
             "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
             "internet_measurement": False, "runs": rows, "summary": summary}
+
+
+def _check_link_qdisc(queues, conditions):
+    """Check netem JSON against an optional immutable egress-delay/loss profile."""
+    from pllm.deployment import LinkConditions
+    netem = [row for row in queues if row.get("kind") == "netem"]
+    if conditions is None:
+        if netem:
+            raise ValueError("WAN kernel has unselected delay/loss")
+        return
+    shape = LinkConditions.from_spec(conditions)
+    if shape.bytes_per_second is not None or len(netem) != 1 or netem[0].get("parent") != "10:1":
+        raise ValueError("WAN kernel delay/loss queue differs from its profile")
+    options = netem[0].get("options", {})
+    delay = options.get("delay", {})
+    loss = options.get("loss-random", {})
+    if (not math.isclose(delay.get("delay", 0), shape.latency_ms / 1000, abs_tol=1e-6)
+            or delay.get("jitter", 0) != 0 or delay.get("correlation", 0) != 0
+            or not math.isclose(loss.get("loss", 0), shape.loss_fraction, abs_tol=1e-8)
+            or loss.get("correlation", 0) != 0
+            or shape.loss_fraction and options.get("seed") != shape.seed
+            or any(key in options for key in ("rate", "loss-state", "loss-gemodel"))):
+        raise ValueError("WAN kernel delay/loss differs from its profile")
 
 
 def wan_readiness(report, conditions: WanConditions | None = None) -> dict:

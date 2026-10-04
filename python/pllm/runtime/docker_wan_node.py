@@ -46,7 +46,7 @@ def rate_parameters(mbps):
 
 
 def install_rate(device, mbps, conditions=None):
-    params = rate_parameters(mbps)
+    params: dict = rate_parameters(mbps)
     command(["/usr/sbin/tc", "qdisc", "replace", "dev", device, "root", "handle", "10:",
              "tbf", "rate", str(params["bytes_per_second"] * 8) + "bit",
              "burst", str(params["burst_bytes"]), "limit", str(params["queue_bytes"])])
@@ -60,16 +60,19 @@ def install_rate(device, mbps, conditions=None):
         if link.loss_fraction:
             args += ["loss", "random", f"{link.loss_fraction * 100}%", "seed", str(link.seed)]
         command(args)
+        params["link_conditions"] = link.to_spec()
     return params
 
 
 def checked_queue(device, expected):
+    from pllm.metrics.wan import _check_link_qdisc
     queues = json.loads(command(["/usr/sbin/tc", "-j", "-s", "qdisc", "show", "dev", device]))
     roots = [row for row in queues if row.get("root")]
     if (len(roots) != 1 or roots[0].get("kind") != "tbf"
             or roots[0].get("options", {}).get("rate") != expected["bytes_per_second"]
             or roots[0].get("options", {}).get("burst") != expected["burst_bytes"]):
         raise RuntimeError("WAN kernel queue differs from the selected access rate")
+    _check_link_qdisc(queues, expected.get("link_conditions"))
     return {"device": device, **expected, "qdiscs": queues, "verified": True}
 
 

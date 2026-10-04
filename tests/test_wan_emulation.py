@@ -67,6 +67,30 @@ def test_kernel_rate_unit_and_forged_queue_rejection(monkeypatch):
         checked_queue("eth1", params)
 
 
+def test_delay_loss_readback_rejects_changed_queue_and_profile():
+    from pllm.deployment import LinkConditions
+    from pllm.metrics.wan import _check_link_qdisc
+    shape = LinkConditions(latency_ms=20, loss_fraction=0.01, seed=7).to_spec()
+    queue = {"kind": "netem", "parent": "10:1", "options": {
+        "delay": {"delay": 0.02, "jitter": 0, "correlation": 0},
+        "loss-random": {"loss": 0.01, "correlation": 0}, "seed": 7}}
+    _check_link_qdisc([queue], shape)
+    for changed in ([], [queue, queue]):
+        with pytest.raises(ValueError, match="WAN kernel"):
+            _check_link_qdisc(changed, shape)
+    with pytest.raises(ValueError, match="unselected"):
+        _check_link_qdisc([queue], None)
+    for section, key, value in (("delay", "delay", 0.01), ("delay", "jitter", 0.01),
+                                ("loss-random", "loss", 0)):
+        changed = copy.deepcopy(queue)
+        changed["options"][section][key] = value
+        with pytest.raises(ValueError, match="WAN kernel"):
+            _check_link_qdisc([changed], shape)
+    queue["options"]["seed"] = 8
+    with pytest.raises(ValueError, match="WAN kernel"):
+        _check_link_qdisc([queue], shape)
+
+
 def test_retained_wan_cohort_preserves_outputs_and_kernel_bound_throughput():
     root = Path(__file__).resolve().parents[1] / "docs/evidence"
     cohort = [json.loads((root / f"wan-emulation-qwen25-{label}-2026-10-04.json").read_text())
@@ -257,3 +281,54 @@ def test_cancelled_transfer_releases_owned_namespaces(measurement_image):
         _docker(["network", "rm", name])
     names = _docker(["ps", "--all", "--format", "{{.Names}}"])
     assert all(node not in names for node in network.containers)
+
+
+@pytest.mark.integration
+def test_shared_caps_compose_with_measured_round_trip_delay(measurement_image):
+    import statistics
+    from pllm.deployment import LinkConditions
+    from pllm.runtime.docker_roles import _docker
+    from pllm.runtime.docker_wan import DockerPartyNetwork
+    name = "pllm-wan-rtt-" + secrets.token_hex(8)
+    _docker(["network", "create", "--label", "pllm.benchmark=true", name])
+    port = ports()[0]
+    delay = LinkConditions(latency_ms=20)
+    network = DockerPartyNetwork(name=name, network=name, image=measurement_image,
+        role_urls={"a": f"http://127.0.0.1:{port}"}, conditions=WanConditions(),
+        link_conditions=delay)
+    try:
+        network.start()
+        _docker(["exec", "--detach", network.namespace("a"), "/opt/pllm/.venv/bin/python",
+                 "-c", _ECHO, str(network.backend_ports["a"])])
+        async def run():
+            for attempt in range(30):
+                try:
+                    await transfer(port, 1)
+                    break
+                except (OSError, AssertionError):
+                    if attempt == 29:
+                        raise
+                    await asyncio.sleep(0.1)
+            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            samples = []
+            try:
+                for index in range(7):
+                    started = time.monotonic()
+                    writer.write(b"x")
+                    await writer.drain()
+                    assert await asyncio.wait_for(reader.readexactly(1), 3) == b"x"
+                    if index:
+                        samples.append(time.monotonic() - started)
+            finally:
+                writer.close()
+                await writer.wait_closed()
+            return samples
+        samples = asyncio.run(run())
+        measured = statistics.median(samples)
+        assert 0.038 <= measured < 0.25
+        snapshot = network.resource_samples()
+        assert snapshot["link_conditions"] == delay.to_spec()
+        print(json.dumps({"selected_egress_delay_ms": 20, "median_round_trip_seconds": measured}))
+    finally:
+        network.close()
+        _docker(["network", "rm", name])

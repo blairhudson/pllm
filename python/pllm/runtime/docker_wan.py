@@ -182,6 +182,7 @@ class DockerPartyNetwork:
         return {
             "schema": "pllm.wan_emulation.v1", "backend": "linux-tbf-routed-party-ports",
             "enforced": True, "conditions": self.conditions.to_spec(),
+            "link_conditions": self.link_conditions.to_spec() if self.link_conditions else None,
             "conditions_digest": self.conditions.digest, "role_parties": self.role_parties,
             "scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
             "excluded": ["host/portal management leg", "out-of-band telemetry", "checkpoint distribution"],
