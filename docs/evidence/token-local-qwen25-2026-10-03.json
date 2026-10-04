@@ -1,0 +1,43 @@
+{
+  "environment": {
+    "machine": "arm64",
+    "native_sha256": "bbaa9df4ce76aff28a892c5fbf51abeaabef69c197ef0a4d5d59a1e1636e823c",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "environment_digest": "fd2db9ef2ba6a3fdb2d76294c20111e003d0430eaea3aae550eab9b4da577996",
+  "real_checkpoint": true,
+  "schema": "pllm.next_five_research.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "token-local": {
+    "accounted_cache_bytes": 178560,
+    "cache_capacity_bytes": 1048576,
+    "cache_hits": 27,
+    "cache_misses": 31,
+    "clear_kernel_cpu_seconds": 0.006208999999999999,
+    "client_peak_memory_bytes": null,
+    "complete": false,
+    "conditional_remote_skip_privacy_admitted": false,
+    "exact_logits_and_all_kv": [
+      true,
+      true,
+      true
+    ],
+    "executable": false,
+    "fixed_public_ownership_required": true,
+    "full_wire_bytes": null,
+    "groups": 1,
+    "memo_kernel_cpu_seconds": 0.0037089999999999996,
+    "model_plan_digest": "1aa54818f3a523841cec279215cb00f0cec4f5469273665a992d6531ed4c5f43",
+    "new_client_i8_weights_bytes": 1032192,
+    "new_client_native_snapshot_bytes": 1032192,
+    "optimistic_prepared_arithmetic_body_reduction": 0.004053177691309987,
+    "projection_rows": 58,
+    "raw_cold_weight_transfer_bytes": 1032192,
+    "remaining_remote_body_linear_mac_fraction": 0.9971153846153846,
+    "schema": "pllm.token_local_projection_probe.v1",
+    "tenfold_body_gate_passed": false
+  }
+}

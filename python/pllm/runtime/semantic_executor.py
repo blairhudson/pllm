@@ -66,6 +66,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         token_cache_lock: threading.Lock | None = None,
         nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
         causal_reduction: str | None = None,
+        verification_lineage_limit: int = 1,
     ) -> None:
         super().__init__(
             bundle,
@@ -79,8 +80,14 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if causal_reduction not in {None, "prefix_f32"}:
             raise TransformerClientError("unsupported causal reduction contract")
         self._causal_reduction = causal_reduction
+        from pllm.verification import FreivaldsVerify
+        if type(verification_lineage_limit) is not int or not 1 <= verification_lineage_limit <= FreivaldsVerify._MAX_CACHE_LINEAGE:
+            raise TransformerClientError("invalid verified lineage bound")
+        self._verification_lineage_limit = verification_lineage_limit
+        self._verification_bits = int(bundle.privacy.get("verification_target_failure_bits", 0))
         self._source_plan = plan
         self._continuation_contract: DecoderContinuationSchedule | None = None
+        self._generated_prefix_contract: DecoderContinuationSchedule | None = None
         self._continuation_failed = False
         self._text_only_tokens = self._excluded_multimodal_tokens(self._graphs, bundle.cfg)
         self._schedule = schedule
@@ -88,15 +95,8 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         # Snapshot compatibility binds exact source config, numeric composition
         # and weight/stage commitments; native suffix admission separately binds
         # the full source plan and its fixed input bound.
-        import hashlib
-        import json
-
-        self._state_binding_digest = hashlib.sha256(json.dumps({
-            "config": self._graphs["config_digest"],
-            "composition": schedule["composition_digest"],
-            "body": bundle.privacy.get("body_fingerprint"),
-            "stages": bundle.privacy.get("stage_commitment"),
-        }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        from .model_binding import _state_binding_digest
+        self._state_binding_digest = _state_binding_digest(plan, bundle, schedule["composition_digest"])
         self._stages = dict(stages)
         self._tensors = dict(tensors)
         self._window_contracts = self._declared_windows(self._graphs)
@@ -286,12 +286,51 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if not self._window_contracts and not self._hybrid_contracts:
             self._validate_full_snapshot(snapshot)
         basis = snapshot.state_basis
-        if (basis is None or not basis.completed_prefill() or basis.position != snapshot.position
+        if (basis is None or not self._cache_basis_valid(basis) or basis.position != snapshot.position
                 or basis.source_binding_digest != self._state_binding_digest):
             raise TransformerClientError("ordinary restore requires completed prefill execution basis")
+        self._validate_verification_basis(basis)
         super().restore(snapshot)
         self._snapshot_basis = basis
         self._continuation_owner = None
+
+    def enable_generated_prefixes(self, contract: DecoderContinuationSchedule) -> None:
+        """Bind the explicit native canonical-state extension before using it."""
+        if (self._causal_reduction != "prefix_f32" or self.nonlinear_evaluator is not None
+                or contract.to_dict().get("generated_prefix_canonical") is not True):
+            raise TransformerClientError("generated prefix reuse requires canonical native arithmetic")
+        self.install_continuation(contract)
+        self._generated_prefix_contract = contract
+
+    def _cache_basis_valid(self, basis) -> bool:
+        if basis.completed_prefill():
+            return True
+        contract = getattr(self, "_generated_prefix_contract", None)
+        return (contract is not None and basis.cache_eligible(generated_prefixes=True)
+                and basis.native_phase_digest == contract.digest)
+
+    def canonical_generated_snapshot(self) -> RuntimeSnapshot:
+        """Export only evaluated, bounded tokens; keep response-owned state intact."""
+        contract = self._generated_prefix_contract
+        basis = self._snapshot_basis
+        if (contract is None or basis is None or not basis.valid()
+                or basis.phase != "incremental" or self._continuation_failed
+                or self.nonlinear_evaluator is not None
+                or not 1 <= self.position <= contract.to_dict()["token_bound"]):
+            raise TransformerClientError("generated state lacks canonical prefix qualification")
+        self.install_continuation(contract)
+        snapshot = self.snapshot()
+        self._validate_full_snapshot(snapshot)
+        self._validate_verification_basis(basis)
+        import hashlib
+        snapshot.state_basis = _snapshot_state_basis(
+            "canonical_incremental", self.position, self._state_binding_digest,
+            contract.digest, hashlib.sha256((basis.execution_digest + contract.digest).encode()).hexdigest(),
+            None, self.position, verification_failure_bits=basis.verification_failure_bits,
+            verification_lineage=basis.verification_lineage,
+            verification_inventory_digest=basis.verification_inventory_digest,
+        )
+        return snapshot
 
     def restore_for_response(self, snapshot: RuntimeSnapshot, response_id: str) -> None:
         if self._window_contracts or self._hybrid_contracts or snapshot.shared_kv:
@@ -303,9 +342,16 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
                 or basis.source_binding_digest != self._state_binding_digest
                 or basis.owner_response_id != response_id):
             raise TransformerClientError("prior response snapshot owner/source execution basis mismatch")
+        self._validate_verification_basis(basis)
         super().restore(snapshot)
         self._snapshot_basis = basis
         self._continuation_owner = response_id
+
+    def _validate_verification_basis(self, basis) -> None:
+        if (basis is None or not basis.valid()
+                or basis.verification_failure_bits != self._verification_bits
+                or basis.verification_lineage > self._verification_lineage_limit):
+            raise TransformerClientError("snapshot verification provenance/budget mismatch")
 
     def continue_ids(self, ids: list[int] | np.ndarray, *, memory_bytes: int = 2 << 30) -> np.ndarray:
         """Append a query block to declared existing full KV; one call per linear stage."""
@@ -324,7 +370,7 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             basis = self._snapshot_basis
             if (basis is None or not basis.valid() or basis.position != self.position
                     or basis.source_binding_digest != self._state_binding_digest
-                    or (not basis.completed_prefill()
+                    or (not self._cache_basis_valid(basis)
                         and (basis.phase not in {"completed_prefill", "incremental"}
                              or not self._continuation_owner
                              or basis.owner_response_id != self._continuation_owner))):
@@ -939,6 +985,29 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         previous_basis = self._snapshot_basis
         # A partial/failed phase must never retain completed-prefill qualification.
         self._snapshot_basis = None
+        verification_lineage, verification_inventory, verified_before = 0, "", 0
+        checked_remote = None
+        if self._verification_bits:
+            from .transformer_client import PreparedRemoteLinear
+            from typing import cast
+            import hashlib
+            if type(self.remote) is not PreparedRemoteLinear:
+                raise TransformerClientError("verified phase requires an active authenticated verifier")
+            checked_remote = cast(PreparedRemoteLinear, self.remote)
+            if (checked_remote.verification_component != "pllm/freivalds-verify/v1"
+                    or checked_remote.inventory._closed):
+                raise TransformerClientError("verified phase requires an active authenticated verifier")
+            if previous_basis is not None:
+                self._validate_verification_basis(previous_basis)
+            verification_inventory = hashlib.sha256(
+                b"pllm.verified-inventory.v1\0" + checked_remote.inventory._owner._verification_identity
+                + checked_remote.inventory.inventory_id.encode()
+            ).hexdigest()
+            verification_lineage = (0 if previous_basis is None else previous_basis.verification_lineage) + int(
+                previous_basis is None or previous_basis.verification_inventory_digest != verification_inventory)
+            if verification_lineage > self._verification_lineage_limit:
+                raise TransformerClientError("verified cached lineage exceeds its failure budget")
+            verified_before = checked_remote.verified_calls
         values: dict[str, Any] = {
             "input.tokens": ids,
             "input.positions": positions,
@@ -1079,6 +1148,12 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             raise TransformerClientError("semantic cache key has no matching value")
         if set(pending_hybrid) != set(self._hybrid_contracts):
             raise TransformerClientError("semantic hybrid state output is incomplete")
+        if checked_remote is not None and checked_remote.verified_calls - verified_before != sum(
+            step["executor"] == "verified_remote_stage"
+            and self.bundle.stages[self._stages[f"{phase}:{step['operation_ids'][0]}"]].client_weight is None
+            for step in steps
+        ):
+            raise TransformerClientError("verified phase did not check every remote stage")
         self._hybrid_states = pending_hybrid
         self.position += ids.size
         import hashlib
@@ -1094,14 +1169,18 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
             + positions.astype("<i8").tobytes() + ids.astype("<i8").tobytes()
         ).hexdigest()
         incremental = phase == "decode" or (previous_basis is not None and (
-            previous_basis.phase != "completed_prefill" or previous_basis.owner_response_id is not None
+            not self._cache_basis_valid(previous_basis) or previous_basis.owner_response_id is not None
             or self._causal_reduction is None and previous_basis.prefill_extent != self.position
         ))
         self._snapshot_basis = _snapshot_state_basis(
-            "incremental" if incremental else "completed_prefill", self.position,
+            ("unqualified" if self.nonlinear_evaluator is not None else
+             "incremental" if incremental else "completed_prefill"), self.position,
             self._state_binding_digest, native_phase, execution, self._continuation_owner,
             self.position if previous_basis is None or self._causal_reduction and not incremental
             else previous_basis.prefill_extent,
+            verification_failure_bits=self._verification_bits,
+            verification_lineage=verification_lineage,
+            verification_inventory_digest=verification_inventory,
         )
         return np.asarray(values[logits_id], dtype=np.float32)
 

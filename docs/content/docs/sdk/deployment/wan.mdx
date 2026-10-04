@@ -1,0 +1,94 @@
+---
+title: "WAN readiness"
+description: "Enforce shared party upload/download limits and measure token throughput."
+---
+
+`pllm benchmark run --wan` enforces **100 Mbps download and 40 Mbps upload per
+party**, including the client, through Docker-backed Linux queues. Rates are
+decimal megabits per second: **12.5 MB/s down and 5 MB/s up**. Each party shares
+one upload and one download budget across all peers and connections.
+
+The benchmark records measured end-to-end, online and decode tokens/second under
+those caps. Every report also includes a separate `wan_readiness` projection.
+`--wan-estimate` selects analytical-only operation without throttling.
+
+The report sums each party's outgoing and incoming covered bodies separately.
+All its peers share those capacities. Its transfer-time floor is the maximum of
+every party's upload and download demand divided by its access rate. A party
+with two peers does not get two independent 40 Mbps uplinks.
+
+## CLI
+
+```bash
+pllm benchmark run --tiny --wan --max-output-tokens 4 --warmups 0 --repetitions 1 \
+  --temperature 0 --inventory-policy request-sized --output wan-report.json
+```
+
+Use `--wan-download-mbps` and `--wan-upload-mbps` to override defaults.
+`--wan-party PARTY:DOWN:UP` may be repeated for individual parties.
+Supplying any rate, party override or profile enables enforcement unless
+`--wan-estimate` is also supplied. `--wan-profile` accepts the immutable JSON
+document illustrated by `examples/benchmarks/consumer-wan.json` (which reduces
+Preparation's upload to 10 Mbps); profile and inline overrides cannot be mixed.
+
+Enforcement selects the existing local Docker CPU backend. A running Linux Docker
+engine is required. It does not change an independently deployed HTTP network.
+Optional Docker delay/loss settings compose with the party caps; a second
+Docker bandwidth setting is rejected. Zero additional delay/loss is the default.
+
+## Python SDK example
+
+```python
+from pllm.deployment import PartyAccess, WanConditions
+
+consumer = WanConditions()
+slower_helper = WanConditions(parties=(PartyAccess("preparation", 100, 10),))
+assert consumer.access("client").upload_mbps == 40
+assert slower_helper.access("preparation").upload_mbps == 10
+assert consumer.link_conditions("inference", "client").bytes_per_second == 5_000_000
+assert WanConditions.from_spec(consumer.to_spec()).digest == consumer.digest
+```
+
+API: [pllm.deployment](/sdk/reference/python/pllm/deployment/#objects-and-signatures)
+
+Pass this immutable profile as `wan=consumer` to the existing
+`pllm.runtime.build_roles(experiment, wan=consumer)` factory for enforced local
+execution. The ordinary benchmark driver accepts the same profile and
+`emulate_wan=True`; supplying only its `wan` argument requests a projection.
+
+Use `pllm.metrics.wan_readiness(report, conditions)` to evaluate another scenario
+against an existing canonical report. Live network records use their actual
+role-to-party assignments. Explicit `role_parties` can group local roles behind
+one access link; those intra-party bodies stay accounted but do not cross the
+modeled WAN. A conflicting live assignment is rejected.
+Re-evaluating a report under a different hypothetical profile omits its measured
+emulation subsection rather than attributing old timings to the new rates.
+
+## Interpreting the report
+
+- Separate online, measured-run, setup-inclusive and cold-first windows retain
+  their accounting scope. Startup and discarded warmups are charged once.
+- Reports include per-party bytes, access rates, bottlenecks and optimistic
+  generated-token throughput ceilings. Missing body ledgers remain unknown.
+- Enforced runs additionally expose `wan_readiness.emulation`: end-to-end
+  throughput is `N / full_seconds`, including demand preparation; online
+  throughput is `N / online_seconds`; decode throughput is `(N-1)` divided by
+  the first-to-last output interval. Provider startup and discarded warmups are
+  outside these request clocks. One-output responses have no decode rate.
+- The measured subsection requires matching kernel queue readbacks before and
+  after execution. Rate queues include service control, ACKs and retransmissions;
+  benchmark management and telemetry use a separate path. Helper CPU/memory is
+  recorded separately. Cleanup removes only the run's owned namespaces/queues.
+- These are **bandwidth floors**, not latency predictions or an internet-readiness
+  certificate. Dependencies, RTT, contention, protocol framing, TLS and unmetered
+  checkpoint distribution can add time and bytes.
+- `link_conditions()` supplies a single-flow capacity for existing controlled
+  network experiments. Independent per-link shapers do not enforce a shared
+  aggregate access cap; `--wan` uses routed party namespaces instead. Docker IP-hook measurements retain their own measured
+  scope and must not be relabeled as these WAN estimates or complete wire.
+
+See [communication metrics](/sdk/evaluate/metrics/communication/) and
+[prepared output residues](/sdk/components/protocols/prepared-residues/).
+The [pinned Qwen check](https://github.com/blairhudson/pllm/blob/main/docs/evidence/wan-emulation-2026-10-04.md)
+measures 2.081 decode tokens/s at 100/40 Mbps and 0.775 at 20/8 Mbps, with matching
+outputs. These are one-sample local rate-emulation results with no added RTT.

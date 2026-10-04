@@ -12,11 +12,17 @@ Supported selectors are `qkv_projection`, `attention_output`, `mlp_gate_up` and
 their exact i8 weights, scales and declared biases before inventory reservation.
 The selected roles must exist and some body work must remain remote.
 
-This is a CPU-backed public prepared placement in `MaskedLinearCpu`, sharing its
-client-local nonlinear operations. It does not implement provider-protected
-nonlinear execution. Verified, proprietary and other unsupported compositions
-fail closed. Added client weights/scales have a 512 MiB bound; native kernels own
+This public prepared placement supports `MaskedLinearCpu` and
+`VerifiedMaskedLinearCpu`, with native CPU or thresholded Apple Metal kernels.
+Nonlinear operations remain client-local. Added client weights/scales have a
+512 MiB bound; native kernels own
 another weight snapshot. Providers retain the public checkpoint.
+
+`ClientLinearRoles(roles, prefix_layers=1)` selects the **union** of matching
+projection roles and all projections in the first layer. Native scheduling,
+bundle import, provider stages, GPU allocation and planner costs use the same
+predicate; overlapping stages are counted once. Omitting `prefix_layers`
+preserves previous component identities. Some body work must remain remote.
 
 ## Python SDK example
 
@@ -31,7 +37,7 @@ experiment = Experiment(
     "client-attention",
     MaskedLinearCpu(
         Model.tiny(),
-        placement=ClientLinearRoles(["qkv_projection", "attention_output"]),
+        placement=ClientLinearRoles(["qkv_projection", "attention_output"], prefix_layers=1),
         inventory=PreparedInventory("request-sized"),
         delivery=ClientBundleTransport("zlib"),
     ),
@@ -39,6 +45,7 @@ experiment = Experiment(
     ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
 )
 assert experiment.resolve().client_linear_roles == ("attention_output", "qkv_projection")
+assert experiment.resolve().client_prefix_layers == 1
 assert experiment.resolve().prepared_inventory_rows == 1
 assert experiment.pipeline.placement.component == "pllm/client-owned-linear-roles/v1"
 assert tuple(experiment.pipeline.placement.get_params()["roles"]) == ("attention_output", "qkv_projection")

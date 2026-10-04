@@ -171,6 +171,31 @@ def test_preparation_envelope_and_ack_are_small():
     assert len(SessionAuthorizationAck(authorization.session_id).pack()) < 64
 
 
+def test_large_public_residue_layout_roundtrips_bounded_correction_frame():
+    rng = np.random.default_rng(73)
+    widths = rng.integers(12, 17, size=8192, dtype=np.uint8).tobytes()
+    value = request(out_features=len(widths))
+    correction = rng.integers(0, value.modulus, size=(2, len(widths)), dtype=np.uint32)
+    shared = {name: getattr(value, name) for name in CorrectionPush.__dataclass_fields__ if hasattr(value, name)}
+    push = CorrectionPush(**shared, correction=correction, server_ns=1, output_residue_bits=widths)
+    payload = push.pack()
+    encoded = msgpack.unpackb(payload, raw=False)["y"]["zlib_base64"]
+    assert type(encoded) is bytes and len(encoded) > 512
+    restored = CorrectionPush.unpack(payload)
+    expected = correction & ((np.uint32(1) << np.frombuffer(widths, np.uint8)) - np.uint32(1))
+    np.testing.assert_array_equal(restored.correction, expected)
+    assert restored.output_residue_bits == widths and restored.pack() == payload
+
+
+def test_streamed_http_rejection_preserves_status_without_reading_error_body():
+    from pllm.runtime.client import _raise, ProtocolError as ClientProtocolError
+    response = httpx.Response(400, stream=httpx.ByteStream(b'{"detail":"rejected"}'))
+    with pytest.raises(ClientProtocolError, match="HTTP 400") as error:
+        _raise(response)
+    assert error.value.status_code == 400
+    assert not response.is_stream_consumed
+
+
 @pytest.mark.parametrize("bound", [100, 40_000, 9_000_000])
 @pytest.mark.parametrize(
     ("verification_component", "unexpected_material"),

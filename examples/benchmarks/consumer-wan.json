@@ -1,0 +1,14 @@
+{
+  "schema": "pllm.wan_conditions.v1",
+  "download_mbps": 100,
+  "upload_mbps": 40,
+  "parties": [
+    {
+      "schema": "pllm.party_access.v1",
+      "party_id": "preparation",
+      "download_mbps": 100,
+      "upload_mbps": 10
+    }
+  ],
+  "role_parties": []
+}

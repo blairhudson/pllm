@@ -427,10 +427,33 @@ from .projected_polynomial import ProjectedPolynomialCostProbe
 from .private_pages import PrivatePageLookupProbe
 from .head_retrieval import PrivateHeadRetrievalProbe
 from .token_budget import TokenNetworkBudgetProbe
+from .communication import communication_per_token
+from .wan import wan_readiness
+from .projected_resharing import ProjectedResharingProbe
+from .prepared_residues import PreparedResidueProbe
+from .artifact_planes import ArtifactPlaneProbe
+from .batched_lookup import BatchedPrivateLookupProbe
+from .orthogonal_activation import OrthogonalActivationProbe
+from .state_reuse import GeneratedStateReuseProbe, StateCompatibilityProbe
+from .aggregation import MaskedAggregationProbe
+from .token_local import TokenLocalProjectionProbe
+from .progressive_head import ProgressiveHeadProbe
 
 __all__ = [
+    "ProjectedResharingProbe",
+    "PreparedResidueProbe",
+    "ArtifactPlaneProbe",
+    "BatchedPrivateLookupProbe",
+    "OrthogonalActivationProbe",
+    "wan_readiness",
     "Accuracy",
     "Communication",
+    "communication_per_token",
+    "GeneratedStateReuseProbe",
+    "MaskedAggregationProbe",
+    "TokenLocalProjectionProbe",
+    "ProgressiveHeadProbe",
+    "StateCompatibilityProbe",
     "Cost",
     "Energy",
     "EncryptedLinearCostProbe",

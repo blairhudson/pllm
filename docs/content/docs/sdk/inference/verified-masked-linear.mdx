@@ -12,6 +12,10 @@ results before dequantizing, and claimed material burns on success or failure.
 The verified remote stage is now a distinct compiled executor; constructing a
 compiled session requires the matching one-use verifier inventory before
 execution. A static schedule alone cannot certify a live session.
+The profile also accepts client placement, inventory, bundle delivery, prefix
+reuse and remote untied-head slots. Cache reuse preserves
+[verification lineage and its cumulative failure budget](/sdk/components/verification/freivalds/);
+local stages stay inside the trusted client and every remote stage remains checked.
 This checks inference against the trusted preparation result; it does not protect
 against malicious or colluding preparation, nor reduce online traffic. Inspired
 by [Slalom](/research/papers/slalom/); not its TEE deployment or security claim.

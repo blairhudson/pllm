@@ -8,7 +8,7 @@ from pllm.configuration import Pipeline
 from pllm.modeling import ModelPlan
 from pllm.profiles import resolve_runtime_composition
 
-from .semantic_stages import client_owns_linear, scheduled_stage_specs
+from .semantic_stages import provider_owns_linear, scheduled_stage_specs
 
 
 def admit_continuation(value: Any, plan: ModelPlan, engine: Any, model_id: str) -> dict:
@@ -16,8 +16,8 @@ def admit_continuation(value: Any, plan: ModelPlan, engine: Any, model_id: str) 
         raise ValueError("invalid decoder continuation extension envelope")
     composition = Pipeline.from_spec(value["composition"])
     options = resolve_runtime_composition(composition)
-    if options is None or options.privacy_mode != "public" or options.verification_component is not None:
-        raise ValueError("continuation requires unverified prepared execution")
+    if options is None or options.privacy_mode not in {"public", "offset_public"}:
+        raise ValueError("continuation requires admitted public linear execution")
     expected = {
         "weight_bits": options.weight_bits,
         "activation_bits": options.activation_bits,
@@ -28,15 +28,15 @@ def admit_continuation(value: Any, plan: ModelPlan, engine: Any, model_id: str) 
     }
     if any(getattr(engine, key, None) != item for key, item in expected.items()):
         raise ValueError("continuation numeric/placement contract differs from provider")
-    if getattr(engine, "verification_component", "none") != "none":
-        raise ValueError("verified provider cannot admit baseline continuation")
+    if (getattr(engine, "verification_component", "none") != (options.verification_component or "none")
+            or getattr(engine, "verification_target_failure_bits", 0) != options.verification_target_failure_bits):
+        raise ValueError("verified provider continuation contract mismatch")
     specs = scheduled_stage_specs(plan, composition)
     remote = {
         spec.id: spec for spec in specs
-        if spec.id != "token_lookup"
-        and (spec.id != "lm_head" or options.remote_output_head)
-        and not client_owns_linear(spec, client_prefix_layers=options.client_prefix_layers,
-                                   client_linear_roles=tuple(options.client_linear_roles))
+        if provider_owns_linear(spec, remote_output_head=options.remote_output_head,
+                                client_prefix_layers=options.client_prefix_layers,
+                                client_linear_roles=tuple(options.client_linear_roles))
     }
     if set(remote) != set(engine.seeded_stage_ids(model_id)):
         raise ValueError("continuation stages differ from provider")

@@ -44,6 +44,14 @@ versus 18.24 s; aggregate CPU was 56.17 s versus 55.88 s. These are single,
 co-located body/CPU samples, not full-wire or representative quality evidence.
 The client retains its existing token/head tables and attention/KV state.
 
+The same profile now accepts `cache=ClientPrefixReuse(...)` and
+`delivery=ClientBundleTransport("artifacts", compression="zlib")`. Both workers
+re-lower and acknowledge the compiled continuation before accepting stage work.
+Exact repeated prefills skip that work; proper prefixes use a batched suffix.
+Growing-width reuse requires the explicit `prefix_f32` numeric contract. This
+combines with both encodings above without moving body weights to the client.
+See [combined configurations](/sdk/evaluate/combinations/) for matched costs.
+
 ## Python SDK example
 
 ```python

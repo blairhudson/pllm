@@ -93,3 +93,10 @@ def evaluate_search(
     candidates: Iterable[SearchCandidate],
     evaluator: Callable[[SearchCandidate], BenchmarkResult],
 ) -> tuple[SearchEvaluation, ...]: ...
+
+def optimization_space(
+    experiment: Experiment, *, allow_client_weights: bool = False,
+    client_prefix_layers: tuple[int, ...] = (),
+    prefix_cache_bytes: int = 0, metal_min_rows: int | None = None,
+    max_candidates: int = 64,
+) -> SearchSpace: ...

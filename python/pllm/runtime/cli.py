@@ -83,6 +83,7 @@ def _apply_server_defaults(args: argparse.Namespace) -> None:
         "remote_output_head": False,
         "client_prefix_layers": 0,
         "client_linear_roles": "",
+        "prepared_output_encoding": "raw",
         "weight_bits": 8,
         "activation_bits": 8,
         "model": [],
@@ -300,6 +301,10 @@ def run_server(args: argparse.Namespace, *, preparation: bool = False) -> None:
         if engine_type is not MaskedTransformerEngine:
             raise RuntimeCLIError("client linear roles require public prepared roles")
         engine_kwargs["client_linear_roles"] = tuple(args.client_linear_roles.split(","))
+    if getattr(args, "prepared_output_encoding", None) not in (None, "raw"):
+        if engine_type is not MaskedTransformerEngine:
+            raise RuntimeCLIError("prepared residue encoding requires public roles")
+        engine_kwargs["prepared_output_encoding"] = args.prepared_output_encoding
     if engine_type is GuardedBlindedTransformerEngine:
         engine_kwargs["guard_policy"] = GuardPolicy(
             max_rows_per_request=args.guard_max_rows_per_request,

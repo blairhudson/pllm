@@ -1,6 +1,7 @@
 """Public deployment declarations."""
 
 from pllm.configuration import Deployment
+from pllm.deployment.wan import PartyAccess, WanConditions
 from pllm.components._planned import (
     PendingComponent as PendingMethod,
     install_planned_components,
@@ -44,6 +45,8 @@ __all__ = [
     "TeeFheTopology",
     "LinkObservation",
     "LinkConditions",
+    "PartyAccess",
+    "WanConditions",
     "NetworkError",
     "NetworkSnapshot",
     "NetworkSpec",

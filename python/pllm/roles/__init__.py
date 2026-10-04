@@ -179,9 +179,9 @@ CLIENT_LINEAR_ROLES = ("attention_output", "mlp_down", "mlp_gate_up", "qkv_proje
 
 
 class ClientLinearRoles(ClientPlacement):
-    """Own selected semantic linear roles, leaving other body stages remote."""
+    """Own the union of semantic linear roles and an optional complete prefix."""
 
-    __slots__ = ("roles",)
+    __slots__ = ("roles", "prefix_layers")
     descriptor = ComponentDescriptor(
         component="pllm/client-owned-linear-roles/v1",
         provider="pllm",
@@ -201,14 +201,15 @@ class ClientLinearRoles(ClientPlacement):
                     "maxItems": 4,
                     "uniqueItems": True,
                     "items": {"type": "string", "enum": list(CLIENT_LINEAR_ROLES)},
-                }
+                },
+                "prefix_layers": {"type": "integer", "minimum": 1, "maximum": 8},
             },
         },
         capabilities=("client-owned-semantic-weights", "prepared-remote-body"),
         role_eligibility=("client", "preparation", "inference"),
     )
 
-    def __init__(self, roles: tuple[str, ...] | list[str]) -> None:
+    def __init__(self, roles: tuple[str, ...] | list[str], *, prefix_layers: int = 0) -> None:
         if (
             not isinstance(roles, (tuple, list))
             or not 1 <= len(roles) <= 4
@@ -216,12 +217,17 @@ class ClientLinearRoles(ClientPlacement):
             or len(set(roles)) != len(roles)
         ):
             raise ValueError("client linear roles require distinct supported semantic roles")
+        if type(prefix_layers) is not int or not 0 <= prefix_layers <= 8:
+            raise ValueError("client prefix_layers must be in [0, 8]")
         canonical = tuple(sorted(roles))
-        super().__init__(self.descriptor.component, {"roles": list(canonical)})
+        super().__init__(self.descriptor.component, {
+            "roles": list(canonical), **({"prefix_layers": prefix_layers} if prefix_layers else {}),
+        })
         object.__setattr__(self, "roles", canonical)
+        object.__setattr__(self, "prefix_layers", prefix_layers)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"roles": self.roles}
+        return {"roles": self.roles, **({"prefix_layers": self.prefix_layers} if self.prefix_layers else {})}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

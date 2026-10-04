@@ -16,10 +16,13 @@ Existing network-reduction evidence is linked in
 | B: live parties | Explicit network Experiment v3, authenticated offers and directory membership, instance epochs, capacity reservation/arm/release, expiry, drain and cancellation | Live CPU two-offset and prepared Inference/Preparation roles; isolated one-use inventories and selected-peer push credentials; declared operators do not prove independence |
 | C: shared application paths | Ordinary gateway and benchmark accept selected plans or planning requests; controlled east-fast/west-fast cohorts select different hosts | Selected latency regret was zero in two three-repetition loopback scenarios; full-wire and whole-response aggregate CPU remain unknown |
 | E1: private state locality | Immutable shared KV blocks, compiler-bound batched suffix schedule, explicit canonical valid-prefix float32 reductions, real provider acknowledgement before inventory reservation | Canonical numeric choice admits growing-width completed-prefill reuse; historical numeric mode still requires matching full extent; generated KV remains explicitly response-owned |
-| E2: public artifact locality | `ClientBundleTransport("artifacts")`, authenticated object delivery, bounded content-addressed cache, exact raw reconstruction before native import | Public compiled prepared bundles; private state and one-use inventory never become public artifacts |
+| E2: public artifact locality | `ClientBundleTransport("artifacts", compression="zlib")`, authenticated bounded object frames, shared raw content-addressed cache, exact reconstruction before native import | Public prepared, verified and offset bundles; private state and one-use inventory never become public artifacts |
 | E3: shallow HE | Real-shaped exact encrypted linear-region feasibility screen | Tested projection costs roughly 40 times the prepared stage bodies; non-selectable |
 | F: locality-aware planning | Source-bound `ArtifactCostEvidence`, declared public residency, `reuse_horizon` and horizon body objectives | Public misses charged once; manifests, one-use material and online work charged each workload; declarations are estimates |
 | G: Linux benchmark backend | Ordinary `benchmark run --docker`, slim public CPU image, one container per provider role, cgroup and interface samples | Co-located Docker development topology; host client; interface counters include control/telemetry and do not establish all-link full wire |
+| H: load-time choices | `search.optimization_space` and `compiler.plan_on_load` resolve and check source identity, propose bounded existing components and select through native-admitted placement | Preserves numerics/privacy; explicit client ownership/cache permission; prices geometry and supplied evidence, not speculative GPU/compression speedups |
+| I: composition and per-token measurement | Metal with client-owned attention/prefix; canonical online/setup/decode MB per generated token | Extra GPU snapshots counted; pinned combined cohort has near-equal CPU/Metal latency; application bodies, not full wire |
+| J: combined contracts | Authenticated offset continuation, prefix/role placement unions, compressed artifact reuse and sealed verified-cache lineage | Exact tiny logit/KV parity; verified cache reserves twelve failure bits for 4,096 inventory transitions; real verified startup timed out and has no measured cost win |
 
 Reproducible controls and current APIs:
 
@@ -29,6 +32,25 @@ Reproducible controls and current APIs:
 - [`batched-continuation-2026-10-01.md`](docs/evidence/batched-continuation-2026-10-01.md)
 - [`artifact-locality-2026-10-01.md`](docs/evidence/artifact-locality-2026-10-01.md)
 - [`exact-linear-he-review-2026-10-01.md`](docs/evidence/exact-linear-he-review-2026-10-01.md)
+- [`metal-placement-qwen25-2026-10-03.md`](docs/evidence/metal-placement-qwen25-2026-10-03.md)
+- [`examples/benchmarks/automatic_planning.py`](examples/benchmarks/automatic_planning.py)
+- [`combined-compatibility-qwen25-2026-10-03.md`](docs/evidence/combined-compatibility-qwen25-2026-10-03.md)
+
+### Selection and tuning policy
+
+Do not enable every compatible optimization. Native contracts decide legality;
+explicit workload/client limits and scoped cost evidence decide benefit. Retain
+the incumbent on unpriced ties. New cost records should bind source, numeric
+contract, input/decode shape, reuse horizon, device, runtime implementation and
+network identity; invalidate observations when those identities change. Keep
+private cache state and one-use material outside persistent tuning data. Current
+load-time planning prices geometry, artifact locality, reusable-state assumptions
+and switching. Schema-v2 artifact cost records additionally price checked encoded
+object lengths independently from raw resident storage. Union placement counts
+overlapping stages once; offset estimates price seeded input and conservative
+numeric packing bounds. A measured GPU/compression CPU autotuner remains follow-on
+work. The current combined cohort finds the lean prepared stack cheaper in total
+than moving further layers client-side, despite the union's lower online traffic.
 
 ### Numeric state gate
 

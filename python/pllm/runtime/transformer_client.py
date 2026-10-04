@@ -13,7 +13,7 @@ from typing import Any, Callable, Protocol, cast
 import msgpack
 import numpy as np
 
-from .native import CompiledMatrix, MaskedGEMM
+from .native import CompiledMatrix, MaskedGEMM, mask_prepared_input, unmask_prepared_output
 from .preparation_protocol import (
     PreparationAck,
     PreparationRequest,
@@ -139,6 +139,9 @@ class PreparedInventory:
     _cancelled: bool = False
     _audit: Callable[[str, int], None] | None = field(default=None, repr=False, compare=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # Client-minted incarnation: a provider reissuing the same textual ID must
+    # not merge two independently generated verifier inventories in cache proofs.
+    _verification_identity: bytes = field(default_factory=lambda: secrets.token_bytes(32), init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._record("issued", self.capacity * len(self.stages))
@@ -260,6 +263,9 @@ class ClientBundle:
     _local_kernel: MaskedGEMM | None = field(default=None, init=False, repr=False)
     _local_matrices: dict[str, CompiledMatrix] = field(default_factory=dict, init=False, repr=False)
     _local_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _body_kernel_policy: tuple | None = field(default=None, init=False, repr=False)
+    _body_metal_matrices: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+    _body_metal_min_rows: int = field(default=0, init=False, repr=False)
 
     @property
     def config(self) -> dict[str, Any]:
@@ -345,7 +351,6 @@ class ClientBundle:
                 raise TransformerClientError("invalid client linear role placement") from exc
             if (
                 list(canonical_roles) != client_linear_roles
-                or client_prefix_layers
                 or privacy.get("mode") != "public"
                 or value.get("runtime") != "masked_transformer"
             ):
@@ -431,8 +436,13 @@ class ClientBundle:
                     ) from exc
             client_weight = None
             output_residue_bits = row.get("output_residue_bits")
+            if type(output_residue_bits) is dict:
+                from .residue_codec import decode_layout
+                output_residue_bits = decode_layout(output_residue_bits, out_features)
             if output_residue_bits is not None and (
-                privacy.get("mode") != "offset_public"
+                (privacy.get("mode") != "offset_public" and not (
+                    privacy.get("mode") == "public" and privacy.get("preprocessed") is True
+                    and privacy.get("prepared_output_encoding") == "row_residues"))
                 or type(output_residue_bits) is not bytes or len(output_residue_bits) != out_features
                 or seeded_profile is None or "client_weight" in row
                 or any(not 1 <= width <= seeded_profile.wire_bits for width in output_residue_bits)
@@ -590,6 +600,43 @@ class ClientBundle:
             schema_version=version,
         )
 
+    def _bind_body_kernel(self, kernels, stage_ids: tuple[str, ...]) -> None:
+        """Bind only validated compiler-owned body stages, once per bundle.
+
+        Called after complete checkpoint binding and before material reservation.
+        All GPU weights are preflighted before allocating the first snapshot.
+        """
+        policy = (kernels.component, tuple(sorted(kernels.params.items())), stage_ids)
+        with self._local_lock:
+            if self._body_kernel_policy is not None:
+                if self._body_kernel_policy != policy:
+                    raise TransformerClientError("client body kernel differs from bound policy")
+                return
+            weights = {}
+            for stage_id in stage_ids:
+                stage = self.stages[stage_id]
+                if (stage.layer_index is None or stage.client_weight is None
+                        or stage.client_weight_layout != "linear"):
+                    raise TransformerClientError("client body kernel requires owned linear stages")
+                weights[stage_id] = stage.client_weight
+            if not weights:
+                raise TransformerClientError("client body kernel has no owned stages")
+            if kernels.component == "pllm/apple-metal-int8/v1":
+                from .metal import MetalGEMM
+
+                matrices = MetalGEMM().bind_stages(weights)
+                min_rows = kernels.params["min_rows"]
+                cpu = MaskedGEMM()
+            elif kernels.component == "pllm/cpu":
+                matrices, min_rows = {}, 0
+                cpu = MaskedGEMM(threads=kernels.params["threads"])
+            else:
+                raise TransformerClientError("unsupported client body kernel")
+            self._local_kernel = cpu
+            self._body_metal_matrices = matrices
+            self._body_metal_min_rows = min_rows
+            self._body_kernel_policy = policy
+
     def local_linear(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages[stage_id]
         if (
@@ -606,7 +653,12 @@ class ClientBundle:
                     self._local_kernel = MaskedGEMM()
                 matrix = self._local_kernel.compile(stage.client_weight)
                 self._local_matrices[stage_id] = matrix
-        integer = matrix.clear(quantized.values)
+        metal = self._body_metal_matrices.get(stage_id)
+        integer = (
+            metal.clear(quantized.values)
+            if metal is not None and quantized.rows >= self._body_metal_min_rows
+            else matrix.clear(quantized.values)
+        )
         result = dequantize_matmul(
             integer,
             quantized.scales,
@@ -979,6 +1031,7 @@ class PreparedRemoteLinear:
         self.inventory = inventory
         self.verification_component = verification_component
         self.stats = StageClientStats()
+        self.verified_calls = 0
 
     @staticmethod
     def _result(payloads: list[bytes], request_ids: list[str], stage: StageMetadata):
@@ -1009,12 +1062,9 @@ class PreparedRemoteLinear:
             value = equalize_activation(value, stage.input_equalization)
         quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
         profile = stage.seeded_profile
-        if profile is None:
+        if profile is None or profile.wire_bits not in {16, 24, 32} or profile.modulus != 1 << profile.wire_bits:
             raise TransformerClientError("stage lacks a seeded ring profile")
-        clear_signed = quantized.values.reshape(quantized.rows, stage.in_features).astype(
-            np.int32, copy=False
-        )
-        clear = clear_signed.astype(np.int64, copy=False) % profile.modulus
+        clear_signed = quantized.values.reshape(quantized.rows, stage.in_features)
         mask, output_mask, attempt_ids = self.inventory.take(stage_id, quantized.rows)
         verifier = self.inventory.take_verifier(stage_id)
         if self.verification_component not in {"none", "pllm/freivalds-verify/v1"} or (
@@ -1023,14 +1073,14 @@ class PreparedRemoteLinear:
             if verifier is not None:
                 verifier.cancel()
             raise TransformerClientError("prepared stage verification does not match its contract")
-        complement = (clear - mask.astype(np.int64)) % profile.modulus
+        complement = mask_prepared_input(clear_signed, mask, profile.wire_bits)
         batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
         if batch_id is not None:
             inference_requests = [
                 PreparedStageBatchRequest(
                     batch_id=batch_id,
                     correlation_ids=tuple(attempt_ids),
-                    masked_input=complement.astype(np.uint32),
+                    masked_input=complement,
                     wire_bits=profile.wire_bits,
                 ).pack()
             ]
@@ -1040,7 +1090,7 @@ class PreparedRemoteLinear:
                     model=self.model_id,
                     stage_id=stage_id,
                     correlation_id=attempt_ids[0],
-                    masked_input=complement.astype(np.uint32),
+                    masked_input=complement,
                     activation_scales=np.ones(1, dtype=np.float32),
                     modulus=profile.modulus,
                     wire_bits=profile.wire_bits,
@@ -1067,7 +1117,20 @@ class PreparedRemoteLinear:
             record_protocol_bytes(
                 "inference", "client", sum(map(len, inference_payloads)), stage_id
             )
-            if batch_id is not None:
+            if stage.output_residue_bits is not None:
+                from pllm import _native
+                from .residue_codec import unpack_row_response
+                if len(inference_payloads) != 1:
+                    raise TransformerClientError("inference provider returned the wrong packed result count")
+                packed, inference_server_ns = unpack_row_response(
+                    inference_payloads[0], ticket=batch_id or attempt_ids[0], stage=stage_id,
+                    widths=stage.output_residue_bits, rows=quantized.rows,
+                    bits=profile.wire_bits, namespace="prepared",
+                )
+                accumulators = np.frombuffer(_native.prepared_unpack_output(
+                    packed, output_mask.astype("<u4", copy=False).tobytes(),
+                    stage.output_residue_bits, quantized.rows), "<i8").reshape(quantized.rows, stage.out_features)
+            elif batch_id is not None:
                 if len(inference_payloads) != 1:
                     raise TransformerClientError(
                         "inference provider returned the wrong batch result count"
@@ -1085,11 +1148,11 @@ class PreparedRemoteLinear:
                     raise TransformerClientError(
                         "service returned a mismatched prepared batch result"
                     )
-                masked_output = batch_result.masked_output
+                accumulators = unmask_prepared_output(batch_result.masked_output, output_mask, profile.wire_bits)
                 inference_server_ns = batch_result.server_ns
             else:
                 inference_results = self._result(inference_payloads, attempt_ids, stage)
-                masked_output = inference_results[0].masked_output
+                accumulators = unmask_prepared_output(inference_results[0].masked_output, output_mask, profile.wire_bits)
                 inference_server_ns = inference_results[0].server_ns
         except Exception as exc:
             protocol_span.record_exception(exc)
@@ -1099,13 +1162,6 @@ class PreparedRemoteLinear:
             "pllm.inference_client.bytes", sum(map(len, inference_payloads))
         )
         protocol_span.end()
-        combined = (masked_output.astype(np.int64) + output_mask.astype(np.int64)) % profile.modulus
-        if profile.ring == "u16":
-            accumulators = combined.astype(np.uint16).view(np.int16).astype(np.int64)
-        elif profile.ring == "u24":
-            accumulators = np.where(combined >= 1 << 23, combined - (1 << 24), combined)
-        else:
-            accumulators = combined.astype(np.uint32).view(np.int32).astype(np.int64)
         if verifier is not None:
             verified = verifier.verify(
                 np.asarray(clear_signed, dtype="<i4").tobytes(),
@@ -1116,6 +1172,7 @@ class PreparedRemoteLinear:
                 .copy()
                 .reshape(quantized.rows, stage.out_features)
             )
+            self.verified_calls += 1
         output = dequantize_matmul(
             accumulators,
             quantized.scales,
@@ -1188,26 +1245,39 @@ class SnapshotStateBasis:
     prefill_extent: int
     owner_response_id: str | None
     seal: str
+    verification_failure_bits: int = 0
+    verification_lineage: int = 0
+    verification_inventory_digest: str = ""
 
     def _payload(self) -> bytes:
         return json.dumps([
-            "pllm.decoder.snapshot-basis.v1", self.phase, self.position,
+            "pllm.decoder.snapshot-basis.v2", self.phase, self.position,
             self.source_binding_digest, self.native_phase_digest,
             self.execution_digest, self.prefill_extent, self.owner_response_id,
+            self.verification_failure_bits, self.verification_lineage, self.verification_inventory_digest,
         ], separators=(",", ":")).encode()
 
     def valid(self) -> bool:
+        from pllm.verification import FreivaldsVerify
         digests = (self.source_binding_digest, self.native_phase_digest, self.execution_digest)
         return (
-            self.phase in {"completed_prefill", "incremental", "unqualified"}
+            self.phase in {"completed_prefill", "canonical_incremental", "incremental", "unqualified"}
             and type(self.position) is int and self.position > 0
             and type(self.prefill_extent) is int
             and (self.prefill_extent == 0 if self.phase == "unqualified" else self.prefill_extent > 0)
-            and (self.phase != "completed_prefill" or self.position <= self.prefill_extent)
+            and (self.phase not in {"completed_prefill", "canonical_incremental"} or self.position <= self.prefill_extent)
             and all(type(value) is str and len(value) == 64
                     and all(char in "0123456789abcdef" for char in value) for value in digests)
             and (self.owner_response_id is None or type(self.owner_response_id) is str
-                 and bool(self.owner_response_id))
+                  and bool(self.owner_response_id))
+            and type(self.verification_failure_bits) is int and type(self.verification_lineage) is int
+            and ((self.verification_failure_bits == self.verification_lineage == 0
+                  and self.verification_inventory_digest == "")
+                 or (1 <= self.verification_failure_bits <= 80
+                     and 1 <= self.verification_lineage <= FreivaldsVerify._MAX_CACHE_LINEAGE
+                     and type(self.verification_inventory_digest) is str
+                     and len(self.verification_inventory_digest) == 64
+                     and all(char in "0123456789abcdef" for char in self.verification_inventory_digest)))
             and type(self.seal) is str
             and hmac.compare_digest(self.seal, hmac.new(_STATE_BASIS_KEY, self._payload(), "sha256").hexdigest())
         )
@@ -1215,29 +1285,43 @@ class SnapshotStateBasis:
     def completed_prefill(self) -> bool:
         return self.valid() and self.phase == "completed_prefill" and self.owner_response_id is None
 
+    def cache_eligible(self, *, generated_prefixes: bool = False) -> bool:
+        return self.completed_prefill() or (generated_prefixes and self.valid()
+            and self.phase == "canonical_incremental" and self.owner_response_id is None)
+
     def _with_owner(self, owner: str) -> SnapshotStateBasis:
         if not self.valid() or not owner:
             raise TransformerClientError("invalid snapshot execution basis/owner")
         return _snapshot_state_basis(
             self.phase, self.position, self.source_binding_digest,
             self.native_phase_digest, self.execution_digest, owner, self.prefill_extent,
+            verification_failure_bits=self.verification_failure_bits,
+            verification_lineage=self.verification_lineage,
+            verification_inventory_digest=self.verification_inventory_digest,
         )
 
     def _prefix(self, position: int) -> SnapshotStateBasis:
-        if not self.completed_prefill() or not 0 < position <= self.position:
+        if not self.cache_eligible(generated_prefixes=True) or not 0 < position <= self.position:
             raise TransformerClientError("only completed prefill basis can produce a cache prefix")
         return _snapshot_state_basis(
             self.phase, position, self.source_binding_digest, self.native_phase_digest,
             hashlib.sha256(self._payload() + position.to_bytes(8, "big")).hexdigest(), None, self.prefill_extent,
+            verification_failure_bits=self.verification_failure_bits,
+            verification_lineage=self.verification_lineage,
+            verification_inventory_digest=self.verification_inventory_digest,
         )
 
 
 def _snapshot_state_basis(phase: str, position: int, source: str, native_phase: str,
                           execution: str, owner: str | None = None,
-                          prefill_extent: int = 0) -> SnapshotStateBasis:
-    basis = SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner, "")
+                          prefill_extent: int = 0, *, verification_failure_bits: int = 0,
+                          verification_lineage: int = 0,
+                          verification_inventory_digest: str = "") -> SnapshotStateBasis:
+    basis = SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner, "",
+                               verification_failure_bits, verification_lineage, verification_inventory_digest)
     return SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner,
-                              hmac.new(_STATE_BASIS_KEY, basis._payload(), "sha256").hexdigest())
+                              hmac.new(_STATE_BASIS_KEY, basis._payload(), "sha256").hexdigest(),
+                              verification_failure_bits, verification_lineage, verification_inventory_digest)
 
 
 @dataclass(slots=True)
@@ -1369,6 +1453,16 @@ class MaskedTransformerClientRuntime:
                 hashlib.sha256(source.encode() + saved.position.to_bytes(8, "big")).hexdigest(),
             )
         saved.state_basis = basis._with_owner(response_id)
+        if basis.phase == "canonical_incremental":
+            # A response-owned continuation resumes incremental execution without
+            # borrowing a future request's cache-workload qualification.
+            saved.state_basis = _snapshot_state_basis(
+                "incremental", basis.position, basis.source_binding_digest,
+                basis.native_phase_digest, basis.execution_digest, response_id, basis.prefill_extent,
+                verification_failure_bits=basis.verification_failure_bits,
+                verification_lineage=basis.verification_lineage,
+                verification_inventory_digest=basis.verification_inventory_digest,
+            )
         return saved
 
     def restore_for_response(self, snapshot: RuntimeSnapshot, response_id: str) -> None:

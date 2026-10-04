@@ -133,8 +133,12 @@ def test_native_contract_binds_original_geometry_and_separate_semantics(checkpoi
     forged["numeric_digest"] = "a" * 64
     with pytest.raises(ValueError, match="contract mismatch"):
         dataclasses.replace(contract, _canonical_bytes=json.dumps(forged).encode())
-    with pytest.raises(ValueError, match="prepared public unverified"):
-        compiled._plan.continuation_schedule(VerifiedMaskedLinearCpu(Model("continuation-checkpoint")))
+    verified = compiled._plan.continuation_schedule(VerifiedMaskedLinearCpu(Model("continuation-checkpoint")))
+    assert verified.digest != contract.digest
+    assert any(step["executor"] == "verified_remote_stage" for step in verified.to_dict()["schedule"]["steps"])
+    from pllm.profiles import ClientOnlyCpu
+    with pytest.raises(ValueError, match="admitted public linear"):
+        compiled._plan.continuation_schedule(ClientOnlyCpu(Model("continuation-checkpoint")))
 
 
 @pytest.mark.parametrize("prefix,suffix", [(1, 1), (8, 23), (13, 7), (31, 33)])

@@ -50,6 +50,11 @@ _PRIVACY_FIELDS = frozenset(
         "preparation_download_bytes",
         "inference_upload_bytes",
         "inference_download_bytes",
+        "generation_completed_responses",
+        "generation_output_tokens",
+        "generation_decode_output_tokens",
+        "generation_prefill_online_body_bytes",
+        "generation_decode_online_body_bytes",
         "preparation_server_ns",
         "inference_server_ns",
         "correction_push_bytes",
@@ -119,6 +124,8 @@ class BenchmarkRun:
     input_tokens: int | None = None
     output_tokens: int | None = None
     token_usage_authoritative: bool = False
+    decode_online_body_bytes: int | None = None
+    decode_output_tokens: int | None = None
     inventory_required: int = 0
     inventory_generated: int = 0
     inventory_reused: int = 0
@@ -173,6 +180,15 @@ class BenchmarkRun:
             if value is not None and (not isinstance(value, int) or value < 0):
                 raise ValueError("run counts must be non-negative integers")
         unknown_privacy = set(self.privacy_delta).difference(_PRIVACY_FIELDS)
+        if (self.decode_online_body_bytes is None) != (self.decode_output_tokens is None):
+            raise ValueError("decode body bytes and token count must be jointly measured")
+        if self.decode_output_tokens is not None and (
+            type(self.decode_online_body_bytes) is not int or self.decode_online_body_bytes < 0
+            or type(self.decode_output_tokens) is not int or self.decode_output_tokens < 0
+            or not self.token_usage_authoritative or self.output_tokens is None
+            or self.decode_output_tokens != self.output_tokens - 1 or self.status != "completed"
+        ):
+            raise ValueError("invalid measured decode body/token window")
         if unknown_privacy:
             raise ValueError(f"unsupported privacy metrics: {sorted(unknown_privacy)}")
         if any(not isinstance(value, int) or value < 0 for value in self.privacy_delta.values()):
@@ -252,6 +268,11 @@ class BenchmarkRun:
                 "output_tokens": self.output_tokens,
                 "total_tokens": total_tokens,
                 "authoritative": self.token_usage_authoritative,
+            },
+            "network": {
+                "decode_online_body_bytes": self.decode_online_body_bytes,
+                "decode_output_tokens": self.decode_output_tokens,
+                "decode_scope": "after-first-output-through-completion",
             },
             "inventory": {
                 "required": self.inventory_required,

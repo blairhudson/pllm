@@ -61,6 +61,20 @@ def ensure_image(image=None):
     return tag, identifier
 
 
+def ensure_measurement_image(runtime_image, image_id):
+    definition = Path(__file__).with_name("Dockerfile.measurement")
+    if not definition.is_file():
+        raise TopologyError("Docker link measurement definition is missing from this installation")
+    digest = hashlib.sha256(image_id.encode() + definition.read_bytes()).hexdigest()[:20]
+    image = "pllm-measurement:" + digest
+    try:
+        _docker(["image", "inspect", image])
+    except TopologyError:
+        _docker(["build", "--build-arg", "PLLM_RUNTIME_IMAGE=" + runtime_image,
+                 "-f", str(definition), "-t", image, str(definition.parent)], timeout=600)
+    return image
+
+
 class _Container:
     pid = None  # Container PIDs belong to the VM, never the client's PID namespace.
 
@@ -92,9 +106,10 @@ class _Container:
 
 class DockerTopology(LocalTopology):
     __slots__ = ("_docker_image", "_docker_image_id", "_docker_network", "_docker_names", "_docker_mount",
-                 "_docker_hub", "_docker_blobs", "_measurement_image", "_measurement_helpers", "_link_conditions")
+                 "_docker_hub", "_docker_blobs", "_measurement_image", "_measurement_helpers", "_link_conditions",
+                 "_wan_conditions", "_party_network")
 
-    def __init__(self, *args, docker_image=None, docker_network=None, **kwargs):
+    def __init__(self, *args, docker_image=None, docker_network=None, wan=None, **kwargs):
         super().__init__(*args, **kwargs)
         if self._privacy_mode not in {"public", "offset_public", "client_only"} or (
             self._correlation_mode != "bfv" or self._tenseal_path is not None
@@ -111,12 +126,18 @@ class DockerTopology(LocalTopology):
         self._docker_mount = None
         self._docker_hub = None
         self._docker_blobs = ()
-        from pllm.deployment import LinkConditions
+        from pllm.deployment import LinkConditions, WanConditions
         if docker_network is not None and not isinstance(docker_network, LinkConditions):
             raise TypeError("docker_network requires LinkConditions")
         self._link_conditions = docker_network
         self._measurement_helpers = {}
         self._measurement_image = None
+        if wan is not None and type(wan) is not WanConditions:
+            raise TypeError("WAN emulation requires WanConditions")
+        if wan is not None and docker_network is not None and docker_network.bytes_per_second is not None:
+            raise ValueError("WAN emulation owns rates; Docker link rate cannot also be set")
+        self._wan_conditions = wan
+        self._party_network = None
 
     def start(self):
         if self._started and not self._closed:
@@ -130,16 +151,7 @@ class DockerTopology(LocalTopology):
 
         try:
             self._docker_image, self._docker_image_id = ensure_image(self._docker_image)
-            definition = Path(__file__).with_name("Dockerfile.measurement")
-            if not definition.is_file():
-                raise TopologyError("Docker link measurement definition is missing from this installation")
-            digest = hashlib.sha256(self._docker_image_id.encode() + definition.read_bytes()).hexdigest()[:20]
-            self._measurement_image = "pllm-measurement:" + digest
-            try:
-                _docker(["image", "inspect", self._measurement_image])
-            except TopologyError:
-                _docker(["build", "--build-arg", "PLLM_RUNTIME_IMAGE=" + self._docker_image,
-                         "-f", str(definition), "-t", self._measurement_image, str(definition.parent)], timeout=600)
+            self._measurement_image = ensure_measurement_image(self._docker_image, self._docker_image_id)
             source = resolve_model(self._model, cache_dir=self._hf_cache_dir)
             if source.path is None:
                 raise TopologyError("Docker roles require a resolved checkpoint")
@@ -169,12 +181,26 @@ class DockerTopology(LocalTopology):
     def _spawn(self, role, command):
         if self._stopping.is_set():
             raise TopologyError("Docker topology stopped during startup")
+        if self._wan_conditions is not None and self._party_network is None:
+            from .docker_wan import DockerPartyNetwork
+            self._party_network = DockerPartyNetwork(
+                name=self._docker_network, network=self._docker_network, image=self._measurement_image,
+                role_urls=self._role_urls, conditions=self._wan_conditions, link_conditions=self._link_conditions,
+                telemetry_port=urlsplit(self._telemetry_endpoint).port if self._telemetry_endpoint else None,
+                stop_event=self._stopping)
+            self._party_network.start()
+        if self._stopping.is_set():
+            raise TopologyError("Docker topology stopped during startup")
         environment = self._environment(role)
         forwarded = []
         if role == "preparation":
             port = urlsplit(self._inference_url).port
-            forwarded.append({"port": port, "host": self._docker_names["inference"], "target_port": port})
-        if self._telemetry_endpoint is not None:
+            if self._party_network is None:
+                forwarded.append({"port": port, "host": self._docker_names["inference"], "target_port": port})
+            elif not self._party_network.same_party("client", role):
+                forwarded.append({"port": port, "host": self._party_network.address("inference"),
+                                  "target_port": self._party_network.backend_ports["inference"]})
+        if self._telemetry_endpoint is not None and self._party_network is None:
             port = urlsplit(self._telemetry_endpoint).port
             forwarded.append({"port": port, "host": "host.docker.internal", "target_port": port})
         # The fixed loopback proxy preserves existing origin and push-URL checks.
@@ -184,6 +210,8 @@ class DockerTopology(LocalTopology):
             arguments[arguments.index("--host") + 1] = "0.0.0.0"
         else:
             arguments += ["--host", "0.0.0.0"]
+        if self._party_network is not None:
+            arguments[arguments.index("--port") + 1] = str(self._party_network.backend_ports[role])
         # Forward owned role settings, never arbitrary host credentials or payload variables.
         keys = {"PLLM_ROLE_EXPERIMENT_JSON", "PLLM_API_KEY", "PLLM_PREPARED_INVENTORY_ROWS"}
         if role == "inference":
@@ -206,12 +234,16 @@ class DockerTopology(LocalTopology):
         name = self._docker_names[role]
         port = urlsplit(self._role_urls[role]).port
         options = ["create", "--name", name, "--label", "pllm.benchmark=true",
-                   "--network", self._docker_network, "--add-host", "host.docker.internal:host-gateway",
-                   "--publish", f"127.0.0.1:{port}:{port}", "--cap-drop=ALL",
+                   "--cap-drop=ALL",
                    "--security-opt=no-new-privileges", "--pids-limit=256",
                    "--cpus", str(self._engine_threads or 1),
                    "--mount", f"type=bind,src={self._docker_mount},dst={self._docker_mount},readonly",
                     "--entrypoint", "/opt/pllm/.venv/bin/python"]
+        if self._party_network is None:
+            options += ["--network", self._docker_network, "--add-host", "host.docker.internal:host-gateway",
+                        "--publish", f"127.0.0.1:{port}:{port}"]
+        else:
+            options += ["--network", "container:" + self._party_network.namespace(role)]
         for blob in self._docker_blobs:
             if "," in str(blob):
                 raise TopologyError("Docker checkpoint blob paths cannot contain commas")
@@ -229,7 +261,8 @@ class DockerTopology(LocalTopology):
                     environment={**os.environ, **allowed})
             process.created = True
             _docker(["start", name])
-        self._start_measurement(role, port)
+        if self._party_network is None:
+            self._start_measurement(role, port)
         return process
 
     def _start_measurement(self, role, port):
@@ -277,6 +310,10 @@ class DockerTopology(LocalTopology):
             value = json.loads(_docker(["exec", process.name, "/opt/pllm/.venv/bin/python",
                                       "-m", "pllm.runtime.docker_role", "--sample"]))
             samples[role] = value
+            if self._party_network is not None:
+                value["network_namespace_party"] = self._party_network.role_parties[role]
+                value["interface_counters_shared_with_namespace"] = True
+                continue
             measure = json.loads(_docker(["exec", self._measurement_helpers[role].name,
                                          "/opt/pllm/.venv/bin/python", "-m", "pllm.runtime.docker_network", "--sample"]))
             overhead[role] = measure["measurement_resources"]
@@ -286,6 +323,14 @@ class DockerTopology(LocalTopology):
             if role == "inference" and "preparation" in self._role_ids:
                 links["preparation->inference"] = counters["peer_rx"]
                 links["inference->preparation"] = counters["peer_tx"]
+        if self._party_network is not None:
+            wan = self._party_network.resource_samples()
+            return {"schema": "pllm.docker_resources.v1", "image_id": self._docker_image_id,
+                    "scope": "co-located-provider-containers", "roles": samples,
+                    "directed_ip": wan["directed_ip"], "wan_emulation": wan,
+                    "measurement_helpers": wan["measurement_helpers"],
+                    "link_conditions": self._link_conditions.to_spec() if self._link_conditions else None,
+                    "shaping_scope": wan["scope"], "full_wire_bytes": None}
         return {"schema": "pllm.docker_resources.v1", "image_id": self._docker_image_id,
                  "scope": "co-located-provider-containers", "roles": samples,
                  "directed_ip": {"scope": "IPv4-service-TCP-at-provider-eth0",
@@ -306,7 +351,11 @@ class DockerTopology(LocalTopology):
                     except Exception as error:
                         failure = failure or error
             finally:
-                super().close()
+                try:
+                    super().close()
+                finally:
+                    if self._party_network is not None:
+                        self._party_network.close()
             if failure is not None:
                 raise failure
         finally:

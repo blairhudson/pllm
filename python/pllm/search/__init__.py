@@ -579,6 +579,7 @@ class QualityLockedNetworkSearch:
 
 
 from pllm.search.placement import ArtifactCostEvidence, CandidateCostEvidence, ClientStateCostEvidence, PlanningPolicy, PlanningRequest
+from pllm.search.optimizations import optimization_space
 
 __all__ = [
     "CandidateCostEvidence",
@@ -586,6 +587,7 @@ __all__ = [
     "ClientStateCostEvidence",
     "PlanningPolicy",
     "PlanningRequest",
+    "optimization_space",
     "Constraint",
     "GridSearch",
     "ParetoFrontier",

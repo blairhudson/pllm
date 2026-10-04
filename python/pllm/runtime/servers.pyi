@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from pllm.configuration import Experiment, Model, Pipeline
+from pllm.deployment import LinkConditions, WanConditions
 from pllm.runtime.client import OpenAI
 
 class TopologyError(RuntimeError): ...
@@ -56,6 +57,10 @@ def build_roles(
     credential_prefix: str = "local",
     startup_timeout: float = 300.0,
     progress: Callable[[str], None] | None = None,
+    docker: bool = False,
+    docker_image: str | None = None,
+    docker_network: LinkConditions | None = None,
+    wan: WanConditions | None = None,
 ) -> LocalTopology: ...
 
 def serve_local(

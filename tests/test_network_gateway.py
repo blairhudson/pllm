@@ -126,8 +126,12 @@ def test_live_http_disconnect_after_partial_tokens_closes_lease_no_retry(network
                 else:
                     pytest.fail("no partial token reached gateway client")
         deadline = time.monotonic() + 5
-        while any(child.state.controller._reservations for child in fixture["children"]):
-            assert time.monotonic() < deadline, "disconnect leaked execution lease"
+        # The controller drops a lease before its HTTP response reaches the
+        # proxy's completed-request ledger. Wait for both observable boundaries.
+        while (any(child.state.controller._reservations for child in fixture["children"])
+               or sum(proxy.snapshot().get("release", {}).get("requests", 0)
+                      for proxy in fixture["proxies"]) < 2):
+            assert time.monotonic() < deadline, "disconnect did not complete both lease releases"
             time.sleep(0.01)
         assert sum(len(child.state.controller._used_attempts) for child in fixture["children"]) == 2
         assert sum(proxy.snapshot().get("reserve", {}).get("requests", 0) for proxy in fixture["proxies"]) == 2

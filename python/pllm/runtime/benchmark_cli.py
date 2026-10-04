@@ -183,6 +183,7 @@ def build_loopback_report(
     stage_snapshots: dict[str, Any] | None = None,
     temperature: float | None = None,
     capture_output_digest: bool = False,
+    wan=None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import (
@@ -381,7 +382,8 @@ def build_loopback_report(
             }
             if "preparation" in roles
             else {
-                "startup": None,
+                "startup": (two_worker_body_accounting({"privacy": initial_preparation_audit})
+                            if initial_preparation_audit is not None else None),
                 "warmups": [two_worker_body_accounting(run) for run in warmup_runs],
                 "runs": [two_worker_body_accounting(run) for run in runs],
             }
@@ -396,6 +398,11 @@ def build_loopback_report(
     }
     if report["topology_accounting"] is not None:
         report["summary"].update(accounted_benchmark_body_totals(report["topology_accounting"]))
+    from pllm.metrics import communication_per_token, wan_readiness
+
+    report["communication_per_token"] = communication_per_token(report)
+    report["summary"].update(report["communication_per_token"]["summary"])
+    report["wan_readiness"] = wan_readiness(report, wan)
     return report
 
 
@@ -418,7 +425,8 @@ def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
         return None
     sampling_key = (float(effective), sampling["mode"], None)
     configuration = report.get("configuration", {})
-    transport_key = (configuration.get("provider_backend", "host"), configuration.get("link_conditions_digest"))
+    transport_key = (configuration.get("provider_backend", "host"), configuration.get("link_conditions_digest"),
+                     configuration.get("wan_emulation", False), configuration.get("wan_emulation_digest"))
     if report.get("configuration", {}).get("prompt_sequence_digest") is not None:
         if len({run.get("model_fingerprint") for run in runs}) != 1:
             return None
@@ -689,7 +697,7 @@ def _run_once(
     client: httpx.Client,
     process: Any,
     *,
-    prompt: str,
+    prompt: str | list[dict[str, str]],
     max_output_tokens: int,
     timeout_seconds: float,
     progress: ProgressCallback | None = None,
@@ -765,7 +773,7 @@ def _run_loopback_benchmark(
     model: str,
     model_id: str | None,
     tiny: bool,
-    prompt: str,
+    prompt: str | list[dict[str, str]],
     max_output_tokens: int,
     warmups: int,
     repetitions: int,
@@ -778,27 +786,36 @@ def _run_loopback_benchmark(
     prefill_cache_mib: int = 0,
     prefill_cache_mode: str = "exact",
     prefill_cache_bound_tokens: int | None = None,
-    warmup_prompt: str | None = None,
-    prompt_sequence: tuple[str, ...] | list[str] | None = None,
+    warmup_prompt: str | list[dict[str, str]] | None = None,
+    prompt_sequence: tuple[Any, ...] | list[Any] | None = None,
     _cohort_salt: bytes | None = None,
     temperature: float | None = None,
     capture_output_digest: bool = False,
     docker: bool = False,
     docker_image: str | None = None,
     docker_network=None,
+    wan=None,
+    emulate_wan: bool = False,
 ) -> dict[str, Any]:
+    from pllm.deployment import WanConditions
+    if wan is not None and type(wan) is not WanConditions:
+        raise TypeError("wan must be WanConditions")
+    if type(emulate_wan) is not bool:
+        raise TypeError("emulate_wan must be boolean")
+    if emulate_wan:
+        wan = wan or WanConditions()
+        docker = True
+        if docker_network is not None and docker_network.bytes_per_second is not None:
+            raise ValueError("WAN emulation owns rates; Docker link rate cannot also be set")
     from .dashboard import _validate_output_digest_capture, _validate_request_temperature
 
     capture_output_digest = _validate_output_digest_capture(capture_output_digest)
     temperature = _validate_request_temperature(temperature)
+    from .benchmark_context import context_bytes, validate_context
     if prompt_sequence is not None:
         if (
             not isinstance(prompt_sequence, (list, tuple))
             or not 1 <= len(prompt_sequence) <= 32
-            or any(
-                not isinstance(value, str) or not value.strip() or len(value.encode()) > 16_384
-                for value in prompt_sequence
-            )
         ):
             raise ValueError(
                 "prompt sequence requires 1-32 nonempty contexts of at most 16384 bytes"
@@ -808,7 +825,7 @@ def _run_loopback_benchmark(
             and warmups + repetitions * len(prompt_sequence) > experiment.budget.requests
         ):
             raise ValueError("prompt sequence exceeds the Experiment request budget")
-        prompt_sequence = tuple(prompt_sequence)
+        prompt_sequence = tuple(validate_context(value) for value in prompt_sequence)
         prompt = prompt_sequence[0]
     selected_inventory_rows = None
     if experiment is not None:
@@ -826,8 +843,8 @@ def _run_loopback_benchmark(
     bundle_compression = bundle_compression or "none"
     if inventory_policy not in {"prewarm", "request-sized"}:
         raise ValueError("inventory policy must be prewarm or request-sized")
-    if bundle_compression not in {"none", "zlib", "artifacts"}:
-        raise ValueError("bundle compression must be none, zlib, or artifacts")
+    if bundle_compression not in {"none", "zlib", "artifacts", "artifacts-zlib"}:
+        raise ValueError("bundle compression must be none, zlib, artifacts, or artifacts-zlib")
     if type(prefill_cache_mib) is not int or not 0 <= prefill_cache_mib <= 256:
         raise ValueError("prefill cache must be in [0, 256] MiB")
     if experiment is not None:
@@ -850,8 +867,13 @@ def _run_loopback_benchmark(
             raise ValueError("prefix cache requires memory and a fixed 2-4096 token input bound")
     elif prefill_cache_mode != "exact" or prefill_cache_bound_tokens is not None:
         raise ValueError("prefix cache bound requires prefix mode")
-    if warmup_prompt is not None and (not warmups or not warmup_prompt.strip()):
-        raise ValueError("distinct warmup prompt requires at least one warmup")
+    if warmup_prompt is not None:
+        if not warmups:
+            raise ValueError("distinct warmup prompt requires at least one warmup")
+        try:
+            warmup_prompt = validate_context(warmup_prompt)
+        except ValueError as exc:
+            raise ValueError("warmup context is invalid") from exc
     if _cohort_salt is None:
         _cohort_salt = secrets.token_bytes(32)
     global _DASHBOARD_PORT, _DASHBOARD_TOKEN
@@ -879,7 +901,7 @@ def _run_loopback_benchmark(
     else:
         resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
     startup_inventory_rows = (
-        min(64, len(prompt.encode("utf-8")) + max_output_tokens + 20) if effective_tiny else 64
+        min(64, len(context_bytes(prompt)) + max_output_tokens + 20) if effective_tiny else 64
     )
     if selected_inventory_rows is not None:
         startup_inventory_rows = selected_inventory_rows
@@ -908,6 +930,7 @@ def _run_loopback_benchmark(
         docker=docker,
         docker_image=docker_image,
         docker_network=docker_network,
+        wan=wan if emulate_wan else None,
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
@@ -959,7 +982,7 @@ def _run_loopback_benchmark(
                 stage_snapshots["after_ready"] = stage_snapshot()
             initial_preparation_audit = (
                 dashboard_app.state.dashboard_runtime.initial_preparation_audit()
-                if "preparation" in roles
+                if "preparation" in roles or set(roles) == {"client", "worker_a", "worker_b"}
                 else None
             )
             client_model_ownership = (
@@ -1049,10 +1072,10 @@ def _run_loopback_benchmark(
         prefill_cache_mode=prefill_cache_mode,
         prefill_cache_bound_tokens=prefill_cache_bound_tokens,
         warmup_prompt_digest=hashlib.sha256(
-            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + (warmup_prompt or prompt).encode()
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + context_bytes(warmup_prompt or prompt)
         ).hexdigest(),
         prompt_digest=hashlib.sha256(
-            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + prompt.encode()
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + context_bytes(prompt)
         ).hexdigest(),
         prompt_sequence_digest=(
             hashlib.sha256(
@@ -1067,6 +1090,7 @@ def _run_loopback_benchmark(
         client_model_ownership=client_model_ownership,
         cold_process_cpu=cold_process_cpu,
         stage_snapshots=stage_snapshots,
+        wan=wan,
         temperature=temperature,
         capture_output_digest=capture_output_digest,
     )
@@ -1089,6 +1113,11 @@ def _run_loopback_benchmark(
             "full_wire_bytes": None,
             "samples": docker_samples,
         }
+    if emulate_wan:
+        from pllm.metrics import wan_readiness
+        report["configuration"]["wan_emulation"] = True
+        report["configuration"]["wan_emulation_digest"] = wan.digest
+        report["wan_readiness"] = wan_readiness(report, wan)
     if experiment is not None:
         report["experiment"] = {
             "name": experiment.name,
@@ -1105,7 +1134,7 @@ def run_loopback_benchmark(
     model: str,
     model_id: str | None,
     tiny: bool,
-    prompt: str,
+    prompt: str | list[dict[str, str]],
     max_output_tokens: int,
     warmups: int,
     repetitions: int,
@@ -1118,14 +1147,16 @@ def run_loopback_benchmark(
     prefill_cache_mib: int = 0,
     prefill_cache_mode: str = "exact",
     prefill_cache_bound_tokens: int | None = None,
-    warmup_prompt: str | None = None,
-    prompt_sequence: tuple[str, ...] | list[str] | None = None,
+    warmup_prompt: str | list[dict[str, str]] | None = None,
+    prompt_sequence: tuple[Any, ...] | list[Any] | None = None,
     _cohort_salt: bytes | None = None,
     temperature: float | None = None,
     capture_output_digest: bool = False,
     docker: bool = False,
     docker_image: str | None = None,
     docker_network=None,
+    wan=None,
+    emulate_wan: bool = False,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
@@ -1144,6 +1175,8 @@ def run_loopback_benchmark(
             docker=docker,
             docker_image=docker_image,
             docker_network=docker_network,
+            wan=wan,
+            emulate_wan=emulate_wan,
             inventory_policy=inventory_policy,
             bundle_compression=bundle_compression,
             prefill_cache_mib=prefill_cache_mib,

@@ -7,6 +7,10 @@ use std::collections::BTreeSet;
 
 pub const DECODER_CONTINUATION_SCHEMA: &str = "pllm.decoder_continuation.v1";
 
+fn is_false(value: &bool) -> bool {
+    !value
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DecoderContinuation {
@@ -20,6 +24,8 @@ pub struct DecoderContinuation {
     pub token_bound: u64,
     pub state_row_bytes: u64,
     pub working_bytes_bound: u64,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub generated_prefix_canonical: bool,
     pub graph: DecoderGraph,
     pub schedule: DecoderRuntimePhaseSchedule,
 }
@@ -67,8 +73,10 @@ pub fn lower_decoder_continuation(
     if !matches!(
         crate::classify_decoder_composition(composition)?,
         crate::DecoderCompositionKind::MaskedLinear
+            | crate::DecoderCompositionKind::TwoOnlineOffsetLinear
+            | crate::DecoderCompositionKind::VerifiedMaskedLinear
     ) {
-        return Err("continuation requires prepared public unverified composition".into());
+        return Err("continuation requires admitted public linear composition".into());
     }
     let source = lower_decoder_runtime_schedule(plan, composition)?;
     let bound = plan.prefill.query_sequence;
@@ -210,6 +218,14 @@ pub fn lower_decoder_continuation(
     let working_bytes = live_working_bytes(&schedule)?;
     let numeric: serde_json::Value = serde_json::from_slice(composition)
         .map_err(|e| format!("invalid continuation composition: {e}"))?;
+    let generated =
+        numeric["components"]["cache"]["params"]["generated_prefixes"].as_bool() == Some(true);
+    if generated
+        && numeric["components"]["quantization"]["params"]["causal_reduction"].as_str()
+            != Some("prefix_f32")
+    {
+        return Err("generated prefix state requires canonical prefix_f32 arithmetic".into());
+    }
     Ok(DecoderContinuation {
         schema_version: DECODER_CONTINUATION_SCHEMA.into(),
         mode: "full_kv_batched_suffix".into(),
@@ -229,6 +245,7 @@ pub fn lower_decoder_continuation(
         token_bound: bound,
         state_row_bytes: row_bytes,
         working_bytes_bound: working_bytes,
+        generated_prefix_canonical: generated,
         graph,
         schedule,
     })

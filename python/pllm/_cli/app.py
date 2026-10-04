@@ -163,6 +163,7 @@ def _add_server_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--remote-output-head", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--client-prefix-layers", type=int, default=0, help=argparse.SUPPRESS)
     parser.add_argument("--client-linear-roles", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--prepared-output-encoding", choices=("raw", "row_residues"), default=None, help=argparse.SUPPRESS)
     parser.add_argument("--guard-max-rows-per-request", type=int)
     parser.add_argument("--guard-max-rows-per-stage", type=int)
     parser.add_argument("--guard-max-requests-per-minute", type=int)
@@ -359,6 +360,14 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
     benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
+    wan_mode = benchmark_run.add_mutually_exclusive_group()
+    wan_mode.add_argument("--wan", action="store_true", help="enforce shared party UP/DOWN rates in local Docker namespaces; default 100/40 Mbps")
+    wan_mode.add_argument("--wan-estimate", action="store_true", help="calculate WAN bandwidth floors without throttling execution")
+    benchmark_run.add_argument("--wan-profile", help="WanConditions JSON; enables local rate enforcement unless --wan-estimate")
+    benchmark_run.add_argument("--wan-download-mbps", type=float, help="shared per-party download Mbps (default: 100); implies --wan")
+    benchmark_run.add_argument("--wan-upload-mbps", type=float, help="shared per-party upload Mbps (default: 40); implies --wan")
+    benchmark_run.add_argument("--wan-party", action="append", default=[], metavar="PARTY:DOWN:UP",
+                               help="per-party Mbps override; repeatable; implies --wan unless --wan-estimate")
     benchmark_run.add_argument(
         "--factory",
         action="store_true",
@@ -429,7 +438,7 @@ def build_parser() -> _Parser:
     )
     benchmark_run.add_argument(
         "--bundle-compression",
-        choices=("none", "zlib", "artifacts"),
+        choices=("none", "zlib", "artifacts", "artifacts-zlib"),
         default=None,
         help="override bundle encoding (default: Experiment selection or none)",
     )
@@ -796,18 +805,16 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             raise ResolutionError(
                 "BENCHMARK_PROMPT_SEQUENCE", "context sequence must be readable JSON"
             ) from exc
-        if (
-            not isinstance(prompt_sequence, list)
-            or not 1 <= len(prompt_sequence) <= 32
-            or any(
-                not isinstance(value, str) or not value.strip() or len(value.encode()) > 16_384
-                for value in prompt_sequence
-            )
-        ):
+        from pllm.runtime.benchmark_context import validate_context
+        try:
+            if not isinstance(prompt_sequence, list) or not 1 <= len(prompt_sequence) <= 32:
+                raise ValueError("context count")
+            prompt_sequence = [validate_context(value) for value in prompt_sequence]
+        except ValueError as exc:
             raise ResolutionError(
                 "BENCHMARK_PROMPT_SEQUENCE",
-                "context sequence requires 1-32 bounded nonempty strings",
-            )
+                "context sequence requires 1-32 bounded text or message-array contexts",
+            ) from exc
         prompt = prompt_sequence[0]
     warmup_prompt = prompt
     if args.warmup_prompt_file is not None:
@@ -866,6 +873,28 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         "save_best": str(args.save_best) if args.save_best is not None else None,
         "sampling": _sampling_choice(args.temperature),
     }
+    from pllm.deployment import PartyAccess, WanConditions
+    try:
+        if args.wan_profile and (args.wan_download_mbps is not None or args.wan_upload_mbps is not None or args.wan_party):
+            raise ValueError("choose --wan-profile or WAN rate flags")
+        parties = []
+        for value in args.wan_party:
+            fields = value.rsplit(":", 2)
+            if len(fields) != 3:
+                raise ValueError("--wan-party requires PARTY:DOWN:UP in Mbps")
+            parties.append(PartyAccess(fields[0], float(fields[1]), float(fields[2])))
+        wan = (WanConditions.from_file(args.wan_profile) if args.wan_profile else WanConditions(
+            download_mbps=100 if args.wan_download_mbps is None else args.wan_download_mbps,
+            upload_mbps=40 if args.wan_upload_mbps is None else args.wan_upload_mbps,
+            parties=tuple(parties)))
+    except (ValueError, OSError) as exc:
+        raise ResolutionError("BENCHMARK_WAN_PROFILE", str(exc)) from exc
+    configuration["wan_conditions"] = wan.to_spec()
+    emulate_wan = not args.wan_estimate and bool(args.wan or args.wan_profile or args.wan_party
+        or args.wan_download_mbps is not None or args.wan_upload_mbps is not None)
+    configuration["wan_mode"] = "kernel-enforced" if emulate_wan else "analytic-only"
+    if emulate_wan and selection is not None:
+        raise ResolutionError("BENCHMARK_WAN_PROFILE", "WAN emulation requires local roles; live network plans support --wan-estimate")
     if selection is not None:
         network, result, request = selection
         candidates = (result.experiment,) if result is not None else request.candidates
@@ -893,7 +922,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         from pllm.deployment import LinkConditions
         docker_network = (LinkConditions.from_file(args.docker_network_profile)
                           if args.docker_network_profile else None)
-        if docker_network is not None and not args.docker:
+        if docker_network is not None and not (args.docker or emulate_wan):
             raise ValueError("--docker-network-profile requires --docker")
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
@@ -910,6 +939,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 repetitions=args.repetitions, timeout_seconds=args.timeout,
                 temperature=args.temperature, compare_feasible=args.compare_feasible,
                 capture_output_digest=args.capture_output_digest,
+                wan=wan,
             )
         for index, experiment in enumerate(selected_experiments, start=1):
             prefix = f"[{index}/{len(selected_experiments)}] " if experiments else ""
@@ -948,6 +978,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 docker=args.docker,
                 docker_image=args.docker_image,
                 docker_network=docker_network,
+                wan=wan,
+                emulate_wan=emulate_wan,
             )
             if experiment is not None:
                 report["experiment"] = {
@@ -1024,6 +1056,26 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 print(f"Median TTFT: {ttft:.3f}s")
             if throughput is not None:
                 print(f"Median throughput: {throughput:.2f} token/s")
+            for key, label in (
+                ("online_mb_per_output_token", "Online, including prefill"),
+                ("setup_inclusive_mb_per_output_token", "Setup-inclusive"),
+                ("decode_online_mb_per_output_token", "Decode after first output"),
+            ):
+                value = summary.get(key)
+                if value is not None:
+                    print(f"{label}: {value:.4f} MB/output-token (application bodies)")
+            for key, label in (("online", "Online"), ("setup_inclusive", "Setup-inclusive")):
+                window = report.get("wan_readiness", {}).get("summary", {}).get(key)
+                if window is not None:
+                    print(f"{label} WAN bandwidth floor: {window['minimum_transfer_seconds']:.3f}s (analytic, shared per-party access)")
+            emulation = report.get("wan_readiness", {}).get("emulation")
+            if emulation is not None:
+                print("WAN rates enforced: shared party upload/download kernel queues"
+                      if emulation["kernel_rate_snapshots_checked"] else "WAN emulation: no inter-party links")
+                for key, label in (("end_to_end", "End-to-end"), ("online", "Online"), ("decode", "Decode")):
+                    value = emulation["summary"][key + "_tokens_per_second"]
+                    if value is not None:
+                        print(f"{label} under WAN caps: {value:.3f} token/s (measured)")
         print("Privacy/runtime checks: " + ("passed" if report["checks"]["passed"] else "failed"))
         if output is not None:
             print(f"Wrote {output}")
@@ -1480,6 +1532,9 @@ def _serve(args: argparse.Namespace, output_format: str, no_input: bool, dry_run
         ):
             raise ValueError("client linear roles conflict with Experiment")
         args.client_linear_roles = ",".join(runtime_options.client_linear_roles)
+        if getattr(args, "prepared_output_encoding", None) not in (None, runtime_options.prepared_output_encoding):
+            raise ResolutionError("SERVE_EXPERIMENT_CONFLICT", "prepared output encoding differs from its Experiment")
+        args.prepared_output_encoding = runtime_options.prepared_output_encoding
         if role == "preparation" and not runtime_options.requires_preparation:
             raise ResolutionError(
                 "SERVE_CONFIGURATION",

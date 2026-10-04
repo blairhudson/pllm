@@ -1,0 +1,1203 @@
+{
+  "environment": {
+    "machine": "arm64",
+    "native_sha256": "bbaa9df4ce76aff28a892c5fbf51abeaabef69c197ef0a4d5d59a1e1636e823c",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "environment_digest": "fd2db9ef2ba6a3fdb2d76294c20111e003d0430eaea3aae550eab9b4da577996",
+  "head": {
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "configurations": [
+      {
+        "admission": "closed: input-dependent refinement count; no public capacity certificate or cheaper admitted private fetch",
+        "certificates": [
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 149992,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 149992
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 149992,
+                "surviving_rows": 4766
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 4766,
+                "surviving_rows": 43
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 43,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 148628,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 148628
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 148628,
+                "surviving_rows": 968
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 968,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 96354,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 96354
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 96354,
+                "surviving_rows": 545
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 545,
+                "surviving_rows": 12
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 12,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 148910,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 148910
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 148910,
+                "surviving_rows": 729
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 729,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 106367,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 106367
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 106367,
+                "surviving_rows": 347
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 347,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 49247,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 49247
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 49247,
+                "surviving_rows": 49
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 49,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 49887,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 49887
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 49887,
+                "surviving_rows": 41
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 41,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 71289,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 71289
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 71289,
+                "surviving_rows": 116
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 116,
+                "surviving_rows": 7
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 7,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 141015,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 141015
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 141015,
+                "surviving_rows": 2587
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 2587,
+                "surviving_rows": 35
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 35,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 94857,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 94857
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 94857,
+                "surviving_rows": 251
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 251,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 91206,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 91206
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 91206,
+                "surviving_rows": 120
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 120,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 43248,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 43248
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 43248,
+                "surviving_rows": 37
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 37,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 81121,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 81121
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 81121,
+                "surviving_rows": 132
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 132,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 138280,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 138280
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 138280,
+                "surviving_rows": 236
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 236,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 98164,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 98164
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 98164,
+                "surviving_rows": 206
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 206,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 72665,
+            "rounds": [
+              {
+                "bits": 4,
+                "scanned_rows": 151936,
+                "surviving_rows": 72665
+              },
+              {
+                "bits": 5,
+                "scanned_rows": 72665,
+                "surviving_rows": 76
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 76,
+                "surviving_rows": 1
+              }
+            ]
+          }
+        ],
+        "client_peak_memory_bytes": null,
+        "complete": false,
+        "control_head_cpu_seconds_median": 0.013135,
+        "exact_greedy_agreements": 16,
+        "executable": false,
+        "full_residual_table_bytes": 68067328,
+        "full_weight_bytes": 136134656,
+        "full_wire_bytes": null,
+        "hidden": 896,
+        "observed_maximum_refinement_rows": 149992,
+        "oracle_retained_native_weight_bytes": 136134656,
+        "packed_prefix_weight_bytes": 68067328,
+        "prefix_bits": 4,
+        "privacy_safe_full_tail_delivery_bytes": 68067328,
+        "private_lookup_one_record_control": {
+          "body_bytes_per_query": 1802,
+          "client_cpu_seconds_per_query_median": 0.000125,
+          "client_online_table_bytes_required": 0,
+          "client_wire_and_returned_payload_bytes": 2698,
+          "exact_byte_parity": true,
+          "full_wire_bytes": null,
+          "layout_digest": "2af8b2ad4cfb2180ad7e31612d84bbd2aec3825ced912a6761907d612e03a9fb",
+          "limitations": [
+            "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+            "Process-local replay ledger; no authenticated transport or distributed restart contract",
+            "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+            "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+            "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+            "A tied local output head still needs the table until a separate head boundary is implemented",
+            "Source distribution, complete decoder compute and generation quality are unmeasured"
+          ],
+          "page_records": 1,
+          "peak_client_memory_bytes": null,
+          "public_table_scan_bytes_per_query_both_workers": 136134656,
+          "public_table_storage_bytes_per_worker": 68067328,
+          "queries": 1,
+          "record_bytes": 448,
+          "records": 151936,
+          "schema": "pllm.private_page_lookup_probe.v1",
+          "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+          "source_table_digest": "c2f323b3b32011d3e3fd4cb61a0fdba616b13774d88b0b547f3627bb86c28abf",
+          "two_worker_table_admission_cpu_seconds": 0.593773,
+          "whole_decoder_executable": false,
+          "worker_cpu_seconds_per_query_median": [
+            0.475024,
+            0.481305
+          ]
+        },
+        "progressive_head_cpu_seconds_median": 0.0261565,
+        "projected_maximum_sparse_pir_bytes": 270285584,
+        "projected_maximum_sparse_pir_worker_cpu_seconds": 143441.699368,
+        "public_capacity_certificate": false,
+        "queries": 16,
+        "schema": "pllm.progressive_head_probe.v1",
+        "scope": "local exact greedy certificate and isolated native PIR control",
+        "vocabulary": 151936,
+        "weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+        "weight_scale_bytes": 607744
+      },
+      {
+        "admission": "closed: input-dependent refinement count; no public capacity certificate or cheaper admitted private fetch",
+        "certificates": [
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 4766,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 4766
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 4766,
+                "surviving_rows": 43
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 43,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 968,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 968
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 968,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 545,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 545
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 545,
+                "surviving_rows": 12
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 12,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 729,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 729
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 729,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 347,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 347
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 347,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 49,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 49
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 49,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 41,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 41
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 41,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 116,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 116
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 116,
+                "surviving_rows": 7
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 7,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 2587,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 2587
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 2587,
+                "surviving_rows": 35
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 35,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 251,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 251
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 251,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 120,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 120
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 120,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 37,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 37
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 37,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 132,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 132
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 132,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 236,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 236
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 236,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 206,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 206
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 206,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 76,
+            "rounds": [
+              {
+                "bits": 5,
+                "scanned_rows": 151936,
+                "surviving_rows": 76
+              },
+              {
+                "bits": 6,
+                "scanned_rows": 76,
+                "surviving_rows": 1
+              }
+            ]
+          }
+        ],
+        "client_peak_memory_bytes": null,
+        "complete": false,
+        "control_head_cpu_seconds_median": 0.014340499999999999,
+        "exact_greedy_agreements": 16,
+        "executable": false,
+        "full_residual_table_bytes": 51050496,
+        "full_weight_bytes": 136134656,
+        "full_wire_bytes": null,
+        "hidden": 896,
+        "observed_maximum_refinement_rows": 4766,
+        "oracle_retained_native_weight_bytes": 136134656,
+        "packed_prefix_weight_bytes": 85084160,
+        "prefix_bits": 5,
+        "privacy_safe_full_tail_delivery_bytes": 51050496,
+        "private_lookup_one_record_control": {
+          "body_bytes_per_query": 1578,
+          "client_cpu_seconds_per_query_median": 9.3e-05,
+          "client_online_table_bytes_required": 0,
+          "client_wire_and_returned_payload_bytes": 2250,
+          "exact_byte_parity": true,
+          "full_wire_bytes": null,
+          "layout_digest": "83e7990b3447d997740b6c4ec99438ef1ae2733d3f9493ce70a2286c6f6605e4",
+          "limitations": [
+            "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+            "Process-local replay ledger; no authenticated transport or distributed restart contract",
+            "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+            "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+            "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+            "A tied local output head still needs the table until a separate head boundary is implemented",
+            "Source distribution, complete decoder compute and generation quality are unmeasured"
+          ],
+          "page_records": 1,
+          "peak_client_memory_bytes": null,
+          "public_table_scan_bytes_per_query_both_workers": 102100992,
+          "public_table_storage_bytes_per_worker": 51050496,
+          "queries": 1,
+          "record_bytes": 336,
+          "records": 151936,
+          "schema": "pllm.private_page_lookup_probe.v1",
+          "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+          "source_table_digest": "04988ffa5e066b0a4d922f9b2e1d33d4d96d3c4f635651a0f343a6cd3040f30f",
+          "two_worker_table_admission_cpu_seconds": 0.396223,
+          "whole_decoder_executable": false,
+          "worker_cpu_seconds_per_query_median": [
+            0.461046,
+            0.492212
+          ]
+        },
+        "progressive_head_cpu_seconds_median": 0.015075499999999999,
+        "projected_maximum_sparse_pir_bytes": 7520748,
+        "projected_maximum_sparse_pir_worker_cpu_seconds": 4543.227628,
+        "public_capacity_certificate": false,
+        "queries": 16,
+        "schema": "pllm.progressive_head_probe.v1",
+        "scope": "local exact greedy certificate and isolated native PIR control",
+        "vocabulary": 151936,
+        "weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+        "weight_scale_bytes": 607744
+      },
+      {
+        "admission": "closed: input-dependent refinement count; no public capacity certificate or cheaper admitted private fetch",
+        "certificates": [
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 43,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 43
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 43,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 1,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 12,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 12
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 12,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 2,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 3,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 1,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 1,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 7,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 7
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 7,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 8,
+            "initial_survivors": 35,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 35
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 35,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 8,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 4,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 4,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 4
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 4,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 2,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 2,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 2
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 2,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 1,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 7,
+            "initial_survivors": 3,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 3
+              },
+              {
+                "bits": 7,
+                "scanned_rows": 3,
+                "surviving_rows": 1
+              }
+            ]
+          },
+          {
+            "certificate_bits": 6,
+            "initial_survivors": 1,
+            "rounds": [
+              {
+                "bits": 6,
+                "scanned_rows": 151936,
+                "surviving_rows": 1
+              }
+            ]
+          }
+        ],
+        "client_peak_memory_bytes": null,
+        "complete": false,
+        "control_head_cpu_seconds_median": 0.012752,
+        "exact_greedy_agreements": 16,
+        "executable": false,
+        "full_residual_table_bytes": 34033664,
+        "full_weight_bytes": 136134656,
+        "full_wire_bytes": null,
+        "hidden": 896,
+        "observed_maximum_refinement_rows": 43,
+        "oracle_retained_native_weight_bytes": 136134656,
+        "packed_prefix_weight_bytes": 102100992,
+        "prefix_bits": 6,
+        "privacy_safe_full_tail_delivery_bytes": 34033664,
+        "private_lookup_one_record_control": {
+          "body_bytes_per_query": 1354,
+          "client_cpu_seconds_per_query_median": 9.4e-05,
+          "client_online_table_bytes_required": 0,
+          "client_wire_and_returned_payload_bytes": 1802,
+          "exact_byte_parity": true,
+          "full_wire_bytes": null,
+          "layout_digest": "5308df874596d8a8b297402179219e9446dbc971a039e6e1ebb99143ae8bc472",
+          "limitations": [
+            "Two semi-honest non-colluding servers, AES-based DPF assumption, no independent cryptographic review",
+            "Process-local replay ledger; no authenticated transport or distributed restart contract",
+            "Payload counts exclude Python/Rust object overhead and are not measured peak memory",
+            "Fixture owner holds source bytes for validation; online client CPU excludes fixture and provider setup",
+            "Local lookup currently has zero online bytes; PIR adds these bodies in exchange for optional client table removal",
+            "A tied local output head still needs the table until a separate head boundary is implemented",
+            "Source distribution, complete decoder compute and generation quality are unmeasured"
+          ],
+          "page_records": 1,
+          "peak_client_memory_bytes": null,
+          "public_table_scan_bytes_per_query_both_workers": 68067328,
+          "public_table_storage_bytes_per_worker": 34033664,
+          "queries": 1,
+          "record_bytes": 224,
+          "records": 151936,
+          "schema": "pllm.private_page_lookup_probe.v1",
+          "scope": "in-process native XOR-PIR; exact serialized query/reply bodies",
+          "source_table_digest": "81a35307e774c80da509066193d194beac852521b79bee450add134fe41f77ab",
+          "two_worker_table_admission_cpu_seconds": 0.271378,
+          "whole_decoder_executable": false,
+          "worker_cpu_seconds_per_query_median": [
+            0.488722,
+            0.459538
+          ]
+        },
+        "progressive_head_cpu_seconds_median": 0.012640499999999999,
+        "projected_maximum_sparse_pir_bytes": 58222,
+        "projected_maximum_sparse_pir_worker_cpu_seconds": 40.77518,
+        "public_capacity_certificate": false,
+        "queries": 16,
+        "schema": "pllm.progressive_head_probe.v1",
+        "scope": "local exact greedy certificate and isolated native PIR control",
+        "vocabulary": 151936,
+        "weight_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+        "weight_scale_bytes": 607744
+      }
+    ],
+    "model_plan_digest": "1aa54818f3a523841cec279215cb00f0cec4f5469273665a992d6531ed4c5f43",
+    "schema": "pllm.progressive_head_cohort.v1"
+  },
+  "real_checkpoint": true,
+  "schema": "pllm.next_five_research.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

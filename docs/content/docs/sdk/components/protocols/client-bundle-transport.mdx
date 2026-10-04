@@ -6,13 +6,17 @@ description: "Select raw, bounded zlib, or reusable public artifacts with exact 
 API: [`ClientBundleTransport`](/sdk/reference/python/pllm/protocols/#objects-and-signatures).
 
 `ClientBundleTransport`
-selects `none`, `zlib`, or `artifacts` in `MaskedLinearCpu(delivery=...)`.
+selects `none`, `zlib`, or `artifacts` in the `delivery` slot of
+`MaskedLinearCpu`, `VerifiedMaskedLinearCpu`, and `TwoOnlineOffsetCpu`.
 For zlib, the client negotiates bounded independent frames, checks lengths and
 the original uncompressed digest, then imports and caches raw bytes. Older
 providers may return raw transport for that encoding. Explicit artifact
 negotiation fails closed instead of falling back to raw/zlib.
-This choice applies to ordinary public compiled prepared execution, not
-proprietary bundles or live offset delivery.
+`ClientBundleTransport("artifacts", compression="zlib")` independently frames
+missing objects. Each response must acknowledge its encoding and raw size;
+bounded decompression and object/bundle digests are checked before admission.
+Raw and compressed downloads share raw object identities and cached payloads.
+Proprietary bundles remain unsupported.
 
 ## Python SDK example
 
@@ -23,13 +27,13 @@ from pllm.protocols import ClientBundleTransport
 
 experiment = Experiment(
     "artifact-bundle",
-    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts")),
+    MaskedLinearCpu(Model.tiny(), delivery=ClientBundleTransport("artifacts", compression="zlib")),
     Deployment.local(root="local://artifact-bundle"),
     ExecutionBudget(requests=1, max_input_tokens=64, max_new_tokens=8),
 )
-assert experiment.resolve().bundle_compression == "artifacts"
+assert experiment.resolve().bundle_compression == "artifacts-zlib"
 assert experiment.pipeline.delivery.component == "pllm/client-bundle-transport/v1"
-assert experiment.pipeline.delivery.get_params() == {"encoding": "artifacts"}
+assert experiment.pipeline.delivery.get_params() == {"encoding": "artifacts", "compression": "zlib"}
 ```
 
 Compression reduces cold delivery, not warm stage traffic or persistent raw-cache

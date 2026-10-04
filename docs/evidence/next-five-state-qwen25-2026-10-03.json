@@ -1,0 +1,338 @@
+{
+  "environment": {
+    "machine": "arm64",
+    "native_sha256": "bbaa9df4ce76aff28a892c5fbf51abeaabef69c197ef0a4d5d59a1e1636e823c",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "pllm": "0.1.0a2",
+    "python": "3.13.15"
+  },
+  "environment_digest": "fd2db9ef2ba6a3fdb2d76294c20111e003d0430eaea3aae550eab9b4da577996",
+  "real_checkpoint": true,
+  "schema": "pllm.next_five_research.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "state": {
+    "compatibility": [
+      {
+        "candidate": "compressed_delivery",
+        "contract_equal": true,
+        "different_contract_fields": [],
+        "left_binding": "4a59fe8699e31c70e0993332f6cb21669d88841d73d77f279d45476606d09a54",
+        "live_state_transfer_authorized": false,
+        "numeric_state_digest": "c03c6ee84157e2eb512993105a9c0f18dfdc5ba47e23cf85cd01b533d17d2897",
+        "right_binding": "d48a553bab8cf8bf37a3b73da2e1f0513489b285599293f91667106d22d4113e",
+        "same_token_prefill_and_decode": [
+          true,
+          true,
+          true
+        ],
+        "schema": "pllm.state_compatibility_probe.v1",
+        "scope": "checked public contract comparison, not state or verifier provenance transfer",
+        "transferred_suffixes": [
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.461895,
+            "copied_state_payload_bytes": 221184,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 9
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.460344,
+            "copied_state_payload_bytes": 245760,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 10
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.453314,
+            "copied_state_payload_bytes": 221184,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 9
+          }
+        ]
+      },
+      {
+        "candidate": "client_attention",
+        "contract_equal": true,
+        "different_contract_fields": [],
+        "left_binding": "4a59fe8699e31c70e0993332f6cb21669d88841d73d77f279d45476606d09a54",
+        "live_state_transfer_authorized": false,
+        "numeric_state_digest": "c03c6ee84157e2eb512993105a9c0f18dfdc5ba47e23cf85cd01b533d17d2897",
+        "right_binding": "4c341ea6dfc6a6d5ecfe2ddc6ed1d80f9087ab04321ca8a8de409f4f16e210f9",
+        "same_token_prefill_and_decode": [
+          true,
+          true,
+          true
+        ],
+        "schema": "pllm.state_compatibility_probe.v1",
+        "scope": "checked public contract comparison, not state or verifier provenance transfer",
+        "transferred_suffixes": [
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.536344,
+            "copied_state_payload_bytes": 221184,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 9
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.481979,
+            "copied_state_payload_bytes": 245760,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 10
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "client_transfer_cpu_seconds": 2.444702,
+            "copied_state_payload_bytes": 221184,
+            "network_cost_measured": false,
+            "new_tokens": 2,
+            "provider_transfer_bytes": 0,
+            "reused_tokens": 9
+          }
+        ]
+      }
+    ],
+    "generated": [
+      {
+        "binding_digest": "4a59fe8699e31c70e0993332f6cb21669d88841d73d77f279d45476606d09a54",
+        "cohort_digest": "9375e89f410fdd40fc85552bc845623b9d1b6567f654ab07990e256b71dc295a",
+        "cohort_digest_salted": true,
+        "cpu_seconds": 20.25114,
+        "executed_generated_tokens": 8,
+        "input_tokens": 11,
+        "live_cache_promotion": false,
+        "model_plan_digest": "1aa54818f3a523841cec279215cb00f0cec4f5469273665a992d6531ed4c5f43",
+        "numeric_gate_passed": true,
+        "pending_generated_tokens_excluded": 1,
+        "process_peak_memory_measured": false,
+        "samples": [
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 1,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 2,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 3,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 4,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 5,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 6,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 7,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 8,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          }
+        ],
+        "schema": "pllm.generated_state_reuse_probe.v1",
+        "scope": "same-token local numeric gate; source and snapshots stay private to this process",
+        "snapshot_payload_bytes": 466944
+      },
+      {
+        "binding_digest": "4a59fe8699e31c70e0993332f6cb21669d88841d73d77f279d45476606d09a54",
+        "cohort_digest": "d8551fd69a138b443fac8a3fd266a99de5b2715d0eadaa282f19b60525fe7687",
+        "cohort_digest_salted": true,
+        "cpu_seconds": 20.515062,
+        "executed_generated_tokens": 8,
+        "input_tokens": 12,
+        "live_cache_promotion": false,
+        "model_plan_digest": "1aa54818f3a523841cec279215cb00f0cec4f5469273665a992d6531ed4c5f43",
+        "numeric_gate_passed": true,
+        "pending_generated_tokens_excluded": 1,
+        "process_peak_memory_measured": false,
+        "samples": [
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 1,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 2,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 3,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 4,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 5,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 6,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 7,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 8,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          }
+        ],
+        "schema": "pllm.generated_state_reuse_probe.v1",
+        "scope": "same-token local numeric gate; source and snapshots stay private to this process",
+        "snapshot_payload_bytes": 491520
+      },
+      {
+        "binding_digest": "4a59fe8699e31c70e0993332f6cb21669d88841d73d77f279d45476606d09a54",
+        "cohort_digest": "6d4b72375c8c6a3d7543deb9ae4e0b8885cc52cd6754598fec15117c7207470b",
+        "cohort_digest_salted": true,
+        "cpu_seconds": 20.142397,
+        "executed_generated_tokens": 8,
+        "input_tokens": 11,
+        "live_cache_promotion": false,
+        "model_plan_digest": "1aa54818f3a523841cec279215cb00f0cec4f5469273665a992d6531ed4c5f43",
+        "numeric_gate_passed": true,
+        "pending_generated_tokens_excluded": 1,
+        "process_peak_memory_measured": false,
+        "samples": [
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 1,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 2,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 3,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 4,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 5,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 6,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 7,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          },
+          {
+            "bit_equal_all_kv": true,
+            "bit_equal_logits": true,
+            "executed_decode_steps": 8,
+            "max_absolute_logit_error": 0.0,
+            "original_basis_is_incremental": true
+          }
+        ],
+        "schema": "pllm.generated_state_reuse_probe.v1",
+        "scope": "same-token local numeric gate; source and snapshots stay private to this process",
+        "snapshot_payload_bytes": 466944
+      }
+    ]
+  }
+}

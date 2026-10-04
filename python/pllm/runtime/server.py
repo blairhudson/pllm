@@ -673,6 +673,7 @@ def create_app(
     async def model_client_bundle_object(
         model_id: str, raw_digest: str, object_digest: str,
         authorization: str | None = Header(default=None),
+        accept_object_encoding: str | None = Header(default=None, alias="X-PLLM-Accept-Object-Encoding"),
     ) -> FastAPIResponse:
         auth_token(authorization)
         engine_name = model_engine_routes.get(model_id)
@@ -682,17 +683,13 @@ def create_app(
         if raw_digest != descriptor["sha256"] or object_digest not in exported.objects:
             raise HTTPException(status_code=404, detail="Unknown artifact binding/object")
         payload = exported.objects[object_digest]
-
-        def chunks():
-            view = memoryview(payload)
-            for offset in range(0, len(view), 65536):
-                yield view[offset:offset + 65536].tobytes()
-
-        return StreamingResponse(chunks(), media_type="application/octet-stream", headers={
-            "Content-Length": str(len(payload)), "ETag": f'"{object_digest}"',
-            "X-PLLM-Object-SHA256": object_digest,
-            "X-PLLM-Bundle-SHA256": str(descriptor["sha256"]),
-        })
+        from .bundle_artifacts import object_stream
+        try:
+            chunks, headers, media = object_stream(payload, bundle_digest=str(descriptor["sha256"]),
+                object_digest=object_digest, encoding=accept_object_encoding)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return StreamingResponse(chunks, media_type=media, headers=headers)
 
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle-artifacts")
     async def model_client_bundle_artifacts(
@@ -1322,6 +1319,15 @@ def create_app(
             masked = (
                 result.masked_output.astype(np.int64) + correction.astype(np.int64)
             ) % result.modulus
+            if getattr(engine, "prepared_output_encoding", "raw") == "row_residues":
+                from .residue_codec import pack_row_response
+                packed_result = MaskedStageResponse(
+                    correlation_id=batch.batch_id, masked_output=masked.astype(np.uint32),
+                    modulus=result.modulus, wire_bits=result.wire_bits, server_ns=result.server_ns,
+                    stage_id=stage_id, ring=result.ring,
+                )
+                return [pack_row_response(packed_result, engine.prepared_output_widths(
+                    session.model_id, stage_id), namespace="prepared")]
             return [
                 PreparedStageBatchResponse(
                     batch_id=batch.batch_id,
@@ -1372,8 +1378,7 @@ def create_app(
             masked = (
                 result.masked_output.astype(np.int64) + correction.correction.astype(np.int64)
             ) % result.modulus
-            combined.append(
-                MaskedStageResponse(
+            response = MaskedStageResponse(
                     correlation_id=result.correlation_id,
                     masked_output=masked.astype(np.uint32),
                     modulus=result.modulus,
@@ -1381,8 +1386,13 @@ def create_app(
                     server_ns=result.server_ns,
                     stage_id=result.stage_id,
                     ring=result.ring,
-                ).pack()
-            )
+                )
+            if getattr(engine, "prepared_output_encoding", "raw") == "row_residues":
+                from .residue_codec import pack_row_response
+                combined.append(pack_row_response(response, engine.prepared_output_widths(
+                    session.model_id, stage_id), namespace="prepared"))
+            else:
+                combined.append(response.pack())
         return combined
 
     def prepared_endpoint_context(session_id: str) -> tuple[RuntimeSession, Any, int]:

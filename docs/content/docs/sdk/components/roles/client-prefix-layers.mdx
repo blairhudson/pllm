@@ -5,10 +5,12 @@ description: "Execute a bounded prefix of semantic decoder layers on the trusted
 
 [`ClientPrefixLayers`](/sdk/reference/python/pllm/roles/#clientprefixlayers)
 (`pllm/client-owned-prefix-layers/v1`) selects one to eight **complete**
-semantic layers for trusted-client CPU execution in prepared
-`MaskedLinearCpu(placement=...)`. The compiler keeps at least one full remote
-layer, binds each local weight in the bundle and rejects other unimplemented
-protected or verified compositions. Client-added i8 matrices and scales
+semantic layers for trusted-client execution in prepared
+`MaskedLinearCpu(placement=...)` or `VerifiedMaskedLinearCpu(placement=...)`.
+The compiler keeps at least one full remote layer and binds each local weight
+in the bundle. For a union with projection-role selection, use
+[`ClientLinearRoles(..., prefix_layers=...)`](/sdk/components/roles/client-linear-roles/).
+Client-added i8 matrices and scales
 are capped at 512 MiB. The providers still hold the public checkpoint;
 moving computation does not reduce their checkpoint storage.
 

@@ -87,6 +87,69 @@ fn public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_polic
 }
 
 #[test]
+fn client_placement_metal_keeps_cpu_ownership_and_checks_kernel_parameters() {
+    for config in [QWEN2, QWEN3] {
+        let model = plan(config);
+        for placement in [
+            json!({"component": "pllm/client-owned-prefix-layers/v1", "params": {"layers": 1}}),
+            json!({"component": "pllm/client-owned-linear-roles/v1", "params": {
+                "roles": ["attention_output", "qkv_projection"]}}),
+            json!({"component": "pllm/client-owned-linear-roles/v1", "params": {
+                "roles": ["attention_output", "qkv_projection"], "prefix_layers": 1}}),
+        ] {
+            let mut cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+            cpu["components"]["placement"] = placement;
+            let expected = lower_decoder_runtime_schedule(&model, &canonical_bytes(&cpu)).unwrap();
+            let mut metal = cpu.clone();
+            metal["components"]["kernels"] = json!({
+                "component": "pllm/apple-metal-int8/v1", "params": {"min_rows": 2}
+            });
+            let actual = lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).unwrap();
+            assert_ne!(actual.composition_digest, expected.composition_digest);
+            for (left, right) in [
+                (&actual.prefill, &expected.prefill),
+                (&actual.decode, &expected.decode),
+            ] {
+                assert_eq!(left.steps, right.steps);
+                assert!(left
+                    .steps
+                    .iter()
+                    .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+            }
+            metal["components"]["kernels"]["params"]["min_rows"] = json!(1);
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+            metal["components"]["kernels"]["params"] = json!({"min_rows": 2, "extra": true});
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+            metal["components"]["kernels"]["params"] = json!({"min_rows": 2});
+            metal["components"]["verification"] = json!({
+                "component": "pllm/freivalds-verify/v1", "params": {"target_failure_bits": 40}
+            });
+            let checked = lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).unwrap();
+            for (before, after) in expected.prefill.steps.iter().zip(&checked.prefill.steps) {
+                assert_eq!(before.operation_ids, after.operation_ids);
+                let wanted = if before.executor == DecoderRuntimeExecutor::RemoteStage {
+                    DecoderRuntimeExecutor::VerifiedRemoteStage
+                } else {
+                    before.executor
+                };
+                assert_eq!(after.executor, wanted);
+            }
+            metal["components"]["cache"] = json!({
+                "component": "pllm/client-prefix-reuse/v1",
+                "params": {"fixed_input_tokens": 2, "max_bytes": 1048576}
+            });
+            metal["components"]["delivery"] = json!({
+                "component": "pllm/client-bundle-transport/v1",
+                "params": {"encoding": "artifacts", "compression": "zlib"}
+            });
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_ok());
+            metal["components"]["verification"]["params"]["target_failure_bits"] = json!(69);
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+        }
+    }
+}
+
+#[test]
 fn wavelength_rotary_stays_local_in_both_compiled_decoder_phases() {
     let scaled = json!({
         "model_type": "llama", "hidden_size": 16, "intermediate_size": 32,

@@ -44,6 +44,7 @@ class _WorkerSession:
     last_active: float
     used_correlations: set[str] = field(default_factory=set)
     calls_by_stage: dict[str, int] = field(default_factory=dict)
+    rows_by_stage: dict[str, int] = field(default_factory=dict)
     terminal: bool = False
 
 
@@ -106,6 +107,7 @@ def create_offset_worker_app(
     composition_digest: str | None = None
     input_encoding = "raw"
     output_encoding = "raw"
+    require_continuation = False
     if composition is not None:
         from pllm.profiles import resolve_runtime_composition
 
@@ -125,6 +127,7 @@ def create_offset_worker_app(
         composition_digest = composition.digest()
         input_encoding = composition.components["linear"].params.get("input_encoding", "raw")
         output_encoding = composition.components["linear"].params.get("output_encoding", "raw")
+        require_continuation = options.prefix_cache_bound_tokens is not None
     row_layout = None
     if output_encoding == "row_residues":
         from .offset_codec import row_layout_digest
@@ -136,6 +139,7 @@ def create_offset_worker_app(
         ])
     bundle_lock = threading.Lock()
     bundle_record: tuple[bytes, dict[str, Any]] | None = None
+    artifact_record = None
 
     def client_bundle_record() -> tuple[bytes, dict[str, Any]]:
         nonlocal bundle_record
@@ -148,6 +152,15 @@ def create_offset_worker_app(
                     "size": len(payload), "etag": f'"{fingerprint}"',
                 })
             return bundle_record
+
+    def artifact_export():
+        nonlocal artifact_record
+        from .bundle_artifacts import export_bundle
+        payload, descriptor = client_bundle_record()
+        with bundle_lock:
+            if artifact_record is None:
+                artifact_record = export_bundle(payload)
+            return artifact_record, descriptor
 
     sessions: dict[str, _WorkerSession] = {}
     lock = threading.Lock()
@@ -196,6 +209,7 @@ def create_offset_worker_app(
     async def model_client_bundle(
         requested_id: str, authorization: str | None = Header(default=None),
         if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+        accept_bundle_encoding: str | None = Header(default=None, alias="X-PLLM-Accept-Bundle-Encoding"),
     ) -> Response:
         authenticate(authorization)
         if requested_id != model_id:
@@ -207,8 +221,18 @@ def create_offset_worker_app(
             "X-PLLM-Bundle-Schema": str(descriptor["schema"]),
             "X-PLLM-Model-ID": model_id,
         }
+        from .bundle_artifacts import ENCODING as ARTIFACT_ENCODING
+        if accept_bundle_encoding == ARTIFACT_ENCODING:
+            exported, _ = artifact_export()
+            return Response(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
+                            headers={**headers, "X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING})
         if if_none_match == descriptor["etag"]:
             return Response(status_code=304, headers=headers)
+        from .bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames
+        if accept_bundle_encoding == FRAME_ENCODING:
+            return StreamingResponse(encode_bundle_frames(payload), media_type="application/vnd.pllm.bundle-frames",
+                headers={**headers, "X-PLLM-Bundle-Encoding": FRAME_ENCODING,
+                         "X-PLLM-Bundle-Raw-Size": str(len(payload))})
         headers["Content-Length"] = str(len(payload))
 
         def chunks():
@@ -217,6 +241,37 @@ def create_offset_worker_app(
                 yield view[offset : offset + 1024 * 1024].tobytes()
 
         return StreamingResponse(chunks(), media_type="application/msgpack", headers=headers)
+
+    @app.get("/v1/runtime/models/{requested_id:path}/client-bundle-artifacts")
+    async def model_bundle_artifacts(requested_id: str, authorization: str | None = Header(default=None)):
+        authenticate(authorization)
+        if requested_id != model_id:
+            raise _reject("offset worker model is not loaded", status=404)
+        from .bundle_artifacts import ENCODING as ARTIFACT_ENCODING
+        exported, descriptor = artifact_export()
+        return Response(exported.manifest, media_type="application/vnd.pllm.bundle-artifacts",
+            headers={"X-PLLM-Bundle-Encoding": ARTIFACT_ENCODING,
+                     "X-PLLM-Bundle-SHA256": str(descriptor["sha256"])})
+
+    @app.get("/v1/runtime/models/{requested_id:path}/client-bundle-objects/{raw_digest}/{object_digest}")
+    async def model_bundle_object(
+        requested_id: str, raw_digest: str, object_digest: str,
+        authorization: str | None = Header(default=None),
+        accept_object_encoding: str | None = Header(default=None, alias="X-PLLM-Accept-Object-Encoding"),
+    ):
+        authenticate(authorization)
+        if requested_id != model_id:
+            raise _reject("offset worker model is not loaded", status=404)
+        exported, descriptor = artifact_export()
+        if raw_digest != descriptor["sha256"] or object_digest not in exported.objects:
+            raise _reject("offset bundle object is not committed", status=404)
+        from .bundle_artifacts import object_stream
+        try:
+            chunks, headers, media = object_stream(exported.objects[object_digest],
+                bundle_digest=raw_digest, object_digest=object_digest, encoding=accept_object_encoding)
+        except ValueError as exc:
+            raise _reject(str(exc), status=400) from exc
+        return StreamingResponse(chunks, media_type=media, headers=headers)
 
     @app.get("/v1/runtime/models/{requested_id:path}")
     async def model_descriptor(
@@ -244,10 +299,10 @@ def create_offset_worker_app(
     @app.post("/v1/offset-reference/sessions")
     async def open_session(
         request: Request, authorization: str | None = Header(default=None),
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         authenticate(authorization)
         try:
-            body = json.loads((await _limited_body(request, 4_096)).decode("utf-8"),
+            body = json.loads((await _limited_body(request, 16_384)).decode("utf-8"),
                               object_pairs_hook=_strict_object)
         except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
             raise _reject("offset worker session document is invalid", status=400) from exc
@@ -258,6 +313,8 @@ def create_offset_worker_app(
         }
         if row_layout is not None:
             expected.add("residue_layout_digest")
+        if require_continuation or (type(body) is dict and "decoder_continuation" in body):
+            expected.add("decoder_continuation")
         if type(body) is not dict or set(body) != expected:
             raise _reject("offset worker session schema differs")
         bound = body["max_input_tokens"]
@@ -267,7 +324,7 @@ def create_offset_worker_app(
             or body["model"] != model_id
             or body["role"] != role_id
             or body["topology_digest"] != graph_digest
-            or type(bound) is not int or not 1 <= bound <= 64
+            or type(bound) is not int or not 1 <= bound <= (4096 if "decoder_continuation" in body else 64)
             or type(output_bound) is not int or not 1 <= output_bound <= _MAX_OUTPUT_TOKENS
             or type(body["decoder_plan"]) is not str
             or len(body["decoder_plan"]) != 64
@@ -298,6 +355,23 @@ def create_offset_worker_app(
             except (AttributeError, KeyError, RuntimeError, TypeError, ValueError) as exc:
                 raise _reject("offset worker composition has incomplete decoder coverage") from exc
 
+        continuation_slot = None
+        if "decoder_continuation" in body:
+            try:
+                from pllm.configuration import Pipeline
+                from .continuation_admission import admit_continuation
+
+                extension = body["decoder_continuation"]
+                if (type(extension) is not dict or composition is None
+                    or Pipeline.from_spec(extension["composition"]).digest() != composition_digest):
+                    raise ValueError("continuation composition is not the installed worker composition")
+                continuation_slot = admit_continuation(extension, plan, engine, model_id)
+                if any(bound * max(model.stages[sid].spec.in_features, model.stages[sid].spec.out_features)
+                       > _MAX_TENSOR_ELEMENTS for sid in engine.seeded_stage_ids(model_id)):
+                    raise ValueError("continuation full-miss rows exceed worker tensor capacity")
+            except (KeyError, RuntimeError, TypeError, ValueError) as exc:
+                raise _reject("offset worker continuation commitment differs") from exc
+
         with lock:
             now = time.monotonic()
             for key, old in list(sessions.items()):
@@ -318,6 +392,7 @@ def create_offset_worker_app(
             "body_fingerprint": metadata["body_fingerprint"],
             "stage_commitment": metadata["seeded_stage_commitment"],
             **({"residue_layout_digest": row_layout} if row_layout is not None else {}),
+            **({"decoder_continuation": continuation_slot} if continuation_slot is not None else {}),
         }
 
     @app.post("/v1/offset-reference/sessions/{session_id}/stages/{stage_id}")
@@ -330,7 +405,7 @@ def create_offset_worker_app(
         try:
             payload = await _limited_body(request, _MAX_BODY_BYTES)
             entry = model.stages.get(stage_id)
-            if entry is None or entry.seeded_profile is None:
+            if entry is None or entry.seeded_profile is None or stage_id not in engine.seeded_stage_ids(model_id):
                 raise ValueError("offset stage is not in the admitted decoder")
             from .offset_codec import SEED_MAGIC, expand_request, seed_header, unpack_seed
 
@@ -380,11 +455,14 @@ def create_offset_worker_app(
                     raise ValueError("offset worker session is terminal")
                 if (
                     parsed.correlation_id in session.used_correlations
-                    or session.calls_by_stage.get(stage_id, 0) >= 1 + session.max_new_tokens
+                    or session.calls_by_stage.get(stage_id, 0) >= session.max_new_tokens
+                    or session.rows_by_stage.get(stage_id, 0) + parsed.masked_input.shape[0]
+                       > session.max_input_tokens + session.max_new_tokens - 1
                 ):
                     raise ValueError("offset stage ticket is replayed or exhausted")
                 session.used_correlations.add(parsed.correlation_id)
                 session.calls_by_stage[stage_id] = session.calls_by_stage.get(stage_id, 0) + 1
+                session.rows_by_stage[stage_id] = session.rows_by_stage.get(stage_id, 0) + parsed.masked_input.shape[0]
             results = await engine.execute_stage(model_id, entry.spec, [payload])
             if len(results) != 1:
                 raise ValueError("offset worker returned the wrong stage result count")

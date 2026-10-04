@@ -55,6 +55,10 @@ class FreivaldsVerify(VerificationScheme):
     """Authenticated one-use verification for prepared public linear stages."""
 
     __slots__ = ()
+    # Cache-enabled compositions reserve 12 extra bits for at most 4096
+    # inventory transitions in any retained state lineage (not per request).
+    _CACHE_LINEAGE_BITS = 12
+    _MAX_CACHE_LINEAGE = 1 << _CACHE_LINEAGE_BITS
     descriptor = ComponentDescriptor(
         component="pllm/freivalds-verify/v1",
         provider="pllm",

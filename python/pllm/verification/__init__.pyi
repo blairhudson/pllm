@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod
 from pllm.runtime.linear_integrity import LinearCheckKey as LinearCheckKey
@@ -9,6 +11,8 @@ from pllm.runtime.linear_integrity import create_linear_check_key as create_line
 class VerificationScheme(ComponentRef): ...
 
 class FreivaldsVerify(VerificationScheme):
+    _CACHE_LINEAGE_BITS: ClassVar[int]
+    _MAX_CACHE_LINEAGE: ClassVar[int]
     descriptor: ComponentDescriptor
     target_failure_bits: int
     def __init__(self, target_failure_bits: int = 40) -> None: ...

@@ -13,6 +13,7 @@ from pllm import Model
 from pllm.model_loader import resolve_model
 from pllm.runtime import GatewayConfig, create_app
 from pllm.runtime.bundle_artifacts import ENCODING, export_bundle, parse_manifest
+from pllm.runtime.bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames, decode_bundle_frames
 from pllm.runtime.client import ProtocolError, RuntimeClient
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -30,7 +31,8 @@ def delivery(tmp_path):
     return root, payloads
 
 
-def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=False):
+def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=False,
+                encoding="artifacts", damage_object=None):
     exported = export_bundle(payload)
     digest = hashlib.sha256(payload).hexdigest()
     calls = []
@@ -51,15 +53,23 @@ def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=F
             })
         if "/client-bundle-objects/" in request.url.path:
             key = request.url.path.rsplit("/", 1)[1]
-            return httpx.Response(200, content=exported.objects[key], headers={
+            data = exported.objects[key]
+            headers = {
                 "X-PLLM-Bundle-SHA256": digest, "X-PLLM-Object-SHA256": key,
-            })
+            }
+            if request.headers.get("X-PLLM-Accept-Object-Encoding") == FRAME_ENCODING:
+                headers.update({"X-PLLM-Object-Encoding": FRAME_ENCODING,
+                                "X-PLLM-Object-Raw-Size": str(len(data))})
+                data = b"".join(encode_bundle_frames(data))
+            if damage_object:
+                data, headers = damage_object(data, headers)
+            return httpx.Response(200, content=data, headers=headers)
         return httpx.Response(200, json={"client_bundle": {
             "schema": 2, "size": len(payload), "sha256": digest, "etag": f'"{digest}"',
         }})
 
     core = RuntimeClient(base_url="https://inference.test", api_key="key",
-                         bundle_compression="artifacts",
+                         bundle_compression=encoding,
                          bundle_cache_dir=tmp_path / "cache",
                          http_client=httpx.Client(base_url="https://inference.test",
                                                   transport=httpx.MockTransport(handler)))
@@ -155,6 +165,66 @@ def test_http_manifest_objects_bearer_and_raw_binding(delivery):
         response = client.get(url, headers=headers)
         assert response.status_code == 200
         assert hashlib.sha256(response.content).hexdigest() == row["content_sha256"]
+        compressed = client.get(url, headers={**headers, "X-PLLM-Accept-Object-Encoding": FRAME_ENCODING})
+        assert compressed.headers["X-PLLM-Object-Encoding"] == FRAME_ENCODING
+        decoded = decode_bundle_frames(
+            [compressed.content], expected_size=row["size"], on_wire_bytes=lambda _: None)
+        assert decoded == response.content
+        assert client.get(url, headers={**headers, "X-PLLM-Accept-Object-Encoding": "unknown"}).status_code == 400
         assert client.get(url.replace(descriptor["sha256"], "0" * 64), headers=headers).status_code == 404
         assert client.get("/v1/runtime/models/artifact-model/client-bundle",
-                          headers={**headers, "X-PLLM-Accept-Bundle-Encoding": ENCODING}).status_code == 200
+                           headers={**headers, "X-PLLM-Accept-Bundle-Encoding": ENCODING}).status_code == 200
+
+
+def test_compressed_artifacts_share_raw_cache_and_count_encoded_bodies(delivery, tmp_path):
+    _, payloads = delivery
+    raw, _ = mocked_core(tmp_path / "control", payloads[0])
+    compressed, _ = mocked_core(tmp_path / "shared", payloads[0], encoding="artifacts-zlib")
+    try:
+        raw_bundle = raw._load_client_bundle("artifact-model")
+        compressed_bundle = compressed._load_client_bundle("artifact-model")
+        assert raw_bundle.model_id == compressed_bundle.model_id
+        assert compressed.audit.bundle_network_bytes < raw.audit.bundle_network_bytes
+        assert compressed.audit.bundle_network_bytes == (
+            compressed.artifact_cache_stats.object_download_bytes + compressed.artifact_cache_stats.manifest_download_bytes)
+        exported = export_bundle(payloads[0])
+        for key, content in exported.objects.items():
+            assert (tmp_path / "shared/cache/public-artifacts" / f"{key}.blob").read_bytes() == content
+    finally:
+        raw.close()
+        compressed.close()
+    warm, _ = mocked_core(tmp_path / "shared", payloads[0])
+    try:
+        warm._load_client_bundle("artifact-model")
+        assert warm.artifact_cache_stats.object_requests == 0
+        assert warm.audit.bundle_network_bytes == warm.artifact_cache_stats.manifest_download_bytes
+    finally:
+        warm.close()
+
+
+@pytest.mark.parametrize("damage", ["ack", "size", "truncated", "trailing", "inflation", "content"])
+def test_compressed_artifact_rejects_bad_frames_before_material(delivery, tmp_path, damage):
+    def mutate(data, headers):
+        if damage == "ack":
+            headers.pop("X-PLLM-Object-Encoding")
+        elif damage == "size":
+            headers["X-PLLM-Object-Raw-Size"] = "1"
+        elif damage == "truncated":
+            data = data[:-1]
+        elif damage == "trailing":
+            data += b"extra"
+        elif damage == "inflation":
+            data = (2**32 - 1).to_bytes(4, "big") + data[4:]
+        else:
+            data = b"".join(encode_bundle_frames(b"x" * int(headers["X-PLLM-Object-Raw-Size"])))
+        return data, headers
+
+    core, _ = mocked_core(tmp_path, delivery[1][0], encoding="artifacts-zlib", damage_object=mutate)
+    try:
+        with pytest.raises(ProtocolError):
+            core._load_client_bundle("artifact-model")
+        assert not core._transformer_states
+        assert core.audit.preparation_upload_bytes == core.audit.session_authorization_upload_bytes == 0
+        assert not list((tmp_path / "cache").rglob("*.blob"))
+    finally:
+        core.close()

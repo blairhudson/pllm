@@ -58,6 +58,13 @@ protected compositions cannot select it. Metal stage weights are preflighted
 against a 2 GiB per-role bound before allocation. Transfer-inclusive
 single-stage measurements must not be counted as whole-decoder or CPU-only
 topology acceleration.
+Prepared client-owned prefix layers and selected linear roles also compose with
+Metal. Their client GPU snapshots are immutable and plan-bound; provider GPU
+allocation excludes those body stages. CPU snapshots remain for small rows and
+decode, and the benchmark counts both storage categories separately. A pinned
+three-request Qwen cohort preserves outputs with almost equal CPU/Metal request
+latency and another 44.04 MB of client GPU weights; compatibility alone does not
+justify automatic device selection.
 Core also contains a bounded, non-selectable coded-matvec verifier inspired by
 Maverick's public preprocessing and sparse-check algebra. Its Walsh-linear code
 proves half-distance over BabyBear for six to ten output rows; exponential code
@@ -325,6 +332,27 @@ evidence remain open. Existing runtime support for a checkpoint family is a
 separate axis unless an exact schedule, binding and execution test say otherwise.
 
 ## Python package
+
+`pllm.search.optimization_space` generates a bounded ordinary `SearchSpace`
+without changing model, numeric, verifier or topology identity. Client-owned
+body weights and new cache reuse require explicit permission. The explicit
+`pllm.compiler.plan_on_load` facade resolves a source once, checks its locked
+configuration, lowers the semantic plan and invokes existing placement search.
+It returns the same `PlanningResult` used by SDK, gateway and benchmark, without
+loading tensor values, timing candidates or reserving roles. Objective ties
+prefer fewer changes to an admitted incumbent; unknown required costs reject.
+Cache capacity is charged on a miss as well as a hit. Per-candidate graph indexes
+and admitted schedules are reused, while native legality is independently checked.
+Persistent measured GPU/compression tuning remains separate from this bounded
+geometry/artifact/state cost selection.
+
+Canonical benchmark reports and `pllm.metrics.communication_per_token` normalize
+covered application bodies by authoritative generated outputs in decimal MB.
+They distinguish online, measured-run covered, setup-inclusive and cold-first
+rates. Decode-only uses transport counters sampled inside execution after the
+first output, an `N-1` output denominator, and phase-counter conservation.
+Unknown measurements or zero denominators remain null; startup and warmups are
+charged once rather than averaged into per-run ratios. No full-wire claim follows.
 
 Network-aware planning reuses the existing Experiment, compiler, role adapters,
 SDK, gateway and benchmark driver. `pllm.deployment` owns immutable network,
@@ -633,7 +661,32 @@ float32 full-causal numeric option. Scores, softmax and weighted values reduce
 only over each query's valid prefix. Pinned Qwen partition and teacher-forced
 decode checks match every logit and KV value. This permits growing-width
 completed-prefill reuse; default numeric mode retains the same-width gate and
-generated snapshots remain explicitly response-owned.
+generated snapshots remain explicitly response-owned by default. The optional
+`ClientPrefixReuse(generated_prefixes=True)` additionally requires the native
+full-KV `prefix_f32` continuation contract. It qualifies completed, already
+executed generated tokens under a distinct canonical-incremental basis, excluding
+pending sampled tokens, cancellation and `store=False`. Twenty-four pinned
+Qwen checkpoints match fresh logits and every KV value. A separate three-request
+conversation benchmark reduces covered setup-inclusive bodies from 402.05 to
+366.63 MB over the lean prepared/reuse/compressed-artifact control. The common
+241.72 MB first response already exceeds that cohort's tenfold target.
+
+`CompiledRuntimeModel.transfer_snapshot` separately checks numeric-state
+equivalence across admitted placement and delivery choices, preserves verifier
+strength and lineage, validates native full-KV bounds and returns independent
+client-local state. Response-owned snapshots are rejected. Automatic planner
+cache migration and matched live switching costs remain separate. Its seal is
+trusted-client provenance, not authentication of caller-mutated tensor contents.
+
+Additional bounded SDK probes keep fresh-traffic candidates cost-gated. The
+native masked-output relay halves client downloads but replaces them with peer
+traffic and increases client reconstruction CPU about 5.3-fold. A token-local
+projection memo preserves checked logits/KV and reduces its selected-kernel CPU,
+but projects only 0.41% arithmetic-body savings while adding 2.06 MB of client
+weights/snapshots. The progressive signed-i8 head oracle certifies all 16 checked
+greedy queries at each tested precision, but retains the full head; six-bit
+refinement projects 40.8 worker CPU seconds using measured one-row PIR, without
+a public padding capacity. These three probes do not activate runtime choices.
 
 `pllm benchmark run --docker` uses the existing role supervisor and benchmark
 driver with a minimal public CPU runtime image and one Linux container per
@@ -695,6 +748,40 @@ model body, and must follow the protocol, erase masks, and not collude with the
 inference provider. Self-hosting keeps that trust inside the client boundary.
 The online public path does not use BFV or contact preparation.
 
+The optional `pllm.protocols.MaskedLinear(output_encoding="row_residues")` uses
+public per-output weight-row bounds to encode both corrections and online outputs
+in exact smaller power-of-two residues. Full-width input masks, one-use tickets,
+numeric dequantization and the non-collusion contract are preserved. Native
+admission, stage/weight-bound layouts and separate frame namespaces reject codec
+mismatches; Freivalds checks restored integer outputs. Bounded compressed layouts
+stay inline in public bundle manifests. Rust owns packing and mask reconstruction.
+A pinned three-request Qwen W8A8 cohort reduces the lean prepared/reuse/artifact
+stack from 507.46 to 490.41 MB setup-inclusive bodies, with identical outputs and
+no client body weights added. Client cold CPU is nearly equal in the single pair;
+full wire, peak memory and a full-response compute-cap result remain unknown.
+
+`pllm.deployment.WanConditions` and `PartyAccess` expose immutable per-party
+consumer access profiles, defaulting to 100 Mbps download and 40 Mbps upload.
+`pllm.metrics.wan_readiness` and ordinary benchmark reports conserve directed
+bodies, share access across a party's peers, retain intra-party traffic separately
+and bind live role placements. They report analytic bandwidth floors and
+bottlenecks separately from execution measurements. `benchmark run --wan` and
+explicit rate/profile flags additionally enforce shared upload/download caps
+through the existing Docker supervisor. Each party has an endpoint namespace
+and a routed access namespace: WAN egress limits upload, private-LAN egress limits
+download. This covers the client and all concurrent peers without requiring IFB.
+Role grouping shares one access link; intra-party traffic stays local. Management
+and telemetry bypass the rate queues, while routed service traffic includes
+control, ACKs and retransmissions. Helpers have separate CPU/memory accounting;
+startup, failure and cancellation retire owned namespaces and queues. Matching
+kernel readbacks gate measured end-to-end, online and N−1 decode throughput.
+`--wan-estimate` preserves analytical-only execution. A pinned 39+8 Qwen cohort
+has identical outputs and decode rates of 2.203 uncapped, 2.081 at 100/40 Mbps and
+0.775 at 20/8 Mbps. These are single-sample local rate-emulation measurements
+with no added RTT, not measured Internet latency. The reference screens and
+prepared codec are recorded in `docs/evidence/wan-methods-2026-10-04.md`;
+the enforced cohort is in `docs/evidence/wan-emulation-2026-10-04.md`.
+
 The opt-in `research.verified_masked_linear_cpu` profile adds a trusted-client
 Freivalds check to that prepared path. Preparation returns authenticated,
 per-row projections over the client channel; Inference never receives the root
@@ -750,9 +837,9 @@ proper-prefix reuse. Immutable eight-row blocks share storage across qualified
 checkpoints, while returned snapshots remain independent; eviction erases blocks
 only after their last reference. The separately digested native continuation
 schedule admits batched uncached suffixes and must receive an exact provider
-acknowledgement before material reservation. Generated incremental KV differs
-from canonical fresh prefill in the checked checkpoint and remains confined to
-matching explicit prior-response ownership; it is not promoted into fresh keys.
+acknowledgement before material reservation. Historical-mode generated KV differs
+from fresh prefill and remains response-owned. Fresh-prefix promotion requires
+the separately selected canonical generated-prefix contract described above.
 
 `pllm.roles.OutputHeadAtInference` separately moves an untied public output
 head into the prepared Inference stage schedule. It binds provider stage,
@@ -775,9 +862,10 @@ loopback cohort with two client layers reduced covered online stage bodies from
 or disk optimization; full-wire, independent operators and matched generation
 quality remain separate gates.
 
-`pllm.roles.ClientLinearRoles` selects grouped semantic projection roles rather
-than complete prefixes. Native scheduling binds matching groups to trusted-client
-CPU kernels; checkpoint import, live bundle admission and provider stage tables
+`pllm.roles.ClientLinearRoles` selects grouped semantic projection roles and can
+union them with complete prefixes using `prefix_layers`. Native scheduling binds
+matching groups to trusted-client CPU or selected Metal kernels; checkpoint import,
+live bundle admission and provider stage tables
 share that ownership declaration. Added matrices/scales retain the 512 MiB bound
 and both provider roles retain their public full checkpoint. Pinned Qwen2.5
 attention ownership passes bit-identical W8A8 prefill/decode logits on three
@@ -822,6 +910,33 @@ Object storage, reconstructed NumPy payloads and native snapshots are distinct
 ownership categories, not peak-memory measurements. The real-shaped shallow
 encrypted-linear feasibility screen remains non-selectable: its sampled exact
 4,864-to-896 projection costs roughly 40 times the prepared stage bodies.
+
+Compressed content-addressed delivery composes with prepared, verified and
+two-offset execution. `ClientBundleTransport("artifacts", compression="zlib")`
+frames missing objects, validates encoding/raw-size acknowledgements and retains
+the same verified raw cache identities. Offset clients require both authenticated
+workers to admit the exact compiled continuation; cumulative stage-row budgets
+and cancellation bind the complete attempt. Verified caches additionally seal
+verifier strength and client-minted inventory incarnations. The explicit cache
+composition issues material at requested failure bits plus 12 and admits at most
+4,096 inventory transitions, preserving the requested union bound; targets above
+68 fail against the backend's 80-bit ceiling. Every remote stage must be checked
+before sealing state. Generated KV remains response-owned unless the explicit
+canonical generated-prefix contract qualifies the completed executed prefix.
+
+One co-located Qwen2.5 W8A8 39/39/45-input, eight-output-per-request cohort matched
+all 15 outputs. Prepared reuse, on-demand issuance and compressed artifacts used
+310.96 MB covered setup-inclusive bodies against 616.34 MB control, without new
+client body weights. Adding an attention/first-layer placement union reduced
+online bodies from 231.07 to 92.85 MB but raised the combined total to 323.94 MB
+and added 114.47 MB of client weights/scales/native snapshots. The seeded/packed
+offset control used 496.80 MB covered total; adding reuse and compressed artifacts
+used 303.94 MB. These costs do not include full wire or checkpoint distribution;
+client peak memory remains unknown. The real verified control timed out during
+inventory startup at 180 seconds and contributes no successful cost result.
+Bounded planning prices union ownership once and can bind schema-v2 artifact
+transfer lengths separately from raw residency. It preserves unknown CPU/GPU
+costs and cannot infer a benefit from compatibility alone.
 
 ## Application boundary
 

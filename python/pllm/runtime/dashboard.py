@@ -89,6 +89,7 @@ def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any]
     local = {key: stage for key, stage in stages.items() if stage.client_weight is not None}
     with bundle._local_lock:
         snapshots = set(bundle._local_matrices)
+        metal_snapshots = dict(bundle._body_metal_matrices)
     local_macs = sum(stage.in_features * stage.out_features for stage in local.values())
     total_macs = sum(stage.in_features * stage.out_features for stage in stages.values())
     return {
@@ -100,6 +101,9 @@ def client_body_placement_snapshot(client: Any, model_id: str) -> dict[str, Any]
         "client_body_scale_bytes": sum(stage.client_weight_scales.nbytes for stage in local.values()),
         "native_body_i8_snapshot_bytes": sum(
             stage.client_weight.nbytes for key, stage in local.items() if key in snapshots
+        ),
+        "metal_body_i8_snapshot_bytes": sum(
+            matrix.weight_bytes for key, matrix in metal_snapshots.items() if key in local
         ),
         "declared_body_linear_macs_per_row_client": local_macs,
         "declared_body_linear_macs_per_row_remote": total_macs - local_macs,
@@ -395,6 +399,7 @@ class DashboardConfig:
     docker: bool = False
     docker_image: str | None = None
     docker_network: Any = None
+    wan: Any = None
 
     def __post_init__(self) -> None:
         _validate_request_temperature(self.temperature)
@@ -466,8 +471,8 @@ class DashboardRuntime:
                 raise ValueError("dashboard bundle encoding conflicts with immutable Experiment")
             self._bundle_compression = profile.bundle_compression
         self._bundle_compression = self._bundle_compression or "none"
-        if self._bundle_compression not in {"none", "zlib", "artifacts"}:
-            raise ValueError("bundle_compression must be none, zlib, or artifacts")
+        if self._bundle_compression not in {"none", "zlib", "artifacts", "artifacts-zlib"}:
+            raise ValueError("bundle_compression must be none, zlib, artifacts, or artifacts-zlib")
         self._prefill_cache_mib = getattr(config, "prefill_cache_mib", 0)
         if type(self._prefill_cache_mib) is not int or not 0 <= self._prefill_cache_mib <= 256:
             raise ValueError("prefill_cache_mib must be in [0, 256]")
@@ -749,7 +754,7 @@ class DashboardRuntime:
                 credential_prefix="dash",
                 progress=lambda role: self._set(startup_step=role),
                 **({"docker": True, "docker_image": self.config.docker_image,
-                    "docker_network": self.config.docker_network} if self.config.docker else {}),
+                    "docker_network": self.config.docker_network, "wan": self.config.wan} if self.config.docker else {}),
             )
             await asyncio.to_thread(self._topology.start)
             for status in self._topology.statuses:
@@ -785,6 +790,9 @@ class DashboardRuntime:
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
             endpoints = {status.role: status.url for status in self._topology.statuses}
+            before_offset_startup = (
+                self._audit_snapshot() if set(endpoints) == {"worker_a", "worker_b"} else None
+            )
             self._set(
                 phase="preparing",
                 startup_step=(
@@ -811,6 +819,13 @@ class DashboardRuntime:
             self._model_fingerprint, self.source_lock_digest = await self._background_call(
                 self._discover_model_identity
             )
+            if before_offset_startup is not None:
+                after_offset_startup = self._audit_snapshot()
+                with self._lock:
+                    self._initial_preparation_audit = {
+                        key: count - before_offset_startup.get(key, 0)
+                        for key, count in after_offset_startup.items()
+                    }
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -831,7 +846,7 @@ class DashboardRuntime:
 
     def begin(
         self,
-        prompt: str,
+        prompt: str | list[dict[str, str]],
         max_output_tokens: int,
         request_id: str | None = None,
         *,
@@ -912,7 +927,7 @@ class DashboardRuntime:
             worker.start()
         return run_id
 
-    def _execute_run(self, run_id: str, prompt: str, max_output_tokens: int) -> None:
+    def _execute_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
         capture = self._active_run
         if capture is None or capture.run_id != run_id:
@@ -1014,7 +1029,7 @@ class DashboardRuntime:
             return None
         return input_tokens, output_tokens
 
-    def _run_chat(self, prompt: str, max_output_tokens: int) -> None:
+    def _run_chat(self, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
         capture = getattr(self, "_active_run", None)
         delta_count = 0
@@ -1269,6 +1284,22 @@ class DashboardRuntime:
                 for key, value in audit_after.items()
             }
             self._last_privacy_delta = privacy_delta
+            from .topology_accounting import measured_decode_window
+
+            roles = (
+                ("client", *(item.role for item in self._topology.statuses))
+                if self._topology is not None else ("client", "preparation", "inference")
+            )
+            decode_measured = (
+                status == "completed" and capture.token_usage_authoritative
+                and capture.output_tokens is not None and capture.output_tokens > 0
+            )
+            decode_bytes = decode_tokens = None
+            if decode_measured:
+                assert capture.output_tokens is not None
+                window = measured_decode_window(privacy_delta, output_tokens=capture.output_tokens, roles=roles)
+                if window is not None:
+                    decode_bytes, decode_tokens = window
             run = BenchmarkRun(
                 run_id=capture.run_id,
                 status=status,
@@ -1329,6 +1360,8 @@ class DashboardRuntime:
                 input_tokens=capture.input_tokens,
                 output_tokens=capture.output_tokens,
                 token_usage_authoritative=capture.token_usage_authoritative,
+                decode_online_body_bytes=decode_bytes,
+                decode_output_tokens=decode_tokens,
                 inventory_required=capture.inventory_required,
                 inventory_generated=capture.inventory_generated,
                 inventory_reused=capture.inventory_reused,
@@ -1630,11 +1663,11 @@ def create_dashboard_app(config: DashboardConfig) -> FastAPI:
         if set(body).difference({"prompt", "max_output_tokens", "request_id", "temperature"}):
             raise HTTPException(status_code=400, detail="JSON body contains unsupported fields")
         prompt_value = body.get("prompt", "")
-        if not isinstance(prompt_value, str):
-            raise HTTPException(status_code=400, detail="prompt must be a string")
-        prompt = prompt_value.strip()
-        if not prompt or len(prompt.encode()) > 16_384:
-            raise HTTPException(status_code=400, detail="prompt must contain 1 to 16384 bytes")
+        from .benchmark_context import validate_context
+        try:
+            prompt = validate_context(prompt_value.strip() if isinstance(prompt_value, str) else prompt_value)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         maximum_value = body.get("max_output_tokens", config.default_max_output_tokens)
         if type(maximum_value) is not int:
             raise HTTPException(status_code=400, detail="max_output_tokens must be an integer")

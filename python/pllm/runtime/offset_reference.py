@@ -19,6 +19,7 @@ import httpx
 import numpy as np
 
 from pllm.configuration import Pipeline
+from pllm.modeling import DecoderContinuationSchedule
 from pllm.roles import two_online_reference_graph
 from pllm.runtime.model_binding import CompiledRuntimeModel
 from pllm.runtime.stage_protocol import MaskedStageRequest, MaskedStageResponse
@@ -324,6 +325,7 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
         self, compiled: CompiledRuntimeModel, *, model_id: str,
         worker_a: httpx.Client, worker_b: httpx.Client,
         api_key_a: str, api_key_b: str,
+        continuation: DecoderContinuationSchedule | None = None,
     ) -> None:
         if (
             type(worker_a) is not httpx.Client or type(worker_b) is not httpx.Client
@@ -333,6 +335,15 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
         ):
             raise OffsetReferenceError("offset transport requires distinct authenticated workers")
         compiled.validate()
+        self.continuation = None
+        if continuation is not None:
+            if type(continuation) is not DecoderContinuationSchedule:
+                raise OffsetReferenceError("offset continuation requires a native contract")
+            expected_contract = compiled._plan.continuation_schedule(
+                Pipeline.from_spec(json.loads(compiled._canonical_composition)))
+            if continuation.digest != expected_contract.digest:
+                raise OffsetReferenceError("offset continuation differs from compiled decoder")
+            self.continuation = continuation.handshake_spec()
         metadata = compiled._bundle.manifest["metadata"]
         plan = compiled._plan.to_dict()
         max_input = plan["prefill"]["query_sequence"]
@@ -391,6 +402,10 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                 }
                 if row_layout is not None:
                     request["residue_layout_digest"] = row_layout
+                if self.continuation is not None:
+                    request["decoder_continuation"] = {
+                        "composition": composition.to_spec(), "contract": self.continuation,
+                    }
                 status, payload = post(index, "/v1/offset-reference/sessions", phase="setup",
                                        json=request)
                 if status != 200:
@@ -413,14 +428,21 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                 }
                 if row_layout is not None:
                     expected["residue_layout_digest"] = row_layout
+                if self.continuation is not None:
+                    expected["decoder_continuation"] = self.continuation
+                # Remember a valid issued ID before checking all acknowledgement
+                # fields, so a refused/malformed second acknowledgement burns both.
+                valid_id = (type(value) is dict and type(value.get("id")) is str
+                            and len(value["id"]) == 32
+                            and all(char in "0123456789abcdef" for char in value["id"]))
+                if valid_id:
+                    session_ids.append(value["id"])
                 if (
                     type(value) is not dict or set(value) != set(expected) | {"id"}
                     or any(value.get(field) != item for field, item in expected.items())
-                    or type(value["id"]) is not str or len(value["id"]) != 32
-                    or any(char not in "0123456789abcdef" for char in value["id"])
+                    or not valid_id
                 ):
                     raise OffsetReferenceError("offset worker admission response differs")
-                session_ids.append(value["id"])
             if session_ids[0] == session_ids[1]:
                 raise OffsetReferenceError("offset workers issued an identical session ID")
 

@@ -85,6 +85,7 @@ class ClientPrefixReuse(ComponentRef):
             "properties": {
                 "max_bytes": {"type": "integer", "minimum": 1048576, "maximum": 268435456, "multipleOf": 1048576},
                 "fixed_input_tokens": {"type": "integer", "minimum": 2, "maximum": 4096},
+                "generated_prefixes": {"type": "boolean"},
             },
             "additionalProperties": False,
         },
@@ -92,14 +93,17 @@ class ClientPrefixReuse(ComponentRef):
         role_eligibility=("client",),
     )
 
-    def __init__(self, *, max_bytes: int, fixed_input_tokens: int) -> None:
+    def __init__(self, *, max_bytes: int, fixed_input_tokens: int, generated_prefixes: bool = False) -> None:
         if type(max_bytes) is not int or not 1 <= max_bytes >> 20 <= 256 or max_bytes % (1 << 20):
             raise ConfigurationError("client prefix cache max_bytes must be whole MiB in [1, 256]")
         if type(fixed_input_tokens) is not int or not 2 <= fixed_input_tokens <= 4096:
             raise ConfigurationError("client prefix fixed_input_tokens must be in [2, 4096]")
+        if type(generated_prefixes) is not bool:
+            raise ConfigurationError("generated_prefixes must be a boolean")
         super().__init__(
             self.descriptor.component,
-            {"max_bytes": max_bytes, "fixed_input_tokens": fixed_input_tokens},
+            {"max_bytes": max_bytes, "fixed_input_tokens": fixed_input_tokens,
+             **({"generated_prefixes": True} if generated_prefixes else {})},
         )
 
     @classmethod

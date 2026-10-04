@@ -56,10 +56,13 @@ def test_docker_backend_is_selected_without_changing_composition():
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("PLLM_RUN_DOCKER") != "1", reason="opt-in Docker runtime")
 @pytest.mark.parametrize("profile", [MaskedLinearCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu])
-def test_two_linux_roles_masked_request_samples_and_owned_cleanup(profile, tmp_path):
+@pytest.mark.parametrize("wan", [False, True])
+def test_two_linux_roles_masked_request_samples_and_owned_cleanup(profile, wan, tmp_path):
+    from pllm.deployment import WanConditions
     experiment = Experiment("docker-test", profile(Model.tiny(model_id="docker-tiny")),
                             Deployment.local(root=str(tmp_path)), ExecutionBudget(1, 32, 2))
-    with build_roles(experiment, docker=True) as topology:
+    with build_roles(experiment, docker=True, wan=WanConditions() if wan else None,
+                     docker_image=os.environ.get("PLLM_DOCKER_TEST_IMAGE")) as topology:
         assert topology.start() is topology
         with topology.client() as client:
             response = client.responses.create(input="Hi", max_output_tokens=2, temperature=0.0)
@@ -74,13 +77,19 @@ def test_two_linux_roles_masked_request_samples_and_owned_cleanup(profile, tmp_p
         for role in samples["roles"]:
             assert samples["directed_ip"]["links"][f"client->{role}"]["bytes"] > 0
             assert samples["directed_ip"]["links"][f"{role}->client"]["bytes"] > 0
-            assert samples["measurement_helpers"][role]["cpu_ns"] > 0
+            helper = f"{role}/router" if wan else role
+            assert samples["measurement_helpers"][helper]["cpu_ns"] > 0
         if profile is not TwoOnlineOffsetCpu:
             assert samples["directed_ip"]["links"]["preparation->inference"]["bytes"] > 0
         for sample in samples["roles"].values():
             assert sample["cpu_ns"] > 0 and sample["memory_peak_bytes"] > 0
-            assert sample["interfaces"]["eth0"]["rx_bytes"] > 0
+            assert any(interface["rx_bytes"] > 0 for interface in sample["interfaces"].values())
         names = tuple(topology._docker_names.values()) + tuple(item.name for item in topology._measurement_helpers.values())
+        if wan:
+            assert samples["wan_emulation"]["enforced"] is True
+            assert samples["wan_emulation"]["conditions_digest"] == WanConditions().digest
+            assert set(samples["wan_emulation"]["parties"]) == {"client", *samples["roles"]}
+            names += tuple(topology._party_network.containers)
     for name in names:
         with pytest.raises(TopologyError):
             docker_roles._docker(["inspect", name, "--format", "{{.State.Status}}"])

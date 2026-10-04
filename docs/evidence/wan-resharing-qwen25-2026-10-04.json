@@ -1,0 +1,68 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "6420622fa85168da1832f5c878c1555f2ede211af57c7fa8acf2a3ba5cfbabd7",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "resharing",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "client_resident_weight_bytes_required": 0,
+    "configurations": [
+      {
+        "all_role_native_cpu_seconds": 0.027707,
+        "exact_field_outputs": true,
+        "fixture_input_share_bytes": 116736,
+        "peer_frame_bytes": 117012,
+        "project_before_resharing": false
+      },
+      {
+        "all_role_native_cpu_seconds": 0.027167,
+        "exact_field_outputs": true,
+        "fixture_input_share_bytes": 116736,
+        "peer_frame_bytes": 21780,
+        "project_before_resharing": true
+      }
+    ],
+    "field_modulus": 2013265921,
+    "fresh_dealer_material_bytes": 0,
+    "limitations": [
+      "Three semi-honest parties, at most one colludes; not the existing two-party topology",
+      "Each party computes one public projection; 3x clear projection MACs",
+      "No exact fixed-point truncation, SiLU, attention, normalization, or private feedback contract",
+      "No authenticated transport, independent security review or peak client memory measurement"
+    ],
+    "peer_reduction_factor": 5.372451790633609,
+    "resident_state_excludes_fixture_distribution": true,
+    "response_projection": {
+      "complete_online_body_bytes": null,
+      "executed_rows": 70,
+      "fresh_dealer_material_bytes": 0,
+      "missing": [
+        "numeric conversion and rescaling",
+        "SiLU",
+        "normalization",
+        "attention",
+        "private token feedback"
+      ],
+      "ordinary_peer_frame_bytes": 196580160,
+      "plan_digest": "62381dbd11470bd150723cfb0d7bab096c52f331ec8e9f5dd23e178df28a0a4d",
+      "projected_peer_frame_bytes": 36590400,
+      "schedule_digest": "c48d86baf31a35b8545bfd1309157f3de86aacc11ebebf8280b4bd99474c84d2",
+      "scope": "isolated field products and public down-projection; resident input shares assumed"
+    },
+    "schema": "pllm.projected_resharing_probe.v1",
+    "scope": "local all-share fixture; one-use party-local degree reduction; not decoder execution",
+    "shape": [
+      896,
+      4864
+    ],
+    "weight_digest": "1152598dbaaaf29546a9b7471c7987b345819a7adbd5bcd831f5ddffc8a1ed5f",
+    "whole_decoder_executable": false
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

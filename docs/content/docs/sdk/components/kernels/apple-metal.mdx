@@ -20,6 +20,13 @@ and incomplete protected compositions remain ineligible. GPU stage weights are
 preflighted against 2 GiB **per role**. An unavailable device, oversized model,
 or invalid kernel material fails rather than silently changing the Experiment.
 
+Prepared [`ClientLinearRoles`](/sdk/components/roles/client-linear-roles/) and
+[`ClientPrefixLayers`](/sdk/components/roles/client-prefix-layers/) also compose
+with Metal. The client binds GPU snapshots only for its owned body stages;
+providers exclude those stages from GPU allocation. Small rows still use native
+CPU. Both CPU and GPU snapshots count as storage; the ownership report exposes
+them separately. Compilation revalidation reuses the same bound GPU snapshots.
+
 ## Python SDK example
 
 ```python
@@ -41,7 +48,7 @@ assert tuple(role.id for role in experiment.resolve().role_graph.roles) == ("cli
 
 # The kernel is a composable Pipeline slot, also available to public roles.
 from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
-from pllm.roles import PreparedProviderRoles
+from pllm.roles import ClientLinearRoles, ClientPrefixLayers, PreparedProviderRoles
 
 model = TinyModel(model_id="metal-provider-guide")
 other_pipelines = (
@@ -50,6 +57,11 @@ other_pipelines = (
         model, topology=PreparedProviderRoles(), kernels=AppleMetal(min_rows=8),
     ),
     TwoOnlineOffsetCpu(model, kernels=AppleMetal(min_rows=8)),
+    MaskedLinearCpu(
+        model, kernels=AppleMetal(min_rows=8),
+        placement=ClientLinearRoles(("qkv_projection", "attention_output")),
+    ),
+    MaskedLinearCpu(model, kernels=AppleMetal(min_rows=8), placement=ClientPrefixLayers(1)),
 )
 for pipeline in other_pipelines:
     candidate = Experiment(
@@ -73,3 +85,11 @@ A [pinned Qwen2.5-0.5B matched cold run](https://github.com/blairhudson/pllm/blo
 
 API: [`AppleMetal`](/sdk/reference/python/pllm/kernels/#objects-and-signatures),
 [`ClientOnlyMetal`](/sdk/reference/python/pllm/profiles/#clientonlymetal)
+
+A [combined Qwen cohort](https://github.com/blairhudson/pllm/blob/main/docs/evidence/metal-placement-qwen25-2026-10-03.md)
+checked fresh, repeated and extended contexts with 32 outputs each. CPU and Metal
+preserved outputs and used the same 2.020 online MB/generated-token across the
+sequence. Total request time was 60.62/60.33 seconds: no clear Metal advantage in
+this single sample. Metal added 44.04 MB of client GPU weight snapshots. Keep
+device selection workload- and resource-aware rather than enabling it merely
+because the composition is legal.

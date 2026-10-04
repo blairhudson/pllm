@@ -5,7 +5,8 @@ description: "Reuse sealed client-owned prefills under an explicitly bound numer
 
 [`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#clientprefixreuse)
 (`pllm/client-prefix-reuse/v1`) is an optional `cache` slot in
-`MaskedLinearCpu`. The fixed input-token bound, byte limit, composition,
+`MaskedLinearCpu`, `TwoOnlineOffsetCpu`, and `VerifiedMaskedLinearCpu`.
+The fixed input-token bound, byte limit, composition,
 client bundle and exact token prefix bind every cached KV snapshot. These
 identities alone are insufficient: **the source's full-prefill reduction extent
 must equal the new request's total input-token count** under the historical
@@ -13,7 +14,7 @@ numeric contract, even for proper-prefix reuse. A fixed capacity is not the
 actual reduction extent. Selecting
 [`SymmetricPerRow(causal_reduction="prefix_f32")`](/sdk/components/quantization/symmetric-per-row/)
 binds canonical valid-prefix attention reductions and permits growing-width
-completed-prefill reuse. Only sealed,
+completed-prefill reuse. By default only sealed,
 completed, unowned prefill snapshots qualify. Reused lengths can reveal prefix
 equality, so the component is off by default.
 
@@ -30,9 +31,28 @@ the client requires the exact continuation acknowledgement. Missing admission
 does not silently downgrade to a sequential path. See
 [continuation contracts](/sdk/plans/continuation/).
 
-Generated decode makes lineage incremental. It is **never promoted into the
-fresh-prompt cache**, even when an ordinary message history retokenizes to the
-same IDs. `previous_response_id` is a separate response-owned incremental path:
+Offset execution requires independent continuation acknowledgements from both
+authenticated workers and enforces cumulative stage-row budgets; a failed peer
+admission cancels both sessions. It composes with seeded input shares, row-wise
+output residues, and compressed artifact delivery.
+
+Verified execution also seals verification strength and a client-minted inventory
+incarnation into the state basis. Each cache-enabled inventory uses the requested
+failure bits plus 12, bounding the union over at most 4,096 inventory transitions.
+The requested target is therefore capped at 68 bits by the backend's 80-bit
+limit. An exhausted lineage or invalid seal rejects before stage work. Local
+stages need no remote verifier; every remote stage must be checked before a
+new qualified snapshot is sealed. See [verification](/sdk/components/verification/freivalds/).
+
+Generated decode normally makes lineage response-owned and incremental.
+The explicit `generated_prefixes=True` option additionally requires `prefix_f32`
+and a native full-KV continuation contract. It qualifies completed, already
+executed generated tokens under a distinct canonical-incremental seal. Pending
+sampled tokens stay excluded, and token IDs must match after message rendering.
+This opt-in exposes generated-prefix equality through reuse patterns.
+
+Without that option, generated state cannot enter the fresh-prompt cache.
+`previous_response_id` remains a separate response-owned incremental path:
 owner, source, numeric and execution basis must match before restoration. Its
 pending sampled token has not yet been evaluated and is appended with the suffix.
 Cancellation and `store=False` retain no completed private conversation snapshot.
@@ -44,12 +64,14 @@ quote or GPU attestation; it does not authenticate mutable KV payload contents.
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment, Model
 from pllm.profiles import MaskedLinearCpu
+from pllm.quantization import SymmetricPerRow
 from pllm.state import ClientPrefixReuse
 
-cache = ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=128)
+cache = ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=128, generated_prefixes=True)
 experiment = Experiment(
     name="client-prefix-reuse-example",
-    pipeline=MaskedLinearCpu(Model.tiny(), cache=cache),
+    pipeline=MaskedLinearCpu(Model.tiny(), cache=cache,
+        quantization=SymmetricPerRow(causal_reduction="prefix_f32")),
     deployment=Deployment.local(root="local://client-prefix-reuse-example"),
     budget=ExecutionBudget(requests=2, max_input_tokens=128, max_new_tokens=1),
 )
@@ -76,9 +98,11 @@ full-wire measurements or general context-growth savings.
 
 The same evidence exposes **1.8366047** logit drift across prefill widths and
 **1.9433875** for generated-state aliasing against canonical fresh prefill.
-Unchanged output text or argmax does not pass the numeric gate. Explicit prior
-continuation remains valid against its incremental execution reference, not as
-an equivalent fresh-prompt optimization. Compare all logits under the appropriate
+Unchanged output text or argmax does not pass the numeric gate. Under that
+historical mode, prior continuation remains valid against its incremental
+reference. The new canonical option separately passes 24 pinned-Qwen generated
+checkpoints and a matched conversation benchmark; see the
+[additional method gates](/sdk/evaluate/next-five/). Compare all logits under the appropriate
 source, numeric, execution and workload identities.
 
 API: [`ClientPrefixReuse`](/sdk/reference/python/pllm/state/#objects-and-signatures)

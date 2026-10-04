@@ -1487,7 +1487,12 @@ fn lower_phase(
     }
     if !client_linear_roles.is_empty()
         && !steps.iter().any(|step| {
-            step.layer.is_some() && step.executor == DecoderRuntimeExecutor::RemoteStage
+            step.layer.is_some()
+                && matches!(
+                    step.executor,
+                    DecoderRuntimeExecutor::RemoteStage
+                        | DecoderRuntimeExecutor::VerifiedRemoteStage
+                )
         })
     {
         return Err("client linear placement must retain a remote body stage".into());
@@ -1590,7 +1595,12 @@ pub fn lower_decoder_runtime_schedule(
     let client_prefix_layers = composition
         .components
         .get("placement")
-        .and_then(|component| component.params.get("layers"))
+        .and_then(|component| {
+            component
+                .params
+                .get("layers")
+                .or_else(|| component.params.get("prefix_layers"))
+        })
         .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
     let client_linear_roles: BTreeSet<_> = composition

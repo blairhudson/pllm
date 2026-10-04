@@ -338,6 +338,22 @@ CLI_EXAMPLES: dict[str, tuple[CliExample, ...]] = {
             "pllm benchmark run --request request.json --network network.json "
             "--compare-feasible --max-output-tokens 2 --warmups 0 --repetitions 1",
         ),
+        CliExample(
+            "Forecast consumer WAN capacity",
+            "Use decimal Mbps and one shared upload/download budget per party. "
+            "These are application-body bandwidth floors, not measured WAN latency.",
+            "pllm benchmark run --tiny --max-output-tokens 2 --warmups 0 "
+            "--wan-download-mbps 100 --wan-upload-mbps 40 "
+            "--wan-party preparation:50:10 --output wan-benchmark.json",
+        ),
+        CliExample(
+            "Select exact prepared residue coding",
+            "The ordinary compiler and role path bind public output widths, compressed "
+            "artifacts and exact prefix reuse. Raw input masks remain full width.",
+            "pllm benchmark run --experiment examples/benchmarks/prepared_residues.py:compact "
+            "--trust-python --max-output-tokens 8 --warmups 0 --output prepared-residues.json",
+            validate_resolution=True,
+        ),
     ),
     "pllm benchmark quality": (
         CliExample(
@@ -984,7 +1000,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": SCHEDULER_EXAMPLE,
     },
     "pllm.search": {
-        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions. PlanningRequest and PlanningPolicy separately bound offline network placement over exact source, numeric and workload contracts; unknown required costs fail closed.",
+        "purpose": "Search APIs generate immutable experiment candidates and compare only cohort-compatible evidence with explicit metric directions. optimization_space proposes bounded model-neutral choices while retaining numeric/privacy contracts. PlanningRequest and PlanningPolicy bound offline network placement over exact source and workload identities; unknown required costs fail closed.",
         "citations": (),
         "example": SEARCH_EXAMPLE,
     },
@@ -1024,7 +1040,7 @@ MODULE_GUIDES: dict[str, dict[str, object]] = {
         "example": RUNTIME_EXAMPLE,
     },
     "pllm.compiler": {
-        "purpose": "The compiler accepts canonical request bytes, verifies complete capability coverage, and returns opaque native plans or fails closed. The separate plan entry point performs bounded pure network placement against an explicit snapshot; native code owns legality and the immutable result does not reserve hosts or load weights.",
+        "purpose": "The compiler accepts canonical request bytes, verifies complete capability coverage, and returns opaque native plans or fails closed. plan performs bounded pure network placement against an explicit snapshot. plan_on_load explicitly resolves a checkpoint and verifies its locked configuration before bounded candidate selection; neither reserves hosts, imports tensor values, nor benchmarks candidates. Native code owns legality.",
         "citations": (HYCC_CITATION,),
         "example": COMPILER_EXAMPLE,
     },

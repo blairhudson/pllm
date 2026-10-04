@@ -1,0 +1,156 @@
+{
+  "costs": {
+    "artifact_miss_bytes": null,
+    "client_cpu_ns": null,
+    "client_linear_macs": 29848240128,
+    "client_payload_bytes": 80759808,
+    "client_peak_memory_bytes": null,
+    "client_weight_bytes": 1081478400,
+    "cost_model": "pllm.schedule_arithmetic_cost.v2",
+    "full_wire_bytes": null,
+    "horizon_accounted_body_bytes": null,
+    "link_transfer_ms": null,
+    "link_transfer_scope": "serialized arithmetic arrays / directed bandwidth; excludes RTT and overlap",
+    "logical_remote_linear_macs": 119552606208,
+    "logical_total_linear_macs": 136331919360,
+    "memory_scope": "6 bytes per owned element plus explicit buffers; not complete peak RAM",
+    "online_all_link_body_bytes": 599261184,
+    "origin": "estimate",
+    "party_links": [
+      {
+        "bytes": 210677760,
+        "phase": "online",
+        "source_party": "client",
+        "target_party": "inference"
+      },
+      {
+        "bytes": 210677760,
+        "phase": "preprocessing",
+        "source_party": "client",
+        "target_party": "preparation"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "online",
+        "source_party": "inference",
+        "target_party": "client"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "preprocessing",
+        "source_party": "preparation",
+        "target_party": "client"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "preprocessing",
+        "source_party": "preparation",
+        "target_party": "inference"
+      }
+    ],
+    "preprocessing_all_link_body_bytes": 987844608,
+    "remote_mac_denominator": "body_linear",
+    "remote_mac_fraction": 0.8769230769230769,
+    "role_linear_macs": {
+      "client": 29848240128,
+      "inference": 119552606208,
+      "preparation": 119552606208
+    },
+    "role_links": [
+      {
+        "bytes": 210677760,
+        "phase": "online",
+        "source_role": "client",
+        "target_role": "inference"
+      },
+      {
+        "bytes": 210677760,
+        "phase": "preprocessing",
+        "source_role": "client",
+        "target_role": "preparation"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "online",
+        "source_role": "inference",
+        "target_role": "client"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "preprocessing",
+        "source_role": "preparation",
+        "target_role": "client"
+      },
+      {
+        "bytes": 388583424,
+        "phase": "preprocessing",
+        "source_role": "preparation",
+        "target_role": "inference"
+      }
+    ],
+    "role_memory_estimates": {
+      "client": 1163286784,
+      "inference": 2225812480,
+      "preparation": 2225812480
+    },
+    "role_weight_estimates": {
+      "client": 1081478400,
+      "inference": 2147125248,
+      "preparation": 2147125248
+    },
+    "scope": "arithmetic-body-estimate; excludes full wire/control, setup and CPU",
+    "setup_ms": null,
+    "switch_body_bytes": 0,
+    "total_arithmetic_body_bytes": 1587105792
+  },
+  "coverage": {
+    "assignments_evaluated": 48,
+    "candidates_evaluated": 48,
+    "exhaustive": true,
+    "feasible_assignments": 48
+  },
+  "decision_digest": "ea2c9ea22b24646e2bc8960424a3f2a0009d16d9ff8b37736318dd635a7d9de2",
+  "elapsed_seconds": 5.895196083001792,
+  "independent_operators_verified": false,
+  "measurements_used_for_selection": false,
+  "schema": "pllm.load_time_optimization_probe.v1",
+  "scope": "cached-source resolution and bounded geometry planning; no tensor values, inference or profiling",
+  "selected_components": {
+    "inference": {
+      "component": "pllm/inference",
+      "params": {}
+    },
+    "kernels": {
+      "component": "pllm/cpu",
+      "params": {
+        "threads": 4
+      }
+    },
+    "linear": {
+      "component": "pllm/masked-linear",
+      "params": {}
+    },
+    "placement": {
+      "component": "pllm/client-owned-linear-roles/v1",
+      "params": {
+        "roles": [
+          "attention_output",
+          "qkv_projection"
+        ]
+      }
+    },
+    "preparation": {
+      "component": "pllm/model-aware-corrections",
+      "params": {}
+    },
+    "quantization": {
+      "component": "pllm/symmetric-per-row-quantization/v1",
+      "params": {
+        "activation_bits": 8,
+        "causal_reduction": "prefix_f32",
+        "weight_bits": 8
+      }
+    }
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

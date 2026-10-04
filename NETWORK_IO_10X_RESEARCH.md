@@ -1,5 +1,19 @@
 # Tenfold network-I/O research: existing-model privacy
 
+The subsequent [WAN/five-method gate](docs/evidence/wan-methods-2026-10-04.md)
+adds per-party 100/40 Mbps capacity forecasts and promotes exact prepared output
+residues. On three pinned 32-output requests, the lean stack's covered total falls
+507.46→490.41 MB (3.36%) with matching outputs and nearly equal sampled client cold
+CPU. Projected resharing, bit-plane delivery, batched private retrieval and public
+orthogonal spreading remain gated. The new first response alone exceeds the
+cohort's tenfold budget; fresh-response 10× remains unmet.
+
+The next five-method round is recorded in [NEXT_FIVE_NETWORK_METHODS.md](NEXT_FIVE_NETWORK_METHODS.md):
+canonical generated-prefix reuse, checked cross-placement state transfer, masked
+output aggregation, token-local projection memoization and progressive head
+certificates. The additional conversation saving is 8.8% over the lean combined
+control; fresh-prompt 10× remains unmet.
+
 ## Network-aware direction
 
 The bounded implemented foundation is a compiler-driven multi-party inference
@@ -33,6 +47,31 @@ Removing the tenfold requirement does not rescue a method that increases traffic
 or fails its numeric-quality gate.
 
 ### Priorities from existing evidence
+
+**Combined contracts, 2026-10-03:** compressed content-addressed delivery now
+composes with prepared, verified and offset execution; offset workers admit
+continuation jointly, and verified caches carry budgeted sealed lineage. Prefix
+and projection ownership are one union. On a separate bounded 39/39/45-input,
+eight-output-per-request cohort, prepared reuse/on-demand/compressed artifacts
+cuts covered total from **616.34 to 310.96 MB** (49.5%) without new client body
+weights. A placement union cuts online bodies **59.8%** but increases total to
+323.94 MB and adds 114.47 MB client weight/scale/native storage. Offset reuse cuts
+covered total **38.8%** against seeded/packed control. All fifteen corresponding
+outputs match; client peak memory and full wire remain unknown. Real verified
+control hit its 180-second startup limit, so no verified cost win is claimed.
+See [cohort and reproduction](docs/evidence/combined-compatibility-qwen25-2026-10-03.md).
+Its eight-output denominators differ from the 32-output cohort below.
+
+**2026-10-03 composition update:** Metal now composes with client-owned attention
+and prefix layers, preserving tiny full-logit/KV parity and pinned Qwen outputs.
+Across fresh/repeat/extension requests with 96 generated outputs, combined
+attention/reuse/on-demand/zlib uses **2.020 online / 4.920 setup-inclusive
+MB/output**, versus **3.648 / 9.939** for default prepared execution. Decode-only
+is **1.348 vs 1.655 MB/output**. Metal has almost equal request latency to CPU
+and adds a 44.04 MB client GPU snapshot; it should not activate merely because it
+is compatible. Bounded source-locked load-time selection now uses the existing
+planner and retains incumbent choices when benefits are unpriced. See the
+[measurements, SDK workflow and compatibility audit](docs/evidence/metal-placement-qwen25-2026-10-03.md).
 
 The [100× per-token track](NETWORK_IO_100X_RESEARCH.md) now derives explicit
 opening/material budgets and tests sparse exact correction and public polynomial

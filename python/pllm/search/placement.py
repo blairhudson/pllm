@@ -185,6 +185,8 @@ class ArtifactCostEvidence(PublicRecord):
     resident_keys: tuple[str, ...] = ()
     origin: str = "estimate"
     scope: str = "public-client-artifacts"
+    object_encoding: str = "identity"
+    object_transfer_bytes: tuple[tuple[str, int], ...] = ()
 
     def __post_init__(self):
         for field in ("configuration_digest", "model_plan_digest", "source_lock_digest",
@@ -210,39 +212,81 @@ class ArtifactCostEvidence(PublicRecord):
             raise NetworkError("artifact declarations cannot claim measured or protected residency")
         object.__setattr__(self, "objects", tuple(sorted(self.objects)))
         object.__setattr__(self, "resident_keys", tuple(sorted(self.resident_keys)))
+        if self.object_encoding not in {"identity", "zlib"}:
+            raise NetworkError("unsupported artifact cost encoding")
+        if type(self.object_transfer_bytes) is not tuple:
+            raise NetworkError("artifact transfer lengths must be immutable")
+        transfers = {}
+        for row in self.object_transfer_bytes:
+            if type(row) is not tuple or len(row) != 2 or row[0] in transfers:
+                raise NetworkError("duplicate or malformed artifact transfer length")
+            digest_value(row[0], "artifact transfer key")
+            integer(row[1], "artifact transfer bytes", minimum=1, maximum=(4 << 30) + (1 << 20))
+            transfers[row[0]] = row[1]
+        if (self.object_encoding == "identity" and transfers
+                or self.object_encoding == "zlib" and set(transfers) != seen):
+            raise NetworkError("encoded artifact costs require every raw object exactly once")
+        object.__setattr__(self, "object_transfer_bytes", tuple(sorted(transfers.items())))
 
     @classmethod
     def from_manifest(cls, experiment, model_plan, source_lock_digest, payload, *,
-                      bundle_digest, bundle_bytes, resident_keys=()):
-        """Inspect public metadata only. Cache keys are explicit placement assumptions."""
-        from pllm.runtime.bundle_artifacts import parse_manifest
+                      bundle_digest, bundle_bytes, resident_keys=(), objects=None):
+        """Price metadata and declared residency; compression checks supplied public objects."""
+        from pllm.runtime.bundle_artifacts import parse_manifest, verify_object
         import msgpack
 
         profile = experiment.resolve()
-        if profile.bundle_compression != "artifacts":
+        if profile.bundle_compression not in {"artifacts", "artifacts-zlib"}:
             raise NetworkError("artifact costs require executable artifact bundle delivery")
         manifest = parse_manifest(payload, fingerprint=bundle_digest, size=bundle_bytes)
         skeleton = msgpack.unpackb(manifest["skeleton"], raw=False)
         if skeleton["manifest"]["metadata"]["source_lock_digest"] != source_lock_digest:
             raise NetworkError("artifact manifest source mismatch")
+        encoding, transfers = "identity", ()
+        if profile.bundle_compression == "artifacts-zlib":
+            from pllm.runtime.bundle_compression import encode_bundle_frames
+            if not isinstance(objects, Mapping) or set(objects) != {row["sha256"] for row in manifest["objects"]}:
+                raise NetworkError("compressed artifact costing requires the exact committed public objects")
+            sizes = []
+            for row in manifest["objects"]:
+                raw = objects[row["sha256"]]
+                verify_object(row, raw)
+                sizes.append((row["sha256"], sum(len(frame) for frame in encode_bundle_frames(raw))))
+            encoding, transfers = "zlib", tuple(sizes)
         return cls(experiment.configuration_digest(), model_plan.digest, source_lock_digest,
-                   hashlib.sha256(payload).hexdigest(), bundle_digest, len(payload),
-                   tuple((row["sha256"], row["size"]) for row in manifest["objects"]), tuple(resident_keys))
+                    hashlib.sha256(payload).hexdigest(), bundle_digest, len(payload),
+                    tuple((row["sha256"], row["size"]) for row in manifest["objects"]), tuple(resident_keys),
+                    object_encoding=encoding, object_transfer_bytes=transfers)
 
     @classmethod
     def from_spec(cls, value):
-        data = cls._fields(value)
+        encoded = value.get("schema") == "pllm.artifact_cost_evidence.v2"
+        if not encoded and ("object_encoding" in value or "object_transfer_bytes" in value):
+            raise NetworkError("encoded artifact costs require schema v2")
+        data = cls._fields({"object_encoding": "identity", "object_transfer_bytes": [], **value,
+                            "schema": cls.SCHEMA if encoded else value.get("schema")})
         if type(data["objects"]) is not list or any(type(row) is not list for row in data["objects"]):
             raise NetworkError("artifact objects must be arrays")
         if type(data["resident_keys"]) is not list:
             raise NetworkError("resident keys must be an array")
         data["objects"] = tuple(tuple(row) for row in data["objects"])
         data["resident_keys"] = tuple(data["resident_keys"])
+        if type(data["object_transfer_bytes"]) is not list or any(type(row) is not list for row in data["object_transfer_bytes"]):
+            raise NetworkError("artifact transfer lengths must be arrays")
+        data["object_transfer_bytes"] = tuple(tuple(row) for row in data["object_transfer_bytes"])
+        if encoded and data["object_encoding"] != "zlib":
+            raise NetworkError("artifact cost schema v2 requires explicit zlib costs")
         return cls(**data)
 
     def to_spec(self):
         value = super(ArtifactCostEvidence, self).to_spec()
         value["objects"] = [list(row) for row in self.objects]
+        if self.object_encoding == "identity":
+            value.pop("object_encoding")
+            value.pop("object_transfer_bytes")
+        else:
+            value["schema"] = "pllm.artifact_cost_evidence.v2"
+            value["object_transfer_bytes"] = [list(row) for row in self.object_transfer_bytes]
         return value
 
 
@@ -359,7 +403,8 @@ class PlanningRequest(PublicRecord):
             if (candidate is None or evidence.configuration_digest in seen
                     or evidence.model_plan_digest != self.model_plan.digest
                     or evidence.source_lock_digest != self.source_lock_digest
-                    or candidate.resolve().bundle_compression != "artifacts"):
+                    or candidate.resolve().bundle_compression != (
+                        "artifacts-zlib" if evidence.object_encoding == "zlib" else "artifacts")):
                 raise NetworkError("artifact evidence source/plan/configuration mismatch")
             seen.add(evidence.configuration_digest)
         object.__setattr__(self, "artifact_evidence", tuple(sorted(
@@ -380,11 +425,10 @@ class PlanningRequest(PublicRecord):
             if (not profile.prefix_cache_bytes
                     or evidence.resident_bytes > profile.prefix_cache_bytes
                     or evidence.reusable_prefill_rows > candidate.budget.max_input_tokens
-                    or profile.verification_component is not None
-                    or profile.client_runtime != "masked_transformer_v1"
+                    or profile.client_runtime not in {"masked_transformer_v1", "compiled_offset_v1"}
                     or candidate.pipeline.components.get("quantization") is None
                     or candidate.pipeline.components["quantization"].params.get("causal_reduction") != "prefix_f32"):
-                raise NetworkError("state evidence requires bounded canonical prepared prefill reuse")
+                raise NetworkError("state evidence requires bounded canonical public prefill reuse")
             seen.add(evidence.configuration_digest)
         object.__setattr__(self, "state_evidence", tuple(sorted(
             self.state_evidence, key=lambda row: row.configuration_digest)))
@@ -436,11 +480,12 @@ class PlanningRequest(PublicRecord):
 
 
 def _geometry(request: PlanningRequest, experiment: Experiment, requirements: dict) -> dict:
-    from pllm.runtime.semantic_stages import scheduled_stage_specs
+    from pllm.runtime.semantic_stages import _scheduled_stage_specs
+    from pllm.profiles import resolve_runtime_composition
 
     plan = request.model_plan
-    schedule = plan.runtime_schedule(experiment.pipeline).to_dict()
-    stages = scheduled_stage_specs(plan, experiment.pipeline)
+    admitted_schedule, stages = _scheduled_stage_specs(plan, experiment.pipeline)
+    schedule = admitted_schedule.to_dict()
     steps = [
         item
         for item in schedule["prefill"]["steps"]
@@ -454,6 +499,9 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     if len(steps) != len(stages):
         raise NetworkError("schedule stage geometry mismatch")
     profile = experiment.resolve()
+    numeric = resolve_runtime_composition(experiment.pipeline)
+    if numeric is None:
+        raise NetworkError("runtime numeric contract is unavailable")
     role_ids = {item["role_id"] for item in requirements["roles"]}
     client_only = role_ids == {"client"}
     workers = ["worker_a", "worker_b"] if "worker_a" in role_ids else ["inference"]
@@ -496,8 +544,19 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
             body_remote += work
         for worker in workers:
             macs[worker] += work
-            edges[("client", worker, "online")] += requests * count * stage.in_features * 4
-            edges[(worker, "client", "online")] += requests * count * stage.out_features * 4
+            parameters = experiment.pipeline.components["linear"].params
+            seeded = worker == "worker_b" and parameters.get("input_encoding") == "seeded"
+            batches = experiment.budget.max_new_tokens - int(reused_rows == experiment.budget.max_input_tokens)
+            edges[("client", worker, "online")] += requests * (
+                batches * 32 if seeded else count * stage.in_features * 4)
+            output_bytes = count * stage.out_features * 4
+            if worker in {"worker_a", "worker_b"} and parameters.get("output_encoding") == "row_residues":
+                # Public shape/quantizer worst case; exact per-row widths need
+                # validated checkpoint summaries. Never assume sampled sparsity.
+                bound = stage.in_features * ((1 << (numeric.weight_bits - 1)) - 1) * ((1 << (numeric.activation_bits - 1)) - 1)
+                width = min(32, (2 * bound).bit_length())
+                output_bytes = count * ((stage.out_features * width + 7) // 8)
+            edges[(worker, "client", "online")] += requests * output_bytes
         if "preparation" in role_ids:
             # Conservative arithmetic arrays; seeds/framing/control/authentication unpriced.
             macs["preparation"] += work
@@ -511,7 +570,9 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
                 requests * count * stage.out_features * 4
             )
     state_bytes = sum(_product(item["shape"]) * 4 for item in schedule["decode"]["state_outputs"])
-    payload = state_bytes + workspace
+    # A cache miss must remain feasible even before any resident-state evidence
+    # exists. Charge its full declared capacity, not only today's hit snapshot.
+    payload = state_bytes + workspace + profile.prefix_cache_bytes
     weights = {role: 6 * floor for role, floor in requirements["minimum_weight_bytes"].items()}
     memory = {
         role: max(requirements["minimum_memory_bytes"][role], value)
@@ -519,8 +580,6 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
         + (payload if role == "client" else workspace)
         for role, value in weights.items()
     }
-    if state is not None:
-        memory["client"] += state.resident_bytes
     online = sum(value for (*_, phase), value in edges.items() if phase == "online")
     prep = sum(value for (*_, phase), value in edges.items() if phase == "preprocessing")
     denominator = request.policy.remote_mac_denominator
@@ -529,7 +588,7 @@ def _geometry(request: PlanningRequest, experiment: Experiment, requirements: di
     return {
         "scope": "arithmetic-body-estimate; excludes full wire/control, setup and CPU",
         "origin": "estimate",
-        "cost_model": "pllm.schedule_arithmetic_cost.v1",
+        "cost_model": "pllm.schedule_arithmetic_cost.v3",
         "online_all_link_body_bytes": online,
         "preprocessing_all_link_body_bytes": prep,
         "total_arithmetic_body_bytes": online + prep,
@@ -664,6 +723,10 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
     exhaustive = True
     incumbent = None
     incumbent_key: tuple[Any, ...] | None = None
+    incumbent_components = next(
+        (row.pipeline.components for row in request.candidates
+         if row.configuration_digest() == policy.incumbent_configuration_digest), None
+    )
     snapshot_stale = (
         snapshot.expires_at_ms <= policy.evaluated_at_ms
         or snapshot.observed_at_ms > policy.evaluated_at_ms
@@ -685,9 +748,13 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
             for evidence in request.artifact_evidence:
                 if evidence.configuration_digest != digest:
                     continue
-                missing = sum(size for key, size in evidence.objects if key not in evidence.resident_keys)
+                raw_missing = sum(size for key, size in evidence.objects if key not in evidence.resident_keys)
+                sizes = evidence.object_transfer_bytes or evidence.objects
+                missing = sum(size for key, size in sizes if key not in evidence.resident_keys)
                 horizon = policy.reuse_horizon
                 base.update(artifact_miss_bytes=missing,
+                    artifact_raw_miss_bytes=raw_missing,
+                    artifact_object_encoding=evidence.object_encoding,
                     artifact_manifest_bytes=evidence.manifest_bytes,
                     artifact_evidence_digest=evidence.digest,
                     reuse_horizon=horizon,
@@ -802,8 +869,13 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
                 reasons[(digest, rejection)] += 1
                 continue
             feasible += 1
+            changes = 0 if incumbent_components is None else sum(
+                incumbent_components.get(slot) != experiment.pipeline.components.get(slot)
+                for slot in set(incumbent_components) | set(experiment.pipeline.components)
+            )
             key = (
                 *[costs[name] for name in policy.objectives],
+                changes,
                 digest,
                 tuple(sorted(assignment.items())),
             )
@@ -833,7 +905,8 @@ def search_placements(request: PlanningRequest, snapshot: NetworkSnapshot) -> An
     comparisons = tuple(
         {
             "configuration_digest": digest,
-            "best_objective_values": list(item["key"][:-2]),
+            "best_objective_values": list(item["key"][:len(policy.objectives)]),
+            "component_changes_from_incumbent": item["key"][-3],
             "best_roles": [{"role_id": role, "party_id": party} for role, party in item["key"][-1]],
             "feasible_assignments": item["feasible_assignments"],
             "selected": item["key"] == best_key,

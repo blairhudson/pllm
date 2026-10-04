@@ -13,6 +13,31 @@ The report contains sanitized diagnostic measurements. It is not a canonical
 research `EvidenceReport`, and a loopback run does not establish WAN, multi-host,
 energy, price, quality, or production non-collusion claims.
 
+## Enforce consumer Internet rates
+
+`--wan` uses the existing Docker role backend to cap every party, including the
+client, at **100 Mbps down / 40 Mbps up**. Upload and download are shared across
+all that party's peers; they are not per-connection allowances. Override with
+`--wan-download-mbps`, `--wan-upload-mbps`, repeatable `--wan-party ID:DOWN:UP`,
+or `--wan-profile`. Supplying those options also enables enforcement.
+
+```bash
+pllm benchmark run --tiny --wan --warmups 0 --repetitions 1 \
+  --max-output-tokens 4 --temperature 0 --inventory-policy request-sized \
+  --output wan-report.json
+```
+
+Reports print measured end-to-end, online and decode **tokens/second under the
+caps**, alongside separately labeled analytical bandwidth floors. Decode uses
+`N-1` outputs over the first-to-last output interval. End-to-end request timing
+includes demand preparation; provider startup and warmups are separate.
+Use `--wan-estimate` for a projection without throttling. See
+[WAN readiness](/sdk/deployment/wan/) for party grouping, kernel evidence and the
+bounded real-Qwen throughput check. Rate-only emulation adds no Internet RTT;
+optional Docker delay/loss controls are separately configured.
+
+## Account for preparation and delivery
+
 For the public prepared graph, the report's `topology_accounting` includes
 separate **startup inventory/bundle** and per-run serialized protocol-body
 bytes by directed edge and phase, plus available run-window process CPU seconds

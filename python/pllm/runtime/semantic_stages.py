@@ -22,19 +22,37 @@ def client_owns_linear(
     )
 
 
+def provider_owns_linear(
+    stage: Any, *, remote_output_head: bool = False,
+    client_prefix_layers: int = 0, client_linear_roles: tuple[str, ...] = (),
+) -> bool:
+    """One ownership rule for provider material, commitments and GPU snapshots."""
+    get = stage.get if isinstance(stage, dict) else lambda key: getattr(stage, key, None)
+    return (get("op") in {"linear", "lm_head"} and get("id") != "token_lookup"
+            and (get("id") != "lm_head" or remote_output_head)
+            and not client_owns_linear(stage, client_prefix_layers=client_prefix_layers,
+                                       client_linear_roles=client_linear_roles))
+
+
+def _graph_consumers(operations: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+    consumers: dict[str, list[str]] = {}
+    for operation_id, operation in operations.items():
+        for source in operation.get("inputs") or ():
+            if source in operations:
+                consumers.setdefault(source, []).append(operation_id)
+    return consumers
+
+
 def _graph_reaches(
     start: str,
     target: str,
     operations: dict[str, dict[str, Any]],
     *,
     reverse: bool = False,
+    consumers: dict[str, list[str]] | None = None,
 ) -> bool:
-    consumers: dict[str, list[str]] = {}
-    if not reverse:
-        for operation_id, operation in operations.items():
-            for source in operation.get("inputs") or ():
-                if source in operations:
-                    consumers.setdefault(source, []).append(operation_id)
+    if consumers is None:
+        consumers = {} if reverse else _graph_consumers(operations)
     frontier = [start]
     visited: set[str] = set()
     for _ in range(5):
@@ -64,7 +82,16 @@ def _graph_reaches(
     return False
 
 
-def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, Any]]) -> str:
+def semantic_stage_role(
+    step: dict[str, Any], operations: dict[str, dict[str, Any]], *,
+    _consumers: dict[str, list[str]] | None = None,
+) -> str:
+    # One bounded adjacency index per immutable graph, rather than per predicate.
+    consumers = _graph_consumers(operations) if _consumers is None else _consumers
+
+    def reaches(start: str, target: str, *, reverse: bool = False) -> bool:
+        return _graph_reaches(start, target, operations, reverse=reverse, consumers=consumers)
+
     operators = step.get("operators")
     if isinstance(operators, list) and operators and set(operators) == {"token_lookup"}:
         return "token_lookup"
@@ -76,7 +103,7 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
     if (
         len(operation_ids) == 3
         and sum(
-            _graph_reaches(operation_id, "rotary_embedding", operations)
+            reaches(operation_id, "rotary_embedding")
             for operation_id in operation_ids
         )
         == 2
@@ -85,11 +112,11 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
     if (
         len(operation_ids) == 2
         and all(
-            _graph_reaches(operation_id, "multiply", operations) for operation_id in operation_ids
+            reaches(operation_id, "multiply") for operation_id in operation_ids
         )
         and sum(
             any(
-                _graph_reaches(operation_id, activation, operations)
+                reaches(operation_id, activation)
                 for activation in ("silu", "gelu_tanh")
             )
             for operation_id in operation_ids
@@ -109,7 +136,7 @@ def semantic_stage_role(step: dict[str, Any], operations: dict[str, dict[str, An
                 raise ValueError("grouped linear projections must share one semantic input")
             return "semantic_linear"
         source = input_ids[0]
-        if _graph_reaches(source, "attention_values", operations, reverse=True):
+        if reaches(source, "attention_values", reverse=True):
             return "attention_output"
         producer = operations.get(source)
         if (
@@ -231,11 +258,17 @@ def _linear_stage(
 
 def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageSpec]:
     """Issue all compiled linear stages, including client-owned prefix stages."""
+    return _scheduled_stage_specs(plan, composition)[1]
+
+
+def _scheduled_stage_specs(plan: ModelPlan, composition: Pipeline):
+    """Return the validated schedule with its stages for one-pass planning."""
     schedule = plan.runtime_schedule(composition)
     if not schedule.complete or schedule.protected_execution:
         raise ValueError("decoder schedule is not complete public baseline execution")
     graph = plan.prefill
     operations = {operation["id"]: operation for operation in graph["operations"]}
+    consumers = _graph_consumers(operations)
     output_heads = [
         int(operation["output_shape"][-1])
         for operation in operations.values()
@@ -250,7 +283,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
     for step in prefill["steps"]:
         if step["executor"] not in {"remote_stage", "verified_remote_stage", "client_linear"}:
             continue
-        role = semantic_stage_role(step, operations)
+        role = semantic_stage_role(step, operations, _consumers=consumers)
         layer = step["layer"]
         key = (role, step["order"] if role == "semantic_linear" else layer)
         if key in seen:
@@ -285,7 +318,7 @@ def scheduled_stage_specs(plan: ModelPlan, composition: Pipeline) -> list[StageS
         stages.append(spec)
     if not stages or stages[0].role != "token_lookup" or stages[-1].role != "lm_head":
         raise ValueError("decoder schedule lacks its token boundary stages")
-    return stages
+    return schedule, stages
 
 
 __all__ = ["scheduled_stage_specs", "semantic_fused_roles", "semantic_stage_role"]

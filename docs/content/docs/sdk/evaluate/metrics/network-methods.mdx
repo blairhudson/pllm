@@ -1,0 +1,46 @@
+---
+title: "Network method gates"
+description: "Bounded native experiments before whole-decoder or topology promotion."
+---
+
+Five SDK probes test hypotheses without treating partial arithmetic, logical
+table traversals or projected bodies as complete inference measurements.
+
+| Probe | Checked contract | Current gate |
+| --- | --- | --- |
+| `ProjectedResharingProbe` | Three-party field products, public projection before degree reduction | Exact primitive; known response bytes already exceed the tested 10× warm target |
+| `PreparedResidueProbe` | Joint correction/output residue coding | Promoted into optional `MaskedLinear(output_encoding="row_residues")` |
+| `ArtifactPlaneProbe` | Reversible bounded public-byte transforms and zlib frames | Tested Qwen payload grows; remains a probe |
+| `BatchedPrivateLookupProbe` | Fixed-count one-use DPF queries sharing a table traversal | Exact records, unchanged query/reply bytes and little CPU change |
+| `OrthogonalActivationProbe` | Public native block transform and lower-precision decoder comparison | Better than unrotated A6, but fails agreement with locked W8A8 |
+
+## Python SDK example
+
+```python
+from pllm.metrics import ProjectedResharingProbe, PreparedResidueProbe
+
+field = ProjectedResharingProbe().run()
+residues = PreparedResidueProbe(rows=2, repetitions=1).run()
+assert all(row["exact_field_outputs"] for row in field["configurations"])
+assert all(row["exact_integer_output"] for row in residues["configurations"])
+assert not field["whole_decoder_executable"]
+```
+
+API: [pllm.metrics](/sdk/reference/python/pllm/metrics/#objects-and-signatures)
+
+Rust owns field arithmetic, one-use party state, public transforms, expansion,
+codecs and scans. PyO3 releases the interpreter lock. Python owns immutable probe
+settings, compiler-bound projections, independent NumPy/decoder oracles and
+reports. The all-share field fixture is not a production party runtime.
+
+Run `scripts/probe_wan_methods.py --method METHOD --real --output report.json`
+for the pinned source; `METHOD` is `resharing`, `residues`, `artifacts`,
+`retrieval` or `orthogonal`. Runs are bounded; no model training or private-prompt
+calibration is performed. The rotation probe uses public held-out text and
+same-token decode against the locked W8A8 implementation, not broad task quality.
+
+Keep all links and fresh material in the cost gate. Seed compression, fewer
+logical memory scans or moving downloads onto peer links cannot alone establish
+an all-party network saving. See [WAN readiness](/sdk/deployment/wan/) for
+shared per-party access forecasts and [prepared residues](/sdk/components/protocols/prepared-residues/)
+for the admitted incremental option.

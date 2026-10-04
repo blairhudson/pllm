@@ -72,13 +72,20 @@ class ExactPrefillCache:
     _BLOCK_ROWS = 8
     _MAX_ENTRIES = 4096
 
-    def __init__(self, max_bytes: int, *, causal_reduction: str | None = None) -> None:
+    def __init__(self, max_bytes: int, *, causal_reduction: str | None = None,
+                 verification_failure_bits: int = 0, generated_prefixes: bool = False) -> None:
         if type(max_bytes) is not int or not 0 < max_bytes <= 256 << 20:
             raise ValueError("prefill cache must be bounded to at most 256 MiB")
         self.max_bytes = max_bytes
+        if type(verification_failure_bits) is not int or not 0 <= verification_failure_bits <= 80:
+            raise ValueError("invalid prefill verification contract")
+        self.verification_failure_bits = verification_failure_bits
         if causal_reduction not in {None, "prefix_f32"}:
             raise ValueError("unknown prefill numeric contract")
         self.causal_reduction = causal_reduction
+        if type(generated_prefixes) is not bool or generated_prefixes and causal_reduction != "prefix_f32":
+            raise ValueError("generated prefix cache requires canonical prefix_f32 arithmetic")
+        self.generated_prefixes = generated_prefixes
         self._bytes = 0
         self._entries: OrderedDict[str, _Entry] = OrderedDict()
         self._blocks: dict[str, _Block] = {}
@@ -120,7 +127,8 @@ class ExactPrefillCache:
             if entry is None:
                 return None
             if (entry.position != position or entry.layers != layers or entry.logits is None
-                    or entry.state_basis is None or not entry.state_basis.completed_prefill()
+                      or entry.state_basis is None or not entry.state_basis.cache_eligible(generated_prefixes=self.generated_prefixes)
+                     or entry.state_basis.verification_failure_bits != self.verification_failure_bits
                     or entry.state_basis.prefill_extent != position):
                 self._remove(key)
                 return None
@@ -144,7 +152,8 @@ class ExactPrefillCache:
                 if entry is None:
                     continue
                 if (entry.position != position or entry.layers != layers
-                        or entry.state_basis is None or not entry.state_basis.completed_prefill()
+                          or entry.state_basis is None or not entry.state_basis.cache_eligible(generated_prefixes=self.generated_prefixes)
+                         or entry.state_basis.verification_failure_bits != self.verification_failure_bits
                         or self.causal_reduction is None and entry.state_basis.prefill_extent != len(token_ids)):
                     self._remove(key)
                     continue
@@ -165,15 +174,15 @@ class ExactPrefillCache:
                 del self._blocks[block_key]
                 block.erase()
 
-    @staticmethod
-    def _valid(snapshot: RuntimeSnapshot) -> bool:
+    def _valid(self, snapshot: RuntimeSnapshot) -> bool:
         if (
             type(snapshot.position) is not int
             or not 1 <= snapshot.position <= 4096
             or not snapshot.caches
             or snapshot.shared_kv
             or snapshot.state_basis is None
-            or not snapshot.state_basis.completed_prefill()
+            or not snapshot.state_basis.cache_eligible(generated_prefixes=self.generated_prefixes)
+            or snapshot.state_basis.verification_failure_bits != self.verification_failure_bits
             or snapshot.state_basis.position != snapshot.position
         ):
             return False
@@ -319,7 +328,7 @@ class ExactPrefillCache:
         semantic_binding_digest: str | None = None,
         state_basis: SnapshotStateBasis | None = None,
     ) -> bool:
-        if state_basis is None or not state_basis.completed_prefill() or state_basis.position != position:
+        if state_basis is None or not state_basis.cache_eligible(generated_prefixes=self.generated_prefixes) or state_basis.position != position:
             return False
         refs = tuple(
             (block_key, min(self._BLOCK_ROWS, position - offset))
@@ -348,6 +357,11 @@ class ExactPrefillCache:
             )
         ):
             values = old.logits
+            # The retained logits were verified under the old receipt. Identical
+            # KV permits retaining that complete receipt, not laundering the
+            # logits through a different inventory's shorter lineage.
+            state_basis = old.state_basis
+            semantic_binding_digest = old.semantic_binding_digest
         logits = None if values is None else values.copy()
         size = (0 if logits is None else logits.nbytes) + sum(
             blocks[block_key].bytes for block_key in {item[0] for item in refs}

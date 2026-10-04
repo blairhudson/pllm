@@ -45,6 +45,42 @@ _CLIENT_ONLY_ZERO_COUNTERS = (
 )
 
 
+def online_body_counter_total(counters: Mapping[str, Any], roles: tuple[str, ...]) -> int | None:
+    """Non-overlapping online counters for a measured lifecycle boundary."""
+    if set(roles) == {"client", "worker_a", "worker_b"}:
+        fields = tuple(
+            f"role_link.{role}.online_{direction}_bytes"
+            for role in ("worker_a", "worker_b") for direction in ("upload", "download")
+        )
+    elif set(roles) in ({"client"}, {"client", "preparation", "inference"}):
+        fields = ("inference_upload_bytes", "inference_download_bytes")
+    else:
+        return None
+    if any(type(counters.get(key)) is not int or counters[key] < 0 for key in fields):
+        return None
+    total = sum(counters[key] for key in fields)
+    return None if roles == ("client",) and total else total
+
+
+def measured_decode_window(
+    privacy: Mapping[str, Any], *, output_tokens: int, roles: tuple[str, ...]
+) -> tuple[int, int] | None:
+    """Admit a completed response's phase counters only after conservation."""
+    prefill = privacy.get("generation_prefill_online_body_bytes")
+    decode = privacy.get("generation_decode_online_body_bytes")
+    if (
+        type(output_tokens) is not int or output_tokens < 1
+        or privacy.get("generation_completed_responses") != 1
+        or privacy.get("generation_output_tokens") != output_tokens
+        or privacy.get("generation_decode_output_tokens") != output_tokens - 1
+        or type(prefill) is not int or prefill < 0
+        or type(decode) is not int or decode < 0
+        or prefill + decode != online_body_counter_total(privacy, roles)
+    ):
+        return None
+    return decode, output_tokens - 1
+
+
 def client_owned_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
     """Account only inference-graph links for an all-client role placement."""
     privacy = record.get("privacy")

@@ -1,0 +1,492 @@
+{
+  "candidates": [
+    {
+      "candidate": "baseline",
+      "client_body_placement": {
+        "client_body_i8_weight_bytes": 0,
+        "client_body_scale_bytes": 0,
+        "declared_body_linear_macs_per_row_client": 0,
+        "declared_body_linear_macs_per_row_remote": 357826560,
+        "local_stage_count": 0,
+        "metal_body_i8_snapshot_bytes": 0,
+        "native_body_i8_snapshot_bytes": 0,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 96,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "cold_first_response_body_bytes": 510017510,
+      "cold_process_cpu": {
+        "aggregate_cold_first_response_cpu_seconds": 85.608609512,
+        "aggregate_startup_cpu_seconds": 40.033046016,
+        "cold_first_response_cpu_seconds_by_role": {
+          "client": 15.606049,
+          "inference": 30.690015744,
+          "preparation": 39.312544768
+        },
+        "full_response_compute_cap_checked": false,
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+        "startup_cpu_seconds_by_role": {
+          "client": 3.658976,
+          "inference": 12.082226432,
+          "preparation": 24.291843584
+        },
+        "unmeasured": [
+          "source resolution before dashboard startup, if any",
+          "accelerator compute, energy, and CPU after the first response",
+          "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+        ]
+      },
+      "communication_per_token": {
+        "byte_unit": "decimal MB (1000000 bytes)",
+        "decode_scope": "online bodies after first output through completion, divided by N-1",
+        "denominator": "authoritative generated output tokens, not input tokens or output cap",
+        "runs": [
+          {
+            "covered_body_bytes": 244396092,
+            "covered_mb_per_output_token": 7.637377875,
+            "decode_online_body_bytes": 51296320,
+            "decode_online_mb_per_output_token": 1.65472,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 113545024,
+            "online_mb_per_output_token": 3.548282
+          },
+          {
+            "covered_body_bytes": 178970558,
+            "covered_mb_per_output_token": 5.5928299375,
+            "decode_online_body_bytes": 51296320,
+            "decode_online_mb_per_output_token": 1.65472,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 113545024,
+            "online_mb_per_output_token": 3.548282
+          },
+          {
+            "covered_body_bytes": 265178172,
+            "covered_mb_per_output_token": 8.286817875,
+            "decode_online_body_bytes": 51296320,
+            "decode_online_mb_per_output_token": 1.65472,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 123120448,
+            "online_mb_per_output_token": 3.847514
+          }
+        ],
+        "schema": "pllm.communication_per_generated_token.v1",
+        "scope": "covered application bodies; no full wire or checkpoint download",
+        "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+        "summary": {
+          "cold_first_response_mb_per_output_token": 15.9380471875,
+          "covered_mb_per_output_token": 7.172341895833333,
+          "decode_online_mb_per_output_token": 1.65472,
+          "generated_output_tokens": 96,
+          "online_mb_per_output_token": 3.648026,
+          "setup_inclusive_mb_per_output_token": 9.939231666666666
+        }
+      },
+      "evidence_path": "docs/evidence/metal-placement-baseline-qwen25-2026-10-03.json",
+      "evidence_sha256": "e37eac0b18739b7c559caa6ac1b65d2f79ce926b6fe90ee8e22af3485ec8da5a",
+      "prepared_material_accounting": {
+        "conserved": true,
+        "counts": {
+          "burned": 0,
+          "claimed": 20736,
+          "discarded": 26304,
+          "issued": 47040,
+          "reserved": 20736
+        },
+        "remaining_stage_rows": 0,
+        "schema": "pllm.prepared_material_accounting.v1",
+        "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+      },
+      "runs": [
+        {
+          "aggregate_cpu_seconds": 45.564561135999995,
+          "all_link_body_bytes": 244396092,
+          "batched_continuation_hits": 0,
+          "cache_hits": 0,
+          "client_cpu_seconds": 11.940213999999997,
+          "decode_tokens_per_second": 2.14083021689312,
+          "full_seconds": 30.470537125,
+          "input_tokens": 39,
+          "online_body_bytes": 113545024,
+          "online_seconds": 21.580402417,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 7.090454542
+        },
+        {
+          "aggregate_cpu_seconds": 36.480812232000005,
+          "all_link_body_bytes": 178970558,
+          "batched_continuation_hits": 0,
+          "cache_hits": 0,
+          "client_cpu_seconds": 10.897804999999998,
+          "decode_tokens_per_second": 2.1284408061758278,
+          "full_seconds": 26.334597709,
+          "input_tokens": 39,
+          "online_body_bytes": 113545024,
+          "online_seconds": 21.523119709,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 6.944646375
+        },
+        {
+          "aggregate_cpu_seconds": 48.102118968000006,
+          "all_link_body_bytes": 265178172,
+          "batched_continuation_hits": 0,
+          "cache_hits": 0,
+          "client_cpu_seconds": 12.086227000000001,
+          "decode_tokens_per_second": 2.0560478875673436,
+          "full_seconds": 31.841510208,
+          "input_tokens": 45,
+          "online_body_bytes": 123120448,
+          "online_seconds": 22.405927791,
+          "output_text_digest": "e77b1b55635a86ebf46225cb13c907fb18b6c2c929b5da4802eeaccaaacb1b10",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 7.317660375
+        }
+      ],
+      "total_accounted_body_bytes": 954166240,
+      "total_online_body_bytes": 350210496,
+      "total_request_seconds": 88.646645042
+    },
+    {
+      "candidate": "compressed",
+      "client_body_placement": {
+        "client_body_i8_weight_bytes": 44040192,
+        "client_body_scale_bytes": 196608,
+        "declared_body_linear_macs_per_row_client": 44040192,
+        "declared_body_linear_macs_per_row_remote": 313786368,
+        "local_stage_count": 48,
+        "metal_body_i8_snapshot_bytes": 0,
+        "native_body_i8_snapshot_bytes": 44040192,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 48,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "cold_first_response_body_bytes": 312601209,
+      "cold_process_cpu": {
+        "aggregate_cold_first_response_cpu_seconds": 61.173143408,
+        "aggregate_startup_cpu_seconds": 23.28026716,
+        "cold_first_response_cpu_seconds_by_role": {
+          "client": 15.988902,
+          "inference": 28.230507264,
+          "preparation": 16.953734144000002
+        },
+        "full_response_compute_cap_checked": false,
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+        "startup_cpu_seconds_by_role": {
+          "client": 1.815279,
+          "inference": 11.10856448,
+          "preparation": 10.35642368
+        },
+        "unmeasured": [
+          "source resolution before dashboard startup, if any",
+          "accelerator compute, energy, and CPU after the first response",
+          "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+        ]
+      },
+      "communication_per_token": {
+        "byte_unit": "decimal MB (1000000 bytes)",
+        "decode_scope": "online bodies after first output through completion, divided by N-1",
+        "denominator": "authoritative generated output tokens, not input tokens or output cap",
+        "runs": [
+          {
+            "covered_body_bytes": 312601209,
+            "covered_mb_per_output_token": 9.76878778125,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 93221048,
+            "online_mb_per_output_token": 2.91315775
+          },
+          {
+            "covered_body_bytes": 66195330,
+            "covered_mb_per_output_token": 2.0686040625,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 41789240,
+            "online_mb_per_output_token": 1.30591375
+          },
+          {
+            "covered_body_bytes": 93565554,
+            "covered_mb_per_output_token": 2.9239235625,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 58935848,
+            "online_mb_per_output_token": 1.84174525
+          }
+        ],
+        "schema": "pllm.communication_per_generated_token.v1",
+        "scope": "covered application bodies; no full wire or checkpoint download",
+        "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+        "summary": {
+          "cold_first_response_mb_per_output_token": 9.76878778125,
+          "covered_mb_per_output_token": 4.92043846875,
+          "decode_online_mb_per_output_token": 1.34804,
+          "generated_output_tokens": 96,
+          "online_mb_per_output_token": 2.02027225,
+          "setup_inclusive_mb_per_output_token": 4.92043846875
+        }
+      },
+      "evidence_path": "docs/evidence/metal-placement-cpu-qwen25-2026-10-03.json",
+      "evidence_sha256": "edfe508e68f0de3d7936e1a2157585408e121a101474eb6bea5cb88e7a9a1c7f",
+      "prepared_material_accounting": {
+        "conserved": true,
+        "counts": {
+          "burned": 0,
+          "claimed": 6960,
+          "discarded": 0,
+          "issued": 6960,
+          "reserved": 6960
+        },
+        "remaining_stage_rows": 0,
+        "schema": "pllm.prepared_material_accounting.v1",
+        "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+      },
+      "runs": [
+        {
+          "aggregate_cpu_seconds": 37.881740687999994,
+          "all_link_body_bytes": 312601209,
+          "batched_continuation_hits": 0,
+          "cache_hits": 0,
+          "client_cpu_seconds": 14.165914,
+          "decode_tokens_per_second": 4.422861724486967,
+          "full_seconds": 27.634180208,
+          "input_tokens": 39,
+          "online_body_bytes": 93221048,
+          "online_seconds": 14.007881666,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 6.993070666
+        },
+        {
+          "aggregate_cpu_seconds": 19.95533584,
+          "all_link_body_bytes": 66195330,
+          "batched_continuation_hits": 0,
+          "cache_hits": 1,
+          "client_cpu_seconds": 10.826564000000001,
+          "decode_tokens_per_second": 4.513284817462743,
+          "full_seconds": 15.691511375,
+          "input_tokens": 39,
+          "online_body_bytes": 41789240,
+          "online_seconds": 11.188403292,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 4.316017042
+        },
+        {
+          "aggregate_cpu_seconds": 23.120371856000002,
+          "all_link_body_bytes": 93565554,
+          "batched_continuation_hits": 0,
+          "cache_hits": 1,
+          "client_cpu_seconds": 11.537402,
+          "decode_tokens_per_second": 4.5577671998372145,
+          "full_seconds": 17.292192667,
+          "input_tokens": 45,
+          "online_body_bytes": 58935848,
+          "online_seconds": 12.217189917,
+          "output_text_digest": "e77b1b55635a86ebf46225cb13c907fb18b6c2c929b5da4802eeaccaaacb1b10",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 32,
+          "ttft_seconds": 5.411301667
+        }
+      ],
+      "total_accounted_body_bytes": 472362093,
+      "total_online_body_bytes": 193946136,
+      "total_request_seconds": 60.617884249999996
+    },
+    {
+      "candidate": "compressed_metal",
+      "client_body_placement": {
+        "client_body_i8_weight_bytes": 44040192,
+        "client_body_scale_bytes": 196608,
+        "declared_body_linear_macs_per_row_client": 44040192,
+        "declared_body_linear_macs_per_row_remote": 313786368,
+        "local_stage_count": 48,
+        "metal_body_i8_snapshot_bytes": 44040192,
+        "native_body_i8_snapshot_bytes": 44040192,
+        "peak_client_memory_bytes": null,
+        "remote_stage_count": 48,
+        "sample_boundary": "after-final-measured-response",
+        "schema": "pllm.client_body_placement.v1"
+      },
+      "cold_first_response_body_bytes": 312601125,
+      "cold_process_cpu": {
+        "aggregate_cold_first_response_cpu_seconds": 56.982608496,
+        "aggregate_startup_cpu_seconds": 22.842221832,
+        "cold_first_response_cpu_seconds_by_role": {
+          "client": 18.179622,
+          "inference": 27.402956800000002,
+          "preparation": 11.400029695999999
+        },
+        "full_response_compute_cap_checked": false,
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+        "startup_cpu_seconds_by_role": {
+          "client": 1.775029,
+          "inference": 10.695632896,
+          "preparation": 10.371559936
+        },
+        "unmeasured": [
+          "source resolution before dashboard startup, if any",
+          "accelerator compute, energy, and CPU after the first response",
+          "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+        ]
+      },
+      "communication_per_token": {
+        "byte_unit": "decimal MB (1000000 bytes)",
+        "decode_scope": "online bodies after first output through completion, divided by N-1",
+        "denominator": "authoritative generated output tokens, not input tokens or output cap",
+        "runs": [
+          {
+            "covered_body_bytes": 312601125,
+            "covered_mb_per_output_token": 9.76878515625,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 93221048,
+            "online_mb_per_output_token": 2.91315775
+          },
+          {
+            "covered_body_bytes": 66195330,
+            "covered_mb_per_output_token": 2.0686040625,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 41789240,
+            "online_mb_per_output_token": 1.30591375
+          },
+          {
+            "covered_body_bytes": 93565554,
+            "covered_mb_per_output_token": 2.9239235625,
+            "decode_online_body_bytes": 41789240,
+            "decode_online_mb_per_output_token": 1.34804,
+            "decode_output_tokens": 31,
+            "generated_output_tokens": 32,
+            "online_body_bytes": 58935848,
+            "online_mb_per_output_token": 1.84174525
+          }
+        ],
+        "schema": "pllm.communication_per_generated_token.v1",
+        "scope": "covered application bodies; no full wire or checkpoint download",
+        "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+        "summary": {
+          "cold_first_response_mb_per_output_token": 9.76878515625,
+          "covered_mb_per_output_token": 4.92043759375,
+          "decode_online_mb_per_output_token": 1.34804,
+          "generated_output_tokens": 96,
+          "online_mb_per_output_token": 2.02027225,
+          "setup_inclusive_mb_per_output_token": 4.92043759375
+        }
+      },
+      "evidence_path": "docs/evidence/metal-placement-metal-qwen25-2026-10-03.json",
+      "evidence_sha256": "d52f4e1fb229810dd5ec1e59763d921334ef9a3132faf9d9958a46a33ee172ba",
+      "prepared_material_accounting": {
+        "conserved": true,
+        "counts": {
+          "burned": 0,
+          "claimed": 6960,
+          "discarded": 0,
+          "issued": 6960,
+          "reserved": 6960
+        },
+        "remaining_stage_rows": 0,
+        "schema": "pllm.prepared_material_accounting.v1",
+        "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+      },
+      "runs": [
+        {
+          "aggregate_cpu_seconds": 34.130159975999995,
+          "all_link_body_bytes": 312601125,
+          "batched_continuation_hits": 0,
+          "cache_hits": 0,
+          "client_cpu_seconds": 16.398640999999998,
+          "decode_tokens_per_second": 4.149813302094924,
+          "full_seconds": 26.617981334,
+          "input_tokens": 39,
+          "online_body_bytes": 93221048,
+          "online_seconds": 13.9083915,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 6.431294416
+        },
+        {
+          "aggregate_cpu_seconds": 25.431959543999998,
+          "all_link_body_bytes": 66195330,
+          "batched_continuation_hits": 0,
+          "cache_hits": 1,
+          "client_cpu_seconds": 13.435050999999998,
+          "decode_tokens_per_second": 3.970435963217217,
+          "full_seconds": 16.408283375,
+          "input_tokens": 39,
+          "online_body_bytes": 41789240,
+          "online_seconds": 12.120796042,
+          "output_text_digest": "5cf8afa395f3bd8413e26d2a3b4016d574513bbca6679bf166ca381d6855b0f4",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 0,
+          "ttft_seconds": 4.309281792
+        },
+        {
+          "aggregate_cpu_seconds": 25.135105304,
+          "all_link_body_bytes": 93565554,
+          "batched_continuation_hits": 0,
+          "cache_hits": 1,
+          "client_cpu_seconds": 14.222014999999999,
+          "decode_tokens_per_second": 4.190979629490024,
+          "full_seconds": 17.299498417,
+          "input_tokens": 45,
+          "online_body_bytes": 58935848,
+          "online_seconds": 12.801242792,
+          "output_text_digest": "e77b1b55635a86ebf46225cb13c907fb18b6c2c929b5da4802eeaccaaacb1b10",
+          "output_tokens": 32,
+          "prefix_tokens_reused": 32,
+          "ttft_seconds": 5.399378917
+        }
+      ],
+      "total_accounted_body_bytes": 472362009,
+      "total_online_body_bytes": 193946136,
+      "total_request_seconds": 60.325763126
+    }
+  ],
+  "checks": {
+    "all_candidates_passed": true,
+    "matched_kernel_backend": false,
+    "matched_workload": true,
+    "matching_output_text": true,
+    "passed": false,
+    "unique_configurations": true
+  },
+  "cpu_comparison_checks": {
+    "all_candidates_passed": true,
+    "matched_kernel_backend": true,
+    "matched_workload": true,
+    "passed": true,
+    "unique_configurations": true
+  },
+  "limitations": [
+    "Output agreement is relative to the same W8A8 numeric mode, not independent generation-quality evidence.",
+    "Client peak memory, full wire bytes and GPU compute are unmeasured.",
+    "Offset setup-inclusive totals remain unknown in the canonical report.",
+    "CPU and GPU candidates are not ranked together by the canonical comparator."
+  ],
+  "schema": "pllm.combined_runtime_summary.v1",
+  "scope": "One sample each: cold 39+32, repeated 39+32, extended 45+32; setup-inclusive application bodies; cached checkpoint; local co-located roles; request latency excludes role startup"
+}

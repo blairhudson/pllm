@@ -254,6 +254,11 @@ class PrivacyAudit:
     preparation_download_bytes: int = 0
     inference_upload_bytes: int = 0
     inference_download_bytes: int = 0
+    generation_completed_responses: int = 0
+    generation_output_tokens: int = 0
+    generation_decode_output_tokens: int = 0
+    generation_prefill_online_body_bytes: int = 0
+    generation_decode_online_body_bytes: int = 0
     preparation_server_ns: int = 0
     inference_server_ns: int = 0
     correction_push_bytes: int = 0
@@ -1052,8 +1057,8 @@ class RuntimeClient:
             bundle_compression = expected_encoding
         if bundle_compression is None:
             bundle_compression = "none"
-        if bundle_compression not in {"none", "zlib", "artifacts"}:
-            raise ValueError("bundle_compression must be none, zlib, or artifacts")
+        if bundle_compression not in {"none", "zlib", "artifacts", "artifacts-zlib"}:
+            raise ValueError("bundle_compression must be none, zlib, artifacts, or artifacts-zlib")
         self.bundle_cache_mode = bundle_cache_mode
         self.bundle_compression = bundle_compression
         self._bundle_cache_explicit = bundle_cache_dir is not None
@@ -1143,6 +1148,13 @@ class RuntimeClient:
         self._ephemeral_response_ids: set[str] = set()
         self._ephemeral_response_order: deque[str] = deque()
         self.audit = PrivacyAudit()
+        if self._offset_workers is not None:
+            self.audit.role_link_bodies = {
+                role: {f"{phase}_{direction}_bytes": 0
+                       for phase in ("setup", "online", "teardown")
+                       for direction in ("upload", "download")}
+                for role in ("worker_a", "worker_b")
+            }
         self._crypto_states: dict[str, _ModelCryptoState] = {}
         self._crypto_state_lock = threading.Lock()
         self._transformer_states: dict[str, _TransformerCryptoState] = {}
@@ -1412,7 +1424,11 @@ class RuntimeClient:
 
         def download(path: str, maximum: int, *, object_key: str | None = None) -> bytes:
             output = bytearray()
-            with self.http.stream("GET", path, headers=headers, follow_redirects=False) as response:
+            compressed = object_key is not None and self.bundle_compression == "artifacts-zlib"
+            request_headers = dict(headers)
+            if compressed:
+                request_headers["X-PLLM-Accept-Object-Encoding"] = BUNDLE_ENCODING
+            with self.http.stream("GET", path, headers=request_headers, follow_redirects=False) as response:
                 if not response.is_success:
                     response.read()
                 _raise(response)
@@ -1427,15 +1443,29 @@ class RuntimeClient:
                 else:
                     if response.headers.get("X-PLLM-Object-SHA256") != object_key:
                         raise ArtifactError("artifact response object binding mismatch")
+                    if compressed and (
+                        response.headers.get("X-PLLM-Object-Encoding") != BUNDLE_ENCODING
+                        or response.headers.get("X-PLLM-Object-Raw-Size") != str(maximum)
+                    ):
+                        raise ArtifactError("artifact compression acknowledgement/size mismatch")
+                    if not compressed and response.headers.get("X-PLLM-Object-Encoding", "identity") != "identity":
+                        raise ArtifactError("unexpected artifact object encoding")
                     stats.object_requests += 1
-                chunks = ((response.content,) if response.is_stream_consumed else
+                chunks = ((response.content[offset:offset + 65536]
+                           for offset in range(0, len(response.content), 65536)) if response.is_stream_consumed else
                           response.iter_raw(chunk_size=65536))
-                for chunk in chunks:
-                    self.audit.bundle_network_bytes += len(chunk)
+
+                def account(size):
+                    self.audit.bundle_network_bytes += size
                     if object_key is None:
-                        stats.manifest_download_bytes += len(chunk)
+                        stats.manifest_download_bytes += size
                     else:
-                        stats.object_download_bytes += len(chunk)
+                        stats.object_download_bytes += size
+
+                if compressed:
+                    return bytes(decode_bundle_frames(chunks, expected_size=maximum, on_wire_bytes=account))
+                for chunk in chunks:
+                    account(len(chunk))
                     if len(output) + len(chunk) > maximum:
                         raise ArtifactError("artifact response exceeds its byte bound")
                     output.extend(chunk)
@@ -1523,7 +1553,7 @@ class RuntimeClient:
         fingerprint = str(descriptor["sha256"])
         schema = int(descriptor["schema"])
         size = int(descriptor["size"])
-        if self.bundle_compression == "artifacts":
+        if self.bundle_compression in {"artifacts", "artifacts-zlib"}:
             return self._load_artifact_bundle(model_id, fingerprint=fingerprint, schema=schema, size=size)
         if self.bundle_cache_mode == "off":
             return self._download_client_bundle(
@@ -1862,7 +1892,7 @@ class RuntimeClient:
             or max_new_tokens > self._experiment_budget.max_new_tokens
         ):
             raise ModelError("response exceeds its immutable Experiment workload bounds")
-        if self.prefill_cache_mode == "prefix" and state.privacy_mode == "public":
+        if self.prefill_cache_mode == "prefix" and state.privacy_mode in {"public", "offset_public"}:
             assert self.prefill_cache_bound_tokens is not None
             if max_input_tokens > self.prefill_cache_bound_tokens:
                 raise ModelError("response exceeds its fixed prefix-cache input bound")
@@ -1932,8 +1962,7 @@ class RuntimeClient:
             self.prefill_cache_bytes == 0
             or not store
             or previous_id is not None
-            or state.privacy_mode != "public"
-            or state.bundle.privacy.get("verification_component", "none") != "none"
+            or state.privacy_mode not in {"public", "offset_public"}
             or compiled is None
         ):
             return None
@@ -1953,11 +1982,20 @@ class RuntimeClient:
             self._decoder_continuation(compiled).admit(1, max(1, len(ids) - 1))
         from pllm.profiles import resolve_runtime_composition
         from pllm.configuration import Pipeline
-        numeric = resolve_runtime_composition(Pipeline.from_spec(json.loads(compiled._canonical_composition)))
+        composition = Pipeline.from_spec(json.loads(compiled._canonical_composition))
+        numeric = resolve_runtime_composition(composition)
+        cache_component = composition.components.get("cache")
+        generated_prefixes = bool(cache_component is not None and cache_component.params.get("generated_prefixes"))
+        if numeric is not None and numeric.verification_component and not numeric.prefix_cache_bytes:
+            # A bare cache override did not reserve a composed failure budget.
+            return None
         reduction = None if numeric is None else numeric.causal_reduction
+        verification_bits = 0 if numeric is None else numeric.verification_target_failure_bits
         with self._transformer_state_lock:
             if state.prefill_cache is None:
-                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes, causal_reduction=reduction)
+                state.prefill_cache = ExactPrefillCache(self.prefill_cache_bytes, causal_reduction=reduction,
+                                                       verification_failure_bits=verification_bits,
+                                                       generated_prefixes=generated_prefixes)
             cache = state.prefill_cache
         return cache, prefill_key(compiled.digest, state.bundle_fingerprint, ids, causal_reduction=reduction)
 
@@ -3250,8 +3288,12 @@ class RuntimeClient:
                 worker_b=worker_b,
                 api_key_a=key_a,
                 api_key_b=key_b,
+                continuation=(self._decoder_continuation(compiled)
+                              if self.prefill_cache_mode == "prefix" else None),
             )
             session_value = {"id": new_id("offset_session"), "response_id": new_id("resp")}
+            if offset_transport.continuation is not None:
+                session_value["decoder_continuation"] = offset_transport.continuation
             provider = None
             with self._activity_lock:
                 already_closing = self._closing
@@ -3426,6 +3468,20 @@ class RuntimeClient:
         output_chunks: list[str] = []
         previous_text = ""
         session_completed = False
+        first_output_online_bytes: int | None = None
+
+        def response_online_bytes() -> int | None:
+            # Per-response transport counters are authoritative before the audit
+            # is merged at close. Sampling the cumulative public audit here
+            # would incorrectly classify prefill as decode.
+            if isinstance(remote, PreparedRemoteLinear):
+                return remote.stats.inference_upload_bytes + remote.stats.inference_download_bytes
+            if offset_transport is not None:
+                return sum(
+                    values.get("online_upload_bytes", 0) + values.get("online_download_bytes", 0)
+                    for values in offset_transport.http_body_costs.values()
+                )
+            return 0 if client_owned else None
 
         created = Response(
             id=response_id,
@@ -3599,6 +3655,8 @@ class RuntimeClient:
                 if token == int(runtime.cfg["eos_token_id"]):
                     hit_token_limit = False
                     break
+                if step == 0:
+                    first_output_online_bytes = response_online_bytes()
                 output_ids.append(token)
                 text_so_far = runtime.tokenizer.decode(output_ids)
                 delta = (
@@ -3819,6 +3877,17 @@ class RuntimeClient:
             if (runtime.position != len(evaluated_ids) - len(pending_token_ids)
                     or (pending_token_ids and evaluated_ids[runtime.position:] != pending_token_ids)):
                 raise ModelError("generated state differs from the exact evaluated token cohort")
+            if prefill_candidate is not None and compiled is not None:
+                cache = prefill_candidate[0]
+                if (cache.generated_prefixes and runtime.position > len(input_ids)
+                        and runtime.position <= compiled._plan.to_dict()["prefill"]["query_sequence"]):
+                    # Completion has been acknowledged. A selected but unexecuted
+                    # final token never enters this independent canonical key.
+                    canonical = runtime.canonical_generated_snapshot()
+                    executed_ids = evaluated_ids[:runtime.position]
+                    cache.put_prefixes(compiled.digest, state.bundle_fingerprint, executed_ids, canonical)
+                    cache.put(prefill_key(compiled.digest, state.bundle_fingerprint, executed_ids,
+                        causal_reduction=cache.causal_reduction), canonical, np.asarray(logits))
             self.cache[response_id] = final
             self.histories[response_id] = rendered + raw_text
             assistant_history: dict[str, Any] = {"role": "assistant", "content": parsed.text}
@@ -3846,6 +3915,19 @@ class RuntimeClient:
                 }
             )
         finally:
+            completed_online_bytes = response_online_bytes()
+            if (
+                session_completed and first_output_online_bytes is not None
+                and completed_online_bytes is not None and output_ids
+                and completed_online_bytes >= first_output_online_bytes
+            ):
+                self.audit.generation_completed_responses += 1
+                self.audit.generation_output_tokens += len(output_ids)
+                self.audit.generation_decode_output_tokens += len(output_ids) - 1
+                self.audit.generation_prefill_online_body_bytes += first_output_online_bytes
+                self.audit.generation_decode_online_body_bytes += (
+                    completed_online_bytes - first_output_online_bytes
+                )
             if offset_transport is not None:
                 with self._activity_lock:
                     if self._active_offset_transports.get(session_id) is offset_transport:
@@ -4447,6 +4529,11 @@ def _raise(response: httpx.Response) -> None:
             message = str(detail["error"].get("message", detail))
         else:
             message = str(detail)
+    except httpx.ResponseNotRead:
+        # A streaming rejection must retain its HTTP error, without an unbounded
+        # read or a secondary ResponseNotRead hiding the admission failure.
+        body = None
+        message = f"provider returned HTTP {response.status_code}: {response.reason_phrase}"
     except Exception:
         body = response.text
         message = response.text

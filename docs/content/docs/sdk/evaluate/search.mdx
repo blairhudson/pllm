@@ -79,3 +79,65 @@ contains a pure no-weights example and immutable result replay. Gateway/benchmar
 request mode discovers and replans before each response; saved-plan mode keeps
 the selection and revalidates admission. Neither creates a universal pricing,
 privacy, or hardware-compute score.
+
+## Automatic proposals on model load
+
+[`optimization_space`](/sdk/reference/python/pllm/search/#optimization_space)
+builds an ordinary bounded `SearchSpace` over supported kernel, transport,
+inventory and ownership choices. It preserves model, numerics, verifier and role
+topology. New client body weights and prefix-cache reuse require explicit
+permission. The compiler still checks compatibility with the actual model.
+Prepared and verified candidates can combine inventory, compressed artifacts,
+placement and cache. Offset candidates can combine both share encodings with
+compressed artifacts and cache. `client_prefix_layers=(1, 2)` explicitly adds
+prefix-only and prefix-plus-projection unions when `allow_client_weights=True`;
+increase the candidate bound explicitly if that product exceeds it.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, MaskedLinearCpu, Model
+from pllm.quantization import SymmetricPerRow
+from pllm.search import GridSearch, optimization_space
+
+base = Experiment(
+    "automatic-options",
+    MaskedLinearCpu(Model("Qwen/Qwen2.5-0.5B-Instruct"),
+                    quantization=SymmetricPerRow(causal_reduction="prefix_f32")),
+    Deployment.local(root="local://automatic-options"),
+    ExecutionBudget(1, 96, 32),
+)
+space = optimization_space(base, allow_client_weights=True,
+                           prefix_cache_bytes=64 << 20, metal_min_rows=32)
+assert 1 < len(GridSearch("automatic-options", space).candidates()) <= 64
+```
+
+[`compiler.plan_on_load`](/sdk/reference/python/pllm/compiler/#plan_on_load)
+accepts that base, space, `NetworkSnapshot` and `PlanningPolicy`. It resolves the
+checkpoint once, verifies the configuration against its source lock, lowers its
+bounded model graph and invokes the existing planner. It imports metadata, not
+tensor values; no candidate benchmark, role reservation or material issuance
+runs during selection. Custom spaces must retain their incumbent and constraints
+are never bypassed. The returned `PlanningResult` uses ordinary selected-plan
+SDK, gateway and benchmark execution.
+
+The cached-checkpoint example is
+[`examples/benchmarks/automatic_planning.py`](https://github.com/blairhudson/pllm/blob/main/examples/benchmarks/automatic_planning.py).
+It checked 48 Qwen alternatives in a retained 5.90-second historical sample,
+including source verification, and selected CPU attention ownership under an
+80% **body-linear** remote-work floor. This is an estimated body-cost decision,
+not an automatic latency benchmark or a claim about total remote compute.
+The expanded default space includes compressed artifacts; the historical sample
+does not time the new candidate set. Shape-bound seeded/packed estimates charge
+the worker seed once per actual batch and retain explicit arithmetic-body scope.
+
+**Compatibility is not benefit.** The planner retains fewer changes to a feasible
+incumbent when objective values tie. Unpriced compression, inventory and GPU
+speedups cannot win by hash order. Cache capacity is charged even on a miss.
+Client weight estimates currently reserve six bytes per owned element; they are
+conservative admission estimates, not measured i8 storage or peak memory.
+
+Save measured tuning evidence with source/quantization, workload shape and reuse
+horizon, device, runtime implementation and network identities. Invalidate it
+when these change. Keep pure compatibility facts separate from cost observations;
+never store private KV, masks or prompts in a tuning record. The current planner
+prices geometry plus supplied artifact/reuse/switch evidence. A persistent
+measured GPU/compression autotuner is a follow-on, not implied by this load API.

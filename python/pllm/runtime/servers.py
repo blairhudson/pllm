@@ -60,6 +60,7 @@ async def load_role_adapter(
         remote_output_head=options.remote_output_head,
         client_prefix_layers=options.client_prefix_layers,
         client_linear_roles=options.client_linear_roles,
+        prepared_output_encoding=options.prepared_output_encoding,
     )
     if preloaded_engine is None:
         source = resolve_model(experiment.pipeline.model)
@@ -464,6 +465,11 @@ class LocalTopology:
             options.extend(("--client-prefix-layers", str(self._client_prefix_layers)))
         if self._client_linear_roles:
             options.extend(("--client-linear-roles", ",".join(self._client_linear_roles)))
+        if self._experiment is not None:
+            from pllm.profiles import resolve_runtime_composition
+            selected = resolve_runtime_composition(self._experiment.pipeline)
+            if selected is not None and selected.prepared_output_encoding != "raw":
+                options.extend(("--prepared-output-encoding", selected.prepared_output_encoding))
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
@@ -977,9 +983,15 @@ def build_roles(
     docker: bool = False,
     docker_image: str | None = None,
     docker_network=None,
+    wan=None,
 ) -> LocalTopology:
     if type(docker) is not bool:
         raise TypeError("docker must be a boolean")
+    if wan is not None:
+        from pllm.deployment import WanConditions
+        if type(wan) is not WanConditions:
+            raise TypeError("wan must be WanConditions")
+        docker = True
     if docker_image is not None and not docker:
         raise ValueError("docker_image requires docker=True")
     if docker_network is not None and not docker:
@@ -1109,6 +1121,7 @@ def build_roles(
         topology_type = DockerTopology
         extra["docker_image"] = docker_image
         extra["docker_network"] = docker_network
+        extra["wan"] = wan
     return topology_type(
         model,
         model_id=resolved_id,

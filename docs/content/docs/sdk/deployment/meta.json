@@ -1,4 +1,4 @@
 {
   "title": "Deployment",
-  "pages": ["index", "network", "execution"]
+  "pages": ["index", "network", "execution", "wan"]
 }

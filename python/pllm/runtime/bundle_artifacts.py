@@ -39,6 +39,24 @@ class ArtifactError(ValueError):
     """Malformed, private, unsupported, or uncommitted artifact data."""
 
 
+def object_stream(payload: bytes, *, bundle_digest: str, object_digest: str,
+                  encoding: str | None = None) -> tuple[Iterator[bytes], dict[str, str], str]:
+    """Shared public-object framing; raw cache identity remains stable."""
+    from .bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames
+
+    headers = {"ETag": f'"{object_digest}"', "X-PLLM-Object-SHA256": object_digest,
+               "X-PLLM-Bundle-SHA256": bundle_digest}
+    if encoding == FRAME_ENCODING:
+        headers.update({"X-PLLM-Object-Encoding": FRAME_ENCODING,
+                        "X-PLLM-Object-Raw-Size": str(len(payload))})
+        return encode_bundle_frames(payload), headers, "application/vnd.pllm.bundle-frames"
+    if encoding is not None:
+        raise ArtifactError("unsupported artifact object encoding")
+    headers["Content-Length"] = str(len(payload))
+    view = memoryview(payload)
+    return (view[i:i + 65536].tobytes() for i in range(0, len(view), 65536)), headers, "application/octet-stream"
+
+
 def _integer(value: Any, low: int, high: int) -> int:
     if type(value) is not int or not low <= value <= high:
         raise ArtifactError("artifact integer exceeds its bound")
@@ -109,17 +127,18 @@ def _shape(value: Any, *, rank: int | None = None) -> list[int]:
 
 def _public(value: Any) -> None:
     if (type(value) is not dict or type(value.get("v")) is not int or value["v"] != 2
-            or value.get("runtime") != "masked_transformer"
+            or value.get("runtime") not in {"masked_transformer", "two_online_offset_transformer"}
             or set(value) != {"v", "runtime", "model", "manifest", "config", "tokenizer",
                              "stages", "local_tensors", "client_weights", "privacy"}):
         raise ArtifactError("artifacts require a compiled schema-2 prepared bundle")
     privacy = value["privacy"]
-    if (type(privacy) is not dict or privacy.get("mode") != "public"
-            or privacy.get("preprocessed") is not True
+    if (type(privacy) is not dict or privacy.get("mode") not in {"public", "offset_public"}
+            or privacy.get("preprocessed") is not (privacy.get("mode") == "public")
+            or value["runtime"] != {"public": "masked_transformer", "offset_public": "two_online_offset_transformer"}.get(privacy.get("mode"))
             or privacy.get("model_privacy_threat_model") != "public_weights"):
         raise ArtifactError("artifacts require public weights; private bundles cannot be exported")
     if (type(value["manifest"]) is not dict or type(value["manifest"].get("metadata")) is not dict
-            or value["manifest"]["metadata"].get("privacy_mode") != "public"):
+            or value["manifest"]["metadata"].get("privacy_mode") != privacy["mode"]):
         raise ArtifactError("artifact manifest is not public")
 
 
@@ -171,6 +190,13 @@ def _binary_metadata(value: dict[str, Any], object_rows: list[dict[str, Any]] | 
                                            ("input_equalization", [in_dim], "input-vector")):
             if stage.get(field) is not None:
                 add(("stages", sid, field), shape, "<f4", orientation, keys, numeric)
+        if stage.get("output_residue_bits") is not None:
+            if not (value["runtime"] == "two_online_offset_transformer" or (
+                value["runtime"] == "masked_transformer"
+                and value["privacy"].get("prepared_output_encoding") == "row_residues"
+            )):
+                raise ArtifactError("residue layout requires its public encoding contract")
+            add(("stages", sid, "output_residue_bits"), [out_dim], "u1", "output-residue-width", keys, numeric)
         for field in ("client_weight", "client_aux_weight"):
             ref = stage.get(field)
             if ref is not None:

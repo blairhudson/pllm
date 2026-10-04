@@ -207,6 +207,9 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
         raise RuntimeError("response stream ended without authoritative usage")
     roles = tuple(row["role_id"] for row in result.native_placement["roles"])
     cache_hit = audit.get("bundle_cache_hits", 0) > 0
+    from .topology_accounting import measured_decode_window
+
+    window = measured_decode_window(audit, output_tokens=terminal["usage"]["output_tokens"], roles=roles)
     run = BenchmarkRun(
         run_id=f"network-{secrets.token_hex(12)}", status="completed",
         model_id=result.experiment.resolve().model, model_fingerprint=fingerprint,
@@ -217,6 +220,8 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
         generation_seconds=None if first is None or last is None else last - first,
         input_tokens=terminal["usage"]["input_tokens"],
         output_tokens=terminal["usage"]["output_tokens"], token_usage_authoritative=True,
+        decode_online_body_bytes=None if window is None else window[0],
+        decode_output_tokens=None if window is None else window[1],
         privacy_delta=audit, process_metrics={role: {
             "cpu_seconds": time.process_time() - cpu_start if role == "client" else None,
             "rss_peak_bytes": None,
@@ -250,9 +255,12 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
 def run_network_benchmark(*, network, result=None, request=None, credentials=None,
                           prompt, max_output_tokens, warmups=0, repetitions=1,
                           timeout_seconds=120, temperature=None, compare_feasible=False,
-                          capture_output_digest=False, progress=None):
+                          capture_output_digest=False, progress=None, wan=None):
     """Registered-party driver using BenchmarkRun and existing workload cohort rules."""
     temperature = _validate_request_temperature(temperature)
+    from pllm.deployment import WanConditions
+    if wan is not None and type(wan) is not WanConditions:
+        raise TypeError("wan must be WanConditions")
     if type(capture_output_digest) is not bool:
         raise ValueError("capture_output_digest must be boolean")
     if not 0 <= warmups <= 100 or not 1 <= repetitions <= 100 or not 1 <= timeout_seconds <= 3600:
@@ -295,6 +303,7 @@ def run_network_benchmark(*, network, result=None, request=None, credentials=Non
             roles=roles, prompt_digest=prompt_digest, warmup_prompt_digest=prompt_digest,
             source_lock_digest=decision.request.source_lock_digest, temperature=temperature,
             capture_output_digest=capture_output_digest,
+            wan=wan,
         )
         report["scope"] = "selected-network-bounded-response-diagnostic"
         if network.backend == "http":

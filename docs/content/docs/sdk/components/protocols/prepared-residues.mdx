@@ -1,0 +1,67 @@
+---
+title: "Prepared output residues"
+description: "Lossless public-bound coding for correction delivery and online responses."
+---
+
+`MaskedLinear(output_encoding="row_residues")` selects native bit packing of
+prepared correction rows and online outputs. It preserves the existing input
+ring, masks, quantized products and client nonlinear/state execution.
+
+For each public weight row, `B_j = a_max * sum(abs(w_j))`. Choose the smallest
+power-of-two output ring strictly larger than `2 * B_j`, with at least one bit.
+Both `W*r-s` and the returned `W*x-s` can be reduced into that ring. The client
+adds its mask in the same ring and uniquely center-decodes the original integer.
+Widths depend on public weights and the fixed activation range, never a private
+activation, scale or observed output magnitude.
+
+## Python SDK example
+
+```python
+from pllm import Model
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import MaskedLinear, ClientBundleTransport
+from pllm.preparation import PreparedInventory
+from pllm.quantization import SymmetricPerRow
+from pllm.state import ClientPrefixReuse
+
+pipeline = MaskedLinearCpu(
+    Model.tiny(),
+    linear=MaskedLinear(output_encoding="row_residues"),
+    quantization=SymmetricPerRow(causal_reduction="prefix_f32"),
+    delivery=ClientBundleTransport("artifacts", compression="zlib"),
+    inventory=PreparedInventory("request-sized", rows=1, refill="on-demand"),
+    cache=ClientPrefixReuse(fixed_input_tokens=128, max_bytes=64 << 20,
+                           generated_prefixes=True),
+)
+assert pipeline.components["linear"].params["output_encoding"] == "row_residues"
+```
+
+API: [pllm.protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures)
+
+The ordinary SDK, gateway, role supervisor and benchmark use this composition.
+`examples/benchmarks/prepared_residues.py` exports `control` and `compact` controls.
+Raw encoding remains the default; omitting the option preserves previous
+component identities.
+
+## Contracts and costs
+
+The bundle, composition and immutable stage/weight commitments bind the public
+layout. Inference and Preparation derive it from their own weights. Public layout
+metadata has bounded, hash-checked inline compression; it does not require a
+separate artifact request for every stage. Responses bind stage, ticket/batch,
+shape and layout digest, with a distinct prepared wire namespace. Incorrect
+padding, downgrade, layout or role bindings fail closed. Reservations and masks
+remain one-use and burn on failure or cancellation.
+
+The current codec admits at most four million output cells per packed frame.
+Freivalds still checks reconstructed integers before dequantization. Tiny
+prepared/verified, client-placement, compressed-artifact and prefix-cache checks
+preserve logits and every KV value. No body matrix moves to the client; public
+width metadata and codec buffers are additional storage categories.
+
+The matched pinned Qwen experiment covers three contexts and eight or 32 outputs
+per context against the existing lean prepared stack. It finds an incremental
+body-byte saving, not a tenfold decoder. See
+[the WAN/research evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/wan-methods-2026-10-04.md).
+Whole-response client CPU and peak memory must be measured separately from a
+codec microbenchmark; automatic selection must not infer a win from compatibility.

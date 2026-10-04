@@ -1,0 +1,40 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "6420622fa85168da1832f5c878c1555f2ede211af57c7fa8acf2a3ba5cfbabd7",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "artifacts",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "configurations": [
+      {
+        "client_decode_cpu_seconds_median": 0.5165679999999999,
+        "encoding": "zlib",
+        "exact_raw_hash": true,
+        "framed_body_bytes": 124900160,
+        "provider_encode_cpu_seconds_median": 3.9995279999999998
+      },
+      {
+        "client_decode_cpu_seconds_median": 0.416406,
+        "encoding": "bitplanes-zlib",
+        "exact_raw_hash": true,
+        "framed_body_bytes": 131735929,
+        "provider_encode_cpu_seconds_median": 3.790228
+      }
+    ],
+    "frame_raw_bytes_bound": 1048576,
+    "online_stage_body_savings": 0,
+    "peak_client_memory_bytes": null,
+    "raw_bytes": 145977008,
+    "raw_cache_identity_preserved": true,
+    "schema": "pllm.artifact_plane_probe.v1",
+    "scope": "public object codec only; source fixture/working array is not a client peak sample",
+    "source_digest": "e9d9905ded05eaaae84e692bccae5e20873da6dd5c66af501897bead68375eb6"
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

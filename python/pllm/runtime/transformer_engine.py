@@ -53,7 +53,7 @@ from .semantic_tensors import (
     preflight_semantic_checkpoint,
     required_client_tensors,
 )
-from .semantic_stages import client_owns_linear
+from .semantic_stages import client_owns_linear, provider_owns_linear
 from .stage_protocol import MaskedStageRequest, MaskedStageResponse, RingKind, StageCorrelation
 from .tiled_bfv import TiledBFVError, TiledBFVServer, tiled_context_modulus
 
@@ -318,15 +318,9 @@ def _seeded_stage_commitment(
 ) -> str:
     body = []
     for stage_id, runtime in sorted(stages.items()):
-        if (
-            stage_id == "token_lookup"
-            or (stage_id == "lm_head" and not remote_output_head)
-            or client_owns_linear(
-                runtime.spec,
-                client_prefix_layers=client_prefix_layers,
-                client_linear_roles=client_linear_roles,
-            )
-        ):
+        if not provider_owns_linear(runtime.spec, remote_output_head=remote_output_head,
+                                    client_prefix_layers=client_prefix_layers,
+                                    client_linear_roles=client_linear_roles):
             continue
         row = {
             "id": stage_id,
@@ -466,10 +460,16 @@ class MaskedTransformerEngine:
         remote_output_head: bool = False,
         client_prefix_layers: int = 0,
         client_linear_roles: tuple[str, ...] = (),
+        prepared_output_encoding: str = "raw",
     ) -> None:
         if modulus is not None and (modulus <= 2 or modulus >= 2**31):
             raise ValueError("modulus must satisfy 2 < p < 2^31")
         self.weight_bits = int(weight_bits)
+        if (type(prepared_output_encoding) is not str
+            or prepared_output_encoding not in {"raw", "row_residues"}
+            or (prepared_output_encoding != "raw" and type(self) is not MaskedTransformerEngine)):
+            raise ValueError("prepared output encoding requires public masked-linear execution")
+        self.prepared_output_encoding = prepared_output_encoding
         self.activation_bits = int(activation_bits)
         self.fixed_modulus = None if modulus is None else int(modulus)
         # Backward-compatible attribute. With automatic profiles this is the
@@ -510,10 +510,8 @@ class MaskedTransformerEngine:
             raise ValueError("unsupported verification component")
         self.verification_component = verification_component
         self.verification_target_failure_bits = verification_target_failure_bits
-        if type(remote_output_head) is not bool or (
-            remote_output_head and verification_component != "none"
-        ):
-            raise ValueError("remote output head requires unverified prepared public execution")
+        if type(remote_output_head) is not bool:
+            raise ValueError("remote output head requires a boolean")
         self.remote_output_head = remote_output_head
         if (
             type(client_prefix_layers) is not int
@@ -522,23 +520,18 @@ class MaskedTransformerEngine:
                 client_prefix_layers
                 and (
                     type(self) is not MaskedTransformerEngine
-                    or verification_component != "none"
-                    or metal_min_rows is not None
                 )
             )
         ):
-            raise ValueError("client-owned prefix requires bounded CPU prepared public execution")
+            raise ValueError("client-owned prefix requires bounded prepared public execution")
         self.client_prefix_layers = client_prefix_layers
         if client_linear_roles:
             from pllm.roles import ClientLinearRoles
 
             if (
-                client_prefix_layers
-                or type(self) is not MaskedTransformerEngine
-                or verification_component != "none"
-                or metal_min_rows is not None
+                type(self) is not MaskedTransformerEngine
             ):
-                raise ValueError("client linear roles require CPU baseline prepared execution")
+                raise ValueError("client linear roles require baseline prepared execution")
             client_linear_roles = ClientLinearRoles(client_linear_roles).roles
         elif not isinstance(client_linear_roles, (tuple, list)):
             raise ValueError("client linear roles must be a sequence")
@@ -598,10 +591,10 @@ class MaskedTransformerEngine:
             ),
             boundary=OutputHeadAtInference() if self.remote_output_head else None,
             placement=(
-                ClientPrefixLayers(self.client_prefix_layers)
-                if self.client_prefix_layers
-                else ClientLinearRoles(self.client_linear_roles)
+                ClientLinearRoles(self.client_linear_roles, prefix_layers=self.client_prefix_layers)
                 if self.client_linear_roles
+                else ClientPrefixLayers(self.client_prefix_layers)
+                if self.client_prefix_layers
                 else None
             ),
         )
@@ -815,7 +808,7 @@ class MaskedTransformerEngine:
                     {
                         stage_id: runtime.weight.values
                         for stage_id, runtime in runtimes.items()
-                        if runtime.spec.op == "linear"
+                        if self._provider_owns_stage(runtime.spec)
                     },
                     already_resident=existing,
                 )
@@ -1526,6 +1519,8 @@ class MaskedTransformerEngine:
             raise TransformerEngineError("preparation stage quantization mismatch")
         if request.profile != runtime.seeded_profile:
             raise TransformerEngineError("preparation stage ring profile mismatch")
+        if self.prepared_output_encoding == "row_residues" and request.rows * request.out_features > 4_000_000:
+            raise TransformerEngineError("prepared residue frame exceeds bounded codec capacity")
 
     async def prepare_seeded_stage(self, request: PreparationRequest) -> CorrectionPush:
         self.validate_seeded_preparation(request)
@@ -1562,7 +1557,12 @@ class MaskedTransformerEngine:
             modulus=request.modulus,
             wire_bits=request.wire_bits,
             correction=correction.astype(np.uint32),
+            output_residue_bits=self.prepared_output_widths(request.model, request.stage_id),
         )
+
+    def prepared_output_widths(self, model_id: str, stage_id: str) -> bytes | None:
+        return (self._runtime(model_id, stage_id).output_residue_bits
+                if self.prepared_output_encoding == "row_residues" else None)
 
     async def stage_metadata(self, model_id: str, stage_id: str) -> StageMetadata:
         return self._runtime(model_id, stage_id).metadata
@@ -1599,10 +1599,12 @@ class MaskedTransformerEngine:
         return tuple(
             stage_id
             for stage_id, runtime in model.stages.items()
-            if stage_id != "token_lookup"
-            and (stage_id != "lm_head" or self.remote_output_head)
-            and not self._client_owns_stage(runtime.spec)
+            if self._provider_owns_stage(runtime.spec)
         )
+
+    def _provider_owns_stage(self, stage: StageSpec) -> bool:
+        return provider_owns_linear(stage, remote_output_head=self.remote_output_head,
+            client_prefix_layers=self.client_prefix_layers, client_linear_roles=self.client_linear_roles)
 
     def validate_seeded_correction(self, correction: CorrectionPush) -> None:
         model = self._model(correction.model)
@@ -1615,6 +1617,7 @@ class MaskedTransformerEngine:
             or correction.weight_bits != runtime.spec.weight_bits
             or correction.activation_bits != runtime.spec.activation_bits
             or correction.profile != runtime.seeded_profile
+            or correction.output_residue_bits != self.prepared_output_widths(correction.model, correction.stage_id)
         ):
             raise TransformerEngineError("correction stage metadata mismatch")
 
@@ -1872,10 +1875,12 @@ class MaskedTransformerEngine:
         *,
         include_local_weights: bool = True,
         placement: str = "prepared",
-        output_encoding: str = "raw",
+        output_encoding: str | None = None,
     ) -> bytes:
-        if output_encoding not in {"raw", "row_residues"} or (output_encoding != "raw" and placement != "offset"):
-            raise TransformerEngineError("row-residue bundles require offset placement")
+        if output_encoding is None:
+            output_encoding = self.prepared_output_encoding if placement == "prepared" else "raw"
+        if output_encoding not in {"raw", "row_residues"} or (output_encoding != "raw" and placement not in {"offset", "prepared"}):
+            raise TransformerEngineError("row-residue bundles require prepared or offset placement")
         if placement not in {"prepared", "client", "offset"}:
             raise TransformerEngineError("unknown compiled client-bundle placement")
         if placement == "client" and not include_local_weights:
@@ -1983,13 +1988,18 @@ class MaskedTransformerEngine:
         config = self._bundle_runtime_config(model)
         manifest = model.manifest.to_dict()
         if output_encoding == "row_residues":
-            from .offset_codec import row_layout_digest
+            from .residue_codec import row_layout_digest
 
-            manifest["metadata"] = {**manifest["metadata"], "offset_residue_layout_digest": row_layout_digest([
+            manifest["metadata"] = {**manifest["metadata"], f"{placement}_residue_layout_digest": row_layout_digest([
                 (sid, row["weight_digest"], row["in_features"], row["out_features"],
                  row["activation_bits"], row["output_residue_bits"].hex())
                 for sid, row in stage_descriptors.items() if "output_residue_bits" in row
-            ])}
+            ], namespace=placement)}
+            if placement == "prepared":
+                from .residue_codec import encode_layout
+                for row in stage_descriptors.values():
+                    if "output_residue_bits" in row:
+                        row["output_residue_bits"] = encode_layout(row["output_residue_bits"])
         protocols = {
             "prepared": f"masked_w{self.weight_bits}a{self.activation_bits}",
             "client": f"local_clear_w{self.weight_bits}a{self.activation_bits}",
@@ -2013,6 +2023,7 @@ class MaskedTransformerEngine:
                 "privacy_mode": "client_only" if placement == "client" else "offset_public",
                 "privacy_protocol": privacy_protocol,
             }
+        if placement != "prepared" or output_encoding != "raw":
             fingerprint_payload = {
                 key: value
                 for key, value in manifest.items()
@@ -2054,6 +2065,8 @@ class MaskedTransformerEngine:
                     "activation_bits": self.activation_bits,
                     "verification_component": self.verification_component,
                     "verification_target_failure_bits": self.verification_target_failure_bits,
+                    **({"prepared_output_encoding": output_encoding}
+                       if placement == "prepared" and output_encoding != "raw" else {}),
                     **({"remote_output_head": True} if self.remote_output_head else {}),
                     **(
                         {"client_prefix_layers": self.client_prefix_layers}

@@ -72,7 +72,8 @@ def main():
             try:
                 for value in destinations:
                     port, target, host = value["port"], value["target_port"], value["host"]
-                    if type(port) is not int or not 1 <= port <= 65535 or target != port:
+                    if (type(port) is not int or not 1 <= port <= 65535
+                            or type(target) is not int or not 1 <= target <= 65535):
                         raise ValueError("invalid Docker loopback forwarding port")
                     server = await asyncio.start_server(
                         lambda reader, writer, host=host, target=target: forward(reader, writer, host, target),

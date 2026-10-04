@@ -1,4 +1,4 @@
 {
   "title": "Metric options",
-  "pages": ["index", "latency", "throughput", "communication", "memory", "energy", "reference-agreement", "accuracy", "perplexity", "cost"]
+  "pages": ["index", "latency", "throughput", "communication", "network-methods", "memory", "energy", "reference-agreement", "accuracy", "perplexity", "cost"]
 }

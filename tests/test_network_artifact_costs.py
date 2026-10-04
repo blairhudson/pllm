@@ -105,3 +105,42 @@ def test_switch_body_cost_can_veto_short_horizon_but_amortizes(inputs):
     assert cheaper.experiment.name == "attention"
     assert cheaper.costs["switch_body_bytes"] == 1
     assert PlanningRequest.from_spec(sticky.request.to_spec()) == sticky.request
+
+
+def test_compressed_object_costs_preserve_raw_residency_and_memory(inputs):
+    raw = next(row for row in inputs.candidates if row.name == "baseline")
+    compressed = replace(raw, pipeline=raw.pipeline.with_params(
+        delivery=ClientBundleTransport("artifacts", compression="zlib")))
+    source = resolve_model(raw.pipeline.model)
+    engine = MaskedTransformerEngine(threads=1, weight_bits=8, activation_bits=8)
+    asyncio.run(engine.load(source.manifest))
+    payload = engine.client_bundle("locality-cost")
+    artifacts = export_bundle(payload)
+    arguments = dict(bundle_digest=hashlib.sha256(payload).hexdigest(), bundle_bytes=len(payload))
+    raw_cost = ArtifactCostEvidence.from_manifest(raw, inputs.model_plan, source.source_lock_digest,
+        artifacts.manifest, **arguments)
+    encoded_cost = ArtifactCostEvidence.from_manifest(compressed, inputs.model_plan, source.source_lock_digest,
+        artifacts.manifest, objects=artifacts.objects, **arguments)
+    assert encoded_cost.objects == raw_cost.objects
+    assert raw_cost.to_spec()["schema"] == "pllm.artifact_cost_evidence.v1"
+    assert "object_transfer_bytes" not in raw_cost.to_spec()
+    assert encoded_cost.to_spec()["schema"] == "pllm.artifact_cost_evidence.v2"
+    assert ArtifactCostEvidence.from_spec(encoded_cost.to_spec()) == encoded_cost
+    request = replace(inputs, candidates=(raw, compressed), artifact_evidence=(raw_cost, encoded_cost))
+    result = plan(request, snapshot=snapshot())
+    assert result.experiment == compressed
+    assert result.costs["artifact_miss_bytes"] < result.costs["artifact_raw_miss_bytes"]
+    ordinary = plan(replace(request, candidates=(raw,), artifact_evidence=(raw_cost,)), snapshot=snapshot())
+    assert result.costs["role_memory_estimates"] == ordinary.costs["role_memory_estimates"]
+    resident = replace(encoded_cost, resident_keys=tuple(key for key, _ in encoded_cost.objects))
+    warm = plan(replace(request, candidates=(compressed,), artifact_evidence=(resident,)), snapshot=snapshot())
+    assert warm.costs["artifact_miss_bytes"] == warm.costs["artifact_raw_miss_bytes"] == 0
+    assert PlanningRequest.from_spec(warm.request.to_spec()) == warm.request
+    with pytest.raises(NetworkError, match="objects"):
+        ArtifactCostEvidence.from_manifest(compressed, inputs.model_plan, source.source_lock_digest,
+            artifacts.manifest, **arguments)
+    with pytest.raises(NetworkError):
+        replace(encoded_cost, object_transfer_bytes=encoded_cost.object_transfer_bytes[:-1])
+    with pytest.raises(NetworkError):
+        replace(request, artifact_evidence=(replace(encoded_cost,
+            configuration_digest=raw.configuration_digest()),))

@@ -91,6 +91,14 @@ from the repository root. Shaping is **provider-egress only**, also affecting
 provider telemetry; it is not a symmetric WAN model. Backend and profile digests
 must match before benchmark rankings are admitted.
 
+For shared bidirectional access limits, use
+[`WanConditions`](/sdk/deployment/wan/) with `build_roles(..., wan=conditions)`
+or `pllm benchmark run --wan`. This selects routed party namespaces and Linux
+upload/download queues, including the client's shared access. Management and
+telemetry are separate. The report measures token throughput under the caps and
+checks each party's queue rates around execution; analytical floors remain a
+separate section. Delay/loss controls can compose with these caps.
+
 Reports separate helper CPU/memory from provider resource samples and conserve
 six directed prepared service links using IPv4/TCP kernel-hook counters. Each
 peer transfer is counted at one endpoint. These counters include service control,

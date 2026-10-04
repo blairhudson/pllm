@@ -30,7 +30,7 @@ from pllm.runtime.semantic_stages import (
 )
 from pllm.runtime.semantic_source import semantic_source_config
 from pllm.runtime.semantic_tensors import SemanticTensorError, required_client_tensors
-from pllm.runtime.transformer_client import ClientBundle
+from pllm.runtime.transformer_client import ClientBundle, TransformerClientError
 
 if TYPE_CHECKING:
     from pllm.runtime.model_execution import CompiledRuntimeSession
@@ -362,6 +362,7 @@ class CompiledRuntimeModel:
 
         composition = Pipeline.from_spec(json.loads(self._canonical_composition))
         from pllm.profiles import resolve_runtime_composition
+        from pllm.verification import FreivaldsVerify
 
         options = resolve_runtime_composition(composition)
         if (
@@ -409,7 +410,7 @@ class CompiledRuntimeModel:
             for operation in stage.semantic_operations
         }
         local_tensors = {row["weight_id"]: row["key"] for row in self.to_spec()["local_tensors"]}
-        return SemanticDecoderRuntime(
+        runtime = SemanticDecoderRuntime(
             self._bundle,
             remote,
             plan=self._plan,
@@ -421,7 +422,13 @@ class CompiledRuntimeModel:
             token_cache_lock=token_cache_lock,
             nonlinear_evaluator=nonlinear_evaluator,
             causal_reduction=options.causal_reduction,
+            verification_lineage_limit=(FreivaldsVerify._MAX_CACHE_LINEAGE
+                if options.verification_component and options.prefix_cache_bytes else 1),
         )
+        cache = composition.components.get("cache")
+        if cache is not None and cache.params.get("generated_prefixes"):
+            runtime.enable_generated_prefixes(self._plan.continuation_schedule(composition))
+        return runtime
 
     def _runtime_with_nonlinear(
         self,
@@ -429,6 +436,70 @@ class CompiledRuntimeModel:
         evaluator: Callable[[int, np.ndarray], np.ndarray],
     ) -> SemanticDecoderRuntime:
         return self.runtime(remote, nonlinear_evaluator=evaluator)
+
+    def transfer_snapshot(self, snapshot, target: "CompiledRuntimeModel"):
+        """Copy qualified state between numerically identical client-local bindings.
+
+        This explicit in-process bridge carries no masks, inventory or provider
+        session. Target execution still admits its own native schedule/material.
+        """
+        from .transformer_client import LayerCache, RuntimeSnapshot, _snapshot_state_basis
+        from pllm.profiles import resolve_runtime_composition
+
+        if type(target) is not CompiledRuntimeModel or type(snapshot) is not RuntimeSnapshot:
+            raise RuntimeBindingError("state transfer needs checked bindings and a typed snapshot")
+        self.validate()
+        target.validate()
+        left, right = _state_numeric_contract(self), _state_numeric_contract(target)
+        if left != right or left["quantization"] is None or left["quantization"]["params"].get("causal_reduction") != "prefix_f32":
+            raise RuntimeBindingError("state transfer differs in source, numeric, weight or verification contract")
+        source_pipeline = Pipeline.from_spec(json.loads(self._canonical_composition))
+        target_pipeline = Pipeline.from_spec(json.loads(target._canonical_composition))
+        source_contract = self._plan.continuation_schedule(source_pipeline)
+        target_contract = target._plan.continuation_schedule(target_pipeline)
+        basis = snapshot.state_basis
+        source_binding = _state_binding_digest(self._plan, self._bundle, source_pipeline.digest())
+        target_binding = _state_binding_digest(target._plan, target._bundle, target_pipeline.digest())
+        if (basis is None or not basis.cache_eligible(generated_prefixes=True)
+                or snapshot.shared_kv or snapshot.semantic_binding_digest != source_binding
+                or basis.source_binding_digest != source_binding or basis.position != snapshot.position
+                or type(snapshot.position) is not int or snapshot.position < 1
+                or snapshot.position > target_contract.to_dict()["token_bound"]):
+            raise RuntimeBindingError("state transfer requires qualified bounded owner-free full KV")
+        if basis.phase == "canonical_incremental" and (
+            basis.native_phase_digest != source_contract.digest
+            or not source_contract.to_dict().get("generated_prefix_canonical")
+            or not target_contract.to_dict().get("generated_prefix_canonical")):
+            raise RuntimeBindingError("state transfer lacks canonical generated-state contracts")
+        options = resolve_runtime_composition(target_pipeline)
+        if options is None:
+            raise RuntimeBindingError("state transfer target has no admitted runtime contract")
+        from pllm.verification import FreivaldsVerify
+        limit = FreivaldsVerify._MAX_CACHE_LINEAGE if options.prefix_cache_bytes and options.verification_component else 1
+        if basis.verification_failure_bits != options.verification_target_failure_bits or basis.verification_lineage > limit:
+            raise RuntimeBindingError("state transfer exceeds target verification provenance/budget")
+        target_contract.admit(max(1, snapshot.position - 1), 1)
+        states = self._plan.to_dict()["decode"]["state_inputs"]
+        if len(states) != 2 * len(snapshot.caches):
+            raise RuntimeBindingError("state transfer has incomplete full-KV owners")
+        for state in states:
+            row = snapshot.caches[state["layer"]]
+            array = row.key if state["kind"] == "key" else row.value
+            if (type(row) is not LayerCache or row.length != snapshot.position or array is None
+                    or array.dtype != np.float32 or array.ndim != 3 or array.shape[0] < snapshot.position
+                    or array.shape[1:] != (state["shape"][1], state["shape"][3])
+                    or not np.all(np.isfinite(array[:snapshot.position]))):
+                raise RuntimeBindingError("state transfer has invalid full-KV tensors")
+        certificate = hashlib.sha256(_canonical_json({"source": self.digest, "target": target.digest,
+            "numeric_state": left, "execution": basis.execution_digest})).hexdigest()
+        transferred = _snapshot_state_basis(basis.phase, snapshot.position, target_binding,
+            target_contract.digest if basis.phase == "canonical_incremental" else certificate,
+            certificate, None, basis.prefill_extent,
+            verification_failure_bits=basis.verification_failure_bits,
+            verification_lineage=basis.verification_lineage,
+            verification_inventory_digest=basis.verification_inventory_digest)
+        return RuntimeSnapshot(snapshot.position, [row.copy_active() for row in snapshot.caches], {},
+            target_binding, transferred)
 
     def session(
         self,
@@ -441,6 +512,33 @@ class CompiledRuntimeModel:
         return CompiledRuntimeSession._create(
             self, remote, research_logrow_material=research_logrow_material
         )
+
+
+def _state_binding_digest(plan, bundle, composition_digest: str) -> str:
+    return hashlib.sha256(_canonical_json({
+        "config": plan.to_dict()["config_digest"], "composition": composition_digest,
+        "body": bundle.privacy.get("body_fingerprint"),
+        "stages": bundle.privacy.get("stage_commitment"),
+    })).hexdigest()
+
+
+def _state_numeric_contract(value: CompiledRuntimeModel) -> dict:
+    pipeline = Pipeline.from_spec(json.loads(value._canonical_composition))
+    spec = value.to_spec()
+    stages = [{k: v for k, v in row.items() if not (
+        row.get("layer_index") is not None and k.startswith("client_weight_"))}
+        for row in spec["stages"]]
+    transparent = {"linear", "kernels", "preparation", "inference", "topology", "placement",
+                   "boundary", "delivery", "inventory", "cache", "verification", "quantization"}
+    return {"model_plan_digest": value.model_plan_digest,
+        "runtime_config_digest": value.runtime_config_digest, "tokenizer_digest": value.tokenizer_digest,
+        "stages": stages, "local_tensors": spec["local_tensors"],
+        "quantization": pipeline.components.get("quantization").to_spec()
+            if "quantization" in pipeline.components else None,
+        "other_components": {slot: component.to_spec() for slot, component in pipeline.components.items()
+                             if slot not in transparent},
+        "verification": [value._bundle.privacy.get("verification_component", "none"),
+                         value._bundle.privacy.get("verification_target_failure_bits", 0)]}
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -1152,6 +1250,13 @@ def compile_runtime_model(
     )
     if privacy.get("protocol") != expected_protocol:
         raise RuntimeBindingError("client bundle protocol differs from the composed topology")
+    if privacy.get("prepared_output_encoding", "raw") != runtime_options.prepared_output_encoding:
+        raise RuntimeBindingError("prepared output encoding differs from its composition")
+    if not offset_public and runtime_options.prepared_output_encoding == "raw" and (
+        any(stage.output_residue_bits is not None for stage in bundle.stages.values())
+        or "prepared_residue_layout_digest" in manifest.get("metadata", {})
+    ):
+        raise RuntimeBindingError("raw prepared composition cannot admit a packed layout")
     verification_component = privacy.get("verification_component", "none")
     verification_failure_bits = _require_int(
         privacy.get("verification_target_failure_bits", 0), "verification failure bits"
@@ -1170,10 +1275,10 @@ def compile_runtime_model(
     client_prefix_layers = runtime_options.client_prefix_layers
     client_linear_roles = runtime_options.client_linear_roles
     if (client_prefix_layers or client_linear_roles) and (
-        client_owned or offset_public or verified_public
+        client_owned or offset_public
     ):
         raise RuntimeBindingError("client-owned prefix requires baseline prepared execution")
-    if remote_output_head and (client_owned or offset_public or verified_public):
+    if remote_output_head and (client_owned or offset_public):
         raise RuntimeBindingError("remote output head requires baseline prepared execution")
     if bool(manifest.get("tied_embeddings")) and remote_output_head:
         raise RuntimeBindingError("remote output head cannot share client token weights")
@@ -2087,8 +2192,24 @@ def compile_runtime_model(
         "runtime_schedule_digest": runtime_schedule_digest,
         "tokenizer_digest": tokenizer_digest,
     }
+    if runtime_options.prepared_output_encoding == "row_residues":
+        spec["prepared_output_encoding"] = "row_residues"
+        spec["prepared_residue_layout_digest"] = manifest_metadata.get("prepared_residue_layout_digest")
     canonical_bytes = _canonical_json(spec)
-    return CompiledRuntimeModel._create(
+    if runtime_options.client_prefix_layers or runtime_options.client_linear_roles:
+        # Revalidation is idempotent; the bundle owns these snapshots across
+        # compiled workload bounds and requests, not one GPU copy per response.
+        from .native import NativeKernelError
+
+        try:
+            bundle._bind_body_kernel(
+                composition.components["kernels"],
+                tuple(sorted(stage.stage_id for stage in bindings
+                             if stage.layer_index is not None and stage.client_weight_digest is not None)),
+            )
+        except (NativeKernelError, TransformerClientError) as exc:
+            raise RuntimeBindingError(f"client body kernel admission failed: {exc}") from exc
+    result = CompiledRuntimeModel._create(
         plan=plan,
         bundle=bundle,
         canonical=canonical_bytes,
@@ -2101,6 +2222,13 @@ def compile_runtime_model(
         runtime_schedule_digest=runtime_schedule_digest,
         tokenizer_digest=tokenizer_digest,
     )
+    if runtime_options.prepared_output_encoding == "row_residues":
+        from .residue_codec import compiled_row_layout
+        try:
+            compiled_row_layout(result, namespace="prepared")
+        except ValueError as exc:
+            raise RuntimeBindingError(str(exc)) from exc
+    return result
 
 
 __all__ = [

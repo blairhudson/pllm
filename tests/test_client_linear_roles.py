@@ -18,23 +18,27 @@ from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 ATTENTION = ("attention_output", "qkv_projection")
 
 
-def experiment(root: Path, roles: tuple[str, ...] = ()) -> Experiment:
+def experiment(root: Path, roles: tuple[str, ...] = (), *, prefix_layers: int = 0) -> Experiment:
     return Experiment(
         "attention-local" if roles else "ordinary-prepared",
         MaskedLinearCpu(
             Model.path(str(root), model_id="role-placement"),
-            placement=ClientLinearRoles(roles) if roles else None,
+            placement=ClientLinearRoles(roles, prefix_layers=prefix_layers) if roles else None,
         ),
         Deployment.local(root=str(root.parent)),
         ExecutionBudget(requests=3, max_input_tokens=64, max_new_tokens=2),
     )
 
 
-def test_role_selection_is_canonical_and_native_schedule_keeps_mlp_remote(tmp_path: Path) -> None:
+@pytest.mark.parametrize("prefix_layers", [0, 1])
+def test_role_selection_is_canonical_and_native_schedule_keeps_mlp_remote(tmp_path: Path, prefix_layers) -> None:
     root = create_tiny_llama_checkpoint(tmp_path / "roles")
-    selected = experiment(root, ATTENTION)
+    selected = experiment(root, ATTENTION, prefix_layers=prefix_layers)
     assert ClientLinearRoles(list(reversed(ATTENTION))) == ClientLinearRoles(ATTENTION)
     assert selected.resolve().client_linear_roles == ATTENTION
+    assert selected.resolve().client_prefix_layers == prefix_layers
+    from pllm.configuration import Pipeline
+    assert Pipeline.from_spec(selected.pipeline.to_spec()).digest() == selected.pipeline.digest()
     plan = lower_model(
         json.loads((root / "config.json").read_text()),
         batch=1,
@@ -49,7 +53,7 @@ def test_role_selection_is_canonical_and_native_schedule_keeps_mlp_remote(tmp_pa
             if step["layer"] is not None and step["weight_ids"]:
                 role = semantic_stage_role(step, ops)
                 assert step["executor"] == (
-                    "client_linear" if role in ATTENTION else "remote_stage"
+                    "client_linear" if role in ATTENTION or step["layer"] < prefix_layers else "remote_stage"
                 )
     with pytest.raises((ValueError, RuntimeError), match="remote body"):
         plan.runtime_schedule(
@@ -66,12 +70,16 @@ def test_role_selection_is_canonical_and_native_schedule_keeps_mlp_remote(tmp_pa
     ):
         with pytest.raises(ValueError):
             ClientLinearRoles(invalid)
+    for invalid_prefix in (-1, True, 9):
+        with pytest.raises(ValueError):
+            ClientLinearRoles(ATTENTION, prefix_layers=invalid_prefix)
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize("family", ["qwen2", "qwen3"])
+@pytest.mark.parametrize("prefix_layers", [0, 1])
 def test_roles_preserve_two_child_prefill_decode_and_reject_weight_drift(
-    tmp_path: Path, family: str
+    tmp_path: Path, family: str, prefix_layers: int
 ) -> None:
     root = create_tiny_llama_checkpoint(
         tmp_path / family,
@@ -81,7 +89,7 @@ def test_roles_preserve_two_child_prefill_decode_and_reject_weight_drift(
     )
     observations = []
     for roles in ((), ATTENTION):
-        with build_roles(experiment(root, roles), engine_threads=1) as topology:
+        with build_roles(experiment(root, roles, prefix_layers=prefix_layers if roles else 0), engine_threads=1) as topology:
             with topology.client(
                 prepared_inventory_rows=1,
                 background_inventory_refill=False,
@@ -112,11 +120,11 @@ def test_roles_preserve_two_child_prefill_decode_and_reject_weight_drift(
                         if stage.layer_index is not None
                     ]
                     assert all(
-                        (stage.client_weight is not None) == (stage.role in ATTENTION)
+                        (stage.client_weight is not None) == (stage.role in ATTENTION or stage.layer_index < prefix_layers)
                         for stage in body
                     )
                     assert all(
-                        (stage.seeded_profile is None) == (stage.role in ATTENTION)
+                        (stage.seeded_profile is None) == (stage.role in ATTENTION or stage.layer_index < prefix_layers)
                         for stage in body
                     )
                     local = next(stage for stage in body if stage.role == "qkv_projection")
@@ -124,7 +132,7 @@ def test_roles_preserve_two_child_prefill_decode_and_reject_weight_drift(
                     with pytest.raises(RuntimeBindingError, match="client-owned prefix weight"):
                         compiled.validate()
     assert observations[0][:2] == observations[1][:2]
-    assert observations[1][2] * 2 == observations[0][2]
+    assert observations[1][2] * (4 if prefix_layers else 2) == observations[0][2]
     assert observations[1][3] > observations[0][3]
 
 

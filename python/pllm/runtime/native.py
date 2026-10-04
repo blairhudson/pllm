@@ -19,6 +19,44 @@ class NativeKernelError(ValueError):
     pass
 
 
+_PREPARED_CHUNK_ELEMENTS = 4_000_000
+
+
+def _prepared_mask_transform(value, mask, bits, *, input_mask):
+    expected = np.dtype(np.int8 if input_mask else np.uint32)
+    if (not isinstance(value, np.ndarray) or not isinstance(mask, np.ndarray)
+            or value.dtype != expected or mask.dtype != np.uint32 or value.shape != mask.shape):
+        raise NativeKernelError("prepared mask operands require matching typed arrays")
+    source = value.reshape(-1)
+    masks = mask.reshape(-1)
+    native = extension()
+    if native is None:
+        raise NativeKernelError("prepared masking requires the installed native extension")
+    method = native.prepared_mask_input if input_mask else native.prepared_center_output
+    dtype = "<u4" if input_mask else "<i8"
+
+    def chunk(start, end):
+        return np.frombuffer(method(source[start:end].astype("i1" if input_mask else "<u4", copy=False).tobytes(),
+                                    masks[start:end].astype("<u4", copy=False).tobytes(), bits), dtype=dtype)
+
+    if source.size <= _PREPARED_CHUNK_ELEMENTS:
+        return chunk(0, source.size).reshape(value.shape)
+    # Preserve existing large-stage support while bounding each native conversion.
+    result = np.empty(source.size, dtype=dtype)
+    for start in range(0, source.size, _PREPARED_CHUNK_ELEMENTS):
+        end = min(start + _PREPARED_CHUNK_ELEMENTS, source.size)
+        result[start:end] = chunk(start, end)
+    return result.reshape(value.shape)
+
+
+def mask_prepared_input(value, mask, bits):
+    return _prepared_mask_transform(value, mask, bits, input_mask=True)
+
+
+def unmask_prepared_output(value, mask, bits):
+    return _prepared_mask_transform(value, mask, bits, input_mask=False)
+
+
 def _integer_array(value, dtype, *, low: int, high: int, dimensions: int = 2):
     raw = np.asarray(value)
     if raw.ndim != dimensions or raw.dtype.kind not in {"i", "u"}:

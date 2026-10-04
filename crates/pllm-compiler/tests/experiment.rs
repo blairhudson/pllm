@@ -85,6 +85,26 @@ fn requires_baseline_component_slots_and_identities() {
 }
 
 #[test]
+fn prepared_output_encoding_is_explicit_and_validated() {
+    let mut value = experiment();
+    let baseline = resolve_experiment(&canonical_bytes(&value)).unwrap();
+    value["pipeline"]["components"]["linear"]["params"] =
+        json!({"output_encoding": "row_residues"});
+    let packed = resolve_experiment(&canonical_bytes(&value)).unwrap();
+    assert_ne!(baseline.composition_digest(), packed.composition_digest());
+    for invalid in [
+        json!({"output_encoding": "entropy"}),
+        json!({"output_encoding": true}),
+        json!({"output_encoding": "row_residues", "secret_widths": true}),
+    ] {
+        value["pipeline"]["components"]["linear"]["params"] = invalid;
+        assert!(resolve_experiment(&canonical_bytes(&value))
+            .unwrap_err()
+            .contains("prepared encoding"));
+    }
+}
+
+#[test]
 fn validates_and_rejects_unexecuted_gated_component_selections() {
     let mut malformed = experiment();
     malformed["pipeline"]["components"]["nonlinear"] = json!({

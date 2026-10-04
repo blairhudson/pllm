@@ -14,11 +14,21 @@ does not hide setup.
 ## Python SDK example
 
 ```python
-from pllm.metrics import Communication
+import json
+from pathlib import Path
+from pllm.metrics import Communication, communication_per_token
 
 metric = Communication(direction="total", phase="full")
 assert metric.component == "pllm/communication"
 assert metric.get_params()["phase"] == "full"
+
+# Normalize retained measurements, without running inference or inventing bytes.
+evidence = json.loads(Path(
+    "docs/evidence/metal-placement-baseline-qwen25-2026-10-03.json"
+).read_text())
+rates = communication_per_token(evidence["report"])
+assert rates["summary"]["generated_output_tokens"] == 96
+assert rates["summary"]["decode_online_mb_per_output_token"] == 1.65472
 ```
 
 This selects a metric, not network instrumentation; measure with a supported
@@ -26,3 +36,24 @@ This selects a metric, not network instrumentation; measure with a supported
 [`pllm benchmark run`](/cli/reference/benchmark/run/).
 
 API: [`Communication`](/sdk/reference/python/pllm/metrics/#objects-and-signatures)
+
+## MB per generated token
+
+Canonical `benchmark run` reports include `communication_per_token` and scalar
+summary fields. [`communication_per_token`](/sdk/reference/python/pllm/metrics/#communication_per_token)
+can normalize an existing report. Units are **decimal MB**, divided by actual,
+authoritative generated output tokens—not prompt tokens or the requested cap.
+
+- **Online:** measured online all-link application bodies / generated outputs.
+- **Covered:** measured-run covered bodies / generated outputs.
+- **Setup-inclusive:** startup, discarded warmups and measured-run bodies,
+  charged once / measured-run outputs.
+- **Cold first response:** setup through the first completed response / its
+  output count. A discarded warmup is still the first cold response.
+- **Decode-only:** transport counters sampled inside the decoder after its first
+  output, through completion / `N−1` generated outputs. Counter conservation is
+  required; this is not derived from an outside streaming callback.
+
+Unknown measurements and zero denominators stay `null`. One-token responses
+have no decode-output denominator. Sum bytes and tokens before division; do not
+average per-request ratios. These are application-body rates, not full wire.

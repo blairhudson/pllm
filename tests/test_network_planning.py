@@ -948,7 +948,8 @@ def test_client_state_costs_stay_client_local_and_plan_replays():
     warm_request = replace(req, state_evidence=(evidence,))
     warm = plan(warm_request, snapshot=cold.snapshot)
     assert warm.costs["online_all_link_body_bytes"] * 2 == cold.costs["online_all_link_body_bytes"]
-    assert warm.costs["role_memory_estimates"]["client"] == cold.costs["role_memory_estimates"]["client"] + evidence.resident_bytes
+    # Both miss and hit must reserve the complete configured cache capacity.
+    assert warm.costs["role_memory_estimates"]["client"] == cold.costs["role_memory_estimates"]["client"]
     assert assigned(warm)["client"] == "client"
     assert "tokens" not in json.dumps(warm_request.to_spec()["state_evidence"])
     assert PlanningRequest.from_spec(warm_request.to_spec()).digest == warm_request.digest

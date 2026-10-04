@@ -354,9 +354,13 @@ def test_repeated_prefill_benchmark_burns_only_decode_reservation() -> None:
 
 
 @pytest.mark.integration
-def test_two_worker_experiment_runs_through_standard_benchmark(tmp_path: Path) -> None:
+@pytest.mark.parametrize("combined", [False, True])
+def test_two_worker_experiment_runs_through_standard_benchmark(tmp_path: Path, combined: bool) -> None:
     from pllm import Deployment, ExecutionBudget, Model
     from pllm.profiles import TwoOnlineOffsetCpu
+    from pllm.protocols import ClientBundleTransport, TwoOnlineOffsetLinear
+    from pllm.quantization import SymmetricPerRow
+    from pllm.state import ClientPrefixReuse
     from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 
     checkpoint = create_tiny_llama_checkpoint(
@@ -364,17 +368,23 @@ def test_two_worker_experiment_runs_through_standard_benchmark(tmp_path: Path) -
     )
     experiment = Experiment(
         name="offset-benchmark",
-        pipeline=TwoOnlineOffsetCpu(Model.path(str(checkpoint), model_id="offset-benchmark")),
+        pipeline=TwoOnlineOffsetCpu(Model.path(str(checkpoint), model_id="offset-benchmark"), **({
+            "linear": TwoOnlineOffsetLinear(input_encoding="seeded", output_encoding="row_residues"),
+            "quantization": SymmetricPerRow(weight_bits=8, activation_bits=8, causal_reduction="prefix_f32"),
+            "delivery": ClientBundleTransport("artifacts", compression="zlib"),
+            "cache": ClientPrefixReuse(max_bytes=1 << 20, fixed_input_tokens=64),
+        } if combined else {})),
         deployment=Deployment.local(root=str(tmp_path)),
-        budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=1),
+        budget=ExecutionBudget(max_input_tokens=64, max_new_tokens=2, requests=3 if combined else 1),
     )
     report = run_loopback_benchmark(
         model=str(checkpoint), model_id="offset-benchmark", tiny=False,
         prompt="A", max_output_tokens=2, warmups=0,
         repetitions=1, timeout_seconds=120, experiment=experiment,
+        prompt_sequence=("A" * 24, "A" * 24, "A" * 24 + " B") if combined else None, temperature=0,
     )
     assert report["checks"]["passed"]
-    assert report["summary"]["completed_runs"] == 1
+    assert report["summary"]["completed_runs"] == (3 if combined else 1)
     assert set(report["runs"][0]["processes"]) == {"client", "worker_a", "worker_b"}
     assert report["runs"][0]["privacy"]["role_link.worker_a.online_upload_bytes"] > 0
     assert report["runs"][0]["privacy"]["role_link.worker_b.online_download_bytes"] > 0
@@ -384,6 +394,15 @@ def test_two_worker_experiment_runs_through_standard_benchmark(tmp_path: Path) -
     assert accounting["all_link_serialized_body_bytes"] > 0
     assert accounting["aggregate_run_window_cpu_seconds"] is not None
     assert accounting["full_response_compute_cap_checked"] is False
+    startup = report["topology_accounting"]["startup"]
+    assert startup["tracked_body_counter_set_present"]
+    assert report["summary"]["total_accounted_benchmark_body_bytes"] == (
+        startup["all_link_serialized_body_bytes"] + sum(
+            row["all_link_serialized_body_bytes"] for row in report["topology_accounting"]["runs"]))
+    assert report["communication_per_token"]["summary"]["setup_inclusive_mb_per_output_token"] > 0
+    if combined:
+        assert report["runs"][1]["privacy"]["prefill_cache_hits"] == 1
+        assert report["runs"][2]["privacy"]["prefill_prefix_tokens_reused"] > 0
 
 
 def test_two_worker_experiment_uses_existing_benchmark_cli(tmp_path: Path) -> None:
@@ -736,7 +755,8 @@ def test_comparison_report_ranks_only_matched_pipeline_runs() -> None:
     assert report["winners"]["full_seconds"] is None
 
 
-@pytest.mark.parametrize("field,value", [("provider_backend", "docker"), ("link_conditions_digest", "shaped")])
+@pytest.mark.parametrize("field,value", [("provider_backend", "docker"), ("link_conditions_digest", "shaped"),
+                                       ("wan_emulation", True), ("wan_emulation_digest", "consumer")])
 def test_transport_conditions_cannot_enter_unmatched_ranking(field, value):
     first, second = _experiment("first", 1), _experiment("second", 4)
     control, changed = _report(), _report()
@@ -746,6 +766,25 @@ def test_transport_conditions_cannot_enter_unmatched_ranking(field, value):
     assert report["rankings"]["full_seconds"] == []
     control["configuration"][field] = value
     assert build_comparison_report([(first, control), (second, changed)])["checks"]["matched_workload"]
+
+
+@pytest.mark.parametrize("options,enforced", [([], False), (["--wan"], True),
+    (["--wan-upload-mbps", "8", "--wan-party", "client:20:4"], True),
+    (["--wan-estimate", "--wan-upload-mbps", "8"], False)])
+def test_wan_cli_dispatches_enforcement_explicitly(monkeypatch, capsys, options, enforced):
+    from pllm.cli import main
+    from pllm.runtime import benchmark_cli
+    captured = {}
+    def run(**kwargs):
+        captured.update(kwargs)
+        return _report()
+    monkeypatch.setattr(benchmark_cli, "run_loopback_benchmark", run)
+    main(["benchmark", "run", "--tiny", "--format", "json", *options])
+    assert captured["emulate_wan"] is enforced
+    assert captured["wan"].download_mbps == 100
+    if "--wan-party" in options:
+        assert captured["wan"].access("client").upload_mbps == 4
+    assert json.loads(capsys.readouterr().out)["data"]["report"]["checks"]["passed"]
 
 
 def test_benchmark_command_writes_sanitized_report(monkeypatch, capsys, tmp_path: Path) -> None:

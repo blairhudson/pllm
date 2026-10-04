@@ -104,6 +104,14 @@ manifests per workload, and fresh corrections and online bodies every time.
 Resident declarations remain estimates; execution verifies objects and repairs
 corrupt cache entries. Private KV and one-use rows never enter this public list.
 
+For `ClientBundleTransport("artifacts", compression="zlib")`, pass the exact
+committed public `objects` mapping to `ArtifactCostEvidence.from_manifest`.
+It validates each raw object and counts bounded encoded frames. Schema v2 binds
+encoded transfer lengths separately from raw storage lengths; raw records retain
+v1 identity. Cache misses are charged in encoded bytes, while residency and
+memory retain raw sizes. These persisted declarations are estimates; they do not
+measure compression CPU or prove the objects remain resident.
+
 ## Immutable decisions
 
 [`PlanningResult`](/sdk/reference/python/pllm/plan/#objects-and-signatures) contains

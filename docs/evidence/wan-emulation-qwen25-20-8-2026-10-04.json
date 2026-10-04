@@ -1,0 +1,4304 @@
+{
+  "checks": {
+    "all_runs_completed": true,
+    "authoritative_token_usage": true,
+    "model_fingerprint_present": true,
+    "no_online_preparation_requests": true,
+    "no_plaintext_prompt_bytes_sent": true,
+    "no_plaintext_token_ids_sent": true,
+    "passed": true,
+    "sampling_matches_request": true
+  },
+  "client_body_placement": {
+    "client_body_i8_weight_bytes": 0,
+    "client_body_scale_bytes": 0,
+    "declared_body_linear_macs_per_row_client": 0,
+    "declared_body_linear_macs_per_row_remote": 357826560,
+    "local_stage_count": 0,
+    "metal_body_i8_snapshot_bytes": 0,
+    "native_body_i8_snapshot_bytes": 0,
+    "peak_client_memory_bytes": null,
+    "remote_stage_count": 96,
+    "sample_boundary": "after-final-measured-response",
+    "schema": "pllm.client_body_placement.v1"
+  },
+  "communication_per_token": {
+    "byte_unit": "decimal MB (1000000 bytes)",
+    "decode_scope": "online bodies after first output through completion, divided by N-1",
+    "denominator": "authoritative generated output tokens, not input tokens or output cap",
+    "runs": [
+      {
+        "covered_body_bytes": 236600521,
+        "covered_mb_per_output_token": 29.575065125,
+        "decode_online_body_bytes": 11156138,
+        "decode_online_mb_per_output_token": 1.593734,
+        "decode_output_tokens": 7,
+        "generated_output_tokens": 8,
+        "online_body_bytes": 71192642,
+        "online_mb_per_output_token": 8.89908025
+      }
+    ],
+    "schema": "pllm.communication_per_generated_token.v1",
+    "scope": "covered application bodies; no full wire or checkpoint download",
+    "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+    "summary": {
+      "cold_first_response_mb_per_output_token": 29.575065125,
+      "covered_mb_per_output_token": 29.575065125,
+      "decode_online_mb_per_output_token": 1.593734,
+      "generated_output_tokens": 8,
+      "online_mb_per_output_token": 8.89908025,
+      "setup_inclusive_mb_per_output_token": 29.575065125
+    }
+  },
+  "configuration": {
+    "bundle_compression": "artifacts-zlib",
+    "capture_output_digest": true,
+    "inventory_policy": "request-sized",
+    "link_conditions_digest": null,
+    "max_output_tokens": 8,
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "prefill_cache_bound_tokens": 128,
+    "prefill_cache_mib": 64,
+    "prefill_cache_mode": "prefix",
+    "prompt_digest": "2ef86fe87531300e1aec3ab109411900c9e27fe116ab08461f286a7d9a2dab15",
+    "prompt_sequence_digest": null,
+    "provider_backend": "docker",
+    "repetitions": 1,
+    "roles": [
+      "client",
+      "inference",
+      "preparation"
+    ],
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "tiny": false,
+    "wan_emulation": true,
+    "wan_emulation_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+    "warmup_prompt_digest": "2ef86fe87531300e1aec3ab109411900c9e27fe116ab08461f286a7d9a2dab15",
+    "warmups": 0
+  },
+  "docker_accounting": {
+    "cpu_scope": "cgroup lifetime CPU includes resource sampler",
+    "full_wire_bytes": null,
+    "network_scope": "directed non-overlapping service IPv4/TCP counters plus separately scoped interface totals",
+    "samples": {
+      "runs": [
+        {
+          "after": {
+            "directed_ip": {
+              "bytes": 243326605,
+              "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+              "links": {
+                "client->inference": {
+                  "bytes": 33184855,
+                  "packets": 43129
+                },
+                "client->preparation": {
+                  "bytes": 65363,
+                  "packets": 313
+                },
+                "inference->client": {
+                  "bytes": 168410356,
+                  "packets": 42527
+                },
+                "inference->preparation": {
+                  "bytes": 681276,
+                  "packets": 12800
+                },
+                "preparation->client": {
+                  "bytes": 43567,
+                  "packets": 405
+                },
+                "preparation->inference": {
+                  "bytes": 40941188,
+                  "packets": 8680
+                }
+              },
+              "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:e1164a11b5b3d1bfc196e688bf5f5b8f9f0ba04262f7eef643e274537dcb280b",
+            "link_conditions": null,
+            "measurement_helpers": {
+              "client/endpoint": {
+                "cpu_ns": 6860317000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 203270644,
+                    "tx_bytes": 202726409
+                  },
+                  "eth1": {
+                    "rx_bytes": 1950,
+                    "tx_bytes": 126
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 32165888,
+                "memory_peak_bytes": 32415744
+              },
+              "client/router": {
+                "cpu_ns": 723237000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 33860482,
+                    "tx_bytes": 169624551
+                  },
+                  "eth1": {
+                    "rx_bytes": 169626543,
+                    "tx_bytes": 34457174
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33976320,
+                "memory_peak_bytes": 36282368
+              },
+              "inference/endpoint": {
+                "cpu_ns": 977121000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1520,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 76416971,
+                    "tx_bytes": 177945221
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33865728,
+                "memory_peak_bytes": 34385920
+              },
+              "inference/router": {
+                "cpu_ns": 767672000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 76042421,
+                    "tx_bytes": 170435790
+                  },
+                  "eth1": {
+                    "rx_bytes": 169868412,
+                    "tx_bytes": 76041069
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34238464,
+                "memory_peak_bytes": 35844096
+              },
+              "preparation/endpoint": {
+                "cpu_ns": 815646000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1064,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 1149503,
+                    "tx_bytes": 46198418
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34136064,
+                "memory_peak_bytes": 34385920
+              },
+              "preparation/router": {
+                "cpu_ns": 703496000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 931345,
+                    "tx_bytes": 41703087
+                  },
+                  "eth1": {
+                    "rx_bytes": 41113937,
+                    "tx_bytes": 930431
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34467840,
+                "memory_peak_bytes": 35778560
+              }
+            },
+            "roles": {
+              "inference": {
+                "cpu_ns": 35349074000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1520,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 76416181,
+                    "tx_bytes": 177926191
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1813274624,
+                "memory_peak_bytes": 2496282624,
+                "network_namespace_party": "inference"
+              },
+              "preparation": {
+                "cpu_ns": 22224747000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1064,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 1149043,
+                    "tx_bytes": 46178372
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1471594496,
+                "memory_peak_bytes": 2518683648,
+                "network_namespace_party": "preparation"
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+            "wan_emulation": {
+              "backend": "linux-tbf-routed-party-ports",
+              "conditions": {
+                "download_mbps": 20.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 8.0
+              },
+              "conditions_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+              "directed_ip": {
+                "bytes": 243326605,
+                "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+                "links": {
+                  "client->inference": {
+                    "bytes": 33184855,
+                    "packets": 43129
+                  },
+                  "client->preparation": {
+                    "bytes": 65363,
+                    "packets": 313
+                  },
+                  "inference->client": {
+                    "bytes": 168410356,
+                    "packets": 42527
+                  },
+                  "inference->preparation": {
+                    "bytes": 681276,
+                    "packets": 12800
+                  },
+                  "preparation->client": {
+                    "bytes": 43567,
+                    "packets": 405
+                  },
+                  "preparation->inference": {
+                    "bytes": 40941188,
+                    "packets": 8680
+                  }
+                },
+                "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+              },
+              "enforced": true,
+              "excluded": [
+                "host/portal management leg",
+                "out-of-band telemetry",
+                "checkpoint distribution"
+              ],
+              "full_wire_bytes": null,
+              "measurement_helpers": {
+                "client/endpoint": {
+                  "cpu_ns": 6860317000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 203270644,
+                      "tx_bytes": 202726409
+                    },
+                    "eth1": {
+                      "rx_bytes": 1950,
+                      "tx_bytes": 126
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 32165888,
+                  "memory_peak_bytes": 32415744
+                },
+                "client/router": {
+                  "cpu_ns": 723237000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 33860482,
+                      "tx_bytes": 169624551
+                    },
+                    "eth1": {
+                      "rx_bytes": 169626543,
+                      "tx_bytes": 34457174
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33976320,
+                  "memory_peak_bytes": 36282368
+                },
+                "inference/endpoint": {
+                  "cpu_ns": 977121000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1520,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 76416971,
+                      "tx_bytes": 177945221
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33865728,
+                  "memory_peak_bytes": 34385920
+                },
+                "inference/router": {
+                  "cpu_ns": 767672000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 76042421,
+                      "tx_bytes": 170435790
+                    },
+                    "eth1": {
+                      "rx_bytes": 169868412,
+                      "tx_bytes": 76041069
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34238464,
+                  "memory_peak_bytes": 35844096
+                },
+                "preparation/endpoint": {
+                  "cpu_ns": 815646000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1064,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 1149503,
+                      "tx_bytes": 46198418
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34136064,
+                  "memory_peak_bytes": 34385920
+                },
+                "preparation/router": {
+                  "cpu_ns": 703496000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 931345,
+                      "tx_bytes": 41703087
+                    },
+                    "eth1": {
+                      "rx_bytes": 41113937,
+                      "tx_bytes": 930431
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34467840,
+                  "memory_peak_bytes": 35778560
+                }
+              },
+              "parties": {
+                "client": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 174135411,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 123860,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 34983350,
+                        "drops": 6,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 22402,
+                        "packets": 61038,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                },
+                "inference": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 77217873,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 88897,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 174946650,
+                        "drops": 48,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 115708,
+                        "packets": 136255,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                },
+                "preparation": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 930521,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 13119,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 42353805,
+                        "drops": 11,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 38330,
+                        "packets": 28583,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                }
+              },
+              "role_parties": {
+                "client": "client",
+                "inference": "inference",
+                "preparation": "preparation"
+              },
+              "schema": "pllm.wan_emulation.v1",
+              "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+            }
+          },
+          "before": {
+            "directed_ip": {
+              "bytes": 25470,
+              "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+              "links": {
+                "client->inference": {
+                  "bytes": 7225,
+                  "packets": 114
+                },
+                "client->preparation": {
+                  "bytes": 6804,
+                  "packets": 110
+                },
+                "inference->client": {
+                  "bytes": 6705,
+                  "packets": 109
+                },
+                "inference->preparation": {
+                  "bytes": 0,
+                  "packets": 0
+                },
+                "preparation->client": {
+                  "bytes": 4736,
+                  "packets": 106
+                },
+                "preparation->inference": {
+                  "bytes": 0,
+                  "packets": 0
+                }
+              },
+              "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:e1164a11b5b3d1bfc196e688bf5f5b8f9f0ba04262f7eef643e274537dcb280b",
+            "link_conditions": null,
+            "measurement_helpers": {
+              "client/endpoint": {
+                "cpu_ns": 727937000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 100480,
+                    "tx_bytes": 70014
+                  },
+                  "eth1": {
+                    "rx_bytes": 1950,
+                    "tx_bytes": 126
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 32415744,
+                "memory_peak_bytes": 32415744
+              },
+              "client/router": {
+                "cpu_ns": 629837000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 19115,
+                    "tx_bytes": 14661
+                  },
+                  "eth1": {
+                    "rx_bytes": 16653,
+                    "tx_bytes": 17459
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34738176,
+                "memory_peak_bytes": 36106240
+              },
+              "inference/endpoint": {
+                "cpu_ns": 564358000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1520,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 26367,
+                    "tx_bytes": 158385
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34357248,
+                "memory_peak_bytes": 34385920
+              },
+              "inference/router": {
+                "cpu_ns": 687348000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 10467,
+                    "tx_bytes": 8441
+                  },
+                  "eth1": {
+                    "rx_bytes": 10223,
+                    "tx_bytes": 9031
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34304000,
+                "memory_peak_bytes": 35672064
+              },
+              "preparation/endpoint": {
+                "cpu_ns": 538678000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1064,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 17998,
+                    "tx_bytes": 61680
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33890304,
+                "memory_peak_bytes": 34385920
+              },
+              "preparation/router": {
+                "cpu_ns": 609961000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 9384,
+                    "tx_bytes": 6430
+                  },
+                  "eth1": {
+                    "rx_bytes": 8212,
+                    "tx_bytes": 8554
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33918976,
+                "memory_peak_bytes": 35778560
+              }
+            },
+            "roles": {
+              "inference": {
+                "cpu_ns": 14821780000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1520,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 25843,
+                    "tx_bytes": 150357
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1830014976,
+                "memory_peak_bytes": 2496282624,
+                "network_namespace_party": "inference"
+              },
+              "preparation": {
+                "cpu_ns": 14407649000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1064,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 17736,
+                    "tx_bytes": 58716
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1717788672,
+                "memory_peak_bytes": 2518683648,
+                "network_namespace_party": "preparation"
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+            "wan_emulation": {
+              "backend": "linux-tbf-routed-party-ports",
+              "conditions": {
+                "download_mbps": 20.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 8.0
+              },
+              "conditions_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+              "directed_ip": {
+                "bytes": 25470,
+                "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+                "links": {
+                  "client->inference": {
+                    "bytes": 7225,
+                    "packets": 114
+                  },
+                  "client->preparation": {
+                    "bytes": 6804,
+                    "packets": 110
+                  },
+                  "inference->client": {
+                    "bytes": 6705,
+                    "packets": 109
+                  },
+                  "inference->preparation": {
+                    "bytes": 0,
+                    "packets": 0
+                  },
+                  "preparation->client": {
+                    "bytes": 4736,
+                    "packets": 106
+                  },
+                  "preparation->inference": {
+                    "bytes": 0,
+                    "packets": 0
+                  }
+                },
+                "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+              },
+              "enforced": true,
+              "excluded": [
+                "host/portal management leg",
+                "out-of-band telemetry",
+                "checkpoint distribution"
+              ],
+              "full_wire_bytes": null,
+              "measurement_helpers": {
+                "client/endpoint": {
+                  "cpu_ns": 727937000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 100480,
+                      "tx_bytes": 70014
+                    },
+                    "eth1": {
+                      "rx_bytes": 1950,
+                      "tx_bytes": 126
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 32415744,
+                  "memory_peak_bytes": 32415744
+                },
+                "client/router": {
+                  "cpu_ns": 629837000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 19115,
+                      "tx_bytes": 14661
+                    },
+                    "eth1": {
+                      "rx_bytes": 16653,
+                      "tx_bytes": 17459
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34738176,
+                  "memory_peak_bytes": 36106240
+                },
+                "inference/endpoint": {
+                  "cpu_ns": 564358000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1520,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 26367,
+                      "tx_bytes": 158385
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34357248,
+                  "memory_peak_bytes": 34385920
+                },
+                "inference/router": {
+                  "cpu_ns": 687348000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 10467,
+                      "tx_bytes": 8441
+                    },
+                    "eth1": {
+                      "rx_bytes": 10223,
+                      "tx_bytes": 9031
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34304000,
+                  "memory_peak_bytes": 35672064
+                },
+                "preparation/endpoint": {
+                  "cpu_ns": 538678000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1064,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 17998,
+                      "tx_bytes": 61680
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33890304,
+                  "memory_peak_bytes": 34385920
+                },
+                "preparation/router": {
+                  "cpu_ns": 609961000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 9384,
+                      "tx_bytes": 6430
+                    },
+                    "eth1": {
+                      "rx_bytes": 8212,
+                      "tx_bytes": 8554
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33918976,
+                  "memory_peak_bytes": 35778560
+                }
+              },
+              "parties": {
+                "client": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 14685,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 220,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 17417,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 0,
+                        "packets": 230,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                },
+                "inference": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 8989,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 118,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 8465,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 0,
+                        "packets": 114,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                },
+                "preparation": {
+                  "download": {
+                    "burst_bytes": 25000,
+                    "bytes_per_second": 2500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 8512,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 25000,
+                          "lat": 240000,
+                          "rate": 2500000
+                        },
+                        "overlimits": 0,
+                        "packets": 114,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 625000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 10000,
+                    "bytes_per_second": 1000000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 6388,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 10000,
+                          "lat": 240000,
+                          "rate": 1000000
+                        },
+                        "overlimits": 0,
+                        "packets": 110,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 250000,
+                    "verified": true
+                  }
+                }
+              },
+              "role_parties": {
+                "client": "client",
+                "inference": "inference",
+                "preparation": "preparation"
+              },
+              "schema": "pllm.wan_emulation.v1",
+              "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+            }
+          }
+        }
+      ],
+      "startup": {
+        "directed_ip": {
+          "bytes": 25470,
+          "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+          "links": {
+            "client->inference": {
+              "bytes": 7225,
+              "packets": 114
+            },
+            "client->preparation": {
+              "bytes": 6804,
+              "packets": 110
+            },
+            "inference->client": {
+              "bytes": 6705,
+              "packets": 109
+            },
+            "inference->preparation": {
+              "bytes": 0,
+              "packets": 0
+            },
+            "preparation->client": {
+              "bytes": 4736,
+              "packets": 106
+            },
+            "preparation->inference": {
+              "bytes": 0,
+              "packets": 0
+            }
+          },
+          "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+        },
+        "full_wire_bytes": null,
+        "image_id": "sha256:e1164a11b5b3d1bfc196e688bf5f5b8f9f0ba04262f7eef643e274537dcb280b",
+        "link_conditions": null,
+        "measurement_helpers": {
+          "client/endpoint": {
+            "cpu_ns": 641332000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 100480,
+                "tx_bytes": 70014
+              },
+              "eth1": {
+                "rx_bytes": 1950,
+                "tx_bytes": 126
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 32305152,
+            "memory_peak_bytes": 32305152
+          },
+          "client/router": {
+            "cpu_ns": 544538000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 19115,
+                "tx_bytes": 14661
+              },
+              "eth1": {
+                "rx_bytes": 16653,
+                "tx_bytes": 17459
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 34557952,
+            "memory_peak_bytes": 34557952
+          },
+          "inference/endpoint": {
+            "cpu_ns": 478573000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1520,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 25319,
+                "tx_bytes": 142329
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 34385920,
+            "memory_peak_bytes": 34385920
+          },
+          "inference/router": {
+            "cpu_ns": 604244000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 10467,
+                "tx_bytes": 8441
+              },
+              "eth1": {
+                "rx_bytes": 10223,
+                "tx_bytes": 9031
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 33865728,
+            "memory_peak_bytes": 33865728
+          },
+          "preparation/endpoint": {
+            "cpu_ns": 438256000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1064,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 17212,
+                "tx_bytes": 52788
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 34385920,
+            "memory_peak_bytes": 34385920
+          },
+          "preparation/router": {
+            "cpu_ns": 529419000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 9384,
+                "tx_bytes": 6430
+              },
+              "eth1": {
+                "rx_bytes": 8212,
+                "tx_bytes": 8554
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 34226176,
+            "memory_peak_bytes": 34226176
+          }
+        },
+        "roles": {
+          "inference": {
+            "cpu_ns": 14508375000,
+            "interface_counters_shared_with_namespace": true,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1520,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 25057,
+                "tx_bytes": 138315
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 1829945344,
+            "memory_peak_bytes": 2496282624,
+            "network_namespace_party": "inference"
+          },
+          "preparation": {
+            "cpu_ns": 14065027000,
+            "interface_counters_shared_with_namespace": true,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1064,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 16688,
+                "tx_bytes": 46860
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 1718013952,
+            "memory_peak_bytes": 2518683648,
+            "network_namespace_party": "preparation"
+          }
+        },
+        "schema": "pllm.docker_resources.v1",
+        "scope": "co-located-provider-containers",
+        "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+        "wan_emulation": {
+          "backend": "linux-tbf-routed-party-ports",
+          "conditions": {
+            "download_mbps": 20.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 8.0
+          },
+          "conditions_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+          "directed_ip": {
+            "bytes": 25470,
+            "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+            "links": {
+              "client->inference": {
+                "bytes": 7225,
+                "packets": 114
+              },
+              "client->preparation": {
+                "bytes": 6804,
+                "packets": 110
+              },
+              "inference->client": {
+                "bytes": 6705,
+                "packets": 109
+              },
+              "inference->preparation": {
+                "bytes": 0,
+                "packets": 0
+              },
+              "preparation->client": {
+                "bytes": 4736,
+                "packets": 106
+              },
+              "preparation->inference": {
+                "bytes": 0,
+                "packets": 0
+              }
+            },
+            "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+          },
+          "enforced": true,
+          "excluded": [
+            "host/portal management leg",
+            "out-of-band telemetry",
+            "checkpoint distribution"
+          ],
+          "full_wire_bytes": null,
+          "measurement_helpers": {
+            "client/endpoint": {
+              "cpu_ns": 641332000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 100480,
+                  "tx_bytes": 70014
+                },
+                "eth1": {
+                  "rx_bytes": 1950,
+                  "tx_bytes": 126
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 32305152,
+              "memory_peak_bytes": 32305152
+            },
+            "client/router": {
+              "cpu_ns": 544538000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 19115,
+                  "tx_bytes": 14661
+                },
+                "eth1": {
+                  "rx_bytes": 16653,
+                  "tx_bytes": 17459
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 34557952,
+              "memory_peak_bytes": 34557952
+            },
+            "inference/endpoint": {
+              "cpu_ns": 478573000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 1520,
+                  "tx_bytes": 126
+                },
+                "eth1": {
+                  "rx_bytes": 25319,
+                  "tx_bytes": 142329
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 34385920,
+              "memory_peak_bytes": 34385920
+            },
+            "inference/router": {
+              "cpu_ns": 604244000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 10467,
+                  "tx_bytes": 8441
+                },
+                "eth1": {
+                  "rx_bytes": 10223,
+                  "tx_bytes": 9031
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 33865728,
+              "memory_peak_bytes": 33865728
+            },
+            "preparation/endpoint": {
+              "cpu_ns": 438256000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 1064,
+                  "tx_bytes": 126
+                },
+                "eth1": {
+                  "rx_bytes": 17212,
+                  "tx_bytes": 52788
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 34385920,
+              "memory_peak_bytes": 34385920
+            },
+            "preparation/router": {
+              "cpu_ns": 529419000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 9384,
+                  "tx_bytes": 6430
+                },
+                "eth1": {
+                  "rx_bytes": 8212,
+                  "tx_bytes": 8554
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 34226176,
+              "memory_peak_bytes": 34226176
+            }
+          },
+          "parties": {
+            "client": {
+              "download": {
+                "burst_bytes": 25000,
+                "bytes_per_second": 2500000,
+                "device": "eth0",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 14685,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 25000,
+                      "lat": 240000,
+                      "rate": 2500000
+                    },
+                    "overlimits": 0,
+                    "packets": 220,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 625000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 10000,
+                "bytes_per_second": 1000000,
+                "device": "eth1",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 17417,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 10000,
+                      "lat": 240000,
+                      "rate": 1000000
+                    },
+                    "overlimits": 0,
+                    "packets": 230,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 250000,
+                "verified": true
+              }
+            },
+            "inference": {
+              "download": {
+                "burst_bytes": 25000,
+                "bytes_per_second": 2500000,
+                "device": "eth1",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 8989,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 25000,
+                      "lat": 240000,
+                      "rate": 2500000
+                    },
+                    "overlimits": 0,
+                    "packets": 118,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 625000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 10000,
+                "bytes_per_second": 1000000,
+                "device": "eth0",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 8465,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 10000,
+                      "lat": 240000,
+                      "rate": 1000000
+                    },
+                    "overlimits": 0,
+                    "packets": 114,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 250000,
+                "verified": true
+              }
+            },
+            "preparation": {
+              "download": {
+                "burst_bytes": 25000,
+                "bytes_per_second": 2500000,
+                "device": "eth1",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 8512,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 25000,
+                      "lat": 240000,
+                      "rate": 2500000
+                    },
+                    "overlimits": 0,
+                    "packets": 114,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 625000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 10000,
+                "bytes_per_second": 1000000,
+                "device": "eth0",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 6388,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 10000,
+                      "lat": 240000,
+                      "rate": 1000000
+                    },
+                    "overlimits": 0,
+                    "packets": 110,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 250000,
+                "verified": true
+              }
+            }
+          },
+          "role_parties": {
+            "client": "client",
+            "inference": "inference",
+            "preparation": "preparation"
+          },
+          "schema": "pllm.wan_emulation.v1",
+          "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+        }
+      },
+      "warmups": []
+    },
+    "schema": "pllm.docker_benchmark_accounting.v1",
+    "scope": "co-located Linux provider containers; host client"
+  },
+  "experiment": {
+    "configuration_digest": "0dbc3862c47a9fe0947c69bf1759744e4754b76d13d5a4744f89cdabd5a27468",
+    "name": "prepared-row_residues",
+    "pipeline_digest": "1ae6b0edd80f3a7d331aba4880007af73b3e318c956a32fd1ee4e76d4c34135a"
+  },
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic record, not a canonical EvidenceReport",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "prepared_material_accounting": {
+    "conserved": true,
+    "counts": {
+      "burned": 0,
+      "claimed": 4416,
+      "discarded": 0,
+      "issued": 4416,
+      "reserved": 4416
+    },
+    "remaining_stage_rows": 0,
+    "schema": "pllm.prepared_material_accounting.v1",
+    "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+  },
+  "privacy_admission": null,
+  "process_cpu_accounting": {
+    "aggregate_cold_first_response_cpu_seconds": null,
+    "aggregate_startup_cpu_seconds": null,
+    "cold_first_response_cpu_seconds_by_role": null,
+    "full_response_compute_cap_checked": false,
+    "schema": "pllm.topology_process_cpu.v1",
+    "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+    "startup_cpu_seconds_by_role": null,
+    "unmeasured": [
+      "source resolution before dashboard startup, if any",
+      "accelerator compute, energy, and CPU after the first response",
+      "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+    ]
+  },
+  "runs": [
+    {
+      "cold": true,
+      "context_tokens": 39,
+      "durations": {
+        "full_seconds": 265.294738667,
+        "generation_seconds": 9.032577167,
+        "online_seconds": 78.631674167,
+        "preparation_seconds": 185.833368917,
+        "tokens_per_second": 0.7749726208345163,
+        "transition_seconds": 0.60072475,
+        "ttft_seconds": 69.521203625
+      },
+      "failure": null,
+      "generation": {
+        "output_text_digest": "1cac53d4c8028517dd1f6e29301031eb3dd7a0f4abc81a4c6169ae2ad478d0fb",
+        "response_status": "incomplete"
+      },
+      "inventory": {
+        "burned": 0,
+        "consumed": 46,
+        "generated": 46,
+        "required": 46,
+        "reused": 0
+      },
+      "max_output_tokens": 8,
+      "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "network": {
+        "decode_online_body_bytes": 11156138,
+        "decode_output_tokens": 7,
+        "decode_scope": "after-first-output-through-completion"
+      },
+      "privacy": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 1,
+        "bundle_network_bytes": 124946680,
+        "correction_push_bytes": 40439921,
+        "correction_push_ns": 43116131768,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "generation_completed_responses": 1,
+        "generation_decode_online_body_bytes": 11156138,
+        "generation_decode_output_tokens": 7,
+        "generation_output_tokens": 8,
+        "generation_prefill_online_body_bytes": 60036504,
+        "inference_download_bytes": 40429122,
+        "inference_server_ns": 1448119170,
+        "inference_stage_calls": 768,
+        "inference_upload_bytes": 30763520,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 40634644,
+        "masked_online_upload_bytes": 30988082,
+        "online_steps": 4416,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 1,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 96,
+        "preparation_download_bytes": 8576,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 4416,
+        "preparation_server_ns": 1234002540,
+        "preparation_upload_bytes": 9888,
+        "prepared_stage_rows_burned": 0,
+        "prepared_stage_rows_claimed": 4416,
+        "prepared_stage_rows_discarded": 0,
+        "prepared_stage_rows_issued": 4416,
+        "prepared_stage_rows_reserved": 4416,
+        "public_context_bytes": 0,
+        "role_link.worker_a.online_download_bytes": 0,
+        "role_link.worker_a.online_upload_bytes": 0,
+        "role_link.worker_a.setup_download_bytes": 0,
+        "role_link.worker_a.setup_upload_bytes": 0,
+        "role_link.worker_a.teardown_download_bytes": 0,
+        "role_link.worker_a.teardown_upload_bytes": 0,
+        "role_link.worker_b.online_download_bytes": 0,
+        "role_link.worker_b.online_upload_bytes": 0,
+        "role_link.worker_b.setup_download_bytes": 0,
+        "role_link.worker_b.setup_upload_bytes": 0,
+        "role_link.worker_b.teardown_download_bytes": 0,
+        "role_link.worker_b.teardown_upload_bytes": 0,
+        "session_authorization_download_bytes": 44,
+        "session_authorization_upload_bytes": 2770,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "processes": {
+        "client": {
+          "cpu_seconds": 31.628637000000005,
+          "rss_peak_bytes": null
+        },
+        "inference": {
+          "cpu_seconds": 20.22,
+          "rss_peak_bytes": 1971281920
+        },
+        "preparation": {
+          "cpu_seconds": 7.5000000000000036,
+          "rss_peak_bytes": 1700085760
+        }
+      },
+      "run_id": "bench-57e2a0a134b4bddd12e0a37854d8e6d2",
+      "sampling": {
+        "effective_temperature": 0.0,
+        "mode": "greedy",
+        "requested_temperature": 0.0,
+        "top_p": null
+      },
+      "schema_version": 3,
+      "status": "completed",
+      "timestamps": {
+        "finished_at_ns": 1791082354378821000,
+        "first_token_at_ns": 1791082345268511000,
+        "last_token_at_ns": 1791082354300940000,
+        "online_started_at_ns": 1791082275748536000,
+        "preparation_finished_at_ns": 1791082275147829000,
+        "preparation_started_at_ns": 1791082089317732000,
+        "started_at_ns": 1791082089088769000
+      },
+      "tokens": {
+        "authoritative": true,
+        "input_tokens": 39,
+        "output_tokens": 8,
+        "total_tokens": 47
+      },
+      "warm": false
+    }
+  ],
+  "schema_version": "pllm.loopback_benchmark.v1",
+  "scope": "single-host-loopback-diagnostic",
+  "summary": {
+    "accounted_setup_through_first_response_body_bytes": 236600521,
+    "cold_first_response_mb_per_output_token": 29.575065125,
+    "completed_runs": 1,
+    "covered_mb_per_output_token": 29.575065125,
+    "decode_online_mb_per_output_token": 1.593734,
+    "generated_output_tokens": 8,
+    "median_covered_all_link_serialized_body_bytes": 236600521,
+    "median_full_seconds": 265.294738667,
+    "median_online_all_link_serialized_body_bytes": 71192642,
+    "median_online_seconds": 78.631674167,
+    "median_tokens_per_second": 0.7749726208345163,
+    "median_ttft_seconds": 69.521203625,
+    "online_mb_per_output_token": 8.89908025,
+    "setup_inclusive_mb_per_output_token": 29.575065125,
+    "total_accounted_benchmark_body_bytes": 236600521,
+    "total_output_tokens": 8,
+    "total_run_covered_all_link_serialized_body_bytes": 236600521,
+    "total_run_full_seconds": 265.294738667,
+    "total_run_online_all_link_serialized_body_bytes": 71192642
+  },
+  "topology_accounting": {
+    "runs": [
+      {
+        "aggregate_run_window_cpu_seconds": 59.34863700000001,
+        "all_link_serialized_body_bytes": 236600521,
+        "body_bytes_by_edge": [
+          {
+            "destination": "preparation",
+            "phase": "offline",
+            "serialized_body_bytes": 12658,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "offline",
+            "serialized_body_bytes": 8620,
+            "source": "preparation"
+          },
+          {
+            "destination": "inference",
+            "phase": "offline",
+            "serialized_body_bytes": 40439921,
+            "source": "preparation"
+          },
+          {
+            "destination": "client",
+            "phase": "cold",
+            "serialized_body_bytes": 124946680,
+            "source": "inference"
+          },
+          {
+            "destination": "inference",
+            "phase": "online",
+            "serialized_body_bytes": 30763520,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 40429122,
+            "source": "inference"
+          }
+        ],
+        "client_serialized_body_bytes": 196160600,
+        "full_response_compute_cap_checked": false,
+        "online_all_link_serialized_body_bytes": 71192642,
+        "online_client_serialized_body_bytes": 71192642,
+        "run_window_cpu_seconds_by_role": {
+          "client": 31.628637000000005,
+          "inference": 20.22,
+          "preparation": 7.5000000000000036
+        },
+        "schema": "pllm.topology_body_accounting.v1",
+        "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+        "total_wire_bytes": null,
+        "tracked_body_counter_set_present": true,
+        "unmeasured": [
+          "HTTP/TLS/WebSocket framing and control traffic",
+          "inference-to-preparation correction acknowledgements",
+          "duplicate or failed transport attempts not represented by client audit counters",
+          "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+          "GPU work, uninstrumented client work, and cold checkpoint distribution"
+        ]
+      }
+    ],
+    "stages": {
+      "runs": [
+        {
+          "body_bytes_by_stage_and_edge": {
+            "layers.0.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129912,
+              "preparation->client": 86,
+              "preparation->inference": 129814
+            },
+            "layers.0.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1285345,
+              "preparation->client": 89,
+              "preparation->inference": 1286046
+            },
+            "layers.0.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 117998,
+              "preparation->client": 89,
+              "preparation->inference": 117851
+            },
+            "layers.0.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152032,
+              "preparation->client": 91,
+              "preparation->inference": 151907
+            },
+            "layers.1.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 130184,
+              "preparation->client": 86,
+              "preparation->inference": 130109
+            },
+            "layers.1.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1285502,
+              "preparation->client": 89,
+              "preparation->inference": 1286191
+            },
+            "layers.1.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 119138,
+              "preparation->client": 89,
+              "preparation->inference": 118864
+            },
+            "layers.1.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152952,
+              "preparation->client": 91,
+              "preparation->inference": 152654
+            },
+            "layers.10.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128807,
+              "preparation->client": 87,
+              "preparation->inference": 128704
+            },
+            "layers.10.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1283794,
+              "preparation->client": 90,
+              "preparation->inference": 1284845
+            },
+            "layers.10.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118674,
+              "preparation->client": 90,
+              "preparation->inference": 118463
+            },
+            "layers.10.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152742,
+              "preparation->client": 92,
+              "preparation->inference": 152491
+            },
+            "layers.11.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128828,
+              "preparation->client": 87,
+              "preparation->inference": 128689
+            },
+            "layers.11.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1283646,
+              "preparation->client": 90,
+              "preparation->inference": 1284752
+            },
+            "layers.11.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118895,
+              "preparation->client": 90,
+              "preparation->inference": 118650
+            },
+            "layers.11.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152144,
+              "preparation->client": 92,
+              "preparation->inference": 151938
+            },
+            "layers.12.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129165,
+              "preparation->client": 87,
+              "preparation->inference": 128987
+            },
+            "layers.12.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1283477,
+              "preparation->client": 90,
+              "preparation->inference": 1284657
+            },
+            "layers.12.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118885,
+              "preparation->client": 90,
+              "preparation->inference": 118646
+            },
+            "layers.12.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152844,
+              "preparation->client": 92,
+              "preparation->inference": 152571
+            },
+            "layers.13.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128807,
+              "preparation->client": 87,
+              "preparation->inference": 128660
+            },
+            "layers.13.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1283595,
+              "preparation->client": 90,
+              "preparation->inference": 1284760
+            },
+            "layers.13.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119069,
+              "preparation->client": 90,
+              "preparation->inference": 118798
+            },
+            "layers.13.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152578,
+              "preparation->client": 92,
+              "preparation->inference": 152330
+            },
+            "layers.14.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128356,
+              "preparation->client": 87,
+              "preparation->inference": 128263
+            },
+            "layers.14.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1282946,
+              "preparation->client": 90,
+              "preparation->inference": 1284262
+            },
+            "layers.14.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118982,
+              "preparation->client": 90,
+              "preparation->inference": 118728
+            },
+            "layers.14.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152486,
+              "preparation->client": 92,
+              "preparation->inference": 152283
+            },
+            "layers.15.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128557,
+              "preparation->client": 87,
+              "preparation->inference": 128447
+            },
+            "layers.15.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1280952,
+              "preparation->client": 90,
+              "preparation->inference": 1282577
+            },
+            "layers.15.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119013,
+              "preparation->client": 90,
+              "preparation->inference": 118741
+            },
+            "layers.15.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152578,
+              "preparation->client": 92,
+              "preparation->inference": 152346
+            },
+            "layers.16.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128521,
+              "preparation->client": 87,
+              "preparation->inference": 128468
+            },
+            "layers.16.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1280763,
+              "preparation->client": 90,
+              "preparation->inference": 1282443
+            },
+            "layers.16.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 117766,
+              "preparation->client": 90,
+              "preparation->inference": 117634
+            },
+            "layers.16.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 151939,
+              "preparation->client": 92,
+              "preparation->inference": 151708
+            },
+            "layers.17.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129252,
+              "preparation->client": 87,
+              "preparation->inference": 129171
+            },
+            "layers.17.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1284801,
+              "preparation->client": 90,
+              "preparation->inference": 1285691
+            },
+            "layers.17.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119079,
+              "preparation->client": 90,
+              "preparation->inference": 118802
+            },
+            "layers.17.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152362,
+              "preparation->client": 92,
+              "preparation->inference": 152133
+            },
+            "layers.18.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129758,
+              "preparation->client": 87,
+              "preparation->inference": 129673
+            },
+            "layers.18.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1285740,
+              "preparation->client": 90,
+              "preparation->inference": 1286330
+            },
+            "layers.18.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119130,
+              "preparation->client": 90,
+              "preparation->inference": 118854
+            },
+            "layers.18.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152021,
+              "preparation->client": 92,
+              "preparation->inference": 151825
+            },
+            "layers.19.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128807,
+              "preparation->client": 87,
+              "preparation->inference": 128756
+            },
+            "layers.19.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1282915,
+              "preparation->client": 90,
+              "preparation->inference": 1284141
+            },
+            "layers.19.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119079,
+              "preparation->client": 90,
+              "preparation->inference": 118806
+            },
+            "layers.19.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152588,
+              "preparation->client": 92,
+              "preparation->inference": 152330
+            },
+            "layers.2.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129995,
+              "preparation->client": 86,
+              "preparation->inference": 129923
+            },
+            "layers.2.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1284783,
+              "preparation->client": 89,
+              "preparation->inference": 1285731
+            },
+            "layers.2.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118468,
+              "preparation->client": 89,
+              "preparation->inference": 118298
+            },
+            "layers.2.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152354,
+              "preparation->client": 91,
+              "preparation->inference": 152136
+            },
+            "layers.20.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 128991,
+              "preparation->client": 87,
+              "preparation->inference": 128924
+            },
+            "layers.20.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1283421,
+              "preparation->client": 90,
+              "preparation->inference": 1284603
+            },
+            "layers.20.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118660,
+              "preparation->client": 90,
+              "preparation->inference": 118454
+            },
+            "layers.20.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 151668,
+              "preparation->client": 92,
+              "preparation->inference": 151487
+            },
+            "layers.21.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129886,
+              "preparation->client": 87,
+              "preparation->inference": 129795
+            },
+            "layers.21.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1285639,
+              "preparation->client": 90,
+              "preparation->inference": 1286251
+            },
+            "layers.21.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118900,
+              "preparation->client": 90,
+              "preparation->inference": 118656
+            },
+            "layers.21.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 151014,
+              "preparation->client": 92,
+              "preparation->inference": 150887
+            },
+            "layers.22.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129988,
+              "preparation->client": 87,
+              "preparation->inference": 129903
+            },
+            "layers.22.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1284745,
+              "preparation->client": 90,
+              "preparation->inference": 1285670
+            },
+            "layers.22.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 119248,
+              "preparation->client": 90,
+              "preparation->inference": 118921
+            },
+            "layers.22.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 151316,
+              "preparation->client": 92,
+              "preparation->inference": 151190
+            },
+            "layers.23.mlp.down_proj": {
+              "client->inference": 898954,
+              "client->preparation": 103,
+              "inference->client": 129804,
+              "preparation->client": 87,
+              "preparation->inference": 129651
+            },
+            "layers.23.mlp.gate_up_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 1286135,
+              "preparation->client": 90,
+              "preparation->inference": 1286653
+            },
+            "layers.23.self_attn.o_proj": {
+              "client->inference": 127619,
+              "client->preparation": 103,
+              "inference->client": 118824,
+              "preparation->client": 90,
+              "preparation->inference": 118599
+            },
+            "layers.23.self_attn.qkv_proj": {
+              "client->inference": 127633,
+              "client->preparation": 103,
+              "inference->client": 152420,
+              "preparation->client": 92,
+              "preparation->inference": 152173
+            },
+            "layers.3.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129898,
+              "preparation->client": 86,
+              "preparation->inference": 129785
+            },
+            "layers.3.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1285120,
+              "preparation->client": 89,
+              "preparation->inference": 1285918
+            },
+            "layers.3.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118959,
+              "preparation->client": 89,
+              "preparation->inference": 118714
+            },
+            "layers.3.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152529,
+              "preparation->client": 91,
+              "preparation->inference": 152326
+            },
+            "layers.4.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129014,
+              "preparation->client": 86,
+              "preparation->inference": 128964
+            },
+            "layers.4.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1283827,
+              "preparation->client": 89,
+              "preparation->inference": 1284908
+            },
+            "layers.4.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118872,
+              "preparation->client": 89,
+              "preparation->inference": 118640
+            },
+            "layers.4.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152722,
+              "preparation->client": 91,
+              "preparation->inference": 152484
+            },
+            "layers.5.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129474,
+              "preparation->client": 86,
+              "preparation->inference": 129376
+            },
+            "layers.5.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1285585,
+              "preparation->client": 89,
+              "preparation->inference": 1286268
+            },
+            "layers.5.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 119025,
+              "preparation->client": 89,
+              "preparation->inference": 118767
+            },
+            "layers.5.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152708,
+              "preparation->client": 91,
+              "preparation->inference": 152467
+            },
+            "layers.6.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129300,
+              "preparation->client": 86,
+              "preparation->inference": 129227
+            },
+            "layers.6.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1283863,
+              "preparation->client": 89,
+              "preparation->inference": 1284947
+            },
+            "layers.6.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118959,
+              "preparation->client": 89,
+              "preparation->inference": 118706
+            },
+            "layers.6.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152626,
+              "preparation->client": 91,
+              "preparation->inference": 152403
+            },
+            "layers.7.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 128670,
+              "preparation->client": 86,
+              "preparation->inference": 128576
+            },
+            "layers.7.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1284214,
+              "preparation->client": 89,
+              "preparation->inference": 1285255
+            },
+            "layers.7.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118804,
+              "preparation->client": 89,
+              "preparation->inference": 118596
+            },
+            "layers.7.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152427,
+              "preparation->client": 91,
+              "preparation->inference": 152205
+            },
+            "layers.8.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 129222,
+              "preparation->client": 86,
+              "preparation->inference": 129096
+            },
+            "layers.8.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1283570,
+              "preparation->client": 89,
+              "preparation->inference": 1284647
+            },
+            "layers.8.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118969,
+              "preparation->client": 89,
+              "preparation->inference": 118717
+            },
+            "layers.8.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152570,
+              "preparation->client": 91,
+              "preparation->inference": 152333
+            },
+            "layers.9.mlp.down_proj": {
+              "client->inference": 898947,
+              "client->preparation": 103,
+              "inference->client": 128784,
+              "preparation->client": 86,
+              "preparation->inference": 128666
+            },
+            "layers.9.mlp.gate_up_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 1284599,
+              "preparation->client": 89,
+              "preparation->inference": 1285527
+            },
+            "layers.9.self_attn.o_proj": {
+              "client->inference": 127612,
+              "client->preparation": 103,
+              "inference->client": 118804,
+              "preparation->client": 89,
+              "preparation->inference": 118580
+            },
+            "layers.9.self_attn.qkv_proj": {
+              "client->inference": 127626,
+              "client->preparation": 103,
+              "inference->client": 152345,
+              "preparation->client": 91,
+              "preparation->inference": 152129
+            }
+          },
+          "expected_stage_body_bytes_by_edge": {
+            "client->inference": 30763520,
+            "client->preparation": 9888,
+            "inference->client": 40429122,
+            "preparation->client": 8576,
+            "preparation->inference": 40439921
+          },
+          "measured_body_bytes_by_edge": {
+            "client->inference": 30763520,
+            "client->preparation": 9888,
+            "inference->client": 40429122,
+            "preparation->client": 8576,
+            "preparation->inference": 40439921
+          },
+          "reconciled_with_protocol_bodies": true,
+          "schema": "pllm.prepared_stage_body_attribution.v1",
+          "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+          "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+          ]
+        }
+      ],
+      "startup": {
+        "body_bytes_by_stage_and_edge": {},
+        "expected_stage_body_bytes_by_edge": {
+          "client->inference": 0,
+          "client->preparation": 0,
+          "inference->client": 0,
+          "preparation->client": 0,
+          "preparation->inference": 0
+        },
+        "measured_body_bytes_by_edge": {
+          "client->inference": 0,
+          "client->preparation": 0,
+          "inference->client": 0,
+          "preparation->client": 0,
+          "preparation->inference": 0
+        },
+        "reconciled_with_protocol_bodies": true,
+        "schema": "pllm.prepared_stage_body_attribution.v1",
+        "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+        "unmeasured": [
+          "session authorization, bundle delivery and other bodies with no semantic stage",
+          "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+        ]
+      },
+      "warmups": []
+    },
+    "startup": {
+      "aggregate_run_window_cpu_seconds": null,
+      "all_link_serialized_body_bytes": 0,
+      "body_bytes_by_edge": [
+        {
+          "destination": "preparation",
+          "phase": "offline",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "offline",
+          "serialized_body_bytes": 0,
+          "source": "preparation"
+        },
+        {
+          "destination": "inference",
+          "phase": "offline",
+          "serialized_body_bytes": 0,
+          "source": "preparation"
+        },
+        {
+          "destination": "client",
+          "phase": "cold",
+          "serialized_body_bytes": 0,
+          "source": "inference"
+        },
+        {
+          "destination": "inference",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "inference"
+        }
+      ],
+      "client_serialized_body_bytes": 0,
+      "full_response_compute_cap_checked": false,
+      "online_all_link_serialized_body_bytes": 0,
+      "online_client_serialized_body_bytes": 0,
+      "run_window_cpu_seconds_by_role": null,
+      "schema": "pllm.topology_body_accounting.v1",
+      "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+      "total_wire_bytes": null,
+      "tracked_body_counter_set_present": true,
+      "unmeasured": [
+        "HTTP/TLS/WebSocket framing and control traffic",
+        "inference-to-preparation correction acknowledgements",
+        "duplicate or failed transport attempts not represented by client audit counters",
+        "model import and checkpoint distribution before initial inventory",
+        "GPU work, uninstrumented client work, and cold checkpoint distribution"
+      ]
+    },
+    "warmups": []
+  },
+  "wan_readiness": {
+    "assumptions": [
+      "independent full-duplex upload/download ports",
+      "each party's peers share its access port"
+    ],
+    "conditions": {
+      "download_mbps": 20.0,
+      "parties": [],
+      "role_parties": [],
+      "schema": "pllm.wan_conditions.v1",
+      "upload_mbps": 8.0
+    },
+    "conditions_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+    "emulation": {
+      "backend": "linux-tbf-routed-party-ports",
+      "conditions_digest": "158e274bdbc0e8a489bc9a8ac07c1856d21ccfe5eaecd3c67dff4644e3893a8e",
+      "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
+      "inter_party_links_present": true,
+      "internet_measurement": false,
+      "kernel_rate_snapshots_checked": true,
+      "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
+      "runs": [
+        {
+          "decode_output_tokens": 7,
+          "decode_seconds": 9.032577167,
+          "decode_tokens_per_second": 0.7749726208345163,
+          "end_to_end_tokens_per_second": 0.030155140053650525,
+          "full_seconds": 265.294738667,
+          "generated_output_tokens": 8,
+          "online_seconds": 78.631674167,
+          "online_tokens_per_second": 0.10174017130818544
+        }
+      ],
+      "schema": "pllm.measured_wan_throughput.v1",
+      "scope": "measured local inference under enforced shared party access rates",
+      "summary": {
+        "decode_tokens_per_second": 0.7749726208345163,
+        "end_to_end_tokens_per_second": 0.030155140053650525,
+        "online_tokens_per_second": 0.10174017130818544
+      }
+    },
+    "internet_ready": null,
+    "measured_wan_latency_seconds": null,
+    "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+    "runs": [
+      {
+        "covered": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "inference"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 165.375802,
+          "parties": {
+            "client": {
+              "download_bytes": 165384422,
+              "download_mbps": 20.0,
+              "download_seconds": 66.1537688,
+              "upload_bytes": 30776178,
+              "upload_mbps": 8.0,
+              "upload_seconds": 30.776178
+            },
+            "inference": {
+              "download_bytes": 71203441,
+              "download_mbps": 20.0,
+              "download_seconds": 28.4813764,
+              "upload_bytes": 165375802,
+              "upload_mbps": 8.0,
+              "upload_seconds": 165.375802
+            },
+            "preparation": {
+              "download_bytes": 12658,
+              "download_mbps": 20.0,
+              "download_seconds": 0.0050632,
+              "upload_bytes": 40448541,
+              "upload_mbps": 8.0,
+              "upload_seconds": 40.448541
+            }
+          },
+          "wan_body_bytes": 236600521
+        },
+        "executed_role_parties": null,
+        "generated_output_tokens": 8,
+        "online": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "inference"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 40.429122,
+          "parties": {
+            "client": {
+              "download_bytes": 40429122,
+              "download_mbps": 20.0,
+              "download_seconds": 16.1716488,
+              "upload_bytes": 30763520,
+              "upload_mbps": 8.0,
+              "upload_seconds": 30.76352
+            },
+            "inference": {
+              "download_bytes": 30763520,
+              "download_mbps": 20.0,
+              "download_seconds": 12.305408,
+              "upload_bytes": 40429122,
+              "upload_mbps": 8.0,
+              "upload_seconds": 40.429122
+            }
+          },
+          "wan_body_bytes": 71192642
+        }
+      }
+    ],
+    "schema": "pllm.wan_readiness.v1",
+    "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+    "summary": {
+      "online": {
+        "bottleneck": {
+          "direction": "upload",
+          "party_id": "inference"
+        },
+        "intra_party_body_bytes": 0,
+        "minimum_transfer_seconds": 40.429122,
+        "parties": {
+          "client": {
+            "download_bytes": 40429122,
+            "download_mbps": 20.0,
+            "download_seconds": 16.1716488,
+            "upload_bytes": 30763520,
+            "upload_mbps": 8.0,
+            "upload_seconds": 30.76352
+          },
+          "inference": {
+            "download_bytes": 30763520,
+            "download_mbps": 20.0,
+            "download_seconds": 12.305408,
+            "upload_bytes": 40429122,
+            "upload_mbps": 8.0,
+            "upload_seconds": 40.429122
+          }
+        },
+        "wan_body_bytes": 71192642
+      },
+      "online_generated_tokens_per_second_ceiling": 0.1978771638919094,
+      "setup_inclusive": {
+        "bottleneck": {
+          "direction": "upload",
+          "party_id": "inference"
+        },
+        "intra_party_body_bytes": 0,
+        "minimum_transfer_seconds": 165.375802,
+        "parties": {
+          "client": {
+            "download_bytes": 165384422,
+            "download_mbps": 20.0,
+            "download_seconds": 66.1537688,
+            "upload_bytes": 30776178,
+            "upload_mbps": 8.0,
+            "upload_seconds": 30.776178
+          },
+          "inference": {
+            "download_bytes": 71203441,
+            "download_mbps": 20.0,
+            "download_seconds": 28.4813764,
+            "upload_bytes": 165375802,
+            "upload_mbps": 8.0,
+            "upload_seconds": 165.375802
+          },
+          "preparation": {
+            "download_bytes": 12658,
+            "download_mbps": 20.0,
+            "download_seconds": 0.0050632,
+            "upload_bytes": 40448541,
+            "upload_mbps": 8.0,
+            "upload_seconds": 40.448541
+          }
+        },
+        "wan_body_bytes": 236600521
+      },
+      "setup_inclusive_generated_tokens_per_second_ceiling": 0.04837467092071911
+    },
+    "unmeasured": [
+      "RTT and dependent protocol rounds",
+      "headers/TLS/ACKs, loss and retries",
+      "checkpoint distribution",
+      "WAN compute/queueing latency"
+    ]
+  },
+  "warmup_runs": []
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "pllm.bounded_benchmark_failure.v1",
+  "candidate": "examples/benchmarks/combined_runtime.py:verified_control",
+  "command": ".venv/bin/python scripts/probe_combined_runtime.py --candidate verified_control --max-output-tokens 8 --output docs/evidence/combined-compatibility-verified-control-qwen25-2026-10-03.json",
+  "checkpoint": "Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775",
+  "requested_input_tokens": [39, 39, 45],
+  "requested_output_tokens_per_response": 8,
+  "startup_timeout_seconds": 180,
+  "completed_responses": 0,
+  "phase": "inventory",
+  "error": "benchmark startup timed out during inventory",
+  "cleanup": "benchmark supervisor stopped roles; subsequent process inspection found no combined-qwen roles",
+  "byte_cost": null,
+  "cpu_cost": null,
+  "scope": "Bounded failed attempt, excluded from successful cohort; no inferred cost or performance rank"
+}

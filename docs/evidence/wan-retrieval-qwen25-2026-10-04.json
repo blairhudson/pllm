@@ -1,0 +1,57 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "6420622fa85168da1832f5c878c1555f2ede211af57c7fa8acf2a3ba5cfbabd7",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "retrieval",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "additional_worker_selection_bytes": 1215488,
+    "batch_size": 8,
+    "client_table_bytes_required": 0,
+    "configurations": [
+      {
+        "client_cpu_seconds": 0.00062,
+        "exact_records": true,
+        "logical_table_traversal_bytes_both_workers": 2178154496,
+        "one_table_traversal": false,
+        "query_and_reply_body_bytes": 21584,
+        "worker_cpu_seconds": [
+          3.128299,
+          3.134357
+        ]
+      },
+      {
+        "client_cpu_seconds": 0.000565,
+        "exact_records": true,
+        "logical_table_traversal_bytes_both_workers": 272269312,
+        "one_table_traversal": true,
+        "query_and_reply_body_bytes": 21584,
+        "worker_cpu_seconds": [
+          3.147854,
+          3.10463
+        ]
+      }
+    ],
+    "full_wire_bytes": null,
+    "limitations": [
+      "Independent DPF expansion work remains per key; logical scans are not measured DRAM traffic",
+      "Fresh keys and record replies are unchanged; no body-byte reduction follows from batching",
+      "Private head use still needs a public fixed candidate-capacity certificate",
+      "Two non-colluding semi-honest parties; no transport, independent review or full decoder quality gate"
+    ],
+    "peak_client_memory_bytes": null,
+    "record_bytes": 896,
+    "records": 151936,
+    "schema": "pllm.batched_private_lookup_probe.v1",
+    "scope": "in-process fixed public batch of independent one-use DPF queries",
+    "source_digest": "b40c6cf0551530f687c94d3852369308905eb78663fc16ffa7dfe3fa0cd9f6ed",
+    "whole_decoder_executable": false
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

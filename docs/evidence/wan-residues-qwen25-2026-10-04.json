@@ -1,0 +1,135 @@
+{
+  "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+  "environment": {
+    "native_sha256": "282f8f41570e2b8d5a3772237ab8b9d693f51af8af556f075e3ca50d3334cd9e",
+    "numpy": "2.5.3",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.15"
+  },
+  "method": "residues",
+  "model_plan_digest": "1a84b259cfa1606c613007f67a51d80197a6c6b5f737d9d3eb309473599a4f8a",
+  "real_checkpoint": true,
+  "result": {
+    "body_projection": {
+      "dense_integer_body_bytes": 176977920,
+      "executed_rows": 70,
+      "packed_integer_body_bytes": 169017800,
+      "scope": "39+32 arithmetic bodies only; native public bounds, no controls or transport",
+      "width_manifest_bytes": 304128
+    },
+    "kernels": [
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "client_decode_cpu_seconds_median": 8.4e-05,
+            "client_input_mask_cpu_seconds_median": 1.3e-05,
+            "encoding": "dense_numpy",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 2688,
+            "offline_correction_body_bytes": 29184,
+            "online_output_body_bytes": 29184,
+            "width_metadata_bytes": 0
+          },
+          {
+            "client_decode_cpu_seconds_median": 7.5e-05,
+            "client_input_mask_cpu_seconds_median": 1.2e-05,
+            "encoding": "dense_native",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 2688,
+            "offline_correction_body_bytes": 29184,
+            "online_output_body_bytes": 29184,
+            "width_metadata_bytes": 0
+          },
+          {
+            "client_decode_cpu_seconds_median": 3.6e-05,
+            "client_input_mask_cpu_seconds_median": 1.2e-05,
+            "encoding": "public_row_residues",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 2688,
+            "offline_correction_body_bytes": 27923,
+            "online_output_body_bytes": 27923,
+            "width_metadata_bytes": 9728
+          }
+        ],
+        "dense_wire_bits": 24,
+        "limitations": [
+          "Input masks remain full-width and independent; only public output bounds select widths",
+          "Pipeline binding, authenticated row-width manifest, inventory and verifier migration not implemented",
+          "Counts omit tickets, root-seed/control frames and full wire; numeric dequantization is unchanged"
+        ],
+        "peak_client_memory_bytes": null,
+        "public_width_bits_range": [
+          21,
+          24
+        ],
+        "rows": 1,
+        "schema": "pllm.prepared_residue_probe.v1",
+        "scope": "in-process seeded-mask arithmetic-body codec reference",
+        "shape": [
+          9728,
+          896
+        ],
+        "weight_digest": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa",
+        "whole_decoder_executable": false
+      },
+      {
+        "client_body_weights_required": 0,
+        "configurations": [
+          {
+            "client_decode_cpu_seconds_median": 0.0031,
+            "client_input_mask_cpu_seconds_median": 0.000221,
+            "encoding": "dense_numpy",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 104832,
+            "offline_correction_body_bytes": 1138176,
+            "online_output_body_bytes": 1138176,
+            "width_metadata_bytes": 0
+          },
+          {
+            "client_decode_cpu_seconds_median": 0.002649,
+            "client_input_mask_cpu_seconds_median": 9e-05,
+            "encoding": "dense_native",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 104832,
+            "offline_correction_body_bytes": 1138176,
+            "online_output_body_bytes": 1138176,
+            "width_metadata_bytes": 0
+          },
+          {
+            "client_decode_cpu_seconds_median": 0.001315,
+            "client_input_mask_cpu_seconds_median": 9e-05,
+            "encoding": "public_row_residues",
+            "exact_integer_output": true,
+            "input_masked_body_bytes": 104832,
+            "offline_correction_body_bytes": 1088978,
+            "online_output_body_bytes": 1088978,
+            "width_metadata_bytes": 9728
+          }
+        ],
+        "dense_wire_bits": 24,
+        "limitations": [
+          "Input masks remain full-width and independent; only public output bounds select widths",
+          "Pipeline binding, authenticated row-width manifest, inventory and verifier migration not implemented",
+          "Counts omit tickets, root-seed/control frames and full wire; numeric dequantization is unchanged"
+        ],
+        "peak_client_memory_bytes": null,
+        "public_width_bits_range": [
+          21,
+          24
+        ],
+        "rows": 39,
+        "schema": "pllm.prepared_residue_probe.v1",
+        "scope": "in-process seeded-mask arithmetic-body codec reference",
+        "shape": [
+          9728,
+          896
+        ],
+        "weight_digest": "e22126bf7d445bf7a13353f18ec29740d6ea6b3fb16b9ce531068065e67d99fa",
+        "whole_decoder_executable": false
+      }
+    ]
+  },
+  "schema": "pllm.wan_method_screen.v1",
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+}

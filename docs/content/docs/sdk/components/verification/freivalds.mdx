@@ -16,6 +16,19 @@ schedule does not itself prove verification: runtime admission checks the actual
 prepared verifier inventory. It cannot stop colluding or malicious Preparation;
 there is no whole-deployment cryptographic proof.
 
+Client placement, thresholded Metal, on-demand preparation and compressed
+artifacts compose with the verified executor. `ClientPrefixReuse` also carries
+sealed verifier strength and client-minted inventory lineage. A cache-enabled
+profile allocates `target_failure_bits + 12` to each inventory and admits at
+most 4,096 inventory transitions: the union bound preserves the requested
+target. Its requested target is capped at 68 by the native 80-bit limit.
+Provider-reused textual inventory IDs cannot merge distinct client incarnations.
+Missing provenance, exhausted lineage and unchecked remote stages fail before
+reuse or issuance of a qualified snapshot. Generated state stays response-owned
+by default. Explicit canonical generated-prefix qualification retains the same
+verifier lineage and union budget; see
+[client prefix reuse](/sdk/components/state/client-prefix-reuse/).
+
 ## Python SDK example
 
 ```python
@@ -39,6 +52,13 @@ resolved = experiment.resolve()
 assert resolved.verification_target_failure_bits == 48
 assert resolved.requires_preparation
 assert len(resolved.role_graph.roles) == 3
+
+from pllm.state import ClientPrefixReuse
+
+cached = experiment.with_params(
+    pipeline__cache=ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=64)
+)
+assert cached.resolve().verification_target_failure_bits == 60  # requested 48 + reserve 12
 ```
 
 Save as `experiment.py`; [install the base package](/learn/installation/) and run

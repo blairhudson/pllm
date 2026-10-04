@@ -456,6 +456,7 @@ class CorrectionPush:
     wire_bits: int
     correction: np.ndarray
     server_ns: int = 0
+    output_residue_bits: bytes | None = None
 
     @property
     def profile(self) -> SeededRingProfile:
@@ -507,12 +508,31 @@ class CorrectionPush:
             raise ProtocolError("unsupported correction quantization")
         if self.profile != seeded_ring_profile(self.signed_output_bound):
             raise ProtocolError("invalid correction ring profile")
+        widths = self.output_residue_bits
+        if widths is not None and (
+            type(widths) is not bytes or len(widths) != self.out_features
+            or self.rows * self.out_features > 4_000_000
+            or any(not 1 <= width <= self.wire_bits for width in widths)
+        ):
+            raise ProtocolError("invalid correction residue layout")
 
     def pack(self) -> bytes:
         self._validate()
         value = np.asarray(self.correction, dtype=np.uint32)
         if value.shape != (self.rows, self.out_features):
             raise ProtocolError("correction shape mismatch")
+        coding = {}
+        if self.output_residue_bits is not None:
+            from pllm import _native
+            from .residue_codec import encode_layout
+            layout = encode_layout(self.output_residue_bits)
+            # MessagePack control strings have a separate small identity bound.
+            # The bounded public layout uses the binary-data allowance on this link.
+            layout["zlib_base64"] = layout["zlib_base64"].encode("ascii")
+            coding = {"y": layout}
+            data = _native.offset_pack_rows(value.astype("<u4", copy=False).tobytes(), self.output_residue_bits, self.rows)
+        else:
+            data = pack_residues(value, self.wire_bits)
         return msgpack.packb(
             {
                 "v": PREPARATION_PROTOCOL_VERSION,
@@ -532,7 +552,8 @@ class CorrectionPush:
                 "p": self.modulus,
                 "x": self.wire_bits,
                 "e": int(self.server_ns),
-                "d": pack_residues(value, self.wire_bits),
+                "d": data,
+                **coding,
             },
             use_bin_type=True,
         )
@@ -553,7 +574,7 @@ class CorrectionPush:
                 max_str_len=PREPARATION_MAX_IDENTIFIER_BYTES,
                 max_bin_len=len(payload),
                 max_array_len=0,
-                max_map_len=18,
+                max_map_len=19,
                 max_ext_len=0,
             )
         except Exception as exc:
@@ -580,7 +601,7 @@ class CorrectionPush:
         }
         if (
             not isinstance(value, dict)
-            or set(value) != required
+            or set(value) not in (required, required | {"y"})
             or int(value["v"]) != PREPARATION_PROTOCOL_VERSION
         ):
             raise ProtocolError("invalid correction push schema")
@@ -595,10 +616,24 @@ class CorrectionPush:
         )
         data = value["d"]
         wire_bits = int(value["x"])
-        if not isinstance(data, (bytes, bytearray)) or len(data) != (
-            rows * out_features * (wire_bits // 8)
-        ):
+        widths = value.get("y")
+        if type(widths) is dict:
+            from .residue_codec import decode_layout
+            widths = decode_layout(widths, out_features)
+        if "y" in value and (type(widths) is not bytes or len(widths) != out_features
+            or rows * out_features > 4_000_000 or any(not 1 <= w <= wire_bits for w in widths)):
+            raise ProtocolError("invalid correction residue layout")
+        expected = (rows * sum(widths) + 7) // 8 if widths is not None else rows * out_features * (wire_bits // 8)
+        if not isinstance(data, (bytes, bytearray)) or len(data) != expected:
             raise ProtocolError("correction payload length mismatch")
+        if widths is not None:
+            from pllm import _native
+            try:
+                correction = np.frombuffer(_native.unpack_residue_rows(bytes(data), widths, rows), "<u4").reshape(rows, out_features)
+            except ValueError as exc:
+                raise ProtocolError("invalid packed correction") from exc
+        else:
+            correction = unpack_residues(bytes(data), (rows, out_features), wire_bits)
         result = cls(
             attempt_id=str(value["a"]),
             session_id=str(value["h"]),
@@ -615,8 +650,9 @@ class CorrectionPush:
             ring=str(value["k"]),
             modulus=int(value["p"]),
             wire_bits=wire_bits,  # type: ignore[arg-type]
-            correction=unpack_residues(bytes(data), (rows, out_features), wire_bits),
+            correction=correction,
             server_ns=int(value["e"]),
+            output_residue_bits=widths,
         )
         result._validate(max_rows=max_rows, max_tensor_elements=max_tensor_elements)
         return result

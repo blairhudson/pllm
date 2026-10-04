@@ -18,14 +18,14 @@ from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.state import ClientPrefixReuse
 
 
-def selected(root: Path, *, cache: bool = False) -> Experiment:
+def selected(root: Path, *, cache: bool = False, delivery=None) -> Experiment:
     return Experiment(
         "prefix" if cache else "attention-local",
         MaskedLinearCpu(
             Model.path(str(root), model_id="network-options"),
             placement=ClientLinearRoles(["qkv_projection", "attention_output"]),
             inventory=PreparedInventory(),
-            delivery=ClientBundleTransport(),
+            delivery=delivery or ClientBundleTransport(),
             cache=ClientPrefixReuse(fixed_input_tokens=128, max_bytes=1 << 20) if cache else None,
         ),
         Deployment.local(root=str(root.parent)),
@@ -63,11 +63,20 @@ def test_sdk_options_roundtrip_and_reject_conflicting_client_overrides(tmp_path:
             PreparedInventory(rows=rows)
     with pytest.raises(ValueError):
         ClientBundleTransport("gzip")
+    compressed = ClientBundleTransport("artifacts", compression="zlib")
+    updated = selected(tmp_path, delivery=compressed)
+    assert updated.resolve().bundle_compression == "artifacts-zlib"
+    assert Pipeline.from_spec(updated.pipeline.to_spec()).digest() == updated.pipeline.digest()
+    assert ClientBundleTransport("artifacts").params == {"encoding": "artifacts"}
+    for encoding in ("none", "zlib"):
+        with pytest.raises(ValueError):
+            ClientBundleTransport(encoding, compression="zlib")
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("delivery", [ClientBundleTransport(), ClientBundleTransport("artifacts", compression="zlib")])
 def test_ordered_context_benchmark_combines_placement_prefix_and_sdk_transport(
-    tmp_path: Path,
+    tmp_path: Path, delivery,
 ) -> None:
     root = create_tiny_llama_checkpoint(
         tmp_path / "weights", hidden_size=128, intermediate_size=256, head_dim=32
@@ -78,7 +87,7 @@ def test_ordered_context_benchmark_combines_placement_prefix_and_sdk_transport(
     prompts = [context + " First.", context + " Other.", context + " Third."]
     candidates = []
     for cache in (False, True):
-        experiment = selected(root, cache=cache)
+        experiment = selected(root, cache=cache, delivery=delivery)
         report = run_loopback_benchmark(
             model=str(root),
             model_id="network-options",
@@ -94,7 +103,7 @@ def test_ordered_context_benchmark_combines_placement_prefix_and_sdk_transport(
         )
         assert report["checks"]["passed"]
         assert report["configuration"]["inventory_policy"] == "request-sized"
-        assert report["configuration"]["bundle_compression"] == "zlib"
+        assert report["configuration"]["bundle_compression"] == experiment.resolve().bundle_compression
         assert [row["context_index"] for row in report["runs"]] == [0, 1, 2]
         assert context not in json.dumps(report)
         assert all(row["privacy"]["plaintext_token_ids_sent"] == 0 for row in report["runs"])

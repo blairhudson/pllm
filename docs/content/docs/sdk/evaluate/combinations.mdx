@@ -1,0 +1,96 @@
+---
+title: "Combine inference optimizations"
+description: "Compose exact reuse, compressed artifacts and ownership while measuring their joint cost."
+---
+
+The existing compiler, SDK, gateway and benchmark use the same immutable
+Pipeline choices. Compatibility and measured savings remain separate.
+
+| Composition | Combinable choices |
+| --- | --- |
+| Prepared | Exact prefix reuse, on-demand inventory, compressed artifacts, client projection/prefix unions, CPU or thresholded Metal |
+| Two offset workers | Exact prefix reuse, seeded input shares, row-wise output residues, compressed artifacts, CPU or thresholded Metal |
+| Verified prepared | Prepared choices plus checked remote stages and sealed verification lineage; optional untied remote head |
+
+Offset workers independently acknowledge the continuation contract. Verified
+cache state retains its failure-budget provenance. Private KV remains client-local;
+fresh material is still one-use. Growing-width reuse needs the explicit
+`prefix_f32` numeric contract. Metal keeps small stages and decode on CPU.
+
+## Python SDK example
+
+This constructs immutable candidates without fetching a checkpoint or starting roles.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu, TwoOnlineOffsetCpu, VerifiedMaskedLinearCpu
+from pllm.protocols import ClientBundleTransport, TwoOnlineOffsetLinear
+from pllm.quantization import SymmetricPerRow
+from pllm.roles import ClientLinearRoles
+from pllm.state import ClientPrefixReuse
+
+shared = dict(
+    quantization=SymmetricPerRow(weight_bits=8, activation_bits=8, causal_reduction="prefix_f32"),
+    cache=ClientPrefixReuse(max_bytes=8 << 20, fixed_input_tokens=128),
+    delivery=ClientBundleTransport("artifacts", compression="zlib"),
+)
+prepared_options = dict(
+    **shared,
+    inventory=PreparedInventory("request-sized", refill="on-demand"),
+    placement=ClientLinearRoles(["qkv_projection", "attention_output"], prefix_layers=1),
+)
+pipelines = (
+    MaskedLinearCpu(Model.tiny(), **prepared_options),
+    VerifiedMaskedLinearCpu(Model.tiny(), **prepared_options),
+    TwoOnlineOffsetCpu(Model.tiny(), **shared,
+        linear=TwoOnlineOffsetLinear(input_encoding="seeded", output_encoding="row_residues")),
+)
+experiments = tuple(Experiment(
+    f"combined-{index}", pipeline,
+    Deployment.local(root=f"local://combined-{index}"),
+    ExecutionBudget(requests=3, max_input_tokens=128, max_new_tokens=2),
+) for index, pipeline in enumerate(pipelines))
+assert all(item.resolve().bundle_compression == "artifacts-zlib" for item in experiments)
+assert experiments[0].resolve().client_prefix_layers == 1
+assert experiments[1].resolve().verification_target_failure_bits == 52
+assert experiments[2].resolve().client_runtime == "compiled_offset_v1"
+```
+
+API: [profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures),
+[protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[roles](/sdk/reference/python/pllm/roles/#objects-and-signatures),
+[state](/sdk/reference/python/pllm/state/#objects-and-signatures).
+
+## Measured combination costs
+
+One pinned Qwen2.5 W8A8 cohort used fresh 39-token, repeated 39-token and extended
+45-token inputs, each producing eight greedy tokens. All 15 responses matched
+their corresponding output digests. These are decimal MB of covered application
+bodies, not wire bytes, checkpoint downloads or broad model-quality evidence.
+
+| Candidate | Setup-inclusive MB | Online MB/output token | Setup-inclusive MB/output token |
+| --- | ---: | ---: | ---: |
+| Prepared control | 616.34 | 9.628 | 25.681 |
+| Prepared reuse + on-demand + compressed artifacts | 310.96 | 4.906 | 12.957 |
+| Above + attention/first-layer union | 323.94 | 3.869 | 13.498 |
+| Seeded/packed offset control | 496.80 | 14.604 | 20.700 |
+| Offset + reuse + compressed artifacts | 303.94 | 7.456 | 12.664 |
+
+The lean prepared stack reduced covered setup-inclusive bodies **49.5%** without
+adding client body weights. Union placement reduced online bodies **59.8%** against
+prepared control, but added **114.47 MB** of weights/scales/native snapshots and
+raised total bytes versus the lean stack. It kept **84.0% of body-linear MACs**
+remote; that is not whole-response compute. Offset combinations reduced covered
+total bodies **38.8%** against their already-seeded/packed control.
+
+Compression increased cold client CPU in this sample. Peak client memory remains
+unmeasured. The real verified control exceeded its 180-second inventory-startup
+limit; verified combinations have tiny exact-parity/provenance tests, not a
+completed matched Qwen cost result here. Prepared and offset savings cannot be
+added across their different role graphs.
+
+Sources, commands, CPU and scope:
+[retained evidence](https://github.com/blairhudson/pllm/blob/main/docs/evidence/combined-compatibility-qwen25-2026-10-03.md).
+Use [bounded planning](/sdk/evaluate/search/) with explicit client constraints;
+enabling every compatible option is not an optimum.

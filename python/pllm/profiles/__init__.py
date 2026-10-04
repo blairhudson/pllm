@@ -310,7 +310,7 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     """Bounded two-public-worker additive offset comparator."""
 
     PROFILE = "baseline.two_online_offset_cpu"
-    SLOT_NAMES = ("linear", "kernels", "quantization", "topology")
+    SLOT_NAMES = ("linear", "kernels", "quantization", "topology", "cache", "delivery")
     __slots__ = ()
 
     def __init__(
@@ -321,6 +321,8 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
         kernels: KernelBackend = _DEFAULT_KERNELS,
         quantization: QuantizationScheme | None = None,
         topology: RoleTopology = _DEFAULT_OFFSET_ROLES,
+        cache: ClientPrefixReuse | None = None,
+        delivery: ClientBundleTransport | None = None,
     ) -> None:
         if quantization is not None:
             _slot(
@@ -329,6 +331,10 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
                 QuantizationScheme,
                 SymmetricPerRow.descriptor.component,
             )
+        if cache is not None:
+            _slot("cache", cache, ClientPrefixReuse, ClientPrefixReuse.descriptor.component)
+        if delivery is not None:
+            _slot("delivery", delivery, ClientBundleTransport, ClientBundleTransport.descriptor.component)
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
@@ -347,6 +353,8 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
                     TwoOnlineOffsetRoles.descriptor.component,
                 ),
                 **({"quantization": quantization} if quantization is not None else {}),
+                **({"cache": cache} if cache is not None else {}),
+                **({"delivery": delivery} if delivery is not None else {}),
             },
         )
 
@@ -366,6 +374,14 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     def topology(self) -> TwoOnlineOffsetRoles:
         return self.components["topology"]
 
+    @property
+    def cache(self) -> ClientPrefixReuse | None:
+        return self.components.get("cache")
+
+    @property
+    def delivery(self) -> ClientBundleTransport | None:
+        return self.components.get("delivery")
+
 
 class VerifiedMaskedLinearCpu(_TypedPipeline):
     PROFILE = "research.verified_masked_linear_cpu"
@@ -377,6 +393,7 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
         "verification",
         "quantization",
         "topology",
+        "cache", "placement", "inventory", "delivery", "boundary",
     )
     __slots__ = ()
 
@@ -391,6 +408,11 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
         verification: VerificationScheme = _DEFAULT_FREIVALDS,
         quantization: QuantizationScheme | None = None,
         topology: RoleTopology | None = None,
+        cache: ClientPrefixReuse | None = None,
+        placement: ClientPlacement | None = None,
+        inventory: PreparedInventory | None = None,
+        delivery: ClientBundleTransport | None = None,
+        boundary: OutputHeadAtInference | None = None,
     ) -> None:
         if quantization is not None:
             _slot(
@@ -399,31 +421,18 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
                 QuantizationScheme,
                 SymmetricPerRow.descriptor.component,
             )
+        baseline = MaskedLinearCpu(model, linear=linear, preparation=preparation, inference=inference,
+            kernels=kernels, quantization=quantization, cache=cache,
+            placement=placement, inventory=inventory, delivery=delivery, boundary=boundary)
         super().__init__(
             profile=self.PROFILE,
             model=_model(model),
             components={
-                "linear": _slot("linear", linear, ProtocolMethod, "pllm/masked-linear"),
-                "preparation": _slot(
-                    "preparation", preparation, PreparationProvider, "pllm/model-aware-corrections"
-                ),
-                "inference": _slot("inference", inference, InferenceRole, "pllm/inference"),
-                "kernels": _slot("kernels", kernels, KernelBackend),
+                **baseline.components,
+                **({"topology": _slot("topology", topology, RoleTopology,
+                    PreparedProviderRoles.descriptor.component)} if topology is not None else {}),
                 "verification": _slot(
                     "verification", verification, VerificationScheme, "pllm/freivalds-verify/v1"
-                ),
-                **({"quantization": quantization} if quantization is not None else {}),
-                **(
-                    {
-                        "topology": _slot(
-                            "topology",
-                            topology,
-                            RoleTopology,
-                            PreparedProviderRoles.descriptor.component,
-                        )
-                    }
-                    if topology is not None
-                    else {}
                 ),
             },
         )
@@ -455,6 +464,26 @@ class VerifiedMaskedLinearCpu(_TypedPipeline):
     @property
     def topology(self) -> PreparedProviderRoles | None:
         return self.components.get("topology")
+
+    @property
+    def cache(self) -> ClientPrefixReuse | None:
+        return self.components.get("cache")
+
+    @property
+    def placement(self) -> ClientPlacement | None:
+        return self.components.get("placement")
+
+    @property
+    def inventory(self) -> PreparedInventory | None:
+        return self.components.get("inventory")
+
+    @property
+    def delivery(self) -> ClientBundleTransport | None:
+        return self.components.get("delivery")
+
+    @property
+    def boundary(self) -> OutputHeadAtInference | None:
+        return self.components.get("boundary")
 
 
 class ProprietaryGuarded(_TypedPipeline):
@@ -593,11 +622,19 @@ class RuntimeComposition:
     inventory_refill: str | None = None
     bundle_compression: str = "none"
     causal_reduction: str | None = None
+    prepared_output_encoding: str = "raw"
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
     transport_options: dict[str, Any] = {}
+    linear = pipeline.components.get("linear")
+    if linear is not None and linear.component == "pllm/masked-linear":
+        if (set(linear.params) - {"output_encoding"}
+            or type(linear.params.get("output_encoding", "raw")) is not str
+            or linear.params.get("output_encoding", "raw") not in {"raw", "row_residues"}):
+            return None
+        transport_options["prepared_output_encoding"] = linear.params.get("output_encoding", "raw")
     inventory = pipeline.components.get("inventory")
     delivery = pipeline.components.get("delivery")
     if inventory is not None:
@@ -609,7 +646,6 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             or type(inventory.params["rows"]) is not int
             or not 1 <= inventory.params["rows"] <= 4096
             or identities.get("linear") != "pllm/masked-linear"
-            or "verification" in identities
         ):
             return None
         transport_options.update(
@@ -622,27 +658,34 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     if delivery is not None:
         if (
             delivery.component != ClientBundleTransport.descriptor.component
-            or set(delivery.params) != {"encoding"}
+            or set(delivery.params) not in ({"encoding"}, {"encoding", "compression"})
             or delivery.params["encoding"] not in {"none", "zlib", "artifacts"}
-            or identities.get("linear") != "pllm/masked-linear"
-            or "verification" in identities
+            or ("compression" in delivery.params and (
+                delivery.params["encoding"] != "artifacts" or delivery.params["compression"] != "zlib"))
+            or identities.get("linear") not in {"pllm/masked-linear", "pllm/two-online-offset-linear/v1"}
         ):
             return None
-        transport_options["bundle_compression"] = delivery.params["encoding"]
+        transport_options["bundle_compression"] = (
+            "artifacts-zlib" if "compression" in delivery.params else delivery.params["encoding"]
+        )
         del identities["delivery"]
     cache = pipeline.components.get("cache")
     cache_options: dict[str, int | None] = {}
     if cache is not None:
         if (
             cache.component != ClientPrefixReuse.descriptor.component
-            or set(cache.params) != {"max_bytes", "fixed_input_tokens"}
+            or set(cache.params) not in ({"max_bytes", "fixed_input_tokens"},
+                {"max_bytes", "fixed_input_tokens", "generated_prefixes"})
+            or ("generated_prefixes" in cache.params and cache.params["generated_prefixes"] is not True)
+            or (cache.params.get("generated_prefixes") and (
+                pipeline.components.get("quantization") is None or
+                pipeline.components["quantization"].params.get("causal_reduction") != "prefix_f32"))
             or type(cache.params["max_bytes"]) is not int
             or not 1 <= cache.params["max_bytes"] >> 20 <= 256
             or cache.params["max_bytes"] % (1 << 20)
             or type(cache.params["fixed_input_tokens"]) is not int
             or not 2 <= cache.params["fixed_input_tokens"] <= 4096
-            or identities.get("linear") != "pllm/masked-linear"
-            or "verification" in identities
+            or identities.get("linear") not in {"pllm/masked-linear", "pllm/two-online-offset-linear/v1"}
         ):
             return None
         cache_options = {
@@ -656,7 +699,6 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             boundary.component != OutputHeadAtInference.descriptor.component
             or boundary.params
             or identities.get("linear") != "pllm/masked-linear"
-            or "verification" in identities
         ):
             return None
         del identities["boundary"]
@@ -672,7 +714,9 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         roles = placement.params.get("roles")
         roles_valid = (
             placement.component == ClientLinearRoles.descriptor.component
-            and set(placement.params) == {"roles"}
+            and set(placement.params) in ({"roles"}, {"roles", "prefix_layers"})
+            and ("prefix_layers" not in placement.params or (
+                type(placement.params["prefix_layers"]) is int and 1 <= placement.params["prefix_layers"] <= 8))
             and isinstance(roles, (list, tuple))
             and 1 <= len(roles) <= 4
             and all(
@@ -688,14 +732,12 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         if (
             not (prefix_valid or roles_valid)
             or identities.get("linear") != "pllm/masked-linear"
-            or identities.get("kernels") != Cpu.descriptor.component
-            or "verification" in identities
         ):
             return None
         placement_options = (
             {"client_prefix_layers": placement.params["layers"]}
             if prefix_valid
-            else {"client_linear_roles": tuple(roles)}
+            else {"client_linear_roles": tuple(roles), "client_prefix_layers": placement.params.get("prefix_layers", 0)}
         )
         del identities["placement"]
     quantization = pipeline.components.get("quantization")
@@ -799,6 +841,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             f"two_online_offset_w{bits.get('weight_bits', 8)}a{bits.get('activation_bits', 8)}",
             public_equalization_digest=equalization_digest,
             **bits,
+            **cache_options,
+            **transport_options,
         )
     if topology is not None:
         if (
@@ -828,10 +872,13 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "verification": "pllm/freivalds-verify/v1",
         }
         verification = pipeline.components["verification"]
+        target_bits = verification.params.get("target_failure_bits")
+        extra_bits = FreivaldsVerify._CACHE_LINEAGE_BITS if cache is not None else 0
         if (
             identities != expected
             or not public_kernel_valid
             or set(verification.params) != {"target_failure_bits"}
+            or type(target_bits) is not int or not 1 <= target_bits <= 80 - extra_bits
         ):
             return None
         return RuntimeComposition(
@@ -842,8 +889,12 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             client_runtime="masked_transformer_v1",
             privacy_protocol=None,
             verification_component="pllm/freivalds-verify/v1",
-            verification_target_failure_bits=verification.params["target_failure_bits"],
+            verification_target_failure_bits=target_bits + extra_bits,
             **bits,
+            **cache_options,
+            remote_output_head=boundary is not None,
+            **placement_options,
+            **transport_options,
         )
     if (
         identities
@@ -854,7 +905,6 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             "kernels": kernel_id,
         }
         and public_kernel_valid
-        and not pipeline.components["linear"].params
         and not pipeline.components["preparation"].params
         and not pipeline.components["inference"].params
     ):

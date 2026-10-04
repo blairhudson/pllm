@@ -1,6 +1,8 @@
 from pllm.configuration import Deployment as Deployment
+from pllm.deployment.wan import PartyAccess as PartyAccess, WanConditions as WanConditions
 from pllm.deployment.network import (
     LinkObservation as LinkObservation,
+    LinkConditions as LinkConditions,
     NetworkError as NetworkError,
     NetworkSnapshot as NetworkSnapshot,
     NetworkSpec as NetworkSpec,

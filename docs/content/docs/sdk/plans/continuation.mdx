@@ -44,9 +44,19 @@ ownership before reserving one-use rows. The exact acknowledgement is required;
 invalid shapes/nonfinite values burn the session and reserved material. There
 is no implicit sequential fallback after failed admission.
 
+Prepared baseline, Freivalds-verified prepared, and two-offset-worker compositions
+use this same contract. Offset clients require both workers' exact authenticated
+acknowledgements before stage work. Verified cache restoration additionally
+checks sealed verifier strength and a bounded inventory lineage; native schedule
+admission does not replace those runtime checks.
+
 Native legality does not prove that old KV equals a new full prefill. Fresh
 cache admission also requires sealed completed-prefill lineage and matching
-actual full-input reduction extent. Generated state instead requires explicit
-response ownership and its original source/numeric/execution basis. See
+actual full-input reduction extent, or the separately selected canonical
+`prefix_f32` reduction contract. Generated state normally requires explicit
+response ownership and its original source/numeric/execution basis. With
+`ClientPrefixReuse(generated_prefixes=True)` and `prefix_f32`, the native full-KV
+contract can additionally qualify already executed generated tokens for fresh
+prefix reuse. Pending sampled tokens remain excluded. See
 [client prefix reuse](/sdk/components/state/client-prefix-reuse/) for numeric
 counterexamples and current same-width production evidence.
