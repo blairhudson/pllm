@@ -382,6 +382,22 @@ fn dot_clear(w: &[i8], x: &[i8], simd: bool) -> i64 {
         .map(|(&wi, &xi)| wi as i64 * xi as i64)
         .sum()
 }
+
+/// Signed high-bit projection used by the progressive public-head reference.
+pub(crate) fn dot_prefix(w: &[i8], x: &[i8], shift: u8) -> i64 {
+    debug_assert!(shift <= 7 && w.len() == x.len());
+    if shift == 0 {
+        return dot_clear(w, x, true);
+    }
+    #[cfg(target_arch = "aarch64")]
+    if has_neon() {
+        return unsafe { arm::dot_prefix(w, x, shift) };
+    }
+    w.iter()
+        .zip(x)
+        .map(|(&a, &b)| i64::from(a >> shift) * i64::from(b))
+        .sum()
+}
 fn dot_wrap32(w: &[i8], x: &[u32], simd: bool) -> u32 {
     #[cfg(target_arch = "x86_64")]
     if simd {
@@ -617,6 +633,30 @@ mod arm {
                 .iter()
                 .zip(&x[index..])
                 .map(|(&a, &b)| a as i64 * b as i64)
+                .sum::<i64>()
+    }
+    #[target_feature(enable = "neon")]
+    pub unsafe fn dot_prefix(w: &[i8], x: &[i8], shift: u8) -> i64 {
+        let mut index = 0;
+        let mut total = 0_i64;
+        let amount = vdupq_n_s8(-(shift as i8));
+        while index + 16 <= w.len() {
+            let end = (index + 2048).min(w.len() / 16 * 16);
+            let mut sum = vdupq_n_s32(0);
+            while index < end {
+                let a = vshlq_s8(vld1q_s8(w.as_ptr().add(index)), amount);
+                let b = vld1q_s8(x.as_ptr().add(index));
+                sum = vpadalq_s16(sum, vmull_s8(vget_low_s8(a), vget_low_s8(b)));
+                sum = vpadalq_s16(sum, vmull_s8(vget_high_s8(a), vget_high_s8(b)));
+                index += 16;
+            }
+            total += i64::from(vaddvq_s32(sum));
+        }
+        total
+            + w[index..]
+                .iter()
+                .zip(&x[index..])
+                .map(|(&a, &b)| i64::from(a >> shift) * i64::from(b))
                 .sum::<i64>()
     }
     #[target_feature(enable = "neon")]

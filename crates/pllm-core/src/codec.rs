@@ -69,6 +69,49 @@ pub fn modulus(p: u64) -> Result<(), String> {
         Ok(())
     }
 }
+
+/// Prepared x-r in an exact wrapping ring, without intermediate i64 tensors.
+pub fn prepared_mask_input(x: &[u8], r: &[u8], bits: u8) -> Result<Vec<u8>, String> {
+    if !matches!(bits, 16 | 24 | 32) || x.len() > 4_000_000 || r.len() != x.len() * 4 {
+        return Err("invalid prepared input mask shape or ring".into());
+    }
+    let mask = u32::MAX >> (32 - bits);
+    let mut output = Vec::with_capacity(r.len());
+    for (&value, r) in x.iter().zip(r.chunks_exact(4)) {
+        let r = u32::from_le_bytes(r.try_into().unwrap());
+        if r > mask {
+            return Err("prepared input mask is outside its ring".into());
+        }
+        output
+            .extend_from_slice(&((value as i8 as i32 as u32).wrapping_sub(r) & mask).to_le_bytes());
+    }
+    Ok(output)
+}
+
+/// Center-decode y+s in an exact wrapping ring, with one output allocation.
+pub fn prepared_center_output(y: &[u8], s: &[u8], bits: u8) -> Result<Vec<u8>, String> {
+    if !matches!(bits, 16 | 24 | 32)
+        || y.len() % 4 != 0
+        || y.len() > 16_000_000
+        || s.len() != y.len()
+    {
+        return Err("invalid prepared output mask shape or ring".into());
+    }
+    let mask = u32::MAX >> (32 - bits);
+    let shift = 32 - bits;
+    let mut output = Vec::with_capacity(y.len() * 2);
+    for (y, s) in y.chunks_exact(4).zip(s.chunks_exact(4)) {
+        let y = u32::from_le_bytes(y.try_into().unwrap());
+        let s = u32::from_le_bytes(s.try_into().unwrap());
+        if y > mask || s > mask {
+            return Err("prepared output residue is outside its ring".into());
+        }
+        let centered =
+            i64::from((y.wrapping_add(s).wrapping_shl(u32::from(shift)) as i32) >> shift);
+        output.extend_from_slice(&centered.to_le_bytes());
+    }
+    Ok(output)
+}
 pub fn mask(x: &[u8], r: &[u32], p: u64) -> Result<Vec<u32>, String> {
     modulus(p)?;
     if x.len() != r.len() || r.iter().any(|&v| v as u64 >= p) {

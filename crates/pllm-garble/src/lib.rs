@@ -12,6 +12,7 @@ pub mod gated_multiply_q7;
 pub mod logrow;
 pub mod private_pages;
 pub mod projected_polynomial;
+pub mod projected_reshare;
 
 pub use gated_multiply_q7::{
     Method as GatedMultiplyQ7Method,

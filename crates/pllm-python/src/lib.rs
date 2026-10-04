@@ -6,12 +6,16 @@ use pllm_core::{codec, kernels};
 mod continuation;
 mod head_index;
 mod logrow;
+mod masked_aggregate;
 mod network;
 mod offset_transport;
 mod paged;
 mod polynomial_shift;
 mod private_pages;
+mod progressive_head;
 mod projected_polynomial;
+mod public_transforms;
+mod row_memo;
 
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -1654,6 +1658,10 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     head_index::register(module)?;
     paged::register(module)?;
     offset_transport::register(module)?;
+    masked_aggregate::register(module)?;
+    row_memo::register(module)?;
+    public_transforms::register(module)?;
+    progressive_head::register(module)?;
     polynomial_shift::register(module)?;
     network::register(module)?;
     continuation::register(module)?;

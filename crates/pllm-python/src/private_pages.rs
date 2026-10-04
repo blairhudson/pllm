@@ -1,6 +1,9 @@
 use crate::invalid;
 use pllm_garble::private_pages as native;
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyList},
+};
 
 #[pyclass(name = "PrivatePageServer", module = "pllm._native")]
 struct Server {
@@ -26,6 +29,24 @@ impl Server {
     }
     fn cancel(&mut self, py: Python<'_>, query: &[u8]) -> PyResult<()> {
         py.detach(|| self.inner.cancel(query)).map_err(invalid)
+    }
+    fn evaluate_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        queries: &Bound<'py, PyList>,
+    ) -> PyResult<Vec<Bound<'py, PyBytes>>> {
+        if !(1..=64).contains(&queries.len()) {
+            return Err(invalid("private page batch exceeds 64 queries".into()));
+        }
+        let buffers: Vec<_> = queries
+            .iter()
+            .map(|q| q.cast_into::<PyBytes>())
+            .collect::<Result<_, _>>()?;
+        let data: Vec<_> = buffers.iter().map(|q| q.as_bytes()).collect();
+        let result = py
+            .detach(|| self.inner.evaluate_batch(&data))
+            .map_err(invalid)?;
+        Ok(result.iter().map(|r| PyBytes::new(py, r)).collect())
     }
 }
 #[pyclass(name = "PrivatePageDecoder", module = "pllm._native")]

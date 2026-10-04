@@ -303,6 +303,69 @@ impl Server {
         out.zeroize();
         Ok(reply)
     }
+
+    /// Fixed public batch size. All keys validate before any are burned; every
+    /// admitted key burns before arithmetic. Each party still holds one key share.
+    pub fn evaluate_batch(&mut self, queries: &[&[u8]]) -> Result<Vec<Vec<u8>>, String> {
+        if !(1..=64).contains(&queries.len()) || self.burned.len() + queries.len() > MAX_QUERIES {
+            return Err("private page batch exceeds bounded query ledger".into());
+        }
+        let mut ids = BTreeSet::new();
+        let keys: Vec<Key> = queries
+            .iter()
+            .map(|q| {
+                let key = Key::decode(q)?;
+                if key.descriptor != self.descriptor
+                    || key.party != self.party
+                    || self.burned.contains(&key.id)
+                    || !ids.insert(key.id)
+                {
+                    return Err("private page batch source, party or replay differs".into());
+                }
+                Ok(key)
+            })
+            .collect::<Result<_, String>>()?;
+        self.burned.extend(ids);
+        let count = keys.len();
+        let mut bits = zeroize::Zeroizing::new(vec![0_u8; self.descriptor.records * count]);
+        for (lane, key) in keys.iter().enumerate() {
+            fill_bits(
+                key,
+                domain(self.descriptor, key.id),
+                key.root,
+                key.party,
+                0,
+                0,
+                lane,
+                count,
+                &mut bits,
+            );
+        }
+        let mut outputs = zeroize::Zeroizing::new(vec![0_u8; self.descriptor.width * count]);
+        // One traversal of the table; all selections are masked XOR, including
+        // zero shares. Working masks stay at the worker (at most 16 MiB).
+        for (row, selection) in self
+            .data
+            .chunks_exact(self.descriptor.width)
+            .zip(bits.chunks_exact(count))
+        {
+            for (out, &bit) in outputs.chunks_mut(self.descriptor.width).zip(selection) {
+                let mask = 0_u8.wrapping_sub(bit);
+                for (dst, &value) in out.iter_mut().zip(row) {
+                    *dst ^= value & mask;
+                }
+            }
+        }
+        Ok(keys
+            .iter()
+            .zip(outputs.chunks_exact(self.descriptor.width))
+            .map(|(key, out)| {
+                let mut reply = header(REPLY, self.descriptor, key.id, self.party);
+                reply.extend_from_slice(out);
+                reply
+            })
+            .collect())
+    }
     #[allow(clippy::too_many_arguments)]
     fn visit(
         &self,
@@ -349,9 +412,79 @@ impl Server {
         seed.zeroize();
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+fn fill_bits(
+    key: &Key,
+    domain: Block,
+    mut seed: Block,
+    control: u8,
+    level: usize,
+    first: usize,
+    lane: usize,
+    count: usize,
+    output: &mut [u8],
+) {
+    if first >= key.descriptor.records {
+        seed.zeroize();
+        return;
+    }
+    if level == key.words.len() {
+        output[first * count + lane] = leaf(seed, domain) ^ (control & key.final_bit);
+    } else {
+        let mut children = stretch(seed, domain, level);
+        for (direction, child) in children.iter_mut().enumerate() {
+            if control != 0 {
+                child.0 = xor(child.0, key.words[level].seed);
+                child.1 ^= (key.words[level].controls >> direction) & 1;
+            }
+            fill_bits(
+                key,
+                domain,
+                child.0,
+                child.1,
+                level + 1,
+                first + (direction << (key.words.len() - level - 1)),
+                lane,
+                count,
+                output,
+            );
+            child.0.zeroize();
+            child.1.zeroize();
+        }
+    }
+    seed.zeroize();
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn batch_exactness_and_atomic_admission() {
+        let data: Vec<u8> = (0..31 * 17).map(|x| x as u8).collect();
+        let mut a = Server::new(&data, 17, 0).unwrap();
+        let mut b = Server::new(&data, 17, 1).unwrap();
+        let queries: Vec<_> = [0, 30, 7, 7]
+            .into_iter()
+            .map(|i| issue(a.descriptor(), i).unwrap())
+            .collect();
+        assert!(a.evaluate_batch(&[&queries[0].0, b"invalid"]).is_err());
+        assert!(a.evaluate_batch(&[&queries[0].0, &queries[0].0]).is_err());
+        let qa: Vec<_> = queries.iter().map(|q| q.0.as_slice()).collect();
+        let qb: Vec<_> = queries.iter().map(|q| q.1.as_slice()).collect();
+        let ra = a.evaluate_batch(&qa).unwrap();
+        let rb = b.evaluate_batch(&qb).unwrap();
+        assert!(a.evaluate_batch(&qa).is_err());
+        for (((_, _, decoder), (a, b)), index) in queries
+            .into_iter()
+            .zip(ra.iter().zip(&rb))
+            .zip([0, 30, 7, 7])
+        {
+            assert_eq!(
+                decoder.decode(a, b).unwrap(),
+                data[index * 17..(index + 1) * 17]
+            );
+        }
+    }
     #[test]
     fn exhaustive_basis_pages_and_one_use_roles() {
         for records in [1, 2, 3, 7, 16, 31] {

@@ -129,28 +129,23 @@ fn validate_packed(data: &[u8], size: usize, bits: usize) -> Result<(), String> 
 
 struct BitReader<'a> {
     data: &'a [u8],
-    index: usize,
-    buffer: u64,
-    available: u8,
+    position: usize,
 }
 impl<'a> BitReader<'a> {
     fn new(data: &'a [u8]) -> Self {
-        Self {
-            data,
-            index: 0,
-            buffer: 0,
-            available: 0,
-        }
+        Self { data, position: 0 }
     }
     fn read(&mut self, width: u8) -> u64 {
-        while self.available < width {
-            self.buffer |= u64::from(self.data[self.index]) << self.available;
-            self.index += 1;
-            self.available += 8;
-        }
-        let value = self.buffer & ((1_u64 << width) - 1);
-        self.buffer >>= width;
-        self.available -= width;
+        let index = self.position / 8;
+        let raw = if self.data.len() - index >= 8 {
+            u64::from_le_bytes(self.data[index..index + 8].try_into().unwrap())
+        } else {
+            let mut tail = [0; 8];
+            tail[..self.data.len() - index].copy_from_slice(&self.data[index..]);
+            u64::from_le_bytes(tail)
+        };
+        let value = (raw >> (self.position % 8)) & ((1_u64 << width) - 1);
+        self.position += usize::from(width);
         value
     }
 }
@@ -175,9 +170,120 @@ pub fn reconstruct_rows(a: &[u8], b: &[u8], widths: &[u8], rows: usize) -> Resul
     Ok(output)
 }
 
+/// Preparation's W*r-s, reduced only at the public output coding boundary.
+pub fn pack_difference(a: &[u8], b: &[u8], widths: &[u8], rows: usize) -> Result<Vec<u8>, String> {
+    packed_size(widths, rows)?;
+    if a.len() != rows * widths.len() * 4 || b.len() != a.len() {
+        return Err("prepared output operands differ from layout".into());
+    }
+    let values = zeroize::Zeroizing::new(
+        a.chunks_exact(4)
+            .zip(b.chunks_exact(4))
+            .flat_map(|(a, b)| {
+                u32::from_le_bytes(a.try_into().unwrap())
+                    .wrapping_sub(u32::from_le_bytes(b.try_into().unwrap()))
+                    .to_le_bytes()
+            })
+            .collect::<Vec<_>>(),
+    );
+    pack_row_residues(&values, widths, rows)
+}
+
+/// Inference adds its integer W*(x-r) to the packed one-use correction.
+pub fn add_packed(
+    raw: &[u8],
+    correction: &[u8],
+    widths: &[u8],
+    rows: usize,
+) -> Result<Vec<u8>, String> {
+    let (size, bits) = packed_size(widths, rows)?;
+    validate_packed(correction, size, bits)?;
+    if raw.len() != rows * widths.len() * 4 {
+        return Err("prepared product length differs".into());
+    }
+    let mut reader = BitReader::new(correction);
+    let values: Vec<u8> = raw
+        .chunks_exact(4)
+        .zip(widths.iter().cycle())
+        .flat_map(|(raw, &width)| {
+            u32::from_le_bytes(raw.try_into().unwrap())
+                .wrapping_add(reader.read(width) as u32)
+                .to_le_bytes()
+        })
+        .collect();
+    pack_row_residues(&values, widths, rows)
+}
+
+/// Expand validated public output residues without interpreting their sign.
+pub fn unpack_rows(payload: &[u8], widths: &[u8], rows: usize) -> Result<Vec<u8>, String> {
+    let (size, bits) = packed_size(widths, rows)?;
+    validate_packed(payload, size, bits)?;
+    let mut reader = BitReader::new(payload);
+    let mut result = Vec::with_capacity(rows * widths.len() * 4);
+    for &width in widths.iter().cycle().take(rows * widths.len()) {
+        result.extend_from_slice(&(reader.read(width) as u32).to_le_bytes());
+    }
+    Ok(result)
+}
+
+/// Trusted-client reconstruction without allocating a second packed mask.
+pub fn unmask_packed(
+    packed: &[u8],
+    mask: &[u8],
+    widths: &[u8],
+    rows: usize,
+) -> Result<Vec<u8>, String> {
+    let (size, bits) = packed_size(widths, rows)?;
+    validate_packed(packed, size, bits)?;
+    if mask.len() != rows * widths.len() * 4 {
+        return Err("prepared mask length differs".into());
+    }
+    let mut reader = BitReader::new(packed);
+    let mut output = Vec::with_capacity(rows * widths.len() * 8);
+    for (mask, &width) in mask.chunks_exact(4).zip(widths.iter().cycle()) {
+        let modulus = 1_u64 << width;
+        let value = (reader.read(width) + u64::from(u32::from_le_bytes(mask.try_into().unwrap())))
+            & (modulus - 1);
+        let centered = if value >= modulus / 2 {
+            value as i64 - modulus as i64
+        } else {
+            value as i64
+        };
+        output.extend_from_slice(&centered.to_le_bytes());
+    }
+    Ok(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn prepared_correction_and_online_residues_preserve_signed_outputs() {
+        let widths = [3, 12, 24, 32];
+        let expected = [-3_i32, 1441, -151551, i32::MAX];
+        let wr = [123_u32, u32::MAX, 800081, 98765];
+        let mask = [u32::MAX, 919118, 91091, 333];
+        let encode = |v: &[u32]| v.iter().flat_map(|x| x.to_le_bytes()).collect::<Vec<_>>();
+        let wx: Vec<u32> = expected
+            .iter()
+            .zip(wr)
+            .map(|(&v, r)| (v as u32).wrapping_sub(r))
+            .collect();
+        let correction = pack_difference(&encode(&wr), &encode(&mask), &widths, 1).unwrap();
+        let online = add_packed(&encode(&wx), &correction, &widths, 1).unwrap();
+        let decoded = unmask_packed(&online, &encode(&mask), &widths, 1).unwrap();
+        assert_eq!(
+            decoded,
+            expected
+                .iter()
+                .flat_map(|&v| i64::from(v).to_le_bytes())
+                .collect::<Vec<_>>()
+        );
+        assert!(unmask_packed(&online[..online.len() - 1], &encode(&mask), &widths, 1).is_err());
+        let mut bad = online;
+        *bad.last_mut().unwrap() |= 0x80;
+        assert!(unmask_packed(&bad, &encode(&mask), &widths, 1).is_err());
+    }
     #[test]
     fn mixed_rings_reconstruct_and_reject_noncanonical_frames() {
         let widths: Vec<u8> = (1..=32).collect();
