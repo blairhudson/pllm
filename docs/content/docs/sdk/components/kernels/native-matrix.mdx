@@ -82,6 +82,13 @@ Obtain [`CompiledMatrix`](/sdk/reference/python/pllm/native/#compiledmatrix) fro
 `MaskedGEMM.compile()`. It copies validated weights once; later source-array
 mutation does not change the native snapshot.
 
+`weight_view()` returns a read-only NumPy alias of that snapshot. It keeps the
+native owner alive even after the wrapper is released. Ordinary provider stages
+use this view for metadata and preparation, retiring their duplicate NumPy i8
+allocation. Direct callers retaining the original input still pay for that array.
+Float checkpoint loading and validation are row-chunked; bundle and GPU storage
+remain separately charged by [benchmark memory admission](/sdk/evaluate/benchmark/).
+
 ```python
 import numpy as np
 
@@ -93,6 +100,10 @@ weights[:] = 0
 result = matrix.clear(np.array([[5, 6]], dtype=np.int8))
 assert isinstance(matrix, CompiledMatrix)
 assert result.tolist() == [[-7, 39]]
+view = matrix.weight_view()
+assert not view.flags.writeable
+del matrix
+assert view.tolist() == [[1, -2], [3, 4]]
 ```
 
 ### Bound weight residency with `PagedGEMM`
@@ -109,7 +120,8 @@ Install `pllm.run[metal]` on Apple Silicon. [`MetalGEMM`](/sdk/reference/python/
 is an explicit MLX/Metal matrix engine with immutable GPU-owned int8 weights. Its
 `clear` and `wrap32` methods match the native integer kernel exactly; results
 are synchronized and converted to NumPy before returning. It is a direct
-kernel API, not yet a selectable `Pipeline` or provider backend. MLX and the
+kernel API; [`AppleMetal`](/sdk/reference/python/pllm/kernels/#applemetal) selects
+the admitted Pipeline/provider integration. MLX and the
 weight snapshot add memory; report GPU work, transfer and synchronization
 separately from CPU-only topology compute comparisons.
 

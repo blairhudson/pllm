@@ -17,7 +17,7 @@ mod projected_polynomial;
 mod public_transforms;
 mod row_memo;
 
-use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyBufferError, PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PySequence, PyTuple};
 use std::sync::{
@@ -639,6 +639,43 @@ impl Matrix {
     #[getter]
     fn weight_bytes(&self) -> usize {
         self.inner.weight_bytes()
+    }
+
+    /// Export the immutable native snapshot, not a borrowed NumPy allocation.
+    ///
+    /// # Safety
+    /// CPython supplies a valid writable Py_buffer pointer (checked for null).
+    /// FillInfo retains this frozen Matrix as the buffer's owner and rejects
+    /// writable requests. Its Vec has no mutation/reallocation API, so readers
+    /// remain valid until PyBuffer_Release drops the retained owner, including
+    /// while an executor uses the same weights without the interpreter lock.
+    unsafe fn __getbuffer__(
+        slf: PyRef<'_, Self>,
+        view: *mut pyo3::ffi::Py_buffer,
+        flags: std::os::raw::c_int,
+    ) -> PyResult<()> {
+        if view.is_null() {
+            return Err(PyBufferError::new_err("null matrix buffer"));
+        }
+        let weights = slf.inner.as_signed_slice();
+        let len = isize::try_from(weights.len())
+            .map_err(|_| PyBufferError::new_err("matrix buffer length overflow"))?;
+        // SAFETY: the lifetime, immutability and ownership conditions above hold.
+        let status = unsafe {
+            pyo3::ffi::PyBuffer_FillInfo(
+                view,
+                slf.as_ptr(),
+                weights.as_ptr().cast_mut().cast(),
+                len,
+                1,
+                flags,
+            )
+        };
+        if status == -1 {
+            Err(PyErr::fetch(slf.py()))
+        } else {
+            Ok(())
+        }
     }
 }
 

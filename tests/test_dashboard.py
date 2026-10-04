@@ -153,6 +153,12 @@ def test_dashboard_defaults_to_real_qwen_and_keeps_tiny_explicit() -> None:
 
 
 def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
+    from pllm import Model
+    from pllm.runtime import benchmark_memory as memory
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(
+        32 * memory.GiB, 24 * memory.GiB, 0, 100 * memory.GiB))
+    admission = memory.benchmark_memory(Model.tiny())
+    monkeypatch.setattr(memory, "benchmark_memory", lambda *_args, **_kwargs: admission)
     runtime = DashboardRuntime(
         DashboardConfig(
             host="127.0.0.1",
@@ -178,6 +184,9 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
             captured["started"] = True
             return self
 
+        def close(self):
+            captured["closed"] = True
+
         @staticmethod
         def client(**kwargs):
             captured["client"] = kwargs
@@ -202,6 +211,7 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
     assert captured["roles"]["model_id"] == "model"
     assert captured["roles"]["credential_prefix"] == "dash"
     assert captured["client"]["prepared_inventory_rows"] == 64
+    runtime._memory_guard.close()
     runtime._temporary.cleanup()
 
 

@@ -1,0 +1,74 @@
+{
+  "schema": "pllm.weight_memory_probe.v1",
+  "scope": "Bounded isolated-process loader/snapshot memory control; no decoder/WAN claim.\n\nRun from repository root with the installed native extension. Four 4096-square\nstages have 64 MiB of quantized weights and 256 MiB of float32 source artifacts.\nThe legacy control recreates whole-float materialization and duplicate retained\ni8 storage. It is a mechanism control, not a historical full-engine benchmark.\n",
+  "width": 4096,
+  "stages": 4,
+  "samples": [
+    {
+      "mode": "legacy",
+      "weight_digests": [
+        "64110cf6d6e56a2bfd703a584dc75b96416233e59e76027aff03eb7a70a75a4a",
+        "9cc71ffa851c1e224e6fb766739375fe2b596adc8df617c819f239abfc1998d7",
+        "eb8c07bff5011f9f0ae02d76b8dca8d969c94ca06d66ec08f3abfc5f066b9196",
+        "a01391c2ad77c72c2d97f676c9e57a8bebccf33e11294278d81547472b2f001b"
+      ],
+      "output_digests": [
+        "b856d04b5b19b25376b0fe8b936473e599f4c22e82bbec1039b418c426e977d5",
+        "48a2b604ba26dda4ff3be770cebad7ff2cd1ded18369ecdb2a8d2ce406b7daf6",
+        "8e8d3f8beb55629e597155dd2105d2b553291736d15041f380a0a30642b68fcc",
+        "8fd20561a45fd733e687c8a2ca36f3c1bcc52514f391eae704f2c7f628b13b4c"
+      ],
+      "signed_bounds": [
+        17257649,
+        17120870,
+        17047464,
+        17188688
+      ],
+      "quantized_weight_bytes": 67108864,
+      "distinct_weight_storage_bytes": 134217728,
+      "end_rss_bytes": 505348096,
+      "peak_rss_bytes": 522076160,
+      "load_and_one_row_cpu_seconds": 0.5374490000000001,
+      "load_and_one_row_seconds": 0.7092739166691899
+    },
+    {
+      "mode": "snapshot",
+      "weight_digests": [
+        "64110cf6d6e56a2bfd703a584dc75b96416233e59e76027aff03eb7a70a75a4a",
+        "9cc71ffa851c1e224e6fb766739375fe2b596adc8df617c819f239abfc1998d7",
+        "eb8c07bff5011f9f0ae02d76b8dca8d969c94ca06d66ec08f3abfc5f066b9196",
+        "a01391c2ad77c72c2d97f676c9e57a8bebccf33e11294278d81547472b2f001b"
+      ],
+      "output_digests": [
+        "b856d04b5b19b25376b0fe8b936473e599f4c22e82bbec1039b418c426e977d5",
+        "48a2b604ba26dda4ff3be770cebad7ff2cd1ded18369ecdb2a8d2ce406b7daf6",
+        "8e8d3f8beb55629e597155dd2105d2b553291736d15041f380a0a30642b68fcc",
+        "8fd20561a45fd733e687c8a2ca36f3c1bcc52514f391eae704f2c7f628b13b4c"
+      ],
+      "signed_bounds": [
+        17257649,
+        17120870,
+        17047464,
+        17188688
+      ],
+      "quantized_weight_bytes": 67108864,
+      "distinct_weight_storage_bytes": 67108864,
+      "end_rss_bytes": 162742272,
+      "peak_rss_bytes": 213057536,
+      "load_and_one_row_cpu_seconds": 0.37057700000000005,
+      "load_and_one_row_seconds": 0.3715622080489993
+    }
+  ],
+  "source_float_bytes": 268435456,
+  "host": {
+    "total": 34359738368,
+    "available": 14414069760,
+    "swap_used": 2131099648,
+    "disk_free": 25666318336
+  },
+  "max_swap_growth_bytes": 0,
+  "measured_at": "2026-10-04T22:25:09.720872+00:00",
+  "parity": true,
+  "python": "3.13.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+}

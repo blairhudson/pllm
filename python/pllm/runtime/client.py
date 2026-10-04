@@ -2781,6 +2781,14 @@ class RuntimeClient:
                 }
             return state.prepared_inventory.status()
 
+    def _response_input_tokens(self, model: str, input: str | list[Any]) -> int:
+        """Count the complete rendered input, independent of cached-row reuse."""
+        state = self._transformer_state(model)
+        messages = normalize_input(input)
+        rendered = self._render_cached_decoder_prompt(state, messages, add_generation_prompt=True)
+        return max(1, len(state.bundle.tokenizer().encode(
+            rendered, add_bos=bool(state.bundle.tokenizer_descriptor.get("add_bos_token", True)))))
+
     def prepared_rows_for_response(
         self,
         model: str,

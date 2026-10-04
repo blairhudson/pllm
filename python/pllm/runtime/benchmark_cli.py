@@ -796,6 +796,8 @@ def _run_loopback_benchmark(
     docker_network=None,
     wan=None,
     emulate_wan: bool = False,
+    backend: str | None = None,
+    memory_budget_bytes: int | None = None,
 ) -> dict[str, Any]:
     from pllm.deployment import WanConditions
     if wan is not None and type(wan) is not WanConditions:
@@ -803,6 +805,8 @@ def _run_loopback_benchmark(
     if type(emulate_wan) is not bool:
         raise TypeError("emulate_wan must be boolean")
     if emulate_wan:
+        if backend == "native":
+            raise ValueError("native benchmarks require --wan-estimate; enforced WAN requires Docker")
         wan = wan or WanConditions()
         docker = True
         if docker_network is not None and docker_network.bytes_per_second is not None:
@@ -931,6 +935,12 @@ def _run_loopback_benchmark(
         docker_image=docker_image,
         docker_network=docker_network,
         wan=wan if emulate_wan else None,
+        backend=backend,
+        memory_budget_bytes=memory_budget_bytes,
+        memory_input_tokens=(None if experiment is not None else max(
+            256, max(len(context_bytes(value)) for value in (
+                *(prompt_sequence or (prompt,)), *((warmup_prompt,) if warmup_prompt is not None else ())
+            )) + 256)),
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
@@ -972,6 +982,8 @@ def _run_loopback_benchmark(
                 progress,
             )
             runtime = dashboard_app.state.dashboard_runtime
+            if runtime.memory_preflight is not None:
+                docker = runtime.memory_preflight["selected_backend"] == "docker"
             inventory_audit = (runtime._client.privacy_audit if runtime._client is not None else None)
             def resources():
                 topology = runtime._topology
@@ -1099,6 +1111,18 @@ def _run_loopback_benchmark(
             sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
         )
     report["client_body_placement"] = client_body_placement
+    report["memory_preflight"] = dashboard_app.state.dashboard_runtime.memory_preflight
+    guard = dashboard_app.state.dashboard_runtime._memory_guard
+    if guard is not None:
+        report["checks"]["memory_guard_passed"] = guard.error is None
+        report["checks"]["passed"] = report["checks"]["passed"] and guard.error is None
+        report["memory_guard"] = {
+            "minimum_host_available_bytes": guard.minimum_available_bytes,
+            "maximum_host_swap_growth_bytes": guard.maximum_swap_growth_bytes,
+            "tripped": guard.error is not None,
+            "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+        }
+    report["configuration"]["provider_backend"] = "docker" if docker else "native"
     if "preparation" in roles and inventory_audit is not None:
         from .prepared_accounting import material_accounting
         report["prepared_material_accounting"] = material_accounting(inventory_audit.to_dict())
@@ -1157,6 +1181,8 @@ def run_loopback_benchmark(
     docker_network=None,
     wan=None,
     emulate_wan: bool = False,
+    backend: str | None = None,
+    memory_budget_bytes: int | None = None,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
@@ -1177,6 +1203,8 @@ def run_loopback_benchmark(
             docker_network=docker_network,
             wan=wan,
             emulate_wan=emulate_wan,
+            backend=backend,
+            memory_budget_bytes=memory_budget_bytes,
             inventory_policy=inventory_policy,
             bundle_compression=bundle_compression,
             prefill_cache_mib=prefill_cache_mib,

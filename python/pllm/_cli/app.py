@@ -358,6 +358,12 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--temperature", type=float, help="sampling temperature; omitted preserves SDK default 0.8")
     benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
     benchmark_run.add_argument("--docker", action="store_true", help="run local public CPU provider roles in lightweight Linux containers")
+    benchmark_run.add_argument("--backend", choices=("native", "docker", "auto"),
+                               help="provider backend; auto falls back to admitted native roles without changing kernels or WAN requirements")
+    benchmark_run.add_argument("--preflight-only", action="store_true",
+                               help="report whole-topology memory admission without loading tensors or launching roles")
+    benchmark_run.add_argument("--memory-budget-mib", type=int,
+                               help="tighten total host-memory admission budget (MiB); cannot override host headroom")
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
     benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
     wan_mode = benchmark_run.add_mutually_exclusive_group()
@@ -893,6 +899,16 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     emulate_wan = not args.wan_estimate and bool(args.wan or args.wan_profile or args.wan_party
         or args.wan_download_mbps is not None or args.wan_upload_mbps is not None)
     configuration["wan_mode"] = "kernel-enforced" if emulate_wan else "analytic-only"
+    backend = args.backend or ("docker" if args.docker or emulate_wan else "native")
+    if args.docker and args.backend not in {None, "docker"}:
+        raise ResolutionError("BENCHMARK_BACKEND", "choose --docker or --backend, not both")
+    if backend == "native" and emulate_wan:
+        raise ResolutionError("BENCHMARK_BACKEND", "native supports --wan-estimate; enforced WAN requires Docker")
+    if args.memory_budget_mib is not None and args.memory_budget_mib < 1:
+        raise ResolutionError("BENCHMARK_MEMORY", "memory budget must be positive MiB")
+    memory_budget_bytes = None if args.memory_budget_mib is None else args.memory_budget_mib << 20
+    configuration["provider_backend"] = backend
+    configuration["memory_budget_bytes"] = memory_budget_bytes
     if emulate_wan and selection is not None:
         raise ResolutionError("BENCHMARK_WAN_PROFILE", "WAN emulation requires local roles; live network plans support --wan-estimate")
     if selection is not None:
@@ -912,6 +928,50 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             emit_machine("benchmark.run", data, output_format)
         return
 
+    if args.preflight_only:
+        if selection is not None:
+            raise ResolutionError("BENCHMARK_MEMORY", "local memory preflight requires local model roles")
+        from pllm.configuration import Model
+        from pllm.metrics import benchmark_memory
+        inspections = []
+        try:
+            for experiment in experiments or [None]:
+                source = experiment or (Model.tiny() if args.tiny else Model(args.model))
+                inspection = benchmark_memory(
+                    source, backend=backend, max_output_tokens=args.max_output_tokens,
+                    inventory_rows=None if experiment is not None else 64,
+                    cache_bytes=args.prefill_cache_mib << 20,
+                    cache_bound_tokens=args.prefill_cache_bound_tokens,
+                    enforced_wan=emulate_wan or args.docker_network_profile is not None,
+                    memory_budget_bytes=memory_budget_bytes,
+                )
+                if experiment is not None:
+                    inspection["experiment"] = experiment.name
+                elif args.tiny:
+                    inspection["experiment"] = "tiny"
+                inspections.append(inspection)
+        except (ValueError, RuntimeError, OSError) as exc:
+            raise RuntimeFailure("BENCHMARK_MEMORY", str(exc)) from exc
+        data = {"schema": "pllm.benchmark_memory_cohort.v1", "preflight_only": True,
+                "admitted": all(item["admitted"] for item in inspections), "candidates": inspections}
+        if output is not None:
+            try:
+                with output.open("w" if args.force else "x", encoding="utf-8") as destination:
+                    json.dump(data, destination, allow_nan=False, indent=2)
+                    destination.write("\n")
+            except OSError as exc:
+                raise LocalIOError("OUTPUT_WRITE", f"cannot write output: {output}") from exc
+        if output_format == "human":
+            for item in inspections:
+                print(f"{item.get('experiment', configuration['model'])}: "
+                      f"{'admitted ' + item['selected_backend'] if item['admitted'] else 'REJECTED'}")
+                for name, candidate in item["candidates"].items():
+                    print(f"  {name}: {candidate['required_host_bytes'] / (1 << 30):.2f} GiB estimated; "
+                          + ("admitted" if candidate["admitted"] else "; ".join(candidate["reasons"])))
+        else:
+            emit_machine("benchmark.memory", data, output_format)
+        return
+
     from pllm.runtime.benchmark_cli import (
         LoopbackBenchmarkError,
         build_comparison_report,
@@ -922,7 +982,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         from pllm.deployment import LinkConditions
         docker_network = (LinkConditions.from_file(args.docker_network_profile)
                           if args.docker_network_profile else None)
-        if docker_network is not None and not (args.docker or emulate_wan):
+        if docker_network is not None and not (backend in {"docker", "auto"} or emulate_wan):
             raise ValueError("--docker-network-profile requires --docker")
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
@@ -980,6 +1040,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 docker_network=docker_network,
                 wan=wan,
                 emulate_wan=emulate_wan,
+                backend=backend,
+                memory_budget_bytes=memory_budget_bytes,
             )
             if experiment is not None:
                 report["experiment"] = {

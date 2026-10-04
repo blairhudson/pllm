@@ -729,7 +729,7 @@ def test_token_lookup_cache_can_be_disabled(tmp_path: Path):
     assert runtime.token_cache_misses == 4
 
 
-def test_streaming_bfloat16_compiler_uses_memmap_and_cache(tmp_path: Path):
+def test_streaming_bfloat16_compiler_releases_weight_mapping_and_reuses_cache(tmp_path: Path):
     import json
     import torch
     from safetensors.torch import save_file
@@ -785,7 +785,11 @@ def test_streaming_bfloat16_compiler_uses_memmap_and_cache(tmp_path: Path):
     )
     run(engine.load(manifest))
     token_weight = engine.models["streaming-bf16"].stages["token_lookup"].weight
-    assert isinstance(token_weight.values, np.memmap)
+    assert not isinstance(token_weight.values, np.memmap)
+    assert not token_weight.values.flags.writeable
+    stage = engine.models["streaming-bf16"].stages["token_lookup"]
+    assert stage.compiled_cache_entry is not None
+    assert np.shares_memory(token_weight.values, stage.compiled_weight.weight_view())
     assert token_weight.values.shape == (32, 512)
     files = sorted(cache.rglob("*.i8"))
     assert files
@@ -800,7 +804,9 @@ def test_streaming_bfloat16_compiler_uses_memmap_and_cache(tmp_path: Path):
     awaitable = second.load(load_hf_directory(root, model_id="streaming-bf16"))
     run(awaitable)
     assert {path: path.stat().st_mtime_ns for path in files} == mtimes
-    assert isinstance(second.models["streaming-bf16"].stages["token_lookup"].weight.values, np.memmap)
+    restored = second.models["streaming-bf16"].stages["token_lookup"]
+    np.testing.assert_array_equal(restored.weight.values, token_weight.values)
+    assert np.shares_memory(restored.weight.values, restored.compiled_weight.weight_view())
 
 
 def test_safetensor_stream_reuses_one_open_handle(tmp_path: Path, monkeypatch):

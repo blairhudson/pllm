@@ -107,9 +107,9 @@ class _Container:
 class DockerTopology(LocalTopology):
     __slots__ = ("_docker_image", "_docker_image_id", "_docker_network", "_docker_names", "_docker_mount",
                  "_docker_hub", "_docker_blobs", "_measurement_image", "_measurement_helpers", "_link_conditions",
-                 "_wan_conditions", "_party_network")
+                 "_wan_conditions", "_party_network", "_memory_limits")
 
-    def __init__(self, *args, docker_image=None, docker_network=None, wan=None, **kwargs):
+    def __init__(self, *args, docker_image=None, docker_network=None, wan=None, memory_limits=None, **kwargs):
         super().__init__(*args, **kwargs)
         if self._privacy_mode not in {"public", "offset_public", "client_only"} or (
             self._correlation_mode != "bfv" or self._tenseal_path is not None
@@ -120,6 +120,7 @@ class DockerTopology(LocalTopology):
             if kernel is not None and kernel.component != "pllm/cpu":
                 raise TopologyError("Docker benchmark backend requires an explicit CPU-compatible kernel")
         self._docker_image = docker_image
+        self._memory_limits = dict(memory_limits or {})
         self._docker_image_id = None
         self._docker_network = None
         self._docker_names = {}
@@ -238,7 +239,10 @@ class DockerTopology(LocalTopology):
                    "--security-opt=no-new-privileges", "--pids-limit=256",
                    "--cpus", str(self._engine_threads or 1),
                    "--mount", f"type=bind,src={self._docker_mount},dst={self._docker_mount},readonly",
-                    "--entrypoint", "/opt/pllm/.venv/bin/python"]
+                     "--entrypoint", "/opt/pllm/.venv/bin/python"]
+        if role in self._memory_limits:
+            limit = str(self._memory_limits[role])
+            options += ["--memory", limit, "--memory-swap", limit]
         if self._party_network is None:
             options += ["--network", self._docker_network, "--add-host", "host.docker.internal:host-gateway",
                         "--publish", f"127.0.0.1:{port}:{port}"]

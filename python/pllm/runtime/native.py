@@ -79,10 +79,21 @@ class CompiledMatrix:
         self.owner = owner
         self.shape = tuple(w.shape)
         self.weight_bytes = int(w.size)
-        self._matrix = owner._extension.Matrix(w.tobytes(), *w.shape) if owner.native else None
-        self._reference = None if owner.native else w.copy()
-        if self._reference is not None:
-            self._reference.flags.writeable = False
+        # Reuse a complete immutable byte-backed input (for example, an unpacked
+        # bundle) instead of creating a second temporary serialization.
+        base = w
+        while isinstance(base, np.ndarray):
+            base = base.base
+        data = (base if type(base) is bytes and len(base) == w.nbytes
+                and w.ctypes.data == np.frombuffer(base, np.int8).ctypes.data else w.tobytes())
+        self._matrix = owner._extension.Matrix(data, *w.shape) if owner.native else None
+        self._reference = None if owner.native else np.frombuffer(data, np.int8).reshape(w.shape)
+
+    def weight_view(self) -> np.ndarray:
+        """Read-only alias retaining the immutable snapshot even after this wrapper dies."""
+        if self._matrix is not None:
+            return np.frombuffer(self._matrix, dtype=np.int8).reshape(self.shape)
+        return self._reference.view()
 
     def _execute(self, operation: str, *args):
         try:

@@ -143,6 +143,11 @@ impl Matrix {
     pub fn weight_bytes(&self) -> usize {
         self.weights.len()
     }
+    /// Borrow immutable, contiguous signed weights. No matrix API can mutate or
+    /// reallocate this storage after construction.
+    pub fn as_signed_slice(&self) -> &[i8] {
+        &self.weights
+    }
     fn output_size(&self, input_len: usize, batch: usize) -> Result<usize, String> {
         if batch.checked_mul(self.cols) != Some(input_len) {
             return Err("input must have shape [batch,in]".into());

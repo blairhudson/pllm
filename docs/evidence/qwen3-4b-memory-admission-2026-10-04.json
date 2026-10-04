@@ -1,0 +1,81 @@
+{
+  "schema": "pllm.benchmark_memory_cohort.v1",
+  "preflight_only": true,
+  "admitted": false,
+  "candidates": [
+    {
+      "schema": "pllm.benchmark_memory.v1",
+      "admitted": false,
+      "requested_backend": "auto",
+      "selected_backend": null,
+      "host": {
+        "total": 34359738368,
+        "available": 13917536256,
+        "swap_used": 1061879808,
+        "disk_free": 26762063872,
+        "reserve_bytes": 8589934592,
+        "admission_budget_bytes": 5327601664
+      },
+      "estimate": {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": "e6fa4d00a599e5c11a61065375bea541036931ec35cbccaf02e0c08713742af8",
+        "pipeline_digest": "77b98cdde2dc0ddaabf49a6bbb2dcec4398933ffd4588ebcb2eeddb7ae75dcf1",
+        "max_input_tokens": 64,
+        "max_output_tokens": 8,
+        "compiled_input_bound": 64,
+        "inventory_rows": 71,
+        "kernel": "cpu",
+        "allocation_slack_percent": 25,
+        "client_peak_bytes": 8859952680,
+        "provider_peak_bytes": {
+          "inference": 15088962560,
+          "preparation": 13393256960
+        },
+        "native_total_peak_bytes": 37342172200,
+        "components": {
+          "per_engine_i8_and_native_bytes": 8822456320,
+          "largest_loading_temporary_bytes": 1555824640,
+          "raw_client_bundle_bytes": 456845312,
+          "client_mask_bytes": 2031058944,
+          "provider_correction_bytes": 628162560,
+          "verifier_bytes": 0,
+          "client_tensor_work_bytes": 1913178144,
+          "client_cache_bytes": 134217728,
+          "per_provider_metal_bytes": 0,
+          "client_metal_bytes": 0,
+          "checkpoint_bytes": 8044982000,
+          "per_engine_compiled_disk_bytes": 777912320
+        },
+        "limitations": []
+      },
+      "candidates": {
+        "native": {
+          "admitted": false,
+          "reasons": [
+            "estimated host peak 34.78 GiB exceeds safe headroom 4.96 GiB"
+          ],
+          "required_host_bytes": 37342172200,
+          "docker": null,
+          "required_disk_bytes": 4616998912
+        },
+        "docker": {
+          "admitted": false,
+          "reasons": [
+            "provider peaks and helpers exceed existing Docker memory headroom",
+            "estimated host peak 16.00 GiB exceeds safe headroom 4.96 GiB"
+          ],
+          "required_host_bytes": 17181468200,
+          "docker": {
+            "total_bytes": 8321515520,
+            "other_container_bytes": 0,
+            "reserve_bytes": 1073741824,
+            "required_bytes": 29019090432
+          },
+          "required_disk_bytes": 4616998912
+        }
+      },
+      "enforced_wan": false,
+      "experiment": "qwen3-4b-prepared-lean"
+    }
+  ]
+}

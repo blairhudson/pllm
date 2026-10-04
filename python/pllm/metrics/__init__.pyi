@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 import numpy as np
-from pllm.configuration import ComponentDescriptor, ComponentRef, Pipeline
+from pllm.configuration import ComponentDescriptor, ComponentRef, Experiment, Model, Pipeline
 from pllm.modeling import ModelPlan
 from pllm.deployment.wan import WanConditions
 
@@ -9,6 +9,11 @@ class Metric(ComponentRef): ...
 
 def communication_per_token(report: Mapping[str, Any]) -> dict[str, Any]: ...
 def wan_readiness(report: Mapping[str, Any], conditions: WanConditions | None = None) -> dict[str, Any]: ...
+def benchmark_memory(model: Model | Pipeline | Experiment | str, *, max_input_tokens: int | None = None,
+                     max_output_tokens: int | None = None, inventory_rows: int | None = None,
+                     cache_bytes: int = 0, cache_bound_tokens: int | None = None,
+                     backend: str = "native", enforced_wan: bool = False,
+                     memory_budget_bytes: int | None = None) -> dict[str, Any]: ...
 
 class ProjectedResharingProbe:
     def run(self, weights: Any = None) -> dict[str, Any]: ...

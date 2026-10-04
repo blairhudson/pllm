@@ -627,11 +627,11 @@ class _RunningProcess:
         return None
 
 
-@pytest.mark.he
 @pytest.mark.integration
-def test_tiny_guarded_benchmark_runs_over_one_role_profile() -> None:
+def test_guarded_benchmark_rejects_unpriced_crypto_memory() -> None:
     import pllm
     from pllm.profiles import ProprietaryGuarded
+    from pllm.runtime.benchmark_cli import LoopbackBenchmarkError
     from pllm.sources import TinyModel
 
     experiment = pllm.Experiment(
@@ -640,21 +640,12 @@ def test_tiny_guarded_benchmark_runs_over_one_role_profile() -> None:
         deployment=pllm.Deployment.local(root="local://guarded-benchmark"),
         budget=pllm.ExecutionBudget(requests=1, max_input_tokens=32, max_new_tokens=1),
     )
-    report = run_loopback_benchmark(
-        model="unused",
-        model_id=None,
-        tiny=False,
-        prompt="private",
-        max_output_tokens=1,
-        warmups=0,
-        repetitions=1,
-        timeout_seconds=120,
-        experiment=experiment,
-    )
-    assert report["checks"]["passed"] is True
-    assert report["configuration"]["tiny"] is True
-    assert report["configuration"]["roles"] == ["client", "inference"]
-    assert set(report["runs"][0]["processes"]) == {"client", "inference"}
+    with pytest.raises(LoopbackBenchmarkError, match="memory estimation requires"):
+        run_loopback_benchmark(
+            model="unused", model_id=None, tiny=False, prompt="private",
+            max_output_tokens=1, warmups=0, repetitions=1, timeout_seconds=30,
+            experiment=experiment,
+        )
 
 
 def test_benchmark_polling_reads_nested_dashboard_run_state(monkeypatch) -> None:

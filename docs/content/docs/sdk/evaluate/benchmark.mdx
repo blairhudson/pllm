@@ -23,6 +23,63 @@ roles. It does not create a canonical benchmark evidence record. Use
 interactive development view. See [research evidence](/research/evidence/) for
 the records and scope required to support a claim.
 
+### Memory admission and native Metal
+
+Local role benchmarks check host headroom **before loading tensor values or
+starting providers**. The allocation estimate includes both roles, client bundle
+serialization/import, NumPy and Rust weight copies, quantization and validation
+temporaries, inventory/corrections, decoder state, caches, and Metal snapshots.
+It uses a 25% allocation margin and leaves at least 25% of host RAM (minimum
+2 GiB) for the operating system and other applications. Swap adds no capacity.
+These estimates are conservative admission checks, not measured peak memory or
+an OOM guarantee. Crypto/runtime paths without an allocation model reject.
+
+Inspect without starting roles:
+
+```bash
+uv run --no-sync python -m pllm benchmark run --tiny --backend native --preflight-only
+```
+
+`--backend native` runs the existing local child-process topology and supports
+an explicitly selected `AppleMetal` component. `--backend auto` uses an admitted
+Docker CPU backend when possible, otherwise an admitted native backend; Metal
+always selects native processes. It preserves the Pipeline, numeric choices and
+privacy role graph. Docker's memory setting is never increased automatically.
+Its full Desktop VM budget is charged against host headroom, and each provider
+gets a cgroup hard limit with additional swap disabled.
+
+`--memory-budget-mib` can tighten admission but cannot override host limits.
+During execution a 250 ms host-pressure monitor stops owned provider work if
+available RAM falls below the runtime reserve or swap grows more than 256 MiB.
+Request input/output bounds remain enforced. Reports retain admission reasons,
+the selected backend and pressure samples separately from process measurements.
+
+Enforced `--wan` and Docker link shaping require Docker. An unsafe Docker WAN
+run fails; choosing native with `--wan-estimate` is explicitly analytical.
+Metal uses unified RAM in addition to CPU snapshots, with the existing 2 GiB
+per-role GPU-stage bound. Removing Docker does not establish that a model fits.
+
+The checked `examples/benchmarks/memory_safety.py` CPU/Metal targets complete
+native requests with matching outputs and zero observed swap growth. They use
+generated tiny weights and establish functionality only. CPU/GPU cohorts remain
+unranked because kernel resource scopes differ.
+
+## Python SDK example: memory admission
+
+```python
+from pllm import Model
+from pllm.metrics import benchmark_memory
+
+report = benchmark_memory(Model.tiny(), backend="native", max_input_tokens=32,
+                          max_output_tokens=2, memory_budget_bytes=1 << 20)
+assert report["schema"] == "pllm.benchmark_memory.v1"
+assert report["admitted"] is False
+assert report["estimate"]["components"]["per_engine_i8_and_native_bytes"] > 0
+```
+
+API: [`pllm.metrics.benchmark_memory`](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+The explicit 1 MiB ceiling rejects without loading model tensors.
+
 Repeat `--experiment PATH` to run and compare immutable Pipeline selections from
 multiple Experiment configurations. The runner records each configuration and
 Pipeline digest, suppresses rankings for unmatched workloads, and can export the

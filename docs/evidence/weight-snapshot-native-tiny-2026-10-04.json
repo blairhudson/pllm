@@ -1,0 +1,1607 @@
+{
+  "candidates": [
+    {
+      "configuration_digest": "c0c97cd576553d25eec2518d69a1d0195f000cde5ac899fbf66a7be359935755",
+      "name": "tiny-memory-cpu",
+      "pipeline": {
+        "components": {
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {}
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {}
+          }
+        },
+        "model": {
+          "kind": "tiny",
+          "model_id": "pllm-memory-tiny",
+          "source": "qwen2"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 9216,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 73776,
+              "covered_mb_per_output_token": 0.036888,
+              "decode_online_body_bytes": 3681,
+              "decode_online_mb_per_output_token": 0.003681,
+              "decode_output_tokens": 1,
+              "generated_output_tokens": 2,
+              "online_body_bytes": 32866,
+              "online_mb_per_output_token": 0.016433
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": 0.036888,
+            "covered_mb_per_output_token": 0.036888,
+            "decode_online_mb_per_output_token": 0.003681,
+            "generated_output_tokens": 2,
+            "online_mb_per_output_token": 0.016433,
+            "setup_inclusive_mb_per_output_token": 0.036888
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "request-sized",
+          "max_output_tokens": 2,
+          "model_id": "pllm-memory-tiny",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "inference",
+            "preparation"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "60aa151d984e2c51b4b3d23d4e89dff259591a44313fe1e6378ccfece936b54e",
+          "tiny": true,
+          "warmup_prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "c0c97cd576553d25eec2518d69a1d0195f000cde5ac899fbf66a7be359935755",
+          "name": "tiny-memory-cpu",
+          "pipeline_digest": "6da63bb2f915f9231fb5e61ed16cab3f1dcc10632b1f7a8cb101fdafe6894179"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 14304116736,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 2214641664,
+              "required_host_bytes": 1553448560
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 2214641664,
+              "required_host_bytes": 1553448560
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "client_peak_bytes": 588126480,
+            "compiled_input_bound": 32,
+            "components": {
+              "checkpoint_bytes": 0,
+              "client_cache_bytes": 0,
+              "client_mask_bytes": 219648,
+              "client_metal_bytes": 0,
+              "client_tensor_work_bytes": 372032,
+              "float_quantization_work_bytes": 231168,
+              "largest_loading_temporary_bytes": 231168,
+              "legacy_largest_loading_temporary_bytes": 231168,
+              "legacy_per_engine_i8_and_native_bytes": 51456,
+              "per_engine_compiled_disk_bytes": 0,
+              "per_engine_i8_and_native_bytes": 25728,
+              "per_provider_metal_bytes": 0,
+              "provider_correction_bytes": 67584,
+              "raw_client_bundle_bytes": 33579008,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {
+              "inference": 587525360,
+              "preparation": 377861040
+            },
+            "inventory_rows": 33,
+            "kernel": "cpu",
+            "limitations": [],
+            "max_input_tokens": 32,
+            "max_output_tokens": 2,
+            "model_plan_digest": "877532e6dad11c433dba3f60bb77563932498d9c6628ed443dbca3a89cdbb4e2",
+            "native_total_peak_bytes": 1553448560,
+            "pipeline_digest": "6da63bb2f915f9231fb5e61ed16cab3f1dcc10632b1f7a8cb101fdafe6894179",
+            "provider_peak_bytes": {
+              "inference": 587493200,
+              "preparation": 377828880
+            },
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 5714182144,
+            "available": 14304116736,
+            "disk_free": 25649856512,
+            "reserve_bytes": 8589934592,
+            "swap_used": 2080768000,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "prepared_material_accounting": {
+          "conserved": true,
+          "counts": {
+            "burned": 0,
+            "claimed": 92,
+            "discarded": 0,
+            "issued": 92,
+            "reserved": 92
+          },
+          "remaining_stage_rows": 0,
+          "schema": "pllm.prepared_material_accounting.v1",
+          "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 1.98166456,
+          "aggregate_startup_cpu_seconds": 1.72502556,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 0.412077,
+            "inference": 0.825564656,
+            "preparation": 0.744022904
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 0.246173,
+            "inference": 0.766930632,
+            "preparation": 0.711921928
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 22,
+            "durations": {
+              "full_seconds": 0.818535208,
+              "generation_seconds": 0.011538417,
+              "online_seconds": 0.123095083,
+              "preparation_seconds": 0.045726667,
+              "tokens_per_second": 86.6670012012913,
+              "transition_seconds": 0.608324833,
+              "ttft_seconds": 0.109823458
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "45d3802841073555f515b78291b24a513eae893f2729436ffb93951b0b3b80bf",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 23,
+              "generated": 23,
+              "required": 23,
+              "reused": 0
+            },
+            "max_output_tokens": 2,
+            "model_fingerprint": "9f17d7ed2ca650281fa09ecd818fac995de21b17603a4d5e712adb0eb0be3c76",
+            "model_id": "pllm-memory-tiny",
+            "network": {
+              "decode_online_body_bytes": 3681,
+              "decode_output_tokens": 1,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 1,
+              "bundle_network_bytes": 20844,
+              "correction_push_bytes": 18932,
+              "correction_push_ns": 7046041,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 3681,
+              "generation_decode_output_tokens": 1,
+              "generation_output_tokens": 2,
+              "generation_prefill_online_body_bytes": 29185,
+              "inference_download_bytes": 18438,
+              "inference_server_ns": 1042709,
+              "inference_stage_calls": 8,
+              "inference_upload_bytes": 14428,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 19620,
+              "masked_online_upload_bytes": 15723,
+              "online_steps": 92,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 4,
+              "preparation_download_bytes": 347,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 92,
+              "preparation_server_ns": 1171874,
+              "preparation_upload_bytes": 412,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 92,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 92,
+              "prepared_stage_rows_reserved": 92,
+              "public_context_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 44,
+              "session_authorization_upload_bytes": 331,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 0.16116200000000003,
+                "rss_peak_bytes": null
+              },
+              "inference": {
+                "cpu_seconds": 0.057974576,
+                "rss_peak_bytes": 111165440
+              },
+              "preparation": {
+                "cpu_seconds": 0.032229800000000086,
+                "rss_peak_bytes": 109871104
+              }
+            },
+            "run_id": "bench-c170ebab89f4a733488ae4ade118b95e",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791153315512402000,
+              "first_token_at_ns": 1791153315499132000,
+              "last_token_at_ns": 1791153315510671000,
+              "online_started_at_ns": 1791153315389316000,
+              "preparation_finished_at_ns": 1791153314781024000,
+              "preparation_started_at_ns": 1791153314735298000,
+              "started_at_ns": 1791153314693913000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 22,
+              "output_tokens": 2,
+              "total_tokens": 24
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": 73776,
+          "cold_first_response_mb_per_output_token": 0.036888,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.036888,
+          "decode_online_mb_per_output_token": 0.003681,
+          "generated_output_tokens": 2,
+          "median_covered_all_link_serialized_body_bytes": 73776,
+          "median_full_seconds": 0.818535208,
+          "median_online_all_link_serialized_body_bytes": 32866,
+          "median_online_seconds": 0.123095083,
+          "median_tokens_per_second": 86.6670012012913,
+          "median_ttft_seconds": 0.109823458,
+          "online_mb_per_output_token": 0.016433,
+          "setup_inclusive_mb_per_output_token": 0.036888,
+          "total_accounted_benchmark_body_bytes": 73776,
+          "total_output_tokens": 2,
+          "total_run_covered_all_link_serialized_body_bytes": 73776,
+          "total_run_full_seconds": 0.818535208,
+          "total_run_online_all_link_serialized_body_bytes": 32866
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 0.2513663760000001,
+              "all_link_serialized_body_bytes": 73776,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "preparation",
+                  "phase": "offline",
+                  "serialized_body_bytes": 743,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "offline",
+                  "serialized_body_bytes": 391,
+                  "source": "preparation"
+                },
+                {
+                  "destination": "inference",
+                  "phase": "offline",
+                  "serialized_body_bytes": 18932,
+                  "source": "preparation"
+                },
+                {
+                  "destination": "client",
+                  "phase": "cold",
+                  "serialized_body_bytes": 20844,
+                  "source": "inference"
+                },
+                {
+                  "destination": "inference",
+                  "phase": "online",
+                  "serialized_body_bytes": 14428,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 18438,
+                  "source": "inference"
+                }
+              ],
+              "client_serialized_body_bytes": 54844,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 32866,
+              "online_client_serialized_body_bytes": 32866,
+              "run_window_cpu_seconds_by_role": {
+                "client": 0.16116200000000003,
+                "inference": 0.057974576,
+                "preparation": 0.032229800000000086
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "HTTP/TLS/WebSocket framing and control traffic",
+                "inference-to-preparation correction acknowledgements",
+                "duplicate or failed transport attempts not represented by client audit counters",
+                "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+                "GPU work, uninstrumented client work, and cold checkpoint distribution"
+              ]
+            }
+          ],
+          "stages": {
+            "runs": [
+              {
+                "body_bytes_by_stage_and_edge": {
+                  "layers.0.mlp.down_proj": {
+                    "client->inference": 5260,
+                    "client->preparation": 103,
+                    "inference->client": 2398,
+                    "preparation->client": 84,
+                    "preparation->inference": 2522
+                  },
+                  "layers.0.mlp.gate_up_proj": {
+                    "client->inference": 3056,
+                    "client->preparation": 103,
+                    "inference->client": 9028,
+                    "preparation->client": 87,
+                    "preparation->inference": 9150
+                  },
+                  "layers.0.self_attn.o_proj": {
+                    "client->inference": 3055,
+                    "client->preparation": 103,
+                    "inference->client": 2401,
+                    "preparation->client": 87,
+                    "preparation->inference": 2525
+                  },
+                  "layers.0.self_attn.qkv_proj": {
+                    "client->inference": 3057,
+                    "client->preparation": 103,
+                    "inference->client": 4611,
+                    "preparation->client": 89,
+                    "preparation->inference": 4735
+                  }
+                },
+                "expected_stage_body_bytes_by_edge": {
+                  "client->inference": 14428,
+                  "client->preparation": 412,
+                  "inference->client": 18438,
+                  "preparation->client": 347,
+                  "preparation->inference": 18932
+                },
+                "measured_body_bytes_by_edge": {
+                  "client->inference": 14428,
+                  "client->preparation": 412,
+                  "inference->client": 18438,
+                  "preparation->client": 347,
+                  "preparation->inference": 18932
+                },
+                "reconciled_with_protocol_bodies": true,
+                "schema": "pllm.prepared_stage_body_attribution.v1",
+                "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+                "unmeasured": [
+                  "session authorization, bundle delivery and other bodies with no semantic stage",
+                  "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+                ]
+              }
+            ],
+            "startup": {
+              "body_bytes_by_stage_and_edge": {},
+              "expected_stage_body_bytes_by_edge": {
+                "client->inference": 0,
+                "client->preparation": 0,
+                "inference->client": 0,
+                "preparation->client": 0,
+                "preparation->inference": 0
+              },
+              "measured_body_bytes_by_edge": {
+                "client->inference": 0,
+                "client->preparation": 0,
+                "inference->client": 0,
+                "preparation->client": 0,
+                "preparation->inference": 0
+              },
+              "reconciled_with_protocol_bodies": true,
+              "schema": "pllm.prepared_stage_body_attribution.v1",
+              "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+              "unmeasured": [
+                "session authorization, bundle delivery and other bodies with no semantic stage",
+                "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+              ]
+            },
+            "warmups": []
+          },
+          "startup": {
+            "aggregate_run_window_cpu_seconds": null,
+            "all_link_serialized_body_bytes": 0,
+            "body_bytes_by_edge": [
+              {
+                "destination": "preparation",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "preparation"
+              },
+              {
+                "destination": "inference",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "preparation"
+              },
+              {
+                "destination": "client",
+                "phase": "cold",
+                "serialized_body_bytes": 0,
+                "source": "inference"
+              },
+              {
+                "destination": "inference",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "inference"
+              }
+            ],
+            "client_serialized_body_bytes": 0,
+            "full_response_compute_cap_checked": false,
+            "online_all_link_serialized_body_bytes": 0,
+            "online_client_serialized_body_bytes": 0,
+            "run_window_cpu_seconds_by_role": null,
+            "schema": "pllm.topology_body_accounting.v1",
+            "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+            "total_wire_bytes": null,
+            "tracked_body_counter_set_present": true,
+            "unmeasured": [
+              "HTTP/TLS/WebSocket framing and control traffic",
+              "inference-to-preparation correction acknowledgements",
+              "duplicate or failed transport attempts not represented by client audit counters",
+              "model import and checkpoint distribution before initial inventory",
+              "GPU work, uninstrumented client work, and cold checkpoint distribution"
+            ]
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "inference"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0078564,
+                "parties": {
+                  "client": {
+                    "download_bytes": 39673,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00317384,
+                    "upload_bytes": 15171,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0030342
+                  },
+                  "inference": {
+                    "download_bytes": 33360,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0026688,
+                    "upload_bytes": 39282,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0078564
+                  },
+                  "preparation": {
+                    "download_bytes": 743,
+                    "download_mbps": 100.0,
+                    "download_seconds": 5.944e-05,
+                    "upload_bytes": 19323,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0038646
+                  }
+                },
+                "wan_body_bytes": 73776
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 2,
+              "online": {
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "inference"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0036876,
+                "parties": {
+                  "client": {
+                    "download_bytes": 18438,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00147504,
+                    "upload_bytes": 14428,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0028856
+                  },
+                  "inference": {
+                    "download_bytes": 14428,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00115424,
+                    "upload_bytes": 18438,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0036876
+                  }
+                },
+                "wan_body_bytes": 32866
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0036876,
+              "parties": {
+                "client": {
+                  "download_bytes": 18438,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00147504,
+                  "upload_bytes": 14428,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0028856
+                },
+                "inference": {
+                  "download_bytes": 14428,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00115424,
+                  "upload_bytes": 18438,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0036876
+                }
+              },
+              "wan_body_bytes": 32866
+            },
+            "online_generated_tokens_per_second_ceiling": 542.3581733376722,
+            "setup_inclusive": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0078564,
+              "parties": {
+                "client": {
+                  "download_bytes": 39673,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00317384,
+                  "upload_bytes": 15171,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0030342
+                },
+                "inference": {
+                  "download_bytes": 33360,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0026688,
+                  "upload_bytes": 39282,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0078564
+                },
+                "preparation": {
+                  "download_bytes": 743,
+                  "download_mbps": 100.0,
+                  "download_seconds": 5.944e-05,
+                  "upload_bytes": 19323,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0038646
+                }
+              },
+              "wan_body_bytes": 73776
+            },
+            "setup_inclusive_generated_tokens_per_second_ceiling": 254.56952293671404
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "90c40030895b5b88bc70df88e6c0941fbab5544b108f6b463370402d79f13c6e",
+      "name": "tiny-memory-metal",
+      "pipeline": {
+        "components": {
+          "inference": {
+            "component": "pllm/inference",
+            "params": {}
+          },
+          "inventory": {
+            "component": "pllm/prepared-inventory-policy/v1",
+            "params": {
+              "policy": "request-sized",
+              "refill": "on-demand",
+              "rows": 1
+            }
+          },
+          "kernels": {
+            "component": "pllm/apple-metal-int8/v1",
+            "params": {
+              "min_rows": 2
+            }
+          },
+          "linear": {
+            "component": "pllm/masked-linear",
+            "params": {}
+          },
+          "preparation": {
+            "component": "pllm/model-aware-corrections",
+            "params": {}
+          }
+        },
+        "model": {
+          "kind": "tiny",
+          "model_id": "pllm-memory-tiny",
+          "source": "qwen2"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true
+        },
+        "client_body_placement": {
+          "client_body_i8_weight_bytes": 0,
+          "client_body_scale_bytes": 0,
+          "declared_body_linear_macs_per_row_client": 0,
+          "declared_body_linear_macs_per_row_remote": 9216,
+          "local_stage_count": 0,
+          "metal_body_i8_snapshot_bytes": 0,
+          "native_body_i8_snapshot_bytes": 0,
+          "peak_client_memory_bytes": null,
+          "remote_stage_count": 4,
+          "sample_boundary": "after-final-measured-response",
+          "schema": "pllm.client_body_placement.v1"
+        },
+        "communication_per_token": {
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "covered_body_bytes": 73802,
+              "covered_mb_per_output_token": 0.036901,
+              "decode_online_body_bytes": 3681,
+              "decode_online_mb_per_output_token": 0.003681,
+              "decode_output_tokens": 1,
+              "generated_output_tokens": 2,
+              "online_body_bytes": 32866,
+              "online_mb_per_output_token": 0.016433
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": 0.036901,
+            "covered_mb_per_output_token": 0.036901,
+            "decode_online_mb_per_output_token": 0.003681,
+            "generated_output_tokens": 2,
+            "online_mb_per_output_token": 0.016433,
+            "setup_inclusive_mb_per_output_token": 0.036901
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "inventory_policy": "request-sized",
+          "max_output_tokens": 2,
+          "model_id": "pllm-memory-tiny",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "inference",
+            "preparation"
+          ],
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "60aa151d984e2c51b4b3d23d4e89dff259591a44313fe1e6378ccfece936b54e",
+          "tiny": true,
+          "warmup_prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "90c40030895b5b88bc70df88e6c0941fbab5544b108f6b463370402d79f13c6e",
+          "name": "tiny-memory-metal",
+          "pipeline_digest": "3bb7700e923943c143ac1ba93fd3bd181f45420e2bcac4fe736ea3378eae695a"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion"
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 14288781312,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "reasons": [
+                "Metal requires native provider processes",
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 2214641664,
+              "required_host_bytes": 1553471600
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "reasons": [],
+              "required_disk_bytes": 2214641664,
+              "required_host_bytes": 1553471600
+            }
+          },
+          "enforced_wan": false,
+          "estimate": {
+            "allocation_slack_percent": 25,
+            "client_peak_bytes": 588126480,
+            "compiled_input_bound": 32,
+            "components": {
+              "checkpoint_bytes": 0,
+              "client_cache_bytes": 0,
+              "client_mask_bytes": 219648,
+              "client_metal_bytes": 0,
+              "client_tensor_work_bytes": 372032,
+              "float_quantization_work_bytes": 231168,
+              "largest_loading_temporary_bytes": 231168,
+              "legacy_largest_loading_temporary_bytes": 231168,
+              "legacy_per_engine_i8_and_native_bytes": 51456,
+              "per_engine_compiled_disk_bytes": 0,
+              "per_engine_i8_and_native_bytes": 25728,
+              "per_provider_metal_bytes": 9216,
+              "provider_correction_bytes": 67584,
+              "raw_client_bundle_bytes": 33579008,
+              "verifier_bytes": 0
+            },
+            "docker_provider_peak_bytes": {
+              "inference": 587536880,
+              "preparation": 377872560
+            },
+            "inventory_rows": 33,
+            "kernel": "metal",
+            "limitations": [],
+            "max_input_tokens": 32,
+            "max_output_tokens": 2,
+            "model_plan_digest": "877532e6dad11c433dba3f60bb77563932498d9c6628ed443dbca3a89cdbb4e2",
+            "native_total_peak_bytes": 1553471600,
+            "pipeline_digest": "3bb7700e923943c143ac1ba93fd3bd181f45420e2bcac4fe736ea3378eae695a",
+            "provider_peak_bytes": {
+              "inference": 587504720,
+              "preparation": 377840400
+            },
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds"
+          },
+          "host": {
+            "admission_budget_bytes": 5820907520,
+            "available": 14410842112,
+            "disk_free": 25649831936,
+            "reserve_bytes": 8589934592,
+            "swap_used": 2080768000,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "prepared_material_accounting": {
+          "conserved": true,
+          "counts": {
+            "burned": 0,
+            "claimed": 92,
+            "discarded": 0,
+            "issued": 92,
+            "reserved": 92
+          },
+          "remaining_stage_rows": 0,
+          "schema": "pllm.prepared_material_accounting.v1",
+          "scope": "sealed stage rows after client close; claims burn on use, not successful output"
+        },
+        "privacy_admission": null,
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 1.95530392,
+          "aggregate_startup_cpu_seconds": 1.719696328,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 0.31818,
+            "inference": 0.845728576,
+            "preparation": 0.791395344
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 0.193907,
+            "inference": 0.776422968,
+            "preparation": 0.74936636
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 22,
+            "durations": {
+              "full_seconds": 0.786841167,
+              "generation_seconds": 0.007945791,
+              "online_seconds": 0.106513542,
+              "preparation_seconds": 0.05084325,
+              "tokens_per_second": 125.85279426554258,
+              "transition_seconds": 0.607987291,
+              "ttft_seconds": 0.096838209
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "45d3802841073555f515b78291b24a513eae893f2729436ffb93951b0b3b80bf",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 23,
+              "generated": 23,
+              "required": 23,
+              "reused": 0
+            },
+            "max_output_tokens": 2,
+            "model_fingerprint": "9f17d7ed2ca650281fa09ecd818fac995de21b17603a4d5e712adb0eb0be3c76",
+            "model_id": "pllm-memory-tiny",
+            "network": {
+              "decode_online_body_bytes": 3681,
+              "decode_output_tokens": 1,
+              "decode_scope": "after-first-output-through-completion"
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 1,
+              "bundle_network_bytes": 20870,
+              "correction_push_bytes": 18932,
+              "correction_push_ns": 6864792,
+              "correlation_count": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_online_body_bytes": 3681,
+              "generation_decode_output_tokens": 1,
+              "generation_output_tokens": 2,
+              "generation_prefill_online_body_bytes": 29185,
+              "inference_download_bytes": 18438,
+              "inference_server_ns": 14333832,
+              "inference_stage_calls": 8,
+              "inference_upload_bytes": 14428,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 19620,
+              "masked_online_upload_bytes": 15723,
+              "online_steps": 92,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 4,
+              "preparation_download_bytes": 347,
+              "preparation_failures": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 92,
+              "preparation_server_ns": 12987626,
+              "preparation_upload_bytes": 412,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 92,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 92,
+              "prepared_stage_rows_reserved": 92,
+              "public_context_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 0,
+              "role_link.worker_a.online_upload_bytes": 0,
+              "role_link.worker_a.setup_download_bytes": 0,
+              "role_link.worker_a.setup_upload_bytes": 0,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 0,
+              "role_link.worker_b.online_upload_bytes": 0,
+              "role_link.worker_b.setup_download_bytes": 0,
+              "role_link.worker_b.setup_upload_bytes": 0,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 44,
+              "session_authorization_upload_bytes": 331,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 0.12014599999999986,
+                "rss_peak_bytes": null
+              },
+              "inference": {
+                "cpu_seconds": 0.06824442399999997,
+                "rss_peak_bytes": 124321792
+              },
+              "preparation": {
+                "cpu_seconds": 0.04173548799999993,
+                "rss_peak_bytes": 123764736
+              }
+            },
+            "run_id": "bench-ed9cccd0b933dd8e68f7fef1179af12f",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1791153319838828000,
+              "first_token_at_ns": 1791153319829157000,
+              "last_token_at_ns": 1791153319837103000,
+              "online_started_at_ns": 1791153319732324000,
+              "preparation_finished_at_ns": 1791153319124370000,
+              "preparation_started_at_ns": 1791153319073527000,
+              "started_at_ns": 1791153319052033000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 22,
+              "output_tokens": 2,
+              "total_tokens": 24
+            },
+            "warm": false
+          }
+        ],
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": 73802,
+          "cold_first_response_mb_per_output_token": 0.036901,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 0.036901,
+          "decode_online_mb_per_output_token": 0.003681,
+          "generated_output_tokens": 2,
+          "median_covered_all_link_serialized_body_bytes": 73802,
+          "median_full_seconds": 0.786841167,
+          "median_online_all_link_serialized_body_bytes": 32866,
+          "median_online_seconds": 0.106513542,
+          "median_tokens_per_second": 125.85279426554258,
+          "median_ttft_seconds": 0.096838209,
+          "online_mb_per_output_token": 0.016433,
+          "setup_inclusive_mb_per_output_token": 0.036901,
+          "total_accounted_benchmark_body_bytes": 73802,
+          "total_output_tokens": 2,
+          "total_run_covered_all_link_serialized_body_bytes": 73802,
+          "total_run_full_seconds": 0.786841167,
+          "total_run_online_all_link_serialized_body_bytes": 32866
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 0.23012591199999977,
+              "all_link_serialized_body_bytes": 73802,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "preparation",
+                  "phase": "offline",
+                  "serialized_body_bytes": 743,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "offline",
+                  "serialized_body_bytes": 391,
+                  "source": "preparation"
+                },
+                {
+                  "destination": "inference",
+                  "phase": "offline",
+                  "serialized_body_bytes": 18932,
+                  "source": "preparation"
+                },
+                {
+                  "destination": "client",
+                  "phase": "cold",
+                  "serialized_body_bytes": 20870,
+                  "source": "inference"
+                },
+                {
+                  "destination": "inference",
+                  "phase": "online",
+                  "serialized_body_bytes": 14428,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 18438,
+                  "source": "inference"
+                }
+              ],
+              "client_serialized_body_bytes": 54870,
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 32866,
+              "online_client_serialized_body_bytes": 32866,
+              "run_window_cpu_seconds_by_role": {
+                "client": 0.12014599999999986,
+                "inference": 0.06824442399999997,
+                "preparation": 0.04173548799999993
+              },
+              "schema": "pllm.topology_body_accounting.v1",
+              "scope": "recorded prepared-protocol serialized bodies and run-window CPU samples only",
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true,
+              "unmeasured": [
+                "HTTP/TLS/WebSocket framing and control traffic",
+                "inference-to-preparation correction acknowledgements",
+                "duplicate or failed transport attempts not represented by client audit counters",
+                "process/model startup, client bundle transfer, and offline inventory prepared before the run window",
+                "GPU work, uninstrumented client work, and cold checkpoint distribution"
+              ]
+            }
+          ],
+          "stages": {
+            "runs": [
+              {
+                "body_bytes_by_stage_and_edge": {
+                  "layers.0.mlp.down_proj": {
+                    "client->inference": 5260,
+                    "client->preparation": 103,
+                    "inference->client": 2398,
+                    "preparation->client": 84,
+                    "preparation->inference": 2522
+                  },
+                  "layers.0.mlp.gate_up_proj": {
+                    "client->inference": 3056,
+                    "client->preparation": 103,
+                    "inference->client": 9028,
+                    "preparation->client": 87,
+                    "preparation->inference": 9150
+                  },
+                  "layers.0.self_attn.o_proj": {
+                    "client->inference": 3055,
+                    "client->preparation": 103,
+                    "inference->client": 2401,
+                    "preparation->client": 87,
+                    "preparation->inference": 2525
+                  },
+                  "layers.0.self_attn.qkv_proj": {
+                    "client->inference": 3057,
+                    "client->preparation": 103,
+                    "inference->client": 4611,
+                    "preparation->client": 89,
+                    "preparation->inference": 4735
+                  }
+                },
+                "expected_stage_body_bytes_by_edge": {
+                  "client->inference": 14428,
+                  "client->preparation": 412,
+                  "inference->client": 18438,
+                  "preparation->client": 347,
+                  "preparation->inference": 18932
+                },
+                "measured_body_bytes_by_edge": {
+                  "client->inference": 14428,
+                  "client->preparation": 412,
+                  "inference->client": 18438,
+                  "preparation->client": 347,
+                  "preparation->inference": 18932
+                },
+                "reconciled_with_protocol_bodies": true,
+                "schema": "pllm.prepared_stage_body_attribution.v1",
+                "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+                "unmeasured": [
+                  "session authorization, bundle delivery and other bodies with no semantic stage",
+                  "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+                ]
+              }
+            ],
+            "startup": {
+              "body_bytes_by_stage_and_edge": {},
+              "expected_stage_body_bytes_by_edge": {
+                "client->inference": 0,
+                "client->preparation": 0,
+                "inference->client": 0,
+                "preparation->client": 0,
+                "preparation->inference": 0
+              },
+              "measured_body_bytes_by_edge": {
+                "client->inference": 0,
+                "client->preparation": 0,
+                "inference->client": 0,
+                "preparation->client": 0,
+                "preparation->inference": 0
+              },
+              "reconciled_with_protocol_bodies": true,
+              "schema": "pllm.prepared_stage_body_attribution.v1",
+              "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+              "unmeasured": [
+                "session authorization, bundle delivery and other bodies with no semantic stage",
+                "HTTP/TLS/WebSocket framing, full wire, and model distribution"
+              ]
+            },
+            "warmups": []
+          },
+          "startup": {
+            "aggregate_run_window_cpu_seconds": null,
+            "all_link_serialized_body_bytes": 0,
+            "body_bytes_by_edge": [
+              {
+                "destination": "preparation",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "preparation"
+              },
+              {
+                "destination": "inference",
+                "phase": "offline",
+                "serialized_body_bytes": 0,
+                "source": "preparation"
+              },
+              {
+                "destination": "client",
+                "phase": "cold",
+                "serialized_body_bytes": 0,
+                "source": "inference"
+              },
+              {
+                "destination": "inference",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "inference"
+              }
+            ],
+            "client_serialized_body_bytes": 0,
+            "full_response_compute_cap_checked": false,
+            "online_all_link_serialized_body_bytes": 0,
+            "online_client_serialized_body_bytes": 0,
+            "run_window_cpu_seconds_by_role": null,
+            "schema": "pllm.topology_body_accounting.v1",
+            "scope": "initial inventory and client-bundle serialized bodies; startup CPU unmeasured",
+            "total_wire_bytes": null,
+            "tracked_body_counter_set_present": true,
+            "unmeasured": [
+              "HTTP/TLS/WebSocket framing and control traffic",
+              "inference-to-preparation correction acknowledgements",
+              "duplicate or failed transport attempts not represented by client audit counters",
+              "model import and checkpoint distribution before initial inventory",
+              "GPU work, uninstrumented client work, and cold checkpoint distribution"
+            ]
+          },
+          "warmups": []
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": null,
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "inference"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0078616,
+                "parties": {
+                  "client": {
+                    "download_bytes": 39699,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00317592,
+                    "upload_bytes": 15171,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0030342
+                  },
+                  "inference": {
+                    "download_bytes": 33360,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0026688,
+                    "upload_bytes": 39308,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0078616
+                  },
+                  "preparation": {
+                    "download_bytes": 743,
+                    "download_mbps": 100.0,
+                    "download_seconds": 5.944e-05,
+                    "upload_bytes": 19323,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0038646
+                  }
+                },
+                "wan_body_bytes": 73802
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 2,
+              "online": {
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "inference"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.0036876,
+                "parties": {
+                  "client": {
+                    "download_bytes": 18438,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00147504,
+                    "upload_bytes": 14428,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0028856
+                  },
+                  "inference": {
+                    "download_bytes": 14428,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00115424,
+                    "upload_bytes": 18438,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0036876
+                  }
+                },
+                "wan_body_bytes": 32866
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0036876,
+              "parties": {
+                "client": {
+                  "download_bytes": 18438,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00147504,
+                  "upload_bytes": 14428,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0028856
+                },
+                "inference": {
+                  "download_bytes": 14428,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00115424,
+                  "upload_bytes": 18438,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0036876
+                }
+              },
+              "wan_body_bytes": 32866
+            },
+            "online_generated_tokens_per_second_ceiling": 542.3581733376722,
+            "setup_inclusive": {
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "inference"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.0078616,
+              "parties": {
+                "client": {
+                  "download_bytes": 39699,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00317592,
+                  "upload_bytes": 15171,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0030342
+                },
+                "inference": {
+                  "download_bytes": 33360,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0026688,
+                  "upload_bytes": 39308,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0078616
+                },
+                "preparation": {
+                  "download_bytes": 743,
+                  "download_mbps": 100.0,
+                  "download_seconds": 5.944e-05,
+                  "upload_bytes": 19323,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0038646
+                }
+              },
+              "wan_body_bytes": 73802
+            },
+            "setup_inclusive_generated_tokens_per_second_ceiling": 254.40113971710593
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    }
+  ],
+  "checks": {
+    "all_candidates_passed": true,
+    "matched_kernel_backend": false,
+    "matched_workload": true,
+    "passed": false,
+    "unique_configurations": true
+  },
+  "comparison_key": {
+    "effective_sampling": {
+      "mode": "greedy",
+      "temperature": 0.0,
+      "top_p": null
+    },
+    "input_tokens": 22,
+    "max_output_tokens": 2,
+    "model_fingerprint": "9f17d7ed2ca650281fa09ecd818fac995de21b17603a4d5e712adb0eb0be3c76",
+    "output_tokens": 2,
+    "prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97",
+    "warm": false,
+    "warmup_prompt_digest": "d3683e445b067913379881045c4007ea23e467da70a2d090b1ae3b4820eaeb97"
+  },
+  "compute_cap_diagnostic": null,
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic comparison, not a canonical EvidenceReport",
+    "rankings require exact matched measured workloads and kernel backends",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "rankings": {
+    "accounted_setup_through_first_response_body_bytes": [],
+    "covered_all_link_serialized_body_bytes": [],
+    "full_seconds": [],
+    "online_all_link_serialized_body_bytes": [],
+    "online_seconds": [],
+    "tokens_per_second": [],
+    "total_accounted_benchmark_body_bytes": [],
+    "ttft_seconds": []
+  },
+  "schema_version": "pllm.loopback_benchmark_comparison.v1",
+  "scope": "single-host-loopback-diagnostic-comparison",
+  "winners": {
+    "accounted_setup_through_first_response_body_bytes": null,
+    "covered_all_link_serialized_body_bytes": null,
+    "full_seconds": null,
+    "online_all_link_serialized_body_bytes": null,
+    "online_seconds": null,
+    "tokens_per_second": null,
+    "total_accounted_benchmark_body_bytes": null,
+    "ttft_seconds": null
+  }
+}

@@ -400,12 +400,18 @@ class DashboardConfig:
     docker_image: str | None = None
     docker_network: Any = None
     wan: Any = None
+    backend: str | None = None
+    memory_budget_bytes: int | None = None
+    memory_input_tokens: int | None = None
 
     def __post_init__(self) -> None:
         _validate_request_temperature(self.temperature)
         _validate_output_digest_capture(self.capture_output_digest)
-        if type(self.docker) is not bool or (self.docker_image is not None and not self.docker):
+        if type(self.docker) is not bool or (self.docker_image is not None and not self.docker
+                                            and self.backend not in {"docker", "auto"}):
             raise ValueError("Docker image requires the Docker role backend")
+        if self.backend not in {None, "native", "docker", "auto"}:
+            raise ValueError("benchmark backend must be native, docker or auto")
 
 
 @dataclass(slots=True)
@@ -541,6 +547,8 @@ class DashboardRuntime:
         self._model_fingerprint: str | None = None
         self.source_lock_digest: str | None = None
         self._stopping = threading.Event()
+        self.memory_preflight = None
+        self._memory_guard = None
         self._stop_started = False
         self._background_threads: set[threading.Thread] = set()
         self._last_privacy_delta: dict[str, int] = {}
@@ -742,6 +750,24 @@ class DashboardRuntime:
                 )
             if self._stopping.is_set():
                 return
+            from .benchmark_memory import benchmark_memory, require_admission, MemoryWatchdog
+
+            self._set(startup_step="memory preflight")
+            self.memory_preflight = await asyncio.to_thread(
+                benchmark_memory, topology_source,
+                max_input_tokens=self.config.memory_input_tokens,
+                max_output_tokens=self.config.default_max_output_tokens,
+                inventory_rows=self._inventory_rows,
+                cache_bytes=self._prefill_cache_mib << 20,
+                cache_bound_tokens=self._prefill_cache_bound_tokens,
+                backend=self.config.backend or ("docker" if self.config.docker else "native"),
+                enforced_wan=self.config.wan is not None or self.config.docker_network is not None,
+                memory_budget_bytes=self.config.memory_budget_bytes,
+            )
+            require_admission(self.memory_preflight)
+            if self._stopping.is_set():
+                return
+            use_docker = self.memory_preflight["selected_backend"] == "docker"
             self._topology = build_roles(
                 topology_source,
                 model_id=self.config.model_id,
@@ -753,9 +779,21 @@ class DashboardRuntime:
                 telemetry_token=self.config.otel_token,
                 credential_prefix="dash",
                 progress=lambda role: self._set(startup_step=role),
+                memory_limits=self.memory_preflight["estimate"][
+                    "docker_provider_peak_bytes" if use_docker else "provider_peak_bytes"
+                ],
                 **({"docker": True, "docker_image": self.config.docker_image,
-                    "docker_network": self.config.docker_network, "wan": self.config.wan} if self.config.docker else {}),
+                    "docker_network": self.config.docker_network, "wan": self.config.wan} if use_docker else {}),
             )
+            def memory_abort(reason):
+                self._stopping.set()
+                self._set(phase="error", error=reason)
+                # Stop providers immediately, including a partially loaded role.
+                # Client/session cleanup follows the ordinary shutdown path.
+                self._topology.close()
+
+            self._memory_guard = MemoryWatchdog(self.memory_preflight, memory_abort)
+            self._memory_guard.start()
             await asyncio.to_thread(self._topology.start)
             for status in self._topology.statuses:
                 pid = getattr(status, "pid", None)
@@ -852,6 +890,9 @@ class DashboardRuntime:
         *,
         temperature: float | None = None,
     ) -> str:
+        admission = getattr(self, "memory_preflight", None)
+        if admission is not None and max_output_tokens > admission["estimate"]["max_output_tokens"]:
+            raise ValueError("output cap exceeds the memory-admitted workload")
         temperature = _validate_request_temperature(temperature)
         if temperature is None:
             temperature = _validate_request_temperature(getattr(self.config, "temperature", None))
@@ -933,6 +974,11 @@ class DashboardRuntime:
         if capture is None or capture.run_id != run_id:
             return
         try:
+            admission = getattr(self, "memory_preflight", None)
+            if admission is not None:
+                count = self._client._core._response_input_tokens(self.config.model_id, prompt)
+                if count > admission["estimate"]["max_input_tokens"]:
+                    raise ValueError("input exceeds the memory-admitted workload")
             if self._topology is not None and self._topology.requires_preparation:
                 capture.preparation_started_at_ns = time.time_ns()
                 capture.preparation_started_monotonic_ns = time.monotonic_ns()
@@ -949,6 +995,9 @@ class DashboardRuntime:
                 )
                 capture.inventory_required = int(required)
                 capture.input_tokens = max(0, required - max(0, max_output_tokens - 1))
+                admission = getattr(self, "memory_preflight", None)
+                if admission is not None and capture.input_tokens > admission["estimate"]["max_input_tokens"]:
+                    raise ValueError("input exceeds the memory-admitted workload")
                 preparation = self._client.preprocess(self.config.model_id, count=required) or {}
                 capture.inventory_generated = max(0, int(preparation.get("generated", 0)))
                 current_inventory = self._client.prepared_inventory_status(self.config.model_id)
@@ -1462,6 +1511,7 @@ class DashboardRuntime:
             self._stop_started = True
             self._stopping.set()
             worker = self._worker
+        guard = getattr(self, "_memory_guard", None)
         if self._client is not None:
             try:
                 await asyncio.wait_for(
@@ -1484,8 +1534,12 @@ class DashboardRuntime:
         for thread in background_threads:
             await asyncio.to_thread(thread.join, self._BACKGROUND_JOIN_TIMEOUT_SECONDS)
         background_alive = any(thread.is_alive() for thread in background_threads)
-        if self._temporary is not None and not worker_alive and not background_alive:
-            self._temporary.cleanup()
+        try:
+            if self._temporary is not None and not worker_alive and not background_alive:
+                self._temporary.cleanup()
+        finally:
+            if guard is not None:
+                guard.close()
 
     def has_live_worker(self) -> bool:
         with self._lock:

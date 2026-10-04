@@ -1,0 +1,162 @@
+{
+  "schema": "pllm.benchmark_memory_cohort.v1",
+  "preflight_only": true,
+  "admitted": false,
+  "candidates": [
+    {
+      "schema": "pllm.benchmark_memory.v1",
+      "admitted": false,
+      "requested_backend": "native",
+      "selected_backend": null,
+      "host": {
+        "total": 34359738368,
+        "available": 14762475520,
+        "swap_used": 2097545216,
+        "disk_free": 25667866624,
+        "reserve_bytes": 8589934592,
+        "admission_budget_bytes": 6172540928
+      },
+      "estimate": {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+        "pipeline_digest": "0c35c81a7d7056ca9e19d00536d375ce0eef40bb34a3844f42b666eaa4b47470",
+        "max_input_tokens": 64,
+        "max_output_tokens": 8,
+        "compiled_input_bound": 64,
+        "inventory_rows": 71,
+        "kernel": "cpu",
+        "allocation_slack_percent": 25,
+        "client_peak_bytes": 2938184360,
+        "provider_peak_bytes": {
+          "inference": 2537836800,
+          "preparation": 1521484160
+        },
+        "docker_provider_peak_bytes": {
+          "inference": 3325456640,
+          "preparation": 2649440640
+        },
+        "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+        "native_total_peak_bytes": 6997505320,
+        "components": {
+          "per_engine_i8_and_native_bytes": 630095872,
+          "legacy_per_engine_i8_and_native_bytes": 1260191744,
+          "float_quantization_work_bytes": 25525248,
+          "legacy_largest_loading_temporary_bytes": 544538624,
+          "largest_loading_temporary_bytes": 272269312,
+          "raw_client_bundle_bytes": 182521344,
+          "client_mask_bytes": 551387136,
+          "provider_correction_bytes": 172744704,
+          "verifier_bytes": 0,
+          "client_tensor_work_bytes": 435596832,
+          "client_cache_bytes": 0,
+          "per_provider_metal_bytes": 0,
+          "client_metal_bytes": 0,
+          "checkpoint_bytes": 988097824,
+          "per_engine_compiled_disk_bytes": 272269312
+        },
+        "limitations": []
+      },
+      "candidates": {
+        "native": {
+          "admitted": false,
+          "reasons": [
+            "estimated host peak 6.52 GiB exceeds safe headroom 5.75 GiB"
+          ],
+          "required_host_bytes": 6997505320,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        },
+        "docker": {
+          "admitted": false,
+          "reasons": [
+            "Docker memory capacity is unavailable",
+            "estimated host peak 6.52 GiB exceeds safe headroom 5.75 GiB"
+          ],
+          "required_host_bytes": 6997505320,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        }
+      },
+      "enforced_wan": false,
+      "experiment": "qwen-memory-cpu"
+    },
+    {
+      "schema": "pllm.benchmark_memory.v1",
+      "admitted": false,
+      "requested_backend": "native",
+      "selected_backend": null,
+      "host": {
+        "total": 34359738368,
+        "available": 14869151744,
+        "swap_used": 2097545216,
+        "disk_free": 25668345856,
+        "reserve_bytes": 8589934592,
+        "admission_budget_bytes": 6279217152
+      },
+      "estimate": {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": "159e35f75f01d5ee0a2167dde11082e6f52f5c7b3c539310dbf90d27f61dcd23",
+        "pipeline_digest": "368326a08d48a9aa79fbb2d6ad836e2114f4f66250af09cb741da4e164fc10f6",
+        "max_input_tokens": 64,
+        "max_output_tokens": 8,
+        "compiled_input_bound": 64,
+        "inventory_rows": 71,
+        "kernel": "metal",
+        "allocation_slack_percent": 25,
+        "client_peak_bytes": 2938184360,
+        "provider_peak_bytes": {
+          "inference": 2985120000,
+          "preparation": 1968767360
+        },
+        "docker_provider_peak_bytes": {
+          "inference": 3772739840,
+          "preparation": 3096723840
+        },
+        "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+        "native_total_peak_bytes": 7892071720,
+        "components": {
+          "per_engine_i8_and_native_bytes": 630095872,
+          "legacy_per_engine_i8_and_native_bytes": 1260191744,
+          "float_quantization_work_bytes": 25525248,
+          "legacy_largest_loading_temporary_bytes": 544538624,
+          "largest_loading_temporary_bytes": 272269312,
+          "raw_client_bundle_bytes": 182521344,
+          "client_mask_bytes": 551387136,
+          "provider_correction_bytes": 172744704,
+          "verifier_bytes": 0,
+          "client_tensor_work_bytes": 435596832,
+          "client_cache_bytes": 0,
+          "per_provider_metal_bytes": 357826560,
+          "client_metal_bytes": 0,
+          "checkpoint_bytes": 988097824,
+          "per_engine_compiled_disk_bytes": 272269312
+        },
+        "limitations": []
+      },
+      "candidates": {
+        "native": {
+          "admitted": false,
+          "reasons": [
+            "estimated host peak 7.35 GiB exceeds safe headroom 5.85 GiB"
+          ],
+          "required_host_bytes": 7892071720,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        },
+        "docker": {
+          "admitted": false,
+          "reasons": [
+            "Metal requires native provider processes",
+            "Docker memory capacity is unavailable",
+            "estimated host peak 7.35 GiB exceeds safe headroom 5.85 GiB"
+          ],
+          "required_host_bytes": 7892071720,
+          "docker": null,
+          "required_disk_bytes": 3057064960
+        }
+      },
+      "enforced_wan": false,
+      "experiment": "qwen-memory-metal"
+    }
+  ]
+}

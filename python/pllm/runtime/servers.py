@@ -984,6 +984,7 @@ def build_roles(
     docker_image: str | None = None,
     docker_network=None,
     wan=None,
+    memory_limits: dict[str, int] | None = None,
 ) -> LocalTopology:
     if type(docker) is not bool:
         raise TypeError("docker must be a boolean")
@@ -1034,6 +1035,11 @@ def build_roles(
     role_ids = tuple(
         role.id for role in graph_for_runtime(runtime_options).roles if role.id != "client"
     )
+    if memory_limits is not None and (
+        type(memory_limits) is not dict or set(memory_limits) != set(role_ids)
+        or any(type(value) is not int or value < 64 << 20 for value in memory_limits.values())
+    ):
+        raise ValueError("memory limits must cover each provider role with at least 64 MiB")
     if set(role_ids) not in (
         set(),
         {"inference"},
@@ -1122,6 +1128,7 @@ def build_roles(
         extra["docker_image"] = docker_image
         extra["docker_network"] = docker_network
         extra["wan"] = wan
+        extra["memory_limits"] = memory_limits
     return topology_type(
         model,
         model_id=resolved_id,

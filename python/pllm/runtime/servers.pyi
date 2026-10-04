@@ -61,6 +61,7 @@ def build_roles(
     docker_image: str | None = None,
     docker_network: LinkConditions | None = None,
     wan: WanConditions | None = None,
+    memory_limits: dict[str, int] | None = None,
 ) -> LocalTopology: ...
 
 def serve_local(

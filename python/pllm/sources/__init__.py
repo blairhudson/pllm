@@ -53,13 +53,10 @@ class BundleModel(Model):
         )
 
 
-def _materialize_tiny_model(path: Path) -> Path:
-    import numpy as np
-    from safetensors.numpy import save_file
-
-    path.mkdir(parents=True, exist_ok=True)
+def _tiny_model_config() -> dict[str, Any]:
+    """Same bounded configuration for header-only admission and materialization."""
     hidden, intermediate, heads, kv_heads, head_dim, vocab = 32, 64, 4, 2, 8, 258
-    config = {
+    return {
         "architectures": ["Qwen2ForCausalLM"],
         "model_type": "qwen2",
         "name_or_path": "pllm-tiny-qwen2",
@@ -81,6 +78,17 @@ def _materialize_tiny_model(path: Path) -> Path:
         "pad_token_id": 1,
         "pllm_test_tokenizer": "byte",
     }
+
+
+def _materialize_tiny_model(path: Path) -> Path:
+    import numpy as np
+    from safetensors.numpy import save_file
+
+    path.mkdir(parents=True, exist_ok=True)
+    config = _tiny_model_config()
+    hidden, intermediate = config["hidden_size"], config["intermediate_size"]
+    heads, kv_heads = config["num_attention_heads"], config["num_key_value_heads"]
+    head_dim, vocab = config["head_dim"], config["vocab_size"]
     (path / "config.json").write_text(json.dumps(config, sort_keys=True), encoding="utf-8")
     (path / "tokenizer_config.json").write_text(
         json.dumps(

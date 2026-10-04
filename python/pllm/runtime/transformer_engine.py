@@ -62,6 +62,17 @@ class TransformerEngineError(RuntimeError):
     pass
 
 
+# Shared allocation contracts used by benchmark admission. A single exceptionally
+# wide row remains indivisible; admission prices its width explicitly.
+WEIGHT_CHUNK_ELEMENTS = 1 << 20
+
+
+def _weight_chunks(values: np.ndarray):
+    rows = max(1, WEIGHT_CHUNK_ELEMENTS // values.shape[1])
+    for start in range(0, values.shape[0], rows):
+        yield np.ascontiguousarray(values[start:start + rows], dtype=np.int8)
+
+
 @dataclass(frozen=True, slots=True)
 class StageMetadata:
     id: str
@@ -170,6 +181,7 @@ class StageRuntime:
     rows: int = 0
     server_ns: int = 0
     compiled_weight: Any = None
+    compiled_cache_entry: Path | None = None
     input_equalization: np.ndarray | None = None
     equalization_profile_digest: str | None = None
     _weight_digest: str = field(init=False)
@@ -177,9 +189,12 @@ class StageRuntime:
     _offset_output_bits: bytes | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        values = self.weight.values.astype(np.int8, copy=False)
-        self._weight_digest = hashlib.sha256(values.tobytes()).hexdigest()
-        row_l1 = int(np.max(np.sum(np.abs(values.astype(np.int16)), axis=1, dtype=np.int64)))
+        digest = hashlib.sha256()
+        row_l1 = 0
+        for chunk in _weight_chunks(self.weight.values):
+            digest.update(memoryview(chunk))
+            row_l1 = max(row_l1, int(np.max(np.sum(np.abs(chunk.astype(np.int16)), axis=1, dtype=np.int64))))
+        self._weight_digest = digest.hexdigest()
         self._signed_output_bound = signed_qmax(self.spec.activation_bits) * row_l1
 
     @property
@@ -219,10 +234,16 @@ class StageRuntime:
         if self._offset_output_bits is None:
             from pllm import _native
 
-            data = self.weight.values.astype(np.int8, copy=False).tobytes()
-            if hashlib.sha256(data).hexdigest() != self.weight_digest:
+            digest = hashlib.sha256()
+            encoded = bytearray()
+            for chunk in _weight_chunks(self.weight.values):
+                data = chunk.tobytes()
+                digest.update(data)
+                encoded.extend(_native.offset_row_bits(data, self.spec.in_features,
+                                                       signed_qmax(self.spec.activation_bits)))
+            if digest.hexdigest() != self.weight_digest:
                 raise TransformerEngineError("offset row layout weight commitment changed")
-            widths = _native.offset_row_bits(data, self.spec.in_features, signed_qmax(self.spec.activation_bits))
+            widths = bytes(encoded)
             if len(widths) != self.spec.out_features or max(widths) > self.seeded_profile.wire_bits:
                 raise TransformerEngineError("offset row layout exceeds the committed ring")
             self._offset_output_bits = widths
@@ -879,9 +900,9 @@ class MaskedTransformerEngine:
             self._metal_stages[manifest.id] = metal_stages
         self._bundle_runtime_config(loaded)
         self._active_cache_entries[manifest.id] = {
-            Path(runtime.weight.values.filename).parent
+            runtime.compiled_cache_entry
             for runtime in runtimes.values()
-            if isinstance(runtime.weight.values, np.memmap)
+            if runtime.compiled_cache_entry is not None
         }
         self._trim_compiled_cache()
 
@@ -1074,14 +1095,24 @@ class MaskedTransformerEngine:
         input_equalization = self._stage_equalization(stage)
         elements = out_features * in_features
         if elements < self.streaming_threshold_elements:
-            matrices: list[np.ndarray] = []
+            values = np.empty((out_features, in_features), dtype=np.int8)
+            scales = np.empty(out_features, dtype=np.float32)
+            offset = 0
+            chunk_rows = min(self.quantization_chunk_rows,
+                             max(1, WEIGHT_CHUNK_ELEMENTS // in_features))
             for key, transpose in sources:
-                value = store.get_linear((key,))
-                matrices.append(np.ascontiguousarray(value.T if transpose else value))
-            matrix = np.concatenate(matrices, axis=0) if len(matrices) > 1 else matrices[0]
-            if input_equalization is not None:
-                matrix = equalize_weight_chunk(matrix, input_equalization)
-            return quantize_weight_per_row(matrix, bits=bits)
+                for chunk in self._iter_oriented_rows(store, key, transpose=transpose,
+                                                     chunk_rows=chunk_rows):
+                    if input_equalization is not None:
+                        chunk = equalize_weight_chunk(chunk, input_equalization)
+                    quantized = quantize_weight_per_row(chunk, bits=bits)
+                    rows = chunk.shape[0]
+                    values[offset:offset + rows] = quantized.values
+                    scales[offset:offset + rows] = quantized.scales
+                    offset += rows
+            if offset != out_features:
+                raise TransformerEngineError("chunked weight import has incomplete output rows")
+            return QuantizedWeight(values, scales, bits)
 
         from .compiled_cache import cache_lock
 
@@ -1191,7 +1222,8 @@ class MaskedTransformerEngine:
                         store,
                         key,
                         transpose=transpose,
-                        chunk_rows=self.quantization_chunk_rows,
+                        chunk_rows=min(self.quantization_chunk_rows,
+                                       max(1, WEIGHT_CHUNK_ELEMENTS // in_features)),
                     ):
                         if input_equalization is not None:
                             chunk = equalize_weight_chunk(chunk, input_equalization)
@@ -1313,6 +1345,12 @@ class MaskedTransformerEngine:
                 weight_bits=stage.weight_bits or self.weight_bits,
                 activation_bits=stage.activation_bits or self.activation_bits,
             )
+        cache_entry = (Path(quantized.values.filename).parent
+                       if isinstance(quantized.values, np.memmap) else None)
+        compiled = self.kernel.compile(quantized.values)
+        # Retire the Python weight allocation/mapping. Metadata, preparation and
+        # GPU import share a read-only view whose base retains the Rust snapshot.
+        quantized = QuantizedWeight(compiled.weight_view(), quantized.scales, quantized.bits)
         return StageRuntime(
             spec=stage,
             weight=quantized,
@@ -1320,7 +1358,8 @@ class MaskedTransformerEngine:
             wire_bits=choose_wire_bits(modulus),
             source_keys=tuple(resolved),
             bias=bias,
-            compiled_weight=self.kernel.compile(quantized.values),
+            compiled_weight=compiled,
+            compiled_cache_entry=cache_entry,
             input_equalization=self._stage_equalization(stage),
             equalization_profile_digest=(
                 self.public_equalization_digest

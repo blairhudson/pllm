@@ -52,6 +52,31 @@ def test_docker_backend_is_selected_without_changing_composition():
         topology.close()
 
 
+def test_admitted_container_limits_disable_additional_swap(monkeypatch, tmp_path):
+    calls = []
+    def command(arguments, **kwargs):
+        calls.append(arguments)
+        return "container-id" if arguments[0] == "create" else ""
+    monkeypatch.setattr(docker_roles, "_docker", command)
+    monkeypatch.setattr(docker_roles.DockerTopology, "_start_measurement", lambda *_args: None)
+    limits = {"inference": 400 << 20, "preparation": 300 << 20}
+    topology = build_roles(Model.tiny(), docker=True, memory_limits=limits)
+    topology._docker_mount = tmp_path
+    topology._docker_names = {"inference": "owned-inference", "preparation": "owned-preparation"}
+    topology._role_urls = {"inference": "http://127.0.0.1:8000", "preparation": "http://127.0.0.1:8001"}
+    topology._docker_image_id = "image"
+    topology._docker_network = "network"
+    topology._measurement_image = "helper"
+    try:
+        topology._spawn("inference", ["python", "-m", "pllm", "serve", "inference", "--port", "8000"])
+        create = next(item for item in calls if item[0] == "create")
+        assert create[create.index("--memory") + 1] == str(limits["inference"])
+        assert create[create.index("--memory-swap") + 1] == str(limits["inference"])
+    finally:
+        topology._measurement_helpers.clear()
+        topology.close()
+
+
 @pytest.mark.rust
 @pytest.mark.integration
 @pytest.mark.skipif(os.environ.get("PLLM_RUN_DOCKER") != "1", reason="opt-in Docker runtime")

@@ -383,7 +383,9 @@ class ClientBundle:
                     raise TransformerClientError(
                         "client-owned prefix exceeds its 512 MiB weight bound"
                     )
-            matrix = np.frombuffer(weight_row["data"], dtype=np.int8).copy()
+            # MessagePack binary values own immutable bytes. Keep that backing
+            # allocation instead of duplicating every matrix during import.
+            matrix = np.frombuffer(weight_row["data"], dtype=np.int8)
             scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
             if matrix.size != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
                 raise TransformerClientError(f"invalid client weight length for {weight_id}")

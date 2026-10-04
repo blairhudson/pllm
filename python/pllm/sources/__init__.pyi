@@ -2,6 +2,8 @@ from typing import Any, Protocol
 
 from pllm.configuration import Model
 
+def _tiny_model_config() -> dict[str, Any]: ...
+
 class ModelSource(Protocol):
     source: str
     kind: str

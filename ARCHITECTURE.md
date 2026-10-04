@@ -696,11 +696,38 @@ body identities, cgroup CPU/memory and per-interface counters. The client stays
 on the host. Docker-local roles are co-located; interface samples include control
 and telemetry and do not establish complete all-link wire accounting.
 
+Local role benchmarks now preflight whole-topology allocation estimates before
+model-value loading or provider launch. Retained weight owners, loading and
+bundle copies, masks/corrections, state/cache and Metal snapshots share a host
+budget with an OS/application reserve; swap is excluded. Docker admission also
+prices the existing complete Desktop VM and other containers, never enlarges it,
+and gives providers hard no-additional-swap limits. A host-pressure monitor aborts
+owned work on reserve loss or new swap growth. Estimates are conservative, not
+measured peaks or an OOM proof; unpriced runtime/crypto paths reject.
+`--backend native` enables existing local CPU/Metal processes; `--backend auto`
+can fall back from unsafe Docker CPU placement while preserving the Pipeline.
+Enforced WAN/link shaping cannot fall back to an unthrottled measurement.
+`--preflight-only` and `pllm.metrics.benchmark_memory` expose the same admission.
+The attempted Qwen3-4B cohort exhausted a 32 GiB host after Docker was raised to
+20 GiB; no successful result was produced. Single-snapshot stage ownership and
+bounded float loading reduce its lean native allocation estimate from 34.78 to
+23.60 GiB, still above available headroom. Docker retains the legacy allocation
+upper bounds for potentially older images. A tiny native
+CPU/Metal control passes functionality and cleanup, with equal outputs and zero
+observed swap growth; it does not establish large-model capacity.
+
 A matrix is copied into Rust once at compilation, then reused for later calls.
-Input and output conversions are explicit. This is not a zero copy interface.
-The present snapshot consumes one extra signed byte per weight while the source
-matrix is retained for metadata and preparation-service loading. Benchmarks must
-count that storage and buffer conversion work.
+`CompiledMatrix.weight_view()` exposes a read-only NumPy alias that retains that
+immutable owner. Provider stage loading retires the original i8 allocation or
+mapping; metadata, preparation and GPU import use the shared CPU snapshot.
+Floating-point stage import and weight validation use bounded row chunks.
+Compiled disk-cache entries remain protected while their stages are loaded.
+Direct callers retaining their original arrays still pay for those arrays;
+client bundle, native execution and GPU snapshots retain separate accounting.
+Input/output conversions and the initial native import still copy. An isolated
+four-stage synthetic control reduces measured process peak RSS from 522.08 to
+213.06 MB with identical weight hashes and integer outputs. This is loader/kernel
+evidence, not a whole-decoder peak measurement or 4B capacity result.
 
 Moving arithmetic to Rust does not remove dependent client-to-inference stage
 exchanges, offline preparation work, or client attention state. No speed claim
