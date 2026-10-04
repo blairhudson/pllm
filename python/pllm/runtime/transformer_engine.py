@@ -1906,16 +1906,25 @@ class MaskedTransformerEngine:
         model = self._model(model_id)
         if model.manifest.metadata.get("privacy_mode") != "public":
             raise ArtifactError("artifacts require public prepared weights")
-        return export_bundle(self.client_bundle(model_id))
+        return export_bundle(self.client_bundle_document(model_id)
+                             if type(self) is MaskedTransformerEngine else self.client_bundle(model_id))
 
     def client_bundle(
+        self, model_id: str, *, include_local_weights: bool = True,
+        placement: str = "prepared", output_encoding: str | None = None,
+    ) -> bytes:
+        return self.client_bundle_document(model_id, include_local_weights=include_local_weights,
+            placement=placement, output_encoding=output_encoding).to_bytes()
+
+    def client_bundle_document(
         self,
         model_id: str,
         *,
         include_local_weights: bool = True,
         placement: str = "prepared",
         output_encoding: str | None = None,
-    ) -> bytes:
+    ):
+        from .bundle_document import BundleDocument
         if output_encoding is None:
             output_encoding = self.prepared_output_encoding if placement == "prepared" else "raw"
         if output_encoding not in {"raw", "row_residues"} or (output_encoding != "raw" and placement not in {"offset", "prepared"}):
@@ -1961,7 +1970,7 @@ class MaskedTransformerEngine:
             client_weights[weight_id] = {
                 "dtype": "i1",
                 "shape": list(weight.values.shape),
-                "data": weight.values.astype(np.int8, copy=False).tobytes(),
+                "data": memoryview(weight.values).cast("B"),
                 "scales": weight.scales.astype("<f4", copy=False).tobytes(),
             }
 
@@ -2071,7 +2080,7 @@ class MaskedTransformerEngine:
             manifest["fingerprint"] = hashlib.sha256(
                 json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest()
-        return msgpack.packb(
+        return BundleDocument(
             {
                 "v": 2,
                 "runtime": bundle_runtimes[placement],
@@ -2124,7 +2133,6 @@ class MaskedTransformerEngine:
                     ),
                 },
             },
-            use_bin_type=True,
         )
 
     def metrics(self) -> dict[str, Any]:

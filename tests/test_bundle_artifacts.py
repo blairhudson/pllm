@@ -12,7 +12,10 @@ import pytest
 
 from pllm.runtime.bundle_artifacts import (
     ArtifactError, ArtifactObjectCache, export_bundle, parse_manifest, reconstruct_bundle,
+    reconstruct_document,
 )
+from pllm.runtime.bundle_document import BundleDocument
+from pllm.runtime.transformer_client import ClientBundle
 from pllm.runtime.loaders import load_hf_directory
 from pllm.runtime.tiny_llama import create_tiny_llama_checkpoint
 from pllm.runtime.transformer_engine import MaskedTransformerEngine
@@ -50,6 +53,64 @@ def test_original_raw_digest_order_and_common_objects(bundles):
     # Only newly placed matrix values; their scales were already public stage metadata.
     assert all(row["metadata"]["dtype"] == "i1" for row in attention[1]["objects"]
                if row["sha256"] in missing)
+
+
+def test_segmented_export_and_direct_import_preserve_raw_commitment(bundles, monkeypatch):
+    raw = bundles[0]
+    document = BundleDocument(msgpack.unpackb(raw, raw=False))
+    expected = export_bundle(raw)
+    exported = export_bundle(document)
+    assert exported.manifest == expected.manifest
+    assert exported.objects == expected.objects
+    manifest = parse_manifest(exported.manifest, fingerprint=hashlib.sha256(raw).hexdigest(), size=len(raw))
+    ordinary = ClientBundle.unpack(raw)
+    reads = []
+    def read(row):
+        reads.append(row["sha256"])
+        return bytes(exported.objects[row["sha256"]])
+    def forbidden(*args, **kwargs):
+        raise AssertionError("direct import must not build or unpack a contiguous bundle")
+    monkeypatch.setattr(msgpack, "packb", forbidden)
+    monkeypatch.setattr(msgpack, "unpackb", forbidden)
+    value = reconstruct_document(manifest, read)
+    imported = ClientBundle._from_document(value)
+    assert imported.cfg == ordinary.cfg
+    assert imported.privacy == ordinary.privacy
+    assert len(reads) == len(set(reads)) == len(exported.objects)
+    for stage_id, stage in imported.stages.items():
+        import numpy as np
+        control = ordinary.stages[stage_id]
+        np.testing.assert_array_equal(stage.weight_scales, control.weight_scales)
+        if stage.client_weight is not None:
+            np.testing.assert_array_equal(stage.client_weight, control.client_weight)
+            assert not stage.client_weight.flags.writeable
+
+
+def test_direct_import_checks_object_and_whole_bundle_before_return(bundles):
+    exported, manifest = parsed(bundles[0])
+    def read(row):
+        return exported.objects[row["sha256"]]
+    with pytest.raises(ArtifactError, match="content digest"):
+        reconstruct_document(manifest, lambda row: bytes(row["size"]))
+    with pytest.raises(ArtifactError, match="immutable"):
+        reconstruct_document(manifest, lambda row: bytearray(read(row)))
+    manifest["raw"]["sha256"] = "0" * 64
+    with pytest.raises(ArtifactError, match="raw digest"):
+        reconstruct_document(manifest, read)
+
+
+def test_artifact_export_preserves_subclass_privacy_boundary(bundles, tmp_path):
+    value = msgpack.unpackb(bundles[0], raw=False)
+    value["privacy"]["mode"] = "proprietary"
+    payload = msgpack.packb(value, use_bin_type=True)
+    class RestrictedEngine(MaskedTransformerEngine):
+        def client_bundle(self, model_id):
+            return payload
+    root = create_tiny_llama_checkpoint(tmp_path / "restricted")
+    engine = RestrictedEngine(threads=1)
+    asyncio.run(engine.load(resolve_model(Model.path(str(root), model_id="restricted")).manifest))
+    with pytest.raises(ArtifactError, match="public"):
+        engine.client_bundle_artifacts("restricted")
 
 
 def test_equal_bytes_changed_numeric_or_shape_domain_never_reuse(bundles):

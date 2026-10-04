@@ -281,6 +281,11 @@ class ClientBundle:
             value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
         except Exception as exc:
             raise TransformerClientError("invalid transformer client bundle") from exc
+        return cls._from_document(value)
+
+    @classmethod
+    def _from_document(cls, value) -> "ClientBundle":
+        """Same admission for raw parsing and authenticated artifact reconstruction."""
         if not isinstance(value, dict) or int(value.get("v", 0)) not in {1, 2}:
             raise TransformerClientError("unsupported transformer client bundle")
         version = int(value["v"])

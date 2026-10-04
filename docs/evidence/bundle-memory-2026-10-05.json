@@ -1,0 +1,39 @@
+{
+  "schema": "pllm.bundle_memory_probe.v1",
+  "scope": "Isolated provider serialization control over one immutable public i8 matrix.\n\nCompares materialize/pack/unpack/repack with the segmented MessagePack path.\nThis is a bounded serialization mechanism probe, not decoder peak memory,\nclient import, provider deployment, network performance, or a quality cohort.\n",
+  "samples": [
+    {
+      "mode": "materialized",
+      "size": 67108909,
+      "sha256": "bb68d2502b119bca15dbd6b3dee480cc598b68b78153584a9eff3727936c0a6b",
+      "matrix_bytes": 67108864,
+      "retained_serialized_copy_bytes": 134217773,
+      "end_rss_bytes": 441942016,
+      "peak_rss_bytes": 441942016,
+      "serialization_seconds": 0.10218370892107487,
+      "serialization_cpu_seconds": 0.09817100000000001
+    },
+    {
+      "mode": "segmented",
+      "size": 67108909,
+      "sha256": "bb68d2502b119bca15dbd6b3dee480cc598b68b78153584a9eff3727936c0a6b",
+      "matrix_bytes": 67108864,
+      "retained_serialized_copy_bytes": 0,
+      "end_rss_bytes": 244826112,
+      "peak_rss_bytes": 244826112,
+      "serialization_seconds": 0.08448491618037224,
+      "serialization_cpu_seconds": 0.08418200000000003
+    }
+  ],
+  "host": {
+    "total": 34359738368,
+    "available": 14350516224,
+    "swap_used": 1912995840,
+    "disk_free": 25647116288
+  },
+  "max_swap_growth_bytes": 0,
+  "measured_at": "2026-10-04T23:33:41.016534+00:00",
+  "parity": true,
+  "python": "3.13.15",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O"
+}

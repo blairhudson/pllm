@@ -138,19 +138,16 @@ def create_offset_worker_app(
             for sid, entry in model.stages.items() if sid not in {"token_lookup", "lm_head"}
         ])
     bundle_lock = threading.Lock()
-    bundle_record: tuple[bytes, dict[str, Any]] | None = None
+    from .bundle_document import BundleDocument
+    bundle_record: tuple[BundleDocument, dict[str, Any]] | None = None
     artifact_record = None
 
-    def client_bundle_record() -> tuple[bytes, dict[str, Any]]:
+    def client_bundle_record() -> tuple[BundleDocument, dict[str, Any]]:
         nonlocal bundle_record
         with bundle_lock:
             if bundle_record is None:
-                payload = engine.client_bundle(model_id, placement="offset", output_encoding=output_encoding)
-                fingerprint = hashlib.sha256(payload).hexdigest()
-                bundle_record = (payload, {
-                    "schema": 2, "sha256": fingerprint,
-                    "size": len(payload), "etag": f'"{fingerprint}"',
-                })
+                payload = engine.client_bundle_document(model_id, placement="offset", output_encoding=output_encoding)
+                bundle_record = (payload, payload.descriptor)
             return bundle_record
 
     def artifact_export():
@@ -236,9 +233,7 @@ def create_offset_worker_app(
         headers["Content-Length"] = str(len(payload))
 
         def chunks():
-            view = memoryview(payload)
-            for offset in range(0, len(view), 1024 * 1024):
-                yield view[offset : offset + 1024 * 1024].tobytes()
+            yield from payload.chunks()
 
         return StreamingResponse(chunks(), media_type="application/msgpack", headers=headers)
 

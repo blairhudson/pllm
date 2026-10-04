@@ -210,11 +210,15 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     for role in roles:
         # Preparation never exports a client bundle; inference and either offset
         # worker may. Include retained corrections while preparing new material.
-        delivery = 5 * bundle if role != "preparation" else 0
+        # Native delivery streams immutable weight views and retains only copied
+        # metadata plus bounded compression/batch frames. Existing images may
+        # still pack/unpack full bundles and cache copied artifact objects.
+        delivery = 2 * metadata + 8 * MiB if role != "preparation" else 0
+        legacy_delivery = 5 * bundle if role != "preparation" else 0
         role_peaks[role] = _slack(engine + gpu_provider + max(
             loading, delivery + corrections, work + corrections + verification))
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + max(
-            legacy_loading, delivery + corrections, work + corrections + verification))
+            legacy_loading, legacy_delivery + corrections, work + corrections + verification))
     client = _PROCESS_BYTES + 6 * bundle + masks + verification + tensors + cache_bytes + gpu_client
     if not roles:
         client += engine + loading
@@ -229,6 +233,7 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         "provider_peak_bytes": role_peaks,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+        "bundle_storage": "immutable_segments_v1; client import retains conservative copy bounds",
         "native_total_peak_bytes": client_peak + sum(role_peaks.values()),
         "components": {"per_engine_i8_and_native_bytes": cpu_weights,
             "legacy_per_engine_i8_and_native_bytes": 2 * weights,

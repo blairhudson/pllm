@@ -24,6 +24,8 @@ from typing import Any, Callable, Iterator
 
 import msgpack
 
+from .bundle_document import BundleDocument, binary_view, document_identity
+
 ENCODING = "pllm-public-artifacts/1"
 MAX_RAW_BYTES = 4 << 30
 MAX_MANIFEST_BYTES = 16 << 20
@@ -41,7 +43,7 @@ class ArtifactError(ValueError):
     """Malformed, private, unsupported, or uncommitted artifact data."""
 
 
-def object_stream(payload: bytes, *, bundle_digest: str, object_digest: str,
+def object_stream(payload: bytes | memoryview, *, bundle_digest: str, object_digest: str,
                   encoding: str | None = None) -> tuple[Iterator[bytes], dict[str, str], str]:
     """Shared public-object framing; raw cache identity remains stable."""
     from .bundle_compression import ENCODING as FRAME_ENCODING, encode_bundle_frames
@@ -79,7 +81,7 @@ def batched_reader(manifest, cache, download_one, download_many, *, maximum: int
     """At most one 1-MiB lookahead group, ordered by first use in the raw bundle."""
     _integer(maximum, 1, MAX_BATCH_OBJECTS)
     ordered, seen = [], set()
-    def visit(node):
+    def visit(node: Any) -> Any:
         if type(node) is dict:
             for value in node.values():
                 visit(value)
@@ -170,6 +172,8 @@ def _tree(value: Any, depth: int = 0, budget: list[int] | None = None) -> None:
     elif type(value) in (list, tuple):
         for item in value:
             _tree(item, depth + 1, budget)
+    elif type(value) is memoryview:
+        binary_view(value)
     elif type(value) not in (str, bytes, int, float, bool, type(None), msgpack.ExtType):
         raise ArtifactError("unsupported artifact graph value")
 
@@ -326,16 +330,23 @@ def verify_object(row: dict[str, Any], payload: bytes) -> None:
 @dataclass(frozen=True)
 class BundleArtifacts:
     manifest: bytes
-    objects: dict[str, bytes]
+    objects: dict[str, bytes | memoryview]
 
 
-def export_bundle(payload: bytes) -> BundleArtifacts:
-    value = _unpack(payload, maximum=MAX_RAW_BYTES)
+def export_bundle(payload: bytes | BundleDocument) -> BundleArtifacts:
+    if isinstance(payload, BundleDocument):
+        if len(payload) > MAX_RAW_BYTES:
+            raise ArtifactError("artifact document exceeds its byte bound")
+        value = payload._value
+        raw_size, raw_digest = len(payload), payload.descriptor["sha256"]
+    else:
+        value = _unpack(payload, maximum=MAX_RAW_BYTES)
+        raw_size, raw_digest = len(payload), hashlib.sha256(payload).hexdigest()
     _tree(value)
     metadata = _binary_metadata(value)
     # Reject noncanonical binary representations rather than silently changing
     # map order, integer widths, or float widths and breaking the raw commitment.
-    if msgpack.packb(value, use_bin_type=True) != payload:
+    if not isinstance(payload, BundleDocument) and document_identity(value, maximum=MAX_RAW_BYTES) != (raw_size, raw_digest):
         raise ArtifactError("bundle cannot be reconstructed byte-exactly")
     objects, rows, indices = {}, [], {}
 
@@ -347,7 +358,7 @@ def export_bundle(payload: bytes) -> BundleArtifacts:
         if type(node) is msgpack.ExtType:
             raise ArtifactError("bundle contains reserved artifact extension")
         if path in metadata:
-            if type(node) is not bytes:
+            if type(node) not in (bytes, memoryview):
                 raise ArtifactError("artifact binary field is not bytes")
             meta = metadata[path]
             expected = _ITEMSIZE[meta["dtype"]]
@@ -364,14 +375,13 @@ def export_bundle(payload: bytes) -> BundleArtifacts:
                              "size": len(node), "metadata": meta})
                 objects[key] = node
             return msgpack.ExtType(_REF, indices[key].to_bytes(4, "big"))
-        if type(node) is bytes:
+        if type(node) in (bytes, memoryview):
             raise ArtifactError("binary field outside public artifact schema")
         return node
 
     skeleton = msgpack.packb(visit(value), use_bin_type=True)
     manifest = msgpack.packb({"schema": 1, "encoding": ENCODING,
-                             "raw": {"schema": 2, "size": len(payload),
-                                     "sha256": hashlib.sha256(payload).hexdigest()},
+                             "raw": {"schema": 2, "size": raw_size, "sha256": raw_digest},
                              "skeleton": skeleton, "objects": rows}, use_bin_type=True)
     if len(manifest) > MAX_MANIFEST_BYTES or len(rows) > MAX_OBJECTS:
         raise ArtifactError("artifact manifest exceeds bounds")
@@ -477,6 +487,32 @@ def reconstruct_bundle(manifest: dict[str, Any], read: Callable[[dict[str, Any]]
     if len(output) != bound or digest.hexdigest() != manifest["raw"]["sha256"]:
         raise ArtifactError("artifact reconstructed original raw digest mismatch")
     return output
+
+
+def reconstruct_document(manifest: dict[str, Any], read: Callable[[dict[str, Any]], bytes]) -> dict:
+    """Verify the same raw commitment without a second contiguous bundle copy."""
+    loaded = {}
+    def visit(node: Any) -> Any:
+        if type(node) is dict:
+            return {key: visit(value) for key, value in node.items()}
+        if type(node) is list:
+            return [visit(value) for value in node]
+        if type(node) is msgpack.ExtType:
+            index = int.from_bytes(node.data, "big")
+            if index not in loaded:
+                row = manifest["objects"][index]
+                payload = read(row)
+                if type(payload) is not bytes:
+                    raise ArtifactError("artifact reconstruction requires immutable object bytes")
+                verify_object(row, payload)
+                loaded[index] = payload
+            return loaded[index]
+        return node
+    value = visit(manifest["graph"])
+    expected = manifest["raw"]
+    if document_identity(value, maximum=expected["size"]) != (expected["size"], expected["sha256"]):
+        raise ArtifactError("artifact reconstructed original raw digest mismatch")
+    return value
 
 
 @dataclass

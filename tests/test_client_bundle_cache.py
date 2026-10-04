@@ -554,14 +554,14 @@ def test_server_exposes_fingerprint_etag_and_memoizes_bundle(tmp_path: Path):
     root = create_tiny_gemma4_checkpoint(tmp_path / "server-model", num_hidden_layers=1)
     engine = MaskedTransformerEngine(threads=1)
     calls = 0
-    original = engine.client_bundle
+    original = engine.client_bundle_document
 
     def counted(model_id: str, *, include_local_weights: bool = True) -> bytes:
         nonlocal calls
         calls += 1
         return original(model_id, include_local_weights=include_local_weights)
 
-    engine.client_bundle = counted  # type: ignore[method-assign]
+    engine.client_bundle_document = counted  # type: ignore[method-assign]
     app = create_app(
         GatewayConfig(api_keys=("key",), allow_insecure_local_correlations=True),
         engines={engine.capabilities.name: engine},

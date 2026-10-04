@@ -825,6 +825,14 @@ the online public-weight path. Transformer-body matrices remain provider-owned;
 proprietary bundles never include either boundary matrix.
 
 Bundle schema 2 stores quantized matrices once and lets stages reference them.
+Public provider HTTP delivery snapshots bundle metadata and streams immutable
+native-backed binary segments with the same canonical MessagePack identity.
+Artifact export shares these segments; artifact import verifies every object and
+the canonical raw digest before entering the existing client validator, without
+constructing a second contiguous raw bundle. Raw downloads enforce declared
+lengths during receipt. The direct bytes API still materializes a bundle.
+A bounded 64 MiB matrix serialization control reduces isolated process peak RSS
+from 441.94 to 244.83 MB; it does not measure whole-decoder or client import peak.
 An opt-in bundle transport sends independent bounded zlib frames, then checks
 the original uncompressed bundle digest before client import; only the raw
 bundle is cached. The pinned Qwen2.5 cold-pair diagnostic saves 21.08 MB of

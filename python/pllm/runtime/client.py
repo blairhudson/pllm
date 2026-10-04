@@ -38,7 +38,7 @@ from .bundle_artifacts import (
     ArtifactError,
     configure_artifact_cache,
     parse_manifest,
-    reconstruct_bundle,
+    reconstruct_document,
 )
 from .prefill_cache import ExactPrefillCache, prefill_key
 
@@ -1428,8 +1428,15 @@ class RuntimeClient:
                 )
             encoding = response.headers.get("X-PLLM-Bundle-Encoding")
             if encoding is None:
-                payload: bytes | bytearray = response.read()
-                count_wire_bytes(len(payload))
+                payload = bytearray()
+                chunks = ((response.content[offset:offset + 65536]
+                           for offset in range(0, len(response.content), 65536)) if response.is_stream_consumed else
+                          response.iter_raw(chunk_size=65536))
+                for chunk in chunks:
+                    count_wire_bytes(len(chunk))
+                    if len(payload) + len(chunk) > size:
+                        raise _BundleIntegrityError("provider client bundle fingerprint mismatch (declared size exceeded)", 409)
+                    payload.extend(chunk)
             elif self.bundle_compression == "zlib" and encoding == BUNDLE_ENCODING:
                 try:
                     payload = decode_bundle_frames(
@@ -1564,10 +1571,10 @@ class RuntimeClient:
                 return payload
 
             started, cpu_started = time.perf_counter(), time.process_time()
-            payload = reconstruct_bundle(manifest, read)
+            value = reconstruct_document(manifest, read)
             stats.reconstruction_seconds += time.perf_counter() - started
             stats.reconstruction_cpu_seconds += time.process_time() - cpu_started
-            bundle = ClientBundle.unpack(payload)
+            bundle = ClientBundle._from_document(value)
             if bundle.model_id != model_id or bundle.schema_version != schema:
                 raise ArtifactError("artifact reconstructed bundle descriptor mismatch")
             # Existing audit counters retain bundle-level semantics. Detailed

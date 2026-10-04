@@ -22,6 +22,7 @@ from pllm.model_loader import model_from_runtime_spec, resolve_model
 from .backends import BackendRegistry
 from .bundle_compression import ENCODING as BUNDLE_ENCODING, encode_bundle_frames
 from .bundle_artifacts import ENCODING as ARTIFACT_ENCODING, ArtifactError, export_bundle
+from .bundle_document import BundleDocument
 from .config import GatewayConfig
 from .correction_channel import (
     CORRECTION_CHANNEL_SUBPROTOCOL,
@@ -226,7 +227,7 @@ def create_app(
                 max_wait_ms=config.max_batch_wait_ms,
                 adaptive_wait=config.adaptive_batching,
             )
-    client_bundles: dict[tuple[str, str], tuple[bytes, dict[str, Any]]] = {}
+    client_bundles: dict[tuple[str, str], tuple[bytes | BundleDocument, dict[str, Any]]] = {}
     backend_models: list[dict[str, Any]] = []
     rendezvous = CorrectionRendezvous(
         timeout=config.rendezvous_timeout_seconds,
@@ -386,7 +387,7 @@ def create_app(
                 },
             )
 
-    def client_bundle_record(engine_name: str, model_id: str) -> tuple[bytes, dict[str, Any]]:
+    def client_bundle_record(engine_name: str, model_id: str) -> tuple[bytes | BundleDocument, dict[str, Any]]:
         key = (engine_name, model_id)
         cached = client_bundles.get(key)
         if cached is not None:
@@ -397,7 +398,15 @@ def create_app(
                 status_code=501,
                 detail={"error": {"message": "Runtime engine does not expose a client bundle"}},
             )
-        payload = getter(model_id)
+        from .transformer_engine import MaskedTransformerEngine
+        engine = engines[engine_name]
+        # Subclass bundle overrides carry proprietary/guarded trust contracts.
+        payload = (engine.client_bundle_document(model_id)
+                   if type(engine) is MaskedTransformerEngine else getter(model_id))
+        if isinstance(payload, BundleDocument):
+            cached = (payload, payload.descriptor)
+            client_bundles[key] = cached
+            return cached
         try:
             schema = int(msgpack.unpackb(payload, raw=False, strict_map_key=False)["v"])
         except (KeyError, TypeError, ValueError, msgpack.UnpackException) as exc:
@@ -765,6 +774,9 @@ def create_app(
         headers["Content-Length"] = str(len(payload))
 
         def chunks():
+            if isinstance(payload, BundleDocument):
+                yield from payload.chunks()
+                return
             view = memoryview(payload)
             for offset in range(0, len(view), 1024 * 1024):
                 yield view[offset : offset + 1024 * 1024].tobytes()

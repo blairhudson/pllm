@@ -6,6 +6,8 @@ import struct
 import zlib
 from collections.abc import Callable, Iterable, Iterator
 
+from .bundle_document import BundleDocument
+
 
 ENCODING = "zlib-chunks-v1"
 CHUNK_BYTES = 1024 * 1024
@@ -17,9 +19,11 @@ class BundleFrameError(ValueError):
     pass
 
 
-def encode_bundle_frames(payload: bytes) -> Iterator[bytes]:
-    for offset in range(0, len(payload), CHUNK_BYTES):
-        block = memoryview(payload)[offset : offset + CHUNK_BYTES]
+def encode_bundle_frames(payload: bytes | memoryview | BundleDocument) -> Iterator[bytes]:
+    blocks = (payload.chunks() if isinstance(payload, BundleDocument) else
+              (memoryview(payload)[offset:offset + CHUNK_BYTES]
+               for offset in range(0, len(payload), CHUNK_BYTES)))
+    for block in blocks:
         compressed = zlib.compress(block, level=1)
         yield _HEADER.pack(len(block), len(compressed)) + compressed
 
