@@ -1796,20 +1796,27 @@ fn validate_decoder_linear_composition(
 }
 
 fn valid_prepared_parameters(component: &ExperimentComponent) -> bool {
-    component.params.is_empty()
-        || (component.params.len() == 1
-            && component
-                .params
-                .get("output_encoding")
-                .and_then(serde_json::Value::as_str)
-                .is_some_and(|encoding| matches!(encoding, "raw" | "row_residues")))
+    component.params.iter().all(|(key, value)| {
+        (key == "output_encoding" && matches!(value.as_str(), Some("raw" | "row_residues")))
+            || (key == "prefill_chunk_rows" && matches!(value.as_u64(), Some(0 | 4 | 8 | 16 | 32)))
+    })
 }
 
 fn valid_offset_parameters(component: &ExperimentComponent) -> bool {
     component.params.iter().all(|(key, value)| {
         (key == "input_encoding" && matches!(value.as_str(), Some("raw" | "seeded")))
             || (key == "output_encoding" && matches!(value.as_str(), Some("raw" | "row_residues")))
-    })
+            || (key == "dispatch" && matches!(value.as_str(), Some("sequential" | "seed_first")))
+    }) && (component
+        .params
+        .get("dispatch")
+        .and_then(serde_json::Value::as_str)
+        != Some("seed_first")
+        || component
+            .params
+            .get("input_encoding")
+            .and_then(serde_json::Value::as_str)
+            == Some("seeded"))
 }
 
 fn valid_prefix_cache(component: &ExperimentComponent) -> bool {
@@ -1840,7 +1847,7 @@ fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
         && component
             .params
             .keys()
-            .all(|key| matches!(key.as_str(), "encoding" | "compression"))
+            .all(|key| matches!(key.as_str(), "encoding" | "compression" | "batch_objects"))
         && matches!(
             component
                 .params
@@ -1848,6 +1855,16 @@ fn valid_bundle_transport(component: &ExperimentComponent) -> bool {
                 .and_then(serde_json::Value::as_str),
             Some("none" | "zlib" | "artifacts")
         )
+        && component.params.get("batch_objects").is_none_or(|value| {
+            value
+                .as_u64()
+                .is_some_and(|count| (1..=64).contains(&count))
+                && component
+                    .params
+                    .get("encoding")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("artifacts")
+        })
         && component
             .params
             .get("compression")
@@ -1951,11 +1968,15 @@ fn validate_masked_linear_composition(
     let inventory = pipeline.components.get("inventory");
     if let Some(inventory) = inventory {
         if inventory.component != "pllm/prepared-inventory-policy/v1"
-            || !matches!(inventory.params.len(), 2 | 3)
+            || !matches!(inventory.params.len(), 2..=4)
             || inventory
                 .params
                 .keys()
-                .any(|key| !matches!(key.as_str(), "policy" | "rows" | "refill"))
+                .any(|key| !matches!(key.as_str(), "policy" | "rows" | "refill" | "stage_window"))
+            || inventory
+                .params
+                .get("stage_window")
+                .is_some_and(|value| !value.as_u64().is_some_and(|width| (1..=4).contains(&width)))
             || inventory
                 .params
                 .get("refill")

@@ -32,7 +32,7 @@ def delivery(tmp_path):
 
 
 def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=False,
-                encoding="artifacts", damage_object=None):
+                 encoding="artifacts", damage_object=None, batch_objects=1):
     exported = export_bundle(payload)
     digest = hashlib.sha256(payload).hexdigest()
     calls = []
@@ -51,9 +51,13 @@ def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=F
                 "X-PLLM-Bundle-SHA256": digest,
                 **({} if unsupported else {"X-PLLM-Bundle-Encoding": ENCODING}),
             })
-        if "/client-bundle-objects/" in request.url.path:
-            key = request.url.path.rsplit("/", 1)[1]
-            data = exported.objects[key]
+        if "/client-bundle-objects/" in request.url.path or "/client-bundle-object-batch/" in request.url.path:
+            if "/client-bundle-object-batch/" in request.url.path:
+                from pllm.runtime.bundle_artifacts import object_batch
+                data, key = object_batch(exported, request.url.params["objects"])
+            else:
+                key = request.url.path.rsplit("/", 1)[1]
+                data = exported.objects[key]
             headers = {
                 "X-PLLM-Bundle-SHA256": digest, "X-PLLM-Object-SHA256": key,
             }
@@ -72,8 +76,52 @@ def mocked_core(tmp_path, payload, *, mutate=None, unsupported=False, redirect=F
                          bundle_compression=encoding,
                          bundle_cache_dir=tmp_path / "cache",
                          http_client=httpx.Client(base_url="https://inference.test",
-                                                  transport=httpx.MockTransport(handler)))
+                                                   transport=httpx.MockTransport(handler)))
+    core.bundle_batch_objects = batch_objects
     return core, calls
+
+
+@pytest.mark.parametrize("encoding", ["artifacts", "artifacts-zlib"])
+@pytest.mark.parametrize("cache_mode", ["off", "read-only", "read-write"])
+def test_coalesced_objects_preserve_exact_bundle_and_cache_identity(delivery, tmp_path, encoding, cache_mode):
+    _, payloads = delivery
+    baseline, _ = mocked_core(tmp_path / "plain", payloads[0], encoding=encoding)
+    candidate, _ = mocked_core(tmp_path / "batch", payloads[0], encoding=encoding, batch_objects=64)
+    try:
+        candidate.bundle_cache_mode = cache_mode
+        a = baseline._load_client_bundle("artifact-model")
+        b = candidate._load_client_bundle("artifact-model")
+        assert a.manifest == b.manifest
+        assert candidate.artifact_cache_stats.object_batch_requests > 0
+        assert candidate.artifact_cache_stats.object_requests < baseline.artifact_cache_stats.object_requests
+        candidate._load_client_bundle("artifact-model")
+        if cache_mode == "read-write":
+            assert candidate.audit.bundle_cache_hits == 1
+    finally:
+        baseline.close()
+        candidate.close()
+
+
+@pytest.mark.parametrize("damage", ["payload", "binding", "size"])
+def test_bad_batch_is_not_cached_or_admitted_for_material(delivery, tmp_path, damage):
+    _, payloads = delivery
+    def corrupt(data, headers):
+        if damage == "payload":
+            data = data[:-1] + bytes([data[-1] ^ 1])
+        elif damage == "binding":
+            headers["X-PLLM-Object-SHA256"] = "0" * 64
+        else:
+            headers["X-PLLM-Object-Raw-Size"] = "1"
+        return data, headers
+    core, _ = mocked_core(tmp_path, payloads[0], encoding="artifacts-zlib",
+                          batch_objects=64, damage_object=corrupt)
+    try:
+        with pytest.raises(ProtocolError):
+            core._load_client_bundle("artifact-model")
+        assert not list((tmp_path / "cache").rglob("*.blob"))
+        assert core.audit.preparation_upload_bytes == core.audit.session_authorization_upload_bytes == 0
+    finally:
+        core.close()
 
 
 def test_sdk_cache_baseline_attention_baseline_and_corruption(delivery, tmp_path):

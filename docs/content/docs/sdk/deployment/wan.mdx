@@ -35,6 +35,11 @@ Enforcement selects the existing local Docker CPU backend. A running Linux Docke
 engine is required. It does not change an independently deployed HTTP network.
 Optional Docker delay/loss settings compose with the party caps; a second
 Docker bandwidth setting is rejected. Zero additional delay/loss is the default.
+`--docker-network-profile examples/benchmarks/wan-40ms.json` selects 20 ms
+added egress delay at each party: 40 ms added request/reply delay, plus the
+topology's existing RTT. Kernel delay/loss readbacks must match the declared
+profile before measured-throughput admission. The bandwidth floor still excludes
+RTT. See [WAN throughput choices](/sdk/evaluate/wan-tps/) for matched experiments.
 
 ## Python SDK example
 

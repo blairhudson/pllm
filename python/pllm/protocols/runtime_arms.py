@@ -17,23 +17,31 @@ class TwoOnlineOffsetLinear(ProtocolMethod):
         parameter_schema={"type": "object", "properties": {
             "input_encoding": {"type": "string", "enum": ["raw", "seeded"]},
             "output_encoding": {"type": "string", "enum": ["raw", "row_residues"]},
+            "dispatch": {"type": "string", "enum": ["sequential", "seed_first"]},
         }, "additionalProperties": False},
         capabilities=("two-online-public-linear", "additive-input-shares"),
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, input_encoding: str = "raw", output_encoding: str = "raw") -> None:
+    def __init__(self, *, input_encoding: str = "raw", output_encoding: str = "raw",
+                 dispatch: str = "sequential") -> None:
         if type(input_encoding) is not str or input_encoding not in {"raw", "seeded"}:
             raise ConfigurationError("offset input encoding must be raw or seeded")
         if type(output_encoding) is not str or output_encoding not in {"raw", "row_residues"}:
             raise ConfigurationError("offset output encoding must be raw or row_residues")
-        super().__init__(self.descriptor.component, {
+        if type(dispatch) is not str or dispatch not in {"sequential", "seed_first"} or (dispatch == "seed_first" and input_encoding != "seeded"):
+            raise ConfigurationError("seed-first dispatch requires seeded offset input")
+        params = {
             key: value for key, value in (("input_encoding", input_encoding),
                 ("output_encoding", output_encoding)) if value != "raw"
-        })
+        }
+        if dispatch != "sequential":
+            params["dispatch"] = dispatch
+        super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {key: self.params.get(key, "raw") for key in ("input_encoding", "output_encoding")}
+        return {**{key: self.params.get(key, "raw") for key in ("input_encoding", "output_encoding")},
+                "dispatch": self.params.get("dispatch", "sequential")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

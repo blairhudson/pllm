@@ -42,6 +42,11 @@ def test_seeded_encoding_is_opt_in_and_compiler_bound():
     assert raw.with_params(input_encoding="seeded").params["input_encoding"] == "seeded"
     with pytest.raises(ValueError):
         TwoOnlineOffsetLinear(input_encoding="public")
+    with pytest.raises(ValueError, match="requires seeded"):
+        TwoOnlineOffsetLinear(dispatch="seed_first")
+    assert dict(TwoOnlineOffsetLinear(dispatch="sequential").params) == {}
+    concurrent = TwoOnlineOffsetLinear(input_encoding="seeded", dispatch="seed_first")
+    assert concurrent.params["dispatch"] == "seed_first"
 
 
 @pytest.mark.parametrize("count", [1, 31, 32, 33, 257])

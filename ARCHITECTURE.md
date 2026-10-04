@@ -938,6 +938,29 @@ Bounded planning prices union ownership once and can bind schema-v2 artifact
 transfer lengths separately from raw residency. It preserves unknown CPU/GPU
 costs and cannot infer a benefit from compatibility alone.
 
+Optional WAN throughput choices retain the same compiled numeric execution.
+`TwoOnlineOffsetLinear(dispatch="seed_first")` requires seeded input and overlaps
+the independent worker request with client share construction and the other
+worker exchange. `ClientBundleTransport(batch_objects=64)` coalesces missing
+public artifacts under a 1 MiB raw-group bound while checking every original
+object digest. `PreparedInventory(stage_window=4)` overlaps independent stage
+issuance under a conservative 16 MiB active-work bound, admits results in order,
+and seals only after all pushes are acknowledged. Failure and cancellation burn
+the attempt before workers are joined. These choices add no client body weights.
+The explicit `MaskedLinear(prefill_chunk_rows=4)` splits prefill into disjoint
+one-use row chunks on one duplex WebSocket. It bounds frame groups, does not
+retry accepted work through HTTP, validates ordered session replies, and verifies
+the complete integer stage before dequantization when Freivalds is selected.
+Tiny full logits/KV and pinned functionality pass; its incremental measured TPS
+gain remains inconclusive. Native public-byte rANS is exposed only through the
+artifact entropy probe: sampled Qwen delivery grows versus zlib and costs more
+client decode CPU. Neither choice is inferred beneficial by the planner.
+The matched single-salt Qwen 39+8 WAN cohort uses shared 100/40 Mbps party caps
+and 20 ms added egress delay per party. Prepared batching/windowing improves
+request TPS 17.3%; seed-first offset improves decode TPS 1.94-fold with unchanged
+application bodies. Outputs match; peak client memory, independent operators,
+full physical wire and a tenfold network improvement remain unestablished.
+
 ## Application boundary
 
 The client owns plaintext input, inventory root seeds and masks, private

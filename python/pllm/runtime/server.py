@@ -691,6 +691,28 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return StreamingResponse(chunks, media_type=media, headers=headers)
 
+    @app.get("/v1/runtime/models/{model_id:path}/client-bundle-object-batch/{raw_digest}")
+    async def model_client_bundle_batch(
+        model_id: str, raw_digest: str, objects: str,
+        authorization: str | None = Header(default=None),
+        accept_object_encoding: str | None = Header(default=None, alias="X-PLLM-Accept-Object-Encoding"),
+    ) -> FastAPIResponse:
+        auth_token(authorization)
+        engine_name = model_engine_routes.get(model_id)
+        if engine_name is None:
+            raise HTTPException(status_code=404, detail="Model has no client bundle")
+        exported, descriptor = artifact_bundle_record(engine_name, model_id)
+        if raw_digest != descriptor["sha256"]:
+            raise HTTPException(status_code=404, detail="Unknown artifact binding")
+        from .bundle_artifacts import object_batch, object_stream
+        try:
+            payload, digest = object_batch(exported, objects)
+            chunks, headers, media = object_stream(payload, bundle_digest=raw_digest,
+                object_digest=digest, encoding=accept_object_encoding)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return StreamingResponse(chunks, media_type=media, headers=headers)
+
     @app.get("/v1/runtime/models/{model_id:path}/client-bundle-artifacts")
     async def model_client_bundle_artifacts(
         model_id: str, authorization: str | None = Header(default=None),

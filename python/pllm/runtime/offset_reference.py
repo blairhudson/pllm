@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import json
 import secrets
+import threading
+import contextvars
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from math import prod
 from typing import Callable
@@ -112,6 +115,9 @@ class _TwoOnlineShareEvaluator:
     def costs(self) -> OffsetReferenceCosts:
         return self._costs
 
+    def _begin_seed(self, stage_id: str, payload: bytes) -> Future[list[bytes]] | None:
+        return None
+
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self._compiled._bundle.stages.get(stage_id)
         binding = self._bindings.get(stage_id)
@@ -145,6 +151,7 @@ class _TwoOnlineShareEvaluator:
         modulus = profile.modulus
         mask = None
         right_packet = None
+        pending_seed = None
         if self._input_encoding == "seeded":
             from pllm import _native
             from .offset_codec import context, pack_seed, seed_header
@@ -155,9 +162,12 @@ class _TwoOnlineShareEvaluator:
                 body=self._fingerprint, weight=stage.weight_digest, plan=self._compiled._plan.digest,
                 composition=self._composition_digest, session=self._session_b, ticket=right_ticket,
                 rows=rows, columns=stage.in_features, bits=profile.wire_bits)
+            right_packet = (right_ticket, pack_seed(header, seed))
+            # Public schedule and both sessions are already admitted. The seed
+            # goes only to worker B; A's fresh complement is still built natively.
+            pending_seed = self._begin_seed(stage_id, right_packet[1])
             left = np.frombuffer(bytearray(_native.offset_seeded_share(seed, context(header),
                 rows * stage.in_features, profile.wire_bits, quantized.values.tobytes())), dtype="<u4").reshape(rows, stage.in_features)
-            right_packet = (right_ticket, pack_seed(header, seed))
         else:
             clear = quantized.values.reshape(rows, stage.in_features).astype(np.int64) % modulus
             raw_mask = bytearray(secrets.token_bytes(rows * stage.in_features * 4))
@@ -195,7 +205,8 @@ class _TwoOnlineShareEvaluator:
                 raise OffsetReferenceError("offset share encoding did not produce a request")
             right_ticket, right_request = right_packet
             left_result = self._exchange_a(stage_id, [left_request])
-            right_result = self._exchange_b(stage_id, [right_request])
+            right_result = (pending_seed.result() if pending_seed is not None
+                            else self._exchange_b(stage_id, [right_request]))
             if (
                 type(left_result) is not list
                 or type(right_result) is not list
@@ -353,6 +364,9 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
         keys = (api_key_a, api_key_b)
         session_ids: list[str] = []
         self._closed = True
+        self._seed_executor = None
+        self._call_lock = threading.Lock()
+        self._finish_lock = threading.Lock()
         self._http_bodies: dict[str, dict[str, int]] = {
             role: {
                 "setup_upload_bytes": 0, "setup_download_bytes": 0,
@@ -468,6 +482,8 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
             self._clients = clients
             self._keys = keys
             self._sessions = (session_ids[0], session_ids[1])
+            if composition.components["linear"].params.get("dispatch") == "seed_first":
+                self._seed_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pllm-offset-seed")
             self._closed = False
         except BaseException:
             for index, session_id in enumerate(session_ids):
@@ -486,16 +502,31 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         if self._closed:
             raise OffsetReferenceError("offset worker session is already terminal")
+        if not self._call_lock.acquire(blocking=False):
+            raise OffsetReferenceError("offset session already has an active stage")
         try:
-            return super().__call__(stage_id, activation)
-        except Exception:
+            result = super().__call__(stage_id, activation)
+            if self._closed:
+                raise OffsetReferenceError("offset session cancelled during its stage")
+            return result
+        except BaseException:
             self.abort()
             raise
+        finally:
+            self._call_lock.release()
+
+    def _begin_seed(self, stage_id: str, payload: bytes):
+        if self._seed_executor is None:
+            return None
+        if self._closed:
+            raise OffsetReferenceError("offset session closed before seed dispatch")
+        return self._seed_executor.submit(contextvars.copy_context().run, self._exchange_b, stage_id, [payload])
 
     def _finish(self, action: str) -> None:
-        if self._closed:
-            return
-        self._closed = True
+        with self._finish_lock:
+            if self._closed:
+                return
+            self._closed = True
         failures = False
         for index, (client, key, session_id) in enumerate(zip(
             self._clients, self._keys, self._sessions, strict=True,
@@ -518,6 +549,8 @@ class TwoOnlineOffsetTransport(_TwoOnlineShareEvaluator):
                         values["teardown_download_bytes"] += response_size
             except httpx.HTTPError:
                 failures = True
+        if self._seed_executor is not None:
+            self._seed_executor.shutdown(wait=True, cancel_futures=True)
         if failures and action == "complete":
             raise OffsetReferenceError("offset worker completion failed")
 

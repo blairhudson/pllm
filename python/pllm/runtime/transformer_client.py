@@ -1023,6 +1023,7 @@ class PreparedRemoteLinear:
         inference,
         *,
         verification_component: str = "none",
+        prefill_chunk_rows: int = 0,
     ) -> None:
         self.model_id = model_id
         self.body_fingerprint = body_fingerprint
@@ -1030,6 +1031,9 @@ class PreparedRemoteLinear:
         self.inference = inference
         self.inventory = inventory
         self.verification_component = verification_component
+        if type(prefill_chunk_rows) is not int or prefill_chunk_rows not in {0, 4, 8, 16, 32}:
+            raise TransformerClientError("invalid prepared prefill chunk bound")
+        self.prefill_chunk_rows = prefill_chunk_rows
         self.stats = StageClientStats()
         self.verified_calls = 0
 
@@ -1048,6 +1052,27 @@ class PreparedRemoteLinear:
         ):
             raise TransformerClientError("service returned a mismatched seeded ring result")
         return results
+
+    def _decode_reply(self, payload, stage, output_mask, batch_id, attempt_id):
+        profile, rows = stage.seeded_profile, output_mask.shape[0]
+        if stage.output_residue_bits is not None:
+            from pllm import _native
+            from .residue_codec import unpack_row_response
+            packed, server_ns = unpack_row_response(
+                payload, ticket=batch_id or attempt_id, stage=stage.id,
+                widths=stage.output_residue_bits, rows=rows, bits=profile.wire_bits, namespace="prepared")
+            values = np.frombuffer(_native.prepared_unpack_output(packed,
+                output_mask.astype("<u4", copy=False).tobytes(), stage.output_residue_bits, rows), "<i8")
+            return values.reshape(rows, stage.out_features), server_ns
+        if batch_id is not None:
+            result = PreparedStageBatchResponse.unpack(payload, max_rows=rows,
+                max_tensor_elements=rows * stage.out_features)
+            if (result.batch_id != batch_id or result.wire_bits != profile.wire_bits
+                    or result.masked_output.shape != (rows, stage.out_features)):
+                raise TransformerClientError("service returned a mismatched prepared batch result")
+        else:
+            result = self._result([payload], [attempt_id], stage)[0]
+        return unmask_prepared_output(result.masked_output, output_mask, profile.wire_bits), result.server_ns
 
     def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
         stage = self.stages.get(stage_id)
@@ -1074,23 +1099,22 @@ class PreparedRemoteLinear:
                 verifier.cancel()
             raise TransformerClientError("prepared stage verification does not match its contract")
         complement = mask_prepared_input(clear_signed, mask, profile.wire_bits)
-        batch_id = secrets.token_hex(16) if quantized.rows > 1 else None
-        if batch_id is not None:
-            inference_requests = [
-                PreparedStageBatchRequest(
-                    batch_id=batch_id,
-                    correlation_ids=tuple(attempt_ids),
-                    masked_input=complement,
-                    wire_bits=profile.wire_bits,
-                ).pack()
-            ]
-        else:
-            inference_requests = [
-                MaskedStageRequest(
+        chunk_rows = self.prefill_chunk_rows or quantized.rows
+        chunks, inference_requests = [], []
+        for start in range(0, quantized.rows, chunk_rows):
+            end = min(quantized.rows, start + chunk_rows)
+            batch_id = secrets.token_hex(16) if end - start > 1 else None
+            chunks.append((start, end, batch_id))
+            if batch_id is not None:
+                inference_requests.append(PreparedStageBatchRequest(
+                    batch_id=batch_id, correlation_ids=tuple(attempt_ids[start:end]),
+                    masked_input=complement[start:end], wire_bits=profile.wire_bits).pack())
+            else:
+                inference_requests.append(MaskedStageRequest(
                     model=self.model_id,
                     stage_id=stage_id,
-                    correlation_id=attempt_ids[0],
-                    masked_input=complement,
+                    correlation_id=attempt_ids[start],
+                    masked_input=complement[start:end],
                     activation_scales=np.ones(1, dtype=np.float32),
                     modulus=profile.modulus,
                     wire_bits=profile.wire_bits,
@@ -1102,8 +1126,7 @@ class PreparedRemoteLinear:
                     session_id=self.inventory.inventory_id,
                     out_features=stage.out_features,
                     signed_output_bound=profile.signed_output_bound,
-                ).pack()
-            ]
+                ).pack())
         inference_upload_bytes = sum(map(len, inference_requests))
         self.stats.inference_upload_bytes += inference_upload_bytes
         self.stats.upload_bytes += inference_upload_bytes
@@ -1117,43 +1140,15 @@ class PreparedRemoteLinear:
             record_protocol_bytes(
                 "inference", "client", sum(map(len, inference_payloads)), stage_id
             )
-            if stage.output_residue_bits is not None:
-                from pllm import _native
-                from .residue_codec import unpack_row_response
-                if len(inference_payloads) != 1:
-                    raise TransformerClientError("inference provider returned the wrong packed result count")
-                packed, inference_server_ns = unpack_row_response(
-                    inference_payloads[0], ticket=batch_id or attempt_ids[0], stage=stage_id,
-                    widths=stage.output_residue_bits, rows=quantized.rows,
-                    bits=profile.wire_bits, namespace="prepared",
-                )
-                accumulators = np.frombuffer(_native.prepared_unpack_output(
-                    packed, output_mask.astype("<u4", copy=False).tobytes(),
-                    stage.output_residue_bits, quantized.rows), "<i8").reshape(quantized.rows, stage.out_features)
-            elif batch_id is not None:
-                if len(inference_payloads) != 1:
-                    raise TransformerClientError(
-                        "inference provider returned the wrong batch result count"
-                    )
-                batch_result = PreparedStageBatchResponse.unpack(
-                    inference_payloads[0],
-                    max_rows=quantized.rows,
-                    max_tensor_elements=quantized.rows * stage.out_features,
-                )
-                if (
-                    batch_result.batch_id != batch_id
-                    or batch_result.wire_bits != profile.wire_bits
-                    or batch_result.masked_output.shape != (quantized.rows, stage.out_features)
-                ):
-                    raise TransformerClientError(
-                        "service returned a mismatched prepared batch result"
-                    )
-                accumulators = unmask_prepared_output(batch_result.masked_output, output_mask, profile.wire_bits)
-                inference_server_ns = batch_result.server_ns
-            else:
-                inference_results = self._result(inference_payloads, attempt_ids, stage)
-                accumulators = unmask_prepared_output(inference_results[0].masked_output, output_mask, profile.wire_bits)
-                inference_server_ns = inference_results[0].server_ns
+            if len(inference_payloads) != len(chunks):
+                raise TransformerClientError("inference provider returned the wrong chunk count")
+            parts, inference_server_ns = [], 0
+            for payload, (start, end, batch_id) in zip(inference_payloads, chunks, strict=True):
+                part, server_ns = self._decode_reply(payload, stage, output_mask[start:end],
+                                                    batch_id, attempt_ids[start])
+                parts.append(part)
+                inference_server_ns += server_ns
+            accumulators = parts[0] if len(parts) == 1 else np.concatenate(parts)
         except Exception as exc:
             protocol_span.record_exception(exc)
             protocol_span.end()

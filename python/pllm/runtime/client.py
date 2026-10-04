@@ -299,7 +299,8 @@ class PrivacyAudit:
 
 class _Channel:
     def __init__(
-        self, client: httpx.Client, base_url: str, api_key: str, session_id: str, mode: str
+        self, client: httpx.Client, base_url: str, api_key: str, session_id: str, mode: str,
+        *, frame_limit: int | None = None,
     ) -> None:
         self.client = client
         self.base_url = base_url.rstrip("/")
@@ -307,6 +308,8 @@ class _Channel:
         self.session_id = session_id
         self.mode = mode
         self.socket: Any = None
+        self._send_pool = None
+        self.frame_limit = frame_limit
 
     def _http(self, payload: bytes) -> bytes:
         response = self.client.post(
@@ -335,7 +338,9 @@ class _Channel:
             subprotocols=["pllm-runtime-v1"],
             additional_headers={"Authorization": f"Bearer {self.api_key}"},
             open_timeout=30,
-            max_size=None,
+            max_size=self.frame_limit,
+            max_queue=2 if self.frame_limit else 16,
+            close_timeout=5 if self.frame_limit else 10,
         )
 
     def exchange(self, payload: bytes) -> bytes:
@@ -360,6 +365,43 @@ class _Channel:
         if self.socket is not None:
             self.socket.close()
             self.socket = None
+        if self._send_pool is not None:
+            self._send_pool.shutdown(wait=True, cancel_futures=True)
+            self._send_pool = None
+
+    def exchange_many(self, payloads: list[bytes]) -> list[bytes]:
+        """One ordered sender plus receiver: allow both TCP directions to progress."""
+        from concurrent.futures import ThreadPoolExecutor
+        if (self.mode != "websocket" or not 1 <= len(payloads) <= 128
+                or sum(map(len, payloads)) > 16 << 20):
+            raise ProtocolError("duplex stage exceeds its WebSocket frame budget")
+        self._connect()
+        socket = self.socket
+        if self._send_pool is None:
+            self._send_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pllm-stage-send")
+        def send():
+            try:
+                for payload in payloads:
+                    socket.send(payload)
+            except BaseException:
+                socket.close()
+                raise
+        future = self._send_pool.submit(send)
+        try:
+            results, result_bytes = [], 0
+            for _ in payloads:
+                value = socket.recv(timeout=30)
+                if not isinstance(value, bytes) or len(value) > 16 << 20:
+                    raise ProtocolError("duplex stage returned an invalid bounded binary frame")
+                results.append(value)
+                result_bytes += len(value)
+                if result_bytes > 16 << 20:
+                    raise ProtocolError("duplex stage exceeds its result-body budget")
+            future.result()
+            return results
+        except BaseException:
+            self.close()
+            raise
 
 
 @dataclass(slots=True)
@@ -1061,6 +1103,17 @@ class RuntimeClient:
             raise ValueError("bundle_compression must be none, zlib, artifacts, or artifacts-zlib")
         self.bundle_cache_mode = bundle_cache_mode
         self.bundle_compression = bundle_compression
+        self.bundle_batch_objects = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("delivery", {}).get("params", {}).get("batch_objects", 1)
+            if self.experiment is not None else 1)
+        self.preparation_stage_window = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("inventory", {}).get("params", {}).get("stage_window", 1)
+            if self.experiment is not None else 1)
+        self.prefill_chunk_rows = (json.loads(self.experiment.canonical_composition)
+            .get("components", {}).get("linear", {}).get("params", {}).get("prefill_chunk_rows", 0)
+            if self.experiment is not None else 0)
+        if self.prefill_chunk_rows and self.session_transport == "http":
+            raise ValueError("duplex prefill requires a WebSocket session transport")
         self._bundle_cache_explicit = bundle_cache_dir is not None
         self.bundle_cache_dir = (
             Path(bundle_cache_dir).expanduser()
@@ -1478,18 +1531,35 @@ class RuntimeClient:
             stats.manifest_parse_seconds += time.perf_counter() - started
             stats.manifest_parse_cpu_seconds += time.process_time() - cpu_started
 
+            def fetch_one(row):
+                # No URLs from the manifest: exact authenticated inference origin.
+                return download(
+                    f"/v1/runtime/models/{model_path}/client-bundle-objects/{fingerprint}/{row['sha256']}",
+                    row["size"], object_key=row["sha256"],
+                )
+
+            def fetch_many(rows):
+                keys = ".".join(row["sha256"] for row in rows)
+                digest = hashlib.sha256(keys.encode("ascii")).hexdigest()
+                stats.object_batch_requests += 1
+                data = download(
+                    f"/v1/runtime/models/{model_path}/client-bundle-object-batch/{fingerprint}?objects={keys}",
+                    sum(row["size"] for row in rows), object_key=digest)
+                result, position = {}, 0
+                for row in rows:
+                    result[row["sha256"]] = data[position:position + row["size"]]
+                    position += row["size"]
+                return result
+
+            group_reader = None
+            if self.bundle_batch_objects > 1:
+                from .bundle_artifacts import batched_reader
+                group_reader = batched_reader(manifest, cache, fetch_one, fetch_many,
+                                               maximum=self.bundle_batch_objects)
+
             def read(row):
                 before = stats.to_dict()
-
-                def fetch():
-                    # No URLs from the manifest: exact authenticated inference-origin
-                    # route with descriptor binding; redirects fail closed.
-                    return download(
-                        f"/v1/runtime/models/{model_path}/client-bundle-objects/{fingerprint}/{row['sha256']}",
-                        row["size"], object_key=row["sha256"],
-                    )
-
-                payload = cache.fetch(row, fetch)
+                payload = group_reader(row) if group_reader else cache.fetch(row, lambda: fetch_one(row))
                 self.audit.bundle_cache_corruptions += stats.corruptions - before["corruptions"]
                 return payload
 
@@ -2080,6 +2150,16 @@ class RuntimeClient:
         _raise(response)
         value = response.json()
         inventory_id = str(value["id"])
+        prepared_stages: dict[str, PreparedStageRows] = {}
+        def cancel_remote():
+            for client, path, headers in (
+                (self.http, f"/v1/runtime/inventories/{inventory_id}/cancel", self.headers),
+                (self.preparation_http, f"/v1/preparation/inventories/{inventory_id}/cancel", self.preparation_headers),
+            ):
+                try:
+                    client.post(path, headers=headers)
+                except Exception:
+                    pass
         try:
             descriptor = value.get("preparation_authorization") or {}
             expected_verification = (
@@ -2139,8 +2219,10 @@ class RuntimeClient:
                 raise ModelError("preparation inventory authorization mismatch")
 
             verification_policy = _client_freivalds_policy(authorization, remote_stages)
-            prepared_stages: dict[str, PreparedStageRows] = {}
-            for stage in remote_stages:
+            audit_lock = threading.Lock()
+            def prepare_stage(stage):
+                if self._closing:
+                    raise ProtocolError("client closed before stage preparation")
                 profile = stage.seeded_profile
                 assert profile is not None
                 request = PreparationRequest(
@@ -2162,7 +2244,8 @@ class RuntimeClient:
                     wire_bits=profile.wire_bits,
                 )
                 payload = request.pack()
-                self.audit.preparation_upload_bytes += len(payload)
+                with audit_lock:
+                    self.audit.preparation_upload_bytes += len(payload)
                 from .telemetry import record_protocol_bytes, start_protocol_span
 
                 protocol_span = start_protocol_span(
@@ -2203,9 +2286,10 @@ class RuntimeClient:
                     protocol_span.record_exception(exc)
                     protocol_span.end()
                     raise
-                self.audit.preparation_attempts += 1
-                self.audit.preparation_rows += request.rows
-                self.audit.preparation_download_bytes += len(prepared_content)
+                with audit_lock:
+                    self.audit.preparation_attempts += 1
+                    self.audit.preparation_rows += request.rows
+                    self.audit.preparation_download_bytes += len(prepared_content)
                 try:
                     ack = PreparationAck.unpack(bytes(prepared_content))
                 except Exception as exc:
@@ -2217,9 +2301,10 @@ class RuntimeClient:
                     protocol_span.record_exception(error)
                     protocol_span.end()
                     raise error
-                self.audit.correction_push_bytes += ack.correction_bytes
-                self.audit.preparation_server_ns += ack.server_ns
-                self.audit.correction_push_ns += ack.push_ns
+                with audit_lock:
+                    self.audit.correction_push_bytes += ack.correction_bytes
+                    self.audit.preparation_server_ns += ack.server_ns
+                    self.audit.correction_push_ns += ack.push_ns
                 record_protocol_bytes("client", "preparation", len(payload), stage.id)
                 record_protocol_bytes("preparation", "client", len(prepared_content), stage.id)
                 protocol_span.set_attribute(
@@ -2252,13 +2337,26 @@ class RuntimeClient:
                         ack.verification_max_row_l1,
                         verification_policy,
                     )
-                prepared_stages[stage.id] = PreparedStageRows(
+                return stage.id, PreparedStageRows(
                     request=request,
                     input_mask=expand_preparation_mask(request),
                     output_mask=expand_output_mask(request),
                     verification=verification,
                     verification_binding=verification_binding,
                 )
+
+            from .preparation_window import run_preparation_window
+            def work_bytes(stage):
+                # Declared transient envelopes/mask work, not a process peak sample.
+                size = 4096 + rows * (16 * stage.in_features + 24 * stage.out_features)
+                if verification_policy is not None:
+                    size += rows * verification_policy.checks * stage.in_features * 16
+                return size
+            def accept(item):
+                prepared_stages[item[0]] = item[1]
+            run_preparation_window(remote_stages, width=self.preparation_stage_window,
+                cost=work_bytes, prepare=prepare_stage, accept=accept, abort=cancel_remote,
+                discard=lambda item: item[1].cancel(), cancelled=lambda: self._closing)
             sealed = self.http.post(
                 f"/v1/runtime/inventories/{inventory_id}/ready",
                 headers=self.headers,
@@ -2269,19 +2367,9 @@ class RuntimeClient:
             return PreparedInventory(inventory_id, rows, prepared_stages, _audit=self.audit.record_inventory)
         except BaseException:
             self.audit.preparation_failures += 1
-            try:
-                self.http.post(
-                    f"/v1/runtime/inventories/{inventory_id}/cancel", headers=self.headers
-                )
-            except Exception:
-                pass
-            try:
-                self.preparation_http.post(
-                    f"/v1/preparation/inventories/{inventory_id}/cancel",
-                    headers=self.preparation_headers,
-                )
-            except Exception:
-                pass
+            cancel_remote()
+            for prepared_stage in prepared_stages.values():
+                prepared_stage.cancel()
             raise
 
     def _cancel_prepared_inventory(self, inventory: PreparedInventory) -> None:
@@ -3342,7 +3430,9 @@ class RuntimeClient:
         if not client_owned and not offset_execution:
             try:
                 channel = _Channel(
-                    self.http, self.base_url, self.api_key, session_id, self.session_transport
+                    self.http, self.base_url, self.api_key, session_id,
+                    "websocket" if self.prefill_chunk_rows else self.session_transport,
+                    frame_limit=(16 << 20) if self.prefill_chunk_rows else None,
                 )
             except BaseException:
                 abandon_transformer_session()
@@ -3361,6 +3451,29 @@ class RuntimeClient:
             assert channel is not None
             self.audit.inference_stage_calls += 1
             compact_rows = prepared_stage_batch_rows(payloads[0]) if len(payloads) == 1 else None
+            if self.prefill_chunk_rows and (len(payloads) > 1 or compact_rows is not None):
+                if state.privacy_mode != "public":
+                    raise ModelError("duplex prefill requires the admitted public prepared contract")
+                first = sequence
+                uploads = [pack_envelope(ProtocolEnvelope.create(
+                    request_id=f"{response_id}:{first + index}", session_id=session_id, model=model_id,
+                    kind="masked.transformer.stage", sequence=first + index, payload=payload,
+                    metadata={"stage_id": stage_id}, key=key)) for index, payload in enumerate(payloads)]
+                sequence += len(uploads)
+                self.audit.masked_online_upload_bytes += sum(map(len, uploads))
+                replies = channel.exchange_many(uploads)
+                self.audit.masked_online_download_bytes += sum(map(len, replies))
+                results = []
+                for index, raw in enumerate(replies):
+                    result = unpack_envelope(raw)
+                    result.verify(key)
+                    if (result.kind != "masked.transformer.stage.result" or result.session_id != session_id
+                            or result.model != model_id or result.sequence != first + index
+                            or result.request_id != f"{response_id}:{first + index}"):
+                        raise ModelError("duplex reply differs from its ordered session frame")
+                    results.append(result.payload)
+                self.audit.online_steps += sum(prepared_stage_batch_rows(payload) or 1 for payload in payloads)
+                return results
             if len(payloads) > 1 or compact_rows is not None:
                 upload = encode_length_prefixed(payloads)
                 if state.privacy_protocol != "direct_bfv_w4a4":
@@ -3416,6 +3529,7 @@ class RuntimeClient:
                 stages=state.bundle.stages,
                 inference=exchange,
                 inventory=provider,
+                prefill_chunk_rows=self.prefill_chunk_rows,
                 verification_component=str(
                     state.bundle.privacy.get("verification_component", "none")
                 ),

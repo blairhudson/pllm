@@ -29,6 +29,8 @@ MAX_RAW_BYTES = 4 << 30
 MAX_MANIFEST_BYTES = 16 << 20
 MAX_OBJECTS = 16384
 DEFAULT_CACHE_BYTES = 2 << 30
+MAX_BATCH_OBJECTS = 64
+MAX_BATCH_BYTES = 1 << 20
 _REF = 42
 _DOMAIN = b"pllm-public-object/1\0"
 _ITEMSIZE = {"i1": 1, "u1": 1, "<f4": 4}
@@ -55,6 +57,64 @@ def object_stream(payload: bytes, *, bundle_digest: str, object_digest: str,
     headers["Content-Length"] = str(len(payload))
     view = memoryview(payload)
     return (view[i:i + 65536].tobytes() for i in range(0, len(view), 65536)), headers, "application/octet-stream"
+
+
+def object_batch(exported, keys: str) -> tuple[bytes, str]:
+    """Public GET selection: bounded ordered concatenation, existing frame codec."""
+    if type(keys) is not str or not 0 < len(keys) <= MAX_BATCH_OBJECTS * 65:
+        raise ArtifactError("artifact batch request exceeds its bound")
+    selected = keys.split(".")
+    if not 1 <= len(selected) <= MAX_BATCH_OBJECTS or len(set(selected)) != len(selected):
+        raise ArtifactError("artifact batch requires bounded unique objects")
+    for key in selected:
+        _digest(key)
+        if key not in exported.objects:
+            raise ArtifactError("artifact batch contains an uncommitted object")
+    if sum(len(exported.objects[key]) for key in selected) > MAX_BATCH_BYTES:
+        raise ArtifactError("artifact batch exceeds 1 MiB raw")
+    return b"".join(exported.objects[key] for key in selected), hashlib.sha256(keys.encode("ascii")).hexdigest()
+
+
+def batched_reader(manifest, cache, download_one, download_many, *, maximum: int):
+    """At most one 1-MiB lookahead group, ordered by first use in the raw bundle."""
+    _integer(maximum, 1, MAX_BATCH_OBJECTS)
+    ordered, seen = [], set()
+    def visit(node):
+        if type(node) is dict:
+            for value in node.values():
+                visit(value)
+        elif type(node) is list:
+            for value in node:
+                visit(value)
+        elif type(node) is msgpack.ExtType:
+            row = manifest["objects"][int.from_bytes(node.data, "big")]
+            if row["sha256"] not in seen:
+                seen.add(row["sha256"])
+                ordered.append(row)
+    visit(manifest["graph"])
+    positions = {row["sha256"]: i for i, row in enumerate(ordered)}
+    pending, served = {}, set()
+
+    def read(row):
+        key = row["sha256"]
+        if key in pending:
+            served.add(key)
+            return pending.pop(key)
+        if key in served or row["size"] > MAX_BATCH_BYTES:
+            served.add(key)
+            return cache.fetch(row, lambda: download_one(row))
+        if pending:
+            raise ArtifactError("artifact batch first-use order differs")
+        group, size = [], 0
+        for candidate in ordered[positions[key]:positions[key] + maximum]:
+            if size + candidate["size"] > MAX_BATCH_BYTES:
+                break
+            group.append(candidate)
+            size += candidate["size"]
+        pending.update(cache.fetch_group(group, download_many))
+        served.add(key)
+        return pending.pop(key)
+    return read
 
 
 def _integer(value: Any, low: int, high: int) -> int:
@@ -426,6 +486,7 @@ class ArtifactCacheStats:
     corruptions: int = 0
     evictions: int = 0
     object_requests: int = 0
+    object_batch_requests: int = 0
     manifest_requests: int = 0
     object_download_bytes: int = 0
     manifest_download_bytes: int = 0
@@ -645,6 +706,41 @@ class ArtifactObjectCache:
                     payload = download()
                     self.put(row, payload)
                 return payload
+            finally:
+                os.close(lock)
+
+    def fetch_group(self, rows, download):
+        if (not rows or len(rows) > MAX_BATCH_OBJECTS
+                or len({row["sha256"] for row in rows}) != len(rows)
+                or sum(row["size"] for row in rows) > MAX_BATCH_BYTES):
+            raise ArtifactError("artifact cache batch exceeds admission")
+
+        def fetch():
+            result, missing = {}, []
+            for row in rows:
+                payload = self.get(row)
+                if payload is None:
+                    missing.append(row)
+                else:
+                    result[row["sha256"]] = payload
+            if missing:
+                values = download(missing)
+                if type(values) is not dict or set(values) != {row["sha256"] for row in missing}:
+                    raise ArtifactError("artifact batch response object set mismatch")
+                # Verify the whole batch before admitting any newly downloaded object.
+                for row in missing:
+                    verify_object(row, values[row["sha256"]])
+                for row in missing:
+                    self.put(row, values[row["sha256"]])
+                result.update(values)
+            return result
+        if self.mode != "read-write":
+            return fetch()
+        with _directory(self.root, create=True) as directory:
+            lock = _open_lock(directory, ".download-lock", create=True)
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                return fetch()
             finally:
                 os.close(lock)
 

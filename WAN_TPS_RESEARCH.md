@@ -34,11 +34,24 @@ reservation. Every role keeps its original share and trust boundary.
 2. Screen exact codecs and scheduling on bounded fixtures; reject losers early.
 3. Expose passing choices through existing components, compiler admission and
    ordinary SDK/gateway/benchmark paths, preserving defaults and old digests.
-4. Run bounded pinned Qwen cohorts at 100/40 Mbps, with 0 and 40 ms added RTT;
-   use slower access only when it distinguishes a live hypothesis.
+4. Run bounded pinned Qwen cohorts at 100/40 Mbps with 40 ms added RTT;
+   keep earlier zero-delay controls separate and use slower access only when it
+   distinguishes a live hypothesis.
 5. Retain output/logit/KV parity, all-link bodies, setup/online/decode timing,
    client/aggregate CPU and measured or explicitly unknown memory. Commit each
    completed method, including vetoed screens.
 
 Tenfold fresh-response improvement remains a research goal. Combinations must
 be measured together; independent percentage gains cannot be added.
+
+## Outcome
+
+The [matched cohort](docs/evidence/wan-tps-qwen25-2026-10-04.md) and
+[SDK guide](docs/content/docs/sdk/evaluate/wan-tps.mdx) record all five screens.
+Seed-first improves offset decode TPS 1.94×; public-object coalescing plus bounded
+preparation overlap improves prepared request TPS 17.3% at 100/40 Mbps and 40 ms
+added RTT. Online bodies do not shrink. Native entropy coding loses the byte and
+client-CPU gate; duplex prefill's incremental runtime benefit is inconclusive.
+Four live choices are explicit and defaults retain their previous identities.
+The next decisive bottleneck is the number of dependent client/provider cuts per
+decoded token; these overlap/control changes do not remove those cuts or meet 10×.

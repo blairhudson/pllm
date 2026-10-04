@@ -273,8 +273,34 @@ fn two_online_offset_topology_binds_remote_stages_for_shared_decoder_operators()
         }
     }
     let mut invalid: serde_json::Value = serde_json::from_slice(&composition).unwrap();
+    invalid["components"]["linear"]["params"] = json!({"dispatch": "seed_first"});
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_err());
+    invalid["components"]["linear"]["params"]["input_encoding"] = json!("seeded");
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_ok());
     invalid["components"]["topology"]["component"] = json!("pllm/client-only/v1");
     assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_err());
+}
+
+#[test]
+fn prepared_chunk_bounds_are_digest_bound_and_strictly_admitted() {
+    for verified in [false, true] {
+        let mut pipeline: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
+        let before =
+            lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).unwrap();
+        pipeline["components"]["linear"]["params"] =
+            json!({"prefill_chunk_rows": 4, "output_encoding": "row_residues"});
+        let chunked =
+            lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).unwrap();
+        assert_ne!(before.composition_digest, chunked.composition_digest);
+        assert_eq!(before.prefill.steps, chunked.prefill.steps);
+        for invalid in [json!(true), json!(3), json!(129), json!(4.0), json!("4")] {
+            pipeline["components"]["linear"]["params"]["prefill_chunk_rows"] = invalid;
+            assert!(
+                lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).is_err()
+            );
+        }
+    }
 }
 
 #[test]

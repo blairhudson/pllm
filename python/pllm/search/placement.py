@@ -238,6 +238,9 @@ class ArtifactCostEvidence(PublicRecord):
         profile = experiment.resolve()
         if profile.bundle_compression not in {"artifacts", "artifacts-zlib"}:
             raise NetworkError("artifact costs require executable artifact bundle delivery")
+        delivery = experiment.pipeline.components["delivery"]
+        if delivery.params.get("batch_objects", 1) > 1 and profile.bundle_compression == "artifacts-zlib":
+            raise NetworkError("coalesced compression needs group-bound costs; per-object transfer lengths cannot price it")
         manifest = parse_manifest(payload, fingerprint=bundle_digest, size=bundle_bytes)
         skeleton = msgpack.unpackb(manifest["skeleton"], raw=False)
         if skeleton["manifest"]["metadata"]["source_lock_digest"] != source_lock_digest:
@@ -406,6 +409,9 @@ class PlanningRequest(PublicRecord):
                     or candidate.resolve().bundle_compression != (
                         "artifacts-zlib" if evidence.object_encoding == "zlib" else "artifacts")):
                 raise NetworkError("artifact evidence source/plan/configuration mismatch")
+            if (evidence.object_encoding == "zlib"
+                    and candidate.pipeline.components["delivery"].params.get("batch_objects", 1) > 1):
+                raise NetworkError("coalesced compression needs group-bound artifact costs")
             seen.add(evidence.configuration_digest)
         object.__setattr__(self, "artifact_evidence", tuple(sorted(
             self.artifact_evidence, key=lambda row: row.configuration_digest)))

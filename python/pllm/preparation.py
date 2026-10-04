@@ -65,24 +65,30 @@ class PreparedInventory(ComponentRef):
                 "policy": {"type": "string", "enum": ["prewarm", "request-sized"]},
                 "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
                 "refill": {"type": "string", "enum": ["idle", "on-demand"]},
+                "stage_window": {"type": "integer", "minimum": 1, "maximum": 4},
             },
         },
         capabilities=("bounded-prepared-inventory", "request-sized-preparation"),
         role_eligibility=("client", "preparation", "inference"),
     )
 
-    def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None) -> None:
+    def __init__(self, policy: str = "request-sized", *, rows: int | None = None, refill: str | None = None,
+                 stage_window: int = 1) -> None:
         if policy not in {"prewarm", "request-sized"}:
             raise ConfigurationError("inventory policy must be prewarm or request-sized")
         if rows is None:
             rows = 1 if policy == "request-sized" else 64
         if type(rows) is not int or not 1 <= rows <= 4096:
             raise ConfigurationError("inventory row floor must be in [1, 4096]")
+        if type(stage_window) is not int or not 1 <= stage_window <= 4:
+            raise ConfigurationError("preparation stage window must be in [1, 4]")
         params = {"policy": policy, "rows": rows}
         if refill is not None:
             if refill not in {"idle", "on-demand"}:
                 raise ConfigurationError("inventory refill must be idle or on-demand")
             params["refill"] = refill
+        if stage_window != 1:
+            params["stage_window"] = stage_window
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:

@@ -1,0 +1,97 @@
+---
+title: "WAN throughput optimizations"
+description: "Bounded overlap and control-plane choices, measured under shared consumer access caps."
+---
+
+WAN throughput depends on dependent round trips as well as bytes. These optional
+choices retain the existing compiled model, one-use material and role contracts.
+Omitting them preserves previous composition digests and behavior.
+
+| Choice | Contract | Evidence |
+| --- | --- | --- |
+| `TwoOnlineOffsetLinear(dispatch="seed_first")` | Requires seeded input; starts the independent seeded worker before preparing/sending the other share | Matched 100/40 Mbps, 40 ms added RTT cohort: 1.94× decode TPS and 1.47× request TPS; same application bodies |
+| `ClientBundleTransport(batch_objects=64)` | Artifact mode only; groups missing public objects under a 1 MiB raw limit; each object keeps its digest/cache identity | Fewer dependent object requests; raw and zlib, prepared/verified/offset execution pass |
+| `PreparedInventory(stage_window=4)` | At most four independent stage issuances; conservative 16 MiB active-work admission; client keeps ordered admission and seals only after every acknowledgement | With coalesced artifacts: 17.3% higher request TPS in the matched prepared cohort |
+| `MaskedLinear(prefill_chunk_rows=4)` | Fixed public chunks over a duplex WebSocket; one-use rows remain distinct; whole-stage verification precedes dequantization | Exact tiny logits/KV; pinned functionality passes, but measured incremental TPS benefit remains inconclusive |
+| `ArtifactEntropyProbe` | Bounded native public-byte entropy coding, exact reconstruction | Faster server encoding, but 2.3% more bytes and 32% more client decoding CPU than zlib; research-only |
+
+## Python SDK example
+
+```python
+from pllm import Model
+from pllm.preparation import PreparedInventory
+from pllm.profiles import MaskedLinearCpu
+from pllm.protocols import ClientBundleTransport, MaskedLinear, TwoOnlineOffsetLinear
+
+pipeline = MaskedLinearCpu(
+    Model.tiny(),
+    linear=MaskedLinear(output_encoding="row_residues"),
+    delivery=ClientBundleTransport("artifacts", compression="zlib", batch_objects=64),
+    inventory=PreparedInventory("request-sized", rows=1, refill="on-demand", stage_window=4),
+)
+assert pipeline.to_spec()["components"]["delivery"]["params"]["batch_objects"] == 64
+offset = TwoOnlineOffsetLinear(input_encoding="seeded", output_encoding="row_residues", dispatch="seed_first")
+assert offset.get_params()["dispatch"] == "seed_first"
+```
+
+API: [protocols](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[preparation](/sdk/reference/python/pllm/preparation/#objects-and-signatures).
+
+All choices use ordinary `Experiment`, SDK, gateway and `benchmark run` paths.
+Duplex prefill requires WebSocket transport and does not retry accepted work over
+HTTP. Reordered frames, failure and cancellation terminate the attempt and burn
+unused reservations. Verified execution verifies the assembled integer stage
+before exposing its result to later operators. None of these choices adds client
+body weights; the bounds above are declared work limits, not peak-RSS samples.
+
+## Reproduce the matched cohort
+
+```bash
+pllm benchmark run \
+  --experiment examples/benchmarks/wan_tps.py:prepared_control \
+  --experiment examples/benchmarks/wan_tps.py:prepared_combined \
+  --experiment examples/benchmarks/wan_tps.py:offset_control \
+  --experiment examples/benchmarks/wan_tps.py:seed_first \
+  --trust-python --wan \
+  --docker-network-profile examples/benchmarks/wan-40ms.json \
+  --warmups 0 --repetitions 1 --max-output-tokens 8 --temperature 0 \
+  --capture-output-digest --timeout 300 --output wan-tps.json
+```
+
+The existing multi-Experiment command gives all candidates one private cohort
+salt. Separately invoked reports have different salted prompt hashes and must
+not be automatically ranked as one workload. The retained cohort has one cold
+39-input/8-output sample per candidate, matching outputs, the same pinned Qwen
+body and numeric choices, 100 Mbps down/40 Mbps up per party, and 20 ms added
+egress delay per party (40 ms added request/reply delay). Actual RTT includes
+the local topology overhead. End-to-end TPS includes demand preparation and
+delivery; provider startup is outside that clock. Decode uses `N−1` outputs.
+
+The prepared pair changed request CPU from 20.44 to 21.24 client seconds; the
+offset pair changed it from 24.08 to 19.86. Helpers and deployment startup are
+outside these CPU windows. Client peak memory remains unknown. This establishes
+neither a tenfold network reduction nor independent-provider privacy.
+
+## Bounded probes
+
+```python
+from pllm.metrics import ArtifactEntropyProbe, PreparedDuplexProbe
+
+public = ArtifactEntropyProbe(repetitions=1).run(b"public-object-metadata" * 1024)
+duplex = PreparedDuplexProbe(rows=2, chunk_rows=(1,), repetitions=1).run()
+assert all(row["exact_raw_hash"] for row in public["configurations"])
+assert all(row["exact_integer_output"] for row in duplex["configurations"])
+assert not duplex["whole_decoder_executable"]
+```
+
+API: [metrics](/sdk/reference/python/pllm/metrics/#objects-and-signatures).
+
+`PreparedDuplexProbe` measures native integer kernels and codecs and models an
+optimistic duplex timeline; it does not execute a complete decoder. Its projected
+stage gain must not be substituted for the measured runtime cohort. Neither
+probe activates a new cryptographic protocol. Rust owns arithmetic and entropy
+coding; Python owns configuration, bounded I/O coordination and measurement.
+
+See [WAN shaping](/sdk/deployment/wan/),
+[the evidence and reproduction notes](https://github.com/blairhudson/pllm/blob/main/docs/evidence/wan-tps-qwen25-2026-10-04.md),
+and the separate [network-method gates](/sdk/evaluate/metrics/network-methods/).

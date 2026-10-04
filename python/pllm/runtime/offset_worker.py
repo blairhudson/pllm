@@ -273,6 +273,27 @@ def create_offset_worker_app(
             raise _reject(str(exc), status=400) from exc
         return StreamingResponse(chunks, media_type=media, headers=headers)
 
+    @app.get("/v1/runtime/models/{requested_id:path}/client-bundle-object-batch/{raw_digest}")
+    async def model_bundle_batch(
+        requested_id: str, raw_digest: str, objects: str,
+        authorization: str | None = Header(default=None),
+        accept_object_encoding: str | None = Header(default=None, alias="X-PLLM-Accept-Object-Encoding"),
+    ):
+        authenticate(authorization)
+        if requested_id != model_id:
+            raise _reject("offset worker model is not loaded", status=404)
+        exported, descriptor = artifact_export()
+        if raw_digest != descriptor["sha256"]:
+            raise _reject("offset bundle is not committed", status=404)
+        from .bundle_artifacts import object_batch, object_stream
+        try:
+            payload, digest = object_batch(exported, objects)
+            chunks, headers, media = object_stream(payload, bundle_digest=raw_digest,
+                object_digest=digest, encoding=accept_object_encoding)
+        except ValueError as exc:
+            raise _reject(str(exc), status=400) from exc
+        return StreamingResponse(chunks, media_type=media, headers=headers)
+
     @app.get("/v1/runtime/models/{requested_id:path}")
     async def model_descriptor(
         requested_id: str, authorization: str | None = Header(default=None),

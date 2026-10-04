@@ -630,9 +630,11 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     transport_options: dict[str, Any] = {}
     linear = pipeline.components.get("linear")
     if linear is not None and linear.component == "pllm/masked-linear":
-        if (set(linear.params) - {"output_encoding"}
+        if (set(linear.params) - {"output_encoding", "prefill_chunk_rows"}
             or type(linear.params.get("output_encoding", "raw")) is not str
-            or linear.params.get("output_encoding", "raw") not in {"raw", "row_residues"}):
+            or linear.params.get("output_encoding", "raw") not in {"raw", "row_residues"}
+            or type(linear.params.get("prefill_chunk_rows", 0)) is not int
+            or linear.params.get("prefill_chunk_rows", 0) not in {0, 4, 8, 16, 32}):
             return None
         transport_options["prepared_output_encoding"] = linear.params.get("output_encoding", "raw")
     inventory = pipeline.components.get("inventory")
@@ -640,7 +642,10 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     if inventory is not None:
         if (
             inventory.component != PreparedInventory.descriptor.component
-            or set(inventory.params) not in ({"policy", "rows"}, {"policy", "rows", "refill"})
+            or not {"policy", "rows"} <= set(inventory.params)
+            or set(inventory.params) - {"policy", "rows", "refill", "stage_window"}
+            or type(inventory.params.get("stage_window", 1)) is not int
+            or not 1 <= inventory.params.get("stage_window", 1) <= 4
             or inventory.params.get("refill", "idle") not in {"idle", "on-demand"}
             or inventory.params["policy"] not in {"prewarm", "request-sized"}
             or type(inventory.params["rows"]) is not int
@@ -658,10 +663,15 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     if delivery is not None:
         if (
             delivery.component != ClientBundleTransport.descriptor.component
-            or set(delivery.params) not in ({"encoding"}, {"encoding", "compression"})
+            or "encoding" not in delivery.params
+            or set(delivery.params) - {"encoding", "compression", "batch_objects"}
             or delivery.params["encoding"] not in {"none", "zlib", "artifacts"}
             or ("compression" in delivery.params and (
                 delivery.params["encoding"] != "artifacts" or delivery.params["compression"] != "zlib"))
+            or ("batch_objects" in delivery.params and (
+                delivery.params["encoding"] != "artifacts"
+                or type(delivery.params["batch_objects"]) is not int
+                or not 1 <= delivery.params["batch_objects"] <= 64))
             or identities.get("linear") not in {"pllm/masked-linear", "pllm/two-online-offset-linear/v1"}
         ):
             return None
@@ -826,11 +836,14 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
         }
         and public_kernel_valid
         and not pipeline.components["topology"].params
-        and set(pipeline.components["linear"].params) <= {"input_encoding", "output_encoding"}
+        and set(pipeline.components["linear"].params) <= {"input_encoding", "output_encoding", "dispatch"}
         and type(pipeline.components["linear"].params.get("input_encoding", "raw")) is str
         and pipeline.components["linear"].params.get("input_encoding", "raw") in {"raw", "seeded"}
         and type(pipeline.components["linear"].params.get("output_encoding", "raw")) is str
         and pipeline.components["linear"].params.get("output_encoding", "raw") in {"raw", "row_residues"}
+        and pipeline.components["linear"].params.get("dispatch", "sequential") in {"sequential", "seed_first"}
+        and (pipeline.components["linear"].params.get("dispatch") != "seed_first"
+             or pipeline.components["linear"].params.get("input_encoding") == "seeded")
     ):
         return RuntimeComposition(
             "offset_public",

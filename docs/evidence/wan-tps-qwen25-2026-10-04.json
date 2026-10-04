@@ -1,0 +1,168 @@
+{
+  "all_outputs_match": true,
+  "cohort": {
+    "body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+    "input_tokens": 39,
+    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_source": {
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "source": "Qwen/Qwen2.5-0.5B-Instruct"
+    },
+    "output_cap": 8,
+    "output_text_digest": "1cac53d4c8028517dd1f6e29301031eb3dd7a0f4abc81a4c6169ae2ad478d0fb",
+    "output_tokens": 8,
+    "prompt_digest": "6af881000b97564aba8ae0db44606dc2b71fad8d7e3b6f6431d45d9a0048028f",
+    "quantization": {
+      "component": "pllm/symmetric-per-row-quantization/v1",
+      "params": {
+        "activation_bits": 8,
+        "causal_reduction": "prefix_f32",
+        "weight_bits": 8
+      }
+    },
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "wan_conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+    "warm": false
+  },
+  "limitations": [
+    "Single samples and limited repeats, not a latency distribution",
+    "Provider startup/checkpoint distribution excluded from request timing",
+    "Request CPU excludes deployment startup, helpers and uncharged kernel/system work",
+    "Application bodies and routed IP hooks are not full physical-wire measurements",
+    "Client peak memory and independent provider operation are unmeasured"
+  ],
+  "runs": [
+    {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "covered_setup_body_bytes": 236600521,
+      "decode_output_tokens": 7,
+      "decode_seconds": 35.424984833,
+      "decode_tokens_per_second": 0.19760064917456727,
+      "end_to_end_tokens_per_second": 0.06510690546112718,
+      "file": "wan-tps-matched-qwen25-2026-10-04.json",
+      "full_seconds": 122.874830916,
+      "generated_output_tokens": 8,
+      "name": "prepared-control",
+      "native_body_i8_snapshot_bytes": 0,
+      "online_body_bytes": 71192642,
+      "online_seconds": 62.058212416,
+      "online_tokens_per_second": 0.1289112220373499,
+      "peak_client_memory_bytes": null,
+      "preparation_seconds": 59.96489975,
+      "request_cpu_seconds_by_role": {
+        "client": 20.435890999999998,
+        "inference": 17.21,
+        "preparation": 6.070000000000002
+      },
+      "request_cpu_seconds_total": 43.715891,
+      "role_graph": "client,inference,preparation",
+      "runtime_image_id": "sha256:331b54f5215ee02f9515d2b614b2e9a8030095b7b417b5404485e881b513f528",
+      "sha256": "ef256d3a1d5b20cd99cb4fc68443608829f346baeee8e4ba78c42a4fe972e896",
+      "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+      "ttft_seconds": 26.510868458
+    },
+    {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "covered_setup_body_bytes": 236558876,
+      "decode_output_tokens": 7,
+      "decode_seconds": 35.287717542,
+      "decode_tokens_per_second": 0.19836930489109952,
+      "end_to_end_tokens_per_second": 0.07638350069105977,
+      "file": "wan-tps-matched-qwen25-2026-10-04.json",
+      "full_seconds": 104.734660334,
+      "generated_output_tokens": 8,
+      "name": "prepared-combined",
+      "native_body_i8_snapshot_bytes": 0,
+      "online_body_bytes": 71192642,
+      "online_seconds": 60.623033042,
+      "online_tokens_per_second": 0.1319630443837667,
+      "peak_client_memory_bytes": null,
+      "preparation_seconds": 43.25669625,
+      "request_cpu_seconds_by_role": {
+        "client": 21.239454000000002,
+        "inference": 15.94,
+        "preparation": 5.830000000000002
+      },
+      "request_cpu_seconds_total": 43.009454000000005,
+      "role_graph": "client,inference,preparation",
+      "runtime_image_id": "sha256:331b54f5215ee02f9515d2b614b2e9a8030095b7b417b5404485e881b513f528",
+      "sha256": "ef256d3a1d5b20cd99cb4fc68443608829f346baeee8e4ba78c42a4fe972e896",
+      "source_lock_digest": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+      "ttft_seconds": 25.213219333
+    },
+    {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "covered_setup_body_bytes": 236995715,
+      "decode_output_tokens": 7,
+      "decode_seconds": 68.135335375,
+      "decode_tokens_per_second": 0.10273670719420012,
+      "end_to_end_tokens_per_second": 0.05161076462555807,
+      "file": "wan-tps-matched-qwen25-2026-10-04.json",
+      "full_seconds": 155.00642275,
+      "generated_output_tokens": 8,
+      "name": "offset-control",
+      "native_body_i8_snapshot_bytes": 0,
+      "online_body_bytes": 112005188,
+      "online_seconds": 153.700210375,
+      "online_tokens_per_second": 0.05204937573267781,
+      "peak_client_memory_bytes": null,
+      "preparation_seconds": null,
+      "request_cpu_seconds_by_role": {
+        "client": 24.077295000000007,
+        "worker_a": 13.207224459,
+        "worker_b": 7.405586995
+      },
+      "request_cpu_seconds_total": 44.69010645400001,
+      "role_graph": "client,worker_a,worker_b",
+      "runtime_image_id": "sha256:331b54f5215ee02f9515d2b614b2e9a8030095b7b417b5404485e881b513f528",
+      "sha256": "ef256d3a1d5b20cd99cb4fc68443608829f346baeee8e4ba78c42a4fe972e896",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "ttft_seconds": 85.447211542
+    },
+    {
+      "client_body_i8_weight_bytes": 0,
+      "client_body_scale_bytes": 0,
+      "covered_setup_body_bytes": 236995763,
+      "decode_output_tokens": 7,
+      "decode_seconds": 35.110519458,
+      "decode_tokens_per_second": 0.1993704481750422,
+      "end_to_end_tokens_per_second": 0.07595277270541903,
+      "file": "wan-tps-matched-qwen25-2026-10-04.json",
+      "full_seconds": 105.328610333,
+      "generated_output_tokens": 8,
+      "name": "seed-first",
+      "native_body_i8_snapshot_bytes": 0,
+      "online_body_bytes": 112005188,
+      "online_seconds": 104.027948458,
+      "online_tokens_per_second": 0.0769024105404703,
+      "peak_client_memory_bytes": null,
+      "preparation_seconds": null,
+      "request_cpu_seconds_by_role": {
+        "client": 19.864300999999998,
+        "worker_a": 12.8272973,
+        "worker_b": 7.763892479
+      },
+      "request_cpu_seconds_total": 40.455490778999994,
+      "role_graph": "client,worker_a,worker_b",
+      "runtime_image_id": "sha256:331b54f5215ee02f9515d2b614b2e9a8030095b7b417b5404485e881b513f528",
+      "sha256": "ef256d3a1d5b20cd99cb4fc68443608829f346baeee8e4ba78c42a4fe972e896",
+      "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+      "ttft_seconds": 68.792565333
+    }
+  ],
+  "schema": "pllm.wan_tps_comparison.v1",
+  "scope": "single-sample cold requests under local enforced shared WAN rates/delay",
+  "source_locks_by_role_graph": {
+    "client,inference,preparation": "880f80ec61274d3c80e2a0c1336394b9e955d53ff98436a426a680a460a592e7",
+    "client,worker_a,worker_b": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  }
+}

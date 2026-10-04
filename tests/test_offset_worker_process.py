@@ -23,7 +23,7 @@ from pllm.runtime.transformer_engine import MaskedTransformerEngine
 
 def _offset_experiment(
     root: Path, model_id: str, deployment_root: Path, *, max_input_tokens: int = 4,
-    input_encoding: str = "raw", output_encoding: str = "raw",
+    input_encoding: str = "raw", output_encoding: str = "raw", dispatch: str = "sequential",
 ):
     from pllm import Deployment, ExecutionBudget, Experiment
     from pllm.profiles import TwoOnlineOffsetCpu
@@ -34,7 +34,7 @@ def _offset_experiment(
         pipeline=TwoOnlineOffsetCpu(
             pllm.Model.path(str(root), model_id=model_id),
             quantization=SymmetricPerRow(weight_bits=4, activation_bits=4),
-            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding, output_encoding=output_encoding),
+            linear=TwoOnlineOffsetLinear(input_encoding=input_encoding, output_encoding=output_encoding, dispatch=dispatch),
         ),
         deployment=Deployment.local(root=str(deployment_root)),
         budget=ExecutionBudget(max_input_tokens=max_input_tokens, max_new_tokens=2, requests=1),
@@ -117,7 +117,8 @@ def test_two_worker_sdk_owns_and_closes_its_selected_roles(tmp_path: Path) -> No
         client.responses.create(model=model_id, input="A", max_output_tokens=2)
 
 
-def test_closing_client_burns_paused_two_worker_stream(tmp_path: Path) -> None:
+@pytest.mark.parametrize("encoding", ["raw", "seed_first"])
+def test_closing_client_burns_paused_two_worker_stream(tmp_path: Path, encoding) -> None:
     from pllm.runtime.servers import build_roles
 
     root = create_tiny_llama_checkpoint(
@@ -125,7 +126,9 @@ def test_closing_client_burns_paused_two_worker_stream(tmp_path: Path) -> None:
         with_qkv_bias=True,
     )
     model_id = "paused-offset"
-    experiment = _offset_experiment(root, model_id, tmp_path, max_input_tokens=64)
+    experiment = _offset_experiment(root, model_id, tmp_path, max_input_tokens=64,
+        input_encoding="seeded" if encoding == "seed_first" else "raw",
+        dispatch="seed_first" if encoding == "seed_first" else "sequential")
     with build_roles(experiment, engine_threads=1) as topology:
         client = topology.client()
         worker, key = client._core._offset_workers["worker_a"]
@@ -153,7 +156,7 @@ def test_closing_client_burns_paused_two_worker_stream(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("model_type", ["qwen2", "qwen3"])
-@pytest.mark.parametrize("encoding", ["raw", "combined"])
+@pytest.mark.parametrize("encoding", ["raw", "combined", "seed_first"])
 def test_separate_offset_worker_processes_match_compiled_prefill_and_decode(
     tmp_path: Path, model_type: str, encoding: str,
 ) -> None:
@@ -165,13 +168,14 @@ def test_separate_offset_worker_processes_match_compiled_prefill_and_decode(
     manifest = load_hf_directory(root, model_id=model_id)
     local_worker = MaskedTransformerEngine(threads=1)
     asyncio.run(local_worker.load(manifest))
-    output_encoding = "row_residues" if encoding == "combined" else "raw"
+    output_encoding = "row_residues" if encoding != "raw" else "raw"
     bundle = ClientBundle.unpack(local_worker.client_bundle(model_id, placement="offset", output_encoding=output_encoding))
     baseline_bundle = ClientBundle.unpack(local_worker.client_bundle(model_id))
     config = json.loads((root / "config.json").read_text(encoding="utf-8"))
     plan = pllm.lower_model(config, batch=1, max_input_tokens=4, max_new_tokens=2)
     experiment = _offset_experiment(root, model_id, tmp_path,
-        input_encoding="seeded" if encoding == "combined" else "raw", output_encoding=output_encoding)
+        input_encoding="seeded" if encoding != "raw" else "raw", output_encoding=output_encoding,
+        dispatch="seed_first" if encoding == "seed_first" else "sequential")
     compiled = compile_runtime_model(
         plan, bundle, composition=experiment.pipeline,
     )

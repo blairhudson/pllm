@@ -1,0 +1,3976 @@
+{
+  "checks": {
+    "all_runs_completed": true,
+    "authoritative_token_usage": true,
+    "model_fingerprint_present": true,
+    "no_online_preparation_requests": true,
+    "no_plaintext_prompt_bytes_sent": true,
+    "no_plaintext_token_ids_sent": true,
+    "passed": true,
+    "sampling_matches_request": true,
+    "two_worker_bodies_tracked": true
+  },
+  "client_body_placement": {
+    "client_body_i8_weight_bytes": 0,
+    "client_body_scale_bytes": 0,
+    "declared_body_linear_macs_per_row_client": 0,
+    "declared_body_linear_macs_per_row_remote": 357826560,
+    "local_stage_count": 0,
+    "metal_body_i8_snapshot_bytes": 0,
+    "native_body_i8_snapshot_bytes": 0,
+    "peak_client_memory_bytes": null,
+    "remote_stage_count": 96,
+    "sample_boundary": "after-final-measured-response",
+    "schema": "pllm.client_body_placement.v1"
+  },
+  "communication_per_token": {
+    "byte_unit": "decimal MB (1000000 bytes)",
+    "decode_scope": "online bodies after first output through completion, divided by N-1",
+    "denominator": "authoritative generated output tokens, not input tokens or output cap",
+    "runs": [
+      {
+        "covered_body_bytes": 236995715,
+        "covered_mb_per_output_token": 29.624464375,
+        "decode_online_body_bytes": 17710420,
+        "decode_online_mb_per_output_token": 2.53006,
+        "decode_output_tokens": 7,
+        "generated_output_tokens": 8,
+        "online_body_bytes": 112005188,
+        "online_mb_per_output_token": 14.0006485
+      }
+    ],
+    "schema": "pllm.communication_per_generated_token.v1",
+    "scope": "covered application bodies; no full wire or checkpoint download",
+    "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+    "summary": {
+      "cold_first_response_mb_per_output_token": 29.624464375,
+      "covered_mb_per_output_token": 29.624464375,
+      "decode_online_mb_per_output_token": 2.53006,
+      "generated_output_tokens": 8,
+      "online_mb_per_output_token": 14.0006485,
+      "setup_inclusive_mb_per_output_token": 29.624464375
+    }
+  },
+  "configuration": {
+    "bundle_compression": "artifacts-zlib",
+    "capture_output_digest": true,
+    "inventory_policy": "prewarm",
+    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+    "max_output_tokens": 8,
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "prefill_cache_bound_tokens": 128,
+    "prefill_cache_mib": 64,
+    "prefill_cache_mode": "prefix",
+    "prompt_digest": "a50b051a46bd2c12e9218e551c63bc89e8aaddd12f3d72b6033f7d5dc79d7e34",
+    "prompt_sequence_digest": null,
+    "provider_backend": "docker",
+    "repetitions": 1,
+    "roles": [
+      "client",
+      "worker_a",
+      "worker_b"
+    ],
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "tiny": false,
+    "wan_emulation": true,
+    "wan_emulation_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+    "warmup_prompt_digest": "a50b051a46bd2c12e9218e551c63bc89e8aaddd12f3d72b6033f7d5dc79d7e34",
+    "warmups": 0
+  },
+  "docker_accounting": {
+    "cpu_scope": "cgroup lifetime CPU includes resource sampler",
+    "full_wire_bytes": null,
+    "network_scope": "directed non-overlapping service IPv4/TCP counters plus separately scoped interface totals",
+    "samples": {
+      "runs": [
+        {
+          "after": {
+            "directed_ip": {
+              "bytes": 242290249,
+              "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+              "links": {
+                "client->worker_a": {
+                  "bytes": 32823081,
+                  "packets": 32263
+                },
+                "client->worker_b": {
+                  "bytes": 990044,
+                  "packets": 6713
+                },
+                "worker_a->client": {
+                  "bytes": 167303036,
+                  "packets": 31343
+                },
+                "worker_a->worker_b": {
+                  "bytes": 0,
+                  "packets": 0
+                },
+                "worker_b->client": {
+                  "bytes": 41174088,
+                  "packets": 12361
+                },
+                "worker_b->worker_a": {
+                  "bytes": 0,
+                  "packets": 0
+                }
+              },
+              "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:8b05c4a9d58e0fce3b92f228dd7ee9db38c351b828bd4bbc1dd57cb8f6cd1d7c",
+            "link_conditions": {
+              "bytes_per_second": null,
+              "latency_ms": 20,
+              "loss_fraction": 0,
+              "schema": "pllm.link_conditions.v1",
+              "seed": 42
+            },
+            "measurement_helpers": {
+              "client/endpoint": {
+                "cpu_ns": 4124521000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 242955254,
+                    "tx_bytes": 242542273
+                  },
+                  "eth1": {
+                    "rx_bytes": 1950,
+                    "tx_bytes": 126
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 32686080,
+                "memory_peak_bytes": 32686080
+              },
+              "client/router": {
+                "cpu_ns": 1050463000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 34360739,
+                    "tx_bytes": 209089190
+                  },
+                  "eth1": {
+                    "rx_bytes": 209091224,
+                    "tx_bytes": 34359125
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 35225600,
+                "memory_peak_bytes": 41230336
+              },
+              "worker_a/endpoint": {
+                "cpu_ns": 628628000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1280,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 33276283,
+                    "tx_bytes": 167742048
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33767424,
+                "memory_peak_bytes": 33771520
+              },
+              "worker_a/router": {
+                "cpu_ns": 1020190000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 33276211,
+                    "tx_bytes": 167742090
+                  },
+                  "eth1": {
+                    "rx_bytes": 167743788,
+                    "tx_bytes": 33274973
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 35069952,
+                "memory_peak_bytes": 41521152
+              },
+              "worker_b/endpoint": {
+                "cpu_ns": 653047000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 914,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 1085546,
+                    "tx_bytes": 41347352
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33120256,
+                "memory_peak_bytes": 33513472
+              },
+              "worker_b/router": {
+                "cpu_ns": 1025235000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 41349092,
+                    "tx_bytes": 1084236
+                  },
+                  "eth1": {
+                    "rx_bytes": 1085066,
+                    "tx_bytes": 41347352
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 35504128,
+                "memory_peak_bytes": 41496576
+              }
+            },
+            "roles": {
+              "worker_a": {
+                "cpu_ns": 28058798000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1280,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 33276283,
+                    "tx_bytes": 167742048
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1792126976,
+                "memory_peak_bytes": 2312978432,
+                "network_namespace_party": "worker_a"
+              },
+              "worker_b": {
+                "cpu_ns": 21559972000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 914,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 1085546,
+                    "tx_bytes": 41347352
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1488048128,
+                "memory_peak_bytes": 2282295296,
+                "network_namespace_party": "worker_b"
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+            "wan_emulation": {
+              "backend": "linux-tbf-routed-party-ports",
+              "conditions": {
+                "download_mbps": 100.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 40.0
+              },
+              "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+              "directed_ip": {
+                "bytes": 242290249,
+                "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+                "links": {
+                  "client->worker_a": {
+                    "bytes": 32823081,
+                    "packets": 32263
+                  },
+                  "client->worker_b": {
+                    "bytes": 990044,
+                    "packets": 6713
+                  },
+                  "worker_a->client": {
+                    "bytes": 167303036,
+                    "packets": 31343
+                  },
+                  "worker_a->worker_b": {
+                    "bytes": 0,
+                    "packets": 0
+                  },
+                  "worker_b->client": {
+                    "bytes": 41174088,
+                    "packets": 12361
+                  },
+                  "worker_b->worker_a": {
+                    "bytes": 0,
+                    "packets": 0
+                  }
+                },
+                "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+              },
+              "enforced": true,
+              "excluded": [
+                "host/portal management leg",
+                "out-of-band telemetry",
+                "checkpoint distribution"
+              ],
+              "full_wire_bytes": null,
+              "link_conditions": {
+                "bytes_per_second": null,
+                "latency_ms": 20,
+                "loss_fraction": 0,
+                "schema": "pllm.link_conditions.v1",
+                "seed": 42
+              },
+              "measurement_helpers": {
+                "client/endpoint": {
+                  "cpu_ns": 4124521000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 242955254,
+                      "tx_bytes": 242542273
+                    },
+                    "eth1": {
+                      "rx_bytes": 1950,
+                      "tx_bytes": 126
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 32686080,
+                  "memory_peak_bytes": 32686080
+                },
+                "client/router": {
+                  "cpu_ns": 1050463000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 34360739,
+                      "tx_bytes": 209089190
+                    },
+                    "eth1": {
+                      "rx_bytes": 209091224,
+                      "tx_bytes": 34359125
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 35225600,
+                  "memory_peak_bytes": 41230336
+                },
+                "worker_a/endpoint": {
+                  "cpu_ns": 628628000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1280,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 33276283,
+                      "tx_bytes": 167742048
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33767424,
+                  "memory_peak_bytes": 33771520
+                },
+                "worker_a/router": {
+                  "cpu_ns": 1020190000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 33276211,
+                      "tx_bytes": 167742090
+                    },
+                    "eth1": {
+                      "rx_bytes": 167743788,
+                      "tx_bytes": 33274973
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 35069952,
+                  "memory_peak_bytes": 41521152
+                },
+                "worker_b/endpoint": {
+                  "cpu_ns": 653047000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 914,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 1085546,
+                      "tx_bytes": 41347352
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33120256,
+                  "memory_peak_bytes": 33513472
+                },
+                "worker_b/router": {
+                  "cpu_ns": 1025235000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 41349092,
+                      "tx_bytes": 1084236
+                    },
+                    "eth1": {
+                      "rx_bytes": 1085066,
+                      "tx_bytes": 41347352
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 35504128,
+                  "memory_peak_bytes": 41496576
+                }
+              },
+              "parties": {
+                "client": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 216064358,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 149393,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth1",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 35088119,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 6160,
+                        "packets": 50029,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 35088119,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 11460358643089327771
+                        },
+                        "overlimits": 0,
+                        "packets": 50029,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                },
+                "worker_a": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 34003901,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 43312,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth0",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 173604696,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 63033,
+                        "packets": 120176,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 173604696,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 16917499788103916014
+                        },
+                        "overlimits": 0,
+                        "packets": 120176,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                },
+                "worker_b": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 1084260,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 6718,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth1",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 42459872,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 10352,
+                        "packets": 29222,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 42459872,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 2774522220326864921
+                        },
+                        "overlimits": 0,
+                        "packets": 29222,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                }
+              },
+              "role_parties": {
+                "client": "client",
+                "worker_a": "worker_a",
+                "worker_b": "worker_b"
+              },
+              "schema": "pllm.wan_emulation.v1",
+              "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+            }
+          },
+          "before": {
+            "directed_ip": {
+              "bytes": 26692,
+              "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+              "links": {
+                "client->worker_a": {
+                  "bytes": 6206,
+                  "packets": 95
+                },
+                "client->worker_b": {
+                  "bytes": 5586,
+                  "packets": 88
+                },
+                "worker_a->client": {
+                  "bytes": 10927,
+                  "packets": 88
+                },
+                "worker_a->worker_b": {
+                  "bytes": 0,
+                  "packets": 0
+                },
+                "worker_b->client": {
+                  "bytes": 3973,
+                  "packets": 82
+                },
+                "worker_b->worker_a": {
+                  "bytes": 0,
+                  "packets": 0
+                }
+              },
+              "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+            },
+            "full_wire_bytes": null,
+            "image_id": "sha256:8b05c4a9d58e0fce3b92f228dd7ee9db38c351b828bd4bbc1dd57cb8f6cd1d7c",
+            "link_conditions": {
+              "bytes_per_second": null,
+              "latency_ms": 20,
+              "loss_fraction": 0,
+              "schema": "pllm.link_conditions.v1",
+              "seed": 42
+            },
+            "measurement_helpers": {
+              "client/endpoint": {
+                "cpu_ns": 744962000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 86272,
+                    "tx_bytes": 60504
+                  },
+                  "eth1": {
+                    "rx_bytes": 1950,
+                    "tx_bytes": 126
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 32428032,
+                "memory_peak_bytes": 32497664
+              },
+              "client/router": {
+                "cpu_ns": 871488000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 16304,
+                    "tx_bytes": 17490
+                  },
+                  "eth1": {
+                    "rx_bytes": 19482,
+                    "tx_bytes": 14648
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 35229696,
+                "memory_peak_bytes": 41230336
+              },
+              "worker_a/endpoint": {
+                "cpu_ns": 542730000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1280,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 9056,
+                    "tx_bytes": 12369
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33120256,
+                "memory_peak_bytes": 33120256
+              },
+              "worker_a/router": {
+                "cpu_ns": 850141000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 8942,
+                    "tx_bytes": 12369
+                  },
+                  "eth1": {
+                    "rx_bytes": 14109,
+                    "tx_bytes": 7746
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 34988032,
+                "memory_peak_bytes": 41521152
+              },
+              "worker_b/endpoint": {
+                "cpu_ns": 555712000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 914,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 8338,
+                    "tx_bytes": 5331
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 33009664,
+                "memory_peak_bytes": 33513472
+              },
+              "worker_b/router": {
+                "cpu_ns": 846996000,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 7071,
+                    "tx_bytes": 7028
+                  },
+                  "eth1": {
+                    "rx_bytes": 7858,
+                    "tx_bytes": 5331
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 35500032,
+                "memory_peak_bytes": 40992768
+              }
+            },
+            "roles": {
+              "worker_a": {
+                "cpu_ns": 13466218000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 1280,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 9056,
+                    "tx_bytes": 12369
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1647132672,
+                "memory_peak_bytes": 2312978432,
+                "network_namespace_party": "worker_a"
+              },
+              "worker_b": {
+                "cpu_ns": 13369442000,
+                "interface_counters_shared_with_namespace": true,
+                "interfaces": {
+                  "erspan0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "eth0": {
+                    "rx_bytes": 914,
+                    "tx_bytes": 126
+                  },
+                  "eth1": {
+                    "rx_bytes": 8338,
+                    "tx_bytes": 5331
+                  },
+                  "gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "gretap0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6gre0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip6tnl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "ip_vti0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "sit0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  },
+                  "tunl0": {
+                    "rx_bytes": 0,
+                    "tx_bytes": 0
+                  }
+                },
+                "memory_current_bytes": 1481396224,
+                "memory_peak_bytes": 2282295296,
+                "network_namespace_party": "worker_b"
+              }
+            },
+            "schema": "pllm.docker_resources.v1",
+            "scope": "co-located-provider-containers",
+            "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+            "wan_emulation": {
+              "backend": "linux-tbf-routed-party-ports",
+              "conditions": {
+                "download_mbps": 100.0,
+                "parties": [],
+                "role_parties": [],
+                "schema": "pllm.wan_conditions.v1",
+                "upload_mbps": 40.0
+              },
+              "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+              "directed_ip": {
+                "bytes": 26692,
+                "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+                "links": {
+                  "client->worker_a": {
+                    "bytes": 6206,
+                    "packets": 95
+                  },
+                  "client->worker_b": {
+                    "bytes": 5586,
+                    "packets": 88
+                  },
+                  "worker_a->client": {
+                    "bytes": 10927,
+                    "packets": 88
+                  },
+                  "worker_a->worker_b": {
+                    "bytes": 0,
+                    "packets": 0
+                  },
+                  "worker_b->client": {
+                    "bytes": 3973,
+                    "packets": 82
+                  },
+                  "worker_b->worker_a": {
+                    "bytes": 0,
+                    "packets": 0
+                  }
+                },
+                "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+              },
+              "enforced": true,
+              "excluded": [
+                "host/portal management leg",
+                "out-of-band telemetry",
+                "checkpoint distribution"
+              ],
+              "full_wire_bytes": null,
+              "link_conditions": {
+                "bytes_per_second": null,
+                "latency_ms": 20,
+                "loss_fraction": 0,
+                "schema": "pllm.link_conditions.v1",
+                "seed": 42
+              },
+              "measurement_helpers": {
+                "client/endpoint": {
+                  "cpu_ns": 744962000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 86272,
+                      "tx_bytes": 60504
+                    },
+                    "eth1": {
+                      "rx_bytes": 1950,
+                      "tx_bytes": 126
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 32428032,
+                  "memory_peak_bytes": 32497664
+                },
+                "client/router": {
+                  "cpu_ns": 871488000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 16304,
+                      "tx_bytes": 17490
+                    },
+                    "eth1": {
+                      "rx_bytes": 19482,
+                      "tx_bytes": 14648
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 35229696,
+                  "memory_peak_bytes": 41230336
+                },
+                "worker_a/endpoint": {
+                  "cpu_ns": 542730000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 1280,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 9056,
+                      "tx_bytes": 12369
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33120256,
+                  "memory_peak_bytes": 33120256
+                },
+                "worker_a/router": {
+                  "cpu_ns": 850141000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 8942,
+                      "tx_bytes": 12369
+                    },
+                    "eth1": {
+                      "rx_bytes": 14109,
+                      "tx_bytes": 7746
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 34988032,
+                  "memory_peak_bytes": 41521152
+                },
+                "worker_b/endpoint": {
+                  "cpu_ns": 555712000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 914,
+                      "tx_bytes": 126
+                    },
+                    "eth1": {
+                      "rx_bytes": 8338,
+                      "tx_bytes": 5331
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 33009664,
+                  "memory_peak_bytes": 33513472
+                },
+                "worker_b/router": {
+                  "cpu_ns": 846996000,
+                  "interfaces": {
+                    "erspan0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "eth0": {
+                      "rx_bytes": 7071,
+                      "tx_bytes": 7028
+                    },
+                    "eth1": {
+                      "rx_bytes": 7858,
+                      "tx_bytes": 5331
+                    },
+                    "gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "gretap0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6gre0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip6tnl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "ip_vti0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "sit0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    },
+                    "tunl0": {
+                      "rx_bytes": 0,
+                      "tx_bytes": 0
+                    }
+                  },
+                  "memory_current_bytes": 35500032,
+                  "memory_peak_bytes": 40992768
+                }
+              },
+              "parties": {
+                "client": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 17580,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 176,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth1",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 14606,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 0,
+                        "packets": 189,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 14606,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 11460358643089327771
+                        },
+                        "overlimits": 0,
+                        "packets": 189,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                },
+                "worker_a": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth1",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 7704,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 99,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth0",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 12459,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 0,
+                        "packets": 94,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 12459,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 16917499788103916014
+                        },
+                        "overlimits": 0,
+                        "packets": 94,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                },
+                "worker_b": {
+                  "download": {
+                    "burst_bytes": 125000,
+                    "bytes_per_second": 12500000,
+                    "device": "eth0",
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 6986,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 125000,
+                          "lat": 240000,
+                          "rate": 12500000
+                        },
+                        "overlimits": 0,
+                        "packets": 92,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      }
+                    ],
+                    "queue_bytes": 3125000,
+                    "verified": true
+                  },
+                  "upload": {
+                    "burst_bytes": 50000,
+                    "bytes_per_second": 5000000,
+                    "device": "eth1",
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "qdiscs": [
+                      {
+                        "backlog": 0,
+                        "bytes": 5289,
+                        "drops": 0,
+                        "handle": "10:",
+                        "kind": "tbf",
+                        "options": {
+                          "burst": 50000,
+                          "lat": 240000,
+                          "rate": 5000000
+                        },
+                        "overlimits": 0,
+                        "packets": 86,
+                        "qlen": 0,
+                        "refcnt": 11,
+                        "requeues": 0,
+                        "root": true
+                      },
+                      {
+                        "backlog": 0,
+                        "bytes": 5289,
+                        "drops": 0,
+                        "handle": "20:",
+                        "kind": "netem",
+                        "options": {
+                          "delay": {
+                            "correlation": 0,
+                            "delay": 0.02,
+                            "jitter": 0
+                          },
+                          "ecn": false,
+                          "gap": 0,
+                          "limit": 1000,
+                          "seed": 2774522220326864921
+                        },
+                        "overlimits": 0,
+                        "packets": 86,
+                        "parent": "10:1",
+                        "qlen": 0,
+                        "requeues": 0
+                      }
+                    ],
+                    "queue_bytes": 1250000,
+                    "verified": true
+                  }
+                }
+              },
+              "role_parties": {
+                "client": "client",
+                "worker_a": "worker_a",
+                "worker_b": "worker_b"
+              },
+              "schema": "pllm.wan_emulation.v1",
+              "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+            }
+          }
+        }
+      ],
+      "startup": {
+        "directed_ip": {
+          "bytes": 26692,
+          "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+          "links": {
+            "client->worker_a": {
+              "bytes": 6206,
+              "packets": 95
+            },
+            "client->worker_b": {
+              "bytes": 5586,
+              "packets": 88
+            },
+            "worker_a->client": {
+              "bytes": 10927,
+              "packets": 88
+            },
+            "worker_a->worker_b": {
+              "bytes": 0,
+              "packets": 0
+            },
+            "worker_b->client": {
+              "bytes": 3973,
+              "packets": 82
+            },
+            "worker_b->worker_a": {
+              "bytes": 0,
+              "packets": 0
+            }
+          },
+          "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+        },
+        "full_wire_bytes": null,
+        "image_id": "sha256:8b05c4a9d58e0fce3b92f228dd7ee9db38c351b828bd4bbc1dd57cb8f6cd1d7c",
+        "link_conditions": {
+          "bytes_per_second": null,
+          "latency_ms": 20,
+          "loss_fraction": 0,
+          "schema": "pllm.link_conditions.v1",
+          "seed": 42
+        },
+        "measurement_helpers": {
+          "client/endpoint": {
+            "cpu_ns": 654468000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 86272,
+                "tx_bytes": 60504
+              },
+              "eth1": {
+                "rx_bytes": 1950,
+                "tx_bytes": 126
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 32497664,
+            "memory_peak_bytes": 32497664
+          },
+          "client/router": {
+            "cpu_ns": 687454000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 16304,
+                "tx_bytes": 17490
+              },
+              "eth1": {
+                "rx_bytes": 19482,
+                "tx_bytes": 14648
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 34979840,
+            "memory_peak_bytes": 34979840
+          },
+          "worker_a/endpoint": {
+            "cpu_ns": 443657000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1280,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 9056,
+                "tx_bytes": 12369
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 33034240,
+            "memory_peak_bytes": 33034240
+          },
+          "worker_a/router": {
+            "cpu_ns": 674127000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 8942,
+                "tx_bytes": 12369
+              },
+              "eth1": {
+                "rx_bytes": 14109,
+                "tx_bytes": 7746
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 35258368,
+            "memory_peak_bytes": 35258368
+          },
+          "worker_b/endpoint": {
+            "cpu_ns": 474243000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 914,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 8338,
+                "tx_bytes": 5331
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 33513472,
+            "memory_peak_bytes": 33513472
+          },
+          "worker_b/router": {
+            "cpu_ns": 635990000,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 7071,
+                "tx_bytes": 7028
+              },
+              "eth1": {
+                "rx_bytes": 7858,
+                "tx_bytes": 5331
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 35000320,
+            "memory_peak_bytes": 35000320
+          }
+        },
+        "roles": {
+          "worker_a": {
+            "cpu_ns": 13101157000,
+            "interface_counters_shared_with_namespace": true,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 1280,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 9056,
+                "tx_bytes": 12369
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 1647362048,
+            "memory_peak_bytes": 2312978432,
+            "network_namespace_party": "worker_a"
+          },
+          "worker_b": {
+            "cpu_ns": 13053352000,
+            "interface_counters_shared_with_namespace": true,
+            "interfaces": {
+              "erspan0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "eth0": {
+                "rx_bytes": 914,
+                "tx_bytes": 126
+              },
+              "eth1": {
+                "rx_bytes": 8338,
+                "tx_bytes": 5331
+              },
+              "gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "gretap0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6gre0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip6tnl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "ip_vti0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "sit0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              },
+              "tunl0": {
+                "rx_bytes": 0,
+                "tx_bytes": 0
+              }
+            },
+            "memory_current_bytes": 1481150464,
+            "memory_peak_bytes": 2282295296,
+            "network_namespace_party": "worker_b"
+          }
+        },
+        "schema": "pllm.docker_resources.v1",
+        "scope": "co-located-provider-containers",
+        "shaping_scope": "shared per-party full-duplex IP access; co-located Docker namespaces",
+        "wan_emulation": {
+          "backend": "linux-tbf-routed-party-ports",
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "directed_ip": {
+            "bytes": 26692,
+            "includes": "IP/TCP headers, ACKs, retransmissions and service controls",
+            "links": {
+              "client->worker_a": {
+                "bytes": 6206,
+                "packets": 95
+              },
+              "client->worker_b": {
+                "bytes": 5586,
+                "packets": 88
+              },
+              "worker_a->client": {
+                "bytes": 10927,
+                "packets": 88
+              },
+              "worker_a->worker_b": {
+                "bytes": 0,
+                "packets": 0
+              },
+              "worker_b->client": {
+                "bytes": 3973,
+                "packets": 82
+              },
+              "worker_b->worker_a": {
+                "bytes": 0,
+                "packets": 0
+              }
+            },
+            "scope": "non-overlapping party-router WAN TCP postrouting hooks"
+          },
+          "enforced": true,
+          "excluded": [
+            "host/portal management leg",
+            "out-of-band telemetry",
+            "checkpoint distribution"
+          ],
+          "full_wire_bytes": null,
+          "link_conditions": {
+            "bytes_per_second": null,
+            "latency_ms": 20,
+            "loss_fraction": 0,
+            "schema": "pllm.link_conditions.v1",
+            "seed": 42
+          },
+          "measurement_helpers": {
+            "client/endpoint": {
+              "cpu_ns": 654468000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 86272,
+                  "tx_bytes": 60504
+                },
+                "eth1": {
+                  "rx_bytes": 1950,
+                  "tx_bytes": 126
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 32497664,
+              "memory_peak_bytes": 32497664
+            },
+            "client/router": {
+              "cpu_ns": 687454000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 16304,
+                  "tx_bytes": 17490
+                },
+                "eth1": {
+                  "rx_bytes": 19482,
+                  "tx_bytes": 14648
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 34979840,
+              "memory_peak_bytes": 34979840
+            },
+            "worker_a/endpoint": {
+              "cpu_ns": 443657000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 1280,
+                  "tx_bytes": 126
+                },
+                "eth1": {
+                  "rx_bytes": 9056,
+                  "tx_bytes": 12369
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 33034240,
+              "memory_peak_bytes": 33034240
+            },
+            "worker_a/router": {
+              "cpu_ns": 674127000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 8942,
+                  "tx_bytes": 12369
+                },
+                "eth1": {
+                  "rx_bytes": 14109,
+                  "tx_bytes": 7746
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 35258368,
+              "memory_peak_bytes": 35258368
+            },
+            "worker_b/endpoint": {
+              "cpu_ns": 474243000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 914,
+                  "tx_bytes": 126
+                },
+                "eth1": {
+                  "rx_bytes": 8338,
+                  "tx_bytes": 5331
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 33513472,
+              "memory_peak_bytes": 33513472
+            },
+            "worker_b/router": {
+              "cpu_ns": 635990000,
+              "interfaces": {
+                "erspan0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "eth0": {
+                  "rx_bytes": 7071,
+                  "tx_bytes": 7028
+                },
+                "eth1": {
+                  "rx_bytes": 7858,
+                  "tx_bytes": 5331
+                },
+                "gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "gretap0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6gre0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip6tnl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "ip_vti0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "sit0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                },
+                "tunl0": {
+                  "rx_bytes": 0,
+                  "tx_bytes": 0
+                }
+              },
+              "memory_current_bytes": 35000320,
+              "memory_peak_bytes": 35000320
+            }
+          },
+          "parties": {
+            "client": {
+              "download": {
+                "burst_bytes": 125000,
+                "bytes_per_second": 12500000,
+                "device": "eth0",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 17580,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 125000,
+                      "lat": 240000,
+                      "rate": 12500000
+                    },
+                    "overlimits": 0,
+                    "packets": 176,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 3125000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 50000,
+                "bytes_per_second": 5000000,
+                "device": "eth1",
+                "link_conditions": {
+                  "bytes_per_second": null,
+                  "latency_ms": 20,
+                  "loss_fraction": 0,
+                  "schema": "pllm.link_conditions.v1",
+                  "seed": 42
+                },
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 14606,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 50000,
+                      "lat": 240000,
+                      "rate": 5000000
+                    },
+                    "overlimits": 0,
+                    "packets": 189,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  },
+                  {
+                    "backlog": 0,
+                    "bytes": 14606,
+                    "drops": 0,
+                    "handle": "20:",
+                    "kind": "netem",
+                    "options": {
+                      "delay": {
+                        "correlation": 0,
+                        "delay": 0.02,
+                        "jitter": 0
+                      },
+                      "ecn": false,
+                      "gap": 0,
+                      "limit": 1000,
+                      "seed": 11460358643089327771
+                    },
+                    "overlimits": 0,
+                    "packets": 189,
+                    "parent": "10:1",
+                    "qlen": 0,
+                    "requeues": 0
+                  }
+                ],
+                "queue_bytes": 1250000,
+                "verified": true
+              }
+            },
+            "worker_a": {
+              "download": {
+                "burst_bytes": 125000,
+                "bytes_per_second": 12500000,
+                "device": "eth1",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 7704,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 125000,
+                      "lat": 240000,
+                      "rate": 12500000
+                    },
+                    "overlimits": 0,
+                    "packets": 99,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 3125000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 50000,
+                "bytes_per_second": 5000000,
+                "device": "eth0",
+                "link_conditions": {
+                  "bytes_per_second": null,
+                  "latency_ms": 20,
+                  "loss_fraction": 0,
+                  "schema": "pllm.link_conditions.v1",
+                  "seed": 42
+                },
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 12459,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 50000,
+                      "lat": 240000,
+                      "rate": 5000000
+                    },
+                    "overlimits": 0,
+                    "packets": 94,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  },
+                  {
+                    "backlog": 0,
+                    "bytes": 12459,
+                    "drops": 0,
+                    "handle": "20:",
+                    "kind": "netem",
+                    "options": {
+                      "delay": {
+                        "correlation": 0,
+                        "delay": 0.02,
+                        "jitter": 0
+                      },
+                      "ecn": false,
+                      "gap": 0,
+                      "limit": 1000,
+                      "seed": 16917499788103916014
+                    },
+                    "overlimits": 0,
+                    "packets": 94,
+                    "parent": "10:1",
+                    "qlen": 0,
+                    "requeues": 0
+                  }
+                ],
+                "queue_bytes": 1250000,
+                "verified": true
+              }
+            },
+            "worker_b": {
+              "download": {
+                "burst_bytes": 125000,
+                "bytes_per_second": 12500000,
+                "device": "eth0",
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 6986,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 125000,
+                      "lat": 240000,
+                      "rate": 12500000
+                    },
+                    "overlimits": 0,
+                    "packets": 92,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  }
+                ],
+                "queue_bytes": 3125000,
+                "verified": true
+              },
+              "upload": {
+                "burst_bytes": 50000,
+                "bytes_per_second": 5000000,
+                "device": "eth1",
+                "link_conditions": {
+                  "bytes_per_second": null,
+                  "latency_ms": 20,
+                  "loss_fraction": 0,
+                  "schema": "pllm.link_conditions.v1",
+                  "seed": 42
+                },
+                "qdiscs": [
+                  {
+                    "backlog": 0,
+                    "bytes": 5289,
+                    "drops": 0,
+                    "handle": "10:",
+                    "kind": "tbf",
+                    "options": {
+                      "burst": 50000,
+                      "lat": 240000,
+                      "rate": 5000000
+                    },
+                    "overlimits": 0,
+                    "packets": 86,
+                    "qlen": 0,
+                    "refcnt": 11,
+                    "requeues": 0,
+                    "root": true
+                  },
+                  {
+                    "backlog": 0,
+                    "bytes": 5289,
+                    "drops": 0,
+                    "handle": "20:",
+                    "kind": "netem",
+                    "options": {
+                      "delay": {
+                        "correlation": 0,
+                        "delay": 0.02,
+                        "jitter": 0
+                      },
+                      "ecn": false,
+                      "gap": 0,
+                      "limit": 1000,
+                      "seed": 2774522220326864921
+                    },
+                    "overlimits": 0,
+                    "packets": 86,
+                    "parent": "10:1",
+                    "qlen": 0,
+                    "requeues": 0
+                  }
+                ],
+                "queue_bytes": 1250000,
+                "verified": true
+              }
+            }
+          },
+          "role_parties": {
+            "client": "client",
+            "worker_a": "worker_a",
+            "worker_b": "worker_b"
+          },
+          "schema": "pllm.wan_emulation.v1",
+          "scope": "shared per-party full-duplex IP access; co-located Docker namespaces"
+        }
+      },
+      "warmups": []
+    },
+    "schema": "pllm.docker_benchmark_accounting.v1",
+    "scope": "co-located Linux provider containers; host client"
+  },
+  "experiment": {
+    "configuration_digest": "8f7766efe42a5457ffdaec94da17b6b8e81ad5bc19eb14cca5402098a7f67e81",
+    "name": "offset-control",
+    "pipeline_digest": "73f06df8ad5ca86a35bce7b94dbde89348586482f62fc675a27907ee4d04672f"
+  },
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic record, not a canonical EvidenceReport",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "privacy_admission": {
+    "independent_operators_verified": false,
+    "reason": "loopback offset workers share one operator and host"
+  },
+  "process_cpu_accounting": {
+    "aggregate_cold_first_response_cpu_seconds": null,
+    "aggregate_startup_cpu_seconds": null,
+    "cold_first_response_cpu_seconds_by_role": null,
+    "full_response_compute_cap_checked": false,
+    "schema": "pllm.topology_process_cpu.v1",
+    "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+    "startup_cpu_seconds_by_role": null,
+    "unmeasured": [
+      "source resolution before dashboard startup, if any",
+      "accelerator compute, energy, and CPU after the first response",
+      "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+    ]
+  },
+  "runs": [
+    {
+      "cold": true,
+      "context_tokens": 39,
+      "durations": {
+        "full_seconds": 158.859785708,
+        "generation_seconds": 68.853244292,
+        "online_seconds": 157.464237,
+        "preparation_seconds": null,
+        "tokens_per_second": 0.10166550715190227,
+        "transition_seconds": null,
+        "ttft_seconds": 88.487615083
+      },
+      "failure": null,
+      "generation": {
+        "output_text_digest": "1cac53d4c8028517dd1f6e29301031eb3dd7a0f4abc81a4c6169ae2ad478d0fb",
+        "response_status": "incomplete"
+      },
+      "inventory": {
+        "burned": 0,
+        "consumed": 0,
+        "generated": 0,
+        "required": 0,
+        "reused": 0
+      },
+      "max_output_tokens": 8,
+      "model_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974",
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "network": {
+        "decode_online_body_bytes": 17710420,
+        "decode_output_tokens": 7,
+        "decode_scope": "after-first-output-through-completion"
+      },
+      "privacy": {
+        "bundle_cache_corruptions": 0,
+        "bundle_cache_hits": 0,
+        "bundle_cache_misses": 1,
+        "bundle_network_bytes": 124983809,
+        "correction_push_bytes": 0,
+        "correction_push_ns": 0,
+        "correlation_count": 0,
+        "direct_fhe_download_bytes": 0,
+        "direct_fhe_steps": 0,
+        "direct_fhe_upload_bytes": 0,
+        "encrypted_correlation_download_bytes": 0,
+        "encrypted_correlation_upload_bytes": 0,
+        "generation_completed_responses": 1,
+        "generation_decode_online_body_bytes": 17710420,
+        "generation_decode_output_tokens": 7,
+        "generation_output_tokens": 8,
+        "generation_prefill_online_body_bytes": 94294768,
+        "inference_download_bytes": 0,
+        "inference_server_ns": 0,
+        "inference_stage_calls": 768,
+        "inference_upload_bytes": 0,
+        "kv_continuation_batched_hits": 0,
+        "kv_continuation_hits": 0,
+        "kv_continuation_legacy_sequential_hits": 0,
+        "kv_continuation_misses": 0,
+        "masked_online_download_bytes": 0,
+        "masked_online_upload_bytes": 0,
+        "online_steps": 4416,
+        "plaintext_prompt_bytes_sent": 0,
+        "plaintext_token_ids_sent": 0,
+        "prefill_cache_hits": 0,
+        "prefill_cache_misses": 1,
+        "prefill_prefix_tokens_reused": 0,
+        "preparation_attempts": 0,
+        "preparation_download_bytes": 0,
+        "preparation_failures": 0,
+        "preparation_requests_during_online": 0,
+        "preparation_rows": 0,
+        "preparation_server_ns": 0,
+        "preparation_upload_bytes": 0,
+        "prepared_stage_rows_burned": 0,
+        "prepared_stage_rows_claimed": 0,
+        "prepared_stage_rows_discarded": 0,
+        "prepared_stage_rows_issued": 0,
+        "prepared_stage_rows_reserved": 0,
+        "public_context_bytes": 0,
+        "role_link.worker_a.online_download_bytes": 40429122,
+        "role_link.worker_a.online_upload_bytes": 30756544,
+        "role_link.worker_a.setup_download_bytes": 1138,
+        "role_link.worker_a.setup_upload_bytes": 2159,
+        "role_link.worker_a.teardown_download_bytes": 62,
+        "role_link.worker_a.teardown_upload_bytes": 0,
+        "role_link.worker_b.online_download_bytes": 40429122,
+        "role_link.worker_b.online_upload_bytes": 390400,
+        "role_link.worker_b.setup_download_bytes": 1138,
+        "role_link.worker_b.setup_upload_bytes": 2159,
+        "role_link.worker_b.teardown_download_bytes": 62,
+        "role_link.worker_b.teardown_upload_bytes": 0,
+        "session_authorization_download_bytes": 0,
+        "session_authorization_upload_bytes": 0,
+        "token_lookup_cache_hits": 0,
+        "token_lookup_cache_misses": 0
+      },
+      "processes": {
+        "client": {
+          "cpu_seconds": 24.556271,
+          "rss_peak_bytes": null
+        },
+        "worker_a": {
+          "cpu_seconds": 14.275515058,
+          "rss_peak_bytes": 2072682496
+        },
+        "worker_b": {
+          "cpu_seconds": 7.9013439,
+          "rss_peak_bytes": 2011029504
+        }
+      },
+      "run_id": "bench-2e345252d272102ac177c4d85af91197",
+      "sampling": {
+        "effective_temperature": 0.0,
+        "mode": "greedy",
+        "requested_temperature": 0.0,
+        "top_p": null
+      },
+      "schema_version": 3,
+      "status": "completed",
+      "timestamps": {
+        "finished_at_ns": 1791096665258825000,
+        "first_token_at_ns": 1791096596282012000,
+        "last_token_at_ns": 1791096665135460000,
+        "online_started_at_ns": 1791096507795027000,
+        "preparation_finished_at_ns": null,
+        "preparation_started_at_ns": null,
+        "started_at_ns": 1791096506399483000
+      },
+      "tokens": {
+        "authoritative": true,
+        "input_tokens": 39,
+        "output_tokens": 8,
+        "total_tokens": 47
+      },
+      "warm": false
+    }
+  ],
+  "schema_version": "pllm.loopback_benchmark.v1",
+  "scope": "single-host-loopback-diagnostic",
+  "summary": {
+    "accounted_setup_through_first_response_body_bytes": 236995715,
+    "cold_first_response_mb_per_output_token": 29.624464375,
+    "completed_runs": 1,
+    "covered_mb_per_output_token": 29.624464375,
+    "decode_online_mb_per_output_token": 2.53006,
+    "generated_output_tokens": 8,
+    "median_covered_all_link_serialized_body_bytes": 236995715,
+    "median_full_seconds": 158.859785708,
+    "median_online_all_link_serialized_body_bytes": 112005188,
+    "median_online_seconds": 157.464237,
+    "median_tokens_per_second": 0.10166550715190227,
+    "median_ttft_seconds": 88.487615083,
+    "online_mb_per_output_token": 14.0006485,
+    "setup_inclusive_mb_per_output_token": 29.624464375,
+    "total_accounted_benchmark_body_bytes": 236995715,
+    "total_output_tokens": 8,
+    "total_run_covered_all_link_serialized_body_bytes": 236995715,
+    "total_run_full_seconds": 158.859785708,
+    "total_run_online_all_link_serialized_body_bytes": 112005188
+  },
+  "topology_accounting": {
+    "runs": [
+      {
+        "aggregate_run_window_cpu_seconds": 46.733129958,
+        "all_link_serialized_body_bytes": 236995715,
+        "body_bytes_by_edge": [
+          {
+            "destination": "worker_a",
+            "phase": "setup",
+            "serialized_body_bytes": 2159,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "setup",
+            "serialized_body_bytes": 1138,
+            "source": "worker_a"
+          },
+          {
+            "destination": "worker_a",
+            "phase": "online",
+            "serialized_body_bytes": 30756544,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 40429122,
+            "source": "worker_a"
+          },
+          {
+            "destination": "worker_a",
+            "phase": "teardown",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "teardown",
+            "serialized_body_bytes": 62,
+            "source": "worker_a"
+          },
+          {
+            "destination": "worker_b",
+            "phase": "setup",
+            "serialized_body_bytes": 2159,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "setup",
+            "serialized_body_bytes": 1138,
+            "source": "worker_b"
+          },
+          {
+            "destination": "worker_b",
+            "phase": "online",
+            "serialized_body_bytes": 390400,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "online",
+            "serialized_body_bytes": 40429122,
+            "source": "worker_b"
+          },
+          {
+            "destination": "worker_b",
+            "phase": "teardown",
+            "serialized_body_bytes": 0,
+            "source": "client"
+          },
+          {
+            "destination": "client",
+            "phase": "teardown",
+            "serialized_body_bytes": 62,
+            "source": "worker_b"
+          },
+          {
+            "destination": "client",
+            "phase": "bundle",
+            "serialized_body_bytes": 124983809,
+            "source": "worker_a"
+          }
+        ],
+        "client_serialized_body_bytes": 236995715,
+        "full_response_compute_cap_checked": false,
+        "online_all_link_serialized_body_bytes": 112005188,
+        "online_client_serialized_body_bytes": 112005188,
+        "run_window_cpu_seconds_by_role": {
+          "client": 24.556271,
+          "worker_a": 14.275515058,
+          "worker_b": 7.9013439
+        },
+        "schema": "pllm.topology_body_accounting.v1",
+        "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+        "total_wire_bytes": null,
+        "tracked_body_counter_set_present": true,
+        "unmeasured": [
+          "HTTP headers, TLS and transport framing",
+          "model descriptor and authenticated monitoring request bodies",
+          "worker model import and cold checkpoint distribution",
+          "peak client memory, energy, and disk activity"
+        ]
+      }
+    ],
+    "startup": {
+      "aggregate_run_window_cpu_seconds": null,
+      "all_link_serialized_body_bytes": 0,
+      "body_bytes_by_edge": [
+        {
+          "destination": "worker_a",
+          "phase": "setup",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "setup",
+          "serialized_body_bytes": 0,
+          "source": "worker_a"
+        },
+        {
+          "destination": "worker_a",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "worker_a"
+        },
+        {
+          "destination": "worker_a",
+          "phase": "teardown",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "teardown",
+          "serialized_body_bytes": 0,
+          "source": "worker_a"
+        },
+        {
+          "destination": "worker_b",
+          "phase": "setup",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "setup",
+          "serialized_body_bytes": 0,
+          "source": "worker_b"
+        },
+        {
+          "destination": "worker_b",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "online",
+          "serialized_body_bytes": 0,
+          "source": "worker_b"
+        },
+        {
+          "destination": "worker_b",
+          "phase": "teardown",
+          "serialized_body_bytes": 0,
+          "source": "client"
+        },
+        {
+          "destination": "client",
+          "phase": "teardown",
+          "serialized_body_bytes": 0,
+          "source": "worker_b"
+        },
+        {
+          "destination": "client",
+          "phase": "bundle",
+          "serialized_body_bytes": 0,
+          "source": "worker_a"
+        }
+      ],
+      "client_serialized_body_bytes": 0,
+      "full_response_compute_cap_checked": false,
+      "online_all_link_serialized_body_bytes": 0,
+      "online_client_serialized_body_bytes": 0,
+      "run_window_cpu_seconds_by_role": null,
+      "schema": "pllm.topology_body_accounting.v1",
+      "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+      "total_wire_bytes": null,
+      "tracked_body_counter_set_present": true,
+      "unmeasured": [
+        "HTTP headers, TLS and transport framing",
+        "model descriptor and authenticated monitoring request bodies",
+        "worker model import and cold checkpoint distribution",
+        "peak client memory, energy, and disk activity"
+      ]
+    },
+    "warmups": []
+  },
+  "wan_readiness": {
+    "assumptions": [
+      "independent full-duplex upload/download ports",
+      "each party's peers share its access port"
+    ],
+    "conditions": {
+      "download_mbps": 100.0,
+      "parties": [],
+      "role_parties": [],
+      "schema": "pllm.wan_conditions.v1",
+      "upload_mbps": 40.0
+    },
+    "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+    "emulation": {
+      "backend": "linux-tbf-routed-party-ports",
+      "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+      "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
+      "inter_party_links_present": true,
+      "internet_measurement": false,
+      "kernel_rate_snapshots_checked": true,
+      "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
+      "runs": [
+        {
+          "decode_output_tokens": 7,
+          "decode_seconds": 68.853244292,
+          "decode_tokens_per_second": 0.10166550715190227,
+          "end_to_end_tokens_per_second": 0.050358874427193244,
+          "full_seconds": 158.859785708,
+          "generated_output_tokens": 8,
+          "online_seconds": 157.464237,
+          "online_tokens_per_second": 0.050805186958102745
+        }
+      ],
+      "schema": "pllm.measured_wan_throughput.v1",
+      "scope": "measured local inference under enforced shared party access rates",
+      "summary": {
+        "decode_tokens_per_second": 0.10166550715190227,
+        "end_to_end_tokens_per_second": 0.050358874427193244,
+        "online_tokens_per_second": 0.050805186958102745
+      }
+    },
+    "internet_ready": null,
+    "measured_wan_latency_seconds": null,
+    "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+    "runs": [
+      {
+        "covered": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "worker_a"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 33.0828262,
+          "parties": {
+            "client": {
+              "download_bytes": 205844453,
+              "download_mbps": 100.0,
+              "download_seconds": 16.46755624,
+              "upload_bytes": 31151262,
+              "upload_mbps": 40.0,
+              "upload_seconds": 6.2302524
+            },
+            "worker_a": {
+              "download_bytes": 30758703,
+              "download_mbps": 100.0,
+              "download_seconds": 2.46069624,
+              "upload_bytes": 165414131,
+              "upload_mbps": 40.0,
+              "upload_seconds": 33.0828262
+            },
+            "worker_b": {
+              "download_bytes": 392559,
+              "download_mbps": 100.0,
+              "download_seconds": 0.03140472,
+              "upload_bytes": 40430322,
+              "upload_mbps": 40.0,
+              "upload_seconds": 8.0860644
+            }
+          },
+          "wan_body_bytes": 236995715
+        },
+        "executed_role_parties": null,
+        "generated_output_tokens": 8,
+        "online": {
+          "bottleneck": {
+            "direction": "upload",
+            "party_id": "worker_a"
+          },
+          "intra_party_body_bytes": 0,
+          "minimum_transfer_seconds": 8.0858244,
+          "parties": {
+            "client": {
+              "download_bytes": 80858244,
+              "download_mbps": 100.0,
+              "download_seconds": 6.46865952,
+              "upload_bytes": 31146944,
+              "upload_mbps": 40.0,
+              "upload_seconds": 6.2293888
+            },
+            "worker_a": {
+              "download_bytes": 30756544,
+              "download_mbps": 100.0,
+              "download_seconds": 2.46052352,
+              "upload_bytes": 40429122,
+              "upload_mbps": 40.0,
+              "upload_seconds": 8.0858244
+            },
+            "worker_b": {
+              "download_bytes": 390400,
+              "download_mbps": 100.0,
+              "download_seconds": 0.031232,
+              "upload_bytes": 40429122,
+              "upload_mbps": 40.0,
+              "upload_seconds": 8.0858244
+            }
+          },
+          "wan_body_bytes": 112005188
+        }
+      }
+    ],
+    "schema": "pllm.wan_readiness.v1",
+    "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+    "summary": {
+      "online": {
+        "bottleneck": {
+          "direction": "upload",
+          "party_id": "worker_a"
+        },
+        "intra_party_body_bytes": 0,
+        "minimum_transfer_seconds": 8.0858244,
+        "parties": {
+          "client": {
+            "download_bytes": 80858244,
+            "download_mbps": 100.0,
+            "download_seconds": 6.46865952,
+            "upload_bytes": 31146944,
+            "upload_mbps": 40.0,
+            "upload_seconds": 6.2293888
+          },
+          "worker_a": {
+            "download_bytes": 30756544,
+            "download_mbps": 100.0,
+            "download_seconds": 2.46052352,
+            "upload_bytes": 40429122,
+            "upload_mbps": 40.0,
+            "upload_seconds": 8.0858244
+          },
+          "worker_b": {
+            "download_bytes": 390400,
+            "download_mbps": 100.0,
+            "download_seconds": 0.031232,
+            "upload_bytes": 40429122,
+            "upload_mbps": 40.0,
+            "upload_seconds": 8.0858244
+          }
+        },
+        "wan_body_bytes": 112005188
+      },
+      "online_generated_tokens_per_second_ceiling": 0.9893858194595471,
+      "setup_inclusive": {
+        "bottleneck": {
+          "direction": "upload",
+          "party_id": "worker_a"
+        },
+        "intra_party_body_bytes": 0,
+        "minimum_transfer_seconds": 33.0828262,
+        "parties": {
+          "client": {
+            "download_bytes": 205844453,
+            "download_mbps": 100.0,
+            "download_seconds": 16.46755624,
+            "upload_bytes": 31151262,
+            "upload_mbps": 40.0,
+            "upload_seconds": 6.2302524
+          },
+          "worker_a": {
+            "download_bytes": 30758703,
+            "download_mbps": 100.0,
+            "download_seconds": 2.46069624,
+            "upload_bytes": 165414131,
+            "upload_mbps": 40.0,
+            "upload_seconds": 33.0828262
+          },
+          "worker_b": {
+            "download_bytes": 392559,
+            "download_mbps": 100.0,
+            "download_seconds": 0.03140472,
+            "upload_bytes": 40430322,
+            "upload_mbps": 40.0,
+            "upload_seconds": 8.0860644
+          }
+        },
+        "wan_body_bytes": 236995715
+      },
+      "setup_inclusive_generated_tokens_per_second_ceiling": 0.24181730882472188
+    },
+    "unmeasured": [
+      "RTT and dependent protocol rounds",
+      "headers/TLS/ACKs, loss and retries",
+      "checkpoint distribution",
+      "WAN compute/queueing latency"
+    ]
+  },
+  "warmup_runs": []
+}
